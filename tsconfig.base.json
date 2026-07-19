@@ -106,6 +106,9 @@
             "@iptvnator/workspace/dashboard/data-access": [
                 "libs/workspace/dashboard/data-access/src/index.ts"
             ],
+            "@iptvnator/workspace/multiview/feature": [
+                "libs/workspace/multiview/feature/src/index.ts"
+            ],
             "@package": ["./package.json"]
         }
     },

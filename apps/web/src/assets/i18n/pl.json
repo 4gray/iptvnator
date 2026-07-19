@@ -1002,6 +1002,25 @@
         "HEADER": "Zdalne sterowanie IPTVNator",
         "FOOTER": "Zdalne sterowanie IPTVNator"
     },
+    "MULTIVIEW": {
+        "TITLE": "Multiwidok",
+        "ADD_CHANNEL": "Dodaj kanał",
+        "REMOVE_TILE": "Usuń kafelek",
+        "LAYOUT": "Układ",
+        "LAYOUT_1X2": "Siatka 1×2",
+        "LAYOUT_2X2": "Siatka 2×2",
+        "LAYOUT_1_PLUS_3": "1 duży + 3 małe",
+        "LAYOUT_3X3": "Siatka 3×3",
+        "EMPTY_HINT": "Dodaj kanały na żywo, aby oglądać kilka transmisji jednocześnie.",
+        "TILE_ERROR": "Odtwarzanie tego kanału nie powiodło się.",
+        "RETRY": "Spróbuj ponownie",
+        "PICKER_TITLE": "Wybierz kanał",
+        "PICKER_FAVORITES": "Ulubione",
+        "PICKER_RECENT": "Ostatnio oglądane",
+        "PICKER_SEARCH": "Szukaj kanałów...",
+        "PICKER_EMPTY": "Nie znaleziono kanałów na żywo.",
+        "CONNECTION_LIMIT_HINT": "Kilka kafelków korzysta z tego samego dostawcy. Większość dostawców ogranicza liczbę jednoczesnych transmisji, więc niektóre kafelki mogą nie działać."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Tylko ulubione",
         "SORT_CUSTOM": "Własna kolejność",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "Otwórz źródła",
             "RAIL_GLOBAL_FAVORITES": "Ulubione",
             "RAIL_GLOBAL_RECENT": "Ostatnio oglądane",
+            "RAIL_MULTIVIEW": "Multiwidok",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Ustawienia",
             "OPEN_SETTINGS": "Otwórz ustawienia",

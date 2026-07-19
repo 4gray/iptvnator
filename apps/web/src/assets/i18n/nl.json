@@ -1002,6 +1002,25 @@
         "HEADER": "IPTVNator Afstandsbediening",
         "FOOTER": "IPTVNator Afstandsbediening"
     },
+    "MULTIVIEW": {
+        "TITLE": "Multiview",
+        "ADD_CHANNEL": "Zender toevoegen",
+        "REMOVE_TILE": "Tegel verwijderen",
+        "LAYOUT": "Indeling",
+        "LAYOUT_1X2": "1×2-raster",
+        "LAYOUT_2X2": "2×2-raster",
+        "LAYOUT_1_PLUS_3": "1 groot + 3 klein",
+        "LAYOUT_3X3": "3×3-raster",
+        "EMPTY_HINT": "Voeg live zenders toe om meerdere streams tegelijk te bekijken.",
+        "TILE_ERROR": "Afspelen mislukt voor deze zender.",
+        "RETRY": "Opnieuw proberen",
+        "PICKER_TITLE": "Kies een zender",
+        "PICKER_FAVORITES": "Favorieten",
+        "PICKER_RECENT": "Recent bekeken",
+        "PICKER_SEARCH": "Zenders zoeken...",
+        "PICKER_EMPTY": "Geen live zenders gevonden.",
+        "CONNECTION_LIMIT_HINT": "Meerdere tegels gebruiken dezelfde provider. De meeste providers beperken gelijktijdige streams, waardoor sommige tegels kunnen mislukken."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Alleen favorieten",
         "SORT_CUSTOM": "Aangepaste volgorde",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "Open bronnen",
             "RAIL_GLOBAL_FAVORITES": "Favorieten",
             "RAIL_GLOBAL_RECENT": "Recent bekeken",
+            "RAIL_MULTIVIEW": "Multiview",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Instellingen",
             "OPEN_SETTINGS": "Open instellingen",

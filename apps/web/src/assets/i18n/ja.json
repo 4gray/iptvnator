@@ -1002,6 +1002,25 @@
         "HEADER": "IPTVNatorリモートコントロール",
         "FOOTER": "IPTVNatorリモートコントロール"
     },
+    "MULTIVIEW": {
+        "TITLE": "マルチビュー",
+        "ADD_CHANNEL": "チャンネルを追加",
+        "REMOVE_TILE": "タイルを削除",
+        "LAYOUT": "レイアウト",
+        "LAYOUT_1X2": "1×2グリッド",
+        "LAYOUT_2X2": "2×2グリッド",
+        "LAYOUT_1_PLUS_3": "大1 + 小3",
+        "LAYOUT_3X3": "3×3グリッド",
+        "EMPTY_HINT": "ライブチャンネルを追加して、複数のストリームを同時に視聴できます。",
+        "TILE_ERROR": "このチャンネルの再生に失敗しました。",
+        "RETRY": "再試行",
+        "PICKER_TITLE": "チャンネルを選択",
+        "PICKER_FAVORITES": "お気に入り",
+        "PICKER_RECENT": "最近視聴した項目",
+        "PICKER_SEARCH": "チャンネルを検索...",
+        "PICKER_EMPTY": "ライブチャンネルが見つかりません。",
+        "CONNECTION_LIMIT_HINT": "複数のタイルが同じプロバイダーを使用しています。多くのプロバイダーは同時ストリーム数を制限しているため、一部のタイルが失敗する場合があります。"
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "お気に入りのみ",
         "SORT_CUSTOM": "カスタム順",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "ソースを開く",
             "RAIL_GLOBAL_FAVORITES": "お気に入り",
             "RAIL_GLOBAL_RECENT": "最近表示した項目",
+            "RAIL_MULTIVIEW": "マルチビュー",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "設定",
             "OPEN_SETTINGS": "設定を開く",

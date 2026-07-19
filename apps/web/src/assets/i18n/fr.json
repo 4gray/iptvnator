@@ -1002,6 +1002,25 @@
         "HEADER": "Télécommande IPTVNator",
         "FOOTER": "Télécommande IPTVNator"
     },
+    "MULTIVIEW": {
+        "TITLE": "Multivue",
+        "ADD_CHANNEL": "Ajouter une chaîne",
+        "REMOVE_TILE": "Supprimer la tuile",
+        "LAYOUT": "Disposition",
+        "LAYOUT_1X2": "Grille 1×2",
+        "LAYOUT_2X2": "Grille 2×2",
+        "LAYOUT_1_PLUS_3": "1 grande + 3 petites",
+        "LAYOUT_3X3": "Grille 3×3",
+        "EMPTY_HINT": "Ajoutez des chaînes en direct pour regarder plusieurs flux à la fois.",
+        "TILE_ERROR": "Échec de la lecture pour cette chaîne.",
+        "RETRY": "Réessayer",
+        "PICKER_TITLE": "Sélectionner une chaîne",
+        "PICKER_FAVORITES": "Favoris",
+        "PICKER_RECENT": "Vus récemment",
+        "PICKER_SEARCH": "Rechercher des chaînes...",
+        "PICKER_EMPTY": "Aucune chaîne en direct trouvée.",
+        "CONNECTION_LIMIT_HINT": "Plusieurs tuiles utilisent le même fournisseur. La plupart des fournisseurs limitent les flux simultanés, certaines tuiles peuvent donc échouer."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Favoris uniquement",
         "SORT_CUSTOM": "Ordre personnalisé",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "Ouvrir les sources",
             "RAIL_GLOBAL_FAVORITES": "Favoris",
             "RAIL_GLOBAL_RECENT": "Récemment consultés",
+            "RAIL_MULTIVIEW": "Multivue",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Paramètres",
             "OPEN_SETTINGS": "Ouvrir les paramètres",

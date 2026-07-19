@@ -101,6 +101,13 @@ export const routes: Routes = [
                     ),
             },
             {
+                path: 'multiview',
+                loadComponent: () =>
+                    import('@iptvnator/workspace/multiview/feature').then(
+                        (c) => c.MultiviewPageComponent
+                    ),
+            },
+            {
                 path: 'search',
                 canActivate: [electronOnlyGlobalSearchGuard],
                 data: {

@@ -1002,6 +1002,25 @@
         "HEADER": "IPTVNator Uzaktan Kontrol",
         "FOOTER": "IPTVNator Uzaktan Kontrol"
     },
+    "MULTIVIEW": {
+        "TITLE": "Çoklu görünüm",
+        "ADD_CHANNEL": "Kanal ekle",
+        "REMOVE_TILE": "Kutucuğu kaldır",
+        "LAYOUT": "Düzen",
+        "LAYOUT_1X2": "1×2 ızgara",
+        "LAYOUT_2X2": "2×2 ızgara",
+        "LAYOUT_1_PLUS_3": "1 büyük + 3 küçük",
+        "LAYOUT_3X3": "3×3 ızgara",
+        "EMPTY_HINT": "Aynı anda birden fazla yayın izlemek için canlı kanallar ekleyin.",
+        "TILE_ERROR": "Bu kanal oynatılamadı.",
+        "RETRY": "Tekrar dene",
+        "PICKER_TITLE": "Kanal seçin",
+        "PICKER_FAVORITES": "Favoriler",
+        "PICKER_RECENT": "Son izlenenler",
+        "PICKER_SEARCH": "Kanal ara...",
+        "PICKER_EMPTY": "Canlı kanal bulunamadı.",
+        "CONNECTION_LIMIT_HINT": "Birden fazla kutucuk aynı sağlayıcıyı kullanıyor. Çoğu sağlayıcı eş zamanlı yayın sayısını sınırlar, bu nedenle bazı kutucuklar başarısız olabilir."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Yalnızca favoriler",
         "SORT_CUSTOM": "Özel sıralama",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "Kaynakları aç",
             "RAIL_GLOBAL_FAVORITES": "Favoriler",
             "RAIL_GLOBAL_RECENT": "Son izlenenler",
+            "RAIL_MULTIVIEW": "Çoklu görünüm",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Ayarlar",
             "OPEN_SETTINGS": "Ayarları aç",

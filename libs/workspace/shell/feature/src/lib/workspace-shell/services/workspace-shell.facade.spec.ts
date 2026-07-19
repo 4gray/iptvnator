@@ -677,6 +677,12 @@ describe('WorkspaceShellFacade', () => {
                 path: ['/workspace/global-recent'],
                 exact: true,
             },
+            {
+                icon: 'grid_view',
+                tooltip: 'WORKSPACE.SHELL.RAIL_MULTIVIEW',
+                path: ['/workspace/multiview'],
+                exact: true,
+            },
         ]);
         expect(facade.brandLink()).toBe('/workspace/sources');
     });
@@ -689,6 +695,7 @@ describe('WorkspaceShellFacade', () => {
             ['/workspace/sources'],
             ['/workspace/global-favorites'],
             ['/workspace/global-recent'],
+            ['/workspace/multiview'],
         ]);
     });
 

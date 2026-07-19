@@ -1002,6 +1002,25 @@
         "HEADER": "IPTVNator Remote Control",
         "FOOTER": "IPTVNator Remote Control"
     },
+    "MULTIVIEW": {
+        "TITLE": "Multiview",
+        "ADD_CHANNEL": "Add channel",
+        "REMOVE_TILE": "Remove tile",
+        "LAYOUT": "Layout",
+        "LAYOUT_1X2": "1×2 grid",
+        "LAYOUT_2X2": "2×2 grid",
+        "LAYOUT_1_PLUS_3": "1 large + 3 small",
+        "LAYOUT_3X3": "3×3 grid",
+        "EMPTY_HINT": "Add live channels to watch multiple streams at once.",
+        "TILE_ERROR": "Playback failed for this channel.",
+        "RETRY": "Retry",
+        "PICKER_TITLE": "Select a channel",
+        "PICKER_FAVORITES": "Favorites",
+        "PICKER_RECENT": "Recently viewed",
+        "PICKER_SEARCH": "Search channels...",
+        "PICKER_EMPTY": "No live channels found.",
+        "CONNECTION_LIMIT_HINT": "Multiple tiles use the same provider. Most providers limit concurrent streams, so some tiles may fail."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Favorites only",
         "SORT_CUSTOM": "Custom order",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "Open sources",
             "RAIL_GLOBAL_FAVORITES": "Favorites",
             "RAIL_GLOBAL_RECENT": "Recently viewed",
+            "RAIL_MULTIVIEW": "Multiview",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Settings",
             "OPEN_SETTINGS": "Open settings",

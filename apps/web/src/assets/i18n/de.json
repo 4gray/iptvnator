@@ -1002,6 +1002,25 @@
         "HEADER": "IPTVNator Fernbedienung",
         "FOOTER": "IPTVNator Fernbedienung"
     },
+    "MULTIVIEW": {
+        "TITLE": "Multiview",
+        "ADD_CHANNEL": "Sender hinzufügen",
+        "REMOVE_TILE": "Kachel entfernen",
+        "LAYOUT": "Layout",
+        "LAYOUT_1X2": "1×2-Raster",
+        "LAYOUT_2X2": "2×2-Raster",
+        "LAYOUT_1_PLUS_3": "1 groß + 3 klein",
+        "LAYOUT_3X3": "3×3-Raster",
+        "EMPTY_HINT": "Füge Live-Sender hinzu, um mehrere Streams gleichzeitig zu sehen.",
+        "TILE_ERROR": "Wiedergabe für diesen Sender fehlgeschlagen.",
+        "RETRY": "Erneut versuchen",
+        "PICKER_TITLE": "Sender auswählen",
+        "PICKER_FAVORITES": "Favoriten",
+        "PICKER_RECENT": "Zuletzt angesehen",
+        "PICKER_SEARCH": "Sender suchen...",
+        "PICKER_EMPTY": "Keine Live-Sender gefunden.",
+        "CONNECTION_LIMIT_HINT": "Mehrere Kacheln nutzen denselben Anbieter. Die meisten Anbieter begrenzen gleichzeitige Streams, daher können einzelne Kacheln fehlschlagen."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Nur Favoriten",
         "SORT_CUSTOM": "Eigene Reihenfolge",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "Quellen öffnen",
             "RAIL_GLOBAL_FAVORITES": "Favoriten",
             "RAIL_GLOBAL_RECENT": "Zuletzt angesehen",
+            "RAIL_MULTIVIEW": "Multiview",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Einstellungen",
             "OPEN_SETTINGS": "Einstellungen öffnen",

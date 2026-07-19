@@ -1002,6 +1002,25 @@
         "HEADER": "IPTVNator 遠端控制",
         "FOOTER": "IPTVNator 遠端控制"
     },
+    "MULTIVIEW": {
+        "TITLE": "多畫面",
+        "ADD_CHANNEL": "新增頻道",
+        "REMOVE_TILE": "移除窗格",
+        "LAYOUT": "版面配置",
+        "LAYOUT_1X2": "1×2 網格",
+        "LAYOUT_2X2": "2×2 網格",
+        "LAYOUT_1_PLUS_3": "1 大 + 3 小",
+        "LAYOUT_3X3": "3×3 網格",
+        "EMPTY_HINT": "新增直播頻道以同時觀看多個串流。",
+        "TILE_ERROR": "此頻道播放失敗。",
+        "RETRY": "重試",
+        "PICKER_TITLE": "選擇頻道",
+        "PICKER_FAVORITES": "我的最愛",
+        "PICKER_RECENT": "最近觀看",
+        "PICKER_SEARCH": "搜尋頻道...",
+        "PICKER_EMPTY": "找不到直播頻道。",
+        "CONNECTION_LIMIT_HINT": "多個窗格使用同一供應商。大多數供應商會限制同時串流數量，因此部分窗格可能無法播放。"
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "僅顯示我的最愛",
         "SORT_CUSTOM": "自訂排序",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "開啟來源",
             "RAIL_GLOBAL_FAVORITES": "我的最愛",
             "RAIL_GLOBAL_RECENT": "最近觀看",
+            "RAIL_MULTIVIEW": "多畫面",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "設定",
             "OPEN_SETTINGS": "開啟設定",

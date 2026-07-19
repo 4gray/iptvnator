@@ -1,0 +1,79 @@
+<div class="multiview-page">
+    <div class="multiview-toolbar">
+        <h1 class="multiview-title">{{ 'MULTIVIEW.TITLE' | translate }}</h1>
+        <mat-button-toggle-group
+            class="multiview-layout-picker"
+            hideSingleSelectionIndicator
+            [value]="state.layoutId()"
+            (change)="onLayoutChange($event.value)"
+            [attr.aria-label]="'MULTIVIEW.LAYOUT' | translate"
+        >
+            @for (preset of layouts; track preset.id) {
+                <mat-button-toggle
+                    [value]="preset.id"
+                    [matTooltip]="preset.labelKey | translate"
+                    [attr.aria-label]="preset.labelKey | translate"
+                >
+                    <mat-icon>{{ preset.icon }}</mat-icon>
+                </mat-button-toggle>
+            }
+        </mat-button-toggle-group>
+    </div>
+
+    @if (connectionLimitHintVisible()) {
+        <div class="multiview-hint" role="note">
+            <mat-icon>info_outline</mat-icon>
+            <span class="multiview-hint-text">
+                {{ 'MULTIVIEW.CONNECTION_LIMIT_HINT' | translate }}
+            </span>
+            <button
+                mat-icon-button
+                type="button"
+                [attr.aria-label]="'CLOSE' | translate"
+                (click)="dismissHint()"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+    }
+
+    <div
+        class="multiview-grid"
+        [style.grid-template-columns]="state.layout().columns"
+        [style.grid-template-rows]="state.layout().rows"
+        [style.grid-template-areas]="state.layout().areas"
+    >
+        @for (slot of state.slots(); track $index) {
+            @if (slot) {
+                <lib-multiview-tile
+                    [style.grid-area]="'t' + $index"
+                    [playback]="resolutionFor(slot).playback"
+                    [status]="resolutionFor(slot).status"
+                    [errorKey]="resolutionFor(slot).errorKey"
+                    [audioFocused]="state.audioFocusIndex() === $index"
+                    (focusRequested)="state.focusAudio($index)"
+                    (openInPlayerRequested)="openInPlayer(slot)"
+                    (removeRequested)="state.remove($index)"
+                    (retryRequested)="retry(slot)"
+                    (playbackFailed)="onTileFailed(slot)"
+                />
+            } @else {
+                <button
+                    type="button"
+                    class="multiview-add"
+                    [style.grid-area]="'t' + $index"
+                    (click)="openPicker($index)"
+                >
+                    <mat-icon>add</mat-icon>
+                    <span>{{ 'MULTIVIEW.ADD_CHANNEL' | translate }}</span>
+                </button>
+            }
+        }
+    </div>
+
+    @if (state.occupiedCount() === 0) {
+        <p class="multiview-empty-hint">
+            {{ 'MULTIVIEW.EMPTY_HINT' | translate }}
+        </p>
+    }
+</div>

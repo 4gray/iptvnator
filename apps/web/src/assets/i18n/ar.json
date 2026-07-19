@@ -1002,6 +1002,25 @@
         "HEADER": "التحكم عن بعد في IPTVNator",
         "FOOTER": "التحكم عن بعد في IPTVNator"
     },
+    "MULTIVIEW": {
+        "TITLE": "العرض المتعدد",
+        "ADD_CHANNEL": "إضافة قناة",
+        "REMOVE_TILE": "إزالة المربع",
+        "LAYOUT": "التخطيط",
+        "LAYOUT_1X2": "شبكة 1×2",
+        "LAYOUT_2X2": "شبكة 2×2",
+        "LAYOUT_1_PLUS_3": "1 كبير + 3 صغيرة",
+        "LAYOUT_3X3": "شبكة 3×3",
+        "EMPTY_HINT": "أضف قنوات مباشرة لمشاهدتها في وقت واحد.",
+        "TILE_ERROR": "فشل تشغيل هذه القناة.",
+        "RETRY": "إعادة المحاولة",
+        "PICKER_TITLE": "اختر قناة",
+        "PICKER_FAVORITES": "المفضلة",
+        "PICKER_RECENT": "تمت مشاهدتها مؤخرًا",
+        "PICKER_SEARCH": "البحث عن قنوات...",
+        "PICKER_EMPTY": "لم يتم العثور على قنوات مباشرة.",
+        "CONNECTION_LIMIT_HINT": "تستخدم عدة مربعات نفس المزود. يحدّ معظم المزودين من عدد التدفقات المتزامنة، لذا قد تفشل بعض المربعات."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "المفضلة فقط",
         "SORT_CUSTOM": "ترتيب مخصص",
@@ -1063,6 +1082,7 @@
             "OPEN_SOURCES": "فتح المصادر",
             "RAIL_GLOBAL_FAVORITES": "المفضلة",
             "RAIL_GLOBAL_RECENT": "تمت مشاهدتها مؤخرًا",
+            "RAIL_MULTIVIEW": "العرض المتعدد",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "الإعدادات",
             "OPEN_SETTINGS": "فتح الإعدادات",
