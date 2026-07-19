@@ -253,9 +253,17 @@
                                     }
                                 </div>
 
-                                @if (
-                                    item.status === 'downloading' ||
-                                    item.status === 'paused'
+                                @if (item.status === 'downloading') {
+                                    <mat-progress-bar
+                                        [mode]="
+                                            item.totalBytes
+                                                ? 'determinate'
+                                                : 'indeterminate'
+                                        "
+                                        [value]="getProgress(item)"
+                                    ></mat-progress-bar>
+                                } @else if (
+                                    item.status === 'paused' && item.totalBytes
                                 ) {
                                     <mat-progress-bar
                                         mode="determinate"

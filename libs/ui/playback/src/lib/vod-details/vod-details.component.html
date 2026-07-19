@@ -194,6 +194,14 @@
                     <mat-icon>play_circle</mat-icon>
                     {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                 </button>
+            } @else if (isPausedDownload()) {
+                <button
+                    class="download-btn download-btn--paused"
+                    (click)="resumePausedDownload()"
+                >
+                    <mat-icon>play_arrow</mat-icon>
+                    {{ 'DOWNLOADS.RESUME' | translate }}
+                </button>
             } @else if (isDownloading()) {
                 <button class="download-btn download-btn--downloading" disabled>
                     <mat-icon>downloading</mat-icon>

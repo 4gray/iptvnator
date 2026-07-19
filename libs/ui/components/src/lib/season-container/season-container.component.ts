@@ -414,6 +414,35 @@ export class SeasonContainerComponent implements OnInit {
         );
     }
 
+    isEpisodePaused(episode: XtreamSerieEpisode): boolean {
+        if (!this.playlistId()) {
+            return false;
+        }
+
+        this.downloadsService.downloads();
+        return this.downloadsService.isPaused(
+            getEpisodeDownloadId(episode),
+            this.playlistId(),
+            'episode'
+        );
+    }
+
+    async resumeEpisodeDownload(
+        event: Event,
+        episode: XtreamSerieEpisode
+    ): Promise<void> {
+        event.stopPropagation();
+        if (!this.playlistId()) {
+            return;
+        }
+
+        await this.downloadsService.resumeDownloadByContent(
+            getEpisodeDownloadId(episode),
+            this.playlistId(),
+            'episode'
+        );
+    }
+
     async playFromLocal(event: Event, episode: XtreamSerieEpisode) {
         event.stopPropagation();
         if (!this.playlistId()) {

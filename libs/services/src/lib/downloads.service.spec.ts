@@ -271,4 +271,45 @@ describe('DownloadsService', () => {
             'playlist-new'
         );
     });
+
+    it('reports paused content and resumes it by content identity', async () => {
+        const pausedItem = {
+            ...createDownload(7),
+            status: 'paused' as DownloadItem['status'],
+        };
+        const service = createService([
+            pausedItem,
+            createDownload(8),
+        ]) as unknown as DownloadsService;
+        const resumeDownload = jest
+            .fn()
+            .mockResolvedValue({ success: true });
+        (service as unknown as { resumeDownload: jest.Mock }).resumeDownload =
+            resumeDownload;
+
+        expect(service.isPaused(7, 'playlist-1', 'vod')).toBe(true);
+        expect(service.isPaused(8, 'playlist-1', 'vod')).toBe(false);
+
+        await expect(
+            service.resumeDownloadByContent(7, 'playlist-1', 'vod')
+        ).resolves.toEqual({ success: true });
+        expect(resumeDownload).toHaveBeenCalledWith(7);
+    });
+
+    it('rejects resume-by-content when the download is not paused', async () => {
+        const service = createService([
+            createDownload(8),
+        ]) as unknown as DownloadsService;
+        const resumeDownload = jest.fn();
+        (service as unknown as { resumeDownload: jest.Mock }).resumeDownload =
+            resumeDownload;
+
+        await expect(
+            service.resumeDownloadByContent(8, 'playlist-1', 'vod')
+        ).resolves.toEqual({
+            error: 'No paused download found',
+            success: false,
+        });
+        expect(resumeDownload).not.toHaveBeenCalled();
+    });
 });

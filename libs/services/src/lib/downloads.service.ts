@@ -465,6 +465,33 @@ export class DownloadsService implements OnDestroy {
     }
 
     /**
+     * Check if content has a paused download
+     */
+    isPaused(
+        xtreamId: number,
+        playlistId: string,
+        contentType: 'vod' | 'episode'
+    ): boolean {
+        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        return download?.status === 'paused';
+    }
+
+    /**
+     * Resume the paused download that belongs to a content item
+     */
+    async resumeDownloadByContent(
+        xtreamId: number,
+        playlistId: string,
+        contentType: 'vod' | 'episode'
+    ): Promise<{ success: boolean; error?: string }> {
+        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        if (!download || download.status !== 'paused') {
+            return { success: false, error: 'No paused download found' };
+        }
+        return this.resumeDownload(download.id);
+    }
+
+    /**
      * Get the file path for a downloaded content item
      */
     getDownloadedFilePath(

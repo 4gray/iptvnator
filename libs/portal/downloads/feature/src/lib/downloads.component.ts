@@ -261,19 +261,31 @@ export class DownloadsComponent {
     }
 
     async cancel(item: DownloadItem) {
-        await this.downloadsService.cancelDownload(item.id);
+        const result = await this.downloadsService.cancelDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async pause(item: DownloadItem) {
-        await this.downloadsService.pauseDownload(item.id);
+        const result = await this.downloadsService.pauseDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async resume(item: DownloadItem) {
-        await this.downloadsService.resumeDownload(item.id);
+        const result = await this.downloadsService.resumeDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async retry(item: DownloadItem) {
-        await this.downloadsService.retryDownload(item.id);
+        const result = await this.downloadsService.retryDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async remove(item: DownloadItem) {
@@ -581,6 +593,17 @@ export class DownloadsComponent {
 
     private getPosterKey(item: DownloadItem): string {
         return `${item.id}:${item.posterUrl ?? ''}`;
+    }
+
+    private showActionError(error?: string): void {
+        const message = error
+            ? `${this.translate.instant('DOWNLOADS.ACTION_FAILED')}: ${error}`
+            : this.translate.instant('DOWNLOADS.ACTION_FAILED');
+
+        this.snackBar.open(message, undefined, {
+            duration: 4000,
+            horizontalPosition: 'start',
+        });
     }
 
     private handleFileActionError(error?: string): void {

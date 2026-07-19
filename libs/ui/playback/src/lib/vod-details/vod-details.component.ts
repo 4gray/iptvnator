@@ -207,6 +207,15 @@ export class VodDetailsComponent {
         return this.downloadsService.isDownloading(vodId, item.playlistId, 'vod');
     });
 
+    /** Whether the VOD download is paused */
+    readonly isPausedDownload = computed(() => {
+        const item = this.item();
+        // Access signal to create reactive dependency
+        this.downloadsService.downloads();
+        const vodId = getVodNumericId(item);
+        return this.downloadsService.isPaused(vodId, item.playlistId, 'vod');
+    });
+
     readonly matchedExternalPlayback = computed(() => {
         const session = this.externalPlayback();
         const item = this.item();
@@ -341,6 +350,16 @@ export class VodDetailsComponent {
     /** Handle download request */
     onDownload(): void {
         this.downloadRequested.emit(this.item());
+    }
+
+    /** Resume the paused download of this VOD */
+    async resumePausedDownload(): Promise<void> {
+        const item = this.item();
+        await this.downloadsService.resumeDownloadByContent(
+            getVodNumericId(item),
+            item.playlistId,
+            'vod'
+        );
     }
 
     onInlineTimeUpdate(event: {
