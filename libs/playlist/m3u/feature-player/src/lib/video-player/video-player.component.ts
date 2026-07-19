@@ -23,6 +23,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
+    applyChannelNameStrip,
     getM3uArchiveDays,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
@@ -191,8 +192,26 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly epgArchiveDays = computed(() =>
         getM3uArchiveDays(this.activeChannel())
     );
-    readonly timelineChannelName = computed(
-        () => this.activeChannel()?.name ?? ''
+    readonly timelineChannelName = computed(() =>
+        applyChannelNameStrip(
+            this.activeChannel()?.name,
+            this.settingsStore.stripCountryPrefix?.()
+        )
+    );
+    /** Channel name for the radio player header. */
+    readonly displayChannelName = computed(() => {
+        const channel = this.activeChannel();
+        return applyChannelNameStrip(
+            channel?.name || channel?.tvg?.name,
+            this.settingsStore.stripCountryPrefix?.()
+        );
+    });
+    /** Display title for the inline web player header. */
+    readonly inlinePlayerTitle = computed(() =>
+        applyChannelNameStrip(
+            this.embeddedPlayback()?.title,
+            this.settingsStore.stripCountryPrefix?.()
+        )
     );
     /** Channel logo from the EPG feed (M3U playlists often lack tvg-logo). */
     private readonly epgChannelLogo = toSignal(

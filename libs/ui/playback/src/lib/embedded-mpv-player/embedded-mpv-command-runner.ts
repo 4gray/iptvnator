@@ -152,6 +152,7 @@ export class EmbeddedMpvCommandRunner {
         expectedSessionId: string,
         call: () => Promise<EmbeddedMpvSession | null>
     ): Promise<EmbeddedMpvSession | null> {
+        const sessionBeforeCall = this.ctx.session();
         const updated = await this.guardIpc(call);
         if (
             !updated ||
@@ -160,8 +161,40 @@ export class EmbeddedMpvCommandRunner {
         ) {
             return null;
         }
+        const current = this.ctx.session();
+        if (
+            current?.id === expectedSessionId &&
+            this.shouldKeepCurrentSnapshot(current, updated, sessionBeforeCall)
+        ) {
+            return current;
+        }
         this.ctx.session.set(updated);
         return updated;
+    }
+
+    /**
+     * Session broadcasts and invoke replies can cross in flight. Preserve a
+     * broadcast observed during this command when it is newer than the reply;
+     * for equal timestamps, renderer arrival order breaks the tie.
+     */
+    private shouldKeepCurrentSnapshot(
+        current: EmbeddedMpvSession,
+        candidate: EmbeddedMpvSession,
+        sessionBeforeCall: EmbeddedMpvSession | null
+    ): boolean {
+        const currentUpdatedAt = Date.parse(current.updatedAt);
+        const candidateUpdatedAt = Date.parse(candidate.updatedAt);
+        if (
+            !Number.isFinite(currentUpdatedAt) ||
+            !Number.isFinite(candidateUpdatedAt)
+        ) {
+            return false;
+        }
+        return (
+            currentUpdatedAt > candidateUpdatedAt ||
+            (currentUpdatedAt === candidateUpdatedAt &&
+                current !== sessionBeforeCall)
+        );
     }
 
     private async guardIpc<T>(call: () => Promise<T>): Promise<T | null> {

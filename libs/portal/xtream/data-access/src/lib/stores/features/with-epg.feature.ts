@@ -6,7 +6,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { EpgItem } from '@iptvnator/shared/interfaces';
+import { buildXtreamEpgMappingKey, EpgItem } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     XtreamApiService,
@@ -40,7 +40,7 @@ const initialEpgState: EpgState = {
 export function withEpg() {
     const logger = createLogger('withEpg');
     type ParentSelectionStoreLike = {
-        currentPlaylist?: () => XtreamCredentials | null;
+        currentPlaylist?: () => (XtreamCredentials & { id?: string }) | null;
         selectedItem?: () => {
             xtream_id?: number | null;
             epg_channel_id?: string | null;
@@ -146,10 +146,33 @@ export function withEpg() {
 
                     patchState(store, { epgItems: [], isLoadingEpg: true });
 
+                    // Resolve manual EPG mapping before the provider waterfall.
+                    // The mapping dialog saves under the playlist-scoped
+                    // Xtream key, so look it up and use the mapped EPG
+                    // channel ID for the XMLTV / provider lookup.
+                    let epgChannelId = selectedItem?.epg_channel_id ?? null;
+                    const playlistId = storeAny.currentPlaylist?.()?.id;
+                    if (runtime.supportsEpgMapping && playlistId) {
+                        try {
+                            const mapping =
+                                await window.electron?.getEpgMapping?.(
+                                    buildXtreamEpgMappingKey(
+                                        playlistId,
+                                        xtreamId
+                                    )
+                                );
+                            if (mapping?.epgChannelId?.trim()) {
+                                epgChannelId = mapping.epgChannelId.trim();
+                            }
+                        } catch {
+                            // Non-fatal; keep original epgChannelId.
+                        }
+                    }
+
                     try {
                         const epgItems =
                             await fallbackService.resolveCurrentEpg({
-                                epgChannelId: selectedItem.epg_channel_id,
+                                epgChannelId,
                                 preferUploaded: preferUploaded(),
                                 fetchProvider: () =>
                                     fetchFullProvider(credentials, xtreamId),

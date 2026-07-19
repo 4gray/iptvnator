@@ -1,7 +1,9 @@
 import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
+
+const settingsReadyResolver = () => inject(SettingsStore).loadSettings();
 
 const workspaceEntryRedirect = async () =>
     inject(WorkspaceStartupPreferencesService).resolveInitialWorkspacePath();
@@ -40,6 +42,9 @@ export const routes: Routes = [
         path: 'workspace',
         data: {
             layout: 'workspace',
+        },
+        resolve: {
+            settingsReady: settingsReadyResolver,
         },
         loadComponent: () =>
             import('@iptvnator/workspace/shell/feature').then(

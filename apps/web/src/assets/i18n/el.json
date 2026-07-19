@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Διαγραφή…",
         "EPG_URL_ERROR": "Η τιμή δεν είναι έγκυρη διεύθυνση URL",
         "VIDEO_PLAYER_DESCRIPTION": "Επιλογή προεπιλεγμένου προγράμματος αναπαραγωγής βίντεο",
+        "WEB_PLAYER_SHARED_CONTROLS": "Ενοποιημένα στοιχεία ελέγχου για web players (πειραματικό)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Χρησιμοποιήστε τα κοινά στοιχεία ελέγχου του IPTVnator σε HTML5, Video.js και ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Επιλογή προεπιλεγμένης μορφής ροής (xtream)",
         "LANGUAGE_DESCRIPTION": "Επιλέξτε τη γλώσσα της εφαρμογής",
         "THEME_DESCRIPTION": "Επιλέξτε οπτικό θέμα της εφαρμογής",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Εμφάνιση ή απόκρυψη υποτίτλων από προεπιλογή",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Εμφάνιση υποσέλιδου αναπαραγωγής",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Διατηρήστε ορατή τη γραμμή κατάστασης του εξωτερικού προγράμματος αναπαραγωγής στο κάτω μέρος του χώρου εργασίας στον υπολογιστή.",
+        "STRIP_COUNTRY_PREFIX": "Αφαίρεση προθεμάτων χώρας από τα ονόματα καναλιών",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Αφαιρεί προθέματα χώρας/ομάδας όπως \"US | \" ή \"UK - \" από τα ονόματα καναλιών ζωντανής ροής σε όλη την εφαρμογή.",
         "VERSION_DESCRIPTION": "Τρέχουσα έκδοση της εφαρμογής",
         "ABOUT_SUBTITLE": "Έκδοση, σύνδεσμοι έργου και τρόποι υποστήριξης του IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Ενσωματωμένος χρόνος εκτέλεσης MPV",
@@ -487,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Η έναρξη της εγγραφής απέτυχε.",
             "RECORDING_FAILED_TO_STOP": "Η διακοπή της εγγραφής απέτυχε.",
             "SAVED_TO": "Αποθηκεύτηκε στο {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Έναρξη εικόνας εντός εικόνας",
+            "EXIT_PICTURE_IN_PICTURE": "Έξοδος από εικόνα εντός εικόνας",
             "ENTER_FULLSCREEN": "Μετάβαση σε πλήρη οθόνη",
             "EXIT_FULLSCREEN": "Έξοδος από πλήρη οθόνη"
         }
@@ -563,6 +569,7 @@
         "REMOVE_FAVORITE": "Αφαίρεση από τα αγαπημένα",
         "ADD_FAVORITE": "Προσθήκη στα αγαπημένα",
         "SHOW_DETAILS": "Εμφάνιση λεπτομερειών καναλιού",
+        "MAP_EPG": "Αντιστοίχιση καναλιού EPG",
         "FAVORITES_UPDATED": "Τα αγαπημένα ενημερώθηκαν!",
         "SELECT_CHANNEL_PLAYBACK": "Επιλέξτε ένα κανάλι για να ξεκινήσει η αναπαραγωγή",
         "SORT_BY": "Ταξινόμηση κατά",
@@ -709,6 +716,21 @@
             "GROUP_EXPAND": "εμφάνιση ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Αντιστοίχιση καναλιού EPG",
+        "SUBTITLE": "Επιλέξτε χειροκίνητα κανάλι EPG για το \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Αναζήτηση καναλιών EPG...",
+        "CURRENT_MAPPING": "Τρέχουσα αντιστοίχιση",
+        "NO_MAPPING": "Δεν έχει οριστεί αντιστοίχιση EPG",
+        "SAVE": "Αποθήκευση αντιστοίχισης",
+        "REMOVE": "Κατάργηση αντιστοίχισης",
+        "CLOSE": "Κλείσιμο",
+        "NO_RESULTS": "Δεν βρέθηκαν κανάλια EPG",
+        "SEARCH_HINT": "Πληκτρολογήστε τουλάχιστον {{min}} χαρακτήρες για αναζήτηση",
+        "SAVED": "Η αντιστοίχιση EPG αποθηκεύτηκε",
+        "REMOVED": "Η αντιστοίχιση EPG καταργήθηκε",
+        "SAVE_FAILED": "Δεν ήταν δυνατή η ενημέρωση της αντιστοίχισης EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -784,6 +806,7 @@
         "RESTART": "Από την αρχή",
         "CONTINUE_WATCHING": "Συνέχιση παρακολούθησης",
         "PLAY_FIRST_EPISODE": "Αναπαραγωγή πρώτου επεισοδίου",
+        "PLAY_EPISODE": "Αναπαραγωγή επεισοδίου {{episode}}",
         "RESUME_EPISODE": "Συνέχιση επεισοδίου",
         "PLAY_NEXT_EPISODE": "Αναπαραγωγή επόμενου επεισοδίου",
         "SERIES_WATCHED": "Η σειρά προβλήθηκε",

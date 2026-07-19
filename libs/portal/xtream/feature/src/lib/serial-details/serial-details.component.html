@@ -102,7 +102,10 @@
                     </span>
                     <span class="play-btn__copy">
                         <span class="play-btn__label">
-                            {{ action.labelKey | translate }}
+                            {{
+                                action.labelKey
+                                    | translate: action.labelParams
+                            }}
                         </span>
                         <span class="play-btn__meta">
                             {{ action.episodeLabel }}

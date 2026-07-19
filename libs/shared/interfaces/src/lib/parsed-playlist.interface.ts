@@ -22,7 +22,8 @@ export interface ParsedPlaylistItem {
         referrer: string;
         'user-agent': string;
     };
-    url: string;
+    /** absent when an #EXTINF entry has no stream URL (e.g. truncated file) */
+    url?: string;
     raw: string;
     catchup?: {
         type?: string;

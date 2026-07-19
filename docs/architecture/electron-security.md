@@ -188,6 +188,26 @@ playlist or EPG source host. The `IPTVNATOR_ALLOW_INSECURE_TLS=1` escape hatch
 is only for explicitly trusted providers with invalid or self-signed
 certificates when the host-scoped UI path is not available.
 
+## Sensitive Diagnostic Logging
+
+Settings, portal requests/responses, IPC trace payloads, and remote-request
+errors can contain provider credentials. Code at those boundaries must pass
+structured values through `redactSensitiveData` from
+`@iptvnator/shared/logging`, or through the portal `createLogger`/portal-debug
+helpers that apply it. Do not send a raw settings object, request params,
+response, or `Error` directly to `console.*`.
+
+The redactor preserves non-sensitive diagnostic fields while replacing
+credential fields case-insensitively, including usernames, passwords, tokens,
+API keys, authorization/cookie headers, and MAC addresses. It also sanitizes
+URL query parameters, serialized JSON, nested query values, errors, arrays,
+and cyclic objects without mutating the original value. Depth, collection,
+object-key, and string limits keep opt-in debug traces bounded.
+
+When adding a new logging boundary, extend the closest regression test with a
+synthetic secret and assert that the exact value is absent from captured log
+output. Never use a real provider credential to validate logging.
+
 ## Filesystem Capabilities
 
 Renderer IPC payloads are not filesystem authorization.

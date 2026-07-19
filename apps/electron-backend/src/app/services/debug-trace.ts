@@ -1,3 +1,5 @@
+import { redactSensitiveData } from '@iptvnator/shared/logging';
+
 const TRACE_ENV_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const TRACE_PREFIX = '[IPTVnator Trace]';
 const MAX_TRACE_ARRAY_ITEMS = 5;
@@ -165,10 +167,10 @@ export function summarizeForTrace(value: unknown, depth = 0): unknown {
 
 export function safeStringifyForTrace(payload: unknown): string {
     try {
-        return JSON.stringify(payload);
+        return JSON.stringify(redactSensitiveData(payload));
     } catch (error) {
         return JSON.stringify({
-            fallback: summarizeForTrace(payload),
+            fallback: summarizeForTrace(redactSensitiveData(payload)),
             stringifyError:
                 error instanceof Error
                     ? truncateString(error.message)
@@ -185,7 +187,7 @@ export function trace(scope: string, message: string, payload?: unknown): void {
 
     console.log(
         `${TRACE_PREFIX}[${scope}] ${message} ${safeStringifyForTrace(
-            summarizeForTrace(payload)
+            summarizeForTrace(redactSensitiveData(payload))
         )}`
     );
 }

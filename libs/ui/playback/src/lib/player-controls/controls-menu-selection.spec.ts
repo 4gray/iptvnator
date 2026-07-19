@@ -21,6 +21,7 @@ describe('ControlsMenuSelection', () => {
             setPlaybackSpeed: jest.fn(),
             setAspectRatio: jest.fn(),
             toggleRecording: jest.fn(),
+            togglePictureInPicture: jest.fn(),
         };
         menus = new ControlsMenuState();
         visibility = new ControlsVisibility(() => false);

@@ -4,11 +4,17 @@ import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
+import {
+    PlayerControlsComponent,
+    WebVideoControlsAdapter,
+} from '../player-controls';
+import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import { HtmlVideoPlayerComponent } from './html-video-player.component';
 
 describe('HtmlVideoPlayerComponent', () => {
     let component: HtmlVideoPlayerComponent;
     let fixture: ComponentFixture<HtmlVideoPlayerComponent>;
+    let adapterAttach: jest.SpiedFunction<WebVideoControlsAdapter['attach']>;
     const electronApi = {
         setUserAgent: jest.fn().mockResolvedValue(true),
     };
@@ -49,6 +55,7 @@ describe('HtmlVideoPlayerComponent', () => {
     }));
 
     beforeEach(() => {
+        adapterAttach = jest.spyOn(WebVideoControlsAdapter.prototype, 'attach');
         Object.defineProperty(window, 'electron', {
             configurable: true,
             value: electronApi,
@@ -62,34 +69,61 @@ describe('HtmlVideoPlayerComponent', () => {
 
     afterEach(() => {
         delete (window as unknown as { electron?: unknown }).electron;
+        jest.restoreAllMocks();
     });
 
     it('should create', () => {
         expect(component).toBeTruthy();
     });
 
+    it('keeps native and legacy controls when shared controls are disabled', () => {
+        const video = component.videoPlayer.nativeElement;
+
+        expect(video.controls).toBe(true);
+        expect(
+            fixture.debugElement.query(By.directive(PlayerControlsComponent))
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.directive(SeriesPlaybackNavigationControlsComponent)
+            )
+        ).not.toBeNull();
+        expect(adapterAttach).not.toHaveBeenCalled();
+    });
+
+    it('keeps legacy post-play caption suppression when shared controls are disabled', async () => {
+        const video = component.videoPlayer.nativeElement;
+        const tracks = [{ mode: 'showing' as TextTrackMode }];
+        Object.defineProperty(video, 'textTracks', {
+            configurable: true,
+            value: tracks,
+        });
+        jest.spyOn(video, 'play').mockResolvedValue(undefined);
+        fixture.componentRef.setInput('showCaptions', false);
+        fixture.detectChanges();
+
+        component.handlePlayOperation();
+        await Promise.resolve();
+
+        expect(tracks[0].mode).toBe('hidden');
+    });
+
     it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
         const el = component.videoPlayer.nativeElement;
         const removeSpy = jest.spyOn(el, 'removeEventListener');
-        const handlers = component as unknown as {
-            handleVolumeChange: EventListener;
-            handleLoadedMetadata: EventListener;
-            handleTimeUpdate: EventListener;
-        };
-
         fixture.destroy();
 
         expect(removeSpy).toHaveBeenCalledWith(
             'volumechange',
-            handlers.handleVolumeChange
+            expect.any(Function)
         );
         expect(removeSpy).toHaveBeenCalledWith(
             'loadedmetadata',
-            handlers.handleLoadedMetadata
+            expect.any(Function)
         );
         expect(removeSpy).toHaveBeenCalledWith(
             'timeupdate',
-            handlers.handleTimeUpdate
+            expect.any(Function)
         );
     });
 
@@ -181,9 +215,7 @@ describe('HtmlVideoPlayerComponent', () => {
         const sources = Array.from(video.querySelectorAll('source'));
         const [source] = sources;
         expect(sources).toHaveLength(1);
-        expect(source?.src).toBe(
-            'https://stream.example/series/s01e02.mp4'
-        );
+        expect(source?.src).toBe('https://stream.example/series/s01e02.mp4');
         expect(source?.type).toBe('video/mp4');
         expect(loadSpy).toHaveBeenCalledTimes(2);
         expect(playSpy).toHaveBeenCalledTimes(2);

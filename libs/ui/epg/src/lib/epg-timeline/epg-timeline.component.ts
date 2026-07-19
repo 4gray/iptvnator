@@ -305,15 +305,15 @@ export class EpgTimelineComponent {
 
     onBlockClick(block: timeline.TimelineBlock): void {
         this.selectedKey.set(block.key);
-        if (block.when === 'now') {
-            this.returnToLive.emit();
-            return;
-        }
         if (this.canCatchUp(block)) {
             this.programActivated.emit({
                 program: block.program,
                 type: 'timeshift',
             });
+            return;
+        }
+        if (block.when === 'now') {
+            this.returnToLive.emit();
         }
     }
 

@@ -11,7 +11,7 @@
  * earlier software renderer is recreated only if no hardware tier works.
  * Each tier uses a desktop-GL 3.2 core context bound surfaceless (1x1 pbuffer
  * fallback for drivers without EGL_KHR_surfaceless_context). The helper's
- * own GL calls resolve at link time through libOpenGL (glvnd); mpv resolves
+ * own GL calls resolve at link time through libGL (glvnd); mpv resolves
  * core symbols from that linked library and falls back to eglGetProcAddress
  * for extensions.
  *
@@ -188,6 +188,7 @@ public:
 
     GlGetProcAddressFn procLoader() const { return glDlsymGetProcAddress; }
     void* procLoaderCtx() const { return glDylib_; }
+    const char* renderApiName() const { return "cgl"; }
 
 private:
     CGLContextObj cgl_ = nullptr;
@@ -337,6 +338,7 @@ public:
 
     GlGetProcAddressFn procLoader() const { return eglWrapGetProcAddress; }
     void* procLoaderCtx() const { return nullptr; }
+    const char* renderApiName() const { return "egl"; }
 
 private:
     enum class DisplayTier { SurfacelessMesa, Default, Gbm };
@@ -780,6 +782,7 @@ public:
 
     GlGetProcAddressFn procLoader() const { return wglLoaderGetProcAddress; }
     void* procLoaderCtx() const { return opengl32_; }
+    const char* renderApiName() const { return "wgl"; }
 
 private:
     HWND window_ = nullptr;

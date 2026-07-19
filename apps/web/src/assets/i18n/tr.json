@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Temizleniyor…",
         "EPG_URL_ERROR": "Girilen değer geçerli bir URL değildir",
         "VIDEO_PLAYER_DESCRIPTION": "Varsayılan video oynatıcıyı seçin",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web oynatıcıları için birleşik kontroller (deneysel)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5, Video.js ve ArtPlayer'da IPTVnator'ın ortak kontrollerini kullan.",
         "STREAM_FORMAT_DESCRIPTION": "Varsayılan yayın formatını seçin (xtream)",
         "LANGUAGE_DESCRIPTION": "Uygulamanın dilini seçin",
         "THEME_DESCRIPTION": "Uygulamanın görünüm temasını seçin",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Varsayılan olarak altyazıları göster veya gizle",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Şu an oynatılıyor altbilgisini göster",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Masaüstünde harici oynatıcı durum çubuğunu çalışma alanının altında görünür tutun.",
+        "STRIP_COUNTRY_PREFIX": "Kanal adlarından ülke ön eklerini kaldır",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Uygulama genelinde canlı kanal adlarından \"US | \" veya \"UK - \" gibi ülke/grup ön eklerini kaldırır.",
         "VERSION_DESCRIPTION": "Uygulamanın geçerli sürümü",
         "ABOUT_SUBTITLE": "Sürüm, proje bağlantıları ve IPTVnator'u desteklemenin yolları.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Gömülü MPV çalışma zamanı",
@@ -487,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Kayıt başlatılamadı.",
             "RECORDING_FAILED_TO_STOP": "Kayıt durdurulamadı.",
             "SAVED_TO": "{{path}} konumuna kaydedildi",
+            "ENTER_PICTURE_IN_PICTURE": "Resim içinde resim modunu aç",
+            "EXIT_PICTURE_IN_PICTURE": "Resim içinde resim modundan çık",
             "ENTER_FULLSCREEN": "Tam ekrana geç",
             "EXIT_FULLSCREEN": "Tam ekrandan çık"
         }
@@ -563,6 +569,7 @@
         "REMOVE_FAVORITE": "Favorilerden kaldır",
         "ADD_FAVORITE": "Favorilere ekle",
         "SHOW_DETAILS": "Kanal ayrıntılarını göster",
+        "MAP_EPG": "EPG kanalı eşle",
         "FAVORITES_UPDATED": "Favoriler güncellendi!",
         "SELECT_CHANNEL_PLAYBACK": "Lütfen oynatmaya başlamak için bir kanal seçin",
         "SORT_BY": "Sırala",
@@ -709,6 +716,21 @@
             "GROUP_EXPAND": "göster ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG Kanalı Eşle",
+        "SUBTITLE": "\"{{channelName}}\" için EPG kanalını elle seçin",
+        "SEARCH_PLACEHOLDER": "EPG kanallarında ara...",
+        "CURRENT_MAPPING": "Geçerli eşleme",
+        "NO_MAPPING": "EPG eşlemesi ayarlanmadı",
+        "SAVE": "Eşlemeyi kaydet",
+        "REMOVE": "Eşlemeyi kaldır",
+        "CLOSE": "Kapat",
+        "NO_RESULTS": "EPG kanalı bulunamadı",
+        "SEARCH_HINT": "Aramak için en az {{min}} karakter yazın",
+        "SAVED": "EPG eşlemesi kaydedildi",
+        "REMOVED": "EPG eşlemesi kaldırıldı",
+        "SAVE_FAILED": "EPG eşlemesi güncellenemedi"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -784,6 +806,7 @@
         "RESTART": "Baştan Başla",
         "CONTINUE_WATCHING": "İzlemeye Devam Et",
         "PLAY_FIRST_EPISODE": "İlk bölümü oynat",
+        "PLAY_EPISODE": "{{episode}}. bölümü oynat",
         "RESUME_EPISODE": "Bölüme devam et",
         "PLAY_NEXT_EPISODE": "Sonraki bölümü oynat",
         "SERIES_WATCHED": "Dizi izlendi",

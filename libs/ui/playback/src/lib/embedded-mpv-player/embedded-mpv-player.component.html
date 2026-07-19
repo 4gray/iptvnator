@@ -3,10 +3,14 @@
     class="embedded-mpv-player"
     [class.embedded-mpv-player--fullscreen]="isFullscreen()"
     [class.embedded-mpv-player--controls-enabled]="
-        showControls() && isSupported()
+        !isFrameCopyEngine() && showControls() && isSupported()
     "
-    [class.embedded-mpv-player--controls-visible]="controlsAreVisible()"
-    [class.embedded-mpv-player--cursor-hidden]="hideCursor()"
+    [class.embedded-mpv-player--controls-visible]="
+        !isFrameCopyEngine() && controlsAreVisible()
+    "
+    [class.embedded-mpv-player--cursor-hidden]="
+        !isFrameCopyEngine() && hideCursor()
+    "
     (pointerenter)="onPlayerInteraction()"
     (pointermove)="onPlayerInteraction()"
     (click)="onPlayerInteraction()"
@@ -78,7 +82,7 @@
             </div>
         }
 
-        @if (feedback.current(); as feedback) {
+        @if (!isFrameCopyEngine() && feedback.current(); as feedback) {
             <div
                 class="embedded-mpv-player__feedback"
                 [attr.data-feedback-key]="feedback.key"
@@ -90,7 +94,18 @@
         }
     </div>
 
-    @if (showControls() && isSupported()) {
+    @if (isFrameCopyEngine() && isSupported()) {
+        <app-player-controls
+            [controller]="sharedControls"
+            [playerSurface]="playerSurface()"
+            [showControls]="showControls()"
+            [shortcutsEnabled]="sharedShortcutsEnabled()"
+            (previousEpisodeRequested)="requestPreviousEpisode()"
+            (nextEpisodeRequested)="requestNextEpisode()"
+        />
+    }
+
+    @if (!isFrameCopyEngine() && showControls() && isSupported()) {
         <div
             class="embedded-mpv-player__controls"
             [class.embedded-mpv-player__controls--visible]="
@@ -104,14 +119,18 @@
                     class="embedded-mpv-player__control-button"
                     [disabled]="isLoading()"
                     (click)="togglePaused()"
-                    [attr.aria-label]="(isPaused()
+                    [attr.aria-label]="
+                        (isPaused()
                             ? 'EMBEDDED_MPV.PLAYER.PLAY'
                             : 'EMBEDDED_MPV.PLAYER.PAUSE'
-                        ) | translate"
-                    [matTooltip]="(isPaused()
+                        ) | translate
+                    "
+                    [matTooltip]="
+                        (isPaused()
                             ? 'EMBEDDED_MPV.PLAYER.PLAY'
                             : 'EMBEDDED_MPV.PLAYER.PAUSE'
-                        ) | translate"
+                        ) | translate
+                    "
                     matTooltipPosition="above"
                 >
                     <mat-icon>{{
@@ -266,14 +285,18 @@
                         type="button"
                         class="embedded-mpv-player__control-button"
                         (click)="toggleMute()"
-                        [attr.aria-label]="(volume() <= 0
+                        [attr.aria-label]="
+                            (volume() <= 0
                                 ? 'EMBEDDED_MPV.PLAYER.UNMUTE'
                                 : 'EMBEDDED_MPV.PLAYER.MUTE'
-                            ) | translate"
-                        [matTooltip]="(volume() <= 0
+                            ) | translate
+                        "
+                        [matTooltip]="
+                            (volume() <= 0
                                 ? 'EMBEDDED_MPV.PLAYER.UNMUTE'
                                 : 'EMBEDDED_MPV.PLAYER.MUTE'
-                            ) | translate"
+                            ) | translate
+                        "
                         matTooltipPosition="above"
                     >
                         <mat-icon>{{ volumeIcon() }}</mat-icon>
@@ -482,7 +505,7 @@
                                         : {
                                               speed: speedLabel(
                                                   playbackSpeed()
-                                              )
+                                              ),
                                           }
                             "
                             matTooltipPosition="above"
@@ -557,7 +580,7 @@
                                         : {
                                               aspect: aspectLabel(
                                                   aspectOverride()
-                                              )
+                                              ),
                                           }
                             "
                             matTooltipPosition="above"

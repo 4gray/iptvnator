@@ -13,15 +13,20 @@ import {
     input,
     OnDestroy,
     output,
+    signal,
     untracked,
     viewChild,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import {
+    buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
     XtreamCategory,
@@ -30,6 +35,7 @@ import {
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
+    EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
     PortalChannelSortMode,
@@ -66,7 +72,9 @@ interface XtreamCategoryLike {
     imports: [
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
+        MatButtonModule,
         MatIcon,
+        MatMenuModule,
         ScrollingModule,
         TranslatePipe,
     ],
@@ -83,7 +91,14 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly dialog = inject(MatDialog);
+
+    readonly contextMenuTrigger =
+        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
+    readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
     readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {
@@ -246,6 +261,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         const uncachedEntries: {
             streamId: number;
             epgChannelId?: string | null;
+            playlistId?: string | null;
         }[] = [];
 
         // Apply cached results immediately
@@ -266,6 +282,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 uncachedEntries.push({
                     streamId: channel.xtream_id,
                     epgChannelId: channel.epg_channel_id ?? null,
+                    playlistId: playlist.id ?? null,
                 });
             }
         }
@@ -458,5 +475,44 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         return Number.isFinite(parsedDate)
             ? Math.floor(parsedDate / 1000)
             : null;
+    }
+
+    // ── Context menu ────────────────────────────────────────────
+
+    onChannelContextMenu(channel: XtreamChannelListItem, event: MouseEvent): void {
+        this.contextMenuChannel.set(channel);
+        this.contextMenuPosition.set({
+            x: `${event.clientX}px`,
+            y: `${event.clientY}px`,
+        });
+
+        const trigger = this.contextMenuTrigger();
+        if (trigger.menuOpen) {
+            trigger.closeMenu();
+        }
+
+        queueMicrotask(() => {
+            this.contextMenuTrigger().openMenu();
+        });
+    }
+
+    openEpgMapping(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const xtreamId = channel.xtream_id ?? channel.id;
+        if (!playlistId || xtreamId == null) {
+            return;
+        }
+
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey: buildXtreamEpgMappingKey(playlistId, xtreamId),
+            channelName: channel.title ?? channel.name ?? String(xtreamId),
+            playlistId,
+        });
     }
 }

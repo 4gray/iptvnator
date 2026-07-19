@@ -11,6 +11,7 @@ export {
     recentlyViewed,
     favorites,
     epgChannels,
+    epgChannelMappings,
     epgPrograms,
     playbackPositions,
     downloads,

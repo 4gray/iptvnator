@@ -115,6 +115,15 @@ export class RuntimeCapabilitiesService {
         return this.hasElectronMethod('searchEpgPrograms');
     }
 
+    get supportsEpgMapping(): boolean {
+        return (
+            this.hasElectronMethod('getEpgMapping') &&
+            this.hasElectronMethod('setEpgMapping') &&
+            this.hasElectronMethod('deleteEpgMapping') &&
+            this.hasElectronMethod('searchEpgChannels')
+        );
+    }
+
     get supportsSqlite(): boolean {
         return [
             'dbDeleteAllPlaylists',

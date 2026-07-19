@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "清除中…",
         "EPG_URL_ERROR": "该值不是有效的 URL",
         "VIDEO_PLAYER_DESCRIPTION": "选择默认视频播放器",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器统一控件（实验性）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共享控件。",
         "STREAM_FORMAT_DESCRIPTION": "选择默认的流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "选择应用程序的语言",
         "THEME_DESCRIPTION": "选择应用程序的视觉主题",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "默认显示或隐藏字幕",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "显示「正在播放」底栏",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "在桌面端工作区底部保持外部播放器状态栏可见。",
+        "STRIP_COUNTRY_PREFIX": "移除频道名称中的国家前缀",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "从整个应用中的直播频道名称里移除国家/分组前缀，例如 \"US | \" 或 \"UK - \"。",
         "VERSION_DESCRIPTION": "应用程序的当前版本",
         "ABOUT_SUBTITLE": "版本、项目链接以及支持 IPTVnator 的方式。",
         "EMBEDDED_MPV_NOTICE_TITLE": "嵌入式 MPV 运行时",
@@ -487,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "录制启动失败。",
             "RECORDING_FAILED_TO_STOP": "录制停止失败。",
             "SAVED_TO": "已保存至 {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "进入画中画",
+            "EXIT_PICTURE_IN_PICTURE": "退出画中画",
             "ENTER_FULLSCREEN": "进入全屏",
             "EXIT_FULLSCREEN": "退出全屏"
         }
@@ -563,6 +569,7 @@
         "REMOVE_FAVORITE": "从收藏夹中删除",
         "ADD_FAVORITE": "添加到收藏",
         "SHOW_DETAILS": "显示频道详情",
+        "MAP_EPG": "映射 EPG 频道",
         "FAVORITES_UPDATED": "收藏夹已更新！",
         "SELECT_CHANNEL_PLAYBACK": "请选择一个频道开始播放",
         "SORT_BY": "排序方式",
@@ -709,6 +716,21 @@
             "GROUP_EXPAND": "展开 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "映射 EPG 频道",
+        "SUBTITLE": "为“{{channelName}}”手动选择 EPG 频道",
+        "SEARCH_PLACEHOLDER": "搜索 EPG 频道...",
+        "CURRENT_MAPPING": "当前映射",
+        "NO_MAPPING": "未设置 EPG 映射",
+        "SAVE": "保存映射",
+        "REMOVE": "移除映射",
+        "CLOSE": "关闭",
+        "NO_RESULTS": "未找到 EPG 频道",
+        "SEARCH_HINT": "输入至少 {{min}} 个字符进行搜索",
+        "SAVED": "EPG 映射已保存",
+        "REMOVED": "EPG 映射已移除",
+        "SAVE_FAILED": "无法更新 EPG 映射"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -784,6 +806,7 @@
         "RESTART": "从头开始",
         "CONTINUE_WATCHING": "继续观看",
         "PLAY_FIRST_EPISODE": "播放第一集",
+        "PLAY_EPISODE": "播放第 {{episode}} 集",
         "RESUME_EPISODE": "继续播放本集",
         "PLAY_NEXT_EPISODE": "播放下一集",
         "SERIES_WATCHED": "剧集已看完",

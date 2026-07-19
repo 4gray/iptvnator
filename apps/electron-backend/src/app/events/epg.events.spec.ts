@@ -375,46 +375,46 @@ describe('EpgEvents', () => {
 
     it('falls back to case-insensitive channel id lookup for EPG programs', async () => {
         const select = jest.fn();
-        const programLimitExact = jest.fn().mockResolvedValue([]);
-        const channelLimit = jest
-            .fn()
-            .mockResolvedValue([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }]);
-        const programLimitResolved = jest.fn().mockResolvedValue([
-            {
-                id: 1,
-                channelId: 'BBC.ONE.UK',
-                start: '2026-04-14T10:00:00Z',
-                stop: '2026-04-14T11:00:00Z',
-                title: 'News',
-                description: null,
-                category: null,
-                iconUrl: null,
-                rating: null,
-                episodeNum: null,
-            },
-        ]);
 
+        /**
+         * Build a flexible query-chain mock that every db.select().from().<method>() call
+         * resolves to the same chain object. Each method (where, orderBy, limit) returns
+         * the chain itself, and limit() additionally resolves to the given data. This
+         * handles any query shape our service uses (with or without orderBy) without
+         * requiring exact call-count ordering — important because our mapping feature
+         * inserts extra queries that the original test didn't anticipate.
+         */
+        function queryChain<T>(data: T) {
+            const chain: Record<string, jest.Mock> = {} as Record<string, jest.Mock>;
+            chain.where = jest.fn().mockReturnValue(chain);
+            chain.innerJoin = jest.fn().mockReturnValue(chain);
+            chain.orderBy = jest.fn().mockReturnValue(chain);
+            chain.limit = jest.fn().mockResolvedValue(data);
+            return chain;
+        }
+
+        // getMapping queries (must come first — they return empty)
         const from = jest
             .fn()
-            .mockReturnValueOnce({
-                where: jest.fn().mockReturnValue({
-                    orderBy: jest.fn().mockReturnValue({
-                        limit: programLimitExact,
-                    }),
-                }),
-            })
-            .mockReturnValueOnce({
-                where: jest.fn().mockReturnValue({
-                    limit: channelLimit,
-                }),
-            })
-            .mockReturnValueOnce({
-                where: jest.fn().mockReturnValue({
-                    orderBy: jest.fn().mockReturnValue({
-                        limit: programLimitResolved,
-                    }),
-                }),
-            });
+            .mockReturnValueOnce(queryChain([]))                          // 1. getMapping: epgChannelMappings
+            .mockReturnValueOnce(queryChain([]))                          // 2. getMapping: content table
+            // Test expectations below
+            .mockReturnValueOnce(queryChain([]))                          // 3. selectChannelPrograms (bbc.one.uk → empty)
+            .mockReturnValueOnce(queryChain([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }]))  // 4. selectChannelById → channel found
+            .mockReturnValueOnce(queryChain([                             // 5. selectChannelPrograms (BBC.ONE.UK → programs)
+                {
+                    id: 1,
+                    channelId: 'BBC.ONE.UK',
+                    start: '2026-04-14T10:00:00Z',
+                    stop: '2026-04-14T11:00:00Z',
+                    title: 'News',
+                    description: null,
+                    category: null,
+                    iconUrl: null,
+                    rating: null,
+                    episodeNum: null,
+                },
+            ]));
 
         select.mockImplementation(() => ({ from }));
 

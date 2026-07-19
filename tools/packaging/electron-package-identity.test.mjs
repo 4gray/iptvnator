@@ -56,6 +56,10 @@ const packageLayoutVerifier = fs.readFileSync(
     join(currentDir, 'verify-electron-package-layout.mjs'),
     'utf8'
 );
+const flatpakLauncherValidationSource = fs.readFileSync(
+    join(currentDir, 'flatpak-launcher-validation.cjs'),
+    'utf8'
+);
 const electronAfterPackSource = fs.readFileSync(
     join(currentDir, 'electron-after-pack.cjs'),
     'utf8'
@@ -196,7 +200,7 @@ test('GitHub Releases auto-update metadata is generated and uploaded', () => {
     );
     assert.match(
         buildAndMakeWorkflow,
-        /artifacts\/linux-artifacts\/latest-linux\*\.yml/
+        /artifacts\/linux-portable-artifacts\/latest-linux\*\.yml/
     );
     assert.match(
         buildAndMakeWorkflow,
@@ -298,6 +302,104 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
         packageLayoutVerifier,
         /builderEffectiveConfigPath && fileExists\(builderEffectiveConfigPath\)/
     );
+    assert.match(packageLayoutVerifier, /IPTVNATOR_LINUX_FRAME_COPY_PROFILE/);
+    assert.match(packageLayoutVerifier, /profile:\s*linuxFrameCopyProfile/);
+    assert.match(packageLayoutVerifier, /targetNames:\s*linuxTargetNames/);
+    assert.match(
+        packageLayoutVerifier,
+        /validateLinuxProfileTargets\(\s*linuxFrameCopyProfile,\s*linuxTargetNames\s*\)/s
+    );
+    assert.match(packageLayoutVerifier, /dirArch !== 'x64'/);
+    assert.doesNotMatch(packageLayoutVerifier, /getEmbeddedMpvAddonArch/);
+    assert.match(electronAfterPackSource, /targetArch !== 'x64'/);
+    assert.match(
+        packageLayoutVerifier,
+        /const\s*{\s*resolveLinuxLauncherLayout\s*}\s*=\s*require\(['"]\.\/linux-launcher-layout\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /const\s*{\s*validateFlatpakLauncher\s*,?\s*}\s*=\s*require\(['"]\.\/flatpak-launcher-validation\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /function verifyLinuxLauncher\(\s*resourceDir,\s*targetNames,\s*errors\s*\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /resolveLinuxLauncherLayout\(\s*targetNames,\s*linuxExecutableName\s*\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /verifyLinuxLauncher\(\s*resourceDir,\s*linuxTargetNames,\s*errors\s*\)/
+    );
+
+    const launcherVerifier = packageLayoutVerifier.match(
+        /function verifyLinuxLauncher\([\s\S]*?\n}\n\nfunction verifyFlatpakPermissions/
+    )?.[0];
+    assert.ok(launcherVerifier);
+    assert.ok(
+        launcherVerifier.indexOf('resolveLinuxLauncherLayout(') <
+            launcherVerifier.indexOf('const launcherBinaryPath')
+    );
+    assert.match(
+        launcherVerifier,
+        /if \(!launcherLayout\.wrapperRequired\) \{\s*errors\.push\(\s*\.\.\.validateFlatpakLauncher\(\s*appDir,\s*linuxExecutableName\s*\)\s*\);\s*return;\s*\}\s*const launcherBinaryPath[\s\S]*?fs\.readFileSync\(launcherPath,\s*['"]utf8['"]\)/
+    );
+});
+
+test('Flatpak launcher validation locks descriptor-based ELF inspection', () => {
+    assert.match(
+        flatpakLauncherValidationSource,
+        /const expectedElfMagic = Buffer\.from\(\[\s*0x7f,\s*0x45,\s*0x4c,\s*0x46,?\s*\]\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /descriptor = fs\.openSync\(\s*launcherPath,\s*fs\.constants\.O_RDONLY\s*\|\s*fs\.constants\.O_NOFOLLOW\s*\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /launcherStat = fs\.fstatSync\(descriptor\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /const elfMagic = Buffer\.alloc\(expectedElfMagic\.length\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /bytesRead = fs\.readSync\(\s*descriptor,\s*elfMagic,\s*0,\s*elfMagic\.length,\s*0\s*\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /bytesRead !== expectedElfMagic\.length/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /finally\s*{\s*try\s*{\s*fs\.closeSync\(descriptor\)/
+    );
+
+    const openOffset = flatpakLauncherValidationSource.indexOf(
+        'descriptor = fs.openSync('
+    );
+    const statOffset = flatpakLauncherValidationSource.indexOf(
+        'launcherStat = fs.fstatSync(descriptor)'
+    );
+    const readOffset = flatpakLauncherValidationSource.indexOf(
+        'bytesRead = fs.readSync('
+    );
+    const finallyOffset = flatpakLauncherValidationSource.indexOf(
+        '} finally {',
+        readOffset
+    );
+    const closeOffset = flatpakLauncherValidationSource.indexOf(
+        'fs.closeSync(descriptor)',
+        finallyOffset
+    );
+    assert.ok(
+        openOffset < statOffset &&
+            statOffset < readOffset &&
+            readOffset < finallyOffset &&
+            finallyOffset < closeOffset
+    );
 });
 
 test('nx-electron packaging does not copy duplicate root package metadata', () => {
@@ -328,6 +430,19 @@ test('embedded MPV runtime binaries are unpacked on every supported desktop plat
             `electron-builder asarUnpack must include ${requiredPattern}`
         );
     }
+});
+
+test('embedded MPV native payload is owned exclusively by afterPack outside app.asar', () => {
+    assert.ok(
+        electronBuilderConfig.files.includes(
+            '!electron-backend/native{,/**/*}'
+        ),
+        'electron-builder files must exclude the entire pre-afterPack native payload from app.asar'
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /collectEmbeddedMpvNativeArchiveEntries/
+    );
 });
 
 test('embedded MPV package validation accepts Windows runtime files and Linux process isolation', () => {
@@ -458,13 +573,24 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
         fs.writeFileSync(join(linuxNativeDir, 'embedded_mpv.node'), '');
         fs.writeFileSync(
             join(linuxNativeDir, 'embedded-mpv-runtime.json'),
-            JSON.stringify({ origin: 'external-mpv-process' })
+            JSON.stringify({
+                schemaVersion: 1,
+                origin: 'external-mpv-process',
+                platform: 'linux',
+                arch: 'x64',
+                runtimeMode: 'native-view-only',
+                frameCopyAvailable: false,
+                artifacts: {
+                    addon: 'embedded_mpv.node',
+                },
+                nativeViewFallback: 'process-isolated mpv --wid',
+            })
         );
 
         assert.deepEqual(
             validatePackagedEmbeddedMpv(linuxResourceDir, {
                 platform: 'linux',
-                required: true,
+                required: false,
             }),
             []
         );
@@ -711,6 +837,16 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     const requireEmbeddedMpvLines = buildAndMakeWorkflow
         .split(/\r?\n/)
         .filter((line) => line.includes('IPTVNATOR_REQUIRE_EMBEDDED_MPV:'));
+    const defaultRuntimeUrls = [
+        ...buildAndMakeWorkflow.matchAll(
+            /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL:\s+(\S+)/g
+        ),
+    ].map((match) => match[1]);
+    const defaultRuntimeSha256s = [
+        ...buildAndMakeWorkflow.matchAll(
+            /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256:\s+([a-f0-9]{64})/g
+        ),
+    ].map((match) => match[1]);
 
     assert.equal(
         packageMetadata.scripts?.['embedded-mpv:stage-runtime:windows-archive'],
@@ -732,6 +868,16 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     assert.match(
         buildAndMakeWorkflow,
         /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https:\/\/github\.com\/zhongfly\/mpv-winbuild\/releases\/download\//
+    );
+    assert.deepEqual(
+        [...new Set(defaultRuntimeUrls)],
+        [
+            'https://github.com/zhongfly/mpv-winbuild/releases/download/2026-07-17-94335ab87a/mpv-dev-lgpl-x86_64-20260717-git-94335ab87a.7z',
+        ]
+    );
+    assert.deepEqual(
+        [...new Set(defaultRuntimeSha256s)],
+        ['6014aa0e6d8e98cdba90f5288295a7105d7d14ab0ca906f51465eeb478d5fea0']
     );
     assert.match(buildAndMakeWorkflow, /refs\/tags\/v\*/);
     assert.match(

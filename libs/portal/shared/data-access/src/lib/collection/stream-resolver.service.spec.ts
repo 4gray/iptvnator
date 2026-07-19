@@ -44,6 +44,8 @@ describe('StreamResolverService', () => {
         };
         epgBridge = {
             getChannelPrograms: jest.fn(),
+            getEpgMapping: jest.fn().mockResolvedValue(null),
+            getEpgMappingsBatch: jest.fn().mockResolvedValue(null),
             supportsProgramLookup: true,
         };
 
@@ -267,7 +269,7 @@ describe('StreamResolverService', () => {
                 password: 'pass',
             },
             1,
-            10,
+            50,
             {
                 suppressErrorLog: true,
             }
@@ -342,7 +344,7 @@ describe('StreamResolverService', () => {
                 password: 'pass',
             },
             1,
-            2,
+            5,
             {
                 suppressErrorLog: true,
             }
@@ -416,7 +418,7 @@ describe('StreamResolverService', () => {
                                         stop_timestamp: '1774526400',
                                     },
                                 ]),
-                            10_000
+                            30_000
                         );
                     })
             );
@@ -431,7 +433,7 @@ describe('StreamResolverService', () => {
                 xtreamId: 1,
             } satisfies UnifiedCollectionItem);
 
-            await jest.advanceTimersByTimeAsync(3000);
+            await jest.advanceTimersByTimeAsync(10_000);
 
             await expect(detailPromise).resolves.toMatchObject({
                 epgMode: 'portal',
@@ -443,6 +445,53 @@ describe('StreamResolverService', () => {
         } finally {
             jest.useRealTimers();
         }
+    });
+
+    it('resolves manual EPG mappings for Xtream previews with one batched lookup', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'xtream-1',
+                serverUrl: 'https://xtream.example.com',
+                username: 'user',
+                password: 'pass',
+            } satisfies Partial<Playlist>)
+        );
+
+        const nowMs = Date.now();
+        epgBridge.getEpgMappingsBatch = jest.fn().mockResolvedValue({
+            'xtream:xtream-1:7': 'mapped.channel.id',
+        });
+        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([
+            {
+                channel: 'mapped.channel.id',
+                title: 'Mapped Program',
+                desc: 'From uploaded XMLTV',
+                start: new Date(nowMs - 60_000).toISOString(),
+                stop: new Date(nowMs + 60_000).toISOString(),
+            },
+        ]);
+
+        const epgMap = await service.loadEpgForItems([
+            {
+                uid: 'xtream::xtream-1::7',
+                name: 'Mapped Channel',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream',
+                xtreamId: 7,
+            } satisfies UnifiedCollectionItem,
+        ]);
+
+        expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
+        expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledWith(
+            expect.arrayContaining(['xtream:xtream-1:7', 'Mapped Channel'])
+        );
+        // The mapping resolved via XMLTV, so no provider EPG call is needed.
+        expect(xtreamApi.getShortEpg).not.toHaveBeenCalled();
+        expect(epgMap.get('Mapped Channel')).toMatchObject({
+            title: 'Mapped Program',
+        });
     });
 
     it('loads current Stalker EPG previews for live collection rows', async () => {

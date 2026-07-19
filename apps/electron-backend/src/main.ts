@@ -37,10 +37,8 @@ import {
     shouldPromotePersistedFrameCopyOptIn,
 } from './app/services/embedded-mpv-frame-copy-platform.util';
 import { isEmbeddedMpvFeatureEnabled } from './app/services/embedded-mpv-runtime-policy.util';
-import {
-    EMBEDDED_MPV_FRAME_COPY,
-    store,
-} from './app/services/store.service';
+import { runEmbeddedMpvRuntimeDiagnosticOrContinue } from './app/services/embedded-mpv-runtime-diagnostic';
+import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
 
@@ -75,7 +73,7 @@ if (
     shouldPromotePersistedFrameCopyOptIn(
         store.get(EMBEDDED_MPV_FRAME_COPY, false),
         process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY,
-        isFrameCopyRuntimeUsable()
+        isFrameCopyRuntimeUsable
     )
 ) {
     process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
@@ -205,51 +203,53 @@ export default class Main {
     }
 }
 
-// handle setup events as quickly as possible
-Main.initialize();
+runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
+    // handle setup events as quickly as possible
+    Main.initialize();
 
-// bootstrap app
-Main.bootstrapApp();
+    // bootstrap app
+    Main.bootstrapApp();
 
-// Bootstrap app events after Electron app is ready
-app.whenReady().then(async () => {
-    if (isStartupTraceEnabled()) {
-        trace('startup', 'app.whenReady');
-    }
-    await Main.bootstrapAppEvents();
-});
-
-app.on('before-quit', (event) => {
-    if (shutdownComplete) {
-        return;
-    }
-
-    event.preventDefault();
-    if (shutdownStarted) {
-        return;
-    }
-    shutdownStarted = true;
-
-    void (async () => {
-        try {
-            await recordingSchedulerService.shutdown();
-        } catch (error) {
-            console.error('Failed to stop DVR recording sessions:', error);
+    // Bootstrap app events after Electron app is ready
+    app.whenReady().then(async () => {
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'app.whenReady');
         }
-        try {
-            shutdownEmbeddedMpv();
-            shutdownMpvSession();
-            shutdownVlcSession();
-        } catch (error) {
-            console.error('Failed to stop native player sessions:', error);
+        await Main.bootstrapAppEvents();
+    });
+
+    app.on('before-quit', (event) => {
+        if (shutdownComplete) {
+            return;
         }
-        try {
-            await databaseWorkerClient.shutdown();
-        } catch (error) {
-            console.error('Failed to stop the database worker:', error);
+
+        event.preventDefault();
+        if (shutdownStarted) {
+            return;
         }
-    })().finally(() => {
-        shutdownComplete = true;
-        app.quit();
+        shutdownStarted = true;
+
+        void (async () => {
+            try {
+                await recordingSchedulerService.shutdown();
+            } catch (error) {
+                console.error('Failed to stop DVR recording sessions:', error);
+            }
+            try {
+                shutdownEmbeddedMpv();
+                shutdownMpvSession();
+                shutdownVlcSession();
+            } catch (error) {
+                console.error('Failed to stop native player sessions:', error);
+            }
+            try {
+                await databaseWorkerClient.shutdown();
+            } catch (error) {
+                console.error('Failed to stop the database worker:', error);
+            }
+        })().finally(() => {
+            shutdownComplete = true;
+            app.quit();
+        });
     });
 });

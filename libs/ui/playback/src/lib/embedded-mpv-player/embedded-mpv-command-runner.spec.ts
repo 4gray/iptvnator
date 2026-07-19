@@ -203,6 +203,49 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(session()).toBe(replacement);
     });
 
+    it.each([
+        ['older', '2026-06-02T00:00:02.000Z'],
+        ['same-timestamp', '2026-06-02T00:00:03.000Z'],
+    ])(
+        'keeps a newer same-session snapshot when a %s command reply settles',
+        async (_, replyUpdatedAt) => {
+            let resolveCommand:
+                | ((value: EmbeddedMpvSession | null) => void)
+                | null = null;
+            electron.startEmbeddedMpvRecording.mockImplementationOnce(
+                () =>
+                    new Promise<EmbeddedMpvSession | null>((resolve) => {
+                        resolveCommand = resolve;
+                    })
+            );
+
+            const pendingRecording = runner.startRecording(
+                '/custom',
+                'My Show'
+            );
+            const acknowledged = createSession({
+                recording: {
+                    active: true,
+                    targetPath: '/tmp/rec.ts',
+                    startedAt: '2026-06-02T00:00:02.000Z',
+                },
+                updatedAt: '2026-06-02T00:00:03.000Z',
+            });
+            session.set(acknowledged);
+            resolveCommand?.(
+                createSession({
+                    recording: { active: false },
+                    updatedAt: replyUpdatedAt,
+                })
+            );
+
+            const recording = await pendingRecording;
+
+            expect(session()).toBe(acknowledged);
+            expect(recording).toEqual(acknowledged.recording);
+        }
+    );
+
     it('startRecording resolves the default folder for blank directories', async () => {
         const recording = await runner.startRecording('   ', 'My Show');
         expect(

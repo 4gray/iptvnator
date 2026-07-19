@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Clearing…",
         "EPG_URL_ERROR": "The value is not a valid URL",
         "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
+        "WEB_PLAYER_SHARED_CONTROLS": "Unified controls for web players (experimental)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Show now playing footer",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Keep the external-player status bar visible at the bottom of the workspace on desktop.",
+        "STRIP_COUNTRY_PREFIX": "Strip country prefixes from channel names",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Removes country/group prefixes like \"US | \" or \"UK - \" from live channel names throughout the app.",
         "VERSION_DESCRIPTION": "Current version of the application",
         "ABOUT_SUBTITLE": "Version, project links and ways to support IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Embedded MPV runtime",
@@ -487,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Recording failed to start.",
             "RECORDING_FAILED_TO_STOP": "Recording failed to stop.",
             "SAVED_TO": "Saved to {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Enter picture-in-picture",
+            "EXIT_PICTURE_IN_PICTURE": "Exit picture-in-picture",
             "ENTER_FULLSCREEN": "Enter fullscreen",
             "EXIT_FULLSCREEN": "Exit fullscreen"
         }
@@ -563,6 +569,7 @@
         "REMOVE_FAVORITE": "Remove from favorites",
         "ADD_FAVORITE": "Add to favorites",
         "SHOW_DETAILS": "Show channel details",
+        "MAP_EPG": "Map EPG channel",
         "FAVORITES_UPDATED": "Favorites were updated!",
         "SELECT_CHANNEL_PLAYBACK": "Please select a channel to start playback",
         "SORT_BY": "Sort by",
@@ -709,6 +716,21 @@
             "GROUP_EXPAND": "show ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Map EPG Channel",
+        "SUBTITLE": "Manually select an EPG channel for \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Search EPG channels...",
+        "CURRENT_MAPPING": "Current mapping",
+        "NO_MAPPING": "No EPG mapping set",
+        "SAVE": "Save mapping",
+        "REMOVE": "Remove mapping",
+        "CLOSE": "Close",
+        "NO_RESULTS": "No EPG channels found",
+        "SEARCH_HINT": "Type at least {{min}} characters to search",
+        "SAVED": "EPG mapping saved",
+        "REMOVED": "EPG mapping removed",
+        "SAVE_FAILED": "Could not update the EPG mapping"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -784,6 +806,7 @@
         "RESTART": "Start Over",
         "CONTINUE_WATCHING": "Continue Watching",
         "PLAY_FIRST_EPISODE": "Play first episode",
+        "PLAY_EPISODE": "Play episode {{episode}}",
         "RESUME_EPISODE": "Resume episode",
         "PLAY_NEXT_EPISODE": "Play next episode",
         "SERIES_WATCHED": "Series watched",

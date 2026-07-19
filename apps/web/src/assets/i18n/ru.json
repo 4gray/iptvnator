@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Очистка…",
         "EPG_URL_ERROR": "Введенное значение не является URL-адресом.",
         "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
+        "WEB_PLAYER_SHARED_CONTROLS": "Единые элементы управления для веб-плееров (экспериментально)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Использовать общие элементы управления IPTVnator в HTML5, Video.js и ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Выбрать формат потока по умолчанию (Xtream)",
         "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
         "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Показать или скрыть субтитры по умолчанию.",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Показывать панель «Сейчас воспроизводится»",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Оставлять панель состояния внешнего проигрывателя видимой внизу рабочей области в настольном приложении.",
+        "STRIP_COUNTRY_PREFIX": "Удалять префиксы стран из названий каналов",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Удаляет префиксы стран/групп, такие как \"US | \" или \"UK - \", из названий каналов прямого эфира во всём приложении.",
         "VERSION_DESCRIPTION": "Текущая версия приложения",
         "ABOUT_SUBTITLE": "Версия, ссылки на проект и способы поддержать IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Среда выполнения встроенного MPV",
@@ -487,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Не удалось начать запись.",
             "RECORDING_FAILED_TO_STOP": "Не удалось остановить запись.",
             "SAVED_TO": "Сохранено в {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Включить режим «картинка в картинке»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйти из режима «картинка в картинке»",
             "ENTER_FULLSCREEN": "Во весь экран",
             "EXIT_FULLSCREEN": "Выйти из полноэкранного режима"
         }
@@ -563,6 +569,7 @@
         "REMOVE_FAVORITE": "Удалить из списка фаворитов",
         "ADD_FAVORITE": "Добавить в избранное",
         "SHOW_DETAILS": "Показать сведения о канале",
+        "MAP_EPG": "Привязать канал EPG",
         "FAVORITES_UPDATED": "Список фаворитов был обновлен!",
         "SELECT_CHANNEL_PLAYBACK": "Пожалуйста, выберите канал для начала воспроизведения",
         "SORT_BY": "Сортировать по",
@@ -709,6 +716,21 @@
             "GROUP_EXPAND": "показать ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Привязка канала EPG",
+        "SUBTITLE": "Выберите канал EPG для \"{{channelName}}\" вручную",
+        "SEARCH_PLACEHOLDER": "Поиск каналов EPG...",
+        "CURRENT_MAPPING": "Текущая привязка",
+        "NO_MAPPING": "Привязка EPG не задана",
+        "SAVE": "Сохранить привязку",
+        "REMOVE": "Удалить привязку",
+        "CLOSE": "Закрыть",
+        "NO_RESULTS": "Каналы EPG не найдены",
+        "SEARCH_HINT": "Введите не менее {{min}} символов для поиска",
+        "SAVED": "Привязка EPG сохранена",
+        "REMOVED": "Привязка EPG удалена",
+        "SAVE_FAILED": "Не удалось обновить привязку EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -784,6 +806,7 @@
         "RESTART": "С начала",
         "CONTINUE_WATCHING": "Продолжить просмотр",
         "PLAY_FIRST_EPISODE": "Воспроизвести первую серию",
+        "PLAY_EPISODE": "Воспроизвести серию {{episode}}",
         "RESUME_EPISODE": "Продолжить серию",
         "PLAY_NEXT_EPISODE": "Следующая серия",
         "SERIES_WATCHED": "Сериал просмотрен",

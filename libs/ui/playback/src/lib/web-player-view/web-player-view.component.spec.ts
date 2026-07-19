@@ -36,6 +36,8 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 class StubVjsPlayerComponent {
     readonly options = input<unknown>();
     readonly volume = input(1);
+    readonly showCaptions = input(false);
+    readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
@@ -53,6 +55,8 @@ class StubHtmlVideoPlayerComponent {
     readonly channel = input<unknown>();
     readonly volume = input(1);
     readonly showCaptions = input(false);
+    readonly isLive = input(true);
+    readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
@@ -70,6 +74,8 @@ class StubArtPlayerComponent {
     readonly channel = input<unknown>();
     readonly volume = input(1);
     readonly showCaptions = input(false);
+    readonly isLive = input(true);
+    readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();

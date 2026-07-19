@@ -7,6 +7,7 @@ export * from './lib/epg-channel-metadata.model';
 export * from './lib/epg-channel-with-programs.interface';
 export * from './lib/epg-channel.model';
 export * from './lib/epg-item.interface';
+export * from './lib/epg-mapping-key.util';
 export * from './lib/epg-program.model';
 export * from './lib/external-player-arguments.utils';
 export * from './lib/external-player-session.interface';

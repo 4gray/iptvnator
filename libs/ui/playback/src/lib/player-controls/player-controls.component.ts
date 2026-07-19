@@ -151,7 +151,9 @@ export class PlayerControlsComponent implements OnDestroy {
             toggleMute: () => this.toggleMute(),
         });
         effect((onCleanup) => {
-            const surface = this.showControls() ? this.playerSurface() : null;
+            const playerSurface = this.playerSurface();
+            const surface = this.showControls() ? playerSurface : null;
+            this.fullscreen.sync();
             onCleanup(this.surface.attachSurface(surface));
         });
         effect(() => {
@@ -203,15 +205,13 @@ export class PlayerControlsComponent implements OnDestroy {
                     state
                 );
                 this.visibility.scheduleHide();
-                this.feedback.flashRecordingTransition(state.recording.active, {
+                this.feedback.flashRecordingState(state.recording, {
                     active: this.translate.instant(
                         'EMBEDDED_MPV.PLAYER.RECORDING'
                     ),
-                    inactive:
-                        state.recording.message ||
-                        this.translate.instant(
-                            'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
-                        ),
+                    inactive: this.translate.instant(
+                        'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
+                    ),
                 });
             });
         });
@@ -279,16 +279,13 @@ export class PlayerControlsComponent implements OnDestroy {
         this.volume.set(Number((event.target as HTMLInputElement).value));
         this.reveal({ scheduleHide: false });
     }
-
     onVolumeWheel(event: WheelEvent): void {
         event.preventDefault();
         this.adjustVolume(event.deltaY > 0 ? -0.05 : 0.05);
     }
-
     onVolumeHoverEnter(): void {
         this.volume.hoverEnter();
     }
-
     onVolumeHoverLeave(): void {
         this.volume.hoverLeave();
     }
@@ -305,7 +302,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.menus.toggle(menu);
         this.reveal();
     }
-
     toggleRecording(): void {
         if (!this.canRecord()) {
             return;
@@ -314,6 +310,13 @@ export class PlayerControlsComponent implements OnDestroy {
         this.controller().commands.toggleRecording();
     }
 
+    togglePictureInPicture(): void {
+        this.reveal();
+        const state = this.state();
+        if (this.capabilities().pictureInPicture && state.canPictureInPicture) {
+            this.controller().commands.togglePictureInPicture();
+        }
+    }
     async toggleFullscreen(): Promise<void> {
         this.reveal();
         if (!this.canFullscreen()) {
@@ -321,7 +324,6 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         await this.fullscreen.toggle();
     }
-
     private adjustVolume(delta: number): void {
         if (!this.capabilities().volume) {
             return;
@@ -329,13 +331,11 @@ export class PlayerControlsComponent implements OnDestroy {
         this.volume.adjust(delta);
         this.reveal();
     }
-
     private readTimelineValue(event: Event): number | null {
         return this.normalizeTimelineValue(
             Number((event.target as HTMLInputElement).value)
         );
     }
-
     private normalizeTimelineValue(value: number): number | null {
         if (!Number.isFinite(value)) {
             return null;

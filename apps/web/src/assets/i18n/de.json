@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Wird gelöscht…",
         "EPG_URL_ERROR": "Der Wert ist keine gültige URL",
         "VIDEO_PLAYER_DESCRIPTION": "Wählen Sie den Standard-Videoplayer aus",
+        "WEB_PLAYER_SHARED_CONTROLS": "Einheitliche Steuerung für Web-Player (experimentell)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Verwendet die gemeinsamen IPTVnator-Steuerelemente in HTML5, Video.js und ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Standard-Streamformat auswählen (Xtream)",
         "LANGUAGE_DESCRIPTION": "Wählen Sie die Sprache der Anwendung aus",
         "THEME_DESCRIPTION": "Wählen Sie das visuelle Thema der Anwendung aus",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Untertitel standardmäßig ein- oder ausblenden",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Now-Playing-Fußleiste anzeigen",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Zeigt die Statusleiste für externe Player unten im Arbeitsbereich auf dem Desktop an.",
+        "STRIP_COUNTRY_PREFIX": "Länderpräfixe aus Sendernamen entfernen",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Entfernt Länder-/Gruppenpräfixe wie \"US | \" oder \"UK - \" aus den Namen von Live-Sendern in der gesamten App.",
         "VERSION_DESCRIPTION": "Aktuelle Version der Anwendung",
         "ABOUT_SUBTITLE": "Version, Projekt-Links und Möglichkeiten, IPTVnator zu unterstützen.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Eingebettete MPV-Laufzeit",
@@ -487,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Aufnahme konnte nicht gestartet werden.",
             "RECORDING_FAILED_TO_STOP": "Aufnahme konnte nicht gestoppt werden.",
             "SAVED_TO": "Gespeichert unter {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Bild-in-Bild starten",
+            "EXIT_PICTURE_IN_PICTURE": "Bild-in-Bild beenden",
             "ENTER_FULLSCREEN": "Vollbild aktivieren",
             "EXIT_FULLSCREEN": "Vollbild beenden"
         }
@@ -563,6 +569,7 @@
         "REMOVE_FAVORITE": "Aus Favoritenliste entfernen",
         "ADD_FAVORITE": "Zu Favoriten hinzufügen",
         "SHOW_DETAILS": "Senderdetails anzeigen",
+        "MAP_EPG": "EPG-Kanal zuordnen",
         "FAVORITES_UPDATED": "Favoriten wurden aktualisiert!",
         "SELECT_CHANNEL_PLAYBACK": "Bitte wählen Sie einen Sender aus, um die Wiedergabe zu starten",
         "SORT_BY": "Sortieren nach",
@@ -709,6 +716,21 @@
             "GROUP_EXPAND": "anzeigen ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG-Kanal zuordnen",
+        "SUBTITLE": "EPG-Kanal für \"{{channelName}}\" manuell auswählen",
+        "SEARCH_PLACEHOLDER": "EPG-Kanäle durchsuchen...",
+        "CURRENT_MAPPING": "Aktuelle Zuordnung",
+        "NO_MAPPING": "Keine EPG-Zuordnung festgelegt",
+        "SAVE": "Zuordnung speichern",
+        "REMOVE": "Zuordnung entfernen",
+        "CLOSE": "Schließen",
+        "NO_RESULTS": "Keine EPG-Kanäle gefunden",
+        "SEARCH_HINT": "Mindestens {{min}} Zeichen zum Suchen eingeben",
+        "SAVED": "EPG-Zuordnung gespeichert",
+        "REMOVED": "EPG-Zuordnung entfernt",
+        "SAVE_FAILED": "EPG-Zuordnung konnte nicht aktualisiert werden"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -784,6 +806,7 @@
         "RESTART": "Neu starten",
         "CONTINUE_WATCHING": "Weiter schauen",
         "PLAY_FIRST_EPISODE": "Erste Folge abspielen",
+        "PLAY_EPISODE": "Folge {{episode}} abspielen",
         "RESUME_EPISODE": "Folge fortsetzen",
         "PLAY_NEXT_EPISODE": "Nächste Folge abspielen",
         "SERIES_WATCHED": "Serie angesehen",

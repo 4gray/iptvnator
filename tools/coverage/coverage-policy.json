@@ -164,6 +164,13 @@
                 "e2eTags": ["@m3u", "@xtream", "@stalker"]
             },
             {
+                "name": "shared-logging",
+                "root": "libs/shared/logging",
+                "sourceRoot": "libs/shared/logging/src",
+                "validationCommand": "pnpm nx test shared-logging",
+                "e2eTags": ["@electron", "@xtream", "@stalker", "@settings"]
+            },
+            {
                 "name": "m3u-utils",
                 "root": "libs/shared/m3u-utils",
                 "sourceRoot": "libs/shared/m3u-utils/src",

@@ -17,6 +17,7 @@ export interface PlayerControlsCapabilities {
     playbackSpeed: boolean;
     aspectRatio: boolean;
     recording: boolean;
+    pictureInPicture: boolean;
     fullscreen: boolean;
     seriesNavigation: boolean;
 }
@@ -38,6 +39,8 @@ export interface PlayerRecordingState {
     elapsedSeconds: number;
     /** Persistent status text (e.g. "Saved to …" / error). null when none. */
     message: string | null;
+    /** Changes when recording ownership moves to another playback/session. */
+    transitionKey?: string | null;
 }
 
 export interface PlayerControlsState {
@@ -59,6 +62,8 @@ export interface PlayerControlsState {
     aspectRatio: string;
     aspectPresets: ReadonlyArray<PlayerPreset<string>>;
     recording: PlayerRecordingState;
+    pictureInPictureActive: boolean;
+    canPictureInPicture: boolean;
     canPreviousEpisode: boolean;
     canNextEpisode: boolean;
 }
@@ -74,6 +79,7 @@ export interface PlayerControlsCommands {
     setPlaybackSpeed(speed: number): void;
     setAspectRatio(value: string): void;
     toggleRecording(): void;
+    togglePictureInPicture(): void;
 }
 
 /**
