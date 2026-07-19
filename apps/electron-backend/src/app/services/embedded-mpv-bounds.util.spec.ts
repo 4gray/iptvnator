@@ -80,6 +80,17 @@ describe('toNativeViewBounds', () => {
         expect(result).toEqual({ x: 150, y: 75, width: 960, height: 540 });
     });
 
+    it('rounds fractional CSS edges only after scaling', () => {
+        // A 10.49px CSS edge at 200% renders at 21 physical pixels; edges
+        // rounded before scaling would send 20 and shift the video by 1px.
+        const result = toNativeViewBounds(
+            { x: 10.49, y: 0.5, width: 100.02, height: 50 },
+            context({ platform: 'win32', displayScaleFactor: 2 })
+        );
+
+        expect(result).toEqual({ x: 21, y: 1, width: 200, height: 100 });
+    });
+
     it('keeps vertically adjacent rects seamless under fractional scales', () => {
         // 42 × 1.25 and 153 × 1.25 both land on .5/.25 fractions: rounding
         // x/y/width/height independently would misplace the shared edge by

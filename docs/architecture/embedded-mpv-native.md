@@ -607,9 +607,11 @@ and match physical pixels only at 100% page zoom AND 100% display scale.
 `EmbeddedMpvNativeService` therefore converts every native-view bounds payload
 in the main process (`toNativeViewBounds` in `embedded-mpv-bounds.util.ts`):
 all platforms scale by the webContents zoom factor, win32/linux additionally
-by the scale factor of the display hosting the window. Edges are scaled
-before deriving width/height so rounding cannot open 1px seams against the
-surrounding DOM UI. Skipping this conversion is issue #1145: on scaled
+by the scale factor of the display hosting the window. The renderer sends
+unrounded CSS edges (`measureBounds` does not round) and the conversion
+rounds exactly once, after scaling — edges first, width/height derived from
+them — so fractional CSS layouts and fractional scales cannot open 1px
+seams against the surrounding DOM UI. Skipping this conversion is issue #1145: on scaled
 displays (Windows 125%, Linux fractional scaling, HiDPI TVs) the video landed
 toward the window's top-left corner at `1/scale` of its size, in windowed and
 fullscreen mode alike.

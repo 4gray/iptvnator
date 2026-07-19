@@ -19,8 +19,11 @@ export interface NativeViewBoundsContext {
  * every platform scales by the zoom factor and win32/linux additionally by
  * the display scale factor (#1145).
  *
- * Edges are scaled before deriving width/height so rounding cannot open
- * 1px seams between the native video window and the surrounding DOM UI.
+ * Bounds arrive with unrounded CSS edges and are rounded exactly once here,
+ * after scaling: edges first, then width/height derived from them. Rounding
+ * any earlier (or per-field) lets fractional CSS layouts drift by a pixel
+ * per scale factor and open 1px seams between the native video window and
+ * the surrounding DOM UI.
  */
 export function toNativeViewBounds(
     bounds: EmbeddedMpvBounds,

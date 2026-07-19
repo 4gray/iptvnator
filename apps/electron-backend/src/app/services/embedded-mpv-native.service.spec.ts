@@ -487,6 +487,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         it('applies page zoom but not the display scale on macOS', () => {
             // NSView frames are in points (device-independent pixels): only
             // the webContents zoom factor separates them from CSS pixels.
+            Object.defineProperty(process, 'platform', { value: 'darwin' });
             screenGetDisplayMatchingMock.mockReturnValue({ scaleFactor: 2 });
             mainWindowGetZoomFactorMock.mockReturnValue(1.25);
             addon.createSession.mockReturnValueOnce('s-zoom');
