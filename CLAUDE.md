@@ -130,6 +130,10 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
 
+Settings, portal request/response, and trace payloads must use
+`@iptvnator/shared/logging` or the redacting portal logger before reaching
+`console.*`; never log raw credentials while debugging.
+
 For GPU/compositor debugging:
 
 ```bash
@@ -238,6 +242,7 @@ This is an Nx monorepo with the following structure:
     - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
+    - **shared/logging** - Dependency-free structured redaction for diagnostic logs
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
     - **shared/testing** - Shared test helpers
@@ -878,6 +883,9 @@ Build configurations in `apps/web/project.json`:
 
 **Factory Pattern Implementation**:
 The factory pattern ensures a single codebase works in both environments without conditional checks scattered throughout the application. All environment-specific logic is encapsulated in the service implementations.
+
+**Build Commit In About**:
+CI injects the git commit into `apps/web/src/environments/build-commit.ts` via `tools/build/inject-build-commit.mjs` (same placeholder pattern as the TMDB key inject); `Settings > About` then shows `"<version> (<short-sha>)"`. The semver version itself deliberately stays untouched — a `-sha` suffix would flip electron-updater into prerelease mode and leak into installer/artifact version fields. Local/dev builds keep the placeholder empty and show the plain version.
 
 ### Testing Strategy
 

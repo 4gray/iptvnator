@@ -569,6 +569,7 @@
         "REMOVE_FAVORITE": "从收藏夹中删除",
         "ADD_FAVORITE": "添加到收藏",
         "SHOW_DETAILS": "显示频道详情",
+        "MAP_EPG": "映射 EPG 频道",
         "FAVORITES_UPDATED": "收藏夹已更新！",
         "SELECT_CHANNEL_PLAYBACK": "请选择一个频道开始播放",
         "SORT_BY": "排序方式",
@@ -713,6 +714,21 @@
             "GROUP_SHORT": "个短节目",
             "GROUP_EXPAND": "展开 ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "映射 EPG 频道",
+        "SUBTITLE": "为“{{channelName}}”手动选择 EPG 频道",
+        "SEARCH_PLACEHOLDER": "搜索 EPG 频道...",
+        "CURRENT_MAPPING": "当前映射",
+        "NO_MAPPING": "未设置 EPG 映射",
+        "SAVE": "保存映射",
+        "REMOVE": "移除映射",
+        "CLOSE": "关闭",
+        "NO_RESULTS": "未找到 EPG 频道",
+        "SEARCH_HINT": "输入至少 {{min}} 个字符进行搜索",
+        "SAVED": "EPG 映射已保存",
+        "REMOVED": "EPG 映射已移除",
+        "SAVE_FAILED": "无法更新 EPG 映射"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

@@ -569,6 +569,7 @@
         "REMOVE_FAVORITE": "حيد من المفضلة",
         "ADD_FAVORITE": "زيد للمفضلة",
         "SHOW_DETAILS": "وري تفاصيل القناة",
+        "MAP_EPG": "ربط قناة ديال EPG",
         "FAVORITES_UPDATED": "المفضلة تحدثات!",
         "SELECT_CHANNEL_PLAYBACK": "عفاك اختار قناة باش يبدا التشغيل",
         "SORT_BY": "رتب بـ",
@@ -713,6 +714,21 @@
             "GROUP_SHORT": "برامج قصيرة",
             "GROUP_EXPAND": "وري ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "ربط قناة ديال EPG",
+        "SUBTITLE": "اختار يدويا قناة EPG لـ \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "قلب على قنوات EPG...",
+        "CURRENT_MAPPING": "الربط الحالي",
+        "NO_MAPPING": "ما كاين حتى ربط ديال EPG",
+        "SAVE": "سجل الربط",
+        "REMOVE": "حيد الربط",
+        "CLOSE": "سد",
+        "NO_RESULTS": "ما لقينا حتى قناة EPG",
+        "SEARCH_HINT": "كتب على الأقل {{min}} حروف باش تقلب",
+        "SAVED": "تسجل الربط ديال EPG",
+        "REMOVED": "تحيد الربط ديال EPG",
+        "SAVE_FAILED": "ما قدرناش نبدلو الربط ديال EPG"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

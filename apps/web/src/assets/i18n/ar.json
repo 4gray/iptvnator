@@ -569,6 +569,7 @@
         "REMOVE_FAVORITE": "إزالة من المفضلة",
         "ADD_FAVORITE": "إضافة إلى المفضلة",
         "SHOW_DETAILS": "عرض تفاصيل القناة",
+        "MAP_EPG": "ربط قناة دليل البرامج",
         "FAVORITES_UPDATED": "تم تحديث المفضلة!",
         "SELECT_CHANNEL_PLAYBACK": "يرجى اختيار قناة لبدء التشغيل",
         "SORT_BY": "ترتيب حسب",
@@ -713,6 +714,21 @@
             "GROUP_SHORT": "برامج قصيرة",
             "GROUP_EXPAND": "عرض ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "ربط قناة دليل البرامج (EPG)",
+        "SUBTITLE": "اختر يدويًا قناة دليل البرامج لـ \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "البحث في قنوات دليل البرامج...",
+        "CURRENT_MAPPING": "الربط الحالي",
+        "NO_MAPPING": "لم يتم تعيين ربط لدليل البرامج",
+        "SAVE": "حفظ الربط",
+        "REMOVE": "إزالة الربط",
+        "CLOSE": "إغلاق",
+        "NO_RESULTS": "لم يتم العثور على قنوات دليل البرامج",
+        "SEARCH_HINT": "اكتب {{min}} أحرف على الأقل للبحث",
+        "SAVED": "تم حفظ ربط دليل البرامج",
+        "REMOVED": "تمت إزالة ربط دليل البرامج",
+        "SAVE_FAILED": "تعذر تحديث ربط دليل البرامج"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

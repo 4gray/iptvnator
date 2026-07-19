@@ -1,5 +1,9 @@
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
-import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    buildXtreamEpgMappingKey,
+    EpgChannelMetadata,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
 
@@ -36,11 +40,19 @@ export class EpgQueryService {
     ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
-            const trimmedChannelId = channelId.trim();
+            let trimmedChannelId = channelId.trim();
             const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
 
             if (!trimmedChannelId) {
                 return [];
+            }
+
+            // Check for manual EPG mapping — if a user has mapped this
+            // channel key to a different EPG channel ID, use the mapped
+            // ID for all subsequent lookups.
+            const mapped = await this.getMapping(db, trimmedChannelId);
+            if (mapped) {
+                trimmedChannelId = mapped;
             }
 
             let results = await this.selectChannelPrograms(
@@ -904,6 +916,69 @@ export class EpgQueryService {
             !Number.isNaN(new Date(program.start).getTime()) &&
             !Number.isNaN(new Date(program.stop).getTime())
         );
+    }
+
+    private async getMapping(
+        db: EpgDatabase,
+        channelKey: string
+    ): Promise<string | null> {
+        try {
+            // Direct lookup by channel key.
+            const rows = await db
+                .select({
+                    epgChannelId: schema.epgChannelMappings.epgChannelId,
+                })
+                .from(schema.epgChannelMappings)
+                .where(
+                    eq(schema.epgChannelMappings.channelKey, channelKey)
+                )
+                .limit(1);
+            if (rows.length > 0) {
+                return rows[0].epgChannelId;
+            }
+
+            // Fallback: the key may be an Xtream provider epg_channel_id
+            // while the mapping was saved under the playlist-scoped Xtream
+            // key. Resolve the owning streams (joined through categories for
+            // the playlist ID) and check their mapping keys. The same
+            // epg_channel_id can appear in several playlists, so check a few.
+            const contentRows = await db
+                .select({
+                    xtreamId: schema.content.xtreamId,
+                    playlistId: schema.categories.playlistId,
+                })
+                .from(schema.content)
+                .innerJoin(
+                    schema.categories,
+                    eq(schema.content.categoryId, schema.categories.id)
+                )
+                .where(eq(schema.content.epgChannelId, channelKey))
+                .limit(5);
+            if (contentRows.length > 0) {
+                const candidateKeys = contentRows.map((row) =>
+                    buildXtreamEpgMappingKey(row.playlistId, row.xtreamId)
+                );
+                const mapped = await db
+                    .select({
+                        epgChannelId: schema.epgChannelMappings.epgChannelId,
+                    })
+                    .from(schema.epgChannelMappings)
+                    .where(
+                        inArray(
+                            schema.epgChannelMappings.channelKey,
+                            candidateKeys
+                        )
+                    )
+                    .limit(1);
+                if (mapped.length > 0) {
+                    return mapped[0].epgChannelId;
+                }
+            }
+
+            return null;
+        } catch {
+            return null;
+        }
     }
 }
 

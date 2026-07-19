@@ -569,6 +569,7 @@
         "REMOVE_FAVORITE": "Usuń z ulubionych",
         "ADD_FAVORITE": "Dodaj do ulubionych",
         "SHOW_DETAILS": "Pokaż szczegóły kanału",
+        "MAP_EPG": "Przypisz kanał EPG",
         "FAVORITES_UPDATED": "Ulubione zostały zaktualizowane!",
         "SELECT_CHANNEL_PLAYBACK": "Wybierz kanał, aby rozpocząć odtwarzanie",
         "SORT_BY": "Sortuj według",
@@ -713,6 +714,21 @@
             "GROUP_SHORT": "krótkie progr.",
             "GROUP_EXPAND": "pokaż ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Przypisz kanał EPG",
+        "SUBTITLE": "Ręcznie wybierz kanał EPG dla \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Szukaj kanałów EPG...",
+        "CURRENT_MAPPING": "Bieżące przypisanie",
+        "NO_MAPPING": "Brak przypisania EPG",
+        "SAVE": "Zapisz przypisanie",
+        "REMOVE": "Usuń przypisanie",
+        "CLOSE": "Zamknij",
+        "NO_RESULTS": "Nie znaleziono kanałów EPG",
+        "SEARCH_HINT": "Wpisz co najmniej {{min}} znaki, aby wyszukać",
+        "SAVED": "Przypisanie EPG zapisane",
+        "REMOVED": "Przypisanie EPG usunięte",
+        "SAVE_FAILED": "Nie udało się zaktualizować przypisania EPG"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

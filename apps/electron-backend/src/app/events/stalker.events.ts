@@ -9,6 +9,7 @@ import {
     PortalDebugEvent,
     STALKER_REQUEST,
 } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { buildStalkerIdentityRequestContext } from './stalker-identity';
@@ -186,7 +187,10 @@ ipcMain.handle(
                 emitPortalDebugEvent(debugEvent);
             }
 
-            console.error('[StalkerEvents] Request error:', error);
+            console.error(
+                '[StalkerEvents] Request error:',
+                redactSensitiveData(error)
+            );
 
             // Format error response
             if (axios.isAxiosError(error)) {
