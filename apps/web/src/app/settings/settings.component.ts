@@ -33,7 +33,6 @@ import {
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
 import { take } from 'rxjs';
-import { BUILD_COMMIT } from '../../environments/build-commit';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
@@ -46,6 +45,7 @@ import {
     Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
+import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from './../services/settings.service';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
