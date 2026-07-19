@@ -126,8 +126,8 @@ importers:
         specifier: 1.6.13
         version: 1.6.13
       iptv-playlist-parser:
-        specifier: github:4gray/iptv-playlist-parser#f1948986add4b58987974d399b724b496f978579
-        version: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/f1948986add4b58987974d399b724b496f978579
+        specifier: github:4gray/iptv-playlist-parser#33f5e9c09539524d758901c02a6f29302833c0a4
+        version: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/33f5e9c09539524d758901c02a6f29302833c0a4
       marked:
         specifier: 18.0.5
         version: 18.0.5
@@ -7594,9 +7594,10 @@ packages:
     resolution: {integrity: sha512-Zv/pA+ciVFbCSBBjGfaKUya/CcGmUHzTydLMaTwrUUEM2DIEO3iZvueGxmacvmN50fGpGVKeTXpb2LcYQxeVdg==}
     engines: {node: '>= 10'}
 
-  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/f1948986add4b58987974d399b724b496f978579:
-    resolution: {tarball: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/f1948986add4b58987974d399b724b496f978579}
-    version: 0.15.2
+  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/33f5e9c09539524d758901c02a6f29302833c0a4:
+    resolution: {tarball: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/33f5e9c09539524d758901c02a6f29302833c0a4}
+    version: 0.15.2-iptvnator.1
+    engines: {node: '>=18'}
 
   iron-webcrypto@1.2.1:
     resolution: {integrity: sha512-feOM6FaSr6rEABp/eDfVseKyTMDt+KGpeB35SkVn9Tyn0CqvVsY3EwI0v5i8nMHyJnzCIQf7nsy3p41TPkJZhg==}
@@ -20590,7 +20591,7 @@ snapshots:
 
   ipaddr.js@2.3.0: {}
 
-  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/f1948986add4b58987974d399b724b496f978579: {}
+  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/33f5e9c09539524d758901c02a6f29302833c0a4: {}
 
   iron-webcrypto@1.2.1: {}
 

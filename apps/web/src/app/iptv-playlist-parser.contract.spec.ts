@@ -83,6 +83,15 @@ describe('iptv-playlist-parser contract (4gray fork)', () => {
         expect(result.items[0].http.referrer).toBe('http://ref.example');
     });
 
+    it('accepts playlists with a UTF-8 BOM before the header', () => {
+        const result = parse(
+            '﻿#EXTM3U\n#EXTINF:-1,One\nhttp://example.com/one.m3u8\n'
+        );
+
+        expect(result.items.length).toBe(1);
+        expect(result.items[0].url).toBe('http://example.com/one.m3u8');
+    });
+
     it('exposes EPG urls from the playlist header', () => {
         const result = parse(
             [
