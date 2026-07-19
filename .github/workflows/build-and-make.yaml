@@ -396,6 +396,14 @@ jobs:
                   TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
               run: node tools/tmdb/inject-tmdb-key.mjs
 
+            - name: Inject build commit
+              # Shows "<version> (<sha>)" in Settings > About so bug reports
+              # from test builds identify the exact commit. PR builds use the
+              # head SHA — github.sha would be the ephemeral merge commit.
+              env:
+                  BUILD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+              run: node tools/build/inject-build-commit.mjs
+
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
 

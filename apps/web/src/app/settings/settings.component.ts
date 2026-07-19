@@ -33,6 +33,7 @@ import {
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
 import { take } from 'rxjs';
+import { BUILD_COMMIT } from '../../environments/build-commit';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
@@ -199,6 +200,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Current version of the app */
     version = '';
+
+    /** Git commit the app was built from (CI builds only) */
+    readonly buildCommit = BUILD_COMMIT;
 
     /** Update message to show */
     updateMessage = '';
