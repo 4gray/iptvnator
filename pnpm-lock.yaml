@@ -126,7 +126,7 @@ importers:
         specifier: 1.6.13
         version: 1.6.13
       iptv-playlist-parser:
-        specifier: github:4gray/iptv-playlist-parser#33f5e9c09539524d758901c02a6f29302833c0a4
+        specifier: github:4gray/iptv-playlist-parser#v0.15.2-iptvnator.1
         version: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/33f5e9c09539524d758901c02a6f29302833c0a4
       marked:
         specifier: 18.0.5
