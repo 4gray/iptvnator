@@ -1004,8 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Esta descarga ya no se puede abrir en la biblioteca porque su lista de reproducción de origen fue eliminada.",
         "FILE_NOT_FOUND": "Este archivo descargado ya no está disponible en el disco.",
         "FILE_ACTION_ERROR": "No se pudo completar la acción del archivo.",
-        "PAUSE": "Pause",
-        "RESUME": "Resume",
+        "ACTION_FAILED": "La acción ha fallado",
+        "PAUSE": "Pausar",
+        "RESUME": "Reanudar",
         "CANCEL": "Cancelar",
         "RETRY": "Reintentar",
         "REMOVE": "Eliminar",
@@ -1020,7 +1021,7 @@
             "COMPLETED": "Completado",
             "FAILED": "Fallido",
             "CANCELED": "Cancelado",
-            "PAUSED": "Paused"
+            "PAUSED": "En pausa"
         }
     },
     "REMOTE_CONTROL": {

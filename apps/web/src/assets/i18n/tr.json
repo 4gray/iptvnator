@@ -1004,8 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Bu indirme, kaynak oynatma listesi kaldırıldığı için kütüphanede artık açılamıyor.",
         "FILE_NOT_FOUND": "Bu indirilen dosya artık diskte mevcut değil.",
         "FILE_ACTION_ERROR": "Dosya işlemi tamamlanamadı.",
-        "PAUSE": "Pause",
-        "RESUME": "Resume",
+        "ACTION_FAILED": "İşlem başarısız oldu",
+        "PAUSE": "Duraklat",
+        "RESUME": "Devam et",
         "CANCEL": "İptal",
         "RETRY": "Tekrar Dene",
         "REMOVE": "Kaldır",
@@ -1020,7 +1021,7 @@
             "COMPLETED": "Tamamlandı",
             "FAILED": "Başarısız",
             "CANCELED": "İptal Edildi",
-            "PAUSED": "Paused"
+            "PAUSED": "Duraklatıldı"
         }
     },
     "REMOTE_CONTROL": {

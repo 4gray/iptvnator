@@ -1004,8 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Questo download non può più essere aperto nella libreria perché la playlist di origine è stata rimossa.",
         "FILE_NOT_FOUND": "Questo file scaricato non è più disponibile su disco.",
         "FILE_ACTION_ERROR": "Impossibile completare l'azione sul file.",
-        "PAUSE": "Pause",
-        "RESUME": "Resume",
+        "ACTION_FAILED": "Azione non riuscita",
+        "PAUSE": "Pausa",
+        "RESUME": "Riprendi",
         "CANCEL": "Annulla",
         "RETRY": "Riprova",
         "REMOVE": "Rimuovi",
@@ -1020,7 +1021,7 @@
             "COMPLETED": "Completato",
             "FAILED": "Non riuscito",
             "CANCELED": "Annullato",
-            "PAUSED": "Paused"
+            "PAUSED": "In pausa"
         }
     },
     "REMOTE_CONTROL": {

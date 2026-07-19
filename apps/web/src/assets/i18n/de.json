@@ -1004,6 +1004,7 @@
         "SOURCE_PLAYLIST_MISSING": "Dieser Download kann nicht mehr in der Bibliothek geöffnet werden, weil die zugehörige Playlist entfernt wurde.",
         "FILE_NOT_FOUND": "Diese heruntergeladene Datei ist auf der Festplatte nicht mehr verfügbar.",
         "FILE_ACTION_ERROR": "Die Dateiaktion konnte nicht ausgeführt werden.",
+        "ACTION_FAILED": "Aktion fehlgeschlagen",
         "PAUSE": "Pausieren",
         "RESUME": "Fortsetzen",
         "CANCEL": "Abbrechen",

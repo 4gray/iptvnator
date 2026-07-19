@@ -1004,8 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Deze download kan niet meer worden geopend in de bibliotheek omdat de bronafspeellijst is verwijderd.",
         "FILE_NOT_FOUND": "Dit gedownloade bestand is niet meer beschikbaar op de schijf.",
         "FILE_ACTION_ERROR": "De bestandsactie kon niet worden voltooid.",
-        "PAUSE": "Pause",
-        "RESUME": "Resume",
+        "ACTION_FAILED": "Actie mislukt",
+        "PAUSE": "Pauzeren",
+        "RESUME": "Hervatten",
         "CANCEL": "Annuleren",
         "RETRY": "Opnieuw proberen",
         "REMOVE": "Verwijderen",
@@ -1020,7 +1021,7 @@
             "COMPLETED": "Voltooid",
             "FAILED": "Mislukt",
             "CANCELED": "Geannuleerd",
-            "PAUSED": "Paused"
+            "PAUSED": "Gepauzeerd"
         }
     },
     "REMOTE_CONTROL": {

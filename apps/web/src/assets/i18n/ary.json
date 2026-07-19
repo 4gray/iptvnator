@@ -1004,8 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "هاد التحميل ما يقدرش يتحل في المكتبة حيت قائمة التشغيل المصدر تحيدات.",
         "FILE_NOT_FOUND": "هاد الملف المحمل ما بقاش متوفر على القرص.",
         "FILE_ACTION_ERROR": "العملية على الملف ما تكملاتش.",
-        "PAUSE": "Pause",
-        "RESUME": "Resume",
+        "ACTION_FAILED": "العملية ما نجحاتش",
+        "PAUSE": "وقّف مؤقتاً",
+        "RESUME": "كمّل",
         "CANCEL": "إلغاء",
         "RETRY": "حاول مرة أخرى",
         "REMOVE": "حيد",
@@ -1020,7 +1021,7 @@
             "COMPLETED": "كمل",
             "FAILED": "فشل",
             "CANCELED": "تلغى",
-            "PAUSED": "Paused"
+            "PAUSED": "موقوف مؤقتاً"
         }
     },
     "REMOTE_CONTROL": {

@@ -1004,8 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Ce téléchargement ne peut plus être ouvert dans la bibliothèque car sa liste de lecture source a été supprimée.",
         "FILE_NOT_FOUND": "Ce fichier téléchargé n'est plus disponible sur le disque.",
         "FILE_ACTION_ERROR": "L'action sur le fichier n'a pas pu être effectuée.",
-        "PAUSE": "Pause",
-        "RESUME": "Resume",
+        "ACTION_FAILED": "Échec de l'action",
+        "PAUSE": "Mettre en pause",
+        "RESUME": "Reprendre",
         "CANCEL": "Annuler",
         "RETRY": "Réessayer",
         "REMOVE": "Supprimer",
@@ -1020,7 +1021,7 @@
             "COMPLETED": "Terminé",
             "FAILED": "Échec",
             "CANCELED": "Annulé",
-            "PAUSED": "Paused"
+            "PAUSED": "En pause"
         }
     },
     "REMOTE_CONTROL": {
