@@ -463,4 +463,58 @@ describe('EpgQueryService', () => {
         expect(result).toHaveLength(1);
         expect(result[0].title).toBe('Mapped Programme');
     });
+
+    it('collapses duplicate programme slots from multiple sources in an unscoped lookup', async () => {
+        const whereCalls: unknown[] = [];
+        const dupRow = {
+            id: 1,
+            channelId: 'bbc.one.uk',
+            start: '2026-06-21T20:00:00.000Z',
+            stop: '2026-06-21T21:00:00.000Z',
+            title: 'News',
+            description: null,
+            category: null,
+            iconUrl: null,
+            rating: null,
+            episodeNum: null,
+        };
+        const programChain = {
+            from: jest.fn(() => ({
+                where: jest.fn(() => ({
+                    orderBy: jest.fn(() => ({
+                        limit: jest.fn().mockResolvedValue([
+                            { ...dupRow, sourceUrl: 'https://a.example/g.xml' },
+                            { ...dupRow, id: 2, sourceUrl: 'https://b.example/g.xml' },
+                        ]),
+                    })),
+                })),
+            })),
+        };
+
+        const select = jest
+            .fn()
+            // getMapping direct + Xtream fallback — both miss.
+            .mockReturnValueOnce(createLimitedSelectChain([], whereCalls))
+            .mockReturnValueOnce({
+                from: jest.fn(() => ({
+                    innerJoin: jest.fn(function inner() {
+                        return this;
+                    }),
+                    where: jest.fn(() => ({
+                        orderBy: jest.fn(() => ({
+                            limit: jest.fn().mockResolvedValue([]),
+                        })),
+                    })),
+                })),
+            })
+            // selectChannelPrograms — two sources, same channel/start/title.
+            .mockReturnValueOnce(programChain);
+
+        getDatabase.mockResolvedValue({ select });
+
+        const result = await service.getChannelPrograms('bbc.one.uk');
+
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('News');
+    });
 });

@@ -68,9 +68,7 @@ export class EpgQueryService {
             }
 
             if (results.length > 0) {
-                return results
-                    .map(this.transformDbRowToEpgProgram)
-                    .filter(this.isValidEpgProgram);
+                return this.toEpgPrograms(results);
             }
 
             let channel = await this.selectChannelById(
@@ -101,9 +99,7 @@ export class EpgQueryService {
                 }
 
                 if (results.length > 0) {
-                    return results
-                        .map(this.transformDbRowToEpgProgram)
-                        .filter(this.isValidEpgProgram);
+                    return this.toEpgPrograms(results);
                 }
             }
 
@@ -153,9 +149,7 @@ export class EpgQueryService {
                     );
                 }
 
-                return results
-                    .map(this.transformDbRowToEpgProgram)
-                    .filter(this.isValidEpgProgram);
+                return this.toEpgPrograms(results);
             }
 
             return [];
@@ -892,6 +886,31 @@ export class EpgQueryService {
                     candidate.displayName.toLowerCase() === lowerChannelId
             ) ?? null
         );
+    }
+
+    /**
+     * Map program rows to EpgProgram and drop invalid ones, then collapse
+     * duplicate programme slots. The dedup index is source-aware, so an
+     * unscoped lookup (e.g. the M3U timeline, which queries without
+     * `sourceUrls`) can return the same channel/start/title from two EPG
+     * sources; keep the first so a programme is never shown twice.
+     */
+    private toEpgPrograms(rows: EpgProgramRow[]): EpgProgram[] {
+        const seen = new Set<string>();
+        const programs: EpgProgram[] = [];
+        for (const row of rows) {
+            const program = this.transformDbRowToEpgProgram(row);
+            if (!this.isValidEpgProgram(program)) {
+                continue;
+            }
+            const key = `${program.channel}|${program.start}|${program.title}`;
+            if (seen.has(key)) {
+                continue;
+            }
+            seen.add(key);
+            programs.push(program);
+        }
+        return programs;
     }
 
     private transformDbRowToEpgProgram(row: EpgProgramRow): EpgProgram {

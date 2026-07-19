@@ -363,7 +363,14 @@ export class EpgQueueService implements OnDestroy {
                 error
             );
         } finally {
-            this.inFlight.delete(streamId);
+            // Only release the in-flight marker if this request still owns it.
+            // When invalidate() cleared it mid-flight, a later re-enqueue may
+            // already have started a new request for the same stream; an
+            // unconditional delete here would drop that request's marker and
+            // let a third concurrent fetch start.
+            if (!isStale()) {
+                this.inFlight.delete(streamId);
+            }
         }
     }
 

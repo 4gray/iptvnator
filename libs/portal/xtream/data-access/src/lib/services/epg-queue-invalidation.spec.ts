@@ -28,6 +28,7 @@ describe('EpgQueueService invalidation', () => {
         shouldFetch: (streamId: number) => boolean;
         xmltvPreviewByStreamId: Map<number, EpgItem>;
         epgChannelByStreamId: Map<number, string>;
+        inFlight: Set<number>;
     };
 
     beforeEach(() => {
@@ -115,5 +116,26 @@ describe('EpgQueueService invalidation', () => {
         expect(service.getCached(707)).toBeNull();
         expect(emitted).not.toContain(707);
         sub.unsubscribe();
+    });
+
+    it('leaves a fresh in-flight marker intact when a stale request completes', async () => {
+        let resolveA!: (items: EpgItem[]) => void;
+        xtreamApi.getShortEpg.mockReturnValue(
+            new Promise<EpgItem[]>((resolve) => {
+                resolveA = resolve;
+            })
+        );
+
+        const aPromise = priv().fetchEpg(credentials, 909);
+        // Mapping changes mid-flight; a re-enqueue (request B) then starts and
+        // takes ownership of the in-flight marker.
+        service.invalidate(909);
+        priv().inFlight.add(909);
+
+        resolveA([makeItem('rtl.de', 'Stale')]);
+        await aPromise;
+
+        // Request A was stale, so its finally must not clear B's marker.
+        expect(priv().inFlight.has(909)).toBe(true);
     });
 });
