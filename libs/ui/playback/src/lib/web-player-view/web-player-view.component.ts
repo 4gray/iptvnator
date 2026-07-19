@@ -217,7 +217,9 @@ export class WebPlayerViewComponent {
                 ? 'application/x-mpegURL'
                 : extension === 'ts' || !extension
                   ? 'video/mp2t'
-                  : 'video/mp4';
+                  : extension === 'mkv'
+                    ? 'video/matroska'
+                    : 'video/mp4';
 
         this.vjsOptions = {
             isLive,

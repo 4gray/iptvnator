@@ -225,6 +225,33 @@ describe('WebPlayerViewComponent', () => {
         ]);
     });
 
+    it('uses the Matroska mime type for MKV paths', () => {
+        const streamUrl = 'https://example.com/archive/movie.mkv';
+
+        component.setVjsOptions(streamUrl);
+
+        expect(component.vjsOptions.sources).toEqual([
+            {
+                src: streamUrl,
+                type: 'video/matroska',
+            },
+        ]);
+    });
+
+    it('uses the Matroska mime type for query-declared MKV streams', () => {
+        const streamUrl =
+            'https://example.com/play?container=mkv&token=signed';
+
+        component.setVjsOptions(streamUrl);
+
+        expect(component.vjsOptions.sources).toEqual([
+            {
+                src: streamUrl,
+                type: 'video/matroska',
+            },
+        ]);
+    });
+
     it('treats web script playback URLs without declared media extension as MPEG-TS', () => {
         const streamUrl = 'https://example.com/live.php?stream=123&token=x';
 
