@@ -48,6 +48,7 @@ import {
 import {
     getLiveEpgPanelSummary,
     toEpgProgram,
+    toEpochSeconds,
     toLiveEpgPanelSummary,
 } from './unified-live-epg-summary.util';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
@@ -114,6 +115,10 @@ export class UnifiedLiveTabComponent {
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
     readonly activeUid = signal<string | null>(null);
+    /** Full collection item for the active selection — used to read
+     *  portal archive fields (tvArchive/tvArchiveDuration) and to
+     *  supply credentials for Xtream catch-up URL resolution. */
+    readonly activeItem = signal<UnifiedCollectionItem | null>(null);
     readonly isSelecting = signal(false);
     readonly epgMap = signal<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = signal(0);
@@ -197,22 +202,41 @@ export class UnifiedLiveTabComponent {
             this.activeDetail()?.playback?.thumbnail ??
             ''
     );
-    readonly timelineArchiveAvailable = computed(
-        () =>
-            this.isM3uSelection() && this.currentM3uArchivePlaybackAvailable()
-    );
+    readonly timelineArchiveAvailable = computed(() => {
+        if (this.isM3uSelection()) {
+            return this.currentM3uArchivePlaybackAvailable();
+        }
+
+        // Portal archive: tvArchive === 1 means the provider has
+        // timeshift / archive enabled for this channel.
+        const item = this.activeItem();
+        return (
+            Number(item?.tvArchive ?? 0) === 1 &&
+            Number(item?.tvArchiveDuration ?? 0) > 0
+        );
+    });
     /**
-     * Catch-up window (days) for the active M3U channel, so the timeline can
+     * Catch-up window (days) for the active channel, so the timeline can
      * gate "Watch" to programmes inside it. Without this the timeline defaults
      * `archiveDays` to 0 (treated as unlimited) and offers catch-up on
-     * programmes older than the channel's real `catchup-days`/`timeshift`/
-     * `tvg-rec` window. 0 for portal selections (archive is M3U-only here).
+     * programmes older than the real archive window.
+     *
+     * M3U: reads catchup-days / timeshift / tvg-rec from the channel attrs.
+     * Portal: tvArchiveDuration is already in days — pass it through,
+     * matching `live-stream-layout.controlledArchiveDays`.
      */
-    readonly timelineArchiveDays = computed(() =>
-        this.timelineArchiveAvailable()
-            ? getM3uArchiveDays(this.currentM3uChannel())
-            : 0
-    );
+    readonly timelineArchiveDays = computed(() => {
+        if (!this.timelineArchiveAvailable()) return 0;
+
+        if (this.isM3uSelection()) {
+            return getM3uArchiveDays(this.currentM3uChannel());
+        }
+
+        return Math.max(
+            0,
+            Number(this.activeItem()?.tvArchiveDuration ?? 0) || 0
+        );
+    });
     readonly activeRadioChannel = computed(() => {
         const channel = this.activeDetail()?.channel ?? null;
         return channel?.radio === 'true' ? channel : null;
@@ -389,9 +413,20 @@ export class UnifiedLiveTabComponent {
             return;
         }
 
+        if (this.isM3uSelection()) {
+            this.activateM3uCatchup(event.program);
+        } else {
+            void this.activatePortalCatchup(event.program);
+        }
+    }
+
+    /**
+     * M3U catch-up: resolve via the M3U timeshift URL resolver.
+     */
+    private activateM3uCatchup(program: EpgProgram): void {
         const playbackUrl = resolveM3uCatchupUrl(
             this.currentM3uChannel(),
-            event.program
+            program
         );
         if (!playbackUrl) {
             this.snackBar.open(
@@ -402,10 +437,70 @@ export class UnifiedLiveTabComponent {
             return;
         }
 
-        this.activeTimeshift.set({ url: playbackUrl, program: event.program });
+        this.activeTimeshift.set({ url: playbackUrl, program });
 
-        // No inline player (external MPV/VLC configured) → hand the archive
-        // stream to the external player, mirroring the live-selection flow.
+        const playback = this.activeDetail()?.playback;
+        if (!this.shouldUseInlinePlayer() && playback) {
+            void this.portalPlayer.openResolvedPlayback({
+                ...playback,
+                streamUrl: playbackUrl,
+                isLive: false,
+            });
+        }
+    }
+
+    /**
+     * Portal (Xtream) catch-up: compute start/stop as epoch seconds and
+     * resolve via the provider's timeshift endpoint.
+     */
+    private async activatePortalCatchup(program: EpgProgram): Promise<void> {
+        const requestId = this.selectionRequestId;
+        const item = this.activeItem();
+        if (!item?.xtreamId) {
+            this.snackBar.open(
+                this.translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
+                undefined,
+                { duration: 4000 }
+            );
+            return;
+        }
+
+        const startEpoch = toEpochSeconds(
+            program.startTimestamp,
+            program.start
+        );
+        const stopEpoch = toEpochSeconds(
+            program.stopTimestamp,
+            program.stop
+        );
+        if (startEpoch == null || stopEpoch == null) {
+            this.snackBar.open(
+                this.translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
+                undefined,
+                { duration: 4000 }
+            );
+            return;
+        }
+
+        const playbackUrl = await this.streamResolver.resolveXtreamCatchupUrl(
+            item,
+            startEpoch,
+            stopEpoch
+        );
+        if (requestId !== this.selectionRequestId) {
+            return; // switched channel — discard silently
+        }
+        if (!playbackUrl) {
+            this.snackBar.open(
+                this.translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
+                undefined,
+                { duration: 4000 }
+            );
+            return;
+        }
+
+        this.activeTimeshift.set({ url: playbackUrl, program });
+
         const playback = this.activeDetail()?.playback;
         if (!this.shouldUseInlinePlayer() && playback) {
             void this.portalPlayer.openResolvedPlayback({
@@ -441,6 +536,7 @@ export class UnifiedLiveTabComponent {
         this.isSelecting.set(false);
         this.activeDetail.set(null);
         this.activeUid.set(null);
+        this.activeItem.set(null);
         this.activeTimeshift.set(null);
     }
 
@@ -472,6 +568,7 @@ export class UnifiedLiveTabComponent {
 
         const requestId = ++this.selectionRequestId;
         this.activeUid.set(item.uid);
+        this.activeItem.set(item);
         this.activeDetail.set(null);
         this.activeTimeshift.set(null);
         this.isSelecting.set(true);

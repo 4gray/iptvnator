@@ -11,8 +11,8 @@ export class EpgDatabase {
     private readonly knownChannelIds = new Set<string>();
     private readonly insertChannelStmt: BetterSqlite3.Statement;
     private readonly insertProgramStmt: BetterSqlite3.Statement;
-    private readonly deleteProgramsForSourceStmt: BetterSqlite3.Statement;
     private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
+    private readonly deleteTodayAndFutureStmt: BetterSqlite3.Statement;
 
     constructor(Database: typeof BetterSqlite3) {
         this.db = new Database(getIptvnatorDatabasePath());
@@ -35,10 +35,6 @@ export class EpgDatabase {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        this.deleteProgramsForSourceStmt = this.db.prepare(`
-            DELETE FROM epg_programs WHERE source_url = ?
-        `);
-
         this.deleteOrphanChannelsForSourceStmt = this.db.prepare(`
             DELETE FROM epg_channels
             WHERE source_url = ?
@@ -48,21 +44,28 @@ export class EpgDatabase {
                   WHERE epg_programs.channel_id = epg_channels.id
               )
         `);
+
+        this.deleteTodayAndFutureStmt = this.db.prepare(`
+            DELETE FROM epg_programs
+            WHERE source_url = ?
+              AND (start >= date('now') OR start < date('now', '-7 days'))
+        `);
     }
 
     /**
-     * Insert a batch of channels. When `clearFirst` is true, the existing rows
-     * for `sourceUrl` are deleted inside the same transaction as the insert so
-     * old data is preserved if the fetch/parse never produces any channels.
+     * Insert a batch of channels. When `clearTodayAndFuture` is true, the
+     * selective delete (today+future and older-than-7-days) runs inside the
+     * same transaction so a parse failure after the delete atomically rolls
+     * back both — no gap left in the schedule.
      */
     insertChannels(
         channels: ParsedChannel[],
         sourceUrl: string,
-        clearFirst = false
+        clearTodayAndFuture = false
     ): void {
         const insertMany = this.db.transaction((channels: ParsedChannel[]) => {
-            if (clearFirst) {
-                this.deleteProgramsForSourceStmt.run(sourceUrl);
+            if (clearTodayAndFuture) {
+                this.deleteTodayAndFutureStmt.run(sourceUrl);
                 this.deleteOrphanChannelsForSourceStmt.run(sourceUrl);
                 this.knownChannelIds.clear();
             }

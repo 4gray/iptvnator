@@ -64,10 +64,19 @@ describe('epg-archive.util', () => {
             ).toBe(false);
         });
 
-        it('denies when the programme is not in the past', () => {
+        it('allows start-over on the currently-airing programme', () => {
             expect(
                 canCatchUpProgramme('now', inWindowStart, true, 7, NOW)
+            ).toBe(true);
+        });
+
+        it('denies start-over when archive playback is unavailable', () => {
+            expect(
+                canCatchUpProgramme('now', inWindowStart, false, 7, NOW)
             ).toBe(false);
+        });
+
+        it('denies future programmes', () => {
             expect(
                 canCatchUpProgramme('future', NOW + 60_000, true, 7, NOW)
             ).toBe(false);
@@ -91,8 +100,8 @@ describe('epg-archive.util', () => {
             expect(epgDialogActionFor('now', false)).toBe('live');
         });
 
-        it('prefers live over timeshift for an on-air programme', () => {
-            expect(epgDialogActionFor('now', true)).toBe('live');
+        it('prefers start-over timeshift for a catch-up-able on-air programme', () => {
+            expect(epgDialogActionFor('now', true)).toBe('timeshift');
         });
 
         it('maps a catch-up-able past programme to timeshift', () => {

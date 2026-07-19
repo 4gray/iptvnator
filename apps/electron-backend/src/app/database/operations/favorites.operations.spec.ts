@@ -25,9 +25,12 @@ jest.mock('drizzle-orm', () => ({
     ),
 }));
 
+import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { createDbMock } from './operations.test-helpers';
 import {
+    getAllGlobalFavorites,
+    getFavorites,
     getGlobalFavorites,
     reorderGlobalFavorites,
 } from './favorites.operations';
@@ -91,6 +94,38 @@ describe('favorites.operations', () => {
                 type: 'live',
             }),
         ]);
+    });
+
+    // Regression for issue #1138: archive metadata must survive every
+    // favorites projection so catch-up stays available outside Live TV.
+    it('selects archive metadata for playlist favorites', async () => {
+        const { db, select } = createGlobalFavoritesDbMock([]);
+
+        await getFavorites(db, 'playlist-1');
+
+        expect(select).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tv_archive: schema.content.tvArchive,
+                tv_archive_duration: schema.content.tvArchiveDuration,
+            })
+        );
+    });
+
+    it('selects archive metadata for global favorites', async () => {
+        const { db, select } = createGlobalFavoritesDbMock([]);
+
+        await getGlobalFavorites(db);
+        await getAllGlobalFavorites(db);
+
+        expect(select).toHaveBeenCalledTimes(2);
+        for (const [projection] of select.mock.calls) {
+            expect(projection).toEqual(
+                expect.objectContaining({
+                    tv_archive: schema.content.tvArchive,
+                    tv_archive_duration: schema.content.tvArchiveDuration,
+                })
+            );
+        }
     });
 
     describe('reorderGlobalFavorites', () => {
