@@ -110,9 +110,7 @@ export const content = sqliteTable(
         categoryIdx: index('idx_content_category').on(table.categoryId),
         titleIdx: index('idx_content_title').on(table.title),
         xtreamIdx: index('idx_content_xtream').on(table.xtreamId),
-        epgChannelIdx: index('idx_content_epg_channel').on(
-            table.epgChannelId
-        ),
+        epgChannelIdx: index('idx_content_epg_channel').on(table.epgChannelId),
         categoryTypeXtreamUnique: uniqueIndex(
             'content_category_type_xtream_unique'
         ).on(table.categoryId, table.type, table.xtreamId),
@@ -350,28 +348,14 @@ export const downloads = sqliteTable(
     })
 );
 
-// EPG channel mappings (manual user overrides)
-export const epgChannelMappings = sqliteTable(
-    'epg_channel_mappings',
-    {
-        id: integer('id').primaryKey({ autoIncrement: true }),
-        channelKey: text('channel_key').notNull().unique(),
-        epgChannelId: text('epg_channel_id').notNull(),
-        playlistId: text('playlist_id'),
-        updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
-    },
-    (table) => ({
-        playlistIdx: index('idx_epg_channel_mappings_playlist').on(
-            table.playlistId
-        ),
-    })
-);
-
-export type EpgChannelMapping = typeof epgChannelMappings.$inferSelect;
-export type NewEpgChannelMapping = typeof epgChannelMappings.$inferInsert;
-
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
+
+export {
+    epgChannelMappings,
+    type EpgChannelMapping,
+    type NewEpgChannelMapping,
+} from './epg-channel-mapping-schema';
 
 export {
     recordings,
