@@ -569,6 +569,7 @@
         "REMOVE_FAVORITE": "즐겨찾기에서 삭제하기",
         "ADD_FAVORITE": "즐겨찾기에 추가",
         "SHOW_DETAILS": "채널 세부정보 표시",
+        "MAP_EPG": "EPG 채널 매핑",
         "FAVORITES_UPDATED": "즐겨찾기가 업데이트되었습니다!",
         "SELECT_CHANNEL_PLAYBACK": "재생을 시작할 채널을 선택하세요",
         "SORT_BY": "정렬 기준",
@@ -713,6 +714,21 @@
             "GROUP_SHORT": "짧은 프로그램",
             "GROUP_EXPAND": "보기 ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG 채널 매핑",
+        "SUBTITLE": "\"{{channelName}}\"의 EPG 채널을 직접 선택하세요",
+        "SEARCH_PLACEHOLDER": "EPG 채널 검색...",
+        "CURRENT_MAPPING": "현재 매핑",
+        "NO_MAPPING": "설정된 EPG 매핑 없음",
+        "SAVE": "매핑 저장",
+        "REMOVE": "매핑 제거",
+        "CLOSE": "닫기",
+        "NO_RESULTS": "EPG 채널을 찾을 수 없음",
+        "SEARCH_HINT": "검색하려면 {{min}}자 이상 입력하세요",
+        "SAVED": "EPG 매핑이 저장되었습니다",
+        "REMOVED": "EPG 매핑이 제거되었습니다",
+        "SAVE_FAILED": "EPG 매핑을 업데이트할 수 없습니다"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

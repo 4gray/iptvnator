@@ -1,6 +1,9 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
-import { EpgItem } from '@iptvnator/shared/interfaces';
+import {
+    buildXtreamEpgMappingKey,
+    EpgItem,
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
@@ -19,6 +22,8 @@ interface CacheEntry {
 export interface EpgQueueEntry {
     streamId: number;
     epgChannelId?: string | null;
+    /** Owning playlist — required to resolve manual EPG mappings. */
+    playlistId?: string | null;
 }
 
 /**
@@ -114,6 +119,17 @@ export class EpgQueueService implements OnDestroy {
             typeof entry === 'number' ? { streamId: entry } : { ...entry }
         );
 
+        // Resolve manual EPG mappings before building the per-EPG-id index.
+        // When the user has right-clicked a channel and created a mapping,
+        // the stored key is the playlist-scoped Xtream key, not the
+        // provider's epg_channel_id.  By resolving upfront we get the
+        // correct EPG channel ID for the XMLTV batch call that follows.
+        // Guarded so environments without the bridge (PWA) skip the await
+        // entirely and the enqueue keeps its original microtask timing.
+        if (typeof window.electron?.getEpgMappingsBatch === 'function') {
+            await this.resolveManualMappings(normalized);
+        }
+
         const streamsByEpgId = new Map<string, number[]>();
         for (const entry of normalized) {
             const id = entry.epgChannelId?.trim();
@@ -190,6 +206,62 @@ export class EpgQueueService implements OnDestroy {
     ): Promise<Record<string, EpgItem>> {
         if (epgChannelIds.length === 0) return {};
         return this.fallbackService.getCurrentProgramsBatch(epgChannelIds);
+    }
+
+    /**
+     * Resolve manual EPG mappings for the queued entries.
+     *
+     * The user may have opened the mapping dialog (right-click → "Map EPG")
+     * from any channel list; the stored key is the playlist-scoped Xtream
+     * key, which does not match the provider's epg_channel_id, so the batch
+     * IPC handler's resolveChannelIds() would miss it.  We resolve here,
+     * upfront, so the XMLTV batch call later uses the *mapped* epgChannelId
+     * — the actual EPG channel that carries the XMLTV data. A mapping also
+     * supplies an epgChannelId to entries whose provider did not send one.
+     */
+    private async resolveManualMappings(
+        entries: EpgQueueEntry[]
+    ): Promise<void> {
+        const getEpgMappingsBatch =
+            typeof window.electron?.getEpgMappingsBatch === 'function'
+                ? window.electron.getEpgMappingsBatch
+                : null;
+        if (!getEpgMappingsBatch) {
+            return;
+        }
+
+        const keyByStreamId = new Map<number, string>();
+        for (const entry of entries) {
+            if (!entry.playlistId) continue;
+            keyByStreamId.set(
+                entry.streamId,
+                buildXtreamEpgMappingKey(entry.playlistId, entry.streamId)
+            );
+        }
+        if (keyByStreamId.size === 0) {
+            return;
+        }
+
+        try {
+            // One IPC round-trip for the whole viewport — a per-entry
+            // lookup would put O(N) IPC calls on every scroll event.
+            const mappings = await getEpgMappingsBatch([
+                ...keyByStreamId.values(),
+            ]);
+            for (const entry of entries) {
+                const key = keyByStreamId.get(entry.streamId);
+                const mapped = key ? mappings[key]?.trim() : undefined;
+                if (mapped) {
+                    this.logger.info(
+                        `Mapped stream ${entry.streamId}: ${entry.epgChannelId ?? '(none)'} → ${mapped}`
+                    );
+                    entry.epgChannelId = mapped;
+                }
+            }
+        } catch {
+            // Mapping lookup failure is non-fatal; keep the original
+            // epgChannelId values and proceed.
+        }
     }
 
     private pruneEphemeralMaps(visibleIds: Set<number>): void {

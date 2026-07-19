@@ -569,6 +569,7 @@
         "REMOVE_FAVORITE": "Выдаліць са спісу фаварытаў",
         "ADD_FAVORITE": "Дадаць у выбранае",
         "SHOW_DETAILS": "Паказаць інфармацыю аб канале",
+        "MAP_EPG": "Прывязаць канал EPG",
         "FAVORITES_UPDATED": "Спіс фаварытаў быў абноўлены!",
         "SELECT_CHANNEL_PLAYBACK": "Калі ласка, выберыце канал, каб пачаць прайграванне",
         "SORT_BY": "Сартаваць па",
@@ -713,6 +714,21 @@
             "GROUP_SHORT": "кароткіх",
             "GROUP_EXPAND": "паказаць ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Прывязка канала EPG",
+        "SUBTITLE": "Выберыце канал EPG для \"{{channelName}}\" уручную",
+        "SEARCH_PLACEHOLDER": "Пошук каналаў EPG...",
+        "CURRENT_MAPPING": "Бягучая прывязка",
+        "NO_MAPPING": "Прывязка EPG не зададзена",
+        "SAVE": "Захаваць прывязку",
+        "REMOVE": "Выдаліць прывязку",
+        "CLOSE": "Закрыць",
+        "NO_RESULTS": "Каналы EPG не знойдзены",
+        "SEARCH_HINT": "Увядзіце не менш за {{min}} сімвалы для пошуку",
+        "SAVED": "Прывязка EPG захавана",
+        "REMOVED": "Прывязка EPG выдалена",
+        "SAVE_FAILED": "Не ўдалося абнавіць прывязку EPG"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

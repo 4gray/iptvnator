@@ -569,6 +569,7 @@
         "REMOVE_FAVORITE": "お気に入りから削除",
         "ADD_FAVORITE": "お気に入りに追加",
         "SHOW_DETAILS": "チャンネルの詳細を表示",
+        "MAP_EPG": "EPGチャンネルを割り当て",
         "FAVORITES_UPDATED": "お気に入りが更新されました！",
         "SELECT_CHANNEL_PLAYBACK": "再生を開始するチャンネルを選択してください",
         "SORT_BY": "並び替え",
@@ -713,6 +714,21 @@
             "GROUP_SHORT": "短い番組",
             "GROUP_EXPAND": "表示 ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPGチャンネルの割り当て",
+        "SUBTITLE": "「{{channelName}}」のEPGチャンネルを手動で選択します",
+        "SEARCH_PLACEHOLDER": "EPGチャンネルを検索...",
+        "CURRENT_MAPPING": "現在の割り当て",
+        "NO_MAPPING": "EPGの割り当てはありません",
+        "SAVE": "割り当てを保存",
+        "REMOVE": "割り当てを削除",
+        "CLOSE": "閉じる",
+        "NO_RESULTS": "EPGチャンネルが見つかりません",
+        "SEARCH_HINT": "検索するには{{min}}文字以上入力してください",
+        "SAVED": "EPGの割り当てを保存しました",
+        "REMOVED": "EPGの割り当てを削除しました",
+        "SAVE_FAILED": "EPGの割り当てを更新できませんでした"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",
