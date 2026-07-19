@@ -30,6 +30,8 @@ const CONTENT_TITLE_FTS_MIGRATION_KEY =
     'migration:content-title-fts-trigram:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY =
     'migration:epg-program-source-url-backfill:v1';
+const TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY =
+    'migration:tmdb-search-lookup-v2-cache-cleanup:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_BATCH_SIZE = 50_000;
 
 function readTraceFlag(name: string): boolean {
@@ -373,6 +375,7 @@ export const __databaseConnectionTestHooks = {
     normalizeXtreamContentAddedEpochs,
     ensureContentTitleFts,
     backfillEpgProgramSourceUrls,
+    cleanupLegacyTmdbSearchCache,
     runMigrations,
 } as const;
 
@@ -769,10 +772,60 @@ function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
 }
 
 /**
+ * Search-match cache keys gained a v2 suffix when title normalization changed.
+ * Remove the now-unreachable unversioned rows once rather than leaving negative
+ * resolutions and other legacy search matches in long-lived installations.
+ */
+function cleanupLegacyTmdbSearchCache(sqliteDb: Database.Database): void {
+    try {
+        const migrationState = sqliteDb
+            .prepare(`SELECT value FROM app_state WHERE key = ?`)
+            .get(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY) as
+            | { value?: unknown }
+            | undefined;
+
+        if (migrationState?.value === 'done') {
+            return;
+        }
+
+        const executeCleanup = sqliteDb.transaction(() => {
+            sqliteDb
+                .prepare(
+                    `DELETE FROM tmdb_metadata
+                     WHERE lookup_key LIKE 'title:%|year:%'
+                       AND lookup_key NOT LIKE 'title:%|year:%|v%'`
+                )
+                .run();
+            sqliteDb
+                .prepare(
+                    `INSERT INTO app_state (key, value, updated_at)
+                     VALUES (?, 'done', datetime('now'))
+                     ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = excluded.updated_at`
+                )
+                .run(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY);
+        });
+
+        executeCleanup();
+    } catch (error) {
+        const message =
+            typeof error === 'object' && error !== null && 'message' in error
+                ? String((error as { message?: unknown }).message ?? error)
+                : String(error);
+
+        console.warn(
+            `Legacy TMDB search cache cleanup failed (continuing): ${message}`
+        );
+    }
+}
+
+/**
  * Run migrations that may fail if already applied
  */
 function runMigrations(sqliteDb: Database.Database): void {
     widenTmdbMetadataMediaTypeCheck(sqliteDb);
+    cleanupLegacyTmdbSearchCache(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
     ensureContentTitleFts(sqliteDb);
     deduplicateXtreamCache(sqliteDb);
