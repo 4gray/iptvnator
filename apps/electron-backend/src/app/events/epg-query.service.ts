@@ -1,6 +1,5 @@
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import {
-    buildXtreamEpgMappingKey,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
@@ -940,39 +939,34 @@ export class EpgQueryService {
             // Fallback: the key may be an Xtream provider epg_channel_id
             // while the mapping was saved under the playlist-scoped Xtream
             // key. Resolve the owning streams (joined through categories for
-            // the playlist ID) and check their mapping keys. The same
-            // epg_channel_id can appear in several playlists, so check a few.
-            const contentRows = await db
+            // the playlist ID) and look up their mapping keys in a single
+            // join, so a mapping saved under any matching stream is found —
+            // an earlier "check the first few" cap could silently miss a
+            // mapping saved under a later stream sharing this epg_channel_id.
+            //
+            // The join key is built in SQL to mirror
+            // buildXtreamEpgMappingKey(playlistId, xtreamId) →
+            // `xtream:{playlistId}:{xtreamId}`; keep the two in sync.
+            const mapped = await db
                 .select({
-                    xtreamId: schema.content.xtreamId,
-                    playlistId: schema.categories.playlistId,
+                    epgChannelId: schema.epgChannelMappings.epgChannelId,
                 })
                 .from(schema.content)
                 .innerJoin(
                     schema.categories,
                     eq(schema.content.categoryId, schema.categories.id)
                 )
-                .where(eq(schema.content.epgChannelId, channelKey))
-                .limit(5);
-            if (contentRows.length > 0) {
-                const candidateKeys = contentRows.map((row) =>
-                    buildXtreamEpgMappingKey(row.playlistId, row.xtreamId)
-                );
-                const mapped = await db
-                    .select({
-                        epgChannelId: schema.epgChannelMappings.epgChannelId,
-                    })
-                    .from(schema.epgChannelMappings)
-                    .where(
-                        inArray(
-                            schema.epgChannelMappings.channelKey,
-                            candidateKeys
-                        )
+                .innerJoin(
+                    schema.epgChannelMappings,
+                    eq(
+                        schema.epgChannelMappings.channelKey,
+                        sql`'xtream:' || ${schema.categories.playlistId} || ':' || ${schema.content.xtreamId}`
                     )
-                    .limit(1);
-                if (mapped.length > 0) {
-                    return mapped[0].epgChannelId;
-                }
+                )
+                .where(eq(schema.content.epgChannelId, channelKey))
+                .limit(1);
+            if (mapped.length > 0) {
+                return mapped[0].epgChannelId;
             }
 
             return null;

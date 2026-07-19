@@ -355,6 +355,23 @@ describe('EpgQueueService', () => {
         expect(events).toEqual([808]);
         sub.unsubscribe();
     });
+
+    it('invalidate() drops every cached artifact so the stream refetches', async () => {
+        xtreamApi.getShortEpg.mockResolvedValue([makeEpgItem('rtl.de', 'Now')]);
+        await priv().fetchEpg(credentials, 555);
+        priv().epgChannelByStreamId.set(555, 'rtl.de');
+        seedXmltvPreview(555, 'rtl.de');
+
+        expect(service.getCached(555)).not.toBeNull();
+        expect(priv().shouldFetch(555)).toBe(false);
+
+        service.invalidate(555);
+
+        expect(service.getCached(555)).toBeNull();
+        expect(priv().shouldFetch(555)).toBe(true);
+        expect(priv().epgChannelByStreamId.has(555)).toBe(false);
+        expect(priv().xmltvPreviewByStreamId.has(555)).toBe(false);
+    });
 });
 
 function makeEpgItem(channelId: string, title: string): EpgItem {

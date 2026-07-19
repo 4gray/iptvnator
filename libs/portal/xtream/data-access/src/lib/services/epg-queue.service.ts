@@ -80,6 +80,18 @@ export class EpgQueueService implements OnDestroy {
         return entry.data;
     }
 
+    /**
+     * Drop every cached artifact for a stream so the next enqueue refetches
+     * it. Used when a manual EPG mapping for the stream changes, since the
+     * cached preview/resolution was computed for the previous mapping.
+     */
+    invalidate(streamId: number): void {
+        this.cache.delete(streamId);
+        this.failureTimestamps.delete(streamId);
+        this.epgChannelByStreamId.delete(streamId);
+        this.xmltvPreviewByStreamId.delete(streamId);
+    }
+
     private isFailureCoolingDown(streamId: number): boolean {
         const timestamp = this.failureTimestamps.get(streamId);
         if (timestamp == null) {

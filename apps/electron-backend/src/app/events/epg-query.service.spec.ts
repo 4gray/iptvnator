@@ -403,4 +403,64 @@ describe('EpgQueryService', () => {
             )
         ).toBe(true);
     });
+
+    it('resolves a manual mapping saved under any stream sharing the epg_channel_id via a single join', async () => {
+        const whereCalls: unknown[] = [];
+        const joinLimit = jest
+            .fn()
+            .mockResolvedValue([{ epgChannelId: 'BBC.MAPPED' }]);
+        let innerJoinCount = 0;
+        const joinChain: Record<string, jest.Mock> = {};
+        joinChain.innerJoin = jest.fn(() => {
+            innerJoinCount += 1;
+            return joinChain;
+        });
+        joinChain.where = jest.fn((condition: unknown) => {
+            whereCalls.push(condition);
+            return { limit: joinLimit };
+        });
+
+        // Program lookup for the resolved (mapped) channel id.
+        const programRow = {
+            id: 1,
+            channelId: 'BBC.MAPPED',
+            start: '2026-06-21T17:00:00.000Z',
+            stop: '2026-06-21T18:00:00.000Z',
+            title: 'Mapped Programme',
+            description: null,
+            category: null,
+            iconUrl: null,
+            rating: null,
+            episodeNum: null,
+            sourceUrl: null,
+        };
+        const programChain = {
+            from: jest.fn(() => ({
+                where: jest.fn(() => ({
+                    orderBy: jest.fn(() => ({
+                        limit: jest.fn().mockResolvedValue([programRow]),
+                    })),
+                })),
+            })),
+        };
+
+        const select = jest
+            .fn()
+            // getMapping direct lookup — miss.
+            .mockReturnValueOnce(createLimitedSelectChain([], whereCalls))
+            // getMapping Xtream fallback — single join across content /
+            // categories / mappings, no arbitrary candidate cap.
+            .mockReturnValueOnce({ from: jest.fn(() => joinChain) })
+            // selectChannelPrograms for the mapped id.
+            .mockReturnValueOnce(programChain);
+
+        getDatabase.mockResolvedValue({ select });
+
+        const result = await service.getChannelPrograms('provider.epg.id');
+
+        expect(innerJoinCount).toBe(2);
+        expect(joinLimit).toHaveBeenCalledWith(1);
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Mapped Programme');
+    });
 });
