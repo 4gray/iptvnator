@@ -41,20 +41,29 @@ const appMock = {
     commandLine: commandLineMock,
 };
 
+const screenGetDisplayMatchingMock = jest.fn();
+
 jest.mock('electron', () => ({
     app: appMock,
     powerSaveBlocker: powerSaveBlockerMock,
+    screen: { getDisplayMatching: screenGetDisplayMatchingMock },
 }));
 
 const mainWindowSendMock = jest.fn();
 const mainWindowWebContentsOnMock = jest.fn();
+const mainWindowGetZoomFactorMock = jest.fn<number, []>();
 const mainWindowGetNativeWindowHandleMock = jest.fn<Buffer, []>(() =>
     Buffer.alloc(8)
 );
 const mainWindowMock = {
     isDestroyed: () => false,
     getNativeWindowHandle: mainWindowGetNativeWindowHandleMock,
-    webContents: { send: mainWindowSendMock, on: mainWindowWebContentsOnMock },
+    getBounds: () => ({ x: 0, y: 0, width: 1280, height: 720 }),
+    webContents: {
+        send: mainWindowSendMock,
+        on: mainWindowWebContentsOnMock,
+        getZoomFactor: mainWindowGetZoomFactorMock,
+    },
 };
 
 jest.mock('../app', () => ({
@@ -155,6 +164,10 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         mainWindowGetNativeWindowHandleMock.mockReturnValue(Buffer.alloc(8));
         mainWindowSendMock.mockReset();
         mainWindowWebContentsOnMock.mockReset();
+        mainWindowGetZoomFactorMock.mockReset();
+        mainWindowGetZoomFactorMock.mockReturnValue(1);
+        screenGetDisplayMatchingMock.mockReset();
+        screenGetDisplayMatchingMock.mockReturnValue({ scaleFactor: 1 });
         appMock.isPackaged = true;
 
         tempDirs = [];
@@ -437,6 +450,96 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             // native addon the outer afterEach shutdown would pick.
             service.disposeSession('s-fc');
             expect(frameCopyAddon.disposeSession).toHaveBeenCalledWith('s-fc');
+        });
+    });
+
+    describe('native view bounds scaling', () => {
+        afterEach(() => {
+            delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+        });
+
+        it('converts CSS bounds to physical pixels for the native engine on scaled displays', () => {
+            // Regression for #1145: the win32/linux engines position their
+            // child window in physical pixels, so renderer CSS bounds must
+            // be multiplied by the display scale before reaching the addon.
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            screenGetDisplayMatchingMock.mockReturnValue({ scaleFactor: 1.5 });
+            addon.createSession.mockReturnValueOnce('s-scaled');
+            addon.getSessionSnapshot.mockReturnValue(snapshot('loading'));
+
+            const cssBounds = { x: 100, y: 40, width: 640, height: 360 };
+            service.createSession(cssBounds, '', 1);
+            service.setBounds('s-scaled', cssBounds);
+
+            const physicalBounds = { x: 150, y: 60, width: 960, height: 540 };
+            expect(addon.createSession).toHaveBeenCalledWith(
+                expect.any(Buffer),
+                physicalBounds,
+                '',
+                1
+            );
+            expect(addon.setBounds).toHaveBeenCalledWith(
+                's-scaled',
+                physicalBounds
+            );
+        });
+
+        it('applies page zoom but not the display scale on macOS', () => {
+            // NSView frames are in points (device-independent pixels): only
+            // the webContents zoom factor separates them from CSS pixels.
+            Object.defineProperty(process, 'platform', { value: 'darwin' });
+            screenGetDisplayMatchingMock.mockReturnValue({ scaleFactor: 2 });
+            mainWindowGetZoomFactorMock.mockReturnValue(1.25);
+            addon.createSession.mockReturnValueOnce('s-zoom');
+            addon.getSessionSnapshot.mockReturnValue(snapshot('loading'));
+
+            service.createSession({ x: 0, y: 0, width: 100, height: 100 }, '', 1);
+
+            expect(addon.createSession).toHaveBeenCalledWith(
+                expect.any(Buffer),
+                { x: 0, y: 0, width: 125, height: 125 },
+                '',
+                1
+            );
+        });
+
+        it('passes frame-copy bounds through unscaled', () => {
+            // The frame-copy engine paints into a DOM canvas laid out in CSS
+            // pixels; its adapter applies the display scale to the render
+            // size itself, so a second scaling pass here would double it.
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            mockIsFrameCopyRuntimeUsable.mockReturnValue(true);
+            mockGetFrameCopyRuntimeAvailability.mockReturnValue({
+                usable: true,
+            });
+            screenGetDisplayMatchingMock.mockReturnValue({ scaleFactor: 1.5 });
+            const frameCopyAddon = createMockAddon();
+            frameCopyAddon.createSession.mockReturnValueOnce('s-fc-bounds');
+            frameCopyAddon.getSessionSnapshot.mockReturnValue(
+                snapshot('loading')
+            );
+            (
+                service as unknown as { frameCopyAdapter: MockAddon }
+            ).frameCopyAdapter = frameCopyAddon;
+
+            service.createSession(BOUNDS, '', 1);
+            service.setBounds('s-fc-bounds', BOUNDS);
+
+            expect(frameCopyAddon.createSession).toHaveBeenCalledWith(
+                Buffer.alloc(0),
+                BOUNDS,
+                '',
+                1
+            );
+            expect(frameCopyAddon.setBounds).toHaveBeenCalledWith(
+                's-fc-bounds',
+                BOUNDS
+            );
+
+            // Dispose while the frame-copy env is still set so teardown
+            // dispatches to the adapter that owns the session.
+            service.disposeSession('s-fc-bounds');
         });
     });
 
