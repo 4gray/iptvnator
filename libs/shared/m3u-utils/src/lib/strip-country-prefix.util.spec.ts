@@ -53,14 +53,23 @@ describe('stripCountryPrefix', () => {
             );
         });
 
-        it('strips longer uppercase tags', () => {
-            expect(stripCountryPrefix('EXYU - News')).toBe('News');
-            expect(stripCountryPrefix('MULTI - Movies')).toBe('Movies');
+        it('strips longer pipe-tagged prefixes', () => {
+            expect(stripCountryPrefix('EXYU| News')).toBe('News');
+            expect(stripCountryPrefix('MULTI| Movies')).toBe('Movies');
         });
 
         it('never treats numeric fragments as tags', () => {
             expect(stripCountryPrefix('1917 - Documentary')).toBe(
                 '1917 - Documentary'
+            );
+        });
+
+        it('keeps bare 4-5 char words before a spaced dash (real titles)', () => {
+            expect(stripCountryPrefix('DUNE - Part Two')).toBe(
+                'DUNE - Part Two'
+            );
+            expect(stripCountryPrefix('ALIEN - Covenant')).toBe(
+                'ALIEN - Covenant'
             );
         });
 

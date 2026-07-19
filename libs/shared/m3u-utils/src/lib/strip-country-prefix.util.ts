@@ -4,16 +4,17 @@
  * ("Sky - Sports F1", "Discovery - Science"). Pipes are conventionally
  * used only as tag separators, so they always count.
  *
- * A tag is 1–3 short UPPERCASE alphanumeric segments ("US", "4K-DE",
- * "AR-SUBS", "OSN+"). Every segment must contain a letter so numeric
- * titles ("1917 - ...") are never treated as tags. Colon separators stay
- * limited to plain 2–3 char tags — longer acronyms before a colon are
- * franchise titles ("NCIS: LA"), not tags.
+ * Before a dash a tag is either a compound ("4K-DE", "AR-SUBS", "4K-OSN+"
+ * — the inner hyphen is the tag signal) or a plain 2–3 char code ("US",
+ * "4K"). A bare 4–5 char word before a spaced dash is a real title
+ * ("DUNE - Part Two", "ALIEN - Covenant"), so it is not a tag. Colon tags
+ * stay 2–3 chars — longer acronyms are franchise titles ("NCIS: LA").
+ * Every segment must contain a letter so numbers ("1917 - ...") are safe.
  */
 const DASH_SEPARATORS = [' - ', '- ', ' -'];
 const COLON_SEPARATOR = ': ';
 const TAG_PREFIX_PATTERN =
-    /^(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}(?:-(?=[0-9+]*[A-Z])[A-Z0-9+]{2,6}){0,2}$/;
+    /^(?:(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}(?:-(?=[0-9+]*[A-Z])[A-Z0-9+]{2,6}){1,2}|(?=[0-9+]*[A-Z])[A-Z0-9+]{2,3})$/;
 const COLON_TAG_PATTERN = /^(?=[0-9+]*[A-Z])[A-Z0-9+]{2,3}$/;
 
 interface SeparatorMatch {

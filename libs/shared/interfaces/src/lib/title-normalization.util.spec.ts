@@ -83,6 +83,11 @@ describe('provider tag stripping', () => {
         );
     });
 
+    it('keeps bare 4-5 char words before a spaced dash (real titles)', () => {
+        expect(normalizeTitle('DUNE - Part Two')).toBe('dune part two');
+        expect(normalizeTitle('ALIEN - Covenant')).toBe('alien covenant');
+    });
+
     it('strips underscore and double-dash suffix tags', () => {
         expect(normalizeTitle('Fallout_eng')).toBe('fallout');
         expect(normalizeTitle('Breaking Bad (US)_msub')).toBe('breaking bad');
@@ -94,12 +99,23 @@ describe('provider tag stripping', () => {
         expect(normalizeTitle('The_Last_of_Us')).toBe('the last of us');
     });
 
+    it('keeps sole-underscore titles whose tail is not a known tag', () => {
+        expect(normalizeTitle('Mr_Robot')).toBe('mr robot');
+        expect(normalizeTitle('Cowboy_Bebop')).toBe('cowboy bebop');
+        expect(normalizeTitle('Mrs_Davis')).toBe('mrs davis');
+    });
+
     it('strips joined dash tags only for case-uniform vocabulary tokens', () => {
         expect(normalizeTitle('Breaking Bad-eng')).toBe('breaking bad');
         expect(normalizeTitle('The Last of Us-DE')).toBe('the last of us');
         expect(normalizeTitle('The Pitt (2025)-it')).toBe('the pitt');
         expect(normalizeTitle('Spider-Man')).toBe('spider man');
         expect(normalizeTitle('Kick-It')).toBe('kick it');
+    });
+
+    it('keeps English hyphenated word endings that collide with codes', () => {
+        expect(normalizeTitle('drive-in')).toBe('drive in');
+        expect(normalizeTitle('Plug-in')).toBe('plug in');
     });
 
     it('strips bare trailing UPPERCASE vocabulary tags', () => {
