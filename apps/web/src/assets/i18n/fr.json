@@ -951,6 +951,9 @@
         "CONTENT_NOT_AVAILABLE": "Ce contenu n'est pas disponible sur ce serveur",
         "PLAYBACK_ERROR": "Échec de l'obtention de l'URL de lecture",
         "LOADING_SEASONS": "Chargement des saisons…",
+        "LOADING_ALL_CHANNELS": "Chargement de la liste complète des chaînes…",
+        "REFRESH_CHANNEL_LIST": "Actualiser la liste des chaînes",
+        "NO_CHANNELS_IN_CATEGORY": "Aucune chaîne dans cette catégorie",
         "NO_EPISODES": "Aucun épisode disponible",
         "ALL_RADIO": "Toutes les radios"
     },

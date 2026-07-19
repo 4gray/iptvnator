@@ -123,11 +123,15 @@ export class WorkspaceShellSearchService {
             };
         }
 
-        const isDegradedStalkerItv =
+        // Stalker live search is "loaded only" (limited to fetched pages)
+        // unless the full ITV channel list is cached. ITV with the full list
+        // active covers everything; radio always pages, so it stays degraded.
+        const isDegradedStalkerLive =
             context?.provider === 'stalker' &&
-            section === 'itv' &&
-            appliedQuery.length > 0;
-        const behavior = isDegradedStalkerItv
+            appliedQuery.length > 0 &&
+            ((section === 'itv' && !this.stalkerStore.itvFullListActive()) ||
+                section === 'radio');
+        const behavior = isDegradedStalkerLive
             ? 'degraded-loaded-only'
             : route.searchMode;
 
@@ -151,7 +155,7 @@ export class WorkspaceShellSearchService {
                 stalkerCategoryName:
                     this.stalkerStore.getSelectedCategoryName(),
             }),
-            statusLabel: isDegradedStalkerItv
+            statusLabel: isDegradedStalkerLive
                 ? this.translateText(SEARCH_LOADED_ONLY_STATUS)
                 : '',
             minLength: route.searchMode === 'remote-search' ? 3 : 1,

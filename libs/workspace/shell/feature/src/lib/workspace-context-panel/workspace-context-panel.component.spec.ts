@@ -94,6 +94,9 @@ describe('WorkspaceContextPanelComponent', () => {
         selectedCategoryId: signal<string | null>(null),
         isCategoryResourceLoading: signal(false),
         isCategoryResourceFailed: signal(false),
+        itvFullListActive: signal(false),
+        itvFullListLoading: signal(false),
+        itvCategoryItemCounts: signal<Map<number, number>>(new Map()),
         setSelectedCategory: jest.fn(),
         setPage: jest.fn(),
         clearSelectedItem: jest.fn(),
@@ -396,6 +399,88 @@ describe('WorkspaceContextPanelComponent', () => {
             'Movies',
             'Alpha',
         ]);
+    });
+
+    it('shows per-genre count badges on stalker Live TV categories when the full list is cached', () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'itv');
+        stalkerStore.getCategoryResource.set([
+            { category_id: '*', category_name: 'All' },
+            { category_id: '1', category_name: 'Documentary' },
+            { category_id: '2', category_name: 'Sports' },
+        ]);
+        stalkerStore.itvFullListActive.set(true);
+        stalkerStore.itvCategoryItemCounts.set(
+            new Map<number, number>([
+                [1, 190],
+                [2, 38],
+                [Number.NaN, 228],
+            ])
+        );
+        fixture.detectChanges();
+
+        const counts = Array.from(
+            fixture.nativeElement.querySelectorAll('.category-item .item-count')
+        ).map((el) => (el as HTMLElement).textContent?.trim());
+        // "All" (NaN key → total), Documentary, Sports.
+        expect(counts).toEqual(['228', '190', '38']);
+    });
+
+    it('omits the badge for censored stalker genres missing from the count map', () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'itv');
+        stalkerStore.getCategoryResource.set([
+            { category_id: '1', category_name: 'Documentary' },
+            {
+                category_id: '19',
+                category_name: 'For adults',
+                censored: true,
+            } as never,
+        ]);
+        stalkerStore.itvFullListActive.set(true);
+        // Censored genre 19 has no entry — its real count is unknown.
+        stalkerStore.itvCategoryItemCounts.set(
+            new Map<number, number>([[1, 190]])
+        );
+        fixture.detectChanges();
+
+        const categoryButtons = Array.from(
+            fixture.nativeElement.querySelectorAll('.category-item')
+        ) as HTMLElement[];
+        const documentary = categoryButtons.find((el) =>
+            el.textContent?.includes('Documentary')
+        );
+        const adults = categoryButtons.find((el) =>
+            el.textContent?.includes('For adults')
+        );
+
+        expect(documentary?.querySelector('.item-count')?.textContent).toContain(
+            '190'
+        );
+        expect(adults?.querySelector('.item-count')).toBeNull();
+    });
+
+    it('hides count badges for stalker categories without a cached full list (e.g. VOD)', () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        stalkerStore.getCategoryResource.set([
+            { category_id: '1', category_name: 'Action' },
+        ]);
+        stalkerStore.itvFullListActive.set(false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.category-item .item-count')
+        ).toBeNull();
     });
 
     it('preserves the active xtream live item when switching live categories', () => {

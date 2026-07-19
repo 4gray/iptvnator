@@ -17,6 +17,7 @@ import {
     StalkerVodSource,
 } from '../../models';
 import { StalkerContentTypes } from '../../stalker-content-types';
+import { StalkerItvCacheService } from '../../stalker-itv-cache.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
     ResourceState,
@@ -26,6 +27,7 @@ import {
 } from '../stalker-store.contracts';
 import {
     executeStalkerRequest,
+    filterItvChannelsByGenre,
     toStalkerContentItem,
     toStalkerItvChannel,
 } from '../utils';
@@ -64,6 +66,7 @@ const initialContentState: StalkerContentState = {
 interface StalkerCategoryResponseItem {
     id?: string | number;
     title?: string;
+    censored?: string | number;
 }
 
 interface StalkerCategoryResponse {
@@ -191,7 +194,8 @@ export function withStalkerContent() {
                 store,
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService),
-                translateService = inject(TranslateService)
+                translateService = inject(TranslateService),
+                itvCache = inject(StalkerItvCacheService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerContentResourceStoreContract;
@@ -269,6 +273,9 @@ export function withStalkerContent() {
                                     (item): StalkerCategoryItem => ({
                                         category_name: item.title ?? '',
                                         category_id: String(item.id),
+                                        censored:
+                                            item.censored === 1 ||
+                                            item.censored === '1',
                                     })
                                 );
                                 const categories = prependAllCategory(
@@ -325,6 +332,17 @@ export function withStalkerContent() {
                             search: storeContext.searchPhrase(),
                             pageIndex: storeContext.page() + 1,
                             currentPlaylist: storeContext.currentPlaylist(),
+                            // Re-fires the loader once THIS portal's full ITV
+                            // channel list finishes loading or is refreshed.
+                            // Read only for ITV and scoped per-portal so a
+                            // different portal's (or a radio/vod) load never
+                            // re-fires and re-appends this resource's page.
+                            itvCacheVersion:
+                                storeContext.selectedContentType() === 'itv'
+                                    ? itvCache.versionFor(
+                                          storeContext.currentPlaylist()
+                                      )
+                                    : 0,
                             availableCategoryCount: getCategoriesByType(
                                 store,
                                 storeContext.selectedContentType()
@@ -376,6 +394,45 @@ export function withStalkerContent() {
                             }
 
                             const categoryParam = params.category || '*';
+
+                            if (params.contentType === 'itv') {
+                                const cachedChannels =
+                                    itvCache.getChannels(playlist);
+                                const channels =
+                                    cachedChannels !== null
+                                        ? filterItvChannelsByGenre(
+                                              cachedChannels,
+                                              categoryParam
+                                          )
+                                        : null;
+                                // Serve from the cache only when it actually
+                                // has channels for this genre. Censored (adult)
+                                // genres are typically EXCLUDED from
+                                // get_all_channels by the portal, so an empty
+                                // filter result falls through to the legacy
+                                // paged fetch, which still returns them.
+                                if (
+                                    channels !== null &&
+                                    (categoryParam === '*' ||
+                                        channels.length > 0)
+                                ) {
+                                    patchState(store, {
+                                        totalCount: channels.length,
+                                        paginatedContent: channels,
+                                        itvChannels: channels,
+                                        hasMoreChannels: false,
+                                        contentError: null,
+                                    });
+                                    return channels;
+                                }
+
+                                // Full-list load runs in the background; the
+                                // resource re-fires via `itvCacheVersion` once
+                                // the cache is ready. Until then the legacy
+                                // paged flow below serves the first pages.
+                                void itvCache.ensureLoaded(playlist);
+                            }
+
                             const paramsPlaylistKey =
                                 params.currentPlaylist?._id ??
                                 params.currentPlaylist?.portalUrl ??
@@ -397,7 +454,18 @@ export function withStalkerContent() {
                                         storeContext.searchPhrase() &&
                                     params.pageIndex ===
                                         storeContext.page() + 1 &&
-                                    paramsPlaylistKey === currentPlaylistKey
+                                    paramsPlaylistKey === currentPlaylistKey &&
+                                    // A legacy paged response must not overwrite
+                                    // the full cached list that a re-fired
+                                    // loader served in the meantime. Scoped
+                                    // per-portal and to ITV so another portal's
+                                    // load never invalidates this response.
+                                    params.itvCacheVersion ===
+                                        (params.contentType === 'itv'
+                                            ? itvCache.versionFor(
+                                                  currentPlaylist
+                                              )
+                                            : 0)
                                 );
                             };
                             const queryParams: Record<string, string | number> =
@@ -535,8 +603,86 @@ export function withStalkerContent() {
         withComputed((store) => {
             const storeContext = store as typeof store &
                 StalkerContentResourceStoreContract;
+            const itvCache = inject(StalkerItvCacheService);
+
+            /**
+             * The whole portal's ITV channel list (all categories) when
+             * cached. `versionFor` establishes the reactive dependency so this
+             * recomputes when the list becomes ready or is refreshed.
+             */
+            const itvFullChannelList = computed(() => {
+                const playlist = storeContext.currentPlaylist();
+                itvCache.versionFor(playlist);
+                return itvCache.getChannels(playlist) ?? [];
+            });
 
             return {
+                /** True when the complete ITV channel list is cached, so local search covers all channels. */
+                itvFullListActive: computed(() =>
+                    itvCache.isReady(storeContext.currentPlaylist())
+                ),
+                itvFullListLoading: computed(() =>
+                    itvCache.isLoading(storeContext.currentPlaylist())
+                ),
+                itvFullListProgress: computed(() =>
+                    itvCache.progressOf(storeContext.currentPlaylist())
+                ),
+                /** Exposes the whole portal's ITV channel list so search can span every channel. */
+                itvFullChannelList,
+                /**
+                 * True when the currently selected ITV category can be served
+                 * from the full-list cache. Censored (adult) genres are usually
+                 * excluded from `get_all_channels`, so a genre with zero cached
+                 * channels stays on the legacy paged flow.
+                 */
+                itvSelectedCategoryFromCache: computed(() => {
+                    const playlist = storeContext.currentPlaylist();
+                    if (!itvCache.isReady(playlist)) {
+                        return false;
+                    }
+
+                    const categoryId = storeContext.selectedCategoryId();
+                    if (!categoryId) {
+                        return false;
+                    }
+                    if (categoryId === '*') {
+                        return true;
+                    }
+
+                    return (
+                        filterItvChannelsByGenre(
+                            itvFullChannelList(),
+                            categoryId
+                        ).length > 0
+                    );
+                }),
+                /**
+                 * Per-genre channel counts for ITV category badges, keyed by
+                 * numeric `tv_genre_id` (mirrors the Xtream count map). Only
+                 * populated when the full list is cached. The "All" pseudo
+                 * category has id `'*'` → `Number('*')` is NaN, and a Map keys
+                 * NaN by SameValueZero, so the grand total under `NaN` makes the
+                 * "All" row show every channel. Genres with NO cached channels
+                 * get no entry at all: adult genres are excluded from
+                 * `get_all_channels` (with or without a `censored` flag from
+                 * `get_genres`), so their real count is unknown and the badge
+                 * is omitted rather than showing a misleading "0".
+                 */
+                itvCategoryItemCounts: computed(() => {
+                    const counts = new Map<number, number>();
+                    const channels = itvFullChannelList();
+                    for (const channel of channels) {
+                        const genreId = Number(channel.tv_genre_id);
+                        if (!Number.isNaN(genreId)) {
+                            counts.set(
+                                genreId,
+                                (counts.get(genreId) ?? 0) + 1
+                            );
+                        }
+                    }
+                    counts.set(Number.NaN, channels.length);
+                    return counts;
+                }),
                 getTotalPages: computed(() =>
                     Math.ceil(store.totalCount() / storeContext.limit())
                 ),
@@ -600,7 +746,25 @@ export function withStalkerContent() {
                 isCategoryResourceFailed: computed(() => store.categoryError()),
             };
         }),
-        withMethods((store) => ({
+        withMethods((store) => {
+            const storeContext = store as typeof store &
+                StalkerContentResourceStoreContract;
+            const itvCache = inject(StalkerItvCacheService);
+
+            return {
+            /**
+             * Kicks off the full ITV channel list load as soon as the Live TV
+             * section is entered (instead of waiting for the first category
+             * click), so the all-channels view and category count badges are
+             * available immediately. Safe to call repeatedly — the cache
+             * de-duplicates in-flight loads and memoizes unsupported portals.
+             */
+            preloadItvChannels(): void {
+                void itvCache.ensureLoaded(storeContext.currentPlaylist());
+            },
+            async refreshItvChannels(): Promise<void> {
+                await itvCache.refresh(storeContext.currentPlaylist());
+            },
             setCategories(
                 type: StalkerContentType,
                 categories: StalkerCategoryItem[]
@@ -622,6 +786,7 @@ export function withStalkerContent() {
             setRadioChannels(channels: StalkerItvChannel[]) {
                 patchState(store, { radioChannels: channels });
             },
-        }))
+            };
+        })
     );
 }

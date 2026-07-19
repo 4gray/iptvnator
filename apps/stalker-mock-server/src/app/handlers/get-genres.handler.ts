@@ -26,7 +26,7 @@ export function handleGetGenres(req: Request, res: Response): void {
         id: cat.id,
         title: cat.title,
         alias: cat.alias,
-        censored: '0',
+        censored: cat.censored ?? '0',
     }));
 
     res.json({ js: genres });

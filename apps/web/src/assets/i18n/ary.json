@@ -951,6 +951,9 @@
         "CONTENT_NOT_AVAILABLE": "هاد المحتوى ما متوفرش على هاد السيرفر",
         "PLAYBACK_ERROR": "فشل جلب رابط التشغيل",
         "LOADING_SEASONS": "جاري تشريج المواسم...",
+        "LOADING_ALL_CHANNELS": "كيتم تحميل لائحة القنوات كاملة…",
+        "REFRESH_CHANNEL_LIST": "تحديث لائحة القنوات",
+        "NO_CHANNELS_IN_CATEGORY": "ماكاينش قنوات فهاد الصنف",
         "NO_EPISODES": "ما كاينش حلقات متوفرة",
         "ALL_RADIO": "All radio"
     },

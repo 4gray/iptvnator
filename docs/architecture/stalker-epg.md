@@ -15,9 +15,19 @@ Stalker now uses two EPG paths with different purposes:
 - The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a
   7-day window once per playlist session, caches programs by channel id, and
   renders the selected channel through the shared `app-epg-timeline` component.
-- Channel rows no longer send preview EPG requests during initial category load.
-  They stay empty until bulk EPG has been fetched once, then derive their
-  current program and progress bar from the cached bulk map.
+- Channel rows never send per-row EPG requests. The bulk EPG load is triggered
+  **eagerly when a category's channels first render** (a constructor effect in
+  `StalkerLiveStreamLayoutComponent` calls `ensureBulkItvEpg(168)` once ITV
+  channels are present) — not only after the first channel is played — so the
+  row "now playing" previews and the EPG panel populate immediately. Rows derive
+  their current program and progress bar from the cached bulk map.
+  - Effect ordering matters: the eager-EPG effect is registered **after** the
+    playlist-change effect that calls `clearBulkItvEpgCache()`. On a portal
+    switch the cache is cleared first and then refilled; if the order is
+    reversed the clear clobbers the just-loaded bulk EPG on initial render.
+  - `ensureBulkItvEpg` de-duplicates (via `isLoadingBulkItvEpg` /
+    `bulkItvEpgLoaded` + matching playlist/period), so the eager trigger and the
+    play-time `loadEpgForChannel` path never double-fetch.
 - If a portal does not return usable bulk data for the selected channel, the
   active panel falls back to `get_short_epg`.
 

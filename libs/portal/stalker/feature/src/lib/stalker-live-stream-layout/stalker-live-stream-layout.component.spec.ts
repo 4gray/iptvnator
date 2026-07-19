@@ -1,4 +1,11 @@
-import { Component, Directive, input, output, signal } from '@angular/core';
+import {
+    Component,
+    Directive,
+    EventEmitter,
+    input,
+    output,
+    signal,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -134,7 +141,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     });
     const selectedCategoryId = signal<string | null>('1001');
     const searchPhrase = signal('');
-    const itvChannels = signal([
+    const defaultItvChannels = () => [
         {
             id: '10001',
             cmd: 'ffrt4://itv/10001',
@@ -149,7 +156,8 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             o_name: 'Beta TV',
             logo: 'beta.png',
         },
-    ]);
+    ];
+    const itvChannels = signal(defaultItvChannels());
     const radioChannels = signal([
         {
             id: 'radio-1',
@@ -182,6 +190,17 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     const isLoadingBulkItvEpg = signal(false);
     const hasMoreChannels = signal(false);
     const page = signal(0);
+    const itvFullListActive = signal(false);
+    const itvFullListLoading = signal(false);
+    const itvFullListProgress = signal<{
+        loaded: number;
+        total: number;
+    } | null>(null);
+    const itvFullChannelList = signal<
+        ReturnType<typeof defaultItvChannels>
+    >([]);
+    const itvSelectedCategoryFromCache = signal(false);
+    const isPaginatedContentLoading = signal(false);
 
     const stalkerStore = {
         getSelectedCategoryName: signal('News'),
@@ -189,6 +208,14 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         radioChannels,
         searchPhrase,
         hasMoreChannels,
+        itvFullListActive,
+        itvFullListLoading,
+        itvFullListProgress,
+        itvFullChannelList,
+        itvSelectedCategoryFromCache,
+        isPaginatedContentLoading,
+        preloadItvChannels: jest.fn(),
+        refreshItvChannels: jest.fn().mockResolvedValue(undefined),
         selectedItvId,
         currentPlaylist: playlist,
         selectedItvEpgPrograms,
@@ -255,6 +282,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         resolveItvPlayback = stalkerStore.resolveItvPlayback;
         resolveRadioPlayback = stalkerStore.resolveRadioPlayback;
 
+        itvChannels.set(defaultItvChannels());
         selectedCategoryId.set('1001');
         searchPhrase.set('');
         stalkerStore.selectedContentType.set('itv');
@@ -268,6 +296,13 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         isLoadingBulkItvEpg.set(false);
         hasMoreChannels.set(false);
         page.set(0);
+        itvFullListActive.set(false);
+        itvFullListLoading.set(false);
+        itvFullListProgress.set(null);
+        itvFullChannelList.set([]);
+        itvSelectedCategoryFromCache.set(false);
+        isPaginatedContentLoading.set(false);
+        stalkerStore.preloadItvChannels.mockClear();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         settingsStore.openStreamOnDoubleClick.set(false);
 
@@ -335,6 +370,13 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     provide: TranslateService,
                     useValue: {
                         instant: jest.fn((value: string) => value),
+                        // The real TranslatePipe (used by child components
+                        // that aren't stubbed) needs these members too.
+                        get: jest.fn((value: string) => of(value)),
+                        stream: jest.fn((value: string) => of(value)),
+                        onTranslationChange: new EventEmitter(),
+                        onLangChange: new EventEmitter(),
+                        onDefaultLangChange: new EventEmitter(),
                     },
                 },
                 {
@@ -621,6 +663,251 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(stalkerStore.setItvChannels).not.toHaveBeenCalled();
     });
 
+    it('windows the rendered list in full-list mode while search covers everything', () => {
+        const initialChannels = itvChannels();
+        try {
+            const full = Array.from({ length: 250 }, (_, index) => ({
+                id: `ch-${index}`,
+                cmd: `ffrt4://itv/${index}`,
+                name: index === 249 ? 'Needle TV' : `Channel ${index}`,
+                o_name: index === 249 ? 'Needle TV' : `Channel ${index}`,
+                logo: '',
+            }));
+            itvFullListActive.set(true);
+            itvSelectedCategoryFromCache.set(true);
+            itvChannels.set(full);
+            itvFullChannelList.set(full);
+            fixture.detectChanges();
+
+            // Only the first render window hits the DOM…
+            expect(component.visibleChannels()).toHaveLength(100);
+            // …but the header count reflects the whole list.
+            expect(component.totalChannelCount()).toBe(250);
+            expect(component.hasMoreItems()).toBe(true);
+
+            stalkerStore.setPage.mockClear();
+            component.loadMore();
+
+            // Scrolling extends the window from memory without portal paging.
+            expect(component.visibleChannels()).toHaveLength(200);
+            expect(stalkerStore.setPage).not.toHaveBeenCalled();
+
+            // Regression: search matches channels far beyond the first page.
+            searchPhrase.set('needle');
+            fixture.detectChanges();
+            expect(
+                component.visibleChannels().map((channel) => channel.name)
+            ).toEqual(['Needle TV']);
+        } finally {
+            itvChannels.set(initialChannels);
+        }
+    });
+
+    it('searches the whole portal (all categories) in full-list mode, not just the current category', () => {
+        // The current category (itvChannels) has only 'Alpha TV'/'Beta TV', but
+        // the portal's full list contains a News channel in another genre.
+        itvFullListActive.set(true);
+        itvFullChannelList.set([
+            ...defaultItvChannels(),
+            {
+                id: '55',
+                cmd: 'ffrt4://itv/55',
+                name: 'CNN International',
+                o_name: 'CNN International',
+                logo: '',
+            },
+        ]);
+        searchPhrase.set('cnn');
+        fixture.detectChanges();
+
+        expect(
+            component.filteredChannels().map((channel) => channel.name)
+        ).toEqual(['CNN International']);
+    });
+
+    it('grows the render window to include a channel selected beyond it (remote/numeric nav)', async () => {
+        const full = Array.from({ length: 250 }, (_, index) => ({
+            id: `ch-${index}`,
+            cmd: `ffrt4://itv/${index}`,
+            name: `Channel ${index}`,
+            o_name: `Channel ${index}`,
+            logo: '',
+        }));
+        itvFullListActive.set(true);
+        itvSelectedCategoryFromCache.set(true);
+        itvChannels.set(full);
+        itvFullChannelList.set(full);
+        fixture.detectChanges();
+
+        expect(component.visibleChannels()).toHaveLength(100);
+
+        // Selecting channel index 150 (outside the 100-item window) must grow
+        // the window so it is rendered and can be highlighted/scrolled to.
+        await component.playChannel(full[150], false);
+        fixture.detectChanges();
+
+        expect(component.visibleChannels().length).toBeGreaterThan(150);
+        expect(
+            component
+                .visibleChannels()
+                .some((channel) => channel.id === 'ch-150')
+        ).toBe(true);
+    });
+
+    it('does not clear cached channels when switching category in full-list mode', async () => {
+        // Regression: the category-change reset effect used to setItvChannels([])
+        // unconditionally, clobbering the list the content loader had just
+        // served synchronously from the full-list cache — leaving the sidebar
+        // stuck on an infinite skeleton for every category after the first.
+        itvFullListActive.set(true);
+        itvSelectedCategoryFromCache.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        stalkerStore.setItvChannels.mockClear();
+        selectedCategoryId.set('42');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(stalkerStore.setItvChannels).not.toHaveBeenCalled();
+    });
+
+    it('still clears channels on category change when the full list is not active', async () => {
+        itvFullListActive.set(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        stalkerStore.setItvChannels.mockClear();
+        selectedCategoryId.set('99');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(stalkerStore.setItvChannels).toHaveBeenCalledWith([]);
+    });
+
+    it('shows an empty state (not a skeleton) for a loaded but empty category', () => {
+        // Full list is loaded, nothing is loading, and the selected category
+        // filters down to zero channels — this must read as "empty", not "stuck".
+        itvFullListActive.set(true);
+        itvFullListLoading.set(false);
+        isPaginatedContentLoading.set(false);
+        itvChannels.set([]);
+        searchPhrase.set('');
+        fixture.detectChanges();
+
+        expect(component.isInitialChannelsLoading()).toBe(false);
+        expect(component.isCategoryEmpty()).toBe(true);
+        expect(
+            fixture.nativeElement.querySelector('app-channel-list-skeleton')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '.empty-search-state app-portal-empty-state'
+            )
+        ).toBeTruthy();
+    });
+
+    it('shows the skeleton only while a full-list load is genuinely in flight', () => {
+        itvChannels.set([]);
+        searchPhrase.set('');
+        itvFullListActive.set(false);
+        isPaginatedContentLoading.set(false);
+
+        itvFullListLoading.set(true);
+        fixture.detectChanges();
+        expect(component.isInitialChannelsLoading()).toBe(true);
+
+        itvFullListLoading.set(false);
+        fixture.detectChanges();
+        expect(component.isInitialChannelsLoading()).toBe(false);
+    });
+
+    it('shows the skeleton while the legacy paged fetch is loading', () => {
+        itvChannels.set([]);
+        searchPhrase.set('');
+        itvFullListActive.set(false);
+        itvFullListLoading.set(false);
+
+        isPaginatedContentLoading.set(true);
+        fixture.detectChanges();
+        expect(component.isInitialChannelsLoading()).toBe(true);
+    });
+
+    it('keeps portal pagination for a censored category absent from the cache', async () => {
+        // Full list IS active, but the selected (adult) genre has no cached
+        // channels — infinite scroll must request the next portal page instead
+        // of only growing the client-side render window.
+        itvFullListActive.set(true);
+        itvSelectedCategoryFromCache.set(false);
+        hasMoreChannels.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        page.set(0);
+        stalkerStore.setPage.mockClear();
+        component.loadMore();
+
+        expect(stalkerStore.setPage).toHaveBeenCalledWith(1);
+    });
+
+    it('preloads the full channel list as soon as the Live TV section is entered', () => {
+        // No category selected — the preload must not wait for a category click.
+        selectedCategoryId.set(null);
+        fixture.detectChanges();
+
+        expect(stalkerStore.preloadItvChannels).toHaveBeenCalled();
+    });
+
+    it('shows the all-channels grid instead of the placeholder when the full list is available', () => {
+        selectedCategoryId.set(null);
+        selectedItem.set(null);
+        itvFullListActive.set(true);
+        itvFullChannelList.set(defaultItvChannels());
+        fixture.detectChanges();
+
+        const grid = fixture.nativeElement.querySelector(
+            'app-stalker-itv-all-items'
+        );
+        expect(grid).toBeTruthy();
+        expect(grid.querySelectorAll('mat-card')).toHaveLength(2);
+        expect(
+            fixture.nativeElement.querySelector('app-portal-empty-state')
+        ).toBeNull();
+    });
+
+    it('keeps the select-a-category placeholder on portals without a usable full list', () => {
+        selectedCategoryId.set(null);
+        selectedItem.set(null);
+        itvFullListActive.set(false);
+        itvFullListLoading.set(false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('app-stalker-itv-all-items')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-portal-empty-state')
+        ).toBeTruthy();
+    });
+
+    it('shows the refresh button in full-list mode and delegates to the store', () => {
+        itvFullListActive.set(true);
+        fixture.detectChanges();
+
+        const buttons = Array.from(
+            fixture.nativeElement.querySelectorAll(
+                '.category-content-header button'
+            )
+        ) as HTMLButtonElement[];
+        const refreshButton = buttons.find((button) =>
+            button.textContent?.includes('refresh')
+        );
+
+        expect(refreshButton).toBeTruthy();
+        refreshButton?.click();
+        expect(stalkerStore.refreshItvChannels).toHaveBeenCalled();
+    });
+
     it('persists the channels sidebar width under a dedicated storage key', () => {
         // The shell context panel (category sidebar) is visible at the same
         // time as this sidebar and persists its width under the shared
@@ -635,12 +922,38 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         );
     });
 
-    it('keeps row previews empty before bulk epg is loaded', async () => {
+    async function settleEagerEpg(): Promise<void> {
+        for (let i = 0; i < 5; i += 1) {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            await new Promise<void>((resolve) => setTimeout(resolve));
+        }
+        fixture.detectChanges();
+    }
+
+    it('loads bulk EPG and shows row previews on category entry, before any playback', async () => {
+        await settleEagerEpg();
+
+        // The list EPG previews appear as soon as the category's channels are
+        // shown — the user no longer has to play a channel first.
+        expect(ensureBulkItvEpg).toHaveBeenCalledWith(168);
+        expect(component.epgPreviewPrograms.get('10001')?.title).toBe(
+            'Current Show'
+        );
+        expect(component.epgPreviewPrograms.get('10002')?.title).toBe(
+            'Next Channel Show'
+        );
+        // The per-channel fallback is reserved for the playing channel.
+        expect(fetchChannelEpg).not.toHaveBeenCalled();
+    });
+
+    it('does not load bulk EPG for radio (no EPG data)', async () => {
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(component.epgPreviewPrograms.size).toBe(0);
-        expect(fetchChannelEpg).not.toHaveBeenCalled();
         expect(ensureBulkItvEpg).not.toHaveBeenCalled();
     });
 
@@ -660,16 +973,18 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(fetchChannelEpg).not.toHaveBeenCalled();
     });
 
-    it('ensures bulk EPG only once across channel switches for the same playlist', async () => {
-        fixture.detectChanges();
+    it('does not re-fetch bulk EPG when switching channels once it is loaded', async () => {
+        await settleEagerEpg();
+        // Bulk EPG has loaded (eagerly, on entry).
+        ensureBulkItvEpg.mockClear();
 
         await component.playChannel(itvChannels()[0]);
         await fixture.whenStable();
         await component.playChannel(itvChannels()[1]);
         await fixture.whenStable();
 
-        expect(ensureBulkItvEpg).toHaveBeenCalledTimes(1);
-        expect(ensureBulkItvEpg).toHaveBeenCalledWith(168);
+        // Playing/switching channels reuses the cached bulk EPG.
+        expect(ensureBulkItvEpg).not.toHaveBeenCalled();
     });
 
     it('renders inline audio playback and no EPG for radio stations', async () => {

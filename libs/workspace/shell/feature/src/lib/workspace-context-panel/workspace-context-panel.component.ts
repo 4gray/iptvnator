@@ -144,6 +144,21 @@ export class WorkspaceContextPanelComponent {
         this.stalkerStore.isCategoryResourceLoading;
     readonly isStalkerCategoryFailed =
         this.stalkerStore.isCategoryResourceFailed;
+    // Category count badges are only available for Stalker Live TV, where the
+    // full channel list is cached — VOD/series/radio still page lazily, so
+    // their per-category totals are unknown.
+    readonly stalkerCategoryItemCounts =
+        this.stalkerStore.itvCategoryItemCounts;
+    readonly stalkerShowCounts = computed(
+        () =>
+            this.isStalkerCategories() &&
+            this.section() === 'itv' &&
+            (this.stalkerStore.itvFullListActive() ||
+                this.stalkerStore.itvFullListLoading())
+    );
+    readonly stalkerCountDisplayMode = computed<'loading' | 'ready'>(() =>
+        this.stalkerStore.itvFullListActive() ? 'ready' : 'loading'
+    );
     readonly skeletonRows = Array.from({ length: 14 }, (_, index) => index);
     readonly skeletonLabelWidths = [
         78, 66, 74, 59, 83, 69, 76, 62, 81, 64, 72, 67, 79, 61,

@@ -951,6 +951,9 @@
         "CONTENT_NOT_AVAILABLE": "هذا المحتوى غير متاح على هذا الخادم",
         "PLAYBACK_ERROR": "فشل الحصول على رابط التشغيل",
         "LOADING_SEASONS": "جارٍ تحميل المواسم...",
+        "LOADING_ALL_CHANNELS": "جارٍ تحميل قائمة القنوات الكاملة…",
+        "REFRESH_CHANNEL_LIST": "تحديث قائمة القنوات",
+        "NO_CHANNELS_IN_CATEGORY": "لا توجد قنوات في هذه الفئة",
         "NO_EPISODES": "لا توجد حلقات متاحة",
         "ALL_RADIO": "كل الراديو"
     },

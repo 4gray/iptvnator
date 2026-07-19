@@ -951,6 +951,9 @@
         "CONTENT_NOT_AVAILABLE": "Этот контент недоступен на этом сервере",
         "PLAYBACK_ERROR": "Не удалось получить URL для воспроизведения",
         "LOADING_SEASONS": "Загрузка сезонов…",
+        "LOADING_ALL_CHANNELS": "Загрузка полного списка каналов…",
+        "REFRESH_CHANNEL_LIST": "Обновить список каналов",
+        "NO_CHANNELS_IN_CATEGORY": "В этой категории нет каналов",
         "NO_EPISODES": "Нет доступных эпизодов",
         "ALL_RADIO": "Все радио"
     },

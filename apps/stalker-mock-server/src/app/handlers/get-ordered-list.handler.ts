@@ -34,8 +34,17 @@ export function handleGetOrderedList(req: Request, res: Response): void {
 
     if (type === 'itv') {
         if (categoryId === '*') {
-            for (const items of data.channels.values()) {
-                allItems.push(...items);
+            // The "*" listing excludes censored (adult) genres, matching
+            // real portals; their channels are only served by genre id.
+            const censoredIds = new Set(
+                data.itvCategories
+                    .filter((cat) => cat.censored === '1')
+                    .map((cat) => cat.id)
+            );
+            for (const [catId, items] of data.channels.entries()) {
+                if (!censoredIds.has(catId)) {
+                    allItems.push(...items);
+                }
             }
         } else {
             allItems = data.channels.get(categoryId) ?? [];

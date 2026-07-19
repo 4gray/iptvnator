@@ -9,6 +9,8 @@ export interface RawCategory {
     id: string;
     title: string;
     alias: string;
+    /** Ministra adult-genre flag ('1' = censored). */
+    censored?: string;
 }
 
 export interface RawChannel {
@@ -171,6 +173,16 @@ export function generatePortalData(config: ScenarioConfig): GeneratedPortalData 
 
     // ------ ITV categories + channels ------
     data.itvCategories = generateCategories('itv', config.categoryCount.itv);
+    // Real Ministra portals mark adult genres as censored and EXCLUDE their
+    // channels from get_all_channels / the "*" listing; the channels are only
+    // served by paging the specific genre. Mirror that with one extra
+    // censored category so clients can exercise the fallback path.
+    data.itvCategories.push({
+        id: '1099',
+        title: 'For adults',
+        alias: 'for_adults',
+        censored: '1',
+    });
     let channelIndex = 0;
     for (const cat of data.itvCategories) {
         const channels = generateChannels(cat.id, config.itemsPerCategory, channelIndex);

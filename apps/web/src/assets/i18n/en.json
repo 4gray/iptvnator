@@ -951,6 +951,9 @@
         "CONTENT_NOT_AVAILABLE": "This content is not available on this server",
         "PLAYBACK_ERROR": "Failed to get playback URL",
         "LOADING_SEASONS": "Loading seasons...",
+        "LOADING_ALL_CHANNELS": "Loading full channel list…",
+        "REFRESH_CHANNEL_LIST": "Refresh channel list",
+        "NO_CHANNELS_IN_CATEGORY": "No channels in this category",
         "NO_EPISODES": "No episodes available",
         "ALL_RADIO": "All radio"
     },

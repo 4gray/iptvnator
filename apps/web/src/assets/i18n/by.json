@@ -951,6 +951,9 @@
         "CONTENT_NOT_AVAILABLE": "Гэты кантэнт недаступны на дадзеным серверы",
         "PLAYBACK_ERROR": "Не ўдалося атрымаць URL для прайгравання",
         "LOADING_SEASONS": "Загрузка сезонаў...",
+        "LOADING_ALL_CHANNELS": "Загрузка поўнага спісу каналаў…",
+        "REFRESH_CHANNEL_LIST": "Абнавіць спіс каналаў",
+        "NO_CHANNELS_IN_CATEGORY": "У гэтай катэгорыі няма каналаў",
         "NO_EPISODES": "Няма даступных эпізодаў",
         "ALL_RADIO": "Усе радыё"
     },

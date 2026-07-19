@@ -951,6 +951,9 @@
         "CONTENT_NOT_AVAILABLE": "此伺服器上未提供此內容",
         "PLAYBACK_ERROR": "無法取得播放網址",
         "LOADING_SEASONS": "正在載入季數...",
+        "LOADING_ALL_CHANNELS": "正在載入完整頻道清單…",
+        "REFRESH_CHANNEL_LIST": "重新整理頻道清單",
+        "NO_CHANNELS_IN_CATEGORY": "此分類中沒有頻道",
         "NO_EPISODES": "沒有可用的集數",
         "ALL_RADIO": "所有廣播"
     },
