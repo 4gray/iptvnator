@@ -202,4 +202,32 @@ describe('MultiviewStateService', () => {
         // Invalid persisted focus falls back to the first occupied slot.
         expect(service.audioFocusIndex()).toBe(2);
     });
+
+    it('rejects persisted items with unknown enum values or missing fields', () => {
+        const withItem = (overrides: Partial<UnifiedCollectionItem>) => ({
+            item: { ...buildItem('x'), ...overrides },
+            origin: 'favorites',
+        });
+        localStorage.setItem(
+            MULTIVIEW_STORAGE_KEY,
+            JSON.stringify({
+                layoutId: 'grid-2x2',
+                slots: [
+                    withItem({ sourceType: 'bogus' as never }),
+                    withItem({ contentType: 'movie' }),
+                    withItem({ playlistName: undefined }),
+                    buildSlot('ok'),
+                ],
+                audioFocusIndex: 3,
+            })
+        );
+
+        service = createService();
+
+        expect(service.slots()[0]).toBeNull();
+        expect(service.slots()[1]).toBeNull();
+        expect(service.slots()[2]).toBeNull();
+        expect(service.slots()[3]?.item.uid).toBe('ok');
+        expect(service.audioFocusIndex()).toBe(3);
+    });
 });

@@ -203,7 +203,7 @@ describe('MultiviewTileEngine', () => {
         );
     });
 
-    it('reports mpegts errors', () => {
+    it('reports mpegts errors but ignores explicitly non-fatal ones', () => {
         const video = createVideo();
         const onError = jest.fn();
         const engine = new MultiviewTileEngine({
@@ -212,6 +212,11 @@ describe('MultiviewTileEngine', () => {
             onError,
         });
         engine.start();
+
+        mpegtsMock.players[0].emit('error', 'NetworkError', 'Exception', {
+            fatal: false,
+        });
+        expect(onError).not.toHaveBeenCalled();
 
         mpegtsMock.players[0].emit('error', 'NetworkError', 'Exception', {});
 

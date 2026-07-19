@@ -27,6 +27,14 @@ function replaceNativeVideoSource(
     element.load();
 }
 
+function isNonFatalMpegtsErrorInfo(info: unknown): boolean {
+    return (
+        typeof info === 'object' &&
+        info !== null &&
+        (info as { fatal?: unknown }).fatal === false
+    );
+}
+
 export interface MultiviewTileEngineConfig {
     readonly video: HTMLVideoElement;
     readonly url: string;
@@ -115,6 +123,13 @@ export class MultiviewTileEngine {
         player.on(
             mpegts.Events.ERROR,
             (type: string, details: string, info: unknown): void => {
+                // Mirror the hls.js path: only surface fatal errors as a tile
+                // error. mpegts.js recovers transient issues internally and
+                // emits ERROR for unrecoverable ones, but skip explicitly
+                // non-fatal payloads defensively.
+                if (isNonFatalMpegtsErrorInfo(info)) {
+                    return;
+                }
                 this.emitError(
                     classifyMpegTsPlaybackIssue(
                         { type, details, info },

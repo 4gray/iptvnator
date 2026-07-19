@@ -199,8 +199,13 @@ function sanitizeSlot(candidate: unknown): MultiviewSlotChannel | null {
         typeof item !== 'object' ||
         typeof item.uid !== 'string' ||
         typeof item.name !== 'string' ||
-        typeof item.sourceType !== 'string' ||
-        typeof item.playlistId !== 'string'
+        typeof item.playlistId !== 'string' ||
+        typeof item.playlistName !== 'string' ||
+        // Multiview only ever persists live channels.
+        item.contentType !== 'live' ||
+        (item.sourceType !== 'm3u' &&
+            item.sourceType !== 'xtream' &&
+            item.sourceType !== 'stalker')
     ) {
         return null;
     }
