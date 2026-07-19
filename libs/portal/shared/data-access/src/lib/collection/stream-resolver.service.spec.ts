@@ -494,6 +494,53 @@ describe('StreamResolverService', () => {
         });
     });
 
+    it('resolves manual EPG mappings for Stalker previews without hitting the portal', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+
+        const nowMs = Date.now();
+        epgBridge.getEpgMappingsBatch = jest.fn().mockResolvedValue({
+            'stalker:stalker-1:77': 'mapped.channel.id',
+        });
+        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([
+            {
+                channel: 'mapped.channel.id',
+                title: 'Mapped Stalker Program',
+                desc: 'From uploaded XMLTV',
+                start: new Date(nowMs - 60_000).toISOString(),
+                stop: new Date(nowMs + 60_000).toISOString(),
+            },
+        ]);
+
+        const epgMap = await service.loadEpgForItems([
+            {
+                uid: 'stalker::stalker-1::77',
+                name: 'Stalker Channel',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker',
+                stalkerId: '77',
+                tvgId: '77',
+                stalkerCmd: 'ffmpeg http://stalker/77',
+            } satisfies UnifiedCollectionItem,
+        ]);
+
+        expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
+        expect(epgMap.get('77')).toMatchObject({
+            title: 'Mapped Stalker Program',
+        });
+        // The mapped channel resolves from uploaded XMLTV — the portal
+        // short-EPG request must be skipped entirely.
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
     it('loads current Stalker EPG previews for live collection rows', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({

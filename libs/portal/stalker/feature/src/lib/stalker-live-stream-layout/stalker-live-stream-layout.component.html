@@ -72,6 +72,7 @@
                         "
                         [showFavoriteButton]="true"
                         [showProgramInfoButton]="false"
+                        [showDetailsContextMenu]="supportsEpgMapping"
                         [isFavorite]="
                             favorites.get(normalizeStalkerEntityId(item.id)) ??
                             false
@@ -79,6 +80,7 @@
                         (clicked)="playChannel(item)"
                         (activated)="playChannel(item, true)"
                         (favoriteToggled)="toggleFavorite(item)"
+                        (contextMenuRequested)="onChannelContextMenu(item, $event)"
                     />
                 }
             }
@@ -206,3 +208,19 @@
         }
     </div>
 </ng-template>
+
+<div
+    aria-hidden="true"
+    class="channel-context-menu-anchor"
+    [style.left]="contextMenuPosition().x"
+    [style.top]="contextMenuPosition().y"
+    [matMenuTriggerFor]="channelContextMenu"
+    #contextMenuTrigger="matMenuTrigger"
+></div>
+
+<mat-menu #channelContextMenu="matMenu">
+    <button mat-menu-item (click)="openEpgMapping()">
+        <mat-icon>settings_remote</mat-icon>
+        <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
+    </button>
+</mat-menu>
