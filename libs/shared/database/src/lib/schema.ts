@@ -356,12 +356,6 @@ export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 
 export {
-    epgChannelMappings,
-    type EpgChannelMapping,
-    type NewEpgChannelMapping,
-} from './epg-channel-mapping-schema';
-
-export {
     recordings,
     type Recording,
     type NewRecording,
