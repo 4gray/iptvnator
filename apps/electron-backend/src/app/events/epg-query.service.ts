@@ -947,6 +947,13 @@ export class EpgQueryService {
             // The join key is built in SQL to mirror
             // buildXtreamEpgMappingKey(playlistId, xtreamId) →
             // `xtream:{playlistId}:{xtreamId}`; keep the two in sync.
+            //
+            // This layer only receives the provider epg_channel_id, not the
+            // caller's playlist, so when the same id exists in several
+            // playlists it cannot scope to the caller's own mapping — the
+            // renderer resolves the playlist-scoped key directly and this is
+            // a best-effort fallback. Order deterministically so the chosen
+            // mapping is at least stable rather than storage-order dependent.
             const mapped = await db
                 .select({
                     epgChannelId: schema.epgChannelMappings.epgChannelId,
@@ -964,6 +971,10 @@ export class EpgQueryService {
                     )
                 )
                 .where(eq(schema.content.epgChannelId, channelKey))
+                .orderBy(
+                    schema.categories.playlistId,
+                    schema.content.xtreamId
+                )
                 .limit(1);
             if (mapped.length > 0) {
                 return mapped[0].epgChannelId;

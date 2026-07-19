@@ -514,20 +514,26 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
 
         const channelKey = buildXtreamEpgMappingKey(playlistId, xtreamId);
-        void this.openEpgMappingDialog(channelKey, channel, xtreamId);
+        void this.openEpgMappingDialog(
+            channelKey,
+            channel,
+            xtreamId,
+            playlistId
+        );
     }
 
     private async openEpgMappingDialog(
         channelKey: string,
         channel: XtreamChannelListItem,
-        streamId: number
+        streamId: number,
+        playlistId: string
     ): Promise<void> {
         const mappingBefore = await this.readEpgMapping(channelKey);
 
         EpgMappingDialogComponent.open(this.dialog, {
             channelKey,
             channelName: channel.title ?? channel.name ?? String(streamId),
-            playlistId: this.xtreamStore.currentPlaylist()?.id,
+            playlistId,
         })
             .afterClosed()
             .subscribe(async () => {

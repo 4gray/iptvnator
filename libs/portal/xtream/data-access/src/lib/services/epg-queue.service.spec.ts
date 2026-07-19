@@ -372,6 +372,30 @@ describe('EpgQueueService', () => {
         expect(priv().epgChannelByStreamId.has(555)).toBe(false);
         expect(priv().xmltvPreviewByStreamId.has(555)).toBe(false);
     });
+
+    it('discards an in-flight result when the mapping is invalidated mid-request', async () => {
+        let resolveEpg!: (items: EpgItem[]) => void;
+        xtreamApi.getShortEpg.mockReturnValue(
+            new Promise<EpgItem[]>((resolve) => {
+                resolveEpg = resolve;
+            })
+        );
+        const emitted: number[] = [];
+        const sub = service.epgResult$.subscribe(({ streamId }) =>
+            emitted.push(streamId)
+        );
+
+        const fetchPromise = priv().fetchEpg(credentials, 707);
+        // The user changes the mapping while the request is still running.
+        service.invalidate(707);
+        // The provider now returns the pre-change (stale) result.
+        resolveEpg([makeEpgItem('rtl.de', 'Stale')]);
+        await fetchPromise;
+
+        expect(service.getCached(707)).toBeNull();
+        expect(emitted).not.toContain(707);
+        sub.unsubscribe();
+    });
 });
 
 function makeEpgItem(channelId: string, title: string): EpgItem {

@@ -417,7 +417,7 @@ describe('EpgQueryService', () => {
         });
         joinChain.where = jest.fn((condition: unknown) => {
             whereCalls.push(condition);
-            return { limit: joinLimit };
+            return { orderBy: jest.fn(() => ({ limit: joinLimit })) };
         });
 
         // Program lookup for the resolved (mapped) channel id.

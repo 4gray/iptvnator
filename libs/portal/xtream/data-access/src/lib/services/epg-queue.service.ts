@@ -55,6 +55,8 @@ export class EpgQueueService implements OnDestroy {
     private readonly cache = new Map<number, CacheEntry>();
     private queue: number[] = [];
     private readonly inFlight = new Set<number>();
+    /** Bumped by invalidate() so a stale in-flight result is discarded. */
+    private readonly invalidationEpoch = new Map<number, number>();
     private readonly epgChannelByStreamId = new Map<number, string>();
     private readonly xmltvPreviewByStreamId = new Map<number, EpgItem>();
     private visibleSet = new Set<number>();
@@ -84,12 +86,23 @@ export class EpgQueueService implements OnDestroy {
      * Drop every cached artifact for a stream so the next enqueue refetches
      * it. Used when a manual EPG mapping for the stream changes, since the
      * cached preview/resolution was computed for the previous mapping.
+     *
+     * Also bumps an invalidation epoch and clears `inFlight`: a request that
+     * was already running when the mapping changed carries the pre-change
+     * resolution, so its result is discarded (epoch mismatch in `fetchEpg`)
+     * and clearing `inFlight` lets the immediate re-enqueue schedule a fresh
+     * fetch through the mapping-aware `enqueue()` path.
      */
     invalidate(streamId: number): void {
         this.cache.delete(streamId);
         this.failureTimestamps.delete(streamId);
         this.epgChannelByStreamId.delete(streamId);
         this.xmltvPreviewByStreamId.delete(streamId);
+        this.inFlight.delete(streamId);
+        this.invalidationEpoch.set(
+            streamId,
+            (this.invalidationEpoch.get(streamId) ?? 0) + 1
+        );
     }
 
     private isFailureCoolingDown(streamId: number): boolean {
@@ -317,6 +330,9 @@ export class EpgQueueService implements OnDestroy {
         credentials: XtreamCredentials,
         streamId: number
     ): Promise<void> {
+        const startEpoch = this.invalidationEpoch.get(streamId) ?? 0;
+        const isStale = (): boolean =>
+            (this.invalidationEpoch.get(streamId) ?? 0) !== startEpoch;
         try {
             const apiItems = await this.apiService.getShortEpg(
                 credentials,
@@ -324,6 +340,11 @@ export class EpgQueueService implements OnDestroy {
                 this.previewLimit,
                 { suppressErrorLog: true }
             );
+
+            // A mapping change during the request invalidated this result.
+            if (isStale()) {
+                return;
+            }
 
             if (apiItems.length > 0) {
                 this.recordSuccess(streamId, apiItems);
@@ -333,6 +354,9 @@ export class EpgQueueService implements OnDestroy {
             const xmltv = this.xmltvPreviewByStreamId.get(streamId);
             this.recordSuccess(streamId, xmltv ? [xmltv] : []);
         } catch (error) {
+            if (isStale()) {
+                return;
+            }
             this.failureTimestamps.set(streamId, Date.now());
             this.logger.error(
                 `Failed to load EPG for stream ${streamId}`,
