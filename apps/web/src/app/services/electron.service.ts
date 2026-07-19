@@ -80,7 +80,10 @@ export class ElectronService extends DataService {
                     error: string;
                     originalError: string;
                 }) => {
-                    console.error(`${data.player} Error:`, data.originalError);
+                    this.logger.error(
+                        `${data.player} Error:`,
+                        data.originalError
+                    );
                     this.snackBar.open(
                         `${data.player} Error: ${data.error}`,
                         'Close',
@@ -181,7 +184,7 @@ export class ElectronService extends DataService {
                         duration: 5000,
                     }
                 );
-                console.error('MPV launch error:', error);
+                this.logger.error('MPV launch error:', error);
                 throw error;
             }
         }
@@ -210,7 +213,7 @@ export class ElectronService extends DataService {
                         duration: 5000,
                     }
                 );
-                console.error('VLC launch error:', error);
+                this.logger.error('VLC launch error:', error);
                 throw error;
             }
         }
@@ -361,7 +364,7 @@ export class ElectronService extends DataService {
                         data.title
                     );
             } else {
-                console.error(
+                this.logger.error(
                     'Either url or filePath must be provided, but not both.'
                 );
                 return;
@@ -386,7 +389,7 @@ export class ElectronService extends DataService {
                 { duration: 2000 }
             );
         } catch (error: unknown) {
-            console.error('Playlist refresh error:', error);
+            this.logger.error('Playlist refresh error:', error);
             if (
                 data.url &&
                 this.handlePlaylistSecurityError(error, () => {

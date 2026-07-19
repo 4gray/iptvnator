@@ -33,15 +33,11 @@ const SENSITIVE_KEY_NAMES = new Set([
 ]);
 
 const SENSITIVE_KEY_SUFFIXES = [
-    'apikey',
-    'authorization',
-    'cookie',
-    'macaddress',
-    'passwd',
-    'password',
-    'secret',
-    'token',
-    'username',
+    'apikey', 'authorization', 'cookie',
+    'deviceid', 'deviceid1', 'deviceid2',
+    'macaddress', 'passwd', 'password', 'prehash',
+    'serialnumber', 'signature', 'signature1', 'signature2',
+    'secret', 'token', 'username',
 ];
 
 const XTREAM_CREDENTIAL_PATH_SEGMENTS = new Set([
@@ -185,7 +181,7 @@ function redactEmbeddedSensitivePairs(value: string): string {
                 : match
     );
     return redactedAssignments.replace(
-        /\b([a-z0-9_.-]*(?:api[-_.]?key|auth(?:orization)?|cookie|credentials|device[-_.]?id2?|login|mac(?:[-_.]?address)?|passwd|password|pwd|secret|set[-_.]?cookie|signature2?|sn|token|username))(\s*:\s*)(?:Bearer\s+)?[^;,\r\n]+/giu,
+        /\b([a-z0-9_.-]*(?:api[-_.]?key|auth(?:orization)?|cookie|credentials|device[-_.]?id[12]?|login|mac(?:[-_.]?address)?|passwd|password|prehash|pwd|secret|serial[-_.]?number|set[-_.]?cookie|signature[12]?|sn|token|username))(\s*:\s*)(?:Bearer\s+)?[^;,\r\n]+/giu,
         (_match, key: string, separator: string) =>
             `${key}${separator}${REDACTED_VALUE}`
     );

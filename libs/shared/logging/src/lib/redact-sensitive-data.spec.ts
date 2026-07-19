@@ -51,10 +51,19 @@ describe('redactSensitiveData', () => {
     it('redacts Stalker identity credentials while retaining request diagnostics', () => {
         const identitySecrets = {
             sn: 'stalker-sn-secret',
+            serialNumber: 'stalker-serial-number-secret',
             device_id: 'stalker-device-id-secret',
+            deviceId1: 'stalker-device-id1-secret',
             device_id2: 'stalker-device-id2-secret',
             signature: 'stalker-signature-secret',
+            signature1: 'stalker-signature1-secret',
             signature2: 'stalker-signature2-secret',
+            stalkerSerialNumber: 'playlist-stalker-serial-number-secret',
+            stalkerDeviceId1: 'playlist-stalker-device-id1-secret',
+            stalkerDeviceId2: 'playlist-stalker-device-id2-secret',
+            stalkerSignature1: 'playlist-stalker-signature1-secret',
+            stalkerSignature2: 'playlist-stalker-signature2-secret',
+            prehash: 'stalker-prehash-secret',
         };
 
         const result = redactSensitiveData({
@@ -141,10 +150,12 @@ describe('redactSensitiveData', () => {
         const authorization = 'diagnostic-authorization-secret';
         const authorizationAssignment =
             'diagnostic-authorization-assignment-secret';
+        const stalkerDeviceId = 'diagnostic-stalker-device-id-secret';
         const diagnostic = [
             `Request failed: token=${token}&action=get_profile`,
             `Upstream response Authorization: Bearer ${authorization}; status=401`,
             `Retrying with authorization=Bearer ${authorizationAssignment}, attempt=2`,
+            `Identity rejected: stalkerDeviceId1: ${stalkerDeviceId}; action=handshake`,
         ];
 
         const output = serialized(redactSensitiveData(diagnostic));
@@ -152,9 +163,11 @@ describe('redactSensitiveData', () => {
         expect(output).not.toContain(token);
         expect(output).not.toContain(authorization);
         expect(output).not.toContain(authorizationAssignment);
+        expect(output).not.toContain(stalkerDeviceId);
         expect(output).toContain('get_profile');
         expect(output).toContain('status=401');
         expect(output).toContain('attempt=2');
+        expect(output).toContain('action=handshake');
     });
 
     it('does not repeat a redacted Error message secret in its stack', () => {
