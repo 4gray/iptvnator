@@ -66,13 +66,32 @@ function createLimitedSelectChain(
     limitResult: unknown,
     whereCalls: unknown[]
 ): { from: jest.Mock } {
-    const limit = jest.fn().mockResolvedValue(limitResult);
+    const chain: Record<string, jest.Mock> = {
+        limit: jest.fn().mockResolvedValue(limitResult),
+    };
+    // groupBy/orderBy are optional links in the various query shapes; each
+    // returns the chain so where().groupBy().orderBy().limit() (and any
+    // subset) resolves to the same data.
+    chain.groupBy = jest.fn(() => chain);
+    chain.orderBy = jest.fn(() => chain);
     const where = jest.fn((condition: unknown) => {
         whereCalls.push(condition);
-        return { limit };
+        return chain;
     });
     return {
         from: jest.fn(() => ({ where })),
+    };
+}
+
+/** Program-query chain: from().where().groupBy().orderBy().limit(). */
+function createProgramChain(rows: unknown): { from: jest.Mock } {
+    const chain: Record<string, jest.Mock> = {
+        limit: jest.fn().mockResolvedValue(rows),
+    };
+    chain.groupBy = jest.fn(() => chain);
+    chain.orderBy = jest.fn(() => chain);
+    return {
+        from: jest.fn(() => ({ where: jest.fn(() => chain) })),
     };
 }
 
@@ -434,15 +453,6 @@ describe('EpgQueryService', () => {
             episodeNum: null,
             sourceUrl: null,
         };
-        const programChain = {
-            from: jest.fn(() => ({
-                where: jest.fn(() => ({
-                    orderBy: jest.fn(() => ({
-                        limit: jest.fn().mockResolvedValue([programRow]),
-                    })),
-                })),
-            })),
-        };
 
         const select = jest
             .fn()
@@ -452,7 +462,7 @@ describe('EpgQueryService', () => {
             // categories / mappings, no arbitrary candidate cap.
             .mockReturnValueOnce({ from: jest.fn(() => joinChain) })
             // selectChannelPrograms for the mapped id.
-            .mockReturnValueOnce(programChain);
+            .mockReturnValueOnce(createProgramChain([programRow]));
 
         getDatabase.mockResolvedValue({ select });
 
@@ -478,19 +488,6 @@ describe('EpgQueryService', () => {
             rating: null,
             episodeNum: null,
         };
-        const programChain = {
-            from: jest.fn(() => ({
-                where: jest.fn(() => ({
-                    orderBy: jest.fn(() => ({
-                        limit: jest.fn().mockResolvedValue([
-                            { ...dupRow, sourceUrl: 'https://a.example/g.xml' },
-                            { ...dupRow, id: 2, sourceUrl: 'https://b.example/g.xml' },
-                        ]),
-                    })),
-                })),
-            })),
-        };
-
         const select = jest
             .fn()
             // getMapping direct + Xtream fallback — both miss.
@@ -508,7 +505,14 @@ describe('EpgQueryService', () => {
                 })),
             })
             // selectChannelPrograms — two sources, same channel/start/title.
-            .mockReturnValueOnce(programChain);
+            // The SQL GROUP BY would collapse these; the mock returns both to
+            // prove the JS safety-net dedup also holds.
+            .mockReturnValueOnce(
+                createProgramChain([
+                    { ...dupRow, sourceUrl: 'https://a.example/g.xml' },
+                    { ...dupRow, id: 2, sourceUrl: 'https://b.example/g.xml' },
+                ])
+            );
 
         getDatabase.mockResolvedValue({ select });
 

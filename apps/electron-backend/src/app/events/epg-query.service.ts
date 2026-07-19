@@ -546,6 +546,13 @@ export class EpgQueryService {
                     sourceUrls
                 )
             )
+            // Collapse identical slots from multiple sources in SQL so the
+            // 500-row cap counts distinct programmes, not duplicate rows.
+            .groupBy(
+                schema.epgPrograms.channelId,
+                schema.epgPrograms.start,
+                schema.epgPrograms.title
+            )
             .orderBy(schema.epgPrograms.start)
             .limit(500);
     }
@@ -568,6 +575,11 @@ export class EpgQueryService {
                     sourceUrls,
                     { legacyOnly: true }
                 )
+            )
+            .groupBy(
+                schema.epgPrograms.channelId,
+                schema.epgPrograms.start,
+                schema.epgPrograms.title
             )
             .orderBy(schema.epgPrograms.start)
             .limit(500);
@@ -600,6 +612,9 @@ export class EpgQueryService {
                     options
                 )
             )
+            // One current row per channel so duplicate cross-source slots
+            // don't consume the per-channel cap and starve other channels.
+            .groupBy(schema.epgPrograms.channelId)
             .limit(channelIds.length);
     }
 
