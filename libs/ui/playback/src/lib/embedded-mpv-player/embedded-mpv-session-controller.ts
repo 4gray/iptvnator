@@ -151,6 +151,31 @@ export class EmbeddedMpvSessionController {
         window.addEventListener('resize', scheduleBoundsSync);
         window.addEventListener('scroll', scheduleBoundsSync, true);
 
+        // Page zoom and monitor DPI rescale the CSS→native-pixel mapping the
+        // backend applies to these bounds. Moving the window to a display
+        // with a different scale can keep the CSS layout identical (no
+        // resize, no ResizeObserver), so watch devicePixelRatio through a
+        // re-armed matchMedia query and re-sync when it changes.
+        let detachDprWatch: (() => void) | null = null;
+        const watchDevicePixelRatio = () => {
+            detachDprWatch?.();
+            detachDprWatch = null;
+            const query = window.matchMedia?.(
+                `(resolution: ${window.devicePixelRatio}dppx)`
+            );
+            if (!query) {
+                return;
+            }
+            const onChange = () => {
+                watchDevicePixelRatio();
+                scheduleBoundsSync();
+            };
+            query.addEventListener('change', onChange);
+            detachDprWatch = () =>
+                query.removeEventListener('change', onChange);
+        };
+        watchDevicePixelRatio();
+
         const create = async () => {
             this.session.set(createLoadingSession(playback, initialVolume));
             await waitForStartupPaint();
@@ -237,6 +262,8 @@ export class EmbeddedMpvSessionController {
             resizeObserver.disconnect();
             window.removeEventListener('resize', scheduleBoundsSync);
             window.removeEventListener('scroll', scheduleBoundsSync, true);
+            detachDprWatch?.();
+            detachDprWatch = null;
 
             if (this.activeBoundsSync === scheduleBoundsSync) {
                 this.activeBoundsSync = null;

@@ -1,7 +1,8 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
+import { SettingsStore } from '@iptvnator/services';
 import type { PortalInlinePlayerComponent as PortalInlinePlayerComponentInstance } from './portal-inline-player.component';
 
 jest.unstable_mockModule('video.js', () => ({
@@ -149,5 +150,56 @@ describe('PortalInlinePlayerComponent', () => {
         backButton.click();
         expect(backCount).toBe(1);
         expect(closedCount).toBe(0);
+    });
+
+    describe('with strip country prefix enabled', () => {
+        beforeEach(async () => {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [
+                    PortalInlinePlayerComponent,
+                    TranslateModule.forRoot(),
+                ],
+                providers: [
+                    {
+                        provide: SettingsStore,
+                        useValue: { stripCountryPrefix: signal(true) },
+                    },
+                ],
+            })
+                .overrideComponent(PortalInlinePlayerComponent, {
+                    remove: {
+                        imports: [WebPlayerViewComponent],
+                    },
+                    add: {
+                        imports: [StubWebPlayerViewComponent],
+                    },
+                })
+                .compileComponents();
+
+            fixture = TestBed.createComponent(PortalInlinePlayerComponent);
+            component = fixture.componentInstance;
+        });
+
+        it('strips the prefix from live playback titles', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'US | CNN',
+                isLive: true,
+            });
+            fixture.detectChanges();
+
+            expect(component.title()).toBe('CNN');
+        });
+
+        it('keeps VOD titles untouched', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'US | Some Movie',
+            });
+            fixture.detectChanges();
+
+            expect(component.title()).toBe('US | Some Movie');
+        });
     });
 });

@@ -97,6 +97,11 @@ Render rules:
        hero and cards can show progress, remaining time, and series season/
        episode badges. Series lookup uses keyed maps for both direct episode ids
        and series ids; card renders must not scan the full playback-position map.
+       Dashboard-originated Xtream series clicks also carry that exact episode
+       target through the global-recent inline-detail handoff. Once the series
+       metadata and playback positions load, the detail player consumes the
+       target once and resumes the saved episode. Opening the same item normally
+       from the global recent grid remains a detail-only action.
     3. `liveOnFavoritesCardsEnriched` — maps favorited live channels first,
        falling back to recently watched live channels when no live favorites
        exist. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
@@ -174,9 +179,12 @@ The welcome state is rendered via the existing
    rails have data.
 5. Navigation from a rail card must deep-link into the appropriate workspace
    route without switching the active playlist in the header switcher.
-6. `Recently Used Sources` reflects recent source usage across all provider
+6. Xtream series hero/Continue Watching clicks with a saved episode position
+   must resume that exact episode while preserving the collection-owned detail
+   and Back behavior. Do not apply autoplay to ordinary collection-grid clicks.
+7. `Recently Used Sources` reflects recent source usage across all provider
    types, not just recent imports.
-7. The live rail title key must match the rendered source: favorites use
+8. The live rail title key must match the rendered source: favorites use
    `WORKSPACE.DASHBOARD.LIVE_FAVORITES`; recently watched fallback uses
    `WORKSPACE.DASHBOARD.LIVE_RECENT`.
 

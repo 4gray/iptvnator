@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "عرض أو إخفاء الترجمات افتراضيًا",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "عرض شريط التشغيل الحالي",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "إبقاء شريط حالة المشغل الخارجي مرئيًا في أسفل مساحة العمل على سطح المكتب.",
+        "STRIP_COUNTRY_PREFIX": "إزالة بادئات البلد من أسماء القنوات",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "يزيل بادئات البلد/المجموعة مثل \"US | \" أو \"UK - \" من أسماء قنوات البث المباشر في جميع أنحاء التطبيق.",
         "VERSION_DESCRIPTION": "الإصدار الحالي للتطبيق",
         "ABOUT_SUBTITLE": "الإصدار وروابط المشروع وطرق دعم IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "بيئة تشغيل MPV المضمّنة",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "إزالة من المفضلة",
         "ADD_FAVORITE": "إضافة إلى المفضلة",
         "SHOW_DETAILS": "عرض تفاصيل القناة",
+        "MAP_EPG": "ربط قناة دليل البرامج",
         "FAVORITES_UPDATED": "تم تحديث المفضلة!",
         "SELECT_CHANNEL_PLAYBACK": "يرجى اختيار قناة لبدء التشغيل",
         "SORT_BY": "ترتيب حسب",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "عرض ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "ربط قناة دليل البرامج (EPG)",
+        "SUBTITLE": "اختر يدويًا قناة دليل البرامج لـ \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "البحث في قنوات دليل البرامج...",
+        "CURRENT_MAPPING": "الربط الحالي",
+        "NO_MAPPING": "لم يتم تعيين ربط لدليل البرامج",
+        "SAVE": "حفظ الربط",
+        "REMOVE": "إزالة الربط",
+        "CLOSE": "إغلاق",
+        "NO_RESULTS": "لم يتم العثور على قنوات دليل البرامج",
+        "SEARCH_HINT": "اكتب {{min}} أحرف على الأقل للبحث",
+        "SAVED": "تم حفظ ربط دليل البرامج",
+        "REMOVED": "تمت إزالة ربط دليل البرامج",
+        "SAVE_FAILED": "تعذر تحديث ربط دليل البرامج"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "البدء من جديد",
         "CONTINUE_WATCHING": "متابعة المشاهدة",
         "PLAY_FIRST_EPISODE": "تشغيل الحلقة الأولى",
+        "PLAY_EPISODE": "تشغيل الحلقة {{episode}}",
         "RESUME_EPISODE": "استئناف الحلقة",
         "PLAY_NEXT_EPISODE": "تشغيل الحلقة التالية",
         "SERIES_WATCHED": "تمت مشاهدة المسلسل",

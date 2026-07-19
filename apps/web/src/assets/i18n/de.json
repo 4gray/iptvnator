@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Untertitel standardmäßig ein- oder ausblenden",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Now-Playing-Fußleiste anzeigen",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Zeigt die Statusleiste für externe Player unten im Arbeitsbereich auf dem Desktop an.",
+        "STRIP_COUNTRY_PREFIX": "Länderpräfixe aus Sendernamen entfernen",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Entfernt Länder-/Gruppenpräfixe wie \"US | \" oder \"UK - \" aus den Namen von Live-Sendern in der gesamten App.",
         "VERSION_DESCRIPTION": "Aktuelle Version der Anwendung",
         "ABOUT_SUBTITLE": "Version, Projekt-Links und Möglichkeiten, IPTVnator zu unterstützen.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Eingebettete MPV-Laufzeit",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "Aus Favoritenliste entfernen",
         "ADD_FAVORITE": "Zu Favoriten hinzufügen",
         "SHOW_DETAILS": "Senderdetails anzeigen",
+        "MAP_EPG": "EPG-Kanal zuordnen",
         "FAVORITES_UPDATED": "Favoriten wurden aktualisiert!",
         "SELECT_CHANNEL_PLAYBACK": "Bitte wählen Sie einen Sender aus, um die Wiedergabe zu starten",
         "SORT_BY": "Sortieren nach",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "anzeigen ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG-Kanal zuordnen",
+        "SUBTITLE": "EPG-Kanal für \"{{channelName}}\" manuell auswählen",
+        "SEARCH_PLACEHOLDER": "EPG-Kanäle durchsuchen...",
+        "CURRENT_MAPPING": "Aktuelle Zuordnung",
+        "NO_MAPPING": "Keine EPG-Zuordnung festgelegt",
+        "SAVE": "Zuordnung speichern",
+        "REMOVE": "Zuordnung entfernen",
+        "CLOSE": "Schließen",
+        "NO_RESULTS": "Keine EPG-Kanäle gefunden",
+        "SEARCH_HINT": "Mindestens {{min}} Zeichen zum Suchen eingeben",
+        "SAVED": "EPG-Zuordnung gespeichert",
+        "REMOVED": "EPG-Zuordnung entfernt",
+        "SAVE_FAILED": "EPG-Zuordnung konnte nicht aktualisiert werden"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "Neu starten",
         "CONTINUE_WATCHING": "Weiter schauen",
         "PLAY_FIRST_EPISODE": "Erste Folge abspielen",
+        "PLAY_EPISODE": "Folge {{episode}} abspielen",
         "RESUME_EPISODE": "Folge fortsetzen",
         "PLAY_NEXT_EPISODE": "Nächste Folge abspielen",
         "SERIES_WATCHED": "Serie angesehen",

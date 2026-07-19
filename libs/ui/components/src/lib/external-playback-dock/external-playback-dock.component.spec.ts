@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import {
@@ -6,6 +7,7 @@ import {
     TranslateService,
 } from '@ngx-translate/core';
 import { Observable, of } from 'rxjs';
+import { SettingsStore } from '@iptvnator/services';
 import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackDockComponent } from './external-playback-dock.component';
 
@@ -145,5 +147,63 @@ describe('ExternalPlaybackDockComponent', () => {
                 .query(By.css('.external-playback-dock__placeholder mat-icon'))
                 .nativeElement.textContent.trim()
         ).toBe('movie');
+    });
+
+    describe('with strip country prefix enabled', () => {
+        beforeEach(async () => {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [
+                    ExternalPlaybackDockComponent,
+                    TranslateModule.forRoot({
+                        loader: {
+                            provide: TranslateLoader,
+                            useClass: FakeTranslateLoader,
+                        },
+                    }),
+                ],
+                providers: [
+                    {
+                        provide: SettingsStore,
+                        useValue: { stripCountryPrefix: signal(true) },
+                    },
+                ],
+            }).compileComponents();
+
+            fixture = TestBed.createComponent(ExternalPlaybackDockComponent);
+        });
+
+        it('strips the prefix from live session titles', () => {
+            fixture.componentRef.setInput('session', {
+                ...session,
+                title: 'US | CNN',
+            });
+            fixture.detectChanges();
+
+            expect(
+                fixture.nativeElement
+                    .querySelector('.external-playback-dock__title')
+                    .textContent.trim()
+            ).toBe('CNN');
+        });
+
+        it('keeps VOD/episode titles untouched', () => {
+            fixture.componentRef.setInput('session', {
+                ...session,
+                title: 'US | Some Movie',
+                contentInfo: {
+                    playlistId: 'playlist-1',
+                    contentXtreamId: 42,
+                    contentType: 'vod',
+                },
+            });
+            fixture.detectChanges();
+
+            expect(
+                fixture.nativeElement
+                    .querySelector('.external-playback-dock__title')
+                    .textContent.trim()
+            ).toBe('US | Some Movie');
+        });
     });
 });

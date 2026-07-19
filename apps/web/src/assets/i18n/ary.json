@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "وري ولا خفي الترجمة افتراضياً",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "وري شريط التشغيل الحالي",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "خلي شريط حالة المشغل الخارجي ظاهر في الأسفل ديال مساحة العمل على سطح المكتب.",
+        "STRIP_COUNTRY_PREFIX": "حيد بادئات البلد من أسماء القنوات",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "كيحيد بادئات البلد/المجموعة بحال \"US | \" ولا \"UK - \" من أسماء قنوات البث المباشر فكامل التطبيق.",
         "VERSION_DESCRIPTION": "الإصدار الحالي ديال التطبيق",
         "ABOUT_SUBTITLE": "الإصدار، روابط المشروع، وطرق دعم IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "وقت تشغيل MPV المدمج",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "حيد من المفضلة",
         "ADD_FAVORITE": "زيد للمفضلة",
         "SHOW_DETAILS": "وري تفاصيل القناة",
+        "MAP_EPG": "ربط قناة ديال EPG",
         "FAVORITES_UPDATED": "المفضلة تحدثات!",
         "SELECT_CHANNEL_PLAYBACK": "عفاك اختار قناة باش يبدا التشغيل",
         "SORT_BY": "رتب بـ",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "وري ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "ربط قناة ديال EPG",
+        "SUBTITLE": "اختار يدويا قناة EPG لـ \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "قلب على قنوات EPG...",
+        "CURRENT_MAPPING": "الربط الحالي",
+        "NO_MAPPING": "ما كاين حتى ربط ديال EPG",
+        "SAVE": "سجل الربط",
+        "REMOVE": "حيد الربط",
+        "CLOSE": "سد",
+        "NO_RESULTS": "ما لقينا حتى قناة EPG",
+        "SEARCH_HINT": "كتب على الأقل {{min}} حروف باش تقلب",
+        "SAVED": "تسجل الربط ديال EPG",
+        "REMOVED": "تحيد الربط ديال EPG",
+        "SAVE_FAILED": "ما قدرناش نبدلو الربط ديال EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "بدا من الأول",
         "CONTINUE_WATCHING": "كمل المشاهدة",
         "PLAY_FIRST_EPISODE": "شغل الحلقة الأولى",
+        "PLAY_EPISODE": "شغل الحلقة {{episode}}",
         "RESUME_EPISODE": "كمل الحلقة",
         "PLAY_NEXT_EPISODE": "شغل الحلقة الجاية",
         "SERIES_WATCHED": "السلسلة متشافة",

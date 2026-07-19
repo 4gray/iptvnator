@@ -1,10 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import {
-    createDevLogger,
-    Playlist,
-    STALKER_REQUEST,
-} from '@iptvnator/shared/interfaces';
+import { Playlist, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { DataService } from '@iptvnator/services';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     getStalkerPortalIdentityFromPlaylist,
     LEGACY_DEFAULT_STALKER_SERIAL,
@@ -91,7 +88,7 @@ interface StalkerAuthConfirmationResponse {
 })
 export class StalkerSessionService {
     private dataService = inject(DataService);
-    private readonly debugLog = createDevLogger('StalkerSession');
+    private readonly logger = createLogger('StalkerSession');
 
     // In-memory token cache for current session (keyed by playlist ID)
     private tokenCache = new Map<string, string>();
@@ -234,7 +231,7 @@ export class StalkerSessionService {
             );
         } catch (error) {
             // Keep failures non-fatal; next interval can recover after token refresh.
-            console.warn('[StalkerSession] Watchdog ping failed:', error);
+            this.logger.warn('Watchdog ping failed:', error);
         } finally {
             this.watchdogInFlight.delete(playlistId);
         }
@@ -281,10 +278,10 @@ export class StalkerSessionService {
                 };
             }
 
-            console.error('[StalkerSession] No token in response');
+            this.logger.error('No token in response');
             throw new Error('Handshake failed: No token received');
         } catch (error) {
-            console.error('[StalkerSession] Handshake error:', error);
+            this.logger.error('Handshake error:', error);
             throw error;
         }
     }
@@ -364,7 +361,7 @@ export class StalkerSessionService {
 
             return response;
         } catch (error) {
-            console.error('[StalkerSession] Get profile error:', error);
+            this.logger.error('Get profile error:', error);
             throw error;
         }
     }
@@ -404,7 +401,7 @@ export class StalkerSessionService {
 
             return false;
         } catch (error) {
-            console.error('[StalkerSession] do_auth error:', error);
+            this.logger.error('do_auth error:', error);
             throw error;
         }
     }
@@ -447,7 +444,7 @@ export class StalkerSessionService {
                     profileResponse.js.msg ||
                     profileResponse.js.block_msg ||
                     'Unknown profile error';
-                console.error('[StalkerSession] Profile error:', errorMsg);
+                this.logger.error('Profile error:', errorMsg);
                 throw new Error(`Profile error: ${errorMsg}`);
             }
 
@@ -457,7 +454,7 @@ export class StalkerSessionService {
             };
         } catch (error) {
             // Profile fetch failed - this is a real error, propagate it
-            console.error('[StalkerSession] Profile fetch failed:', error);
+            this.logger.error('Profile fetch failed:', error);
             throw error;
         }
     }
@@ -487,14 +484,14 @@ export class StalkerSessionService {
         // This prevents race conditions when multiple resources request a token simultaneously
         const pendingPromise = this.pendingAuth.get(playlist._id);
         if (pendingPromise) {
-            this.debugLog('Waiting for pending authentication...');
+            this.logger.debug('Waiting for pending authentication...');
             return pendingPromise;
         }
 
         // No cached token - need to do full authentication (handshake + get_profile)
         // Don't trust stored tokens as they may be from a different session
         if (!playlist.portalUrl || !playlist.macAddress) {
-            console.error('[StalkerSession] Missing portal URL or MAC address');
+            this.logger.error('Missing portal URL or MAC address');
             throw new Error('Portal URL and MAC address are required');
         }
         const portalUrl = playlist.portalUrl;

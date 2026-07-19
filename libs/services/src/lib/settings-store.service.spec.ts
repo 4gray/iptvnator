@@ -140,6 +140,26 @@ describe('SettingsStore settings normalization', () => {
         expect(store.getSettings().webPlayerSharedControls).toBe(true);
     });
 
+    it('defaults strip country prefix to false when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().stripCountryPrefix).toBe(false);
+    });
+
+    it('restores a persisted true strip country prefix preference', async () => {
+        storedSettings = {
+            stripCountryPrefix: true,
+        };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().stripCountryPrefix).toBe(true);
+    });
+
     it('normalizes a persisted string "true" shared web controls preference to false', async () => {
         storedSettings = {
             webPlayerSharedControls: 'true' as unknown as boolean,

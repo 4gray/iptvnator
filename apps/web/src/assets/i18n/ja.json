@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "デフォルトで字幕を表示/非表示",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "再生中フッターを表示",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "デスクトップでワークスペース下部に外部プレーヤーのステータスバーを表示し続けます。",
+        "STRIP_COUNTRY_PREFIX": "チャンネル名から国名プレフィックスを削除",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "アプリ全体で、ライブチャンネル名から \"US | \" や \"UK - \" のような国／グループのプレフィックスを削除します。",
         "VERSION_DESCRIPTION": "アプリケーションの現在のバージョン",
         "ABOUT_SUBTITLE": "バージョン、プロジェクトのリンク、IPTVnatorをサポートする方法。",
         "EMBEDDED_MPV_NOTICE_TITLE": "組み込みMPVランタイム",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "お気に入りから削除",
         "ADD_FAVORITE": "お気に入りに追加",
         "SHOW_DETAILS": "チャンネルの詳細を表示",
+        "MAP_EPG": "EPGチャンネルを割り当て",
         "FAVORITES_UPDATED": "お気に入りが更新されました！",
         "SELECT_CHANNEL_PLAYBACK": "再生を開始するチャンネルを選択してください",
         "SORT_BY": "並び替え",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "表示 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPGチャンネルの割り当て",
+        "SUBTITLE": "「{{channelName}}」のEPGチャンネルを手動で選択します",
+        "SEARCH_PLACEHOLDER": "EPGチャンネルを検索...",
+        "CURRENT_MAPPING": "現在の割り当て",
+        "NO_MAPPING": "EPGの割り当てはありません",
+        "SAVE": "割り当てを保存",
+        "REMOVE": "割り当てを削除",
+        "CLOSE": "閉じる",
+        "NO_RESULTS": "EPGチャンネルが見つかりません",
+        "SEARCH_HINT": "検索するには{{min}}文字以上入力してください",
+        "SAVED": "EPGの割り当てを保存しました",
+        "REMOVED": "EPGの割り当てを削除しました",
+        "SAVE_FAILED": "EPGの割り当てを更新できませんでした"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "最初から再生",
         "CONTINUE_WATCHING": "視聴を再開",
         "PLAY_FIRST_EPISODE": "第1話を再生",
+        "PLAY_EPISODE": "第{{episode}}話を再生",
         "RESUME_EPISODE": "エピソードを再開",
         "PLAY_NEXT_EPISODE": "次のエピソードを再生",
         "SERIES_WATCHED": "シリーズ視聴済み",

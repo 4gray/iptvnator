@@ -7,7 +7,6 @@ import { DialogService } from '@iptvnator/ui/components';
 import { DataService, SettingsStore } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
-    createDevLogger,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
     normalizeHost,
@@ -22,6 +21,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../../environments/environment';
 import {
+    createLogger,
     createPortalDebugRequestContext,
     logPortalDebugEvent,
 } from '@iptvnator/portal/shared/util';
@@ -54,7 +54,7 @@ export class ElectronService extends DataService {
     private readonly store = inject(Store);
     private readonly settingsStore = inject(SettingsStore);
     private readonly translateService = inject(TranslateService);
-    private readonly debugLog = createDevLogger('ElectronService');
+    private readonly logger = createLogger('ElectronService');
     private readonly silentXtreamActions = new Set<string>([
         XtreamCodeActions.GetAccountInfo,
         XtreamCodeActions.GetLiveCategories,
@@ -67,7 +67,6 @@ export class ElectronService extends DataService {
 
     constructor() {
         super();
-        this.debugLog('Electron service initialized...');
         this.setupPlayerErrorListener();
         this.setupPortalDebugListener();
     }
@@ -81,7 +80,10 @@ export class ElectronService extends DataService {
                     error: string;
                     originalError: string;
                 }) => {
-                    console.error(`${data.player} Error:`, data.originalError);
+                    this.logger.error(
+                        `${data.player} Error:`,
+                        data.originalError
+                    );
                     this.snackBar.open(
                         `${data.player} Error: ${data.error}`,
                         'Close',
@@ -182,7 +184,7 @@ export class ElectronService extends DataService {
                         duration: 5000,
                     }
                 );
-                console.error('MPV launch error:', error);
+                this.logger.error('MPV launch error:', error);
                 throw error;
             }
         }
@@ -211,7 +213,7 @@ export class ElectronService extends DataService {
                         duration: 5000,
                     }
                 );
-                console.error('VLC launch error:', error);
+                this.logger.error('VLC launch error:', error);
                 throw error;
             }
         }
@@ -237,7 +239,7 @@ export class ElectronService extends DataService {
             return playlists as T;
         }
 
-        this.debugLog('Unknown IPC event type:', type);
+        this.logger.debug('Unknown IPC event type:', type);
         return undefined as T;
     }
 
@@ -265,7 +267,7 @@ export class ElectronService extends DataService {
             return response;
         } catch (err: unknown) {
             const errorInfo = this.getErrorDetails(err);
-            console.error('Stalker request error:', err);
+            this.logger.error('Stalker request error:', err);
             this.snackBar.open(
                 `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
                 'Close',
@@ -362,7 +364,7 @@ export class ElectronService extends DataService {
                         data.title
                     );
             } else {
-                console.error(
+                this.logger.error(
                     'Either url or filePath must be provided, but not both.'
                 );
                 return;
@@ -387,7 +389,7 @@ export class ElectronService extends DataService {
                 { duration: 2000 }
             );
         } catch (error: unknown) {
-            console.error('Playlist refresh error:', error);
+            this.logger.error('Playlist refresh error:', error);
             if (
                 data.url &&
                 this.handlePlaylistSecurityError(error, () => {
@@ -590,12 +592,12 @@ export class ElectronService extends DataService {
 
             // Log error to console
             if (isSilentAction) {
-                this.debugLog(
+                this.logger.debug(
                     `Background Xtream action failed (${action ?? 'unknown'}):`,
                     normalizedMessage
                 );
             } else {
-                console.error('Xtream request error:', normalizedMessage);
+                this.logger.error('Xtream request error:', normalizedMessage);
             }
 
             // Only show snackbar for user-triggered Xtream requests

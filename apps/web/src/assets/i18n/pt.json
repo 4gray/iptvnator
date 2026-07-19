@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Mostrar ou ocultar legendas por padrão",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Mostrar rodapé de reprodução atual",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Mantém a barra de status do reprodutor externo visível na parte inferior do espaço de trabalho no desktop.",
+        "STRIP_COUNTRY_PREFIX": "Remover prefixos de país dos nomes dos canais",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Remove prefixos de país/grupo como \"US | \" ou \"UK - \" dos nomes dos canais ao vivo em todo o aplicativo.",
         "VERSION_DESCRIPTION": "Versão atual do aplicativo",
         "ABOUT_SUBTITLE": "Versão, links do projeto e formas de apoiar o IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Runtime MPV integrado",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "Remover dos favoritos",
         "ADD_FAVORITE": "Adicionar aos favoritos",
         "SHOW_DETAILS": "Mostrar detalhes do canal",
+        "MAP_EPG": "Associar canal EPG",
         "FAVORITES_UPDATED": "Favoritos foram atualizados!",
         "SELECT_CHANNEL_PLAYBACK": "Selecione um canal para iniciar a reprodução",
         "SORT_BY": "Ordenar por",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "mostrar ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Associar canal EPG",
+        "SUBTITLE": "Selecione manualmente um canal EPG para \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Pesquisar canais EPG...",
+        "CURRENT_MAPPING": "Associação atual",
+        "NO_MAPPING": "Nenhuma associação EPG definida",
+        "SAVE": "Guardar associação",
+        "REMOVE": "Remover associação",
+        "CLOSE": "Fechar",
+        "NO_RESULTS": "Nenhum canal EPG encontrado",
+        "SEARCH_HINT": "Digite pelo menos {{min}} caracteres para pesquisar",
+        "SAVED": "Associação EPG guardada",
+        "REMOVED": "Associação EPG removida",
+        "SAVE_FAILED": "Não foi possível atualizar a associação EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "Recomeçar",
         "CONTINUE_WATCHING": "Continuar assistindo",
         "PLAY_FIRST_EPISODE": "Reproduzir primeiro episódio",
+        "PLAY_EPISODE": "Reproduzir episódio {{episode}}",
         "RESUME_EPISODE": "Continuar episódio",
         "PLAY_NEXT_EPISODE": "Reproduzir próximo episódio",
         "SERIES_WATCHED": "Série assistida",

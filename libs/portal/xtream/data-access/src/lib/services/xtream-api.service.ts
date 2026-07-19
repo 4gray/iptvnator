@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { DataService } from '@iptvnator/services';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     EpgItem,
     XtreamCategory,
@@ -78,6 +79,7 @@ interface EpgResponse {
 @Injectable({ providedIn: 'root' })
 export class XtreamApiService {
     private readonly dataService = inject(DataService);
+    private readonly logger = createLogger('XtreamApiService');
 
     async cancelSession(sessionId: string): Promise<boolean> {
         if (
@@ -91,7 +93,7 @@ export class XtreamApiService {
             const result = await window.electron.xtreamCancelSession(sessionId);
             return result.success;
         } catch (error) {
-            console.error('Failed to cancel Xtream session:', error);
+            this.logger.error('Failed to cancel Xtream session:', error);
             return false;
         }
     }

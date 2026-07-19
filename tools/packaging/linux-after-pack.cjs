@@ -1,5 +1,6 @@
 const fs = require('fs/promises');
 const path = require('path');
+const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
 
 function log(message) {
     console.log(`  - ${message}`);
@@ -41,17 +42,33 @@ exec "$SCRIPT_DIR/${executableName}.bin" "\${EXEC_ARGS[@]}" "$@"
 `;
 }
 
-async function afterPackHook(params) {
+async function afterPackHook(params, { targetNames = params.targets } = {}) {
     if (params.electronPlatformName !== 'linux') {
+        return;
+    }
+
+    const launcherLayout = resolveLinuxLauncherLayout(
+        targetNames,
+        params.packager.executableName
+    );
+    if (!launcherLayout.wrapperRequired) {
+        log('preserving the Electron ELF for isolated Flatpak packaging');
         return;
     }
 
     log('applying Linux launcher sandbox fix');
 
-    const executable = path.join(params.appOutDir, params.packager.executableName);
+    const executable = path.join(
+        params.appOutDir,
+        params.packager.executableName
+    );
+    const electronBinary = path.join(
+        params.appOutDir,
+        launcherLayout.electronBinaryName
+    );
 
     try {
-        await fs.rename(executable, `${executable}.bin`);
+        await fs.rename(executable, electronBinary);
         await fs.writeFile(
             executable,
             createLoaderScript({

@@ -176,6 +176,13 @@ When a detail view starts playback:
 The detail or collection/search host owns inline state. `PlayerService` is not
 an owner of embedded UI playback state.
 
+After a successful external episode launch, the detail host immediately
+persists that episode as the latest playback-position entry, preserving an
+existing resume offset or using zero for a newly opened episode. MPV/VLC
+position telemetry overwrites this launch marker when available. This keeps the
+last-watched season and episode correct even when an external player's progress
+interface is unavailable; exact external timestamps remain best-effort.
+
 ## Series Quick Start CTA
 
 Xtream and Stalker series detail views share the quick-start decision helper in
@@ -189,6 +196,9 @@ Current contract:
   `S01E02 · Episode title`
 - if an episode is in progress, resume the latest updated in-progress episode
   with its saved offset
+- if the newest episode entry is a successful external-player launch marker
+  with no meaningful progress yet, target it with `Play episode N` instead of
+  falling back to the first episode
 - if no episode is in progress, play the first unwatched episode in season order
 - if watched episodes end at a season boundary, play the first episode of the
   next loaded season

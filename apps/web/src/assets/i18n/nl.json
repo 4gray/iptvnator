@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Standaard ondertiteling weergeven of verbergen",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Voettekst 'nu spelend' tonen",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Houd de statusbalk van de externe speler zichtbaar onderaan de werkruimte op desktop.",
+        "STRIP_COUNTRY_PREFIX": "Landprefixen uit kanaalnamen verwijderen",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Verwijdert land-/groepsprefixen zoals \"US | \" of \"UK - \" uit de namen van live-kanalen, overal in de app.",
         "VERSION_DESCRIPTION": "Huidige versie van de applicatie",
         "ABOUT_SUBTITLE": "Versie, projectlinks en manieren om IPTVnator te ondersteunen.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Ingebedde MPV-runtime",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "Verwijder uit favorieten",
         "ADD_FAVORITE": "Toevoegen aan favorieten",
         "SHOW_DETAILS": "Toon kanaaldetails",
+        "MAP_EPG": "EPG-kanaal koppelen",
         "FAVORITES_UPDATED": "Favorieten zijn bijgewerkt!",
         "SELECT_CHANNEL_PLAYBACK": "Selecteer een kanaal om af te spelen",
         "SORT_BY": "Sorteren op",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "toon ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG-kanaal koppelen",
+        "SUBTITLE": "Selecteer handmatig een EPG-kanaal voor \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "EPG-kanalen zoeken...",
+        "CURRENT_MAPPING": "Huidige koppeling",
+        "NO_MAPPING": "Geen EPG-koppeling ingesteld",
+        "SAVE": "Koppeling opslaan",
+        "REMOVE": "Koppeling verwijderen",
+        "CLOSE": "Sluiten",
+        "NO_RESULTS": "Geen EPG-kanalen gevonden",
+        "SEARCH_HINT": "Typ minimaal {{min}} tekens om te zoeken",
+        "SAVED": "EPG-koppeling opgeslagen",
+        "REMOVED": "EPG-koppeling verwijderd",
+        "SAVE_FAILED": "Kan de EPG-koppeling niet bijwerken"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "Opnieuw beginnen",
         "CONTINUE_WATCHING": "Verder kijken",
         "PLAY_FIRST_EPISODE": "Eerste aflevering afspelen",
+        "PLAY_EPISODE": "Aflevering {{episode}} afspelen",
         "RESUME_EPISODE": "Aflevering hervatten",
         "PLAY_NEXT_EPISODE": "Volgende aflevering afspelen",
         "SERIES_WATCHED": "Serie bekeken",

@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Afficher ou masquer les sous-titres par défaut",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Afficher le pied de page de lecture en cours",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Garde la barre d'état du lecteur externe visible en bas de l'espace de travail sur ordinateur.",
+        "STRIP_COUNTRY_PREFIX": "Retirer les préfixes de pays des noms de chaînes",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Supprime les préfixes de pays ou de groupe comme \"US | \" ou \"UK - \" des noms des chaînes en direct dans toute l'application.",
         "VERSION_DESCRIPTION": "Version actuelle de l'application",
         "ABOUT_SUBTITLE": "Version, liens du projet et façons de soutenir IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Runtime MPV intégré",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "Retirer des favoris",
         "ADD_FAVORITE": "Ajouter aux favoris",
         "SHOW_DETAILS": "Afficher les détails de la chaîne",
+        "MAP_EPG": "Associer une chaîne EPG",
         "FAVORITES_UPDATED": "Les favoris ont été mis à jour !",
         "SELECT_CHANNEL_PLAYBACK": "Veuillez sélectionner une chaîne pour démarrer la lecture",
         "SORT_BY": "Trier par",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "afficher ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Associer une chaîne EPG",
+        "SUBTITLE": "Sélectionner manuellement une chaîne EPG pour « {{channelName}} »",
+        "SEARCH_PLACEHOLDER": "Rechercher des chaînes EPG...",
+        "CURRENT_MAPPING": "Association actuelle",
+        "NO_MAPPING": "Aucune association EPG définie",
+        "SAVE": "Enregistrer l'association",
+        "REMOVE": "Supprimer l'association",
+        "CLOSE": "Fermer",
+        "NO_RESULTS": "Aucune chaîne EPG trouvée",
+        "SEARCH_HINT": "Saisissez au moins {{min}} caractères pour rechercher",
+        "SAVED": "Association EPG enregistrée",
+        "REMOVED": "Association EPG supprimée",
+        "SAVE_FAILED": "Impossible de mettre à jour l'association EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "Recommencer",
         "CONTINUE_WATCHING": "Reprendre la lecture",
         "PLAY_FIRST_EPISODE": "Lire le premier épisode",
+        "PLAY_EPISODE": "Lire l'épisode {{episode}}",
         "RESUME_EPISODE": "Reprendre l'épisode",
         "PLAY_NEXT_EPISODE": "Lire l'épisode suivant",
         "SERIES_WATCHED": "Série vue",

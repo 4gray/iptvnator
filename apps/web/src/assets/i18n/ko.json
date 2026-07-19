@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "기본적으로 자막 표시 또는 숨기기",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "지금 재생 중 표시줄 표시",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "데스크톱의 작업 공간 하단에 외부 플레이어 상태 표시줄을 계속 표시합니다.",
+        "STRIP_COUNTRY_PREFIX": "채널 이름에서 국가 접두사 제거",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "라이브 채널 이름에서 \"US | \" 또는 \"UK - \"와 같은 국가/그룹 접두사를 앱 전체에서 제거합니다.",
         "VERSION_DESCRIPTION": "애플리케이션의 현재 버전",
         "ABOUT_SUBTITLE": "버전, 프로젝트 링크 및 IPTVnator를 후원하는 방법.",
         "EMBEDDED_MPV_NOTICE_TITLE": "내장 MPV 런타임",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "즐겨찾기에서 삭제하기",
         "ADD_FAVORITE": "즐겨찾기에 추가",
         "SHOW_DETAILS": "채널 세부정보 표시",
+        "MAP_EPG": "EPG 채널 매핑",
         "FAVORITES_UPDATED": "즐겨찾기가 업데이트되었습니다!",
         "SELECT_CHANNEL_PLAYBACK": "재생을 시작할 채널을 선택하세요",
         "SORT_BY": "정렬 기준",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "보기 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG 채널 매핑",
+        "SUBTITLE": "\"{{channelName}}\"의 EPG 채널을 직접 선택하세요",
+        "SEARCH_PLACEHOLDER": "EPG 채널 검색...",
+        "CURRENT_MAPPING": "현재 매핑",
+        "NO_MAPPING": "설정된 EPG 매핑 없음",
+        "SAVE": "매핑 저장",
+        "REMOVE": "매핑 제거",
+        "CLOSE": "닫기",
+        "NO_RESULTS": "EPG 채널을 찾을 수 없음",
+        "SEARCH_HINT": "검색하려면 {{min}}자 이상 입력하세요",
+        "SAVED": "EPG 매핑이 저장되었습니다",
+        "REMOVED": "EPG 매핑이 제거되었습니다",
+        "SAVE_FAILED": "EPG 매핑을 업데이트할 수 없습니다"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "처음부터 보기",
         "CONTINUE_WATCHING": "이어서 시청",
         "PLAY_FIRST_EPISODE": "첫 에피소드 재생",
+        "PLAY_EPISODE": "에피소드 {{episode}} 재생",
         "RESUME_EPISODE": "에피소드 이어 보기",
         "PLAY_NEXT_EPISODE": "다음 에피소드 재생",
         "SERIES_WATCHED": "시리즈 시청 완료",

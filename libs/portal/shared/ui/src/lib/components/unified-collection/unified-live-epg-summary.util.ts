@@ -94,6 +94,22 @@ function findCurrentPortalProgram(
     );
 }
 
+/**
+ * Convert program start/stop to epoch seconds, preferring the
+ * numeric timestamp (which is provider-native) over the ISO string.
+ */
+export function toEpochSeconds(
+    timestamp: number | null | undefined,
+    fallbackIso: string
+): number | null {
+    if (timestamp != null && Number.isFinite(timestamp)) {
+        return timestamp;
+    }
+
+    const ms = Date.parse(fallbackIso);
+    return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
+}
+
 function getProgramTimeMs(
     rawDate: string | null | undefined,
     rawTimestamp?: number | string | null

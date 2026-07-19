@@ -10,6 +10,7 @@ import {
     XTREAM_CANCEL_SESSION,
     normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
@@ -212,10 +213,12 @@ ipcMain.handle(
             if (!payload.suppressErrorLog) {
                 console.error(
                     '[XTREAM_REQUEST] Failed',
-                    formatXtreamError(
-                        error,
-                        requestUrlForLog,
-                        payload.params?.action
+                    redactSensitiveData(
+                        formatXtreamError(
+                            error,
+                            requestUrlForLog,
+                            payload.params?.action
+                        )
                     )
                 );
             }

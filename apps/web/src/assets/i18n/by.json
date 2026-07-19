@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Паказаць або схаваць субтытры па змаўчанні.",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Паказаць ніжнюю панэль прайгравання",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Пакідаць панэль стану знешняга прайгравальніка бачнай унізе працоўнай прасторы на дэсктопе.",
+        "STRIP_COUNTRY_PREFIX": "Выдаляць прэфіксы краін з назваў каналаў",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Выдаляе прэфіксы краін/груп, такія як \"US | \" або \"UK - \", з назваў каналаў прамых трансляцый ва ўсёй праграме.",
         "VERSION_DESCRIPTION": "Бягучая версія праграмы",
         "ABOUT_SUBTITLE": "Версія, спасылкі праекта і спосабы падтрымаць IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Асяроддзе ўбудаванага MPV",
@@ -577,6 +579,7 @@
         "REMOVE_FAVORITE": "Выдаліць са спісу фаварытаў",
         "ADD_FAVORITE": "Дадаць у выбранае",
         "SHOW_DETAILS": "Паказаць інфармацыю аб канале",
+        "MAP_EPG": "Прывязаць канал EPG",
         "FAVORITES_UPDATED": "Спіс фаварытаў быў абноўлены!",
         "SELECT_CHANNEL_PLAYBACK": "Калі ласка, выберыце канал, каб пачаць прайграванне",
         "SORT_BY": "Сартаваць па",
@@ -722,6 +725,21 @@
             "GROUP_EXPAND": "паказаць ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Прывязка канала EPG",
+        "SUBTITLE": "Выберыце канал EPG для \"{{channelName}}\" уручную",
+        "SEARCH_PLACEHOLDER": "Пошук каналаў EPG...",
+        "CURRENT_MAPPING": "Бягучая прывязка",
+        "NO_MAPPING": "Прывязка EPG не зададзена",
+        "SAVE": "Захаваць прывязку",
+        "REMOVE": "Выдаліць прывязку",
+        "CLOSE": "Закрыць",
+        "NO_RESULTS": "Каналы EPG не знойдзены",
+        "SEARCH_HINT": "Увядзіце не менш за {{min}} сімвалы для пошуку",
+        "SAVED": "Прывязка EPG захавана",
+        "REMOVED": "Прывязка EPG выдалена",
+        "SAVE_FAILED": "Не ўдалося абнавіць прывязку EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -797,6 +815,7 @@
         "RESTART": "Спачатку",
         "CONTINUE_WATCHING": "Працягнуць прагляд",
         "PLAY_FIRST_EPISODE": "Прайграць першы эпізод",
+        "PLAY_EPISODE": "Прайграць эпізод {{episode}}",
         "RESUME_EPISODE": "Працягнуць эпізод",
         "PLAY_NEXT_EPISODE": "Прайграць наступны эпізод",
         "SERIES_WATCHED": "Серыял прагледжаны",

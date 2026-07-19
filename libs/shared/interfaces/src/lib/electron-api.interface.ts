@@ -271,6 +271,19 @@ export interface ElectronBridgeEpgFreshnessResult {
     freshUrls: string[];
 }
 
+export interface ElectronBridgeEpgMapping {
+    id: number;
+    channelKey: string;
+    epgChannelId: string;
+    playlistId: string | null;
+}
+
+export interface ElectronBridgeEpgSearchResult {
+    id: string;
+    displayName: string;
+    iconUrl: string | null;
+}
+
 export interface ElectronBridgeEpgLookupOptions {
     sourceUrls?: string[];
 }
@@ -621,6 +634,25 @@ export interface ElectronBridgeApi {
         searchTerm: string,
         limit?: number
     ) => Promise<EpgProgram[]>;
+
+    // EPG channel mapping (manual user overrides)
+    getEpgMapping: (
+        channelKey: string
+    ) => Promise<ElectronBridgeEpgMapping | null>;
+    getEpgMappingsBatch: (
+        channelKeys: string[]
+    ) => Promise<Record<string, string>>;
+    setEpgMapping: (
+        channelKey: string,
+        epgChannelId: string,
+        playlistId?: string
+    ) => Promise<ElectronBridgeResult>;
+    deleteEpgMapping: (channelKey: string) => Promise<ElectronBridgeResult>;
+    searchEpgChannels: (
+        searchTerm: string,
+        limit?: number
+    ) => Promise<ElectronBridgeEpgSearchResult[]>;
+
     updateSettings: (settings: Partial<Settings>) => Promise<void>;
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
