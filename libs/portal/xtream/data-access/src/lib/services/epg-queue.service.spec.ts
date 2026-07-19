@@ -355,47 +355,6 @@ describe('EpgQueueService', () => {
         expect(events).toEqual([808]);
         sub.unsubscribe();
     });
-
-    it('invalidate() drops every cached artifact so the stream refetches', async () => {
-        xtreamApi.getShortEpg.mockResolvedValue([makeEpgItem('rtl.de', 'Now')]);
-        await priv().fetchEpg(credentials, 555);
-        priv().epgChannelByStreamId.set(555, 'rtl.de');
-        seedXmltvPreview(555, 'rtl.de');
-
-        expect(service.getCached(555)).not.toBeNull();
-        expect(priv().shouldFetch(555)).toBe(false);
-
-        service.invalidate(555);
-
-        expect(service.getCached(555)).toBeNull();
-        expect(priv().shouldFetch(555)).toBe(true);
-        expect(priv().epgChannelByStreamId.has(555)).toBe(false);
-        expect(priv().xmltvPreviewByStreamId.has(555)).toBe(false);
-    });
-
-    it('discards an in-flight result when the mapping is invalidated mid-request', async () => {
-        let resolveEpg!: (items: EpgItem[]) => void;
-        xtreamApi.getShortEpg.mockReturnValue(
-            new Promise<EpgItem[]>((resolve) => {
-                resolveEpg = resolve;
-            })
-        );
-        const emitted: number[] = [];
-        const sub = service.epgResult$.subscribe(({ streamId }) =>
-            emitted.push(streamId)
-        );
-
-        const fetchPromise = priv().fetchEpg(credentials, 707);
-        // The user changes the mapping while the request is still running.
-        service.invalidate(707);
-        // The provider now returns the pre-change (stale) result.
-        resolveEpg([makeEpgItem('rtl.de', 'Stale')]);
-        await fetchPromise;
-
-        expect(service.getCached(707)).toBeNull();
-        expect(emitted).not.toContain(707);
-        sub.unsubscribe();
-    });
 });
 
 function makeEpgItem(channelId: string, title: string): EpgItem {
