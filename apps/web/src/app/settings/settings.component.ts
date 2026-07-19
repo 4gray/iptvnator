@@ -45,6 +45,7 @@ import {
     Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
+import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from './../services/settings.service';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
@@ -199,6 +200,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Current version of the app */
     version = '';
+
+    /** Git commit the app was built from (CI builds only) */
+    readonly buildCommit = BUILD_COMMIT;
 
     /** Update message to show */
     updateMessage = '';
