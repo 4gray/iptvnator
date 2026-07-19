@@ -130,6 +130,10 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
 
+Settings, portal request/response, and trace payloads must use
+`@iptvnator/shared/logging` or the redacting portal logger before reaching
+`console.*`; never log raw credentials while debugging.
+
 For GPU/compositor debugging:
 
 ```bash
@@ -238,6 +242,7 @@ This is an Nx monorepo with the following structure:
     - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
+    - **shared/logging** - Dependency-free structured redaction for diagnostic logs
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
     - **shared/testing** - Shared test helpers

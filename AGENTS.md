@@ -73,6 +73,10 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
     - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
     - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
 
+- Settings, portal request/response, and trace payloads must use
+  `@iptvnator/shared/logging` or the redacting portal logger before reaching
+  `console.*`; never log raw credentials while debugging.
+
 - GPU/compositor debugging:
 
 ```bash
