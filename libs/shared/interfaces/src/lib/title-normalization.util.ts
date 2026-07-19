@@ -28,11 +28,142 @@ const QUALITY_TAGS = new Set([
 ]);
 
 /**
- * Leading channel/language prefix like "EN - ", "DE| ", "FR: ".
- * UPPERCASE-only on purpose: a case-insensitive match would amputate real
- * title words ("It: Chapter Two" → "Chapter Two").
+ * Wrapped tag at the very start of a provider title: "|DE| ARD",
+ * "|MULTI| Fallout". The lookahead requires a letter in the tag so a
+ * numeric fragment can never be treated as one.
  */
-const LANGUAGE_PREFIX = /^[A-Z]{2,3}\s*[-|:]\s+/;
+const WRAPPED_TAG_PREFIX = /^\s*\|(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}\|\s*/;
+
+/**
+ * Leading channel/language prefix like "EN - ", "DE| ", "FR: ", including
+ * compound provider/quality forms ("4K-DE - ", "AR-SUBS - ", "4K-OSN+ - ")
+ * and longer pipe-tagged forms ("EXYU| ", "MULTI| ").
+ * UPPERCASE-only on purpose: a case-insensitive match would amputate real
+ * title words ("It: Chapter Two" → "Chapter Two"). Every segment must
+ * contain a letter so numeric titles ("1917 - ...") are never tags.
+ *
+ * Separator strength gates how wide a single segment may be:
+ *   - dash ("EN - "): compound OR 2–3 chars — a bare 4–5 char word before
+ *     a spaced dash is a real title ("DUNE - Part Two", "ALIEN - Covenant")
+ *   - pipe ("EXYU| "): compound OR 2–5 chars — a pipe is a strong tag signal
+ *   - colon ("EN: "): 2–3 chars — longer acronyms are franchise titles
+ *     ("NCIS: LA")
+ */
+const SEG = '(?=[0-9+]*[A-Z])[A-Z0-9+]';
+const COMPOUND_TAG = `${SEG}{2,5}(?:-${SEG}{2,6}){1,2}`;
+const LANGUAGE_PREFIX = new RegExp(
+    '^(?:' +
+        `(?:${COMPOUND_TAG}|${SEG}{2,3})\\s*-\\s+` +
+        `|(?:${COMPOUND_TAG}|${SEG}{2,5})\\s*\\|\\s+` +
+        `|${SEG}{2,3}\\s*:\\s+` +
+        ')'
+);
+
+/**
+ * Curated whitelist for TRAILING language/subtitle tags ("Fallout_eng",
+ * "Breaking Bad-DE", "The Pitt (2025) ES"). Trailing stripping must be
+ * vocabulary-gated: a pattern-only rule would amputate real endings —
+ * roman numerals ("Rocky II"), acronyms ("Made in USA"), franchise
+ * suffixes ("NCIS: LA"). US/USA/UK/LA are deliberately absent.
+ */
+const TRAILING_TAG_VOCABULARY = new Set([
+    'AF', 'AL', 'ALB', 'AR', 'BY', 'DE', 'DUB', 'EN', 'ENG', 'ES', 'ESP',
+    'EXYU', 'FR', 'FRA', 'GE', 'GR', 'HU', 'IN', 'IR', 'IS', 'IT', 'ITA',
+    'KA', 'KU', 'LAT', 'ML', 'MSUB', 'MULTI', 'NL', 'PL', 'PT', 'RO', 'RU',
+    'SC', 'SE', 'SUB', 'SUBS', 'SW', 'TA', 'TL', 'TR', 'TUR',
+]);
+
+/**
+ * Vocabulary tags that are also common English hyphenated-word endings
+ * ("drive-in", "plug-in"). Accepted only after a STRONG separator (bare
+ * spaced/uppercase form), never in the weak joined-dash/underscore forms
+ * where "X-in"/"X_in" reads as a title, not a tag.
+ */
+const WEAK_JOIN_EXCLUSIONS = new Set(['IN']);
+
+const DOUBLE_DASH_SUFFIX = /[-–]{2}[A-Za-z]{2,5}\s*$/;
+const UNDERSCORE_SUFFIX = /_([A-Za-z]{2,5})\s*$/;
+const JOINED_DASH_SUFFIX = /-([A-Za-z]{2,5})\s*$/;
+const TRAILING_TAG_SUFFIX = /\s([A-Z]{2,5})\s*$/;
+
+/** Tag tokens are case-uniform; real title words are Capitalized. */
+function isCaseUniform(token: string): boolean {
+    return token === token.toLowerCase() || token === token.toUpperCase();
+}
+
+/**
+ * A captured joined-dash/underscore token is provider metadata only when
+ * it is a known vocabulary tag, case-uniform, and not one of the English
+ * word-forming exclusions. This keeps "Mr_Robot", "Cowboy_Bebop",
+ * "drive-in", and "Plug-in" intact while stripping "_eng", "-DE", "-it".
+ */
+function isJoinedTag(token: string): boolean {
+    const upper = token.toUpperCase();
+    return (
+        TRAILING_TAG_VOCABULARY.has(upper) &&
+        !WEAK_JOIN_EXCLUSIONS.has(upper) &&
+        isCaseUniform(token)
+    );
+}
+
+/** ES2015-safe trailing-whitespace trim (the lib target predates trimEnd). */
+function trimRight(value: string): string {
+    return value.replace(/\s+$/, '');
+}
+
+/**
+ * Strip appended language/subtitle tags. Runs BEFORE lowercasing —
+ * casing is the main false-positive guard: ALL-CAPS titles carry no
+ * casing signal ("THE LAST OF US" must keep its "US"), so caps-gated
+ * rules are skipped for them, and Capitalized endings ("Making It",
+ * "Kick-It") never look like tags. Compound tags ("FR-EN") shed one
+ * token per pass, so stripping repeats to a fixpoint.
+ */
+function stripTrailingTags(value: string): string {
+    let result = value;
+    for (let pass = 0; pass < 3; pass++) {
+        const next = stripTrailingTagOnce(result);
+        if (next === result) break;
+        result = next;
+    }
+    return result;
+}
+
+function stripTrailingTagOnce(value: string): string {
+    const result = trimRight(value);
+    const hasLowercase = /\p{Ll}/u.test(result);
+
+    // "The Last of Us--esp": no real title contains a double dash.
+    if (DOUBLE_DASH_SUFFIX.test(result)) {
+        return trimRight(result.replace(DOUBLE_DASH_SUFFIX, ''));
+    }
+
+    // "Fallout_eng" — but not "The_Last_of_Us" (underscores as spaces, only
+    // strip a sole underscore) and not "Mr_Robot"/"Cowboy_Bebop" (the tail
+    // must be a known tag, so the segment is real-title evidence otherwise).
+    const underscore = result.match(UNDERSCORE_SUFFIX);
+    if (
+        underscore &&
+        result.indexOf('_') === result.lastIndexOf('_') &&
+        isJoinedTag(underscore[1])
+    ) {
+        return trimRight(result.replace(UNDERSCORE_SUFFIX, ''));
+    }
+
+    // "Breaking Bad-eng", "The Last of Us-DE" — but not "drive-in"/"Plug-in".
+    // hasLowercase gates ALL-CAPS titles out (no casing signal to trust).
+    const joined = result.match(JOINED_DASH_SUFFIX);
+    if (joined && hasLowercase && isJoinedTag(joined[1])) {
+        return trimRight(result.replace(JOINED_DASH_SUFFIX, ''));
+    }
+
+    const trailing = result.match(TRAILING_TAG_SUFFIX);
+    if (trailing && hasLowercase && TRAILING_TAG_VOCABULARY.has(trailing[1])) {
+        return trimRight(result.replace(TRAILING_TAG_SUFFIX, ''));
+    }
+
+    return result;
+}
 
 const YEAR_PATTERN = /\b(19\d{2}|20\d{2})\b/;
 
@@ -74,11 +205,14 @@ export function normalizeTitleKeys(
         return { exact: '', base: '', trailingYear: null };
     }
 
-    const cleaned = raw
-        // Inner classes exclude the opening delimiter too, so runaway
-        // inputs like "[[[[[..." backtrack linearly (CodeQL js/polynomial-redos)
-        .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' ')
-        .replace(LANGUAGE_PREFIX, '')
+    const cleaned = stripTrailingTags(
+        raw
+            .replace(WRAPPED_TAG_PREFIX, '')
+            // Inner classes exclude the opening delimiter too, so runaway
+            // inputs like "[[[[[..." backtrack linearly (CodeQL js/polynomial-redos)
+            .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' ')
+            .replace(LANGUAGE_PREFIX, '')
+    )
         .normalize('NFD')
         .replace(/[\u0300-\u036F]/g, '')
         .toLowerCase()
