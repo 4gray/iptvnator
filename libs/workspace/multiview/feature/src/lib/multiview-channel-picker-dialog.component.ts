@@ -75,9 +75,7 @@ export class MultiviewChannelPickerDialogComponent {
 
     readonly filteredItems = computed(() => {
         const items =
-            this.activeTab() === 'favorites'
-                ? this.favorites()
-                : this.recent();
+            this.activeTab() === 'favorites' ? this.favorites() : this.recent();
         const term = this.searchTerm().trim().toLowerCase();
         if (!term) {
             return items;

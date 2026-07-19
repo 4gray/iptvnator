@@ -46,12 +46,11 @@
             <span>{{ 'MULTIVIEW.PICKER_EMPTY' | translate }}</span>
         </div>
     } @else {
-        <div class="picker-list" role="listbox">
+        <div class="picker-list">
             @for (item of filteredItems(); track item.uid) {
                 <button
                     type="button"
                     class="picker-item"
-                    role="option"
                     (click)="selectItem(item)"
                 >
                     @if (item.logo) {

@@ -8,12 +8,7 @@ import {
 describe('multiview layout presets', () => {
     it('defines four unique presets', () => {
         const ids = MULTIVIEW_LAYOUT_PRESETS.map((preset) => preset.id);
-        expect(ids).toEqual([
-            'grid-1x2',
-            'grid-2x2',
-            'focus-1-3',
-            'grid-3x3',
-        ]);
+        expect(ids).toEqual(['grid-1x2', 'grid-2x2', 'focus-1-3', 'grid-3x3']);
         expect(new Set(ids).size).toBe(ids.length);
     });
 

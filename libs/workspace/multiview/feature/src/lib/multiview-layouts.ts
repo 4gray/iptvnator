@@ -23,6 +23,16 @@ export interface MultiviewLayoutPreset {
     readonly areas: string;
 }
 
+const GRID_2X2_PRESET: MultiviewLayoutPreset = {
+    id: 'grid-2x2',
+    labelKey: 'MULTIVIEW.LAYOUT_2X2',
+    icon: 'grid_view',
+    capacity: 4,
+    columns: '1fr 1fr',
+    rows: '1fr 1fr',
+    areas: '"t0 t1" "t2 t3"',
+};
+
 export const MULTIVIEW_LAYOUT_PRESETS: readonly MultiviewLayoutPreset[] = [
     {
         id: 'grid-1x2',
@@ -33,15 +43,7 @@ export const MULTIVIEW_LAYOUT_PRESETS: readonly MultiviewLayoutPreset[] = [
         rows: '1fr',
         areas: '"t0 t1"',
     },
-    {
-        id: 'grid-2x2',
-        labelKey: 'MULTIVIEW.LAYOUT_2X2',
-        icon: 'grid_view',
-        capacity: 4,
-        columns: '1fr 1fr',
-        rows: '1fr 1fr',
-        areas: '"t0 t1" "t2 t3"',
-    },
+    GRID_2X2_PRESET,
     {
         id: 'focus-1-3',
         labelKey: 'MULTIVIEW.LAYOUT_1_PLUS_3',
@@ -62,16 +64,15 @@ export const MULTIVIEW_LAYOUT_PRESETS: readonly MultiviewLayoutPreset[] = [
     },
 ];
 
-export const DEFAULT_MULTIVIEW_LAYOUT_ID: MultiviewLayoutId = 'grid-2x2';
+export const DEFAULT_MULTIVIEW_LAYOUT_ID: MultiviewLayoutId =
+    GRID_2X2_PRESET.id;
 
 export function getMultiviewLayoutPreset(
     id: string | null | undefined
 ): MultiviewLayoutPreset {
     return (
         MULTIVIEW_LAYOUT_PRESETS.find((preset) => preset.id === id) ??
-        MULTIVIEW_LAYOUT_PRESETS.find(
-            (preset) => preset.id === DEFAULT_MULTIVIEW_LAYOUT_ID
-        )!
+        GRID_2X2_PRESET
     );
 }
 

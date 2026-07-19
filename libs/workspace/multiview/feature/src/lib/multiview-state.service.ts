@@ -168,9 +168,7 @@ function readPersistedState(): PersistedMultiviewState {
             : DEFAULT_MULTIVIEW_LAYOUT_ID;
         const capacity = getMultiviewLayoutPreset(layoutId).capacity;
         const slots = resizeSlots(
-            Array.isArray(parsed.slots)
-                ? parsed.slots.map(sanitizeSlot)
-                : [],
+            Array.isArray(parsed.slots) ? parsed.slots.map(sanitizeSlot) : [],
             capacity
         );
         const audioFocusIndex =

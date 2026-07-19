@@ -1,5 +1,12 @@
 import { ChangeDetectionStrategy } from '@angular/core';
-import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+    Component,
+    computed,
+    effect,
+    inject,
+    signal,
+    untracked,
+} from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import {
     MatButtonToggle,
@@ -20,8 +27,14 @@ import {
     MultiviewChannelPickerDialogComponent,
     MultiviewChannelPickerResult,
 } from './multiview-channel-picker-dialog.component';
-import { MULTIVIEW_LAYOUT_PRESETS, MultiviewLayoutId } from './multiview-layouts';
-import { MultiviewSlotChannel, MultiviewStateService } from './multiview-state.service';
+import {
+    MULTIVIEW_LAYOUT_PRESETS,
+    MultiviewLayoutId,
+} from './multiview-layouts';
+import {
+    MultiviewSlotChannel,
+    MultiviewStateService,
+} from './multiview-state.service';
 import {
     MultiviewTileComponent,
     MultiviewTilePlayback,
@@ -167,9 +180,7 @@ export class MultiviewPageComponent {
         }
 
         const current = this.resolutions();
-        const stale = [...current.keys()].filter(
-            (uid) => !activeUids.has(uid)
-        );
+        const stale = [...current.keys()].filter((uid) => !activeUids.has(uid));
         if (stale.length > 0) {
             const next = new Map(current);
             for (const uid of stale) {

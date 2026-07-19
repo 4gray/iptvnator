@@ -23,10 +23,7 @@ jest.mock('hls.js', () => {
             MockHls.instances.push(this);
         }
 
-        on(
-            event: string,
-            handler: (event: string, data: never) => void
-        ): void {
+        on(event: string, handler: (event: string, data: never) => void): void {
             this.handlers.set(event, handler);
         }
 

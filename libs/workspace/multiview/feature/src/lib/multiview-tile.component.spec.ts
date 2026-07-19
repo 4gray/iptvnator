@@ -155,9 +155,7 @@ describe('MultiviewTileComponent', () => {
 
         const removeButton: HTMLButtonElement =
             fixture.nativeElement.querySelector('.tile-remove');
-        removeButton.dispatchEvent(
-            new MouseEvent('click', { bubbles: true })
-        );
+        removeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
         expect(removeSpy).toHaveBeenCalledTimes(1);
         expect(focusSpy).not.toHaveBeenCalled();
@@ -175,8 +173,7 @@ describe('MultiviewTileComponent', () => {
         );
         expect(status).toBeTruthy();
 
-        const retryButton: HTMLButtonElement =
-            status.querySelector('button');
+        const retryButton: HTMLButtonElement = status.querySelector('button');
         retryButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(retrySpy).toHaveBeenCalledTimes(1);
     });
