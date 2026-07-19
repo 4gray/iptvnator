@@ -1,3 +1,5 @@
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
     getPartialDownloadPath,
@@ -153,5 +155,34 @@ describe('partial download helpers', () => {
                 return { size: 128 };
             })
         ).toBe(128);
+    });
+
+    it('refuses to size a .part that is not a regular file', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'iptvnator-part-'));
+        const finalPath = join(directory, 'movie.mp4');
+        const partialPath = `${finalPath}.part`;
+
+        try {
+            writeFileSync(join(directory, 'target.bin'), 'attacker');
+            symlinkSync(join(directory, 'target.bin'), partialPath);
+
+            expect(() => getPartialDownloadSize(finalPath)).toThrow(
+                'not a regular file'
+            );
+        } finally {
+            rmSync(directory, { force: true, recursive: true });
+        }
+    });
+
+    it('reports zero for a missing .part with the default stat reader', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'iptvnator-part-'));
+
+        try {
+            expect(
+                getPartialDownloadSize(join(directory, 'missing.mp4'))
+            ).toBe(0);
+        } finally {
+            rmSync(directory, { force: true, recursive: true });
+        }
     });
 });

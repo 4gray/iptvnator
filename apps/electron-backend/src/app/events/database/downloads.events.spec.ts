@@ -5,6 +5,8 @@ const mockGetDatabase = jest.fn();
 const mockRemoveDownloadFromRuntime = jest.fn();
 const mockBroadcastDownloadUpdate = jest.fn();
 const mockRemovePartialDownloadFile = jest.fn();
+const mockPauseDownload = jest.fn();
+const mockResumeDownloadRequest = jest.fn();
 
 function getHandler(channel: string): IpcHandler {
     const handler = mockRegisteredHandlers.get(channel);
@@ -30,6 +32,8 @@ describe('downloads events', () => {
         mockRemoveDownloadFromRuntime.mockReset();
         mockBroadcastDownloadUpdate.mockReset();
         mockRemovePartialDownloadFile.mockReset();
+        mockPauseDownload.mockReset();
+        mockResumeDownloadRequest.mockReset();
 
         jest.doMock('electron', () => ({
             app: {
@@ -59,12 +63,12 @@ describe('downloads events', () => {
         jest.doMock('./download-runtime', () => ({
             broadcastDownloadUpdate: mockBroadcastDownloadUpdate,
             cancelDownload: jest.fn(),
-            pauseDownload: jest.fn(),
+            pauseDownload: mockPauseDownload,
             removeDownloadFromRuntime: mockRemoveDownloadFromRuntime,
             setMainWindow: jest.fn(),
         }));
         jest.doMock('./download-requests', () => ({
-            resumeDownloadRequest: jest.fn(),
+            resumeDownloadRequest: mockResumeDownloadRequest,
             retryDownloadRequest: jest.fn(),
             startDownloadRequest: jest.fn(),
         }));
@@ -223,5 +227,60 @@ describe('downloads events', () => {
 
         expect(deleteWhere).toHaveBeenCalledTimes(1);
         expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('maps a successful runtime pause to a success response', async () => {
+        mockPauseDownload.mockResolvedValue(true);
+        const consoleLog = jest
+            .spyOn(console, 'log')
+            .mockImplementation(() => undefined);
+
+        try {
+            await expect(
+                getHandler('DOWNLOADS_PAUSE')(null, 42)
+            ).resolves.toEqual({ success: true });
+        } finally {
+            consoleLog.mockRestore();
+        }
+
+        expect(mockPauseDownload).toHaveBeenCalledWith(42);
+    });
+
+    it('maps an unknown pause target to an error response', async () => {
+        mockPauseDownload.mockResolvedValue(false);
+        const consoleLog = jest
+            .spyOn(console, 'log')
+            .mockImplementation(() => undefined);
+
+        try {
+            await expect(
+                getHandler('DOWNLOADS_PAUSE')(null, 42)
+            ).resolves.toEqual({
+                error: 'Download not found in queue',
+                success: false,
+            });
+        } finally {
+            consoleLog.mockRestore();
+        }
+    });
+
+    it('forwards resume requests with the download folder and returns the result', async () => {
+        mockResumeDownloadRequest.mockResolvedValue({
+            error: 'Can only resume paused downloads',
+            success: false,
+        });
+
+        await expect(
+            getHandler('DOWNLOADS_RESUME')(null, 42, '/downloads')
+        ).resolves.toEqual({
+            error: 'Can only resume paused downloads',
+            success: false,
+        });
+
+        expect(mockResumeDownloadRequest).toHaveBeenCalledWith(
+            42,
+            '/downloads',
+            expect.anything()
+        );
     });
 });

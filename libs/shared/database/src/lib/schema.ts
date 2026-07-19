@@ -333,6 +333,7 @@ export const downloads = sqliteTable(
         filePath: text('file_path'),
         posterUrl: text('poster_url'),
         requestHeaders: text('request_headers'),
+        resumeValidator: text('resume_validator'),
         // Download progress
         status: text('status', {
             enum: [

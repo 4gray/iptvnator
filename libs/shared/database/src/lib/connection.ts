@@ -99,6 +99,7 @@ const DOWNLOADS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS downloads (
       file_path TEXT,
       poster_url TEXT,
       request_headers TEXT,
+      resume_validator TEXT,
       status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled')),
       bytes_downloaded INTEGER DEFAULT 0,
       total_bytes INTEGER,
@@ -359,6 +360,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE content ADD COLUMN backdrop_url TEXT`,
     // v1.7.1: Scope XMLTV programs to their source URL for playlist-local EPG lookup
     `ALTER TABLE epg_programs ADD COLUMN source_url TEXT`,
+    // Pause/resume: entity validator (ETag/Last-Modified) sent as If-Range on resume
+    `ALTER TABLE downloads ADD COLUMN resume_validator TEXT`,
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [

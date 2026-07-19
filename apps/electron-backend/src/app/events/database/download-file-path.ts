@@ -1,8 +1,8 @@
 import {
     closeSync,
     existsSync,
+    lstatSync,
     openSync,
-    statSync,
     unlinkSync,
 } from 'node:fs';
 import { extname, join } from 'node:path';
@@ -126,9 +126,19 @@ export function removePartialDownloadFile(
     return true;
 }
 
+function getRegularFileStats(filePath: string): { size: number } {
+    // lstat + isFile so appending to a retained .part can never follow a
+    // symlink planted in its place while the download was paused.
+    const stats = lstatSync(filePath);
+    if (!stats.isFile()) {
+        throw new Error(`Partial download is not a regular file: ${filePath}`);
+    }
+    return stats;
+}
+
 export function getPartialDownloadSize(
     filePath: string | null | undefined,
-    getStats: (filePath: string) => { size: number } = statSync
+    getStats: (filePath: string) => { size: number } = getRegularFileStats
 ): number {
     if (!filePath) {
         return 0;

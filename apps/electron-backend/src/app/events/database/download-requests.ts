@@ -4,6 +4,7 @@ import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
+import { removePartialDownloadFile } from './download-file-path';
 import { enqueueDownload } from './download-runtime';
 
 export interface StartDownloadRequest {
@@ -25,16 +26,19 @@ export interface StartDownloadRequest {
     macAddress?: string;
 }
 
+function sanitizeFilename(name: string): string {
+    return name.replace(/[<>:"/\\|?*]/g, '_').trim();
+}
+
 function getExtensionFromUrl(url: string): string {
     try {
-        return extname(new URL(url).pathname) || '.mp4';
+        // Sanitize too: URL pathnames may legally contain characters like ':'
+        // that would create NTFS alternate data streams on Windows.
+        const extension = sanitizeFilename(extname(new URL(url).pathname));
+        return extension.startsWith('.') ? extension : '.mp4';
     } catch {
         return '.mp4';
     }
-}
-
-function sanitizeFilename(name: string): string {
-    return name.replace(/[<>:"/\\|?*]/g, '_').trim();
 }
 
 function createFileName(title: string, url: string): string {
@@ -68,6 +72,8 @@ function serializeHeaders(
     return headers ? JSON.stringify(headers) : null;
 }
 
+const STORED_HEADER_ALLOWLIST = ['User-Agent', 'Origin', 'Referer'] as const;
+
 function parseStoredHeaders(
     value: string | null
 ): Record<string, string> | undefined {
@@ -81,8 +87,12 @@ function parseStoredHeaders(
             return undefined;
         }
 
-        const headers = Object.entries(parsed).reduce<Record<string, string>>(
-            (acc, [key, headerValue]) => {
+        // Re-apply the write-time allowlist so a tampered or imported
+        // database row cannot smuggle arbitrary headers into requests.
+        const entries = parsed as Record<string, unknown>;
+        const headers = STORED_HEADER_ALLOWLIST.reduce<Record<string, string>>(
+            (acc, key) => {
+                const headerValue = entries[key];
                 if (typeof headerValue === 'string') {
                     acc[key] = headerValue;
                 }
@@ -153,6 +163,19 @@ export async function startDownloadRequest(
             };
         }
 
+        if (item.status === 'failed' && item.filePath) {
+            // A failed row can still reference a retained .part; delete it
+            // before the restart clears filePath, or the file is orphaned.
+            try {
+                removePartialDownloadFile(item.filePath);
+            } catch (error) {
+                console.error(
+                    '[Downloads] Failed to delete retained partial before re-download:',
+                    error
+                );
+            }
+        }
+
         await db
             .update(schema.downloads)
             .set({
@@ -161,6 +184,7 @@ export async function startDownloadRequest(
                 fileName,
                 filePath: null,
                 requestHeaders: serializeHeaders(headers),
+                resumeValidator: null,
                 status: 'queued',
                 totalBytes: null,
                 updatedAt: sql`CURRENT_TIMESTAMP`,
@@ -248,6 +272,7 @@ export async function retryDownloadRequest(
               errorMessage: null,
               fileName,
               filePath: null,
+              resumeValidator: null,
               status: 'queued' as const,
               totalBytes: null,
               updatedAt: sql`CURRENT_TIMESTAMP`,
@@ -262,6 +287,7 @@ export async function retryDownloadRequest(
         filePath: retainedFilePath,
         headers: parseStoredHeaders(item.requestHeaders),
         id: item.id,
+        resumeValidator: retainedFilePath ? item.resumeValidator : null,
         totalBytes: retainedFilePath ? item.totalBytes : null,
         url: item.url,
     });
@@ -316,6 +342,7 @@ export async function resumeDownloadRequest(
         filePath: item.filePath,
         headers: parseStoredHeaders(item.requestHeaders),
         id: item.id,
+        resumeValidator: item.resumeValidator,
         totalBytes: item.totalBytes,
         url: item.url,
     });

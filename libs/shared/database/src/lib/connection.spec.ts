@@ -25,6 +25,39 @@ describe('database schema statements', () => {
         normalizeXtreamContentAddedEpochs,
         ensureContentTitleFts,
     } = __databaseConnectionTestHooks;
+    const ensureDownloadsPauseResumeSchema = (
+        __databaseConnectionTestHooks as unknown as {
+            ensureDownloadsPauseResumeSchema: (sqlite: {
+                prepare: (statement: string) => {
+                    get?: () => unknown;
+                    run?: (...args: unknown[]) => unknown;
+                };
+                transaction: (callback: () => void) => () => void;
+            }) => void;
+        }
+    ).ensureDownloadsPauseResumeSchema;
+
+    function createRebuildSqlite(legacyTableSql: string | undefined) {
+        const statements: string[] = [];
+        const transaction = jest.fn((callback: () => void) => callback);
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('FROM sqlite_master')) {
+                return {
+                    get: () =>
+                        legacyTableSql === undefined
+                            ? undefined
+                            : { sql: legacyTableSql },
+                };
+            }
+            return {
+                run: () => {
+                    statements.push(compactSql(statement));
+                },
+            };
+        });
+
+        return { prepare, statements, transaction };
+    }
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
         const schemaSql = createTableStatements.map(compactSql).join('\n');
@@ -46,6 +79,7 @@ describe('database schema statements', () => {
         );
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS downloads');
         expect(schemaSql).toContain('request_headers TEXT');
+        expect(schemaSql).toContain('resume_validator TEXT');
         expect(schemaSql).toContain("'paused'");
         expect(schemaSql).toContain(
             'CREATE UNIQUE INDEX IF NOT EXISTS favorites_content_playlist_unique'
@@ -383,6 +417,80 @@ describe('database schema statements', () => {
         expect(callOrder.indexOf('epg-source-index')).toBeLessThan(
             callOrder.indexOf('epg-source-backfill')
         );
+    });
+
+    it('rebuilds a legacy downloads table without paused status or stored headers', () => {
+        const sqlite = createRebuildSqlite(
+            `CREATE TABLE downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'completed', 'failed', 'canceled')))`
+        );
+
+        ensureDownloadsPauseResumeSchema(sqlite);
+
+        expect(sqlite.transaction).toHaveBeenCalledTimes(1);
+        const { statements } = sqlite;
+        const renameIndex = statements.findIndex((statement) =>
+            statement.startsWith('ALTER TABLE downloads RENAME TO')
+        );
+        const createIndex = statements.findIndex((statement) =>
+            statement.startsWith('CREATE TABLE IF NOT EXISTS downloads')
+        );
+        const copyIndex = statements.findIndex((statement) =>
+            statement.startsWith('INSERT INTO downloads')
+        );
+        const dropLegacyIndex = statements.findIndex((statement) =>
+            statement.startsWith('DROP TABLE downloads_pause_resume_legacy')
+        );
+
+        expect(renameIndex).toBeGreaterThanOrEqual(0);
+        expect(createIndex).toBeGreaterThan(renameIndex);
+        expect(copyIndex).toBeGreaterThan(createIndex);
+        expect(dropLegacyIndex).toBeGreaterThan(copyIndex);
+        // Indexes on the old table are dropped before the rename and
+        // recreated after the copy.
+        expect(
+            statements.filter((statement) =>
+                statement.startsWith('DROP INDEX IF EXISTS')
+            ).length
+        ).toBe(3);
+        expect(
+            statements
+                .slice(dropLegacyIndex + 1)
+                .filter((statement) => statement.includes('CREATE')).length
+        ).toBe(3);
+        // The rebuilt table carries the new contract; legacy rows get NULL
+        // stored headers, and the copy never references resume_validator so
+        // it defaults to NULL.
+        expect(statements[createIndex]).toContain(`'paused'`);
+        expect(statements[createIndex]).toContain('request_headers TEXT');
+        expect(statements[createIndex]).toContain('resume_validator TEXT');
+        expect(statements[copyIndex]).toContain('NULL AS request_headers');
+        expect(statements[copyIndex]).not.toContain('resume_validator');
+    });
+
+    it('copies stored headers when only the paused status is missing', () => {
+        const sqlite = createRebuildSqlite(
+            `CREATE TABLE downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, request_headers TEXT, status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'completed', 'failed', 'canceled')))`
+        );
+
+        ensureDownloadsPauseResumeSchema(sqlite);
+
+        const copy = sqlite.statements.find((statement) =>
+            statement.startsWith('INSERT INTO downloads')
+        );
+        expect(copy).toBeDefined();
+        expect(copy).not.toContain('NULL AS request_headers');
+        expect(copy).toContain('request_headers');
+    });
+
+    it('skips the downloads rebuild when the table already has the paused contract', () => {
+        const sqlite = createRebuildSqlite(
+            `CREATE TABLE downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, request_headers TEXT, resume_validator TEXT, status TEXT CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled')))`
+        );
+
+        ensureDownloadsPauseResumeSchema(sqlite);
+
+        expect(sqlite.transaction).not.toHaveBeenCalled();
+        expect(sqlite.statements).toHaveLength(0);
     });
 
     it('backfills migrated EPG program source URLs in bounded batches', () => {
