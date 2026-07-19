@@ -1,54 +1,5 @@
-import { cleanupStaleDownloadFiles } from './stale-download-files';
-
-describe('cleanupStaleDownloadFiles', () => {
-    it('removes every persisted partial path and ignores empty paths', () => {
-        const removeFile = jest.fn();
-
-        cleanupStaleDownloadFiles(
-            [
-                { filePath: '/downloads/one.mp4' },
-                { filePath: null },
-                { filePath: '/downloads/two.mp4' },
-            ],
-            removeFile
-        );
-
-        expect(removeFile).toHaveBeenCalledTimes(2);
-        expect(removeFile).toHaveBeenNthCalledWith(1, '/downloads/one.mp4');
-        expect(removeFile).toHaveBeenNthCalledWith(2, '/downloads/two.mp4');
-    });
-
-    it('continues cleaning other stale files after one removal fails', () => {
-        const removeFile = jest.fn((filePath: string) => {
-            if (filePath.endsWith('one.mp4')) {
-                throw new Error('locked');
-            }
-        });
-        const consoleError = jest
-            .spyOn(console, 'error')
-            .mockImplementation(() => undefined);
-
-        cleanupStaleDownloadFiles(
-            [
-                { filePath: '/downloads/one.mp4' },
-                { filePath: '/downloads/two.mp4' },
-            ],
-            removeFile
-        );
-
-        expect(removeFile).toHaveBeenCalledTimes(2);
-        expect(consoleError).toHaveBeenCalledWith(
-            '[Downloads] Failed to delete stale partial file:',
-            '/downloads/one.mp4',
-            expect.any(Error)
-        );
-
-        consoleError.mockRestore();
-    });
-});
-
 describe('resetStaleDownloads', () => {
-    it('keeps interrupted partial downloads as paused', async () => {
+    it('keeps interrupted partial downloads as paused and pauses queued rows', async () => {
         jest.resetModules();
 
         const staleDownloads = [
@@ -76,13 +27,14 @@ describe('resetStaleDownloads', () => {
             })),
             update: jest.fn(() => ({ set })),
         };
+        const removePartialDownloadFile = jest.fn();
 
         jest.doMock('../../database/connection', () => ({
             getDatabase: jest.fn().mockResolvedValue(db),
         }));
         jest.doMock('./download-file-path', () => ({
             getPartialDownloadSize: jest.fn(() => 64),
-            removePartialDownloadFile: jest.fn(),
+            removePartialDownloadFile,
         }));
 
         const { resetStaleDownloads } = await import('./download-recovery');
@@ -97,8 +49,60 @@ describe('resetStaleDownloads', () => {
         );
         expect(set).toHaveBeenCalledWith(
             expect.objectContaining({
-                filePath: null,
-                status: 'failed',
+                bytesDownloaded: 0,
+                status: 'paused',
+            })
+        );
+        expect(set).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'failed' })
+        );
+        expect(removePartialDownloadFile).not.toHaveBeenCalled();
+    });
+
+    it('keeps the retained partial of a resumed download that was still queued', async () => {
+        jest.resetModules();
+
+        const staleDownloads = [
+            {
+                filePath: '/downloads/resumed.mp4',
+                id: 7,
+                status: 'queued',
+                totalBytes: 1000,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(staleDownloads),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const removePartialDownloadFile = jest.fn();
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize: jest.fn(() => 900),
+            removePartialDownloadFile,
+        }));
+
+        const { resetStaleDownloads } = await import('./download-recovery');
+
+        await resetStaleDownloads();
+
+        expect(removePartialDownloadFile).not.toHaveBeenCalled();
+        expect(set).toHaveBeenCalledTimes(1);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                bytesDownloaded: 900,
+                errorMessage: null,
+                status: 'paused',
+                totalBytes: 1000,
             })
         );
     });

@@ -14,7 +14,10 @@ interface StaleDownload {
 }
 
 function getRecoverablePartialSize(download: StaleDownload): number {
-    if (download.status !== 'downloading' || !download.filePath) {
+    if (
+        (download.status !== 'downloading' && download.status !== 'queued') ||
+        !download.filePath
+    ) {
         return 0;
     }
 
@@ -87,12 +90,19 @@ export async function resetStaleDownloads(): Promise<void> {
         const staleDownloads = downloads.filter(
             (download) => download.status !== 'completed'
         );
+        // Queued rows are recoverable even without partial bytes: a resumed
+        // download waiting behind an active one is persisted as 'queued' with
+        // its retained .part, and a never-started queued row loses nothing by
+        // becoming 'paused' instead of 'failed'.
         const recoverableDownloads = staleDownloads
             .map((download) => ({
                 ...download,
                 bytesDownloaded: getRecoverablePartialSize(download),
             }))
-            .filter((download) => download.bytesDownloaded > 0);
+            .filter(
+                (download) =>
+                    download.status === 'queued' || download.bytesDownloaded > 0
+            );
         const recoverableIds = new Set(
             recoverableDownloads.map((download) => download.id)
         );
