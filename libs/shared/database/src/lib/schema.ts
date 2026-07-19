@@ -357,12 +357,6 @@ export const downloads = sqliteTable(
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 
-export {
-    epgChannelMappings,
-    type EpgChannelMapping,
-    type NewEpgChannelMapping,
-} from './epg-channel-mapping-schema';
-
 // TMDB metadata cache table.
 // Two row kinds share the table, discriminated by the lookup_key prefix:
 // - 'id:<tmdbId>'                 → full TMDB details payload (JSON)
