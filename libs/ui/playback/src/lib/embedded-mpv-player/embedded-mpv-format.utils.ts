@@ -10,16 +10,6 @@ export const HIDDEN_BOUNDS: EmbeddedMpvBounds = Object.freeze({
     height: 1,
 }) as EmbeddedMpvBounds;
 
-/**
- * Vertical pixels to subtract from the MPV view's height when a control
- * popover (volume, audio, subtitle, speed, aspect) is open above the
- * controls strip. The native NSView paints over the WebContents, so we
- * shrink it from the bottom to expose the popover region in DOM. Sized to
- * cover the tallest popover (audio/subtitle list capped at ~240 px plus
- * title + padding); video keeps playing in the upper region.
- */
-export const MENU_OPEN_BOTTOM_CUTOUT_PX = 300;
-
 export const SPEED_PRESETS: ReadonlyArray<{ value: number; label: string }> = [
     { value: 0.5, label: '0.5×' },
     { value: 0.75, label: '0.75×' },

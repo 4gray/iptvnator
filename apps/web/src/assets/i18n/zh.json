@@ -453,6 +453,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "返回",
             "RETRY": "重试",
             "STALLED": "该流的启动时间超出预期。",
             "PLAYBACK_FAILED": "嵌入式 MPV 播放失败。",
