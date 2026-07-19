@@ -71,6 +71,11 @@ function isCaseUniform(token: string): boolean {
     return token === token.toLowerCase() || token === token.toUpperCase();
 }
 
+/** ES2015-safe trailing-whitespace trim (the lib target predates trimEnd). */
+function trimRight(value: string): string {
+    return value.replace(/\s+$/, '');
+}
+
 /**
  * Strip appended language/subtitle tags. Runs BEFORE lowercasing —
  * casing is the main false-positive guard: ALL-CAPS titles carry no
@@ -90,12 +95,12 @@ function stripTrailingTags(value: string): string {
 }
 
 function stripTrailingTagOnce(value: string): string {
-    const result = value.trimEnd();
+    const result = trimRight(value);
     const hasLowercase = /\p{Ll}/u.test(result);
 
     // "The Last of Us--esp": no real title contains a double dash.
     if (DOUBLE_DASH_SUFFIX.test(result)) {
-        return result.replace(DOUBLE_DASH_SUFFIX, '').trimEnd();
+        return trimRight(result.replace(DOUBLE_DASH_SUFFIX, ''));
     }
 
     // "Fallout_eng" — but not "The_Last_of_Us", where underscores are
@@ -104,7 +109,7 @@ function stripTrailingTagOnce(value: string): string {
         UNDERSCORE_SUFFIX.test(result) &&
         result.indexOf('_') === result.lastIndexOf('_')
     ) {
-        return result.replace(UNDERSCORE_SUFFIX, '').trimEnd();
+        return trimRight(result.replace(UNDERSCORE_SUFFIX, ''));
     }
 
     const joined = result.match(JOINED_DASH_SUFFIX);
@@ -114,12 +119,12 @@ function stripTrailingTagOnce(value: string): string {
         isCaseUniform(joined[1]) &&
         (joined[1] !== joined[1].toUpperCase() || hasLowercase)
     ) {
-        return result.replace(JOINED_DASH_SUFFIX, '').trimEnd();
+        return trimRight(result.replace(JOINED_DASH_SUFFIX, ''));
     }
 
     const trailing = result.match(TRAILING_TAG_SUFFIX);
     if (trailing && hasLowercase && TRAILING_TAG_VOCABULARY.has(trailing[1])) {
-        return result.replace(TRAILING_TAG_SUFFIX, '').trimEnd();
+        return trimRight(result.replace(TRAILING_TAG_SUFFIX, ''));
     }
 
     return result;
