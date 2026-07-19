@@ -43,6 +43,27 @@ describe('stripCountryPrefix', () => {
             expect(stripCountryPrefix('US: CNN')).toBe('CNN');
         });
 
+        it('strips compound quality/provider tags', () => {
+            expect(stripCountryPrefix('4K-DE - The Pitt (2025)')).toBe(
+                'The Pitt (2025)'
+            );
+            expect(stripCountryPrefix('AR-SUBS - Fallout')).toBe('Fallout');
+            expect(stripCountryPrefix('4K-OSN+ - The Last of Us')).toBe(
+                'The Last of Us'
+            );
+        });
+
+        it('strips longer uppercase tags', () => {
+            expect(stripCountryPrefix('EXYU - News')).toBe('News');
+            expect(stripCountryPrefix('MULTI - Movies')).toBe('Movies');
+        });
+
+        it('never treats numeric fragments as tags', () => {
+            expect(stripCountryPrefix('1917 - Documentary')).toBe(
+                '1917 - Documentary'
+            );
+        });
+
         it('only strips the first tag segment', () => {
             expect(stripCountryPrefix('ES - A3 - Sports')).toBe('A3 - Sports');
         });
