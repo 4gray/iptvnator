@@ -16,6 +16,13 @@ jobs:
         name: Build pinned Linux Embedded MPV runtime
         runs-on: ubuntu-22.04
         timeout-minutes: 120
+        # Concurrency lives on the build jobs, not the workflow: cancelling a
+        # whole run could interrupt action-gh-release mid-update and leave the
+        # rolling draft with missing assets. Build slots cancel superseded PR
+        # work; the release job only serializes and is never cancelled.
+        concurrency:
+            group: ${{ github.workflow }}-build-linux-runtime-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
         steps:
             - name: Checkout code
@@ -304,6 +311,9 @@ jobs:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
+        concurrency:
+            group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ matrix.arch }}-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: ${{ github.event_name == 'pull_request' }}
         strategy:
             fail-fast: false
             matrix:
@@ -1208,6 +1218,9 @@ jobs:
         needs: linux-embedded-mpv-runtime
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
+        concurrency:
+            group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ matrix.linux_profile }}-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: ${{ github.event_name == 'pull_request' }}
         strategy:
             fail-fast: false
             matrix:
@@ -1243,6 +1256,9 @@ jobs:
             - build-linux
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         runs-on: ubuntu-latest
+        concurrency:
+            group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: false
         permissions:
             contents: write
 
@@ -1375,13 +1391,117 @@ jobs:
               id: package-version
               run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+            # Test drafts (PR/master) get a self-describing title plus a context
+            # header linking the PR, real head commit, and workflow run. A stable
+            # tag per PR (test-pr-<n>) / branch (test-master) makes the action
+            # update one rolling draft in place instead of piling up a new draft
+            # for every push. PR builds must not use github.sha here: that is the
+            # ephemeral merge-commit SHA, which resolves to nothing in the repo.
+            - name: Compose release metadata
+              id: release-meta
+              shell: bash
+              env:
+                  VERSION: ${{ steps.package-version.outputs.version }}
+                  EVENT_NAME: ${{ github.event_name }}
+                  IS_TAG_BUILD: ${{ startsWith(github.ref, 'refs/tags/') }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+                  PR_URL: ${{ github.event.pull_request.html_url }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+                  SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
+                  REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  set -euo pipefail
+
+                  SHORT_SHA="${HEAD_SHA:0:7}"
+                  SAFE_BRANCH="${SOURCE_BRANCH//\//-}"
+
+                  if [ "${IS_TAG_BUILD}" = "true" ]; then
+                      NAME="Release v${VERSION}"
+                      TAG="${GITHUB_REF_NAME}"
+                      BODY=""
+                  elif [ "${EVENT_NAME}" = "pull_request" ]; then
+                      NAME="v${VERSION} — PR #${PR_NUMBER} @ ${SHORT_SHA} [test]"
+                      TAG="test-pr-${PR_NUMBER}"
+                      BODY="$(printf '🧪 Test build for PR [#%s](%s) — %s\n\nCommit [`%s`](%s/commit/%s) · branch `%s` · [workflow run](%s)' \
+                          "${PR_NUMBER}" "${PR_URL}" "${PR_TITLE}" \
+                          "${SHORT_SHA}" "${REPO_URL}" "${HEAD_SHA}" "${SOURCE_BRANCH}" "${RUN_URL}")"
+                  else
+                      NAME="v${VERSION} — ${SAFE_BRANCH} @ ${SHORT_SHA} [test]"
+                      TAG="test-${SAFE_BRANCH}"
+                      BODY="$(printf '🧪 Test build from `%s` — commit [`%s`](%s/commit/%s) · [workflow run](%s)' \
+                          "${SOURCE_BRANCH}" "${SHORT_SHA}" "${REPO_URL}" "${HEAD_SHA}" "${RUN_URL}")"
+                  fi
+
+                  {
+                      echo "name=${NAME}"
+                      echo "tag=${TAG}"
+                      echo "commitish=${HEAD_SHA}"
+                  } >> "${GITHUB_OUTPUT}"
+
+                  if [ -n "${BODY}" ]; then
+                      {
+                          echo "body<<RELEASE_BODY_EOF"
+                          echo "${BODY}"
+                          echo "RELEASE_BODY_EOF"
+                      } >> "${GITHUB_OUTPUT}"
+                  else
+                      echo "body=" >> "${GITHUB_OUTPUT}"
+                  fi
+
+            # A PR can be closed while this workflow is still running; the
+            # cleanup workflow deletes the PR draft on close. Re-check the live
+            # PR state right before touching the draft so a late-finishing run
+            # cannot recreate a draft for a closed PR.
+            - name: Check PR is still open
+              if: github.event_name == 'pull_request'
+              id: pr-state
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  set -euo pipefail
+                  echo "state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.state')" >> "${GITHUB_OUTPUT}"
+
+            # The rolling draft keeps assets across runs and the release action
+            # only replaces same-name files. If the app version changes between
+            # pushes, old-version installers would linger beside the new set,
+            # so drop every existing asset first — the action re-uploads the
+            # full current set right after. Only drafts are pruned; published
+            # releases are never touched.
+            - name: Prune stale draft assets
+              if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_TAG: ${{ steps.release-meta.outputs.tag }}
+              run: |
+                  set -euo pipefail
+
+                  release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate |
+                      jq -s --arg tag "${RELEASE_TAG}" \
+                          'add | [.[] | select(.draft and .tag_name == $tag)][0].id // empty')"
+
+                  if [ -z "${release_id}" ]; then
+                      echo "No existing draft for ${RELEASE_TAG}; nothing to prune."
+                      exit 0
+                  fi
+
+                  gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100" --paginate --jq '.[].id' |
+                      xargs -r -n1 -I{} gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/{}"
+
+                  echo "Pruned assets from draft ${release_id} (${RELEASE_TAG})."
+
             - name: Create Draft Release
+              id: draft-release
+              if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
               uses: softprops/action-gh-release@v2
               with:
                   draft: true
-                  prerelease: ${{ github.event_name == 'pull_request' }}
-                  name: Release v${{ steps.package-version.outputs.version }}
-                  tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('test-{0}', github.sha) }}
+                  prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+                  name: ${{ steps.release-meta.outputs.name }}
+                  tag_name: ${{ steps.release-meta.outputs.tag }}
+                  target_commitish: ${{ steps.release-meta.outputs.commitish }}
+                  body: ${{ steps.release-meta.outputs.body }}
                   generate_release_notes: true
                   files: |
                       artifacts/macos-x64-artifacts/*-x64.dmg
@@ -1408,3 +1528,58 @@ jobs:
                       artifacts/windows-artifacts/*.blockmap
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            # Rare action-gh-release path: when the release listing transiently
+            # misses the rolling draft, the action creates a duplicate, deletes
+            # it in favor of the canonical (oldest) draft, and uploads assets
+            # there WITHOUT refreshing that draft's metadata. Rebuild the full
+            # metadata (title, commitish, and body = context header + notes
+            # from the same generate-notes API the action uses) on the release
+            # id the action actually used, so the draft ends up correct no
+            # matter which internal path ran. If notes generation fails, the
+            # body is left as the action set it and only title/commitish are
+            # re-asserted.
+            - name: Ensure draft metadata is current
+              if: steps.draft-release.outputs.id != ''
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+                  RELEASE_TAG: ${{ steps.release-meta.outputs.tag }}
+                  RELEASE_NAME: ${{ steps.release-meta.outputs.name }}
+                  RELEASE_COMMITISH: ${{ steps.release-meta.outputs.commitish }}
+                  RELEASE_BODY: ${{ steps.release-meta.outputs.body }}
+              run: |
+                  set -euo pipefail
+
+                  GENERATED_NOTES="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+                      -f tag_name="${RELEASE_TAG}" \
+                      -f target_commitish="${RELEASE_COMMITISH}" \
+                      --jq '.body' || true)"
+
+                  # tag_name MUST be included in every PATCH: updating a draft
+                  # without it makes GitHub drop the pending tag (the draft
+                  # becomes "untagged-<hash>"), which breaks the rolling-draft
+                  # lookup on the next run.
+                  if [ -z "${GENERATED_NOTES}" ]; then
+                      jq -n \
+                          --arg tag "${RELEASE_TAG}" \
+                          --arg name "${RELEASE_NAME}" \
+                          --arg commitish "${RELEASE_COMMITISH}" \
+                          '{tag_name: $tag, name: $name, target_commitish: $commitish}' |
+                          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --input - > /dev/null
+                      exit 0
+                  fi
+
+                  if [ -n "${RELEASE_BODY}" ]; then
+                      FULL_BODY="$(printf '%s\n\n%s' "${RELEASE_BODY}" "${GENERATED_NOTES}")"
+                  else
+                      FULL_BODY="${GENERATED_NOTES}"
+                  fi
+
+                  jq -n \
+                      --arg tag "${RELEASE_TAG}" \
+                      --arg name "${RELEASE_NAME}" \
+                      --arg commitish "${RELEASE_COMMITISH}" \
+                      --arg body "${FULL_BODY}" \
+                      '{tag_name: $tag, name: $name, target_commitish: $commitish, body: ($body | .[0:120000])}' |
+                      gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --input - > /dev/null

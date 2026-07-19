@@ -150,9 +150,10 @@ The flow is:
    native-view, it starts `mpv --wid=<x11-window>` in a separate process with a
    private JSON IPC socket. Frame-copy instead uses the per-session helper
    described below.
-9. Resize, scroll, and fullscreen changes are measured in Angular and sent
-   through bounds sync. Native-view uses them to align the platform host;
-   frame-copy uses them to resize helper rendering and the canvas frame source.
+9. Resize, scroll, fullscreen, and devicePixelRatio changes are measured in
+   Angular and sent through bounds sync. Native-view uses them to align the
+   platform host; frame-copy uses them to resize helper rendering and the
+   canvas frame source.
 10. Playback controls remain IPTVnator-owned Angular UI. Frame-copy uses the
     shared `app-player-controls` overlay through
     `EmbeddedMpvControlsAdapter`; native-view keeps its compositor-safe fixed
@@ -594,6 +595,37 @@ For frame-copy, `boundsProvider` always returns the measured full host bounds:
 there is no `HIDDEN_BOUNDS`, popover cutout, or reserved dock height. Dialogs
 and controls layer naturally over the canvas, while bounds sync still updates
 the helper's render size.
+
+### Coordinate spaces (CSS → native units)
+
+The renderer measures bounds in CSS pixels (`getBoundingClientRect()`), but
+the native-view engines position OS windows, not DOM nodes: the win32 child
+`HWND` (`SetWindowPos`) and the Linux child X11 window (`XMoveResizeWindow`)
+live in physical pixels, and the macOS `NSView` (`setFrame`) lives in points
+(device-independent pixels). CSS values match points only at 100% page zoom
+and match physical pixels only at 100% page zoom AND 100% display scale.
+`EmbeddedMpvNativeService` therefore converts every native-view bounds payload
+in the main process (`toNativeViewBounds` in `embedded-mpv-bounds.util.ts`):
+all platforms scale by the webContents zoom factor, win32/linux additionally
+by the scale factor of the display hosting the window. The renderer sends
+unrounded CSS edges (`measureBounds` does not round) and the conversion
+rounds exactly once, after scaling — edges first, width/height derived from
+them — so fractional CSS layouts and fractional scales cannot open 1px
+seams against the surrounding DOM UI. Skipping this conversion is issue #1145: on scaled
+displays (Windows 125%, Linux fractional scaling, HiDPI TVs) the video landed
+toward the window's top-left corner at `1/scale` of its size, in windowed and
+fullscreen mode alike.
+
+Frame-copy bounds bypass the conversion: the canvas is laid out by the DOM in
+CSS pixels, and the frame-copy adapter already multiplies the render size by
+the display scale factor itself.
+
+Because a monitor change can rescale this mapping without resizing the host
+element (moving the window to a display with a different scale keeps the DIP
+layout), the session controller also watches `devicePixelRatio` through a
+re-armed `matchMedia('(resolution: …dppx)')` query and re-syncs bounds when
+it changes; page zoom changes are covered by the same watch plus the ordinary
+resize-driven syncs.
 
 ### Controls ownership by engine
 

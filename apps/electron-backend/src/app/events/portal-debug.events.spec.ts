@@ -87,4 +87,37 @@ describe('sanitizePortalDebugEvent', () => {
             },
         });
     });
+
+    it('redacts credentials in request, response, errors, and URL query params', () => {
+        const secrets = {
+            username: 'main-user-secret',
+            password: 'main-password-secret',
+            token: 'main-token-secret',
+            authorization: 'main-authorization-secret',
+            mac: 'main-mac-secret',
+        };
+        const event = sanitizePortalDebugEvent({
+            requestId: 'req-redaction',
+            provider: 'stalker',
+            operation: 'get_profile',
+            transport: 'electron-main',
+            startedAt: new Date().toISOString(),
+            durationMs: 5,
+            status: 'error',
+            request: {
+                params: secrets,
+                url: `https://example.com/portal?token=${secrets.token}&action=get_profile`,
+            },
+            error: new Error(
+                `Request failed: https://example.com/portal?authorization=${secrets.authorization}&action=get_profile`
+            ),
+        });
+
+        const output = JSON.stringify(event);
+        for (const secret of Object.values(secrets)) {
+            expect(output).not.toContain(secret);
+        }
+        expect(output).toContain('get_profile');
+        expect(output).toContain('req-redaction');
+    });
 });
