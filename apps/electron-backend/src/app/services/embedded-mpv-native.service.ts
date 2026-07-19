@@ -27,6 +27,7 @@ import {
     EMBEDDED_MPV_SESSION_UPDATE,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 import {
     getFrameCopyRuntimeAvailability,
@@ -199,6 +200,36 @@ export class EmbeddedMpvNativeService {
         } catch {
             return 1;
         }
+    }
+
+    private getMainWindowZoomFactor(): number {
+        try {
+            if (!App.mainWindow || App.mainWindow.isDestroyed()) {
+                return 1;
+            }
+            return App.mainWindow.webContents.getZoomFactor();
+        } catch {
+            return 1;
+        }
+    }
+
+    /**
+     * Renderer bounds arrive in CSS pixels; the native-view engines position
+     * OS windows in physical pixels (win32/linux) or points (macOS), so at
+     * page zoom or display scale ≠ 100% the raw values land the video toward
+     * the window's top-left corner at a fraction of its size (#1145). The
+     * frame-copy engine must bypass this: it paints into a DOM canvas laid
+     * out in CSS pixels, and its adapter already applies the display scale
+     * to the render size itself.
+     */
+    private scaleBoundsForNativeView(
+        bounds: EmbeddedMpvBounds
+    ): EmbeddedMpvBounds {
+        return toNativeViewBounds(bounds, {
+            platform: process.platform,
+            zoomFactor: this.getMainWindowZoomFactor(),
+            displayScaleFactor: this.getMainWindowScaleFactor(),
+        });
     }
 
     private detectCapabilities(): EmbeddedMpvCapabilities {
@@ -419,14 +450,15 @@ export class EmbeddedMpvNativeService {
         // embed into the window at all. Derive the skip from the dispatched
         // addon rather than re-evaluating the engine gate, so the two
         // decisions cannot disagree.
-        const windowHandle =
-            this.frameCopyAdapter && addon === this.frameCopyAdapter
-                ? Buffer.alloc(0)
-                : this.getMainWindowHandle();
+        const usesFrameCopyAddon =
+            this.frameCopyAdapter !== null && addon === this.frameCopyAdapter;
+        const windowHandle = usesFrameCopyAddon
+            ? Buffer.alloc(0)
+            : this.getMainWindowHandle();
         const startedAt = new Date().toISOString();
         const sessionId = addon.createSession(
             windowHandle,
-            bounds,
+            usesFrameCopyAddon ? bounds : this.scaleBoundsForNativeView(bounds),
             title,
             initialVolume
         );
@@ -478,7 +510,13 @@ export class EmbeddedMpvNativeService {
 
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void {
         this.assertEmbeddedMpvEnabled();
-        this.getAddon().setBounds(sessionId, bounds);
+        const addon = this.getAddon();
+        const usesFrameCopyAddon =
+            this.frameCopyAdapter !== null && addon === this.frameCopyAdapter;
+        addon.setBounds(
+            sessionId,
+            usesFrameCopyAddon ? bounds : this.scaleBoundsForNativeView(bounds)
+        );
     }
 
     setPaused(sessionId: string, paused: boolean): EmbeddedMpvSession | null {
