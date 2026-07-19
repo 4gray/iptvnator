@@ -196,6 +196,28 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('"status":200');
     });
 
+    it('redacts Map values selected by sensitive keys', () => {
+        const authorization = 'map-authorization-secret';
+        const password = 'map-password-secret';
+        const headers = new Map([
+            ['Authorization', `Bearer ${authorization}`],
+            ['password', password],
+            ['requestId', 'diagnostic-request-id'],
+        ]);
+
+        const result = redactSensitiveData(headers);
+        const output = serialized(result);
+
+        expect(output).not.toContain(authorization);
+        expect(output).not.toContain(password);
+        expect(output).toContain('diagnostic-request-id');
+        expect(result).toEqual({
+            Authorization: REDACTED_VALUE,
+            password: REDACTED_VALUE,
+            requestId: 'diagnostic-request-id',
+        });
+    });
+
     it('redacts Xtream credentials in playback URL paths', () => {
         const username = 'xtream-path-user-secret';
         const password = 'xtream-path-password-secret';

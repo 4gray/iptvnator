@@ -357,10 +357,13 @@ export function redactSensitiveData(
                     resolved.maxObjectKeys
                 );
                 for (const [key, entry] of mapEntries) {
-                    entries[visitString(String(key), depth + 1)] = visit(
-                        entry,
-                        depth + 1
-                    );
+                    const stringKey = String(key);
+                    const redactedKey = visitString(stringKey, depth + 1);
+                    entries[redactedKey] =
+                        isSensitiveKey(stringKey) &&
+                        !/[/:?=&]/u.test(stringKey)
+                            ? REDACTED_VALUE
+                            : visit(entry, depth + 1);
                 }
                 if (input.size > resolved.maxObjectKeys) {
                     entries['__truncatedKeys'] =
