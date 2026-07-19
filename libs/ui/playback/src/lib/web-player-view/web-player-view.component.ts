@@ -157,9 +157,7 @@ export class WebPlayerViewComponent {
             this.settings()?.player ??
             VideoPlayer.VideoJs
     );
-    readonly recordingFolder = computed(
-        () => this.settings()?.recordingFolder ?? ''
-    );
+    readonly recordingFolder = computed(() => this.settings()?.recordingFolder ?? '');
 
     constructor() {
         effect(() => {
@@ -180,7 +178,9 @@ export class WebPlayerViewComponent {
                 ? 'application/x-mpegURL'
                 : extension === 'ts' || !extension
                   ? 'video/mp2t'
-                  : extension === 'mkv' ? 'video/matroska' : 'video/mp4';
+                  : extension === 'mkv'
+                    ? 'video/matroska'
+                    : 'video/mp4';
 
         this.vjsOptions = {
             isLive,
