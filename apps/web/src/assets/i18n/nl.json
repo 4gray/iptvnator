@@ -453,6 +453,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Terug",
             "RETRY": "Opnieuw proberen",
             "STALLED": "Deze stream doet er langer over dan verwacht om te starten.",
             "PLAYBACK_FAILED": "Afspelen via Embedded MPV is mislukt.",

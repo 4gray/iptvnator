@@ -453,6 +453,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Wstecz",
             "RETRY": "Spróbuj ponownie",
             "STALLED": "Uruchamianie tego strumienia trwa dłużej niż zwykle.",
             "PLAYBACK_FAILED": "Odtwarzanie we wbudowanym MPV nie powiodło się.",

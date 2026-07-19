@@ -453,6 +453,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "戻る",
             "RETRY": "再試行",
             "STALLED": "このストリームの開始に予想より時間がかかっています。",
             "PLAYBACK_FAILED": "組み込みMPVでの再生に失敗しました。",
