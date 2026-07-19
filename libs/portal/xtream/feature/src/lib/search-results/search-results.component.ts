@@ -10,7 +10,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { Location } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -42,6 +42,10 @@ import {
     GlobalSearchResult,
     isM3uGlobalSearchResult,
 } from '@iptvnator/shared/interfaces';
+import {
+    groupResultsByVariant,
+    VariantGroup,
+} from './global-search-grouping.util';
 
 interface SearchResultsData {
     isGlobalSearch: boolean;
@@ -52,6 +56,11 @@ interface GlobalSearchResultGroup {
     playlistId: string;
     playlistName: string;
     items: XtreamSearchResultItem[];
+}
+
+interface PlaylistSection extends GlobalSearchResultGroup {
+    /** Populated only when "group similar titles" is on. */
+    variantGroups: VariantGroup[];
 }
 
 const GLOBAL_SEARCH_PAGE_SIZE = 100;
@@ -87,6 +96,7 @@ function groupResultsByPlaylistId(
         MatIcon,
         MatIconButton,
         MatProgressSpinner,
+        NgTemplateOutlet,
         SearchLayoutComponent,
         TranslatePipe,
     ],
@@ -123,6 +133,8 @@ export class SearchResultsComponent implements AfterViewInit {
 
     private static readonly GROUP_BY_STORAGE_KEY =
         'global-search-group-by-playlist';
+    private static readonly GROUP_SIMILAR_STORAGE_KEY =
+        'global-search-group-similar';
     private static readonly EXCLUDE_HIDDEN_STORAGE_KEY =
         'xtream-search-exclude-hidden';
     private static readonly TYPE_FILTERS_STORAGE_KEY =
@@ -134,6 +146,18 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly groupByPlaylist = signal(
         localStorage.getItem(SearchResultsComponent.GROUP_BY_STORAGE_KEY) !==
             'false'
+    );
+
+    /** Whether to collapse same-title/type variants into one card */
+    readonly groupSimilar = signal(
+        localStorage.getItem(
+            SearchResultsComponent.GROUP_SIMILAR_STORAGE_KEY
+        ) !== 'false'
+    );
+
+    /** Variant-group keys the user has expanded to reveal every version. */
+    private readonly expandedVariantKeys = signal<ReadonlySet<string>>(
+        new Set()
     );
 
     /** Whether to exclude content from hidden categories */
@@ -169,6 +193,30 @@ export class SearchResultsComponent implements AfterViewInit {
         }
         return groupResultsByPlaylistId(results);
     });
+
+    private readonly displayType = (item: XtreamSearchResultItem): string =>
+        this.getDisplayType(item);
+
+    /** Playlist sections with per-playlist variant grouping applied. */
+    readonly playlistSections = computed<PlaylistSection[]>(() => {
+        const collapse = this.groupSimilar();
+        return this.groupedResults().map((group) => ({
+            ...group,
+            variantGroups: collapse
+                ? groupResultsByVariant(group.items, this.displayType)
+                : [],
+        }));
+    });
+
+    /** Variant groups for the flat (ungrouped-by-playlist) list. */
+    readonly flatVariantGroups = computed<VariantGroup[]>(() =>
+        this.groupSimilar()
+            ? groupResultsByVariant(
+                  this.xtreamStore.searchResults(),
+                  this.displayType
+              )
+            : []
+    );
 
     constructor(
         @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData | null,
@@ -290,6 +338,7 @@ export class SearchResultsComponent implements AfterViewInit {
         this.lastGlobalSearchTerm = '';
         this.lastGlobalSearchTypes = [];
         this.lastGlobalSearchExcludeHidden = undefined;
+        this.expandedVariantKeys.set(new Set());
         this.xtreamStore.setGlobalSearchResults([]);
     }
 
@@ -338,6 +387,7 @@ export class SearchResultsComponent implements AfterViewInit {
             this.lastGlobalSearchExcludeHidden = effectiveExcludeHidden;
             this.hasMoreGlobalResults.set(false);
             this.isLoadingMoreGlobalResults.set(false);
+            this.expandedVariantKeys.set(new Set());
             this.xtreamStore.setIsSearching(true);
         }
 
@@ -468,6 +518,35 @@ export class SearchResultsComponent implements AfterViewInit {
             SearchResultsComponent.GROUP_BY_STORAGE_KEY,
             String(value)
         );
+    }
+
+    toggleGroupSimilar(value: boolean) {
+        this.groupSimilar.set(value);
+        this.expandedVariantKeys.set(new Set());
+        localStorage.setItem(
+            SearchResultsComponent.GROUP_SIMILAR_STORAGE_KEY,
+            String(value)
+        );
+    }
+
+    isVariantExpanded(key: string): boolean {
+        return this.expandedVariantKeys().has(key);
+    }
+
+    /** Single variant → open it; multiple → toggle the expanded member list. */
+    selectVariantGroup(group: VariantGroup) {
+        if (group.items.length === 1) {
+            this.selectItem(group.representative);
+            return;
+        }
+
+        const expanded = new Set(this.expandedVariantKeys());
+        if (expanded.has(group.key)) {
+            expanded.delete(group.key);
+        } else {
+            expanded.add(group.key);
+        }
+        this.expandedVariantKeys.set(expanded);
     }
 
     toggleExcludeHidden(value: boolean) {

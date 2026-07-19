@@ -87,6 +87,15 @@
                                     | translate
                             }}
                         </mat-checkbox>
+                        <mat-checkbox
+                            [ngModel]="groupSimilar()"
+                            (ngModelChange)="toggleGroupSimilar($event)"
+                        >
+                            {{
+                                'PORTALS.SEARCH_VIEW.GROUP_SIMILAR_TITLES'
+                                    | translate
+                            }}
+                        </mat-checkbox>
                     </div>
                 </div>
             </div>
@@ -104,26 +113,36 @@
                         Found {{ xtreamStore.searchResults().length }} items
                         across {{ groupedResults().length }} playlists
                     </h2>
-                    @for (group of groupedResults(); track group.playlistId) {
+                    @for (section of playlistSections(); track
+                        section.playlistId) {
                         <div class="playlist-group">
                             <h3 class="playlist-title">
                                 <mat-icon>playlist_play</mat-icon>
-                                {{ group.playlistName }}
+                                {{ section.playlistName }}
                                 <span class="item-count"
-                                    >({{ group.items.length }} items)</span
+                                    >({{ section.items.length }} items)</span
                                 >
                             </h3>
                             <div class="results-grid">
-                                @for (item of group.items; track item.id) {
-                                    <app-content-card
-                                        [posterUrl]="
-                                            item.poster_url ?? undefined
-                                        "
-                                        [title]="item.title"
-                                        [type]="getDisplayType(item)"
-                                        [showPlaceholder]="true"
-                                        (cardClick)="selectItem(item)"
-                                    />
+                                @if (groupSimilar()) {
+                                    @for (vg of section.variantGroups; track
+                                        vg.key) {
+                                        <ng-container
+                                            [ngTemplateOutlet]="variantTpl"
+                                            [ngTemplateOutletContext]="{
+                                                $implicit: vg,
+                                            }"
+                                        />
+                                    }
+                                } @else {
+                                    @for (item of section.items; track item.id) {
+                                        <ng-container
+                                            [ngTemplateOutlet]="itemTpl"
+                                            [ngTemplateOutletContext]="{
+                                                $implicit: item,
+                                            }"
+                                        />
+                                    }
                                 }
                             </div>
                         </div>
@@ -132,14 +151,23 @@
             } @else {
                 <!-- Flat list -->
                 <div class="results-grid">
-                    @for (item of xtreamStore.searchResults(); track item.id) {
-                        <app-content-card
-                            [posterUrl]="item.poster_url ?? undefined"
-                            [title]="item.title"
-                            [type]="getDisplayType(item)"
-                            [showPlaceholder]="true"
-                            (cardClick)="selectItem(item)"
-                        />
+                    @if (groupSimilar()) {
+                        @for (vg of flatVariantGroups(); track vg.key) {
+                            <ng-container
+                                [ngTemplateOutlet]="variantTpl"
+                                [ngTemplateOutletContext]="{ $implicit: vg }"
+                            />
+                        }
+                    } @else {
+                        @for (
+                            item of xtreamStore.searchResults();
+                            track item.id
+                        ) {
+                            <ng-container
+                                [ngTemplateOutlet]="itemTpl"
+                                [ngTemplateOutletContext]="{ $implicit: item }"
+                            />
+                        }
                     }
                 </div>
             }
@@ -170,3 +198,48 @@
         }
     </ng-container>
 </app-search-layout>
+
+<!-- Single result card -->
+<ng-template #itemTpl let-item>
+    <app-content-card
+        [posterUrl]="item.poster_url ?? undefined"
+        [title]="item.title"
+        [type]="getDisplayType(item)"
+        [showPlaceholder]="true"
+        (cardClick)="selectItem(item)"
+    />
+</ng-template>
+
+<!-- Variant group: collapsed card (+ expanded members) or a single card -->
+<ng-template #variantTpl let-vg>
+    @if (vg.items.length > 1) {
+        <app-content-card
+            [posterUrl]="vg.representative.poster_url ?? undefined"
+            [title]="vg.displayTitle"
+            [type]="getDisplayType(vg.representative)"
+            [showPlaceholder]="true"
+            [countBadge]="vg.items.length"
+            (cardClick)="selectVariantGroup(vg)"
+        />
+        @if (isVariantExpanded(vg.key)) {
+            @for (item of vg.items; track item.id) {
+                <app-content-card
+                    class="variant-member"
+                    [posterUrl]="item.poster_url ?? undefined"
+                    [title]="item.title"
+                    [type]="getDisplayType(item)"
+                    [showPlaceholder]="true"
+                    (cardClick)="selectItem(item)"
+                />
+            }
+        }
+    } @else {
+        <app-content-card
+            [posterUrl]="vg.representative.poster_url ?? undefined"
+            [title]="vg.displayTitle"
+            [type]="getDisplayType(vg.representative)"
+            [showPlaceholder]="true"
+            (cardClick)="selectItem(vg.representative)"
+        />
+    }
+</ng-template>

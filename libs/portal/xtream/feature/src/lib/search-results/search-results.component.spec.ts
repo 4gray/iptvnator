@@ -434,3 +434,115 @@ describe('SearchResultsComponent initialQuery contract', () => {
         expect(store.searchResults()).toHaveLength(2);
     });
 });
+
+describe('SearchResultsComponent variant grouping', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        TestBed.configureTestingModule({
+            providers: [
+                { provide: XtreamStore, useClass: MockXtreamStore },
+                { provide: Router, useValue: { navigate: jest.fn() } },
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        snapshot: {
+                            data: { isGlobalSearch: true, layout: 'workspace' },
+                            queryParamMap: convertToParamMap({ q: '' }),
+                        },
+                        queryParamMap: of(convertToParamMap({ q: '' })),
+                    },
+                },
+                {
+                    provide: DatabaseService,
+                    useValue: {
+                        globalSearchContent: jest.fn().mockResolvedValue([]),
+                    },
+                },
+            ],
+        });
+    });
+
+    const build = () =>
+        TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    { isGlobalSearch: true },
+                    undefined
+                )
+        );
+
+    it('defaults to grouping similar titles on', () => {
+        expect(build().groupSimilar()).toBe(true);
+    });
+
+    it('collapses tagged variants into one flat group', () => {
+        const component = build();
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.searchResults.set([
+            createSearchItem({ id: 1, title: 'DE| The Pitt', xtream_id: 1 }),
+            createSearchItem({ id: 2, title: 'The Pitt (2025)', xtream_id: 2 }),
+            createSearchItem({ id: 3, title: '|ALB| The Pitt', xtream_id: 3 }),
+        ]);
+
+        const groups = component.flatVariantGroups();
+        expect(groups).toHaveLength(1);
+        expect(groups[0].items).toHaveLength(3);
+        expect(groups[0].displayTitle).toBe('The Pitt');
+    });
+
+    it('expands and collapses a multi-variant group', () => {
+        const component = build();
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.searchResults.set([
+            createSearchItem({ id: 1, title: 'DE| The Pitt', xtream_id: 1 }),
+            createSearchItem({ id: 2, title: 'FR| The Pitt', xtream_id: 2 }),
+        ]);
+        const group = component.flatVariantGroups()[0];
+
+        expect(component.isVariantExpanded(group.key)).toBe(false);
+        component.selectVariantGroup(group);
+        expect(component.isVariantExpanded(group.key)).toBe(true);
+        component.selectVariantGroup(group);
+        expect(component.isVariantExpanded(group.key)).toBe(false);
+    });
+
+    it('opens a single-variant group directly without expanding', () => {
+        const component = build();
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const router = TestBed.inject(Router);
+        store.searchResults.set([
+            createSearchItem({
+                id: 1,
+                title: 'Solo Movie',
+                xtream_id: 1,
+                playlist_id: 'playlist-1',
+            }),
+        ]);
+        const group = component.flatVariantGroups()[0];
+
+        component.selectVariantGroup(group);
+
+        expect(component.isVariantExpanded(group.key)).toBe(false);
+        expect(router.navigate).toHaveBeenCalled();
+    });
+
+    it('persists the toggle and clears expansion when turned off', () => {
+        const component = build();
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.searchResults.set([
+            createSearchItem({ id: 1, title: 'DE| The Pitt', xtream_id: 1 }),
+            createSearchItem({ id: 2, title: 'FR| The Pitt', xtream_id: 2 }),
+        ]);
+        const group = component.flatVariantGroups()[0];
+        component.selectVariantGroup(group);
+        expect(component.isVariantExpanded(group.key)).toBe(true);
+
+        component.toggleGroupSimilar(false);
+
+        expect(component.groupSimilar()).toBe(false);
+        expect(component.isVariantExpanded(group.key)).toBe(false);
+        expect(
+            localStorage.getItem('global-search-group-similar')
+        ).toBe('false');
+    });
+});

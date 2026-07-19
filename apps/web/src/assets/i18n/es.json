@@ -943,6 +943,7 @@
             "RESULTS_FOUND": "Se encontraron {{count}} resultados",
             "NO_RESULTS_FOR": "No se encontraron resultados para \"{{term}}\"",
             "GROUP_BY_PLAYLIST": "Agrupar resultados por lista de reproducción",
+            "GROUP_SIMILAR_TITLES": "Agrupar títulos similares",
             "VISIBLE_CATEGORIES_ONLY": "Solo categorías visibles",
             "GLOBAL_SEARCH_SOURCE_NOTE": "Global search includes results from Xtream and M3U playlists.",
             "GLOBAL_INITIAL_DESCRIPTION": "Enter at least 2 characters to search across Xtream and M3U playlists.",
