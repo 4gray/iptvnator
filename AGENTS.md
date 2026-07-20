@@ -383,6 +383,11 @@ Key files:
   Use when moving heavy database work off the main thread, adding worker-backed SQLite operations, or wiring loading/progress UI for Xtream and playlist DB flows.
   File: `.codex/skills/iptvnator-sqlite-db-worker/SKILL.md`
 
+- `stalker-portal`
+  Repository-specific guidance for Stalker/Ministra catalogs, all three VOD/series modes, cross-surface `is_series` behavior, playback metadata, collections, EPG, and remote control.
+  Use when changing Stalker routes, stores, detail views, playback, favorites/recent activity, EPG, or remote control.
+  File: `.codex/skills/stalker-portal/SKILL.md`
+
 - `xtream-electron`
   Repository-specific guidance for IPTVnator's Electron-first Xtream implementation, including feature/data-access boundaries, worker-backed DB flows, and Xtream loading/progress UX expectations.
   Use when working on Xtream routes, store/data-source logic, or Electron-backed Xtream import/search/delete behavior.

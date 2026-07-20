@@ -93,10 +93,14 @@ Render rules:
 2. It derives the dashboard surface via `computed()`:
     1. `hero` — first item of `globalRecentItems()`.
     2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
-       cover cards. Xtream playback positions are bulk-loaded per playlist so
+       cover cards. Portal playback positions are bulk-loaded per playlist so
        hero and cards can show progress, remaining time, and series season/
-       episode badges. Series lookup uses keyed maps for both direct episode ids
-       and series ids; card renders must not scan the full playback-position map.
+       episode badges. This includes Stalker VOD activity normalized to series
+       through `is_series`. Series lookup uses keyed maps for both direct
+       episode ids and parent series ids; card renders must not scan the full
+       playback-position map. The badge uses saved `seasonNumber` /
+       `episodeNumber` metadata and does not infer it from provider payloads;
+       legacy rows without that metadata remain badge-less until replay.
        Dashboard-originated Xtream series clicks also carry that exact episode
        target through the global-recent inline-detail handoff. Once the series
        metadata and playback positions load, the detail player consumes the
