@@ -7,6 +7,11 @@ import {
 } from './models';
 import { isStalkerSeriesFlag } from './stalker-vod.utils';
 
+const naturalSeasonCollator = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: 'base',
+});
+
 export interface VodSeriesSeasonVm {
     id: string;
     video_id: string;
@@ -154,7 +159,7 @@ export function mapVodSeriesEpisodes(
 
     seasons.forEach((season) => {
         const seasonKey = season.season_number || season.name || season.id;
-        const seasonNum = toEpisodeNumber(seasonKey) || 1;
+        const seasonNum = getVodSeriesSeasonNumber(season, seasons);
 
         mapped[seasonKey] = (season.episodes ?? []).map((episode) => {
             const episodeNum =
@@ -229,4 +234,25 @@ export function mapRegularSeriesEpisodes(
 
 export function getVodSeriesSeasonKey(season: VodSeriesSeasonVm): string {
     return season.season_number || season.name || season.id;
+}
+
+export function getVodSeriesSeasonNumber(
+    season: VodSeriesSeasonVm,
+    seasons: ReadonlyArray<VodSeriesSeasonVm>
+): number {
+    const parsedSeasonNumber = Number(season.season_number);
+    if (Number.isInteger(parsedSeasonNumber) && parsedSeasonNumber > 0) {
+        return parsedSeasonNumber;
+    }
+
+    const orderedSeasons = [...seasons].sort((seasonA, seasonB) =>
+        naturalSeasonCollator.compare(
+            getVodSeriesSeasonKey(seasonA),
+            getVodSeriesSeasonKey(seasonB)
+        )
+    );
+    const seasonIndex = orderedSeasons.findIndex(
+        (candidate) => candidate.id === season.id
+    );
+    return seasonIndex >= 0 ? seasonIndex + 1 : 1;
 }

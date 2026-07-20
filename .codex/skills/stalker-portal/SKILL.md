@@ -43,7 +43,9 @@ Do not stop after making the detail view render.
    `series`.
 4. Before either inline or external episode playback, persist the parent
    `seriesXtreamId` plus resolved `seasonNumber` and `episodeNumber`. Keep
-   generated episode tracking IDs stable for lazy `is_series` episodes.
+   generated episode tracking IDs stable for lazy `is_series` episodes. When
+   `season_number` is absent, derive the coordinate from the same naturally
+   ordered season list used by quick start; do not default every season to 1.
 5. The dashboard reads saved playback positions; it must not infer episode
    numbers from provider payloads. Legacy rows without season/episode metadata
    remain badge-less until that episode is played again.

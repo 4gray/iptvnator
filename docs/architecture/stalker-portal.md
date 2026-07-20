@@ -205,6 +205,9 @@ Series inline playback behavior is shared across all three modes:
   metadata for workspace surfaces to render an episode badge. Existing rows
   without those fields are intentionally not migrated and remain badge-less
   until the episode is played again.
+- Ministra payloads may omit `season_number`. Episode mapping and lazy
+  quick-start labels share the same naturally ordered season fallback so later
+  seasons are not persisted as season 1.
 
 The VOD-series contract is cross-surface:
 

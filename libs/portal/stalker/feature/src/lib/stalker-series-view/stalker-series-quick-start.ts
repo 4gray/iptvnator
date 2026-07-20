@@ -6,6 +6,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     getVodSeriesSeasonKey,
+    getVodSeriesSeasonNumber,
     type VodSeriesSeasonVm,
 } from '@iptvnator/portal/stalker/data-access';
 import type {
@@ -160,16 +161,8 @@ function getLazyVodSeriesEpisodeLabel(
     season: VodSeriesSeasonVm,
     seasons: ReadonlyArray<VodSeriesSeasonVm>
 ): string {
-    const seasonIndex = seasons.findIndex((item) => item.id === season.id);
-    const parsedSeasonNumber = Number(season.season_number);
-    const seasonNumber =
-        Number.isInteger(parsedSeasonNumber) && parsedSeasonNumber > 0
-            ? parsedSeasonNumber
-            : getFallbackSeasonNumber(seasonIndex);
-
-    return formatSeriesEpisodeCode(seasonNumber, 1);
-}
-
-function getFallbackSeasonNumber(seasonIndex: number): number {
-    return seasonIndex >= 0 ? seasonIndex + 1 : 1;
+    return formatSeriesEpisodeCode(
+        getVodSeriesSeasonNumber(season, seasons),
+        1
+    );
 }
