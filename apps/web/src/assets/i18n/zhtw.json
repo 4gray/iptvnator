@@ -463,6 +463,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "返回",
             "RETRY": "重試",
             "STALLED": "此串流的啟動時間比預期長。",
             "PLAYBACK_FAILED": "內嵌 MPV 播放失敗。",

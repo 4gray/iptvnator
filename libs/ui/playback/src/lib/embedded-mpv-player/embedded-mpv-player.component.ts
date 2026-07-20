@@ -28,6 +28,8 @@ import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-pl
 import { DEFAULT_LIVE_EDGE_TOLERANCE_SECONDS } from '../timeshift/live-edge';
 import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
+import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
+import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
 import { EmbeddedMpvLegacyInteractions } from './embedded-mpv-legacy-interactions';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
@@ -39,7 +41,6 @@ import {
 import {
     ASPECT_PRESETS,
     HIDDEN_BOUNDS,
-    MENU_OPEN_BOTTOM_CUTOUT_PX,
     SPEED_PRESETS,
     aspectLabel,
     audioTrackLabel,
@@ -59,6 +60,7 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
     templateUrl: './embedded-mpv-player.component.html',
     styleUrl: './embedded-mpv-player.component.scss',
     imports: [
+        EmbeddedMpvDockPanelComponent,
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,
@@ -112,6 +114,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
     readonly feedback = new EmbeddedMpvFeedback();
+    readonly dockPanels: EmbeddedMpvDockPanelState;
 
     readonly viewport = viewChild<ElementRef<HTMLDivElement>>('viewport');
     readonly playerRoot = viewChild<ElementRef<HTMLDivElement>>('playerRoot');
@@ -250,6 +253,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             percent: Math.round(this.volume() * 100),
         });
     });
+    readonly volumePercent = computed(
+        () => `${Math.round(this.volume() * 100)}%`
+    );
+    readonly dockPanelBackLabel = computed(() => {
+        this.translationsTick();
+        return this.translate.instant('EMBEDDED_MPV.PLAYER.BACK');
+    });
     /**
      * Non-null while the user drags the timeline: the slider and time label
      * preview this value locally and the single seek IPC call is deferred to
@@ -348,9 +358,33 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             statusLabel: this.statusLabel,
             togglePaused: () => this.togglePaused(),
             toggleFullscreen: () => this.toggleFullscreen(),
-            triggerBoundsSync: () => this.controller.triggerBoundsSync(),
         });
         this.legacyInteractions.attach();
+
+        this.dockPanels = new EmbeddedMpvDockPanelState({
+            menus: this.menus,
+            audioTracks: this.audioTracks,
+            subtitleTracks: this.subtitleTracks,
+            selectedSubtitleTrackId: this.selectedSubtitleTrackId,
+            playbackSpeed: this.playbackSpeed,
+            aspectOverride: this.aspectOverride,
+            translateLabel: (key) => {
+                this.translationsTick();
+                return this.translate.instant(key);
+            },
+            audioTrackLabel: (track, index) => this.trackLabel(track, index),
+            subtitleTrackLabel: (track, index) =>
+                this.subtitleLabel(track, index),
+            aspectLabel: (aspect) => this.aspectLabel(aspect),
+            selectAudioTrack: (trackId) => void this.selectAudioTrack(trackId),
+            selectSubtitleTrack: (trackId) =>
+                void this.selectSubtitleTrack(trackId),
+            selectSpeed: (speed) => void this.selectSpeed(speed),
+            selectAspect: (aspect) => void this.selectAspect(aspect),
+            closePanels: () => this.legacyInteractions.closePopovers(),
+            playerRoot: () => this.playerRoot()?.nativeElement ?? null,
+            revealControls: () => this.legacyInteractions.revealControls(),
+        });
 
         this.sharedControls.configure({
             playback: this.playback,
@@ -368,32 +402,26 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         this.controller.setBoundsProvider((host) => {
             // The frame-copy engine paints into an ordinary DOM canvas:
-            // dialogs and popovers stack above it natively, so the
-            // hide-offscreen and popover-cutout compositor workarounds
-            // must not shrink its render size.
+            // dialogs and overlays stack above it natively, so the
+            // hide-offscreen compositor workaround must not shrink its
+            // render size.
             if (this.isFrameCopyEngine()) {
                 return measureBounds(host);
             }
             if (this.overlayVisibility.overlayActive()) {
                 return HIDDEN_BOUNDS;
             }
-            const rect = measureBounds(host);
-            if (this.menus.anyOpen()) {
-                return {
-                    ...rect,
-                    height: Math.max(
-                        1,
-                        rect.height - MENU_OPEN_BOTTOM_CUTOUT_PX
-                    ),
-                };
-            }
-            return rect;
+            // Control menus render as horizontal panels inside the
+            // fixed-height dock strip below the video host, so open menus
+            // never require shrinking the native MPV view.
+            return measureBounds(host);
         });
 
         this.shortcuts.attach({
             isAvailable: () =>
                 this.legacyInteractions.isAvailable() &&
                 !this.overlayVisibility.overlayActive(),
+            arrowKeysBlocked: () => this.menus.dockPanelOpen(),
             onEscape: () => this.legacyInteractions.closePopovers(),
             togglePaused: () => void this.togglePaused(),
             toggleFullscreen: () => void this.toggleFullscreen(),
@@ -432,8 +460,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         effect(() => {
             this.overlayVisibility.overlayActive();
-            this.menus.anyOpen();
             this.controller.triggerBoundsSync();
+        });
+
+        effect(() => {
+            const panelOpen = this.menus.dockPanelOpen();
+            untracked(() => this.dockPanels.handlePanelOpenChange(panelOpen));
         });
 
         effect(() => {
@@ -639,20 +671,16 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     toggleAudioMenu(): void {
-        this.menus.toggle('audio');
-        this.legacyInteractions.revealControls();
+        this.dockPanels.toggle('audio');
     }
     toggleSubtitleMenu(): void {
-        this.menus.toggle('subtitle');
-        this.legacyInteractions.revealControls();
+        this.dockPanels.toggle('subtitle');
     }
     toggleSpeedMenu(): void {
-        this.menus.toggle('speed');
-        this.legacyInteractions.revealControls();
+        this.dockPanels.toggle('speed');
     }
     toggleAspectMenu(): void {
-        this.menus.toggle('aspect');
-        this.legacyInteractions.revealControls();
+        this.dockPanels.toggle('aspect');
     }
 
     async selectAudioTrack(trackId: number): Promise<void> {

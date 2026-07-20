@@ -463,6 +463,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Geri",
             "RETRY": "Tekrar dene",
             "STALLED": "Bu yayının başlaması beklenenden uzun sürüyor.",
             "PLAYBACK_FAILED": "Gömülü MPV oynatması başarısız oldu.",

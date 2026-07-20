@@ -307,15 +307,27 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    // Let the actions cell shrink below its content so the inline volume
+    // (a scroll container) clips its own slider instead of pushing the
+    // fullscreen button past the overflow:hidden player edge on narrow
+    // sidebar-constrained widths (viewport wider than the 720px breakpoint).
+    min-width: 0;
 }
 
-.embedded-mpv-player__popover-anchor {
-    position: relative;
+.embedded-mpv-player__volume-group {
     display: flex;
+    align-items: center;
+    min-width: 0;
 }
 
 .embedded-mpv-player__control-button {
     position: relative;
+}
+
+/* A dock panel morphs the whole controls row into a single full-width
+   cell; the strip keeps its fixed height so MPV bounds stay untouched. */
+.embedded-mpv-player__controls--panel {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .embedded-mpv-player__record-button--active {
@@ -411,113 +423,38 @@
     box-shadow: none;
 }
 
-.embedded-mpv-player__control-panel {
-    min-width: 0;
-    color: var(--mat-sys-on-surface);
-    background: var(--embedded-mpv-glass);
-    border: 1px solid var(--embedded-mpv-border);
-    border-radius: 14px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(18px);
+/* Volume expands inline next to the mute icon, inside the actions row —
+   never above the strip, so it needs no compositor workarounds. */
+.embedded-mpv-player__volume-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    animation: embedded-mpv-volume-in 160ms ease-out;
 }
 
-.embedded-mpv-player__volume-popover {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    right: 0;
-    display: grid;
-    grid-template-columns: minmax(160px, 200px);
-    gap: 4px;
-    padding: 12px 14px 10px;
-    z-index: 3;
+@keyframes embedded-mpv-volume-in {
+    from {
+        max-width: 0;
+        opacity: 0;
+    }
+    to {
+        max-width: 200px;
+        opacity: 1;
+    }
 }
 
-.embedded-mpv-player__volume-popover::before {
-    /* Hover-bridge so the cursor can move from the button to the popover
-       without crossing a dead zone. */
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -8px;
-    height: 8px;
-}
-
-.embedded-mpv-player__volume-popover .embedded-mpv-player__slider--volume {
-    width: 100%;
+.embedded-mpv-player__volume-inline .embedded-mpv-player__slider--volume {
+    width: 132px;
 }
 
 .embedded-mpv-player__volume-value {
     color: color-mix(in srgb, var(--mat-sys-on-surface) 80%, transparent);
     font-size: 0.74rem;
     font-variant-numeric: tabular-nums;
-    text-align: right;
+    min-width: 34px;
+    text-align: end;
     white-space: nowrap;
-}
-
-.embedded-mpv-player__audio-popover {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    right: 0;
-    min-width: 220px;
-    max-width: min(420px, 80vw);
-    padding: 10px 12px;
-    z-index: 3;
-}
-
-.embedded-mpv-player__menu-title {
-    padding: 0 2px 6px;
-    color: color-mix(in srgb, var(--mat-sys-on-surface) 70%, transparent);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.embedded-mpv-player__audio-track-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    max-height: 240px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
-        transparent;
-}
-
-.embedded-mpv-player__audio-track {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 10px;
-    color: var(--mat-sys-on-surface);
-    background: transparent;
-    border: 0;
-    border-radius: 10px;
-    cursor: pointer;
-    font: inherit;
-    text-align: left;
-}
-
-.embedded-mpv-player__audio-track span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.embedded-mpv-player__audio-track:hover,
-.embedded-mpv-player__audio-track:focus-visible,
-.embedded-mpv-player__audio-track--selected {
-    background: color-mix(in srgb, var(--embedded-mpv-accent) 16%, transparent);
-}
-
-.embedded-mpv-player__audio-track mat-icon {
-    color: var(--embedded-mpv-accent);
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
 }
 
 .embedded-mpv-player :is(button[mat-icon-button]) {
@@ -544,9 +481,7 @@
         min-width: 0;
     }
 
-    .embedded-mpv-player__volume-popover,
-    .embedded-mpv-player__audio-popover {
-        right: 0;
-        left: auto;
+    .embedded-mpv-player__volume-inline .embedded-mpv-player__slider--volume {
+        width: 96px;
     }
 }

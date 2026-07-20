@@ -1,4 +1,7 @@
-import { buildXtreamEpgMappingKey } from './epg-mapping-key.util';
+import {
+    buildStalkerEpgMappingKey,
+    buildXtreamEpgMappingKey,
+} from './epg-mapping-key.util';
 
 describe('buildXtreamEpgMappingKey', () => {
     it('scopes the key to the playlist', () => {
@@ -16,6 +19,20 @@ describe('buildXtreamEpgMappingKey', () => {
     it('accepts string stream ids', () => {
         expect(buildXtreamEpgMappingKey('playlist-a', '42')).toBe(
             'xtream:playlist-a:42'
+        );
+    });
+});
+
+describe('buildStalkerEpgMappingKey', () => {
+    it('scopes the key to the playlist', () => {
+        expect(buildStalkerEpgMappingKey('portal-a', '205')).toBe(
+            'stalker:portal-a:205'
+        );
+    });
+
+    it('never collides with the Xtream key space', () => {
+        expect(buildStalkerEpgMappingKey('p', 1)).not.toBe(
+            buildXtreamEpgMappingKey('p', 1)
         );
     });
 });

@@ -506,8 +506,9 @@ back to the command's stale baseline.
 
 The native MPV surface paints outside Chromium's DOM stacking model. It keeps
 the compositor-safe fixed controls dock below the viewport. Modal overlays hide
-the native surface with `HIDDEN_BOUNDS`, and control popovers reserve a bottom
-cutout so their DOM region remains interactive.
+the native surface with `HIDDEN_BOUNDS`; control menus render as horizontal
+panels inside the fixed-height dock strip, so they stay interactive without
+any bounds change.
 
 The transparent BrowserWindow / `NSWindowBelow` tunnel-and-backdrop approach is
 not the shipped architecture. The shared-controls integration does not add

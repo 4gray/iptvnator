@@ -463,6 +463,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Retour",
             "RETRY": "Réessayer",
             "STALLED": "Ce flux met plus de temps que prévu à démarrer.",
             "PLAYBACK_FAILED": "Échec de la lecture avec MPV intégré.",
