@@ -1003,6 +1003,63 @@ describe('DashboardDataService', () => {
         });
     });
 
+    it('resolves episode metadata for a Stalker VOD is_series recent item', async () => {
+        playlistsSignal.set([
+            ...createDefaultPlaylists(),
+            {
+                _id: 'stalker-series',
+                title: 'Ministra Portal',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                macAddress: '00:11:22:33:44:55',
+                recentlyViewed: [
+                    {
+                        id: '50001',
+                        title: 'VOD Flagged Series',
+                        category_id: 'vod',
+                        is_series: '1',
+                        added_at: '2026-07-20T12:00:00.000Z',
+                    },
+                ],
+            },
+        ]);
+        playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+            async (playlistId: string) =>
+                playlistId === 'stalker-series'
+                    ? [
+                          {
+                              playlistId,
+                              contentXtreamId: 5000101,
+                              contentType: 'episode',
+                              seriesXtreamId: 50001,
+                              seasonNumber: 1,
+                              episodeNumber: 1,
+                              positionSeconds: 120,
+                              durationSeconds: 1800,
+                          },
+                      ]
+                    : []
+        );
+
+        await service.reloadPlaybackPositions();
+
+        const item = service
+            .globalRecentItems()
+            .find((recent) => recent.playlist_id === 'stalker-series');
+        if (!item) {
+            throw new Error('expected the Stalker is_series recent item');
+        }
+
+        expect(item.type).toBe('series');
+        expect(service.getPlaybackPositionForItem(item)).toEqual(
+            expect.objectContaining({
+                seasonNumber: 1,
+                episodeNumber: 1,
+            })
+        );
+    });
+
     it('keeps legacy episode-keyed recents detail-only when the position row lacks the parent series id', async () => {
         dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
             {
