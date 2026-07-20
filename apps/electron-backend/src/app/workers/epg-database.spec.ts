@@ -141,19 +141,36 @@ describe('EpgDatabase', () => {
             sql.startsWith('DELETE FROM epg_programs WHERE id NOT IN')
         );
         const createIndexSql = preparedSql.find((sql) =>
-            sql.startsWith('CREATE UNIQUE INDEX idx_epg_programs_dedup')
+            sql.startsWith('CREATE UNIQUE INDEX idx_epg_programs_dedup_v2')
+        );
+        const dropOldIndexSql = preparedSql.find((sql) =>
+            sql.startsWith('DROP INDEX IF EXISTS idx_epg_programs_dedup')
         );
 
         expect(dedupDeleteSql).toBeDefined();
         expect(createIndexSql).toBeDefined();
+        expect(dropOldIndexSql).toBeDefined();
         expect(statements.get(dedupDeleteSql!)).toHaveBeenCalled();
         expect(statements.get(createIndexSql!)).toHaveBeenCalled();
+        expect(statements.get(dropOldIndexSql!)).toHaveBeenCalled();
+
+        // The dedup key and index are source-aware so programmes imported
+        // from different EPG sources are not collapsed.
+        expect(dedupDeleteSql).toContain(
+            'GROUP BY channel_id, start, title, source_url'
+        );
+        expect(createIndexSql).toContain(
+            'epg_programs(channel_id, start, title, source_url)'
+        );
 
         const insertProgramSql = preparedSql.find((sql) =>
             sql.startsWith('INSERT INTO epg_programs')
         );
         expect(insertProgramSql).toContain(
-            'ON CONFLICT(channel_id, start, title) DO UPDATE SET'
+            'ON CONFLICT(channel_id, start, title, source_url) DO UPDATE SET'
+        );
+        expect(insertProgramSql).not.toContain(
+            'source_url = excluded.source_url'
         );
     });
 
@@ -180,7 +197,7 @@ describe('EpgDatabase', () => {
             sql.startsWith('INSERT INTO epg_programs')
         );
         expect(insertProgramSql).toContain(
-            'ON CONFLICT(channel_id, start, title) DO UPDATE SET'
+            'ON CONFLICT(channel_id, start, title, source_url) DO UPDATE SET'
         );
     });
 

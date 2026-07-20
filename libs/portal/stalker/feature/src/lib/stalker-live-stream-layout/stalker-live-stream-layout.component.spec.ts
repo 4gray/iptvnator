@@ -25,6 +25,8 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { MatDialog } from '@angular/material/dialog';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
 
@@ -41,10 +43,12 @@ class StubChannelListItemComponent {
     readonly progressPercentage = input(0);
     readonly showFavoriteButton = input(false);
     readonly showProgramInfoButton = input(false);
+    readonly showDetailsContextMenu = input(false);
     readonly isFavorite = input(false);
     readonly clicked = output<void>();
     readonly activated = output<void>();
     readonly favoriteToggled = output<void>();
+    readonly contextMenuRequested = output<MouseEvent>();
 }
 
 @Component({
@@ -215,6 +219,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         resolveRadioPlayback: jest.fn(),
         fetchChannelEpg: jest.fn(),
         ensureBulkItvEpg: jest.fn(),
+        applyMappedItvEpg: jest.fn().mockResolvedValue(undefined),
         clearBulkItvEpgCache: jest.fn(() => {
             bulkItvEpgByChannel.set({});
             bulkItvEpgLoaded.set(false);
@@ -326,6 +331,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                         get isElectron() {
                             return Boolean(window.electron);
                         },
+                        get supportsEpgMapping() {
+                            return false;
+                        },
                     },
                 },
                 { provide: PlaylistsService, useValue: playlistService },
@@ -341,6 +349,22 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     provide: MatSnackBar,
                     useValue: {
                         open: jest.fn(),
+                    },
+                },
+                {
+                    provide: MatDialog,
+                    useValue: {
+                        open: jest.fn(),
+                    },
+                },
+                {
+                    provide: EpgRuntimeBridgeService,
+                    useValue: {
+                        supportsEpgMapping: false,
+                        getEpgMapping: jest.fn().mockResolvedValue(null),
+                        getEpgMappingsBatch: jest
+                            .fn()
+                            .mockResolvedValue(null),
                     },
                 },
             ],

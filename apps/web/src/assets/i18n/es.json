@@ -453,6 +453,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Atrás",
             "RETRY": "Reintentar",
             "STALLED": "Este stream está tardando más de lo esperado en iniciarse.",
             "PLAYBACK_FAILED": "Falló la reproducción de MPV integrado.",

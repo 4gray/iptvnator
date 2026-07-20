@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { EpgItem, Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerEpg } from './with-stalker-epg.feature';
@@ -42,6 +43,11 @@ describe('withStalkerEpg', () => {
     let stalkerSessionService: {
         makeAuthenticatedRequest: jest.Mock<Promise<unknown>, unknown[]>;
     };
+    let epgBridge: {
+        supportsEpgMapping: boolean;
+        getEpgMappingsBatch: jest.Mock<Promise<unknown>, unknown[]>;
+        getChannelPrograms: jest.Mock<Promise<unknown>, unknown[]>;
+    };
 
     beforeEach(() => {
         runtimeSupportsEpg = true;
@@ -50,6 +56,11 @@ describe('withStalkerEpg', () => {
         };
         stalkerSessionService = {
             makeAuthenticatedRequest: jest.fn(),
+        };
+        epgBridge = {
+            supportsEpgMapping: true,
+            getEpgMappingsBatch: jest.fn().mockResolvedValue(null),
+            getChannelPrograms: jest.fn().mockResolvedValue(null),
         };
 
         TestBed.configureTestingModule({
@@ -67,6 +78,10 @@ describe('withStalkerEpg', () => {
                 {
                     provide: StalkerSessionService,
                     useValue: stalkerSessionService,
+                },
+                {
+                    provide: EpgRuntimeBridgeService,
+                    useValue: epgBridge,
                 },
             ],
         });
@@ -175,6 +190,80 @@ describe('withStalkerEpg', () => {
         expect(store.bulkItvEpgByChannel()).toEqual({});
         expect(store.selectedItvEpgPrograms()).toEqual([]);
         expect(store.isLoadingBulkItvEpg()).toBe(false);
+    });
+    describe('applyMappedItvEpg', () => {
+        const MAPPED_PROGRAM = {
+            channel: 'mapped.channel.id',
+            title: 'Mapped Show',
+            desc: 'From uploaded XMLTV',
+            start: '2026-07-11T10:00:00.000Z',
+            stop: '2026-07-11T11:00:00.000Z',
+        };
+
+        it('overlays uploaded XMLTV programs for mapped channels', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([MAPPED_PROGRAM]);
+
+            await store.applyMappedItvEpg(['10001', '10002']);
+
+            expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
+            expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledWith([
+                'stalker:playlist-1:10001',
+                'stalker:playlist-1:10002',
+            ]);
+            expect(store.bulkItvEpgByChannel()['10001']).toEqual([
+                { ...MAPPED_PROGRAM, channel: '10001' },
+            ]);
+            expect(store.selectedItvEpgPrograms()).toEqual([
+                { ...MAPPED_PROGRAM, channel: '10001' },
+            ]);
+        });
+
+        it('checks each channel id only once per playlist session', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({});
+
+            await store.applyMappedItvEpg(['10001']);
+            await store.applyMappedItvEpg(['10001']);
+
+            expect(epgBridge.getEpgMappingsBatch).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps overrides when ensureBulkItvEpg replaces the bulk record', async () => {
+            epgBridge.getEpgMappingsBatch.mockResolvedValue({
+                'stalker:playlist-1:10001': 'mapped.channel.id',
+            });
+            epgBridge.getChannelPrograms.mockResolvedValue([MAPPED_PROGRAM]);
+            await store.applyMappedItvEpg(['10001']);
+
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: {
+                    '10002': [
+                        {
+                            name: 'Portal Show',
+                            start_timestamp: 1_752_220_800,
+                            stop_timestamp: 1_752_224_400,
+                        },
+                    ],
+                },
+            });
+            await store.ensureBulkItvEpg(168);
+
+            const record = store.bulkItvEpgByChannel();
+            expect(record['10001']).toEqual([
+                { ...MAPPED_PROGRAM, channel: '10001' },
+            ]);
+            expect(record['10002']?.length).toBeGreaterThan(0);
+        });
+
+        it('does nothing when the mapping bridge is unsupported', async () => {
+            epgBridge.supportsEpgMapping = false;
+
+            await store.applyMappedItvEpg(['10001']);
+
+            expect(epgBridge.getEpgMappingsBatch).not.toHaveBeenCalled();
+        });
     });
 });
 
