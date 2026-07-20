@@ -15,6 +15,7 @@ import type {
 
 export interface StalkerQuickStartButton {
     labelKey: string;
+    labelParams?: Record<string, number>;
     episodeLabel: string | null;
     icon: string;
     disabled: boolean;
@@ -72,6 +73,7 @@ export function getStalkerSeriesQuickStartButton(
 
     return {
         labelKey: action.labelKey,
+        labelParams: action.labelParams,
         episodeLabel: action.episodeLabel,
         icon: action.icon,
         disabled: action.disabled,

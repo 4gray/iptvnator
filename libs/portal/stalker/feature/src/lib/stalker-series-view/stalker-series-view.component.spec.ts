@@ -241,7 +241,17 @@ describe('StalkerSeriesViewComponent', () => {
                         StubSeasonContainerComponent,
                         MockPipe(
                             TranslatePipe,
-                            (value: string | null | undefined) => value ?? ''
+                            (
+                                value: string | null | undefined,
+                                params?: Record<string, number>
+                            ) => {
+                                if (value === 'XTREAM.PLAY_EPISODE') {
+                                    return `Play episode ${
+                                        params?.['episode'] ?? '{{episode}}'
+                                    }`;
+                                }
+                                return value ?? '';
+                            }
                         ),
                     ],
                 },
@@ -288,6 +298,65 @@ describe('StalkerSeriesViewComponent', () => {
             }),
             true
         );
+    });
+
+    it('interpolates the episode number for a recently started VOD is_series episode', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([]);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    {
+                        id: 'episode-1',
+                        series_number: 1,
+                        name: 'Pilot',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        const episode = fixture.componentInstance.mappedSeasons()['1'][0];
+        fixture.componentInstance.episodePlaybackPositions.set(
+            new Map([
+                [
+                    Number(episode.id),
+                    {
+                        contentXtreamId: Number(episode.id),
+                        contentType: 'episode',
+                        seriesXtreamId: 50001,
+                        positionSeconds: 5,
+                        durationSeconds: 100,
+                    },
+                ],
+            ])
+        );
+        fixture.detectChanges();
+
+        const button: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+
+        expect(button?.textContent).toContain('Play episode 1');
+        expect(button?.textContent).not.toContain('{{episode}}');
     });
 
     it('loads the first VOD-series season and starts its first episode from quick start', async () => {
@@ -349,6 +418,15 @@ describe('StalkerSeriesViewComponent', () => {
             1,
             expect.any(Number),
             undefined
+        );
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentInfo: expect.objectContaining({
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                }),
+            }),
+            true
         );
     });
 
@@ -541,6 +619,14 @@ describe('StalkerSeriesViewComponent', () => {
             By.directive(StubPortalInlinePlayerComponent)
         ).componentInstance as StubPortalInlinePlayerComponent;
 
+        expect(inlinePlayer.playback()).toEqual(
+            expect.objectContaining({
+                contentInfo: expect.objectContaining({
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                }),
+            })
+        );
         expect(inlinePlayer.episodeMetadata()).toEqual({
             label: 'S01E01',
             title: 'Pilot',
