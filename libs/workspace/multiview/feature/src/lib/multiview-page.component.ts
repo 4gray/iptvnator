@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy } from '@angular/core';
 import {
     Component,
     computed,
+    DestroyRef,
     effect,
     inject,
     signal,
@@ -23,6 +24,7 @@ import {
     buildLiveCollectionNavigationTarget,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
+import type { PlaybackDiagnostic } from '@iptvnator/ui/playback';
 import {
     MultiviewChannelPickerDialogComponent,
     MultiviewChannelPickerResult,
@@ -87,34 +89,50 @@ export class MultiviewPageComponent {
         ReadonlyMap<string, MultiviewSlotResolution>
     >(new Map());
     private readonly requestIds = new Map<string, number>();
+    private nextRequestId = 0;
+    private destroyed = false;
+    private pickerOpen = false;
 
-    private readonly hintDismissed = signal(false);
+    /** Portal accounts (`sourceType::playlistId`) used by 2+ slots. */
+    private readonly conflictingAccountKeys = computed<readonly string[]>(
+        () => {
+            const counts = new Map<string, number>();
+            for (const slot of this.state.slots()) {
+                if (!slot) {
+                    continue;
+                }
+                const { sourceType, playlistId } = slot.item;
+                if (sourceType !== 'xtream' && sourceType !== 'stalker') {
+                    continue;
+                }
+                const key = `${sourceType}::${playlistId}`;
+                counts.set(key, (counts.get(key) ?? 0) + 1);
+            }
+            return [...counts.entries()]
+                .filter(([, count]) => count > 1)
+                .map(([key]) => key);
+        }
+    );
+    private readonly dismissedConflictKeys = signal<ReadonlySet<string>>(
+        new Set()
+    );
     readonly connectionLimitHintVisible = computed(() => {
-        if (this.hintDismissed()) {
-            return false;
-        }
-        const seen = new Set<string>();
-        for (const slot of this.state.slots()) {
-            if (!slot) {
-                continue;
-            }
-            const { sourceType, playlistId } = slot.item;
-            if (sourceType !== 'xtream' && sourceType !== 'stalker') {
-                continue;
-            }
-            const key = `${sourceType}::${playlistId}`;
-            if (seen.has(key)) {
-                return true;
-            }
-            seen.add(key);
-        }
-        return false;
+        // Dismissal is per account combination: a *new* same-account
+        // conflict introduced after dismissing brings the hint back.
+        const dismissed = this.dismissedConflictKeys();
+        return this.conflictingAccountKeys().some((key) => !dismissed.has(key));
     });
 
     constructor() {
         effect(() => {
             const slots = this.state.slots();
             untracked(() => this.syncResolutions(slots));
+        });
+        inject(DestroyRef).onDestroy(() => {
+            // Invalidate in-flight resolutions so late results are dropped
+            // and no new portal sessions are requested after navigation.
+            this.destroyed = true;
+            this.requestIds.clear();
         });
     }
 
@@ -127,18 +145,27 @@ export class MultiviewPageComponent {
     }
 
     dismissHint(): void {
-        this.hintDismissed.set(true);
+        this.dismissedConflictKeys.set(new Set(this.conflictingAccountKeys()));
     }
 
     async openPicker(index: number): Promise<void> {
-        const dialogRef = this.dialog.open<
-            MultiviewChannelPickerDialogComponent,
-            void,
-            MultiviewChannelPickerResult
-        >(MultiviewChannelPickerDialogComponent, { autoFocus: false });
-        const result = await firstValueFrom(dialogRef.afterClosed());
-        if (result) {
-            this.state.assign(index, result);
+        if (this.pickerOpen) {
+            // Guard against double-click opening two overlapping dialogs.
+            return;
+        }
+        this.pickerOpen = true;
+        try {
+            const dialogRef = this.dialog.open<
+                MultiviewChannelPickerDialogComponent,
+                void,
+                MultiviewChannelPickerResult
+            >(MultiviewChannelPickerDialogComponent, { autoFocus: false });
+            const result = await firstValueFrom(dialogRef.afterClosed());
+            if (result) {
+                this.state.assign(index, result);
+            }
+        } finally {
+            this.pickerOpen = false;
         }
     }
 
@@ -148,7 +175,15 @@ export class MultiviewPageComponent {
         void this.resolveItem(slot.item);
     }
 
-    onTileFailed(slot: MultiviewSlotChannel): void {
+    onTileFailed(
+        slot: MultiviewSlotChannel,
+        diagnostic: PlaybackDiagnostic
+    ): void {
+        console.warn(
+            '[multiview] tile playback failed',
+            slot.item.uid,
+            diagnostic
+        );
         this.updateResolution(slot.item.uid, {
             status: 'error',
             playback: null,
@@ -158,11 +193,16 @@ export class MultiviewPageComponent {
 
     openInPlayer(slot: MultiviewSlotChannel): void {
         const item = slot.item;
+        const itemId = item.uid.split('::')[2];
+        if (!itemId) {
+            // Malformed persisted uid — no reliable navigation target.
+            return;
+        }
         const target = buildLiveCollectionNavigationTarget({
             mode: slot.origin,
             sourceType: item.sourceType,
             playlistId: item.playlistId,
-            itemId: item.uid.split('::')[2],
+            itemId,
             title: item.name,
             imageUrl: item.logo,
         });
@@ -198,13 +238,19 @@ export class MultiviewPageComponent {
     }
 
     private async resolveItem(item: UnifiedCollectionItem): Promise<void> {
-        const requestId = (this.requestIds.get(item.uid) ?? 0) + 1;
+        if (this.destroyed) {
+            // Never open new portal sessions after navigation away.
+            return;
+        }
+        // Monotonic across all slots so a removed-and-re-added channel can
+        // never collide with a stale in-flight request id.
+        const requestId = ++this.nextRequestId;
         this.requestIds.set(item.uid, requestId);
         this.updateResolution(item.uid, RESOLVING);
 
         try {
             const playback = await this.streamResolver.resolvePlayback(item);
-            if (this.requestIds.get(item.uid) !== requestId) {
+            if (this.destroyed || this.requestIds.get(item.uid) !== requestId) {
                 return;
             }
             if (!playback.streamUrl) {
@@ -222,7 +268,7 @@ export class MultiviewPageComponent {
                 errorKey: null,
             });
         } catch {
-            if (this.requestIds.get(item.uid) !== requestId) {
+            if (this.destroyed || this.requestIds.get(item.uid) !== requestId) {
                 return;
             }
             this.updateResolution(item.uid, {

@@ -13,7 +13,7 @@ import {
 } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
@@ -64,7 +64,6 @@ export class MultiviewChannelPickerDialogComponent {
         >(MatDialogRef);
     private readonly favoritesData = inject(UnifiedFavoritesDataService);
     private readonly recentData = inject(UnifiedRecentDataService);
-    readonly translate = inject(TranslateService);
 
     readonly activeTab = signal<MultiviewSlotOrigin>('favorites');
     readonly searchTerm = signal('');

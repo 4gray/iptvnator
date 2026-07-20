@@ -55,7 +55,7 @@
                     (openInPlayerRequested)="openInPlayer(slot)"
                     (removeRequested)="state.remove($index)"
                     (retryRequested)="retry(slot)"
-                    (playbackFailed)="onTileFailed(slot)"
+                    (playbackFailed)="onTileFailed(slot, $event)"
                 />
             } @else {
                 <button

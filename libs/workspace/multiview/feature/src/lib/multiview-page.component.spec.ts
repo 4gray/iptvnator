@@ -227,6 +227,150 @@ describe('MultiviewPageComponent', () => {
         ).toBeFalsy();
     });
 
+    it('re-shows the hint when a new same-account conflict appears after dismissal', async () => {
+        component.state.setLayout('grid-3x3');
+        component.state.assign(
+            0,
+            buildSlot({
+                uid: 'xtream::playlist-2::1',
+                sourceType: 'xtream',
+                playlistId: 'playlist-2',
+            })
+        );
+        component.state.assign(
+            1,
+            buildSlot({
+                uid: 'xtream::playlist-2::2',
+                sourceType: 'xtream',
+                playlistId: 'playlist-2',
+            })
+        );
+        await flush();
+
+        component.dismissHint();
+        expect(component.connectionLimitHintVisible()).toBe(false);
+
+        // Same account combination stays dismissed even when extended.
+        component.state.assign(
+            2,
+            buildSlot({
+                uid: 'xtream::playlist-2::3',
+                sourceType: 'xtream',
+                playlistId: 'playlist-2',
+            })
+        );
+        await flush();
+        expect(component.connectionLimitHintVisible()).toBe(false);
+
+        // A conflict on a different account re-shows the hint.
+        component.state.assign(
+            3,
+            buildSlot({
+                uid: 'stalker::portal-1::1',
+                sourceType: 'stalker',
+                playlistId: 'portal-1',
+            })
+        );
+        component.state.assign(
+            4,
+            buildSlot({
+                uid: 'stalker::portal-1::2',
+                sourceType: 'stalker',
+                playlistId: 'portal-1',
+            })
+        );
+        await flush();
+        expect(component.connectionLimitHintVisible()).toBe(true);
+    });
+
+    it('drops in-flight resolutions and blocks new ones after destroy', async () => {
+        let resolvePlayback!: (value: unknown) => void;
+        streamResolver.resolvePlayback.mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolvePlayback = resolve;
+            })
+        );
+        const slot = buildSlot();
+        component.state.assign(0, slot);
+        fixture.detectChanges();
+
+        fixture.destroy();
+        resolvePlayback({
+            streamUrl: 'http://example.com/late.m3u8',
+            title: 'Late',
+        });
+        await Promise.resolve();
+
+        expect(component.resolutionFor(slot).status).toBe('resolving');
+
+        component.retry(slot);
+        await Promise.resolve();
+        expect(streamResolver.resolvePlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses distinct request ids when a channel is removed and re-added', async () => {
+        let rejectFirst!: (reason: unknown) => void;
+        streamResolver.resolvePlayback.mockReturnValueOnce(
+            new Promise((_resolve, reject) => {
+                rejectFirst = reject;
+            })
+        );
+        const slot = buildSlot();
+        component.state.assign(0, slot);
+        fixture.detectChanges();
+
+        component.state.remove(0);
+        await flush();
+        component.state.assign(0, slot);
+        await flush();
+
+        expect(component.resolutionFor(slot).status).toBe('ready');
+
+        // The stale first request settling late must not overwrite the
+        // fresh resolution with an error.
+        rejectFirst(new Error('stale'));
+        await flush();
+        expect(component.resolutionFor(slot).status).toBe('ready');
+    });
+
+    it('opens only one picker dialog on double-click', async () => {
+        dialog.open.mockReturnValue({ afterClosed: () => of(undefined) });
+
+        const first = component.openPicker(0);
+        const second = component.openPicker(0);
+        await Promise.all([first, second]);
+
+        expect(dialog.open).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores open-in-player requests for malformed uids', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        component.openInPlayer(buildSlot({ uid: 'm3u::playlist-1' }));
+        expect(router.navigate).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
+    it('logs the tile diagnostic and marks the slot as error', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        const slot = buildSlot();
+        const diagnostic = { code: 'hls-fatal' };
+
+        component.onTileFailed(
+            slot,
+            diagnostic as unknown as Parameters<
+                typeof component.onTileFailed
+            >[1]
+        );
+
+        expect(component.resolutionFor(slot).status).toBe('error');
+        expect(warn).toHaveBeenCalledWith(
+            '[multiview] tile playback failed',
+            slot.item.uid,
+            diagnostic
+        );
+        warn.mockRestore();
+    });
+
     it('switches layouts and renders the new slot count', async () => {
         component.state.setLayout('grid-3x3');
         await flush();
