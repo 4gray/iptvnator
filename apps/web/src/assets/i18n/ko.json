@@ -453,6 +453,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "뒤로",
             "RETRY": "다시 시도",
             "STALLED": "이 스트림의 시작이 예상보다 오래 걸리고 있습니다.",
             "PLAYBACK_FAILED": "내장 MPV 재생에 실패했습니다.",

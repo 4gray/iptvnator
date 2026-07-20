@@ -1,6 +1,5 @@
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import {
-    buildXtreamEpgMappingKey,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
@@ -69,9 +68,7 @@ export class EpgQueryService {
             }
 
             if (results.length > 0) {
-                return results
-                    .map(this.transformDbRowToEpgProgram)
-                    .filter(this.isValidEpgProgram);
+                return this.toEpgPrograms(results);
             }
 
             let channel = await this.selectChannelById(
@@ -102,9 +99,7 @@ export class EpgQueryService {
                 }
 
                 if (results.length > 0) {
-                    return results
-                        .map(this.transformDbRowToEpgProgram)
-                        .filter(this.isValidEpgProgram);
+                    return this.toEpgPrograms(results);
                 }
             }
 
@@ -154,9 +149,7 @@ export class EpgQueryService {
                     );
                 }
 
-                return results
-                    .map(this.transformDbRowToEpgProgram)
-                    .filter(this.isValidEpgProgram);
+                return this.toEpgPrograms(results);
             }
 
             return [];
@@ -553,6 +546,13 @@ export class EpgQueryService {
                     sourceUrls
                 )
             )
+            // Collapse identical slots from multiple sources in SQL so the
+            // 500-row cap counts distinct programmes, not duplicate rows.
+            .groupBy(
+                schema.epgPrograms.channelId,
+                schema.epgPrograms.start,
+                schema.epgPrograms.title
+            )
             .orderBy(schema.epgPrograms.start)
             .limit(500);
     }
@@ -575,6 +575,11 @@ export class EpgQueryService {
                     sourceUrls,
                     { legacyOnly: true }
                 )
+            )
+            .groupBy(
+                schema.epgPrograms.channelId,
+                schema.epgPrograms.start,
+                schema.epgPrograms.title
             )
             .orderBy(schema.epgPrograms.start)
             .limit(500);
@@ -607,6 +612,9 @@ export class EpgQueryService {
                     options
                 )
             )
+            // One current row per channel so duplicate cross-source slots
+            // don't consume the per-channel cap and starve other channels.
+            .groupBy(schema.epgPrograms.channelId)
             .limit(channelIds.length);
     }
 
@@ -895,6 +903,31 @@ export class EpgQueryService {
         );
     }
 
+    /**
+     * Map program rows to EpgProgram and drop invalid ones, then collapse
+     * duplicate programme slots. The dedup index is source-aware, so an
+     * unscoped lookup (e.g. the M3U timeline, which queries without
+     * `sourceUrls`) can return the same channel/start/title from two EPG
+     * sources; keep the first so a programme is never shown twice.
+     */
+    private toEpgPrograms(rows: EpgProgramRow[]): EpgProgram[] {
+        const seen = new Set<string>();
+        const programs: EpgProgram[] = [];
+        for (const row of rows) {
+            const program = this.transformDbRowToEpgProgram(row);
+            if (!this.isValidEpgProgram(program)) {
+                continue;
+            }
+            const key = `${program.channel}|${program.start}|${program.title}`;
+            if (seen.has(key)) {
+                continue;
+            }
+            seen.add(key);
+            programs.push(program);
+        }
+        return programs;
+    }
+
     private transformDbRowToEpgProgram(row: EpgProgramRow): EpgProgram {
         return {
             start: row.start,
@@ -940,39 +973,45 @@ export class EpgQueryService {
             // Fallback: the key may be an Xtream provider epg_channel_id
             // while the mapping was saved under the playlist-scoped Xtream
             // key. Resolve the owning streams (joined through categories for
-            // the playlist ID) and check their mapping keys. The same
-            // epg_channel_id can appear in several playlists, so check a few.
-            const contentRows = await db
+            // the playlist ID) and look up their mapping keys in a single
+            // join, so a mapping saved under any matching stream is found —
+            // an earlier "check the first few" cap could silently miss a
+            // mapping saved under a later stream sharing this epg_channel_id.
+            //
+            // The join key is built in SQL to mirror
+            // buildXtreamEpgMappingKey(playlistId, xtreamId) →
+            // `xtream:{playlistId}:{xtreamId}`; keep the two in sync.
+            //
+            // This layer only receives the provider epg_channel_id, not the
+            // caller's playlist, so when the same id exists in several
+            // playlists it cannot scope to the caller's own mapping — the
+            // renderer resolves the playlist-scoped key directly and this is
+            // a best-effort fallback. Order deterministically so the chosen
+            // mapping is at least stable rather than storage-order dependent.
+            const mapped = await db
                 .select({
-                    xtreamId: schema.content.xtreamId,
-                    playlistId: schema.categories.playlistId,
+                    epgChannelId: schema.epgChannelMappings.epgChannelId,
                 })
                 .from(schema.content)
                 .innerJoin(
                     schema.categories,
                     eq(schema.content.categoryId, schema.categories.id)
                 )
-                .where(eq(schema.content.epgChannelId, channelKey))
-                .limit(5);
-            if (contentRows.length > 0) {
-                const candidateKeys = contentRows.map((row) =>
-                    buildXtreamEpgMappingKey(row.playlistId, row.xtreamId)
-                );
-                const mapped = await db
-                    .select({
-                        epgChannelId: schema.epgChannelMappings.epgChannelId,
-                    })
-                    .from(schema.epgChannelMappings)
-                    .where(
-                        inArray(
-                            schema.epgChannelMappings.channelKey,
-                            candidateKeys
-                        )
+                .innerJoin(
+                    schema.epgChannelMappings,
+                    eq(
+                        schema.epgChannelMappings.channelKey,
+                        sql`'xtream:' || ${schema.categories.playlistId} || ':' || ${schema.content.xtreamId}`
                     )
-                    .limit(1);
-                if (mapped.length > 0) {
-                    return mapped[0].epgChannelId;
-                }
+                )
+                .where(eq(schema.content.epgChannelId, channelKey))
+                .orderBy(
+                    schema.categories.playlistId,
+                    schema.content.xtreamId
+                )
+                .limit(1);
+            if (mapped.length > 0) {
+                return mapped[0].epgChannelId;
             }
 
             return null;

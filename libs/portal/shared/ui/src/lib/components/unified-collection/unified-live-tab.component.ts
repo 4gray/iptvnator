@@ -540,6 +540,10 @@ export class UnifiedLiveTabComponent {
         this.activeTimeshift.set(null);
     }
 
+    onEpgMappingChanged(): void {
+        void this.loadEpgMap(this.items());
+    }
+
     private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
         const epgMap = await this.streamResolver.loadEpgForItems(items);
         this.epgMap.set(epgMap);

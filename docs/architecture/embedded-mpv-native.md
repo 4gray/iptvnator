@@ -246,7 +246,7 @@ service and the adapter):
   `attachEmbeddedMpvFrameView`/`detachEmbeddedMpvFrameView`.
 - Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
   `support.engine === 'frame-copy'` and skips the compositor workarounds —
-  no `HIDDEN_BOUNDS` when dialogs open, no popover bottom cutout; dialogs
+  no `HIDDEN_BOUNDS` when dialogs open; dialogs
   and the shared `app-player-controls` overlay stack above the canvas as
   ordinary DOM. The canvas fills the player root; the native dock's reserved
   controls height is not applied. Legacy embedded-MPV pointer/click,
@@ -533,7 +533,7 @@ player component stays a view-oriented orchestrator and engine-specific
 controls host. The renderer files live under
 `libs/ui/playback/src/lib/embedded-mpv-player/`:
 
-- `embedded-mpv-format.utils.ts` — pure helpers (`formatTime`, `audioTrackLabel`, `subtitleTrackLabel`, `speedLabel`, `aspectLabel`, `volumeIcon`, `volumeLabel`, `readStoredVolume`, `persistVolume`, `measureBounds`) and preset constants (`SPEED_PRESETS`, `ASPECT_PRESETS`, `HIDDEN_BOUNDS`, `MENU_OPEN_BOTTOM_CUTOUT_PX`).
+- `embedded-mpv-format.utils.ts` — pure helpers (`formatTime`, `audioTrackLabel`, `subtitleTrackLabel`, `speedLabel`, `aspectLabel`, `volumeIcon`, `volumeLabel`, `readStoredVolume`, `persistVolume`, `measureBounds`) and preset constants (`SPEED_PRESETS`, `ASPECT_PRESETS`, `HIDDEN_BOUNDS`).
 - `embedded-mpv-controls.adapter.ts` — component-scoped `PlayerController`
   adapter for frame-copy. Maps session/support/playback signals to shared
   controls state and capabilities, delegates commands to
@@ -554,7 +554,9 @@ controls host. The renderer files live under
 - `embedded-mpv-shortcuts.ts` — native-view-only `EmbeddedMpvShortcuts` class
   with `attach(handlers)` / `detach()`. Owns the legacy document keydown
   listener and routes through a callback interface; the component supplies
-  callbacks for Space/K, F, arrow keys, M, and Escape.
+  callbacks for Space/K, F, arrow keys, M, and Escape. The optional
+  `arrowKeysBlocked` handler suspends the seek/volume arrows while a dock
+  chip panel owns them for chip navigation.
 - `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes
   `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/
   `afterAllClosed` for dialog-shaped overlays and falls back to a
@@ -562,9 +564,21 @@ controls host. The renderer files live under
   backdrop-bearing CDK overlays. Native-view uses it to move the platform host
   off-screen; frame-copy uses it to gate shared playback shortcuts.
 - `embedded-mpv-ui-state.ts` — legacy native-view
-  `EmbeddedMpvMenuState` (single-open popover state machine) and
+  `EmbeddedMpvMenuState` (single-open menu state machine, incl. the
+  `dockPanelOpen` chip-panel signal that suspends arrow shortcuts) and
   `EmbeddedMpvFeedback` (transient keypress feedback). They are not the
   frame-copy shared-controls state.
+- `embedded-mpv-dock-panels.ts` — native-view `EmbeddedMpvDockPanelState`:
+  builds the active horizontal chip-panel view model (audio, subtitle, speed,
+  aspect) from the menu state, routes chip selection back to the session
+  controller, and restores toggle-button focus after a panel closes.
+- `embedded-mpv-dock-panel.component.ts` — standalone
+  `app-embedded-mpv-dock-panel` that morphs the dock row inside the
+  fixed-height controls strip: back button + title + horizontally scrollable
+  chip ribbon (`role="menu"` with `aria-orientation="horizontal"`,
+  `menuitemradio` chips, wheel-to-horizontal-scroll mapping, edge fades,
+  active-chip reveal/focus, roving arrow keys, RTL-aware). Keeping the panels
+  inside the strip is what lets menus open without any MPV bounds change.
 - `embedded-mpv-command-runner.ts` — transport/track/recording IPC delegation; contains addon-side throws; reconciles a returned snapshot only when the current canonical session id and returned snapshot id both match the captured command session id.
 - `embedded-mpv-session-factory.ts` — side-effect-free loading/error placeholder factories plus `waitForStartupPaint`.
 - `embedded-mpv-stalled-tracker.ts` — owns the 30-second loading timer and `stalled` signal.
@@ -578,21 +592,37 @@ controls host. The renderer files live under
 
 ### Bounds compositing strategy
 
-The following cutout strategy applies only to the native-view engine. Its video
+The following strategy applies only to the native-view engine. Its video
 host paints outside the normal DOM stacking model, so any DOM region it covers
 cannot reliably receive pointer events and any CSS `z-index` competition is
 unwinnable. The component compensates with a single `boundsProvider(host)`
-closure on the controller that returns one of three bound shapes, evaluated
+closure on the controller that returns one of two bound shapes, evaluated
 each time the active bounds-sync runs:
 
 - **Modal overlay open** (any MatDialog, including the command palette) → `HIDDEN_BOUNDS`. The MPV video host moves off-screen so the dialog has the full window.
-- **Control popover open** (any of the menu states above) → host bounds with `MENU_OPEN_BOTTOM_CUTOUT_PX` (300 px) removed from the bottom. The popover region becomes DOM-receiving while video keeps playing in the upper region.
-- **Idle** → full host bounds.
+- **Otherwise** → full host bounds.
 
-The viewport DOM element also reserves `--embedded-mpv-controls-height` (64 px) at the bottom when controls are enabled, so the controls strip itself is always DOM and always reachable for hover-to-reveal even before the popover-cutout takes effect.
+Control menus never influence bounds: all five (volume, audio, subtitle,
+speed, aspect) render horizontally inside the fixed-height controls strip
+below the video host. Volume expands as an inline horizontal slider next to
+the mute button; the audio/subtitle/speed/aspect menus morph the dock row
+into `app-embedded-mpv-dock-panel` — back button, panel title, and a
+horizontally scrollable chip ribbon (vertical wheel mapped to horizontal
+scroll, edge fades as continuation hints, auto-reveal and focus of the active
+chip, roving arrow-key navigation, RTL-aware). Because the strip height never
+changes, opening or closing a menu sends no new MPV bounds and the video never
+re-letterboxes. The popover-era 300 px bottom cutout
+(`MENU_OPEN_BOTTOM_CUTOUT_PX`) is gone; while a chip panel is open, the
+global arrow-key shortcuts (seek/volume) are suspended so arrows walk the
+chips instead.
+
+The viewport DOM element reserves `--embedded-mpv-controls-height` (64 px;
+88 px under the narrow breakpoint) at the bottom when controls are enabled, so
+the controls strip — including the in-dock panels — is always DOM and always
+reachable for hover-to-reveal.
 
 For frame-copy, `boundsProvider` always returns the measured full host bounds:
-there is no `HIDDEN_BOUNDS`, popover cutout, or reserved dock height. Dialogs
+there is no `HIDDEN_BOUNDS` or reserved dock height. Dialogs
 and controls layer naturally over the canvas, while bounds sync still updates
 the helper's render size.
 

@@ -388,6 +388,7 @@ describe('EpgEvents', () => {
             const chain: Record<string, jest.Mock> = {} as Record<string, jest.Mock>;
             chain.where = jest.fn().mockReturnValue(chain);
             chain.innerJoin = jest.fn().mockReturnValue(chain);
+            chain.groupBy = jest.fn().mockReturnValue(chain);
             chain.orderBy = jest.fn().mockReturnValue(chain);
             chain.limit = jest.fn().mockResolvedValue(data);
             return chain;
@@ -474,12 +475,14 @@ describe('EpgEvents', () => {
         const select = jest.fn();
         const from = jest.fn();
         const where = jest.fn();
+        const groupBy = jest.fn();
         const orderBy = jest.fn();
         const limit = jest.fn();
 
         select.mockImplementation(() => ({ from }));
         from.mockReturnValue({ where });
-        where.mockReturnValue({ orderBy });
+        where.mockReturnValue({ groupBy });
+        groupBy.mockReturnValue({ orderBy });
         orderBy.mockReturnValue({ limit });
         limit.mockResolvedValue([
             {

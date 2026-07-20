@@ -137,6 +137,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
 
+    /** Last viewport slice, reused to refresh previews after a mapping change. */
+    private lastVisibleChannels: XtreamChannelListItem[] = [];
+
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
     private subscriptions = new Subscription();
@@ -237,6 +240,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                             range.start,
                             range.end
                         );
+                        this.lastVisibleChannels = visibleChannels;
                         this.loadEpgForVisibleChannels(visibleChannels);
                     })
             );
@@ -509,10 +513,66 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
+        const channelKey = buildXtreamEpgMappingKey(playlistId, xtreamId);
+        void this.openEpgMappingDialog(
+            channelKey,
+            channel,
+            xtreamId,
+            playlistId
+        );
+    }
+
+    private async openEpgMappingDialog(
+        channelKey: string,
+        channel: XtreamChannelListItem,
+        streamId: number,
+        playlistId: string
+    ): Promise<void> {
+        const mappingBefore = await this.readEpgMapping(channelKey);
+
         EpgMappingDialogComponent.open(this.dialog, {
-            channelKey: buildXtreamEpgMappingKey(playlistId, xtreamId),
-            channelName: channel.title ?? channel.name ?? String(xtreamId),
+            channelKey,
+            channelName: channel.title ?? channel.name ?? String(streamId),
             playlistId,
-        });
+        })
+            .afterClosed()
+            .subscribe(async () => {
+                const mappingAfter = await this.readEpgMapping(channelKey);
+                if (mappingAfter === mappingBefore) {
+                    return;
+                }
+                // The mapping changed (saved or removed) — drop the cached
+                // preview/resolution and refetch so the row updates now
+                // instead of after the 5-minute TTL or the next scroll.
+                this.epgQueueService.invalidate(streamId);
+                this.epgPrograms.delete(streamId);
+                this.currentProgramsProgress.delete(streamId);
+                const visible = this.lastVisibleChannels.length
+                    ? this.lastVisibleChannels
+                    : this.filteredChannels().slice(0, 50);
+                this.loadEpgForVisibleChannels(visible);
+            });
+    }
+
+    /** Read the current mapped EPG channel id, or null (PWA / no mapping). */
+    private async readEpgMapping(channelKey: string): Promise<string | null> {
+        if (!this.supportsEpgMapping) {
+            return null;
+        }
+        const bridge = (
+            window as unknown as {
+                electron?: {
+                    getEpgMapping?: (
+                        key: string
+                    ) => Promise<{ epgChannelId?: string } | null>;
+                };
+            }
+        ).electron;
+        try {
+            const mapping = await bridge?.getEpgMapping?.(channelKey);
+            return mapping?.epgChannelId?.trim() || null;
+        } catch {
+            return null;
+        }
     }
 }
