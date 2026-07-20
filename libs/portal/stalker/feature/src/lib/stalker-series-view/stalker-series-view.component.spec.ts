@@ -304,7 +304,7 @@ describe('StalkerSeriesViewComponent', () => {
         selectedContentType.set('vod');
         selectedItem.set({
             id: '50001',
-            is_series: true,
+            is_series: '1',
             info: {
                 name: 'VOD Flagged Series',
                 description: 'Lazy seasons',
@@ -355,6 +355,9 @@ describe('StalkerSeriesViewComponent', () => {
                 '[data-testid="series-quick-start"]'
             );
 
+        expect(
+            fixture.componentInstance.quickStartAction()?.labelParams
+        ).toEqual({ episode: 1 });
         expect(button?.textContent).toContain('Play episode 1');
         expect(button?.textContent).not.toContain('{{episode}}');
     });
