@@ -106,35 +106,6 @@ mat-card:hover {
     }
 }
 
-// ─── Type badge ──────────────────────────────────────────────────────────────
-.type-badge {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    z-index: 1;
-    padding: 3px 6px;
-    border-radius: 5px;
-    font-size: 0.58rem;
-    font-weight: 700;
-    line-height: 1;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
-
-    &.live {
-        color: #ef5350;
-    }
-
-    &.movie {
-        color: #42a5f5;
-    }
-
-    &.series {
-        color: #66bb6a;
-    }
-}
-
 // ─── Rating badge ─────────────────────────────────────────────────────────────
 .rating {
     position: absolute;

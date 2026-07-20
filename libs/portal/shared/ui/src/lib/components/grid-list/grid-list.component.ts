@@ -106,16 +106,6 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                     >
                         @let poster = resolvePoster(i);
                         <div class="card-thumbnail-container">
-                            @if (type()) {
-                                <div
-                                    class="type-badge"
-                                    [class.live]="type() === 'live'"
-                                    [class.movie]="type() === 'vod'"
-                                    [class.series]="type() === 'series'"
-                                >
-                                    {{ type() }}
-                                </div>
-                            }
                             @if (poster && !hasArtworkFailed(poster)) {
                                 <img
                                     class="stream-icon"
