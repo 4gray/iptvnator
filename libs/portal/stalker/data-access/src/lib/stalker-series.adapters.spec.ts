@@ -78,6 +78,44 @@ describe('stalker-series.adapters', () => {
         expect(firstEpisode.id).not.toBe(mapped['1'][1].id);
     });
 
+    it('derives missing VOD-series season numbers from natural season order', () => {
+        const mapped = mapVodSeriesEpisodes([
+            {
+                id: 'season-2',
+                video_id: 'v1',
+                name: 'Season 2',
+                season_number: '',
+                episodes: [
+                    {
+                        id: 'episode-2',
+                        series_number: 1,
+                        name: 'Second season pilot',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-1',
+                video_id: 'v1',
+                name: 'Season 1',
+                season_number: '',
+                episodes: [
+                    {
+                        id: 'episode-1',
+                        series_number: 1,
+                        name: 'Pilot',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+
+        expect(mapped['Season 1'][0].season).toBe(1);
+        expect(mapped['Season 2'][0].season).toBe(2);
+    });
+
     it('maps embedded series payload into regular season episodes', () => {
         const regularSeasons = mapRegularSeriesSeasons(
             {

@@ -687,15 +687,37 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 episodeId,
                 startTime
             );
+            const episodeState =
+                episodeId === undefined
+                    ? null
+                    : resolveSeriesPlaybackEpisodeState({
+                          episodesBySeason: this.mappedSeasons(),
+                          currentEpisodeId: episodeId,
+                          fallbackEpisodeNumber: episodeNum,
+                      });
+            const resolvedPlayback =
+                episodeState && playback.contentInfo?.contentType === 'episode'
+                    ? {
+                          ...playback,
+                          contentInfo: {
+                              ...playback.contentInfo,
+                              seasonNumber: episodeState.seasonNumber,
+                              episodeNumber: episodeState.episodeNumber,
+                          },
+                      }
+                    : playback;
 
             this.lastSaveTime = 0;
             if (this.portalPlayer.isEmbeddedPlayer()) {
-                this.inlinePlayback.set(playback);
+                this.inlinePlayback.set(resolvedPlayback);
                 return;
             }
 
             this.closeInlinePlayer();
-            void this.portalPlayer.openResolvedPlayback(playback, true);
+            void this.portalPlayer.openResolvedPlayback(
+                resolvedPlayback,
+                true
+            );
         } catch (error) {
             this.logger.error('Failed to start inline series playback', error);
             const errorMessage =

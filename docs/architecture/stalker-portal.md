@@ -29,7 +29,8 @@ Stalker support covers:
 
 ## Routing Structure
 
-Primary route tree lives in `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`.
+Primary route tree lives in
+`libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`.
 
 - `/stalker/:id/vod`
 - `/stalker/:id/series`
@@ -45,30 +46,31 @@ Primary route tree lives in `/Users/4gray/Code/iptvnator/libs/portal/stalker/fea
 1. Angular Stalker screens call methods/resources in `StalkerStore`.
 2. `StalkerStore` builds request params based on selected content type and current view state.
 3. Requests go through `DataService.sendIpcEvent(STALKER_REQUEST, ...)` or `StalkerSessionService` (full portal auth).
-4. Electron main process handles `STALKER_REQUEST` in `/Users/4gray/Code/iptvnator/apps/electron-backend/src/app/events/stalker.events.ts`.
+4. Electron main process handles `STALKER_REQUEST` in
+   `apps/electron-backend/src/app/events/stalker.events.ts`.
 5. Axios calls Stalker `load.php` API with required headers/cookies and returns normalized payloads to renderer.
 
 ## Main UI Components
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-main-container.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-main-container.component.ts`
     - Category + content layout for `vod` and `series`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
     - ITV live playback, radio playback, channel/station navigation, EPG panel integration
-- `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
+- `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
     - Shared inline audio player used by M3U radio channels and Stalker radio stations
-- `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/stalker-series-view/stalker-series-view.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
     - Season/episode UI for all Stalker series modes
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
+- `libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 
 ## Store and Data Flow
 
 Stalker store is now feature-composed:
 
-- Facade: `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stalker.store.ts`
-- Feature slices: `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stores/features/*`
-- Shared helpers: `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/*`
+- Facade: `libs/portal/stalker/data-access/src/lib/stalker.store.ts`
+- Feature slices: `libs/portal/stalker/data-access/src/lib/stores/features/*`
+- Shared helpers: `libs/portal/stalker/data-access/src/lib/*`
 
 Important store responsibilities:
 
@@ -185,6 +187,9 @@ Stalker has multiple real-world data shapes. The current implementation supports
 - For unloaded VOD-series seasons, the CTA target label is derived from season
   metadata and rendered as `SxxE01` until episode details are loaded.
 - Uses unique generated tracking IDs for episode playback position compatibility.
+- Quick-start actions preserve both their translation key and interpolation
+  parameters when adapted for the Stalker CTA. Dropping `labelParams` exposes
+  the raw `{{episode}}` placeholder.
 
 Series inline playback behavior is shared across all three modes:
 
@@ -194,11 +199,30 @@ Series inline playback behavior is shared across all three modes:
 - Inline series autoplay is enabled by default. On player EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.
 - Autoplay and Next stop at the last episode of the current season. They do not jump to the next season and do not lazy-load an unloaded `is_series=1` season. Quick start remains the only flow that may load another VOD-series season before playback.
 - Previous is disabled on the first episode of the current season and otherwise switches directly to the previous episode.
+- Before either inline or external playback starts, the resolved content info
+  includes the parent `seriesXtreamId` and the mapped `seasonNumber` /
+  `episodeNumber`. Future playback-position rows therefore carry enough
+  metadata for workspace surfaces to render an episode badge. Existing rows
+  without those fields are intentionally not migrated and remain badge-less
+  until the episode is played again.
+- Ministra payloads may omit `season_number`. Episode mapping and lazy
+  quick-start labels share the same naturally ordered season fallback so later
+  seasons are not persisted as season 1.
+
+The VOD-series contract is cross-surface:
+
+- Favorites and recently viewed records preserve the raw `is_series` flag and
+  VOD origin so reopening still uses the lazy Ministra resources.
+- `extractStalkerItemType()` normalizes those activity records to dashboard
+  type `series`.
+- The dashboard resolves episode progress by the parent `seriesXtreamId` and
+  renders the saved season/episode metadata. It does not infer episode numbers
+  from provider payloads.
 
 Core decision logic and normalization are centralized in:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stalker-vod.utils.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/models/*.ts`
+- `libs/portal/stalker/data-access/src/lib/stalker-vod.utils.ts`
+- `libs/portal/stalker/data-access/src/lib/models/*.ts`
 
 ## Favorites and Recently Viewed
 
@@ -213,10 +237,10 @@ Current implementation is shared via Stalker-specific helpers:
 
 Where this is used:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
+- `libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
 
 Navigation rule to preserve:
 
@@ -264,7 +288,7 @@ Import rule:
 
 Stalker live remote control is implemented in:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
 
 Supported today:
 
@@ -299,9 +323,12 @@ This reduces duplicate UI logic across portal types and keeps compatibility beha
 
 ## Regression Coverage
 
-Focused regression tests for Stalker VOD mode branching live in:
+Focused regression tests for Stalker VOD mode branching and the cross-surface
+series contract live in:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stalker-vod.utils.spec.ts`
+- `libs/portal/stalker/data-access/src/lib/stalker-vod.utils.spec.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.spec.ts`
+- `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.spec.ts`
 
 Covered scenarios include:
 
@@ -310,3 +337,7 @@ Covered scenarios include:
 - VOD-backed series favorites keep VOD-series loading semantics when opened from
   favorites/global favorites
 - Favorite toggle helper path invokes the expected add/remove flow
+- Quick-start episode labels interpolate their episode number
+- Inline and external episode handoffs carry resolved season/episode metadata
+- Dashboard activity classifies `is_series` VOD as series and resolves its
+  saved episode position
