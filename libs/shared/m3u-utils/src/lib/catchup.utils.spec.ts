@@ -217,6 +217,74 @@ describe('catchup.utils', () => {
         );
     });
 
+    it('applies negative sub-hour XMLTV offsets such as -0030', () => {
+        // Regression: Number('-00') === -0, so a Math.sign()-based conversion
+        // dropped the minutes' sign and treated -0030 as UTC.
+        expect(
+            resolveM3uCatchupUrl(
+                baseChannel,
+                {
+                    ...archivedProgram,
+                    start: '202604100800 -0030',
+                    startTimestamp: null,
+                },
+                1_775_820_000
+            )
+        ).toBe(
+            'https://streams.example.com/live/channel-1.m3u8?utc=1775809800&lutc=1775820000'
+        );
+    });
+
+    it('applies positive offsets with minutes such as +0530', () => {
+        expect(
+            resolveM3uCatchupUrl(
+                baseChannel,
+                {
+                    ...archivedProgram,
+                    start: '202604100800 +0530',
+                    startTimestamp: null,
+                },
+                1_775_820_000
+            )
+        ).toBe(
+            'https://streams.example.com/live/channel-1.m3u8?utc=1775788200&lutc=1775820000'
+        );
+    });
+
+    it('applies positive sub-hour XMLTV offsets such as +0030', () => {
+        // Regression: Number('+00') === 0, so a Math.sign()-based conversion
+        // dropped the minutes and treated +0030 as UTC.
+        expect(
+            resolveM3uCatchupUrl(
+                baseChannel,
+                {
+                    ...archivedProgram,
+                    start: '202604100800 +0030',
+                    startTimestamp: null,
+                },
+                1_775_820_000
+            )
+        ).toBe(
+            'https://streams.example.com/live/channel-1.m3u8?utc=1775806200&lutc=1775820000'
+        );
+    });
+
+    it('treats a -0000 offset as UTC', () => {
+        expect(
+            resolveM3uCatchupUrl(
+                baseChannel,
+                {
+                    ...archivedProgram,
+                    start: '202604100800 -0000',
+                    startTimestamp: null,
+                },
+                1_775_820_000
+            )
+        ).toBe(
+            'https://streams.example.com/live/channel-1.m3u8?utc=1775808000&lutc=1775820000'
+        );
+    });
+
     it('preserves catchup metadata when storing parsed playlist items', () => {
         const playlist = createPlaylistObject('Catchup playlist', {
             header: {
