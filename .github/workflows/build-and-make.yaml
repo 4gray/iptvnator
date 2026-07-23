@@ -1,14 +1,31 @@
 name: Build and Make Electron App
 
+# Docs-only changes never affect the packaged app, so they skip the build
+# matrix. apps/website/** is intentionally NOT ignored: the Linux build job
+# builds the website to verify AppStream screenshot assets. Tag pushes are
+# unaffected — GitHub does not evaluate paths filters for tags, so v* release
+# builds always run.
 on:
     push:
         branches:
             - master
         tags:
             - 'v*.*.*'
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
     pull_request:
         branches:
             - master
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
     workflow_dispatch:
 
 jobs:

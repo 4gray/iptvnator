@@ -26,6 +26,12 @@ on:
 permissions:
     contents: read
 
+# Superseded PR pushes cancel their still-running image build; master/tag
+# pushes are never cancelled so published images always finish.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
     build:
         name: Build Docker image
