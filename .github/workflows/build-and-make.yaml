@@ -28,6 +28,11 @@ on:
             - '.claude/**'
     workflow_dispatch:
 
+# Build jobs only read the repo; the create-release job raises itself to
+# contents: write at the job level to manage the rolling draft release.
+permissions:
+    contents: read
+
 jobs:
     linux-embedded-mpv-runtime:
         name: Build pinned Linux Embedded MPV runtime
@@ -1406,7 +1411,7 @@ jobs:
 
             - name: Get version from package.json
               id: package-version
-              run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+              run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
             # Test drafts (PR/master) get a self-describing title plus a context
             # header linking the PR, real head commit, and workflow run. A stable
