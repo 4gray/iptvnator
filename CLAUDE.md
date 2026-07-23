@@ -207,7 +207,8 @@ nx lint web
 nx lint electron-backend
 ```
 
-CI runs lint for every project (`.github/workflows/ci.yml`). This enforces the
+CI lints affected projects on PRs (`nx affected`) and every project on master
+pushes (`.github/workflows/ci.yml`). This enforces the
 Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
 rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
 are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline

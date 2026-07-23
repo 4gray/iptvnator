@@ -4,9 +4,29 @@ on:
     push:
         branches:
             - master
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
+            - 'apps/website/**'
     pull_request:
         branches:
             - master
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
+            - 'apps/website/**'
+
+# Superseded PR pushes cancel their still-running E2E matrix (the most
+# expensive per-PR runner time); master pushes are never cancelled.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
     electron-e2e-tests:
