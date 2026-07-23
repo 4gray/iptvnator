@@ -1,0 +1,78 @@
+<div class="picker-title" mat-dialog-title>
+    <span>{{ 'MULTIVIEW.PICKER_TITLE' | translate }}</span>
+    <button
+        mat-icon-button
+        type="button"
+        mat-dialog-close
+        [attr.aria-label]="'CLOSE' | translate"
+    >
+        <mat-icon>close</mat-icon>
+    </button>
+</div>
+
+<mat-dialog-content class="picker-content">
+    <mat-button-toggle-group
+        class="picker-tabs"
+        hideSingleSelectionIndicator
+        [value]="activeTab()"
+        (change)="onTabChange($event.value)"
+    >
+        <mat-button-toggle value="favorites">
+            {{ 'MULTIVIEW.PICKER_FAVORITES' | translate }}
+        </mat-button-toggle>
+        <mat-button-toggle value="recent">
+            {{ 'MULTIVIEW.PICKER_RECENT' | translate }}
+        </mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <div class="picker-search">
+        <mat-icon>search</mat-icon>
+        <input
+            type="text"
+            class="picker-search-input"
+            [placeholder]="'MULTIVIEW.PICKER_SEARCH' | translate"
+            [value]="searchTerm()"
+            (input)="onSearchInput($event)"
+        />
+    </div>
+
+    @if (loading()) {
+        <div class="picker-state">
+            <mat-spinner [diameter]="32" />
+        </div>
+    } @else if (filteredItems().length === 0) {
+        <div class="picker-state picker-empty">
+            <mat-icon>live_tv</mat-icon>
+            <span>{{ 'MULTIVIEW.PICKER_EMPTY' | translate }}</span>
+        </div>
+    } @else {
+        <div class="picker-list">
+            @for (item of filteredItems(); track item.uid) {
+                <button
+                    type="button"
+                    class="picker-item"
+                    (click)="selectItem(item)"
+                >
+                    @if (item.logo) {
+                        <img
+                            class="picker-item-logo"
+                            [src]="item.logo"
+                            alt=""
+                            loading="lazy"
+                        />
+                    } @else {
+                        <mat-icon class="picker-item-logo-fallback">
+                            live_tv
+                        </mat-icon>
+                    }
+                    <span class="picker-item-text">
+                        <span class="picker-item-name">{{ item.name }}</span>
+                        <span class="picker-item-playlist">
+                            {{ item.playlistName }}
+                        </span>
+                    </span>
+                </button>
+            }
+        </div>
+    }
+</mat-dialog-content>

@@ -1024,6 +1024,25 @@
         "HEADER": "IPTVNator 远程控制",
         "FOOTER": "IPTVNator 远程控制"
     },
+    "MULTIVIEW": {
+        "TITLE": "多画面",
+        "ADD_CHANNEL": "添加频道",
+        "REMOVE_TILE": "移除窗格",
+        "LAYOUT": "布局",
+        "LAYOUT_1X2": "1×2 网格",
+        "LAYOUT_2X2": "2×2 网格",
+        "LAYOUT_1_PLUS_3": "1 大 + 3 小",
+        "LAYOUT_3X3": "3×3 网格",
+        "EMPTY_HINT": "添加直播频道以同时观看多个流。",
+        "TILE_ERROR": "此频道播放失败。",
+        "RETRY": "重试",
+        "PICKER_TITLE": "选择频道",
+        "PICKER_FAVORITES": "收藏",
+        "PICKER_RECENT": "最近观看",
+        "PICKER_SEARCH": "搜索频道...",
+        "PICKER_EMPTY": "未找到直播频道。",
+        "CONNECTION_LIMIT_HINT": "多个窗格使用同一服务商。大多数服务商会限制并发流数量，因此部分窗格可能无法播放。"
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "仅收藏",
         "SORT_CUSTOM": "自定义顺序",
@@ -1085,6 +1104,7 @@
             "OPEN_SOURCES": "打开源",
             "RAIL_GLOBAL_FAVORITES": "收藏",
             "RAIL_GLOBAL_RECENT": "最近观看",
+            "RAIL_MULTIVIEW": "多画面",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "设置",
             "OPEN_SETTINGS": "打开设置",

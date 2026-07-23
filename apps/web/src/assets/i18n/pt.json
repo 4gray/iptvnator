@@ -1024,6 +1024,25 @@
         "HEADER": "Controle Remoto IPTVNator",
         "FOOTER": "Controle Remoto IPTVNator"
     },
+    "MULTIVIEW": {
+        "TITLE": "Multivisualização",
+        "ADD_CHANNEL": "Adicionar canal",
+        "REMOVE_TILE": "Remover bloco",
+        "LAYOUT": "Layout",
+        "LAYOUT_1X2": "Grade 1×2",
+        "LAYOUT_2X2": "Grade 2×2",
+        "LAYOUT_1_PLUS_3": "1 grande + 3 pequenos",
+        "LAYOUT_3X3": "Grade 3×3",
+        "EMPTY_HINT": "Adicione canais ao vivo para assistir a várias transmissões ao mesmo tempo.",
+        "TILE_ERROR": "Falha na reprodução deste canal.",
+        "RETRY": "Tentar novamente",
+        "PICKER_TITLE": "Selecionar um canal",
+        "PICKER_FAVORITES": "Favoritos",
+        "PICKER_RECENT": "Visualizados recentemente",
+        "PICKER_SEARCH": "Pesquisar canais...",
+        "PICKER_EMPTY": "Nenhum canal ao vivo encontrado.",
+        "CONNECTION_LIMIT_HINT": "Vários blocos usam o mesmo provedor. A maioria dos provedores limita transmissões simultâneas, por isso alguns blocos podem falhar."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Apenas favoritos",
         "SORT_CUSTOM": "Ordem personalizada",
@@ -1085,6 +1104,7 @@
             "OPEN_SOURCES": "Abrir fontes",
             "RAIL_GLOBAL_FAVORITES": "Favoritos",
             "RAIL_GLOBAL_RECENT": "Visualizados recentemente",
+            "RAIL_MULTIVIEW": "Multivisualização",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Configurações",
             "OPEN_SETTINGS": "Abrir configurações",

@@ -1024,6 +1024,25 @@
         "HEADER": "Controllo remoto IPTVNator",
         "FOOTER": "Controllo remoto IPTVNator"
     },
+    "MULTIVIEW": {
+        "TITLE": "Vista multipla",
+        "ADD_CHANNEL": "Aggiungi canale",
+        "REMOVE_TILE": "Rimuovi riquadro",
+        "LAYOUT": "Layout",
+        "LAYOUT_1X2": "Griglia 1×2",
+        "LAYOUT_2X2": "Griglia 2×2",
+        "LAYOUT_1_PLUS_3": "1 grande + 3 piccoli",
+        "LAYOUT_3X3": "Griglia 3×3",
+        "EMPTY_HINT": "Aggiungi canali live per guardare più stream contemporaneamente.",
+        "TILE_ERROR": "Riproduzione non riuscita per questo canale.",
+        "RETRY": "Riprova",
+        "PICKER_TITLE": "Seleziona un canale",
+        "PICKER_FAVORITES": "Preferiti",
+        "PICKER_RECENT": "Visti di recente",
+        "PICKER_SEARCH": "Cerca canali...",
+        "PICKER_EMPTY": "Nessun canale live trovato.",
+        "CONNECTION_LIMIT_HINT": "Più riquadri usano lo stesso provider. La maggior parte dei provider limita gli stream simultanei, quindi alcuni riquadri potrebbero non funzionare."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Solo preferiti",
         "SORT_CUSTOM": "Ordine personalizzato",
@@ -1085,6 +1104,7 @@
             "OPEN_SOURCES": "Apri sorgenti",
             "RAIL_GLOBAL_FAVORITES": "Preferiti",
             "RAIL_GLOBAL_RECENT": "Visti di recente",
+            "RAIL_MULTIVIEW": "Vista multipla",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Impostazioni",
             "OPEN_SETTINGS": "Apri impostazioni",

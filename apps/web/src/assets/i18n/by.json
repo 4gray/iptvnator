@@ -1024,6 +1024,25 @@
         "HEADER": "Аддаленае кіраванне IPTVNator",
         "FOOTER": "Аддаленае кіраванне IPTVNator"
     },
+    "MULTIVIEW": {
+        "TITLE": "Мультыэкран",
+        "ADD_CHANNEL": "Дадаць канал",
+        "REMOVE_TILE": "Выдаліць плітку",
+        "LAYOUT": "Раскладка",
+        "LAYOUT_1X2": "Сетка 1×2",
+        "LAYOUT_2X2": "Сетка 2×2",
+        "LAYOUT_1_PLUS_3": "1 вялікая + 3 малыя",
+        "LAYOUT_3X3": "Сетка 3×3",
+        "EMPTY_HINT": "Дадайце жывыя каналы, каб глядзець некалькі трансляцый адначасова.",
+        "TILE_ERROR": "Не атрымалася прайграць гэты канал.",
+        "RETRY": "Паўтарыць",
+        "PICKER_TITLE": "Выберыце канал",
+        "PICKER_FAVORITES": "Абранае",
+        "PICKER_RECENT": "Нядаўна праглянутае",
+        "PICKER_SEARCH": "Пошук каналаў...",
+        "PICKER_EMPTY": "Жывыя каналы не знойдзены.",
+        "CONNECTION_LIMIT_HINT": "Некалькі плітак выкарыстоўваюць аднаго правайдара. Большасць правайдараў абмяжоўваюць адначасовыя патокі, таму некаторыя пліткі могуць не працаваць."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Толькі выбранае",
         "SORT_CUSTOM": "Свой парадак",
@@ -1085,6 +1104,7 @@
             "OPEN_SOURCES": "Адкрыць крыніцы",
             "RAIL_GLOBAL_FAVORITES": "Выбранае",
             "RAIL_GLOBAL_RECENT": "Нядаўна праглянутае",
+            "RAIL_MULTIVIEW": "Мультыэкран",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Налады",
             "OPEN_SETTINGS": "Адкрыць налады",

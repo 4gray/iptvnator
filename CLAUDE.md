@@ -254,6 +254,7 @@ This is an Nx monorepo with the following structure:
     - **ui/shared-portals** - Shared portal types (`LiveEpgPanelSummary`)
     - **ui/styles** - Shared styles/theme
     - **workspace/{shell,dashboard}** - Workspace shell (layout/navigation) and dashboard
+    - **workspace/multiview/feature** - Multiview grid page (simultaneous live streams)
 
 ### Frontend Architecture (Angular)
 
@@ -434,6 +435,7 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 - Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `actor/:personId`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
 - Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `actor/:personId`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
+- Multiview grid: `/workspace/multiview` (Electron and PWA) — `libs/workspace/multiview/feature`
 - Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
 - Downloads: `/workspace/downloads`
 - Settings: `/workspace/settings` (`/settings` redirects there)
@@ -795,6 +797,17 @@ engine` (restart required) or
 - Volume synced with video player via shared `localStorage` key `'volume'`
 - Keyboard shortcuts: ArrowUp/ArrowDown (volume), M (mute)
 - Component: `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
+
+**Multiview** (`/workspace/multiview`, Electron and PWA):
+
+- Grid that plays several live TV channels simultaneously; live-only (radio, VOD, and series are excluded)
+- Layout presets switchable at runtime: 1×2, 2×2, 1 large + 3 small, 3×3 (`multiview-layouts.ts`)
+- Channels come from global favorites and recently viewed across all three sources (M3U, Xtream, Stalker) via `UnifiedFavoritesDataService`/`UnifiedRecentDataService`; playback URLs resolve through `StreamResolverService.resolvePlayback`
+- Exactly one tile has audio focus (highlighted border); click focuses a tile, double-click opens the channel in the regular full player via the global-collection handoff (`buildLiveCollectionNavigationTarget`)
+- Each tile runs a minimal standalone media engine (`MultiviewTileEngine`: mpegts.js for raw TS, hls.js with small buffers, native `<video>` fallback) — deliberately not the full `WebPlayerViewComponent` stack (which is a per-app singleton with global shortcuts/volume)
+- Per-tile error + retry (retry re-resolves the URL, important for expiring Xtream/Stalker tokens); a dismissible hint warns when two tiles share the same portal account (provider connection limits)
+- Layout, slots, and audio focus persist in `localStorage` (`multiview-state-v1`)
+- Library: `libs/workspace/multiview/feature` (`MultiviewPageComponent` provided the route; component-provided `MultiviewStateService`)
 
 **EPG (Electronic Program Guide)**:
 

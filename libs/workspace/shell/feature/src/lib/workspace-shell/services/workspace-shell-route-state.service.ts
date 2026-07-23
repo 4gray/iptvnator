@@ -115,6 +115,13 @@ export class WorkspaceShellRouteStateService {
             exact: true,
         });
 
+        links.push({
+            icon: 'grid_view',
+            tooltip: this.translateText('WORKSPACE.SHELL.RAIL_MULTIVIEW'),
+            path: ['/workspace/multiview'],
+            exact: true,
+        });
+
         return links;
     });
     readonly isDashboardRoute = computed(

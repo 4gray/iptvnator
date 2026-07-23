@@ -1,0 +1,118 @@
+.picker-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-right: 12px;
+}
+
+.picker-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(440px, 80vw);
+}
+
+.picker-tabs {
+    align-self: flex-start;
+}
+
+.picker-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--mat-sys-surface-container-high, rgba(0, 0, 0, 0.06));
+
+    mat-icon {
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
+}
+
+.picker-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.picker-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 180px;
+    opacity: 0.75;
+}
+
+.picker-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 180px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.picker-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: var(
+            --mat-sys-surface-container-highest,
+            rgba(0, 0, 0, 0.08)
+        );
+    }
+}
+
+.picker-item-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.picker-item-logo-fallback {
+    width: 32px;
+    height: 32px;
+    font-size: 32px;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.picker-item-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.picker-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.picker-item-playlist {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    opacity: 0.65;
+}

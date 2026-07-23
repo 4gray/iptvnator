@@ -1024,6 +1024,25 @@
         "HEADER": "Control remoto de IPTVnator",
         "FOOTER": "Control remoto de IPTVnator"
     },
+    "MULTIVIEW": {
+        "TITLE": "Vista múltiple",
+        "ADD_CHANNEL": "Añadir canal",
+        "REMOVE_TILE": "Quitar mosaico",
+        "LAYOUT": "Diseño",
+        "LAYOUT_1X2": "Cuadrícula 1×2",
+        "LAYOUT_2X2": "Cuadrícula 2×2",
+        "LAYOUT_1_PLUS_3": "1 grande + 3 pequeños",
+        "LAYOUT_3X3": "Cuadrícula 3×3",
+        "EMPTY_HINT": "Añade canales en directo para ver varias transmisiones a la vez.",
+        "TILE_ERROR": "Error de reproducción en este canal.",
+        "RETRY": "Reintentar",
+        "PICKER_TITLE": "Seleccionar un canal",
+        "PICKER_FAVORITES": "Favoritos",
+        "PICKER_RECENT": "Vistos recientemente",
+        "PICKER_SEARCH": "Buscar canales...",
+        "PICKER_EMPTY": "No se encontraron canales en directo.",
+        "CONNECTION_LIMIT_HINT": "Varios mosaicos usan el mismo proveedor. La mayoría de los proveedores limitan las transmisiones simultáneas, por lo que algunos mosaicos pueden fallar."
+    },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Solo favoritos",
         "SORT_CUSTOM": "Orden personalizado",
@@ -1085,6 +1104,7 @@
             "OPEN_SOURCES": "Abrir fuentes",
             "RAIL_GLOBAL_FAVORITES": "Favoritos",
             "RAIL_GLOBAL_RECENT": "Vistos recientemente",
+            "RAIL_MULTIVIEW": "Vista múltiple",
             "RAIL_GLOBAL_SEARCH": "Global search",
             "RAIL_SETTINGS": "Ajustes",
             "OPEN_SETTINGS": "Abrir ajustes",
