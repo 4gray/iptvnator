@@ -24,7 +24,7 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
-    isDashChannel,
+    isDashStreamUrl,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -174,9 +174,16 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
-    /** DASH (.mpd) channels always play inline via the Shaka engine. */
+    /**
+     * DASH (.mpd) playback always runs inline via the Shaka engine. Uses the
+     * effective playback URL, so catch-up/archive replays that resolve to a
+     * DASH manifest route inline too — matching the external-player guard in
+     * the m3u-state effects, which also checks the resolved URL.
+     */
     readonly activeChannelIsDash = computed(() =>
-        isDashChannel(this.activeChannel())
+        isDashStreamUrl(
+            this.activePlaybackUrl() ?? this.activeChannel()?.url
+        )
     );
     /**
      * Player forced for DASH channels: ArtPlayer keeps ArtPlayer (it has a
@@ -1009,9 +1016,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             return false;
         }
 
-        // DASH channels bypass the external-player setting (radio precedent):
-        // MPV/VLC cannot receive the KODIPROP ClearKey configuration.
-        if (isDashChannel(channel)) {
+        // DASH playback bypasses the external-player setting (radio
+        // precedent): MPV/VLC cannot receive the KODIPROP ClearKey
+        // configuration. Checked on the effective (possibly catch-up) URL.
+        if (this.activeChannelIsDash()) {
             return true;
         }
 

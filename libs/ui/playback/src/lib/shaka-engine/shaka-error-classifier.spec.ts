@@ -86,7 +86,7 @@ describe('classifyShakaPlaybackIssue', () => {
 });
 
 describe('createUnsupportedDrmDiagnostic', () => {
-    it('creates a DRM diagnostic carrying the license type', () => {
+    it('creates a DRM diagnostic without recommending unusable external fallbacks', () => {
         const issue = createUnsupportedDrmDiagnostic(
             'com.widevine.alpha',
             metadata
@@ -94,6 +94,8 @@ describe('createUnsupportedDrmDiagnostic', () => {
         expect(issue.code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
         expect(issue.source).toBe(PlaybackDiagnosticSource.Shaka);
         expect(issue.details).toContain('com.widevine.alpha');
-        expect(issue.externalFallbackRecommended).toBe(true);
+        // MPV/VLC cannot receive KODIPROP license config, so the diagnostic
+        // must not offer them as a fallback.
+        expect(issue.externalFallbackRecommended).toBe(false);
     });
 });

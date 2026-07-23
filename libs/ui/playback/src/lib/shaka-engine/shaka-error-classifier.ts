@@ -111,6 +111,9 @@ export function createUnsupportedDrmDiagnostic(
         details: licenseType
             ? `Unsupported DRM license configuration: ${licenseType}`
             : 'Unsupported DRM license configuration',
+        // External MPV/VLC cannot receive the KODIPROP license config either,
+        // so offering them as a fallback would just fail differently.
+        externalFallbackRecommended: false,
     });
 }
 

@@ -237,6 +237,9 @@ export function createPlaybackDiagnostic(options: {
     readonly details?: string;
     readonly nativeErrorCode?: number;
     readonly nativeErrorMessage?: string;
+    /** Overrides the code-derived recommendation, e.g. when external players
+     * are known to be unable to handle the stream either. */
+    readonly externalFallbackRecommended?: boolean;
 }): PlaybackDiagnostic {
     const {
         code,
@@ -259,7 +262,9 @@ export function createPlaybackDiagnostic(options: {
         details: details || undefined,
         nativeErrorCode,
         nativeErrorMessage,
-        externalFallbackRecommended: isExternalFallbackRecommended(code),
+        externalFallbackRecommended:
+            options.externalFallbackRecommended ??
+            isExternalFallbackRecommended(code),
     };
 }
 

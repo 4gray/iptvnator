@@ -646,6 +646,22 @@ describe('VideoPlayerComponent', () => {
         expect(dataServiceMock.sendIpcEvent).not.toHaveBeenCalled();
     });
 
+    it('routes catch-up playback that resolves to a DASH URL inline as well', () => {
+        syncStoreState(sampleChannel);
+        activePlaybackUrl.set('http://localhost/archive/replay.mpd');
+        player.set(VideoPlayer.MPV);
+
+        fixture.detectChanges();
+
+        const playerView = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        );
+        expect(playerView).not.toBeNull();
+        const stub =
+            playerView.componentInstance as StubWebPlayerViewComponent;
+        expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
+    });
+
     it('keeps ArtPlayer for DASH channels and forwards the ClearKey DRM config', () => {
         const drm = {
             licenseType: 'clearkey',
