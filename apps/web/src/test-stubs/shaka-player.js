@@ -59,7 +59,9 @@ class MockShakaPlayer {
         return [];
     }
 
-    selectAudioTrack() {}
+    selectAudioTrack() {
+        return undefined;
+    }
 
     getTextTracks() {
         return [];
@@ -79,7 +81,9 @@ MockShakaPlayer.isBrowserSupported = () => true;
 const shaka = {
     Player: MockShakaPlayer,
     polyfill: {
-        installAll() {},
+        installAll() {
+            return undefined;
+        },
     },
     __instances: [],
     __reset() {

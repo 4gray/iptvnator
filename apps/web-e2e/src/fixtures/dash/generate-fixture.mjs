@@ -26,7 +26,7 @@
  * Usage: node apps/web-e2e/src/fixtures/dash/generate-fixture.mjs
  */
 
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -110,14 +110,17 @@ function resolvePackager() {
 function fetchPackagerViaNpmPack() {
     const workDir = mkdtempSync(join(tmpdir(), 'shaka-packager-'));
     console.log(`Fetching shaka-packager via npm pack into ${workDir} ...`);
-    execSync('npm pack shaka-packager --silent', {
+    execFileSync('npm', ['pack', 'shaka-packager', '--silent'], {
         cwd: workDir,
         stdio: ['ignore', 'ignore', 'inherit'],
     });
     const tarball = readdirSync(workDir).find((name) =>
         name.endsWith('.tgz')
     );
-    execSync(`tar -xzf ${JSON.stringify(tarball)}`, { cwd: workDir });
+    if (!tarball) {
+        throw new Error('npm pack did not produce a shaka-packager tarball.');
+    }
+    execFileSync('tar', ['-xzf', tarball], { cwd: workDir });
 
     const binaryName = {
         darwin: { arm64: 'packager-osx-arm64', x64: 'packager-osx-x64' },

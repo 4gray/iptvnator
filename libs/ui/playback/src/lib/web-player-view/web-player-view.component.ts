@@ -370,34 +370,24 @@ export class WebPlayerViewComponent {
     }
 
     private formatPlayer(player: PlaybackDiagnostic['player']): string {
-        switch (player) {
-            case 'videojs':
-                return 'Video.js';
-            case 'html5':
-                return 'HTML5';
-            case 'artplayer':
-                return 'ArtPlayer';
-            default:
-                return '';
-        }
+        const labels: Record<string, string> = {
+            videojs: 'Video.js',
+            html5: 'HTML5',
+            artplayer: 'ArtPlayer',
+        };
+        return (player && labels[player]) || '';
     }
 
     private formatDiagnosticSource(
         source: PlaybackDiagnostic['source']
     ): string {
-        switch (source) {
-            case 'hls':
-                return 'HLS.js';
-            case 'mpegts':
-                return 'mpegts.js';
-            case 'native':
-                return 'Native media element';
-            case 'shaka':
-                return 'Shaka Player';
-            case 'source':
-                return 'Stream metadata';
-            default:
-                return source;
-        }
+        const labels: Record<string, string> = {
+            hls: 'HLS.js',
+            mpegts: 'mpegts.js',
+            native: 'Native media element',
+            shaka: 'Shaka Player',
+            source: 'Stream metadata',
+        };
+        return labels[source] ?? source;
     }
 }
