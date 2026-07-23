@@ -102,10 +102,14 @@ describe('ShakaVideoSession', () => {
         const player = environment.instances[0];
         player.dispatch('error', { severity: 1, category: 1, code: 1002 });
         expect(issues).toEqual([]);
+        expect(session.getPlayer()).toBe(player);
 
         player.dispatch('error', { severity: 2, category: 6, code: 6001 });
         expect(issues).toHaveLength(1);
         expect(issues[0].code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
+        // Critical errors end playback: the dead engine must be torn down.
+        expect(player.destroyCount).toBe(1);
+        expect(session.getPlayer()).toBeNull();
     });
 
     it('emits a diagnostic and tears the engine down when load rejects', async () => {

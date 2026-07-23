@@ -236,6 +236,9 @@ export class ShakaVideoSession {
             this.config.emitPlaybackIssue(
                 classifyShakaPlaybackIssue(detail, this.createMetadata(url))
             );
+            // Critical errors end playback; never leave the dead engine
+            // attached or exposed to the shared-controls bridge.
+            this.beginPlayerTeardown();
         };
         const refreshListener = (): void => {
             if (!this.isStale(generation) && this.player === player) {
