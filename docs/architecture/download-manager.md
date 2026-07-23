@@ -9,17 +9,21 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 - **Range-aware transfer (`download-transfer.ts`)**
   The transfer streams the response through the backend's validated Axios redirect helper instead of `electron-dl`. Headers (user agent, referer, origin) are persisted in `request_headers` and re-applied through the same allowlist when read back on retry/resume. Active pause/cancel operations abort the current request with `AbortController`; pause keeps the partial file and cancel removes it. Resume checks the existing `.part` size (rejecting anything that is not a regular file, so a symlink planted while paused is never followed) and sends `Range: bytes=<offset>-` plus `If-Range` with the stored entity validator. The first response's strong `ETag` (or `Last-Modified`) is persisted in `resume_validator` for exactly this purpose. A `206 Partial Content` answer must start at the requested offset (`Content-Range` is verified) before bytes are appended; any other 2xx answer — the server ignoring `Range`, or `If-Range` detecting that the remote file changed — restarts the transfer from byte zero over the same `.part` instead of failing the download.
 - **Destination collision policy**
-  Existing destination files are never overwritten. Before starting a new
-  transfer, the backend atomically reserves a free numbered `.part` path while
-  leaving the final destination path absent. The selected final `filePath` and
-  `fileName` are persisted before transfer begins. Completion creates the final
-  `filePath` from `<filePath>.part` without overwriting an existing file;
-  cancel and ordinary transfer failures remove the `.part`, while finalization
-  failures and completed-partial failures deliberately retain it (the row keeps
-  `filePath` so a later retry can finish without re-downloading); pause and
-  restart recovery keep it for a later resume. Re-downloading such a failed row
-  from a detail page (`DOWNLOADS_START`) deletes the retained `.part` before
-  the row is reset.
+  Existing destination files are never overwritten, inspected, or deleted.
+  Before starting a new transfer, the backend atomically reserves a free
+  numbered `.part` path while leaving the final destination path absent. The
+  selected final `filePath` and `fileName` are persisted before transfer
+  begins. When a retained download's recorded destination got occupied while
+  it was paused or failed (for example by a file the user created), the
+  retained `.part` is renamed aside and finalized to the next free numbered
+  destination (`Movie (1).mp4`) instead of resolving the collision by size or
+  `unlink()`. Completion creates the final `filePath` from the `.part` without
+  overwriting an existing file; cancel and ordinary transfer failures remove
+  the `.part`, while finalization failures and completed-partial failures
+  deliberately retain it (the row keeps `filePath` so a later retry can finish
+  without re-downloading); pause and restart recovery keep it for a later
+  resume. Re-downloading such a failed row from a detail page
+  (`DOWNLOADS_START`) deletes the retained `.part` before the row is reset.
 - **IPC surface**  
   The backend exposes `DOWNLOADS_*` handlers for list retrieval, start/pause/resume/cancel/retry/remove operations, folder selection/reveal, and the `DOWNLOADS_UPDATE_EVENT` emitter that the renderer listens to in order to refresh its signal store.
 
@@ -46,6 +50,9 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 - Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, `requestHeaders`, `resumeValidator`, and Xtream identifiers. Existing SQLite tables are rebuilt on startup when their status CHECK still lacks `paused`; the `resume_validator` column is added through the idempotent column migrations.
 - On startup, `download-recovery.ts` converts stale `downloading` rows with a non-empty `.part` file to `paused`, converts stale `queued` rows to `paused` while keeping any retained `.part` (a resumed download waiting behind an active one persists as `queued` with its partial), and marks stale `downloading` rows without recoverable partial bytes as `failed`.
 - Queue cancellation removes a queued task or records an active cancellation request and aborts the request when available. Pausing follows the same abort path but persists `paused` and keeps the `.part`. Retries reuse the same database entry: a failed row with a retained `filePath` resumes its `.part` through HTTP Range, otherwise the retry starts from zero. Resume appends to the existing `.part` through HTTP Range with `If-Range` validation.
+- A `.part` that cannot be deleted (locked, permission denied) never loses its database path: cancel persists `canceled` while retaining `filePath` for later cleanup, and `DOWNLOADS_REMOVE` keeps the row and answers `success: false` (surfaced as a snackbar) so retrying the remove re-attempts the deletion once the lock is released.
+- Resume claims the row atomically (`paused` → `queued` as a conditional update) and the runtime queue rejects duplicate ids, so two rapid Resume clicks racing the status refresh can never produce two transfers for the same download.
+- Pause/resume is covered end to end by `apps/electron-backend-e2e/src/downloads.e2e.ts`: a throttled Range-capable mock server verifies the paused `.part` on disk, the `Range`/`If-Range` resume request, and byte-exact assembly of the final file.
 - The OS downloads path is always authorized. A custom folder becomes
   authorized only after native folder selection, and the main process persists
   that selection under Electron `userData`. Renderer settings may display the
