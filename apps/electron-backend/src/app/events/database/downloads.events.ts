@@ -173,7 +173,23 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
             .limit(1);
         const row = rows[0];
         if (row?.filePath && removablePartialStatuses.has(row.status)) {
-            removePartialDownloadFile(row.filePath);
+            try {
+                removePartialDownloadFile(row.filePath);
+            } catch (cleanupError) {
+                // Keep the row (and its runtime entry) so the .part is never
+                // orphaned, but answer with a structured failure the UI can
+                // surface instead of an opaque IPC rejection. Retrying the
+                // remove re-attempts the deletion.
+                console.error(
+                    '[Downloads] Failed to delete partial file on remove:',
+                    row.filePath,
+                    cleanupError
+                );
+                return {
+                    error: 'Could not delete the partial file',
+                    success: false,
+                };
+            }
         }
         removeDownloadFromRuntime(downloadId);
         await db

@@ -267,4 +267,130 @@ describe('download runtime pause and resume', () => {
             consoleError.mockRestore();
         }
     });
+
+    it('retains the partial path when canceling a queued task whose partial cannot be deleted', async () => {
+        jest.resetModules();
+
+        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const db = { update: jest.fn(() => ({ set })) };
+        const removePartialDownloadFile = jest.fn(() => {
+            throw new Error('EPERM: locked');
+        });
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('../../util/validated-axios', () => ({
+            requestWithValidatedRedirects: jest.fn(
+                () => new Promise(() => undefined)
+            ),
+        }));
+        jest.doMock('node:fs', () => ({
+            ...jest.requireActual('node:fs'),
+            createWriteStream: jest.fn(() => new PassThrough()),
+            existsSync: jest.fn(() => false),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadPath: (filePath: string) => `${filePath}.part`,
+            getPartialDownloadSize: jest.fn(() => 0),
+            removePartialDownloadFile,
+            reserveAvailablePartialDownloadFile: jest.fn(
+                (directory: string, filename: string) => ({
+                    filename,
+                    partialPath: `${directory}/${filename}.part`,
+                    path: `${directory}/${filename}`,
+                })
+            ),
+        }));
+
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            const runtime = await import('./download-runtime');
+            runtime.setMainWindow({
+                isDestroyed: () => false,
+                webContents: { send: jest.fn() },
+            } as never);
+
+            // Occupy the active slot so the second task stays queued.
+            runtime.enqueueDownload(createTask());
+            runtime.enqueueDownload({
+                ...createTask(),
+                fileName: 'resume.mp4',
+                filePath: '/downloads/resume.mp4',
+                id: 43,
+            });
+
+            await expect(runtime.cancelDownload(43)).resolves.toBe(true);
+
+            expect(set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filePath: '/downloads/resume.mp4',
+                    status: 'canceled',
+                })
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('retains the partial path when canceling a paused row whose partial cannot be deleted', async () => {
+        jest.resetModules();
+
+        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn(() => ({
+                        limit: jest.fn().mockResolvedValue([
+                            {
+                                filePath: '/downloads/paused.mp4',
+                                status: 'paused',
+                            },
+                        ]),
+                    })),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const removePartialDownloadFile = jest.fn(() => {
+            throw new Error('EPERM: locked');
+        });
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadPath: (filePath: string) => `${filePath}.part`,
+            getPartialDownloadSize: jest.fn(() => 0),
+            removePartialDownloadFile,
+            reserveAvailablePartialDownloadFile: jest.fn(),
+        }));
+
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            const runtime = await import('./download-runtime');
+            runtime.setMainWindow({
+                isDestroyed: () => false,
+                webContents: { send: jest.fn() },
+            } as never);
+
+            await expect(runtime.cancelDownload(77)).resolves.toBe(true);
+
+            expect(removePartialDownloadFile).toHaveBeenCalledWith(
+                '/downloads/paused.mp4'
+            );
+            expect(set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filePath: '/downloads/paused.mp4',
+                    status: 'canceled',
+                })
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
 });

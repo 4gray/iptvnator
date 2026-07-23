@@ -158,13 +158,22 @@ describe('downloads events', () => {
         const consoleError = jest
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
+        const consoleLog = jest
+            .spyOn(console, 'log')
+            .mockImplementation(() => undefined);
 
         try {
+            // The row and its .part must survive, but the renderer gets a
+            // structured failure it can surface instead of an IPC rejection.
             await expect(
                 getHandler('DOWNLOADS_REMOVE')(null, 42)
-            ).rejects.toBe(cleanupError);
+            ).resolves.toEqual({
+                error: 'Could not delete the partial file',
+                success: false,
+            });
         } finally {
             consoleError.mockRestore();
+            consoleLog.mockRestore();
         }
 
         expect(deleteWhere).not.toHaveBeenCalled();
@@ -227,6 +236,42 @@ describe('downloads events', () => {
 
         expect(deleteWhere).toHaveBeenCalledTimes(1);
         expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('removes the row once a previously locked partial becomes deletable', async () => {
+        const { deleteWhere } = mockDownloadRow(createDownloadRow('paused'));
+        mockRemovePartialDownloadFile
+            .mockImplementationOnce(() => {
+                throw new Error('EPERM: locked');
+            })
+            .mockImplementation(() => true);
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        const consoleLog = jest
+            .spyOn(console, 'log')
+            .mockImplementation(() => undefined);
+
+        try {
+            await expect(
+                getHandler('DOWNLOADS_REMOVE')(null, 42)
+            ).resolves.toEqual({
+                error: 'Could not delete the partial file',
+                success: false,
+            });
+            expect(deleteWhere).not.toHaveBeenCalled();
+
+            // Retry after the lock is released: cleanup and delete succeed.
+            await expect(
+                getHandler('DOWNLOADS_REMOVE')(null, 42)
+            ).resolves.toEqual({ success: true });
+        } finally {
+            consoleError.mockRestore();
+            consoleLog.mockRestore();
+        }
+
+        expect(mockRemovePartialDownloadFile).toHaveBeenCalledTimes(2);
+        expect(deleteWhere).toHaveBeenCalledTimes(1);
     });
 
     it('maps a successful runtime pause to a success response', async () => {

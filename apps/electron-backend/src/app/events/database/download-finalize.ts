@@ -266,10 +266,13 @@ function canCopyCompletedPartialAfterLinkFailure(error: unknown): boolean {
     );
 }
 
-export function removePartialFile(filePath: string | null | undefined): void {
+/** @returns false when a .part exists but could not be deleted. */
+export function removePartialFile(filePath: string | null | undefined): boolean {
     try {
         removePartialDownloadFile(filePath);
+        return true;
     } catch (error) {
         console.error('[Downloads] Failed to delete partial file:', error);
+        return false;
     }
 }

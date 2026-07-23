@@ -289,7 +289,10 @@ export class DownloadsComponent {
     }
 
     async remove(item: DownloadItem) {
-        await this.downloadsService.removeDownload(item.id);
+        const result = await this.downloadsService.removeDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async play(item: DownloadItem) {
