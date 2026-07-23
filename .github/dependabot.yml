@@ -24,9 +24,12 @@ updates:
           day: monday
           time: '06:00'
       groups:
-          actions-all:
+          actions-minor-patch:
               patterns:
                   - '*'
+              update-types:
+                  - minor
+                  - patch
 
     - package-ecosystem: docker
       directory: /docker
