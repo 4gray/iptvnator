@@ -725,6 +725,37 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         ).toEqual(['CNN International']);
     });
 
+    it('includes paged censored-category channels in full-list search results', () => {
+        // The adult category's channels come from the legacy paged flow and
+        // are intentionally absent from the full-list cache — searching for a
+        // currently visible channel must still find it (merged source).
+        itvFullListActive.set(true);
+        itvSelectedCategoryFromCache.set(false);
+        itvChannels.set([
+            {
+                id: 'adult-1',
+                cmd: 'ffrt4://itv/adult-1',
+                name: 'Erox HD',
+                o_name: 'Erox HD',
+                logo: '',
+            },
+        ]);
+        itvFullChannelList.set(defaultItvChannels());
+        searchPhrase.set('erox');
+        fixture.detectChanges();
+
+        expect(
+            component.filteredChannels().map((channel) => channel.name)
+        ).toEqual(['Erox HD']);
+
+        // And the cached portal-wide channels remain searchable too.
+        searchPhrase.set('alpha');
+        fixture.detectChanges();
+        expect(
+            component.filteredChannels().map((channel) => channel.name)
+        ).toEqual(['Alpha TV']);
+    });
+
     it('grows the render window to include a channel selected beyond it (remote/numeric nav)', async () => {
         const full = Array.from({ length: 250 }, (_, index) => ({
             id: `ch-${index}`,

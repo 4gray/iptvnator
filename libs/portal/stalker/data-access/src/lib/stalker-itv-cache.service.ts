@@ -85,13 +85,18 @@ export class StalkerItvCacheService {
         return key !== null ? (this.progressByKey()[key] ?? null) : null;
     }
 
-    /** Full channel list for the portal, or null while not (yet) loaded. */
+    /**
+     * Full channel list for the portal, or null while not (yet) loaded.
+     * Deliberately NON-reactive: it reads only the plain `channelsByKey` map
+     * (an entry exists iff a load succeeded), so computeds that call it don't
+     * pick up the shared `readyKeys` signal and re-evaluate when an UNRELATED
+     * portal's list becomes ready. Reactive consumers establish their own
+     * per-portal dependency via {@link versionFor}; boolean readiness for UI
+     * stays on the reactive {@link isReady}.
+     */
     getChannels(playlist: PlaylistMeta | undefined): StalkerItvChannel[] | null {
         const key = this.keyFor(playlist);
-        if (key === null || !this.readyKeys().has(key)) {
-            return null;
-        }
-        return this.channelsByKey.get(key) ?? null;
+        return key === null ? null : (this.channelsByKey.get(key) ?? null);
     }
 
     /**

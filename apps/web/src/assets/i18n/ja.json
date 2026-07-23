@@ -954,6 +954,8 @@
         "LOADING_ALL_CHANNELS": "全チャンネルリストを読み込み中…",
         "REFRESH_CHANNEL_LIST": "チャンネルリストを更新",
         "NO_CHANNELS_IN_CATEGORY": "このカテゴリーにチャンネルがありません",
+        "ITEM": "件",
+        "ITEMS": "件",
         "NO_EPISODES": "利用可能なエピソードはありません",
         "ALL_RADIO": "すべてのラジオ"
     },

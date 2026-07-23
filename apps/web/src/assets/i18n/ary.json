@@ -954,6 +954,8 @@
         "LOADING_ALL_CHANNELS": "كيتم تحميل لائحة القنوات كاملة…",
         "REFRESH_CHANNEL_LIST": "تحديث لائحة القنوات",
         "NO_CHANNELS_IN_CATEGORY": "ماكاينش قنوات فهاد الصنف",
+        "ITEM": "عنصر",
+        "ITEMS": "عناصر",
         "NO_EPISODES": "ما كاينش حلقات متوفرة",
         "ALL_RADIO": "All radio"
     },

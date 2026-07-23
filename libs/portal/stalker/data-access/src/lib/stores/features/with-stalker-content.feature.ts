@@ -616,6 +616,31 @@ export function withStalkerContent() {
                 return itvCache.getChannels(playlist) ?? [];
             });
 
+            /**
+             * Per-genre channel counts for ITV category badges, keyed by
+             * numeric `tv_genre_id` (mirrors the Xtream count map). Only
+             * populated when the full list is cached. The "All" pseudo
+             * category has id `'*'` → `Number('*')` is NaN, and a Map keys
+             * NaN by SameValueZero, so the grand total under `NaN` makes the
+             * "All" row show every channel. Genres with NO cached channels
+             * get no entry at all: adult genres are excluded from
+             * `get_all_channels` (with or without a `censored` flag from
+             * `get_genres`), so their real count is unknown and the badge
+             * is omitted rather than showing a misleading "0".
+             */
+            const itvCategoryItemCounts = computed(() => {
+                const counts = new Map<number, number>();
+                const channels = itvFullChannelList();
+                for (const channel of channels) {
+                    const genreId = Number(channel.tv_genre_id);
+                    if (!Number.isNaN(genreId)) {
+                        counts.set(genreId, (counts.get(genreId) ?? 0) + 1);
+                    }
+                }
+                counts.set(Number.NaN, channels.length);
+                return counts;
+            });
+
             return {
                 /** True when the complete ITV channel list is cached, so local search covers all channels. */
                 itvFullListActive: computed(() =>
@@ -633,7 +658,9 @@ export function withStalkerContent() {
                  * True when the currently selected ITV category can be served
                  * from the full-list cache. Censored (adult) genres are usually
                  * excluded from `get_all_channels`, so a genre with zero cached
-                 * channels stays on the legacy paged flow.
+                 * channels stays on the legacy paged flow. O(1): reuses the
+                 * memoized per-genre count map instead of re-scanning the list
+                 * on every category click.
                  */
                 itvSelectedCategoryFromCache: computed(() => {
                     const playlist = storeContext.currentPlaylist();
@@ -649,40 +676,21 @@ export function withStalkerContent() {
                         return true;
                     }
 
-                    return (
-                        filterItvChannelsByGenre(
-                            itvFullChannelList(),
-                            categoryId
-                        ).length > 0
-                    );
-                }),
-                /**
-                 * Per-genre channel counts for ITV category badges, keyed by
-                 * numeric `tv_genre_id` (mirrors the Xtream count map). Only
-                 * populated when the full list is cached. The "All" pseudo
-                 * category has id `'*'` → `Number('*')` is NaN, and a Map keys
-                 * NaN by SameValueZero, so the grand total under `NaN` makes the
-                 * "All" row show every channel. Genres with NO cached channels
-                 * get no entry at all: adult genres are excluded from
-                 * `get_all_channels` (with or without a `censored` flag from
-                 * `get_genres`), so their real count is unknown and the badge
-                 * is omitted rather than showing a misleading "0".
-                 */
-                itvCategoryItemCounts: computed(() => {
-                    const counts = new Map<number, number>();
-                    const channels = itvFullChannelList();
-                    for (const channel of channels) {
-                        const genreId = Number(channel.tv_genre_id);
-                        if (!Number.isNaN(genreId)) {
-                            counts.set(
-                                genreId,
-                                (counts.get(genreId) ?? 0) + 1
-                            );
-                        }
+                    const genreId = Number(categoryId);
+                    if (Number.isNaN(genreId)) {
+                        // Non-numeric genre id would collide with the NaN
+                        // "All" total key — fall back to the direct scan.
+                        return (
+                            filterItvChannelsByGenre(
+                                itvFullChannelList(),
+                                categoryId
+                            ).length > 0
+                        );
                     }
-                    counts.set(Number.NaN, channels.length);
-                    return counts;
+
+                    return (itvCategoryItemCounts().get(genreId) ?? 0) > 0;
                 }),
+                itvCategoryItemCounts,
                 getTotalPages: computed(() =>
                     Math.ceil(store.totalCount() / storeContext.limit())
                 ),

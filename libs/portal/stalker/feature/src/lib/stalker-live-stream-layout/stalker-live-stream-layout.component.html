@@ -19,7 +19,10 @@
                     <span class="category-subtitle"
                         >{{ totalChannelCount() }}
                         {{
-                            totalChannelCount() === 1 ? 'item' : 'items'
+                            (totalChannelCount() === 1
+                                ? 'PORTALS.ITEM'
+                                : 'PORTALS.ITEMS'
+                            ) | translate
                         }}</span
                     >
                 }

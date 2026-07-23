@@ -954,6 +954,8 @@
         "LOADING_ALL_CHANNELS": "Загрузка полного списка каналов…",
         "REFRESH_CHANNEL_LIST": "Обновить список каналов",
         "NO_CHANNELS_IN_CATEGORY": "В этой категории нет каналов",
+        "ITEM": "элемент",
+        "ITEMS": "элементов",
         "NO_EPISODES": "Нет доступных эпизодов",
         "ALL_RADIO": "Все радио"
     },

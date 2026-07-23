@@ -954,6 +954,8 @@
         "LOADING_ALL_CHANNELS": "Vollständige Senderliste wird geladen…",
         "REFRESH_CHANNEL_LIST": "Senderliste aktualisieren",
         "NO_CHANNELS_IN_CATEGORY": "Keine Sender in dieser Kategorie",
+        "ITEM": "Element",
+        "ITEMS": "Elemente",
         "NO_EPISODES": "Keine Episoden verfügbar",
         "ALL_RADIO": "Alle Radiosender"
     },

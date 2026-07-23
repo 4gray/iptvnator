@@ -954,6 +954,8 @@
         "LOADING_ALL_CHANNELS": "Volledige zenderlijst wordt geladen…",
         "REFRESH_CHANNEL_LIST": "Zenderlijst vernieuwen",
         "NO_CHANNELS_IN_CATEGORY": "Geen zenders in deze categorie",
+        "ITEM": "item",
+        "ITEMS": "items",
         "NO_EPISODES": "Geen afleveringen beschikbaar",
         "ALL_RADIO": "Alle radio"
     },

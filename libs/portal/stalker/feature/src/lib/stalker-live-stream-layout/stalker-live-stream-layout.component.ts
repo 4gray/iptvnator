@@ -146,18 +146,31 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     /**
      * Channels matching the search phrase. Without a term, the current
      * category. With a term in full-list mode, the WHOLE portal's channel list
-     * (every category) so search behaves like "search all channels"; otherwise
-     * the loaded channels of the current category.
+     * (every category) so search behaves like "search all channels" — merged
+     * with the currently loaded channels, because a censored (adult) category
+     * is paged from the portal and its channels are intentionally absent from
+     * the full-list cache. Otherwise the loaded channels of the current
+     * category.
      */
     readonly filteredChannels = computed(() => {
         const term = this.searchTerm();
-        const source =
-            term && this.isFullListMode()
-                ? this.stalkerStore.itvFullChannelList()
-                : this.channels();
-
         if (!term) {
-            return source;
+            return this.channels();
+        }
+
+        let source = this.channels();
+        if (this.isFullListMode()) {
+            const merged = new Map<string, StalkerItvChannel>();
+            for (const channel of source) {
+                merged.set(normalizeStalkerEntityId(channel.id), channel);
+            }
+            for (const channel of this.stalkerStore.itvFullChannelList()) {
+                const id = normalizeStalkerEntityId(channel.id);
+                if (!merged.has(id)) {
+                    merged.set(id, channel);
+                }
+            }
+            source = [...merged.values()];
         }
 
         return source.filter((item) =>

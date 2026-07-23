@@ -954,6 +954,8 @@
         "LOADING_ALL_CHANNELS": "Ładowanie pełnej listy kanałów…",
         "REFRESH_CHANNEL_LIST": "Odśwież listę kanałów",
         "NO_CHANNELS_IN_CATEGORY": "Brak kanałów w tej kategorii",
+        "ITEM": "pozycja",
+        "ITEMS": "pozycji",
         "NO_EPISODES": "Brak dostępnych odcinków",
         "ALL_RADIO": "Wszystkie radia"
     },

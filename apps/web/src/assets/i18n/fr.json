@@ -954,6 +954,8 @@
         "LOADING_ALL_CHANNELS": "Chargement de la liste complète des chaînes…",
         "REFRESH_CHANNEL_LIST": "Actualiser la liste des chaînes",
         "NO_CHANNELS_IN_CATEGORY": "Aucune chaîne dans cette catégorie",
+        "ITEM": "élément",
+        "ITEMS": "éléments",
         "NO_EPISODES": "Aucun épisode disponible",
         "ALL_RADIO": "Toutes les radios"
     },

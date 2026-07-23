@@ -52,7 +52,10 @@ import {
                     <span class="category-subtitle"
                         >{{ filteredChannels().length }}
                         {{
-                            filteredChannels().length === 1 ? 'item' : 'items'
+                            (filteredChannels().length === 1
+                                ? 'PORTALS.ITEM'
+                                : 'PORTALS.ITEMS'
+                            ) | translate
                         }}</span
                     >
                 }
