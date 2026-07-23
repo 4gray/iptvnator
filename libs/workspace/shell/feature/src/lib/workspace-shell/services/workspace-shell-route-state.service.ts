@@ -55,21 +55,6 @@ export class WorkspaceShellRouteStateService {
     readonly showDashboard = computed(() =>
         this.startupPreferences.showDashboard()
     );
-    readonly brandLink = computed(() =>
-        this.startupPreferences.getFirstAvailableWorkspacePath(
-            this.showDashboard()
-        )
-    );
-    readonly brandTooltipKey = computed(() =>
-        this.showDashboard()
-            ? 'WORKSPACE.SHELL.RAIL_DASHBOARD'
-            : 'WORKSPACE.SHELL.RAIL_SOURCES'
-    );
-    readonly brandAriaLabelKey = computed(() =>
-        this.showDashboard()
-            ? 'WORKSPACE.SHELL.OPEN_DASHBOARD'
-            : 'WORKSPACE.SHELL.OPEN_SOURCES'
-    );
     readonly workspaceLinks = computed<PortalRailLink[]>(() => {
         this.languageTick();
 
@@ -97,6 +82,15 @@ export class WorkspaceShellRouteStateService {
                     'WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH'
                 ),
                 path: ['/workspace/search'],
+                exact: true,
+            });
+        }
+
+        if (this.runtime.supportsRecordings) {
+            links.push({
+                icon: 'video_library',
+                tooltip: this.translateText('WORKSPACE.SHELL.RAIL_RECORDINGS'),
+                path: ['/workspace/recordings'],
                 exact: true,
             });
         }
@@ -143,7 +137,8 @@ export class WorkspaceShellRouteStateService {
             currentRoute.kind !== 'global-favorites' &&
             currentRoute.kind !== 'global-recent' &&
             currentRoute.kind !== 'global-search' &&
-            currentRoute.kind !== 'downloads'
+            currentRoute.kind !== 'downloads' &&
+            currentRoute.kind !== 'recordings'
         ) {
             return null;
         }

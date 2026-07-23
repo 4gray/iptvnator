@@ -103,8 +103,11 @@
                             [programs]="epgPrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="archivePlaybackAvailable()"
+                            [archivePlaybackAvailable]="
+                                archivePlaybackAvailable()
+                            "
                             [archiveDays]="epgArchiveDays()"
+                            [recordingAvailable]="recordingAvailable()"
                             [activeProgram]="activeEpgProgramOrNull()"
                             [isLivePlayback]="!showReturnToLive()"
                             [selectedDate]="selectedLiveEpgDate()"
@@ -116,6 +119,7 @@
                             (programActivated)="
                                 onTimelineProgramActivated($event)
                             "
+                            (recordingRequested)="onRecordingRequested($event)"
                             (returnToLive)="returnToLivePlayback()"
                             (selectedDateChange)="
                                 onLiveEpgSelectedDateChange($event)
@@ -129,8 +133,11 @@
                             [programs]="epgPrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="archivePlaybackAvailable()"
+                            [archivePlaybackAvailable]="
+                                archivePlaybackAvailable()
+                            "
                             [archiveDays]="epgArchiveDays()"
+                            [recordingAvailable]="recordingAvailable()"
                             [activeProgram]="activeEpgProgramOrNull()"
                             [isLivePlayback]="!showReturnToLive()"
                             [selectedDate]="selectedLiveEpgDate()"
@@ -142,6 +149,7 @@
                             (programActivated)="
                                 onTimelineProgramActivated($event)
                             "
+                            (recordingRequested)="onRecordingRequested($event)"
                             (returnToLive)="returnToLivePlayback()"
                             (selectedDateChange)="
                                 onLiveEpgSelectedDateChange($event)

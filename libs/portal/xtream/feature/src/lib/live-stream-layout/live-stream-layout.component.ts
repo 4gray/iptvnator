@@ -19,7 +19,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     GridListComponent,
@@ -40,6 +41,7 @@ import {
     queryParamSignal,
     restoreLiveEpgPanelState,
     restorePortalChannelSortMode,
+    RECORDING_ACTIONS,
 } from '@iptvnator/portal/shared/util';
 import {
     FavoriteItem,
@@ -51,6 +53,7 @@ import {
     EpgDateNavigationDirection,
     EpgListViewComponent,
     EpgProgramActivationEvent,
+    EpgRecordingRequestEvent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
@@ -121,6 +124,11 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly recordingActions = inject(RECORDING_ACTIONS, {
+        optional: true,
+    });
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
@@ -137,6 +145,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
     readonly isElectron = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
+    readonly recordingAvailable = computed(
+        () => this.recordingActions?.isAvailable() ?? false
+    );
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
@@ -469,6 +480,49 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         }
 
         await this.playCatchup(event.program, selectedItem);
+    }
+
+    async onRecordingRequested(event: EpgRecordingRequestEvent): Promise<void> {
+        const recordingActions = this.recordingActions;
+        const playlist = this.xtreamStore.currentPlaylist();
+        const item = this.selectedLiveItem();
+        if (!recordingActions || !playlist || !item?.xtream_id) {
+            return;
+        }
+
+        const title = item.title ?? item.name ?? String(item.xtream_id);
+        const streamUrl = this.xtreamUrlService.constructLiveUrl(
+            playlist,
+            item.xtream_id
+        );
+        const result = await recordingActions.schedule({
+            playlistId: playlist.id,
+            sourceType: 'xtream',
+            channelId: String(item.xtream_id),
+            channelName: title,
+            title: event.program.title,
+            description: event.program.desc ?? undefined,
+            posterUrl: item.poster_url ?? item.stream_icon ?? undefined,
+            epgChannelId: event.program.channel ?? undefined,
+            scheduledStartAt: event.scheduledStartAt,
+            scheduledEndAt: event.scheduledEndAt,
+            playback: {
+                streamUrl,
+                title,
+                thumbnail: item.poster_url ?? item.stream_icon ?? null,
+                isLive: true,
+                userAgent: playlist.userAgent,
+                referer: playlist.referrer,
+                origin: playlist.origin,
+            },
+        });
+        this.snackBar.open(
+            result.success
+                ? this.translate.instant('RECORDINGS.ACTION_COMPLETE')
+                : this.translate.instant('RECORDINGS.ACTION_FAILED'),
+            undefined,
+            { duration: 3000 }
+        );
     }
 
     setLiveChannelSortMode(mode: PortalChannelSortMode): void {

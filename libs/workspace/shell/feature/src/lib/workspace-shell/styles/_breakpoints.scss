@@ -1,0 +1,9 @@
+// Keep this value aligned with workspace-shell-layout.constants.ts. This is
+// the single Sass definition shared by the shell and its rail components.
+$compact-max-width: 640px;
+
+@mixin compact {
+    @media (max-width: $compact-max-width) {
+        @content;
+    }
+}

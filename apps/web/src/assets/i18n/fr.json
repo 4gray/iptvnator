@@ -657,7 +657,8 @@
             "LANGUAGE": "Langue",
             "SHOW_PROGRAM_DETAILS": "Afficher les détails de ce programme",
             "EPISODE": "Épisode",
-            "DURATION": "Durée"
+            "DURATION": "Durée",
+            "RECORD_PROGRAM": "Enregistrer le programme"
         },
         "FETCH_SUCCESS": "L'EPG a été récupéré avec succès",
         "IMPORT_PROGRESS": "Importation EPG",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Toutes les radios"
     },
     "INFORMATION": "Information",
+    "RECORDINGS": {
+        "TITLE": "Enregistrements",
+        "SUBTITLE": "Enregistrements programmés et votre bibliothèque DVR locale",
+        "DESKTOP_ONLY_TITLE": "Les enregistrements sont disponibles dans l’application de bureau",
+        "DESKTOP_ONLY_BODY": "Le planificateur DVR nécessite qu’IPTVnator soit en cours d’exécution sur votre ordinateur.",
+        "ENGINE_UNAVAILABLE_TITLE": "Moteur d’enregistrement indisponible",
+        "ENGINE_UNAVAILABLE_BODY": "Aucun moteur d’enregistrement compatible n’est disponible. Installez Embedded MPV ou VLC pour programmer de nouveaux enregistrements.",
+        "ACTIVE_COUNT_LABEL": "Enregistrements actifs : {{count}}",
+        "RETRY": "Réessayer",
+        "LOAD_FAILED_TITLE": "Impossible de charger la bibliothèque d’enregistrements",
+        "LOAD_FAILED_BODY": "Vérifiez la connexion à l’application de bureau et réessayez.",
+        "FILTER_LABEL": "Filtrer les enregistrements",
+        "FILTERS": {
+            "ALL": "Tous",
+            "UPCOMING": "À venir",
+            "LIBRARY": "Bibliothèque"
+        },
+        "EMPTY_TITLE": "Aucun enregistrement pour le moment",
+        "EMPTY_BODY": "Programmez l’enregistrement d’une émission en direct depuis le guide des programmes pour l’ajouter ici.",
+        "CANCEL": "Annuler l’enregistrement",
+        "PLAY": "Lire",
+        "REVEAL": "Afficher dans le dossier",
+        "REMOVE": "Supprimer de la bibliothèque",
+        "ACTION_COMPLETE": "Bibliothèque des enregistrements mise à jour",
+        "ACTION_FAILED": "Impossible d’effectuer l’action sur l’enregistrement",
+        "STATUS": {
+            "SCHEDULED": "Planifié",
+            "RECORDING": "En cours d’enregistrement",
+            "COMPLETED": "Terminé",
+            "FAILED": "Échec",
+            "CANCELED": "Annulé",
+            "MISSED": "Manqué",
+            "INTERRUPTED": "Interrompu"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Les enregistrements Stalker futurs ne sont pas disponibles car le portail crée des liens de courte durée. Vous pouvez enregistrer le programme en cours."
+    },
     "DOWNLOADS": {
         "TITLE": "Téléchargements",
         "DOWNLOAD": "Télécharger",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Développer la navigation",
+            "COLLAPSE_NAVIGATION": "Réduire la navigation",
             "RAIL_DASHBOARD": "Tableau de bord",
             "OPEN_DASHBOARD": "Ouvrir le tableau de bord",
             "RAIL_SOURCES": "Sources",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Récemment consultés",
             "RAIL_FAVORITES": "Favoris",
             "RAIL_DOWNLOADS": "Téléchargements",
+            "RAIL_RECORDINGS": "Enregistrements",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Toutes les chaînes",
             "RAIL_GROUPS": "Groupes",

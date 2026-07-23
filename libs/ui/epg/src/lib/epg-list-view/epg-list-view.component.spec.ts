@@ -32,12 +32,14 @@ function localDateKey(iso: string): string {
 describe('EpgListViewComponent', () => {
     let fixture: ComponentFixture<EpgListViewComponent>;
     let component: EpgListViewComponent;
-    let dialogResult: BehaviorSubject<'live' | 'timeshift' | undefined>;
+    let dialogResult: BehaviorSubject<
+        'live' | 'timeshift' | 'record' | undefined
+    >;
 
     beforeEach(() => {
-        dialogResult = new BehaviorSubject<'live' | 'timeshift' | undefined>(
-            undefined
-        );
+        dialogResult = new BehaviorSubject<
+            'live' | 'timeshift' | 'record' | undefined
+        >(undefined);
         TestBed.configureTestingModule({
             imports: [EpgListViewComponent],
             providers: [
@@ -213,6 +215,20 @@ describe('EpgListViewComponent', () => {
 
         component.openDetails(rowWhen('past'));
         expect(events).toEqual(['timeshift']);
+    });
+
+    it('emits a recording request for a current programme', () => {
+        const program = programAt(-5, 60, 'Record me');
+        setInputs({ programs: [program], recordingAvailable: true });
+        dialogResult.next('record');
+        const events: Array<{ scheduledEndAt: string }> = [];
+        component.recordingRequested.subscribe((event) => events.push(event));
+
+        component.openDetails(rowWhen('now'));
+
+        expect(events).toEqual([
+            expect.objectContaining({ program, scheduledEndAt: program.stop }),
+        ]);
     });
 
     it('emits the day when stepping forward', () => {

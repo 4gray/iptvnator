@@ -1,10 +1,32 @@
 import type BetterSqlite3 from 'better-sqlite3';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
     EpgDatabase,
     EpgDatabaseClearOperation,
     EpgDatabaseSourceClearOperation,
 } from './epg-database';
 import type { ParsedChannel } from './epg-streaming-parser';
+
+const e2eDataDirectoryEnv = 'IPTVNATOR_E2E_DATA_DIR';
+let dataDirectory: string;
+let previousDataDirectory: string | undefined;
+
+beforeAll(() => {
+    previousDataDirectory = process.env[e2eDataDirectoryEnv];
+    dataDirectory = mkdtempSync(join(tmpdir(), 'iptvnator-epg-db-test-'));
+    process.env[e2eDataDirectoryEnv] = dataDirectory;
+});
+
+afterAll(() => {
+    if (previousDataDirectory === undefined) {
+        delete process.env[e2eDataDirectoryEnv];
+    } else {
+        process.env[e2eDataDirectoryEnv] = previousDataDirectory;
+    }
+    rmSync(dataDirectory, { recursive: true, force: true });
+});
 
 function createDatabaseMock(exec: jest.Mock) {
     const database = {

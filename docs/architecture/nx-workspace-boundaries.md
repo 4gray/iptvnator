@@ -20,10 +20,11 @@ can inspect project metadata.
 Every Nx project should carry three tag families in `project.json`:
 
 1. `scope:*` - ownership area, for example `scope:portal`, `scope:workspace`,
-   `scope:shared`, `scope:electron`, `scope:e2e`, or `scope:dev-tools`.
+   `scope:recording`, `scope:shared`, `scope:electron`, `scope:e2e`, or
+   `scope:dev-tools`.
 2. `domain:*` - product/runtime domain, for example `domain:xtream`,
-   `domain:stalker`, `domain:m3u`, `domain:playback`, `domain:web`, or
-   `domain:shared-runtime`.
+   `domain:stalker`, `domain:m3u`, `domain:recording`, `domain:playback`,
+   `domain:web`, or `domain:shared-runtime`.
 3. `type:*` - architectural role, for example `type:app`, `type:e2e`,
    `type:dev-app`, `type:feature`, `type:ui`, `type:data-access`,
    `type:util`, `type:tool`, or `type:website`.
@@ -82,6 +83,24 @@ playback, or EPG data belongs in `libs/portal/shared/data-access`, not
 `libs/portal/shared/util`. That keeps pure collection helpers importable by
 Xtream/Stalker data-access libraries while allowing shared UI to use
 provider-specific collection services without creating cycles.
+
+Recording code follows the same feature/data-access split:
+
+- `libs/recording/feature` (`scope:recording`, `domain:recording`,
+  `type:feature`) owns the lazy recording-library route and presentation.
+- `libs/recording/data-access` (`scope:recording`, `domain:recording`,
+  `type:data-access`) owns the renderer recording service and semantic Electron
+  bridge access.
+- persisted/public recording contracts remain in `libs/shared/interfaces`, and
+  the canonical table remains in `libs/shared/database`.
+- provider-specific live features may depend on the shared recording action
+  port, but recording data-access must not depend back on M3U, Xtream, or
+  Stalker feature libraries.
+
+Use `@iptvnator/recording/feature` and
+`@iptvnator/recording/data-access`; do not deep-import their implementation
+files. See [DVR Recording](./dvr-recording.md) for the Electron ownership and
+security boundaries.
 
 Note: `workspace-shell-util` (`libs/workspace/shell/util`) is tagged
 `type:data-access` despite its path. It exports injectable services such as

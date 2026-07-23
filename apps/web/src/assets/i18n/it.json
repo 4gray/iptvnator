@@ -657,7 +657,8 @@
             "LANGUAGE": "Lingua",
             "SHOW_PROGRAM_DETAILS": "Visualizza dettagli su questo programma",
             "EPISODE": "Episodio",
-            "DURATION": "Durata"
+            "DURATION": "Durata",
+            "RECORD_PROGRAM": "Registra programma"
         },
         "FETCH_SUCCESS": "EPG scaricato correttamente",
         "IMPORT_PROGRESS": "Importazione EPG",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Tutte le radio"
     },
     "INFORMATION": "Informazioni",
+    "RECORDINGS": {
+        "TITLE": "Registrazioni",
+        "SUBTITLE": "Registrazioni programmate e la tua libreria DVR locale",
+        "DESKTOP_ONLY_TITLE": "Le registrazioni sono disponibili nell’app desktop",
+        "DESKTOP_ONLY_BODY": "Per usare la pianificazione DVR, IPTVnator deve essere in esecuzione sul tuo computer.",
+        "ENGINE_UNAVAILABLE_TITLE": "Motore di registrazione non disponibile",
+        "ENGINE_UNAVAILABLE_BODY": "Non è disponibile un motore di registrazione supportato. Installa Embedded MPV o VLC per programmare nuove registrazioni.",
+        "ACTIVE_COUNT_LABEL": "Registrazioni attive: {{count}}",
+        "RETRY": "Riprova",
+        "LOAD_FAILED_TITLE": "Impossibile caricare la libreria delle registrazioni",
+        "LOAD_FAILED_BODY": "Controlla la connessione all’app desktop e riprova.",
+        "FILTER_LABEL": "Filtra registrazioni",
+        "FILTERS": {
+            "ALL": "Tutte",
+            "UPCOMING": "Programmate",
+            "LIBRARY": "Libreria"
+        },
+        "EMPTY_TITLE": "Ancora nessuna registrazione",
+        "EMPTY_BODY": "Programma la registrazione di una trasmissione in diretta dall’EPG per aggiungerla qui.",
+        "CANCEL": "Annulla registrazione",
+        "PLAY": "Riproduci",
+        "REVEAL": "Mostra nella cartella",
+        "REMOVE": "Rimuovi dalla libreria",
+        "ACTION_COMPLETE": "Libreria delle registrazioni aggiornata",
+        "ACTION_FAILED": "Impossibile completare l’azione sulla registrazione",
+        "STATUS": {
+            "SCHEDULED": "Programmata",
+            "RECORDING": "Registrazione in corso",
+            "COMPLETED": "Completata",
+            "FAILED": "Non riuscita",
+            "CANCELED": "Annullata",
+            "MISSED": "Persa",
+            "INTERRUPTED": "Interrotta"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Le registrazioni Stalker future non sono disponibili perché il portale crea collegamenti di breve durata. Puoi registrare il programma in onda."
+    },
     "DOWNLOADS": {
         "TITLE": "Download",
         "DOWNLOAD": "Scarica",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Espandi navigazione",
+            "COLLAPSE_NAVIGATION": "Comprimi navigazione",
             "RAIL_DASHBOARD": "Dashboard",
             "OPEN_DASHBOARD": "Apri dashboard",
             "RAIL_SOURCES": "Sorgenti",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Visti di recente",
             "RAIL_FAVORITES": "Preferiti",
             "RAIL_DOWNLOADS": "Download",
+            "RAIL_RECORDINGS": "Registrazioni",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Tutti i canali",
             "RAIL_GROUPS": "Gruppi",

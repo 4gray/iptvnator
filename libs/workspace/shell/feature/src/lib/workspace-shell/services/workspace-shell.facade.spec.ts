@@ -154,6 +154,7 @@ describe('WorkspaceShellFacade', () => {
         isElectron: boolean;
         isMacOS: boolean;
         supportsDownloads: boolean;
+        supportsRecordings: boolean;
     };
 
     beforeEach(() => {
@@ -162,6 +163,7 @@ describe('WorkspaceShellFacade', () => {
             isElectron: true,
             isMacOS: true,
             supportsDownloads: true,
+            supportsRecordings: false,
         };
 
         activePlaylistSignal = signal({
@@ -693,7 +695,6 @@ describe('WorkspaceShellFacade', () => {
                 exact: true,
             },
         ]);
-        expect(facade.brandLink()).toBe('/workspace/sources');
     });
 
     it('hides the Electron-only global search rail link in the web runtime', () => {
@@ -705,6 +706,27 @@ describe('WorkspaceShellFacade', () => {
             ['/workspace/global-favorites'],
             ['/workspace/global-recent'],
         ]);
+    });
+
+    it('adds the DVR library link when recordings are supported', () => {
+        runtime.supportsRecordings = true;
+
+        expect(facade.workspaceLinks()).toContainEqual({
+            icon: 'video_library',
+            tooltip: 'WORKSPACE.SHELL.RAIL_RECORDINGS',
+            path: ['/workspace/recordings'],
+            exact: true,
+        });
+    });
+
+    it('keeps provider navigation available from the recordings route', () => {
+        facade.currentUrl.set('/workspace/recordings');
+
+        expect(facade.railContext()).toEqual({
+            provider: 'xtreams',
+            playlistId: 'pl-1',
+        });
+        expect(facade.primaryContextLinks()).not.toHaveLength(0);
     });
 
     it('persists the last restorable route from navigation events', () => {

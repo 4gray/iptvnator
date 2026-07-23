@@ -657,7 +657,8 @@
             "LANGUAGE": "언어",
             "SHOW_PROGRAM_DETAILS": "이 프로그램에 대한 세부 정보 표시",
             "EPISODE": "에피소드",
-            "DURATION": "재생 시간"
+            "DURATION": "재생 시간",
+            "RECORD_PROGRAM": "프로그램 녹화"
         },
         "FETCH_SUCCESS": "EPG를 성공적으로 가져왔습니다",
         "IMPORT_PROGRESS": "EPG 가져오기",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "모든 라디오"
     },
     "INFORMATION": "정보",
+    "RECORDINGS": {
+        "TITLE": "녹화",
+        "SUBTITLE": "예약 녹화 및 로컬 DVR 라이브러리",
+        "DESKTOP_ONLY_TITLE": "녹화 기능은 데스크톱 앱에서 사용할 수 있습니다",
+        "DESKTOP_ONLY_BODY": "DVR 예약 녹화를 실행하려면 컴퓨터에서 IPTVnator가 계속 실행 중이어야 합니다.",
+        "ENGINE_UNAVAILABLE_TITLE": "녹화 엔진을 사용할 수 없습니다",
+        "ENGINE_UNAVAILABLE_BODY": "지원되는 녹화 엔진을 사용할 수 없습니다. 새 녹화를 예약하려면 Embedded MPV 또는 VLC를 설치하세요.",
+        "ACTIVE_COUNT_LABEL": "활성 녹화: {{count}}",
+        "RETRY": "다시 시도",
+        "LOAD_FAILED_TITLE": "녹화 라이브러리를 불러올 수 없습니다",
+        "LOAD_FAILED_BODY": "데스크톱 앱 연결을 확인하고 다시 시도하세요.",
+        "FILTER_LABEL": "녹화 필터",
+        "FILTERS": {
+            "ALL": "전체",
+            "UPCOMING": "예정됨",
+            "LIBRARY": "라이브러리"
+        },
+        "EMPTY_TITLE": "아직 녹화가 없습니다",
+        "EMPTY_BODY": "EPG에서 실시간 프로그램 녹화를 예약하면 여기에 추가됩니다.",
+        "CANCEL": "녹화 취소",
+        "PLAY": "재생",
+        "REVEAL": "폴더에서 보기",
+        "REMOVE": "라이브러리에서 제거",
+        "ACTION_COMPLETE": "녹화 라이브러리를 업데이트했습니다",
+        "ACTION_FAILED": "녹화 작업을 완료할 수 없습니다",
+        "STATUS": {
+            "SCHEDULED": "예약됨",
+            "RECORDING": "녹화 중",
+            "COMPLETED": "완료됨",
+            "FAILED": "실패함",
+            "CANCELED": "취소됨",
+            "MISSED": "놓침",
+            "INTERRUPTED": "중단됨"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "포털이 유효 시간이 짧은 링크를 생성하므로 향후 Stalker 예약 녹화는 사용할 수 없습니다. 현재 방송 중인 프로그램은 녹화할 수 있습니다."
+    },
     "DOWNLOADS": {
         "TITLE": "다운로드",
         "DOWNLOAD": "다운로드",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "탐색 펼치기",
+            "COLLAPSE_NAVIGATION": "탐색 접기",
             "RAIL_DASHBOARD": "대시보드",
             "OPEN_DASHBOARD": "대시보드 열기",
             "RAIL_SOURCES": "소스",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "최근 본 항목",
             "RAIL_FAVORITES": "즐겨찾기",
             "RAIL_DOWNLOADS": "다운로드",
+            "RAIL_RECORDINGS": "녹화",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "모든 채널",
             "RAIL_GROUPS": "그룹",

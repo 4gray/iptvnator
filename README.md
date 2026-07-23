@@ -41,6 +41,7 @@ The application is a cross-platform, open-source project built with Electron and
 **Live TV & EPG**
 
 - EPG / XMLTV TV guide with a live timeline ribbon and multi-channel grid _(desktop)_
+- DVR scheduling and a local recording library powered by embedded MPV, with a headless VLC fallback _(desktop; IPTVnator must be running during the recording window)_
 - TV archive / catch-up / timeshift _(desktop)_
 - Group-based channel list, channel-number selection, and search 🔍
 
@@ -130,7 +131,8 @@ variables, reverse proxy notes, PWA limitations, and build details.
 
 The self-hosted image runs the browser PWA rather than the Electron desktop app:
 EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,
-and Electron remote-control features are not available there. If browser
+the DVR scheduler/recording library, and Electron remote-control features are
+not available there. If browser
 playback fails, copy the stream URL and open it manually in an external player
 such as MPV, VLC, or IINA.
 
@@ -326,8 +328,9 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_IPC=1` logs renderer `window.electron.*` calls reaching the
   Electron bridge
 - `IPTVNATOR_TRACE_DB=1` logs DB worker requests and request-scoped DB events
-- `IPTVNATOR_TRACE_SQL=1` logs SQLite statements in both the main connection and
-  DB worker connection
+- `IPTVNATOR_TRACE_SQL=1` logs redacted SQLite statement shapes in both the main
+  connection and DB worker connection; string/blob literals and database paths
+  are not printed
 - `IPTVNATOR_TRACE_WINDOW=1` logs BrowserWindow load, navigation, and
   unresponsive events
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console messages into

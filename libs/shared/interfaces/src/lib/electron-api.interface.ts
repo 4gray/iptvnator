@@ -29,6 +29,13 @@ import {
     ResolvedPortalPlayback,
 } from './portal-playback.interface';
 import { PortalDebugEvent } from './portal-debug.interface';
+import {
+    RecordingActionResult,
+    RecordingItem,
+    RecordingSupport,
+    ScheduleRecordingRequest,
+    ScheduleRecordingResult,
+} from './recording.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
 import { Settings } from './settings.interface';
 import { TmdbCacheEntry, TmdbCacheMediaType } from './tmdb.interface';
@@ -949,6 +956,18 @@ export interface ElectronBridgeApi {
      */
     attachEmbeddedMpvFrameView?: (sessionId: string) => Promise<boolean>;
     detachEmbeddedMpvFrameView?: () => void;
+    recordingsSchedule: (
+        request: ScheduleRecordingRequest
+    ) => Promise<ScheduleRecordingResult>;
+    recordingsGetSupport: () => Promise<RecordingSupport>;
+    recordingsGetList: () => Promise<RecordingItem[]>;
+    recordingsCancel: (recordingId: string) => Promise<RecordingActionResult>;
+    recordingsRemove: (recordingId: string) => Promise<RecordingActionResult>;
+    recordingsRevealFile: (
+        recordingId: string
+    ) => Promise<RecordingActionResult>;
+    recordingsPlayFile: (recordingId: string) => Promise<RecordingActionResult>;
+    onRecordingsUpdate: (callback: () => void) => () => void;
     downloadsStart: (
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;

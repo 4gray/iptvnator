@@ -6,6 +6,17 @@ const MAX_TRACE_ARRAY_ITEMS = 5;
 const MAX_TRACE_OBJECT_KEYS = 8;
 const MAX_TRACE_STRING_LENGTH = 180;
 const MAX_TRACE_DEPTH = 2;
+const REDACTED_TRACE_VALUE = '[REDACTED]';
+const SENSITIVE_TRACE_KEYS = new Set([
+    'authorization',
+    'cookie',
+    'cookies',
+    'filepath',
+    'headers',
+    'recordingdirectory',
+    'requestheaders',
+    'streamurl',
+]);
 
 export const DEBUG_TRACE_EVENT_CHANNEL = 'IPTVNATOR_DEBUG_TRACE_EVENT';
 
@@ -34,7 +45,10 @@ function summarizeObject(
     }
 
     entries.slice(0, MAX_TRACE_OBJECT_KEYS).forEach(([key, entryValue]) => {
-        summary[key] = summarizeForTrace(entryValue, depth + 1);
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        summary[key] = SENSITIVE_TRACE_KEYS.has(normalizedKey)
+            ? REDACTED_TRACE_VALUE
+            : summarizeForTrace(entryValue, depth + 1);
     });
 
     if (entries.length > MAX_TRACE_OBJECT_KEYS) {
@@ -81,7 +95,12 @@ export function roundTraceDuration(durationMs: number): number {
 }
 
 export function compactSqlForTrace(sql: string): string {
-    return truncateString(sql.replace(/\s+/g, ' ').trim());
+    const withoutBlobLiterals = sql.replace(/\b[xX]'(?:''|[^'])*'/g, '?');
+    const withoutStringLiterals = withoutBlobLiterals.replace(
+        /'(?:''|[^'])*'/g,
+        '?'
+    );
+    return truncateString(withoutStringLiterals.replace(/\s+/g, ' ').trim());
 }
 
 export function summarizeForTrace(value: unknown, depth = 0): unknown {

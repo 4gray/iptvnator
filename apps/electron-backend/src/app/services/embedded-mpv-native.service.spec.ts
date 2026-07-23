@@ -548,12 +548,37 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();
     });
 
+    it('keeps main-process sessions private from renderer updates and access', () => {
+        addon.createSession.mockReturnValueOnce('private-recording');
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', {
+                streamUrl: 'https://example.com/private-token',
+                recording: {
+                    active: true,
+                    targetPath: '/private/recordings/news.ts',
+                },
+            })
+        );
+
+        service.createMainProcessSession(BOUNDS, 'Private recording', 0);
+
+        expect(mainWindowSendMock).not.toHaveBeenCalled();
+        expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();
+        expect(() =>
+            service.assertRendererSession('private-recording')
+        ).toThrow('owned by the main process');
+        service.disposeSession('private-recording');
+        expect(mainWindowSendMock).not.toHaveBeenCalled();
+    });
+
     it('disposes sessions when the renderer reloads or crashes', () => {
         // Angular teardown never runs on a renderer crash or hard reload, so
         // the main process must reap sessions itself — otherwise native mpv
         // handles / frame-copy helper processes leak until app shutdown.
         startSession('s1', snapshot('playing'));
         addon.getSessionSnapshot.mockReturnValue(snapshot('playing'));
+        addon.createSession.mockReturnValueOnce('private-recording');
+        service.createMainProcessSession(BOUNDS, 'Private recording', 0);
 
         const handlers = new Map<string, (...args: unknown[]) => void>(
             mainWindowWebContentsOnMock.mock.calls.map(
@@ -570,8 +595,15 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
         handlers.get('did-navigate')?.();
         expect(addon.disposeSession).toHaveBeenCalledWith('s1');
+        expect(addon.disposeSession).not.toHaveBeenCalledWith(
+            'private-recording'
+        );
+        expect(() =>
+            service.assertRendererSession('private-recording')
+        ).toThrow('owned by the main process');
 
-        // A crash after everything is already disposed must be a no-op.
+        // A crash after every renderer session is disposed must be a no-op;
+        // the independent main-process DVR session stays alive.
         addon.disposeSession.mockClear();
         handlers.get('render-process-gone')?.(undefined, {
             reason: 'crashed',

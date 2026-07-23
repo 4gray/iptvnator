@@ -25,7 +25,9 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
+    RECORDING_ACTIONS,
 } from '@iptvnator/portal/shared/util';
+import { RecordingService } from '@iptvnator/recording/data-access';
 import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import { DataService } from '@iptvnator/services';
@@ -140,6 +142,10 @@ export const appConfig: ApplicationConfig = {
         {
             provide: PORTAL_PLAYER,
             useExisting: PlayerService,
+        },
+        {
+            provide: RECORDING_ACTIONS,
+            useExisting: RecordingService,
         },
         {
             provide: PORTAL_EXTERNAL_PLAYBACK,

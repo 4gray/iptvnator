@@ -657,7 +657,8 @@
             "LANGUAGE": "Idioma",
             "SHOW_PROGRAM_DETAILS": "Mostrar detalhes sobre este programa",
             "EPISODE": "Episódio",
-            "DURATION": "Duração"
+            "DURATION": "Duração",
+            "RECORD_PROGRAM": "Gravar programa"
         },
         "FETCH_SUCCESS": "EPG foi buscado com sucesso",
         "IMPORT_PROGRESS": "Importação de EPG",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Todas as rádios"
     },
     "INFORMATION": "Informação",
+    "RECORDINGS": {
+        "TITLE": "Gravações",
+        "SUBTITLE": "Gravações agendadas e a sua biblioteca DVR local",
+        "DESKTOP_ONLY_TITLE": "As gravações estão disponíveis na aplicação para computador",
+        "DESKTOP_ONLY_BODY": "O agendador DVR requer que o IPTVnator esteja em execução no seu computador.",
+        "ENGINE_UNAVAILABLE_TITLE": "Motor de gravação indisponível",
+        "ENGINE_UNAVAILABLE_BODY": "Não está disponível um motor de gravação compatível. Instale o Embedded MPV ou o VLC para agendar novas gravações.",
+        "ACTIVE_COUNT_LABEL": "Gravações ativas: {{count}}",
+        "RETRY": "Tentar novamente",
+        "LOAD_FAILED_TITLE": "Não foi possível carregar a biblioteca de gravações",
+        "LOAD_FAILED_BODY": "Verifique a ligação à aplicação de ambiente de trabalho e tente novamente.",
+        "FILTER_LABEL": "Filtrar gravações",
+        "FILTERS": {
+            "ALL": "Todas",
+            "UPCOMING": "Agendadas",
+            "LIBRARY": "Biblioteca"
+        },
+        "EMPTY_TITLE": "Ainda não existem gravações",
+        "EMPTY_BODY": "Agende a gravação de um programa em direto a partir do EPG para o adicionar aqui.",
+        "CANCEL": "Cancelar gravação",
+        "PLAY": "Reproduzir",
+        "REVEAL": "Mostrar na pasta",
+        "REMOVE": "Remover da biblioteca",
+        "ACTION_COMPLETE": "Biblioteca de gravações atualizada",
+        "ACTION_FAILED": "Não foi possível concluir a ação de gravação",
+        "STATUS": {
+            "SCHEDULED": "Agendada",
+            "RECORDING": "Em gravação",
+            "COMPLETED": "Concluída",
+            "FAILED": "Falhou",
+            "CANCELED": "Cancelada",
+            "MISSED": "Não realizada",
+            "INTERRUPTED": "Interrompida"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "As gravações futuras do Stalker não estão disponíveis porque o portal cria ligações de curta duração. Pode gravar o programa atual."
+    },
     "DOWNLOADS": {
         "TITLE": "Downloads",
         "DOWNLOAD": "Baixar",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Expandir navegação",
+            "COLLAPSE_NAVIGATION": "Recolher navegação",
             "RAIL_DASHBOARD": "Dashboard",
             "OPEN_DASHBOARD": "Abrir dashboard",
             "RAIL_SOURCES": "Fontes",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Visualizados recentemente",
             "RAIL_FAVORITES": "Favoritos",
             "RAIL_DOWNLOADS": "Downloads",
+            "RAIL_RECORDINGS": "Gravações",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Todos os canais",
             "RAIL_GROUPS": "Grupos",

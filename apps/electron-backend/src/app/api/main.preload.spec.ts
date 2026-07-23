@@ -1,4 +1,5 @@
 import {
+    DB_RENDERER_WORKER_OPERATIONS,
     DB_WORKER_OPERATIONS,
     DbWorkerOperation,
 } from '../workers/database-worker.types';
@@ -9,6 +10,7 @@ import {
     APP_UPDATE_GET_STATUS,
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
+    RECORDINGS_UPDATE_EVENT,
 } from '@iptvnator/shared/interfaces';
 import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 import {
@@ -90,7 +92,9 @@ describe('main preload DB IPC contract', () => {
                     DB_WORKER_OPERATIONS.includes(channel as DbWorkerOperation)
             );
 
-        expect(new Set(workerChannels)).toEqual(new Set(DB_WORKER_OPERATIONS));
+        expect(new Set(workerChannels)).toEqual(
+            new Set(DB_RENDERER_WORKER_OPERATIONS)
+        );
     });
 
     it.each(dbPreloadCases)(
@@ -216,6 +220,27 @@ describe('main preload DB IPC contract', () => {
 
         expect(mockIpcRenderer.off).toHaveBeenCalledWith(
             'DB_OPERATION_EVENT',
+            handler
+        );
+    });
+
+    it('forwards recording updates and unregisters the exact listener', () => {
+        const api = getExposedApi();
+        const callback = jest.fn();
+
+        const unsubscribe = api.onRecordingsUpdate(callback);
+        const handler = mockIpcRenderer.on.mock.calls[0][1];
+        handler();
+
+        expect(mockIpcRenderer.on).toHaveBeenCalledWith(
+            RECORDINGS_UPDATE_EVENT,
+            handler
+        );
+        expect(callback).toHaveBeenCalledTimes(1);
+
+        unsubscribe();
+        expect(mockIpcRenderer.off).toHaveBeenCalledWith(
+            RECORDINGS_UPDATE_EVENT,
             handler
         );
     });

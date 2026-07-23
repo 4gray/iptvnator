@@ -1,51 +1,91 @@
-<aside class="app-rail" [class.is-macos]="isMacOS()">
-    <a
-        class="brand"
-        [routerLink]="brandLink()"
-        [matTooltip]="brandTooltipKey() | translate"
+<aside
+    class="app-rail"
+    [attr.dir]="textDirection()"
+    [class.is-macos]="isMacOS()"
+    [class.is-expanded]="expanded()"
+>
+    <button
+        type="button"
+        class="rail-toggle"
+        (click)="toggleExpanded()"
+        [disabled]="isCompact()"
+        [matTooltip]="
+            (expanded()
+                ? 'WORKSPACE.SHELL.COLLAPSE_NAVIGATION'
+                : 'WORKSPACE.SHELL.EXPAND_NAVIGATION'
+            ) | translate
+        "
+        [matTooltipDisabled]="isCompact()"
         [matTooltipPosition]="'right'"
-        [attr.aria-label]="brandAriaLabelKey() | translate"
+        aria-controls="workspace-primary-navigation-content"
+        [attr.aria-expanded]="isCompact() ? null : expanded()"
+        [attr.aria-label]="
+            (expanded()
+                ? 'WORKSPACE.SHELL.COLLAPSE_NAVIGATION'
+                : 'WORKSPACE.SHELL.EXPAND_NAVIGATION'
+            ) | translate
+        "
     >
-        <img
-            src="./assets/icons/icon-tv-256.png"
-            [attr.alt]="'WORKSPACE.SHELL.BRAND_ALT' | translate"
-        />
-    </a>
+        <mat-icon class="rail-toggle-icon" aria-hidden="true">
+            {{ expanded() ? 'arrow_right' : 'arrow_drop_down' }}
+        </mat-icon>
+        @if (expanded()) {
+            <span class="rail-brand">
+                <img
+                    src="./assets/icons/icon-tv-256.png"
+                    [attr.alt]="'WORKSPACE.SHELL.BRAND_ALT' | translate"
+                />
+                <span class="rail-brand-name">IPTVnator</span>
+            </span>
+        }
+    </button>
 
-    <app-workspace-shell-rail-links [links]="workspaceLinks()" />
-
-    @if (primaryContextLinks().length > 0) {
-        <div
-            class="rail-context-region"
-            [class]="railProviderClass()"
-        >
+    <div id="workspace-primary-navigation-content" class="rail-content">
+        <div class="rail-navigation">
             <app-workspace-shell-rail-links
-                activeClass="is-active"
-                [selectedSection]="selectedSection()"
-                [links]="primaryContextLinks()"
+                [expanded]="expanded()"
+                [links]="workspaceLinks()"
             />
 
-            @if (secondaryContextLinks().length > 0) {
-                <div class="rail-divider"></div>
-                <app-workspace-shell-rail-links
-                    activeClass="is-active"
-                    [selectedSection]="selectedSection()"
-                    [links]="secondaryContextLinks()"
-                />
+            @if (primaryContextLinks().length > 0) {
+                <div class="rail-context-region" [class]="railProviderClass()">
+                    <app-workspace-shell-rail-links
+                        activeClass="is-active"
+                        [expanded]="expanded()"
+                        [selectedSection]="selectedSection()"
+                        [links]="primaryContextLinks()"
+                    />
+
+                    @if (secondaryContextLinks().length > 0) {
+                        <div class="rail-divider"></div>
+                        <app-workspace-shell-rail-links
+                            activeClass="is-active"
+                            [expanded]="expanded()"
+                            [selectedSection]="selectedSection()"
+                            [links]="secondaryContextLinks()"
+                        />
+                    }
+                </div>
             }
         </div>
-    }
 
-    <div class="rail-footer">
-        <a
-            class="rail-shortcut nav-item"
-            routerLink="/workspace/settings"
-            [class.is-active]="isSettingsRoute()"
-            [matTooltip]="'WORKSPACE.SHELL.RAIL_SETTINGS' | translate"
-            [matTooltipPosition]="'right'"
-            [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
-        >
-            <mat-icon>settings</mat-icon>
-        </a>
+        <div class="rail-footer">
+            <a
+                class="rail-shortcut nav-item"
+                routerLink="/workspace/settings"
+                [class.is-active]="isSettingsRoute()"
+                [matTooltip]="'WORKSPACE.SHELL.RAIL_SETTINGS' | translate"
+                [matTooltipDisabled]="expanded()"
+                [matTooltipPosition]="'right'"
+                [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
+            >
+                <mat-icon>settings</mat-icon>
+                @if (expanded()) {
+                    <span class="rail-shortcut-label">
+                        {{ 'WORKSPACE.SHELL.RAIL_SETTINGS' | translate }}
+                    </span>
+                }
+            </a>
+        </div>
     </div>
 </aside>

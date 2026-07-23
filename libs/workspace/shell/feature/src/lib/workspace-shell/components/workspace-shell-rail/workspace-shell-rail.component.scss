@@ -1,36 +1,68 @@
+@use '../../styles/breakpoints' as shell-breakpoints;
+
 :host {
     display: block;
+    width: 60px;
     min-width: 0;
     min-height: 0;
+    --workspace-rail-expanded-min-width: 196px;
+    --workspace-rail-expanded-max-width: min(320px, 40vw);
+}
+
+:host.rail-expanded {
+    width: max-content;
+    min-width: var(--workspace-rail-expanded-min-width);
+    max-width: var(--workspace-rail-expanded-max-width);
 }
 
 .app-rail {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
+    width: 60px;
     height: 100%;
     box-sizing: border-box;
     padding: 10px 8px;
+    overflow: hidden;
     border-right: 1px solid
         var(--app-rail-border, var(--mat-sys-outline-variant));
     background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
     app-region: drag;
-    overflow-y: auto;
-    overflow-x: hidden;
     scrollbar-width: none;
-    --rail-link-color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
-    --rail-link-hover-color: var(--app-on-surface);
-    --rail-link-hover-bg: var(--app-hover-overlay);
+    --rail-link-color: color-mix(
+        in srgb,
+        var(--app-on-surface) 65%,
+        transparent
+    );
+    --rail-link-hover-color: var(--mat-sys-on-surface);
+    --rail-link-hover-bg: var(--app-selection-surface);
     --rail-link-active-bg: var(--app-selection-surface);
     --rail-link-active-bg-strong: var(--app-selection-surface-strong);
-    --rail-link-active-color: var(--app-selection-color);
-    --rail-link-active-icon: var(--app-selection-color);
+    --rail-link-active-color: var(--mat-sys-primary);
+    --rail-link-active-icon: var(--mat-sys-primary);
     --rail-link-active-border: var(--app-selection-border);
     --rail-link-active-glow: var(--app-selection-glow);
+    // Dock-like hover magnification capped at 42px, so a 20px icon stays
+    // inside its 44px slot without scaling neighboring icons or labels.
+    --rail-dock-hover-scale: 2.1;
+    --rail-dock-hover-overhang: 11px;
 
     &.is-macos {
         padding-top: 36px;
+    }
+
+    &.is-expanded {
+        width: max-content;
+        min-width: var(--workspace-rail-expanded-min-width);
+        max-width: var(--workspace-rail-expanded-max-width);
+        align-items: stretch;
+
+        .rail-context-region {
+            align-items: stretch;
+            max-width: none;
+        }
     }
 
     &::-webkit-scrollbar {
@@ -38,33 +70,92 @@
     }
 }
 
-.app-rail a {
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
+.rail-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.rail-navigation {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.app-rail a,
+.app-rail button {
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: 44px;
+    height: 44px;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    border-radius: 14px;
     color: var(--rail-link-color);
+    font: inherit;
     text-decoration: none;
+    app-region: no-drag;
     transition:
         background-color 0.2s ease,
+        border-color 0.2s ease,
         color 0.2s ease,
         box-shadow 0.2s ease,
         transform 0.2s ease;
-    app-region: no-drag;
 
     mat-icon {
-        font-size: 20px;
+        position: relative;
+        z-index: 1;
         width: 20px;
         height: 20px;
+        font-size: 20px;
+        transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        will-change: transform;
     }
 }
 
 .app-rail a:hover {
     color: var(--rail-link-hover-color);
     background: var(--rail-link-hover-bg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .app-rail a:hover mat-icon {
+        z-index: 3;
+        transform: scale(var(--rail-dock-hover-scale));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-rail a,
+    .app-rail button,
+    .rail-context-region {
+        animation: none;
+        transition: none;
+    }
+
+    .app-rail a mat-icon,
+    .app-rail a:hover mat-icon,
+    .app-rail button mat-icon,
+    .app-rail button:hover mat-icon {
+        transition: none;
+        transform: none;
+    }
 }
 
 .app-rail a.is-active,
@@ -87,49 +178,84 @@
     &::after {
         content: '';
         position: absolute;
-        right: -4px;
+        inset-inline-end: 3px;
         top: 50%;
-        transform: translateY(-50%);
         width: 3px;
         height: 18px;
         border-radius: 999px;
         background: var(--rail-link-active-icon);
         box-shadow: 0 0 10px var(--rail-link-active-glow);
+        transform: translateY(-50%);
     }
 }
 
-.brand {
+.rail-toggle {
+    flex: 0 0 auto;
     margin-bottom: 10px;
+    padding: 0;
     background: var(--mat-sys-primary-container);
     color: var(--mat-sys-on-primary-container);
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 1;
+        cursor: default;
+    }
 }
 
-.brand img {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
+.app-rail.is-expanded .rail-toggle {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0 12px;
+}
+
+.rail-toggle-icon {
+    flex: 0 0 auto;
+}
+
+.rail-brand {
+    display: inline-flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+
+    img {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+    }
+}
+
+.rail-brand-name,
+.rail-shortcut-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: start;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .rail-context-region {
     --region-accent: var(--mat-sys-outline-variant);
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
     width: 100%;
     max-width: 48px;
-    padding: 5px 2px;
+    box-sizing: border-box;
     margin: 4px 0;
+    padding: 5px 2px;
+    border: 1px solid color-mix(in srgb, var(--app-on-surface) 4%, transparent);
     border-radius: 14px;
     background: color-mix(in srgb, var(--app-on-surface) 3%, transparent);
-    border: 1px solid color-mix(in srgb, var(--app-on-surface) 4%, transparent);
-    position: relative;
     animation: region-enter 0.25s ease-out both;
 
     &::before {
@@ -168,22 +294,30 @@
         opacity: 0;
         transform: scale(0.95);
     }
+
     to {
         opacity: 1;
         transform: scale(1);
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .rail-context-region {
+        animation: none;
+    }
+}
+
 .rail-divider {
     width: 44px;
     height: 1px;
-    background: var(--mat-sys-outline-variant);
     margin: 6px 0;
+    background: var(--mat-sys-outline-variant);
     opacity: 0.5;
 }
 
 .rail-footer {
-    margin-top: auto;
+    flex: 0 0 auto;
+    width: 100%;
 
     .rail-shortcut {
         width: 44px;
@@ -191,50 +325,83 @@
         padding: 0;
         gap: 0;
         border-radius: 14px;
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
         color: color-mix(in srgb, var(--app-on-surface) 65%, transparent);
-        app-region: no-drag;
-
-        mat-icon {
-            font-size: 20px;
-            width: 20px;
-            height: 20px;
-        }
 
         &:hover:not(.is-active) {
-            background: var(--app-hover-overlay);
-            color: var(--app-on-surface);
+            color: var(--rail-link-hover-color);
+            background: var(--rail-link-hover-bg);
         }
 
         &.is-active::after {
             content: '';
             position: absolute;
-            right: -4px;
+            inset-inline-end: 3px;
             top: 50%;
-            transform: translateY(-50%);
             width: 4px;
             height: 20px;
             border-radius: 999px;
             background: var(--app-selection-color);
             box-shadow: 0 0 10px var(--app-selection-glow);
+            transform: translateY(-50%);
         }
     }
 }
 
-@media (max-width: 640px) {
-    .app-rail {
+.app-rail.is-expanded .rail-footer .rail-shortcut {
+    width: 100%;
+    justify-content: flex-start;
+    gap: calc(12px + var(--rail-dock-hover-overhang));
+    padding: 0 12px;
+}
+
+@include shell-breakpoints.compact {
+    :host,
+    :host.rail-expanded {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+
+    .app-rail,
+    .app-rail.is-expanded {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
         flex-direction: row;
+        align-items: center;
         justify-content: space-between;
         padding: 6px 10px;
-        border-right: none;
+        border: none;
         border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
 
-        .brand {
-            margin-bottom: 0;
-        }
+    .rail-toggle,
+    .app-rail.is-expanded .rail-toggle {
+        width: 44px;
+        margin-bottom: 0;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .rail-brand,
+    .rail-shortcut-label {
+        display: none;
+    }
+
+    .rail-content {
+        flex-direction: row;
+        align-items: center;
+        width: auto;
+        min-width: 0;
+    }
+
+    .rail-navigation {
+        flex-direction: row;
+        align-items: center;
+        width: auto;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
     }
 
     .rail-divider {
@@ -262,6 +429,14 @@
     }
 
     .rail-footer {
+        width: auto;
         margin-top: 0;
+    }
+
+    .app-rail.is-expanded .rail-footer .rail-shortcut {
+        width: 44px;
+        justify-content: center;
+        gap: 0;
+        padding: 0;
     }
 }

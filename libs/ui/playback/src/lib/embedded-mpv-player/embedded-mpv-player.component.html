@@ -213,12 +213,10 @@
                         [disabled]="!canSeek()"
                         (click)="seekBy(10)"
                         [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
-                                | translate
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
                         "
                         [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
-                                | translate
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
                         "
                         matTooltipPosition="above"
                     >
@@ -328,9 +326,7 @@
                             >
                                 <input
                                     class="embedded-mpv-player__slider embedded-mpv-player__slider--volume"
-                                    [style.--slider-progress.%]="
-                                        volume() * 100
-                                    "
+                                    [style.--slider-progress.%]="volume() * 100"
                                     type="range"
                                     min="0"
                                     max="1"

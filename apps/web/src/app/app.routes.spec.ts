@@ -163,6 +163,15 @@ describe('app routes', () => {
         expect(typeof globalSearchRoute?.loadComponent).toBe('function');
     });
 
+    it('guards the Electron-only recording library route', () => {
+        const recordingsRoute = workspaceChildren.find(
+            (route) => route.path === 'recordings'
+        );
+
+        expect(recordingsRoute?.canActivate).toHaveLength(1);
+        expect(typeof recordingsRoute?.loadComponent).toBe('function');
+    });
+
     it('redirects the Electron-only global search route in the web runtime', async () => {
         const redirectTree = { url: '/workspace/sources' };
         const parseUrl = jest.fn().mockReturnValue(redirectTree);

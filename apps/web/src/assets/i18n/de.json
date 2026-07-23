@@ -657,7 +657,8 @@
             "LANGUAGE": "Sprache",
             "SHOW_PROGRAM_DETAILS": "Details anzeigen",
             "EPISODE": "Episode",
-            "DURATION": "Dauer"
+            "DURATION": "Dauer",
+            "RECORD_PROGRAM": "Sendung aufnehmen"
         },
         "FETCH_SUCCESS": "EPG wurde erfolgreich abgerufen",
         "IMPORT_PROGRESS": "EPG-Import",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Alle Radiosender"
     },
     "INFORMATION": "Information",
+    "RECORDINGS": {
+        "TITLE": "Aufnahmen",
+        "SUBTITLE": "Geplante Aufnahmen und deine lokale DVR-Bibliothek",
+        "DESKTOP_ONLY_TITLE": "Aufnahmen sind in der Desktop-App verfügbar",
+        "DESKTOP_ONLY_BODY": "Für den DVR-Scheduler muss IPTVnator auf deinem Computer laufen.",
+        "ENGINE_UNAVAILABLE_TITLE": "Aufnahme-Engine nicht verfügbar",
+        "ENGINE_UNAVAILABLE_BODY": "Es ist keine unterstützte Aufnahme-Engine verfügbar. Installiere Embedded MPV oder VLC, um neue Aufnahmen zu planen.",
+        "ACTIVE_COUNT_LABEL": "Aktive Aufnahmen: {{count}}",
+        "RETRY": "Erneut versuchen",
+        "LOAD_FAILED_TITLE": "Aufnahmebibliothek konnte nicht geladen werden",
+        "LOAD_FAILED_BODY": "Prüfe die Desktop-Verbindung und versuche es erneut.",
+        "FILTER_LABEL": "Aufnahmen filtern",
+        "FILTERS": {
+            "ALL": "Alle",
+            "UPCOMING": "Geplant",
+            "LIBRARY": "Bibliothek"
+        },
+        "EMPTY_TITLE": "Noch keine Aufnahmen",
+        "EMPTY_BODY": "Plane eine Live-Sendung im EPG, um sie hier hinzuzufügen.",
+        "CANCEL": "Aufnahme abbrechen",
+        "PLAY": "Abspielen",
+        "REVEAL": "Im Ordner anzeigen",
+        "REMOVE": "Aus Bibliothek entfernen",
+        "ACTION_COMPLETE": "Aufnahmebibliothek aktualisiert",
+        "ACTION_FAILED": "Die Aufnahmeaktion konnte nicht abgeschlossen werden",
+        "STATUS": {
+            "SCHEDULED": "Geplant",
+            "RECORDING": "Aufnahme läuft",
+            "COMPLETED": "Abgeschlossen",
+            "FAILED": "Fehlgeschlagen",
+            "CANCELED": "Abgebrochen",
+            "MISSED": "Verpasst",
+            "INTERRUPTED": "Unterbrochen"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Zukünftige Stalker-Aufnahmen sind nicht verfügbar, weil das Portal kurzlebige Stream-Links erzeugt. Die aktuell laufende Sendung kann aufgenommen werden."
+    },
     "DOWNLOADS": {
         "TITLE": "Downloads",
         "DOWNLOAD": "Herunterladen",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Navigation ausklappen",
+            "COLLAPSE_NAVIGATION": "Navigation einklappen",
             "RAIL_DASHBOARD": "Dashboard",
             "OPEN_DASHBOARD": "Dashboard öffnen",
             "RAIL_SOURCES": "Quellen",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Zuletzt angesehen",
             "RAIL_FAVORITES": "Favoriten",
             "RAIL_DOWNLOADS": "Downloads",
+            "RAIL_RECORDINGS": "Aufnahmen",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Alle Sender",
             "RAIL_GROUPS": "Gruppen",

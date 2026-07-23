@@ -657,7 +657,8 @@
             "LANGUAGE": "Мова",
             "SHOW_PROGRAM_DETAILS": "Паказаць падрабязнасці",
             "EPISODE": "Эпізод",
-            "DURATION": "Працягласць"
+            "DURATION": "Працягласць",
+            "RECORD_PROGRAM": "Запісаць праграму"
         },
         "FETCH_SUCCESS": "EPG быў паспяхова загружаны",
         "IMPORT_PROGRESS": "Імпарт EPG",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Усе радыё"
     },
     "INFORMATION": "Інфармацыя",
+    "RECORDINGS": {
+        "TITLE": "Запісы",
+        "SUBTITLE": "Запланаваныя запісы і ваша лакальная бібліятэка DVR",
+        "DESKTOP_ONLY_TITLE": "Запісы даступныя ў настольнай праграме",
+        "DESKTOP_ONLY_BODY": "Для працы планавальніка DVR IPTVnator павінен быць запушчаны на вашым камп’ютары.",
+        "ENGINE_UNAVAILABLE_TITLE": "Механізм запісу недаступны",
+        "ENGINE_UNAVAILABLE_BODY": "Няма даступнага рухавіка запісу. Усталюйце Embedded MPV або VLC, каб планаваць новыя запісы.",
+        "ACTIVE_COUNT_LABEL": "Актыўныя запісы: {{count}}",
+        "RETRY": "Паўтарыць",
+        "LOAD_FAILED_TITLE": "Не ўдалося загрузіць бібліятэку запісаў",
+        "LOAD_FAILED_BODY": "Праверце злучэнне з настольнай праграмай і паўтарыце спробу.",
+        "FILTER_LABEL": "Фільтраваць запісы",
+        "FILTERS": {
+            "ALL": "Усе",
+            "UPCOMING": "Запланаваныя",
+            "LIBRARY": "Бібліятэка"
+        },
+        "EMPTY_TITLE": "Запісаў пакуль няма",
+        "EMPTY_BODY": "Заплануйце запіс жывой перадачы ў праграме перадач, каб дадаць яго сюды.",
+        "CANCEL": "Скасаваць запіс",
+        "PLAY": "Прайграць",
+        "REVEAL": "Паказаць у папцы",
+        "REMOVE": "Выдаліць з бібліятэкі",
+        "ACTION_COMPLETE": "Бібліятэка запісаў абноўлена",
+        "ACTION_FAILED": "Не ўдалося выканаць дзеянне з запісам",
+        "STATUS": {
+            "SCHEDULED": "Запланавана",
+            "RECORDING": "Ідзе запіс",
+            "COMPLETED": "Завершана",
+            "FAILED": "Памылка",
+            "CANCELED": "Скасавана",
+            "MISSED": "Прапушчана",
+            "INTERRUPTED": "Перарвана"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Будучыя запісы Stalker недаступныя, бо партал стварае кароткачасовыя спасылкі. Можна запісаць праграму, якая ідзе зараз."
+    },
     "DOWNLOADS": {
         "TITLE": "Спампаванні",
         "DOWNLOAD": "Спампаваць",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Разгарнуць навігацыю",
+            "COLLAPSE_NAVIGATION": "Згарнуць навігацыю",
             "RAIL_DASHBOARD": "Панэль",
             "OPEN_DASHBOARD": "Адкрыць панэль",
             "RAIL_SOURCES": "Крыніцы",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Нядаўна праглянутае",
             "RAIL_FAVORITES": "Выбранае",
             "RAIL_DOWNLOADS": "Спампаванні",
+            "RAIL_RECORDINGS": "Запісы",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Усе каналы",
             "RAIL_GROUPS": "Групы",

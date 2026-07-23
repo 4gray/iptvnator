@@ -1,0 +1,287 @@
+@use './recording-library-controls';
+
+:host {
+    display: block;
+    height: 100%;
+    overflow: auto;
+    color: var(--app-on-surface);
+}
+
+.recordings-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 28px 32px 48px;
+}
+
+.recordings-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+}
+
+.recordings-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+h1,
+h2,
+p {
+    margin: 0;
+}
+
+h1 {
+    color: var(--app-heading-color);
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.recordings-header p,
+.recording-card__heading p,
+.recording-card__meta {
+    color: var(--app-body-color);
+}
+
+.recordings-header p {
+    margin-top: 6px;
+}
+
+.recordings-active-badge {
+    min-width: 24px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: var(--mat-sys-on-error);
+    background: var(--mat-sys-error);
+    text-align: center;
+    font-weight: 700;
+}
+
+.recordings-engine-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border: 1px solid
+        color-mix(in srgb, var(--app-live-color) 36%, var(--app-separator));
+    border-radius: 13px;
+    color: var(--app-body-color);
+    background: color-mix(
+        in srgb,
+        var(--app-live-color) 9%,
+        var(--app-widget-bg)
+    );
+}
+
+.recordings-engine-warning mat-icon {
+    flex: none;
+    color: var(--app-live-color);
+}
+
+.recordings-engine-warning h2 {
+    margin-bottom: 4px;
+    color: var(--app-heading-color);
+    font-size: 1rem;
+}
+
+.recordings-engine-warning > div {
+    flex: 1 1 auto;
+}
+
+.recordings-engine-warning > button {
+    flex: none;
+}
+
+.recordings-filters {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 18px;
+    padding: 4px;
+    width: fit-content;
+    border: 1px solid var(--app-separator);
+    border-radius: 13px;
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-widget-shadow);
+}
+
+.recordings-filter {
+    border: 0;
+    border-radius: 9px;
+    min-height: 36px;
+    padding: 8px 16px;
+    color: var(--app-body-color);
+    background: transparent;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25;
+    cursor: pointer;
+    transition:
+        color 140ms ease,
+        background-color 140ms ease,
+        box-shadow 140ms ease;
+}
+
+.recordings-filter:hover:not(.is-active) {
+    color: var(--mat-sys-on-primary-container);
+    background: var(--mat-sys-primary-container);
+}
+
+.recordings-filter.is-active {
+    color: var(--mat-sys-on-primary);
+    background: var(--mat-sys-primary);
+    box-shadow: 0 2px 8px var(--app-selection-glow);
+}
+
+.recordings-filter.is-active:hover {
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-primary) 88%,
+        var(--mat-sys-on-primary)
+    );
+}
+
+.recordings-filter:focus-visible {
+    outline: 2px solid var(--app-selection-color);
+    outline-offset: 2px;
+}
+
+.recordings-list {
+    display: grid;
+    gap: 12px;
+}
+
+.recording-card {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 18px;
+    padding: 14px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 16px;
+    background: var(--app-widget-bg);
+    box-shadow: var(--app-widget-shadow);
+}
+
+.recording-card.is-recording {
+    border-color: color-mix(in srgb, var(--app-live-color) 58%, transparent);
+}
+
+.recording-card__artwork {
+    display: grid;
+    place-items: center;
+    min-height: 88px;
+    overflow: hidden;
+    border-radius: 11px;
+    background: var(--app-widget-header-bg);
+}
+
+.recording-card__artwork img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.recording-card__artwork mat-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 38px;
+    color: var(--app-muted-color);
+}
+
+.recording-card__body,
+.recording-card__heading > div {
+    min-width: 0;
+}
+
+.recording-card__heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.recording-card__heading h2 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--app-heading-color);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.recording-status,
+.recording-card__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.recording-status {
+    flex: none;
+    padding: 5px 9px;
+    border-radius: 999px;
+    color: var(--mat-sys-on-primary-container);
+    background: var(--mat-sys-primary-container);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.recording-status[data-status='recording'] {
+    color: var(--mat-sys-on-error-container);
+    background: var(--mat-sys-error-container);
+}
+
+.recording-status[data-status='failed'] {
+    color: var(--mat-sys-on-error-container);
+    background: var(--mat-sys-error-container);
+}
+
+.recording-status mat-icon,
+.recording-card__meta mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+}
+
+.recording-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 14px;
+    font-size: 13px;
+}
+
+.recording-card__error {
+    margin-top: 10px;
+    color: var(--mat-sys-error);
+    font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .recordings-filter {
+        transition: none;
+    }
+}
+
+@media (max-width: 720px) {
+    .recordings-page {
+        padding: 20px 16px 36px;
+    }
+
+    .recording-card {
+        grid-template-columns: 72px minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .recording-card__heading {
+        display: block;
+    }
+
+    .recording-status {
+        margin-top: 8px;
+    }
+}

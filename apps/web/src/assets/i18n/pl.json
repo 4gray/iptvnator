@@ -657,7 +657,8 @@
             "LANGUAGE": "Język",
             "SHOW_PROGRAM_DETAILS": "Pokaż szczegóły programu",
             "EPISODE": "Odcinek",
-            "DURATION": "Czas trwania"
+            "DURATION": "Czas trwania",
+            "RECORD_PROGRAM": "Nagraj program"
         },
         "FETCH_SUCCESS": "EPG zostało pomyślnie pobrane",
         "IMPORT_PROGRESS": "Import EPG",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Wszystkie radia"
     },
     "INFORMATION": "Informacje",
+    "RECORDINGS": {
+        "TITLE": "Nagrania",
+        "SUBTITLE": "Zaplanowane nagrania i lokalna biblioteka DVR",
+        "DESKTOP_ONLY_TITLE": "Nagrania są dostępne w aplikacji komputerowej",
+        "DESKTOP_ONLY_BODY": "Aby harmonogram DVR działał, IPTVnator musi być uruchomiony na komputerze.",
+        "ENGINE_UNAVAILABLE_TITLE": "Silnik nagrywania jest niedostępny",
+        "ENGINE_UNAVAILABLE_BODY": "Brak obsługiwanego silnika nagrywania. Zainstaluj Embedded MPV lub VLC, aby planować nowe nagrania.",
+        "ACTIVE_COUNT_LABEL": "Aktywne nagrania: {{count}}",
+        "RETRY": "Spróbuj ponownie",
+        "LOAD_FAILED_TITLE": "Nie udało się wczytać biblioteki nagrań",
+        "LOAD_FAILED_BODY": "Sprawdź połączenie z aplikacją komputerową i spróbuj ponownie.",
+        "FILTER_LABEL": "Filtruj nagrania",
+        "FILTERS": {
+            "ALL": "Wszystkie",
+            "UPCOMING": "Nadchodzące",
+            "LIBRARY": "Biblioteka"
+        },
+        "EMPTY_TITLE": "Brak nagrań",
+        "EMPTY_BODY": "Zaplanuj nagranie programu na żywo w przewodniku EPG, aby dodać je tutaj.",
+        "CANCEL": "Anuluj nagrywanie",
+        "PLAY": "Odtwórz",
+        "REVEAL": "Pokaż w folderze",
+        "REMOVE": "Usuń z biblioteki",
+        "ACTION_COMPLETE": "Biblioteka nagrań została zaktualizowana",
+        "ACTION_FAILED": "Nie udało się wykonać działania dotyczącego nagrania",
+        "STATUS": {
+            "SCHEDULED": "Zaplanowane",
+            "RECORDING": "Nagrywanie",
+            "COMPLETED": "Ukończone",
+            "FAILED": "Niepowodzenie",
+            "CANCELED": "Anulowane",
+            "MISSED": "Pominięte",
+            "INTERRUPTED": "Przerwane"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Przyszłe nagrania Stalker są niedostępne, ponieważ portal tworzy krótkotrwałe łącza. Możesz nagrać aktualnie emitowany program."
+    },
     "DOWNLOADS": {
         "TITLE": "Pobrane",
         "DOWNLOAD": "Pobierz",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Rozwiń nawigację",
+            "COLLAPSE_NAVIGATION": "Zwiń nawigację",
             "RAIL_DASHBOARD": "Pulpit",
             "OPEN_DASHBOARD": "Otwórz pulpit",
             "RAIL_SOURCES": "Źródła",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Ostatnio oglądane",
             "RAIL_FAVORITES": "Ulubione",
             "RAIL_DOWNLOADS": "Pobrane",
+            "RAIL_RECORDINGS": "Nagrania",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Wszystkie kanały",
             "RAIL_GROUPS": "Grupy",

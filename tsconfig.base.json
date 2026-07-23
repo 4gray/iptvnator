@@ -107,7 +107,13 @@
             "@iptvnator/workspace/dashboard/data-access": [
                 "libs/workspace/dashboard/data-access/src/index.ts"
             ],
-            "@package": ["./package.json"]
+            "@package": ["./package.json"],
+            "@iptvnator/recording/data-access": [
+                "./libs/recording/data-access/src/index.ts"
+            ],
+            "@iptvnator/recording/feature": [
+                "./libs/recording/feature/src/index.ts"
+            ]
         }
     },
     "exclude": ["node_modules", "tmp"],

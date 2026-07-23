@@ -37,6 +37,10 @@ function getService(): EmbeddedMpvNativeService {
     return embeddedMpvNativeService;
 }
 
+function assertRendererSession(sessionId: string): void {
+    getService().assertRendererSession(sessionId);
+}
+
 /**
  * Registers an embedded-MPV IPC handler that logs failures in the main
  * process before rethrowing them to the renderer. The renderer swallows
@@ -51,10 +55,7 @@ function handleEmbeddedMpv<Args extends unknown[]>(
         try {
             return await handler(...(args as Args));
         } catch (error) {
-            console.error(
-                `[Embedded MPV] ${channel} handler failed:`,
-                error
-            );
+            console.error(`[Embedded MPV] ${channel} handler failed:`, error);
             throw error;
         }
     });
@@ -72,64 +73,85 @@ handleEmbeddedMpv(
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_LOAD_PLAYBACK,
-    (sessionId: string, playback: ResolvedPortalPlayback) =>
-        getService().loadPlayback(sessionId, playback)
+    (sessionId: string, playback: ResolvedPortalPlayback) => {
+        assertRendererSession(sessionId);
+        return getService().loadPlayback(sessionId, playback);
+    }
 );
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_SET_BOUNDS,
-    (sessionId: string, bounds: EmbeddedMpvBounds) =>
-        getService().setBounds(sessionId, bounds)
+    (sessionId: string, bounds: EmbeddedMpvBounds) => {
+        assertRendererSession(sessionId);
+        return getService().setBounds(sessionId, bounds);
+    }
 );
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_SET_PAUSED,
-    (sessionId: string, paused: boolean) =>
-        getService().setPaused(sessionId, paused)
+    (sessionId: string, paused: boolean) => {
+        assertRendererSession(sessionId);
+        return getService().setPaused(sessionId, paused);
+    }
 );
 
-handleEmbeddedMpv(EMBEDDED_MPV_SEEK, (sessionId: string, seconds: number) =>
-    getService().seek(sessionId, seconds)
-);
+handleEmbeddedMpv(EMBEDDED_MPV_SEEK, (sessionId: string, seconds: number) => {
+    assertRendererSession(sessionId);
+    return getService().seek(sessionId, seconds);
+});
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_SET_VOLUME,
-    (sessionId: string, volume: number) =>
-        getService().setVolume(sessionId, volume)
+    (sessionId: string, volume: number) => {
+        assertRendererSession(sessionId);
+        return getService().setVolume(sessionId, volume);
+    }
 );
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_SET_AUDIO_TRACK,
-    (sessionId: string, trackId: number) =>
-        getService().setAudioTrack(sessionId, trackId)
+    (sessionId: string, trackId: number) => {
+        assertRendererSession(sessionId);
+        return getService().setAudioTrack(sessionId, trackId);
+    }
 );
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_SET_SUBTITLE_TRACK,
-    (sessionId: string, trackId: number) =>
-        getService().setSubtitleTrack(sessionId, trackId)
+    (sessionId: string, trackId: number) => {
+        assertRendererSession(sessionId);
+        return getService().setSubtitleTrack(sessionId, trackId);
+    }
 );
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_SET_SPEED,
-    (sessionId: string, speed: number) => getService().setSpeed(sessionId, speed)
+    (sessionId: string, speed: number) => {
+        assertRendererSession(sessionId);
+        return getService().setSpeed(sessionId, speed);
+    }
 );
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_SET_ASPECT,
-    (sessionId: string, aspect: string) =>
-        getService().setAspect(sessionId, aspect)
+    (sessionId: string, aspect: string) => {
+        assertRendererSession(sessionId);
+        return getService().setAspect(sessionId, aspect);
+    }
 );
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_START_RECORDING,
-    (sessionId: string, options: EmbeddedMpvRecordingStartOptions) =>
-        getService().startRecording(sessionId, options)
+    (sessionId: string, options: EmbeddedMpvRecordingStartOptions) => {
+        assertRendererSession(sessionId);
+        return getService().startRecording(sessionId, options);
+    }
 );
 
-handleEmbeddedMpv(EMBEDDED_MPV_STOP_RECORDING, (sessionId: string) =>
-    getService().stopRecording(sessionId)
-);
+handleEmbeddedMpv(EMBEDDED_MPV_STOP_RECORDING, (sessionId: string) => {
+    assertRendererSession(sessionId);
+    return getService().stopRecording(sessionId);
+});
 
 handleEmbeddedMpv(EMBEDDED_MPV_GET_DEFAULT_RECORDING_FOLDER, () =>
     getService().getDefaultRecordingFolder()
@@ -139,9 +161,10 @@ handleEmbeddedMpv(EMBEDDED_MPV_SELECT_RECORDING_FOLDER, () =>
     getService().selectRecordingFolder()
 );
 
-handleEmbeddedMpv(EMBEDDED_MPV_DISPOSE_SESSION, (sessionId: string) =>
-    getService().disposeSession(sessionId)
-);
+handleEmbeddedMpv(EMBEDDED_MPV_DISPOSE_SESSION, (sessionId: string) => {
+    assertRendererSession(sessionId);
+    return getService().disposeSession(sessionId);
+});
 
 handleEmbeddedMpv(EMBEDDED_MPV_GET_FRAME_SOURCE, (sessionId: string) =>
     getService().getFrameSource(sessionId)

@@ -26,6 +26,7 @@ describe('EpgItemDescriptionComponent', () => {
                         title: 'TV Show 1',
                         desc: 'Highly interesting show about pets',
                         category: 'Fun',
+                        recordingAvailable: true,
                     } as unknown as EpgProgram,
                 },
             ],
@@ -63,5 +64,15 @@ describe('EpgItemDescriptionComponent', () => {
         expect(descElement.nativeElement.textContent.trim()).toContain(
             'Highly interesting show about pets'
         );
+    });
+
+    it('shows a recording action when the host enables DVR', () => {
+        const recordButton = fixture.debugElement
+            .queryAll(By.css('.epg-dialog__btn'))
+            .find((button) =>
+                button.nativeElement.textContent.includes('RECORD_PROGRAM')
+            );
+
+        expect(recordButton).toBeDefined();
     });
 });

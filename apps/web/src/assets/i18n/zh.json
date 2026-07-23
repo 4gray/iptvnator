@@ -657,7 +657,8 @@
             "LANGUAGE": "语言",
             "SHOW_PROGRAM_DETAILS": "显示有关此程序的详细信息",
             "EPISODE": "剧集",
-            "DURATION": "时长"
+            "DURATION": "时长",
+            "RECORD_PROGRAM": "录制节目"
         },
         "FETCH_SUCCESS": "EPG 获取成功",
         "IMPORT_PROGRESS": "EPG 导入",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "所有广播"
     },
     "INFORMATION": "信息",
+    "RECORDINGS": {
+        "TITLE": "录制",
+        "SUBTITLE": "预约录制和本地 DVR 资料库",
+        "DESKTOP_ONLY_TITLE": "桌面应用支持录制功能",
+        "DESKTOP_ONLY_BODY": "DVR 预约录制要求 IPTVnator 在电脑上保持运行。",
+        "ENGINE_UNAVAILABLE_TITLE": "录制引擎不可用",
+        "ENGINE_UNAVAILABLE_BODY": "没有可用的受支持录制引擎。请安装 Embedded MPV 或 VLC 以安排新录制。",
+        "ACTIVE_COUNT_LABEL": "活动录制：{{count}}",
+        "RETRY": "重试",
+        "LOAD_FAILED_TITLE": "无法加载录制库",
+        "LOAD_FAILED_BODY": "请检查桌面应用连接，然后重试。",
+        "FILTER_LABEL": "筛选录制内容",
+        "FILTERS": {
+            "ALL": "全部",
+            "UPCOMING": "待录制",
+            "LIBRARY": "资料库"
+        },
+        "EMPTY_TITLE": "暂无录制内容",
+        "EMPTY_BODY": "从 EPG 中预约录制直播节目，即可将其添加到这里。",
+        "CANCEL": "取消录制",
+        "PLAY": "播放",
+        "REVEAL": "在文件夹中显示",
+        "REMOVE": "从资料库中移除",
+        "ACTION_COMPLETE": "录制资料库已更新",
+        "ACTION_FAILED": "无法完成录制操作",
+        "STATUS": {
+            "SCHEDULED": "已预约",
+            "RECORDING": "录制中",
+            "COMPLETED": "已完成",
+            "FAILED": "失败",
+            "CANCELED": "已取消",
+            "MISSED": "已错过",
+            "INTERRUPTED": "已中断"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "由于门户生成的播放链接有效期较短，暂不支持 Stalker 预约录制。你可以录制当前正在播出的节目。"
+    },
     "DOWNLOADS": {
         "TITLE": "下载",
         "DOWNLOAD": "下载",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "展开导航",
+            "COLLAPSE_NAVIGATION": "收起导航",
             "RAIL_DASHBOARD": "仪表盘",
             "OPEN_DASHBOARD": "打开仪表盘",
             "RAIL_SOURCES": "源",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "最近观看",
             "RAIL_FAVORITES": "收藏",
             "RAIL_DOWNLOADS": "下载",
+            "RAIL_RECORDINGS": "录像",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "所有频道",
             "RAIL_GROUPS": "分组",

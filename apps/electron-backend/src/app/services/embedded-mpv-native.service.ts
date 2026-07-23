@@ -1,13 +1,6 @@
 import { app, dialog, powerSaveBlocker, screen } from 'electron';
 import { spawnSync } from 'child_process';
-import {
-    closeSync,
-    existsSync,
-    mkdirSync,
-    openSync,
-    readFileSync,
-    unlinkSync,
-} from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 import App from '../app';
@@ -27,6 +20,10 @@ import {
     EMBEDDED_MPV_SESSION_UPDATE,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import {
+    releaseReservedRecordingTargetPath,
+    reserveRecordingTargetPath,
+} from './recording-file';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 import {
@@ -92,6 +89,7 @@ interface EmbeddedMpvRuntimeSession {
     updatedAt: string;
     lastPayloadKey: string;
     lastStatus: EmbeddedMpvSessionStatus | null;
+    owner: 'renderer' | 'main';
 }
 
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
@@ -442,6 +440,36 @@ export class EmbeddedMpvNativeService {
         title = '',
         initialVolume = 1
     ): EmbeddedMpvSession {
+        return this.createOwnedSession(
+            'renderer',
+            bounds,
+            title,
+            initialVolume
+        );
+    }
+
+    createMainProcessSession(
+        bounds: EmbeddedMpvBounds,
+        title = '',
+        initialVolume = 1
+    ): EmbeddedMpvSession {
+        return this.createOwnedSession('main', bounds, title, initialVolume);
+    }
+
+    assertRendererSession(sessionId: string): void {
+        if (this.getRuntimeSession(sessionId).owner !== 'renderer') {
+            throw new Error(
+                'Embedded MPV session is owned by the main process.'
+            );
+        }
+    }
+
+    private createOwnedSession(
+        owner: 'renderer' | 'main',
+        bounds: EmbeddedMpvBounds,
+        title: string,
+        initialVolume: number
+    ): EmbeddedMpvSession {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
         // The frame-copy adapter ignores the native window handle (frames go
@@ -471,10 +499,13 @@ export class EmbeddedMpvNativeService {
             updatedAt: startedAt,
             lastPayloadKey: '',
             lastStatus: null,
+            owner,
         });
 
         this.ensurePolling();
-        this.ensureRendererLifecycleWatch();
+        if (owner === 'renderer') {
+            this.ensureRendererLifecycleWatch();
+        }
         return (
             this.refreshSession(sessionId) ?? {
                 id: sessionId,
@@ -605,14 +636,14 @@ export class EmbeddedMpvNativeService {
             options.directory?.trim() || this.getDefaultRecordingFolder();
         mkdirSync(directory, { recursive: true });
 
-        const targetPath = this.reserveRecordingTargetPath(
+        const targetPath = reserveRecordingTargetPath(
             directory,
             options.title || session.title || 'IPTVnator recording'
         );
         try {
             addon.startRecording(sessionId, targetPath);
         } catch (error) {
-            this.releaseReservedRecordingTargetPath(targetPath);
+            releaseReservedRecordingTargetPath(targetPath);
             throw error;
         }
         return this.refreshSession(sessionId);
@@ -655,6 +686,7 @@ export class EmbeddedMpvNativeService {
         }
 
         let lastRecording: EmbeddedMpvRecordingState | undefined;
+        let closedSession!: EmbeddedMpvSession;
         try {
             const addon = this.getAddon();
             try {
@@ -666,7 +698,7 @@ export class EmbeddedMpvNativeService {
         } finally {
             this.sessions.delete(sessionId);
             this.pollFailuresLogged.delete(sessionId);
-            const payload: EmbeddedMpvSession = {
+            closedSession = {
                 id: session.id,
                 title: session.title,
                 streamUrl: session.streamUrl,
@@ -684,11 +716,13 @@ export class EmbeddedMpvNativeService {
                 startedAt: session.startedAt,
                 updatedAt: new Date().toISOString(),
             };
-            this.sendSessionUpdate(payload);
+            if (session.owner === 'renderer') {
+                this.sendSessionUpdate(closedSession);
+            }
             this.stopPollingIfIdle();
             this.updatePowerBlocker();
-            return payload;
         }
+        return closedSession;
     }
 
     shutdown(): void {
@@ -748,14 +782,17 @@ export class EmbeddedMpvNativeService {
         }
         this.rendererWatchInstalled = true;
 
-        const disposeAll = (reason: string) => {
-            if (this.sessions.size === 0) {
+        const disposeRendererSessions = (reason: string) => {
+            const rendererSessionIds = [...this.sessions.values()]
+                .filter((session) => session.owner === 'renderer')
+                .map((session) => session.id);
+            if (rendererSessionIds.length === 0) {
                 return;
             }
             console.warn(
-                `[Embedded MPV] Disposing ${this.sessions.size} session(s): renderer ${reason}`
+                `[Embedded MPV] Disposing ${rendererSessionIds.length} renderer session(s): ${reason}`
             );
-            [...this.sessions.keys()].forEach((sessionId) => {
+            rendererSessionIds.forEach((sessionId) => {
                 try {
                     this.disposeSession(sessionId);
                 } catch {
@@ -766,12 +803,13 @@ export class EmbeddedMpvNativeService {
 
         App.mainWindow.webContents.on(
             'render-process-gone',
-            (_event, details) => disposeAll(`process gone (${details.reason})`)
+            (_event, details) =>
+                disposeRendererSessions(`process gone (${details.reason})`)
         );
         // Full navigations/reloads only — in-app Angular routing emits
         // did-navigate-in-page and must not kill the active session.
         App.mainWindow.webContents.on('did-navigate', () =>
-            disposeAll('reloaded')
+            disposeRendererSessions('reloaded')
         );
     }
 
@@ -851,7 +889,9 @@ export class EmbeddedMpvNativeService {
         const nextPayloadKey = JSON.stringify({ ...payload, updatedAt: '' });
         if (session.lastPayloadKey !== nextPayloadKey) {
             session.lastPayloadKey = nextPayloadKey;
-            this.sendSessionUpdate(payload);
+            if (session.owner === 'renderer') {
+                this.sendSessionUpdate(payload);
+            }
         }
 
         this.updatePowerBlocker();
@@ -860,7 +900,10 @@ export class EmbeddedMpvNativeService {
 
     private hasPlayingSession(): boolean {
         for (const session of this.sessions.values()) {
-            if (session.lastStatus === 'playing') {
+            if (
+                session.owner === 'renderer' &&
+                session.lastStatus === 'playing'
+            ) {
                 return true;
             }
         }
@@ -928,43 +971,6 @@ export class EmbeddedMpvNativeService {
         return windowHandle;
     }
 
-    private reserveRecordingTargetPath(
-        directory: string,
-        title: string
-    ): string {
-        const baseName = this.sanitizeRecordingFileName(title);
-        const timestamp = this.formatRecordingTimestamp(new Date());
-        let candidate = path.join(directory, `${baseName}-${timestamp}.ts`);
-        let suffix = 2;
-
-        while (true) {
-            try {
-                const fd = openSync(candidate, 'wx');
-                closeSync(fd);
-                return candidate;
-            } catch (error) {
-                if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-                    candidate = path.join(
-                        directory,
-                        `${baseName}-${timestamp}-${suffix}.ts`
-                    );
-                    suffix += 1;
-                    continue;
-                }
-
-                throw error;
-            }
-        }
-    }
-
-    private releaseReservedRecordingTargetPath(targetPath: string): void {
-        try {
-            unlinkSync(targetPath);
-        } catch {
-            // Ignore cleanup failures; the start error is more useful.
-        }
-    }
-
     private createClosedRecordingState(
         recording?: EmbeddedMpvRecordingState
     ): EmbeddedMpvRecordingState {
@@ -975,27 +981,6 @@ export class EmbeddedMpvNativeService {
                 : {}),
             ...(recording?.error ? { error: recording.error } : {}),
         };
-    }
-
-    private sanitizeRecordingFileName(title: string): string {
-        const normalized = title
-            .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
-            .replace(/\s+/g, ' ')
-            .trim();
-        return (normalized || 'IPTVnator recording').slice(0, 120);
-    }
-
-    private formatRecordingTimestamp(date: Date): string {
-        const parts = [
-            date.getFullYear(),
-            date.getMonth() + 1,
-            date.getDate(),
-            date.getHours(),
-            date.getMinutes(),
-            date.getSeconds(),
-        ].map((part) => String(part).padStart(2, '0'));
-
-        return `${parts[0]}${parts[1]}${parts[2]}-${parts[3]}${parts[4]}${parts[5]}`;
     }
 
     private assertEmbeddedMpvEnabled(): void {

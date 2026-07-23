@@ -1,5 +1,5 @@
 import {
-    DB_WORKER_OPERATIONS,
+    DB_RENDERER_WORKER_OPERATIONS,
     DbOperationEvent,
 } from '../../workers/database-worker.types';
 import {
@@ -21,6 +21,10 @@ type MockIpcEvent = {
 const mockRegisteredHandlers = new Map<string, IpcHandler>();
 const mockWorkerRequest = jest.fn();
 const mockWorkerCancel = jest.fn();
+const mockCancelForPlaylist = jest.fn();
+const mockCancelAllActive = jest.fn();
+const mockRestorePlaylistScheduling = jest.fn();
+const mockResumeSchedulingAfterDeleteAll = jest.fn();
 
 jest.mock('electron', () => ({
     ipcMain: {
@@ -34,6 +38,18 @@ jest.mock('../../services/database-worker-client', () => ({
     databaseWorkerClient: {
         request: (...args: unknown[]) => mockWorkerRequest(...args),
         cancel: (...args: unknown[]) => mockWorkerCancel(...args),
+    },
+}));
+
+jest.mock('../../services/recording-scheduler.service', () => ({
+    recordingSchedulerService: {
+        cancelForPlaylist: (...args: unknown[]) =>
+            mockCancelForPlaylist(...args),
+        cancelAllActive: (...args: unknown[]) => mockCancelAllActive(...args),
+        restorePlaylistScheduling: (...args: unknown[]) =>
+            mockRestorePlaylistScheduling(...args),
+        resumeSchedulingAfterDeleteAll: (...args: unknown[]) =>
+            mockResumeSchedulingAfterDeleteAll(...args),
     },
 }));
 
@@ -79,6 +95,10 @@ describe('database worker IPC contract', () => {
         mockRegisteredHandlers.clear();
         mockWorkerRequest.mockReset().mockResolvedValue({ success: true });
         mockWorkerCancel.mockReset().mockResolvedValue({ success: true });
+        mockCancelForPlaylist.mockReset().mockResolvedValue(undefined);
+        mockCancelAllActive.mockReset().mockResolvedValue(undefined);
+        mockRestorePlaylistScheduling.mockReset();
+        mockResumeSchedulingAfterDeleteAll.mockReset();
 
         await importDatabaseEventModules();
     });
@@ -88,7 +108,9 @@ describe('database worker IPC contract', () => {
             .filter((channel) => channel !== 'DB_CANCEL_OPERATION')
             .sort();
 
-        expect(registeredDbChannels).toEqual([...DB_WORKER_OPERATIONS].sort());
+        expect(registeredDbChannels).toEqual(
+            [...DB_RENDERER_WORKER_OPERATIONS].sort()
+        );
         expect(mockRegisteredHandlers.has('DB_CANCEL_OPERATION')).toBe(true);
     });
 
@@ -118,7 +140,27 @@ describe('database worker IPC contract', () => {
     it('covers every worker operation in the payload contract cases', () => {
         expect(
             new Set(workerIpcContractCases.map(({ operation }) => operation))
-        ).toEqual(new Set(DB_WORKER_OPERATIONS));
+        ).toEqual(new Set(DB_RENDERER_WORKER_OPERATIONS));
+    });
+
+    it('cancels active recordings before deleting their playlist', async () => {
+        await getHandler('DB_DELETE_PLAYLIST')(
+            createIpcEvent(),
+            playlistId,
+            operationId
+        );
+
+        expect(mockCancelForPlaylist).toHaveBeenCalledWith(playlistId);
+    });
+
+    it('cancels every active recording before deleting all playlists', async () => {
+        await getHandler('DB_DELETE_ALL_PLAYLISTS')(
+            createIpcEvent(),
+            operationId
+        );
+
+        expect(mockCancelAllActive).toHaveBeenCalledTimes(1);
+        expect(mockResumeSchedulingAfterDeleteAll).toHaveBeenCalledTimes(1);
     });
 
     it('forwards request-scoped worker events only while the renderer exists', async () => {

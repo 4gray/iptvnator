@@ -589,8 +589,16 @@ async function addCurrentDetailToFavorites(page: Page): Promise<void> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
+    const closePlayer = page
+        .getByRole('button', { name: 'Close player', exact: true })
+        .first();
+    if (await closePlayer.isVisible()) {
+        await closePlayer.click();
+        await expect(closePlayer).toBeHidden();
+    }
+
     const backButton = page
-        .locator('app-content-hero .hero__back-button')
+        .locator('app-content-hero .hero__back-button:visible')
         .first();
 
     await expect(backButton).toBeVisible({ timeout: 20000 });

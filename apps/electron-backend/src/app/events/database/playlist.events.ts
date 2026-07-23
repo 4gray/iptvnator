@@ -5,12 +5,16 @@
 
 import { ipcMain } from 'electron';
 import { databaseWorkerClient } from '../../services/database-worker-client';
+import { recordingSchedulerService } from '../../services/recording-scheduler.service';
 import {
     handleWorkerRequest,
     requestWorkerWithEvents,
 } from './worker-events.utils';
 
-handleWorkerRequest('DB_CREATE_PLAYLIST', (playlist: Record<string, unknown>) => playlist);
+handleWorkerRequest(
+    'DB_CREATE_PLAYLIST',
+    (playlist: Record<string, unknown>) => playlist
+);
 handleWorkerRequest(
     'DB_UPSERT_APP_PLAYLIST',
     (playlist: Record<string, unknown>) => playlist
@@ -21,11 +25,18 @@ handleWorkerRequest(
 );
 handleWorkerRequest('DB_GET_APP_PLAYLISTS', () => ({}));
 handleWorkerRequest('DB_GET_APP_PLAYLIST_METAS', () => ({}));
-handleWorkerRequest('DB_GET_APP_PLAYLIST', (playlistId: string) => ({ playlistId }));
-handleWorkerRequest('DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS', (playlistId: string) => ({
+handleWorkerRequest('DB_GET_APP_PLAYLIST', (playlistId: string) => ({
     playlistId,
 }));
-handleWorkerRequest('DB_GET_PLAYLIST', (playlistId: string) => ({ playlistId }));
+handleWorkerRequest(
+    'DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS',
+    (playlistId: string) => ({
+        playlistId,
+    })
+);
+handleWorkerRequest('DB_GET_PLAYLIST', (playlistId: string) => ({
+    playlistId,
+}));
 handleWorkerRequest(
     'DB_UPDATE_PLAYLIST',
     (
@@ -50,21 +61,15 @@ handleWorkerRequest('DB_SET_APP_STATE', (key: string, value: string) => ({
 
 ipcMain.handle(
     'DB_DELETE_PLAYLIST',
-    async (
-        event,
-        playlistId: string,
-        operationId?: string
-    ) => {
+    async (event, playlistId: string, operationId?: string) => {
         try {
-            return await requestWorkerWithEvents(
-                event,
-                'DB_DELETE_PLAYLIST',
-                {
-                    playlistId,
-                    operationId,
-                }
-            );
+            await recordingSchedulerService.cancelForPlaylist(playlistId);
+            return await requestWorkerWithEvents(event, 'DB_DELETE_PLAYLIST', {
+                playlistId,
+                operationId,
+            });
         } catch (error) {
+            recordingSchedulerService.restorePlaylistScheduling(playlistId);
             console.error('Error handling DB_DELETE_PLAYLIST:', error);
             throw error;
         }
@@ -75,6 +80,7 @@ ipcMain.handle(
     'DB_DELETE_ALL_PLAYLISTS',
     async (event, operationId?: string) => {
         try {
+            await recordingSchedulerService.cancelAllActive();
             return await requestWorkerWithEvents(
                 event,
                 'DB_DELETE_ALL_PLAYLISTS',
@@ -83,6 +89,8 @@ ipcMain.handle(
         } catch (error) {
             console.error('Error handling DB_DELETE_ALL_PLAYLISTS:', error);
             throw error;
+        } finally {
+            recordingSchedulerService.resumeSchedulingAfterDeleteAll();
         }
     }
 );

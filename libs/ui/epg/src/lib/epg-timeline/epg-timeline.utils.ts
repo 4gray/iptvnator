@@ -146,7 +146,9 @@ export function buildTimelineTicks(
     return ticks;
 }
 
-export function buildTimelineDayDividers(axis: TimelineAxis): TimelineDayDivider[] {
+export function buildTimelineDayDividers(
+    axis: TimelineAxis
+): TimelineDayDivider[] {
     const dividers: TimelineDayDivider[] = [];
     let cursor = startOfDay(axis.startMs);
 
@@ -164,10 +166,7 @@ export function buildTimelineDayDividers(axis: TimelineAxis): TimelineDayDivider
 }
 
 /** Local-day key (yyyy-MM-dd) for the day currently centred in the viewport. */
-export function dayKeyAtOffset(
-    axis: TimelineAxis,
-    offsetMin: number
-): string {
+export function dayKeyAtOffset(axis: TimelineAxis, offsetMin: number): string {
     const ms = axis.startMs + offsetMin * TIMELINE_MINUTE_MS;
     return getProgramDateKey(new Date(ms).toISOString());
 }
@@ -220,6 +219,29 @@ export function nearestDateKeyWithPrograms(
     }
 
     return bestKey;
+}
+
+/** Keep the viewport centre stable while changing the ribbon scale. */
+export function updateTimelineZoom(
+    requested: number,
+    current: number,
+    min: number,
+    max: number,
+    scroller?: HTMLElement
+): number {
+    const next = Number.isFinite(requested)
+        ? Math.min(max, Math.max(min, requested))
+        : current;
+    const centreMinutes = scroller
+        ? (scroller.scrollLeft + scroller.clientWidth / 2) / current
+        : null;
+    if (scroller && centreMinutes !== null) {
+        requestAnimationFrame(() => {
+            scroller.scrollLeft =
+                centreMinutes * next - scroller.clientWidth / 2;
+        });
+    }
+    return next;
 }
 
 // Short-programme render strategy (tiers, grouping, zoom bounds) lives in a

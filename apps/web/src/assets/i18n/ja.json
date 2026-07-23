@@ -657,7 +657,8 @@
             "LANGUAGE": "言語",
             "SHOW_PROGRAM_DETAILS": "この番組の詳細を表示",
             "EPISODE": "エピソード",
-            "DURATION": "長さ"
+            "DURATION": "長さ",
+            "RECORD_PROGRAM": "番組を録画"
         },
         "FETCH_SUCCESS": "EPGの取得に成功しました",
         "IMPORT_PROGRESS": "EPGインポート",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "すべてのラジオ"
     },
     "INFORMATION": "情報",
+    "RECORDINGS": {
+        "TITLE": "録画",
+        "SUBTITLE": "予約録画とローカルDVRライブラリ",
+        "DESKTOP_ONLY_TITLE": "録画機能はデスクトップアプリで利用できます",
+        "DESKTOP_ONLY_BODY": "DVRの予約録画を実行するには、コンピューターでIPTVnatorを起動しておく必要があります。",
+        "ENGINE_UNAVAILABLE_TITLE": "録画エンジンを利用できません",
+        "ENGINE_UNAVAILABLE_BODY": "対応する録画エンジンがありません。新しい録画を予約するには Embedded MPV または VLC をインストールしてください。",
+        "ACTIVE_COUNT_LABEL": "アクティブな録画: {{count}}",
+        "RETRY": "再試行",
+        "LOAD_FAILED_TITLE": "録画ライブラリを読み込めませんでした",
+        "LOAD_FAILED_BODY": "デスクトップアプリとの接続を確認して、もう一度お試しください。",
+        "FILTER_LABEL": "録画を絞り込む",
+        "FILTERS": {
+            "ALL": "すべて",
+            "UPCOMING": "予約済み",
+            "LIBRARY": "ライブラリ"
+        },
+        "EMPTY_TITLE": "録画はまだありません",
+        "EMPTY_BODY": "EPGから放送中の番組を予約録画すると、ここに追加されます。",
+        "CANCEL": "録画をキャンセル",
+        "PLAY": "再生",
+        "REVEAL": "フォルダーに表示",
+        "REMOVE": "ライブラリから削除",
+        "ACTION_COMPLETE": "録画ライブラリを更新しました",
+        "ACTION_FAILED": "録画の操作を完了できませんでした",
+        "STATUS": {
+            "SCHEDULED": "予約済み",
+            "RECORDING": "録画中",
+            "COMPLETED": "完了",
+            "FAILED": "失敗",
+            "CANCELED": "キャンセル済み",
+            "MISSED": "未録画",
+            "INTERRUPTED": "中断"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "ポータルが短時間で失効するリンクを生成するため、Stalkerの予約録画は利用できません。現在放送中の番組は録画できます。"
+    },
     "DOWNLOADS": {
         "TITLE": "ダウンロード",
         "DOWNLOAD": "ダウンロード",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "ナビゲーションを展開",
+            "COLLAPSE_NAVIGATION": "ナビゲーションを折りたたむ",
             "RAIL_DASHBOARD": "ダッシュボード",
             "OPEN_DASHBOARD": "ダッシュボードを開く",
             "RAIL_SOURCES": "ソース",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "最近表示した項目",
             "RAIL_FAVORITES": "お気に入り",
             "RAIL_DOWNLOADS": "ダウンロード",
+            "RAIL_RECORDINGS": "録画",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "すべてのチャンネル",
             "RAIL_GROUPS": "グループ",

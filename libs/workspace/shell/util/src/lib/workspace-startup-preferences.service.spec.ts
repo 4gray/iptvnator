@@ -18,9 +18,9 @@ describe('WorkspaceStartupPreferencesService', () => {
         localStorage.clear();
 
         playlistsService = {
-            getAllPlaylists: jest.fn().mockReturnValue(
-                of([{ _id: 'playlist-1' }])
-            ),
+            getAllPlaylists: jest
+                .fn()
+                .mockReturnValue(of([{ _id: 'playlist-1' }])),
         };
         settingsStore = {
             loadSettings: jest.fn().mockResolvedValue(undefined),
@@ -84,6 +84,9 @@ describe('WorkspaceStartupPreferencesService', () => {
                 '/workspace/xtreams/playlist-1/vod/123/456?q=matrix'
             )
         ).toBe('/workspace/xtreams/playlist-1/vod');
+        expect(
+            service.getRestorablePath('/workspace/recordings?q=ignored')
+        ).toBe('/workspace/recordings');
     });
 
     it('ignores non-restorable routes', () => {

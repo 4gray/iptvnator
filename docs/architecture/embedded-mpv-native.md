@@ -484,7 +484,7 @@ Linux audio-track discovery works differently from macOS/Windows because the han
 
 Renderer autoplay must use `ended` only. It must not treat `closed`, `idle`, or `error` as a request to continue to the next episode.
 
-Async command/property replies are reconciled against pending request IDs on all platforms: only a failed `loadfile` reply (or a recording start/stop reply) may change the session status. A rejected seek, `aid`, or `speed` reply on a live stream records `snapshot.error` but must not flip a playing session to `error`, because playback continues.
+Async command/property replies are reconciled against pending request IDs on all platforms: only a failed `loadfile` reply may change the playback session status. Public recording start/stop calls use synchronous `stream-record` property updates so the caller receives native acceptance or failure before it persists a DVR transition. Async recording-stop replies remain only in internal playback-replacement/disposal paths. A rejected seek, `aid`, or `speed` reply on a live stream records `snapshot.error` but must not flip a playing session to `error`, because playback continues.
 
 The native addon also observes mpv's `eof-reached` property and maps a true value to `ended`. This is required because embedded sessions run with `keep-open=yes`; MPV can pause at EOF while keeping the file loaded, so relying only on `MPV_EVENT_END_FILE` can leave the renderer in a paused-at-end state and block series autoplay.
 
@@ -507,7 +507,7 @@ Recording is session-scoped:
 
 - `startEmbeddedMpvRecording(sessionId, { directory, title })` resolves a unique `.ts` filename in the requested directory and calls the native addon's `startRecording(sessionId, targetPath)`.
 - `stopEmbeddedMpvRecording(sessionId)` calls the native addon's `stopRecording(sessionId)`.
-- The native addon sets mpv's `stream-record` property to the target path on start and to an empty value on stop.
+- The native addon synchronously sets mpv's `stream-record` property to the target path on start and to an empty value on stop, then updates the snapshot returned to TypeScript.
 - Loading a replacement stream or disposing the embedded session stops any active recording before the MPV handle is reused or destroyed.
 - `EmbeddedMpvSession.recording` carries `{ active, targetPath, startedAt, error }` so the renderer can show active elapsed time, final save path, or a failure.
 
@@ -716,7 +716,7 @@ Renderer command IPC in `EmbeddedMpvCommandRunner` uses the canonical `sessionId
 
 ### Power management
 
-The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-display-sleep` whenever any embedded MPV session has status `playing`. Released on pause, EOF (`ended`), dispose, or shutdown. Necessary because libmpv-rendered video does not own the windowing surface, so MPV's own screensaver inhibition does not apply. See `EmbeddedMpvNativeService.updatePowerBlocker()` for the implementation.
+The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-display-sleep` whenever a renderer-owned embedded MPV session has status `playing`. Released on pause, EOF (`ended`), dispose, or shutdown. Hidden main-process DVR sessions are excluded because `DesktopRecordingEngine` separately uses `prevent-app-suspension` while a recording is active. Necessary because libmpv-rendered video does not own the visible windowing surface, so MPV's own screensaver inhibition does not apply. See `EmbeddedMpvNativeService.updatePowerBlocker()` for the implementation.
 
 ## Packaging State
 

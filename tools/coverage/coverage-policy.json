@@ -24,6 +24,20 @@
                 "e2eTags": ["@electron", "@critical", "@persistence"]
             },
             {
+                "name": "recording-data-access",
+                "root": "libs/recording/data-access",
+                "sourceRoot": "libs/recording/data-access/src",
+                "validationCommand": "pnpm nx test recording-data-access",
+                "e2eTags": ["@electron", "@persistence"]
+            },
+            {
+                "name": "recording-feature",
+                "root": "libs/recording/feature",
+                "sourceRoot": "libs/recording/feature/src",
+                "validationCommand": "pnpm nx test recording-feature",
+                "e2eTags": ["@electron", "@persistence"]
+            },
+            {
                 "name": "web-backend",
                 "root": "apps/web-backend",
                 "sourceRoot": "apps/web-backend/src",

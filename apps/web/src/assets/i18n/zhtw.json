@@ -657,7 +657,8 @@
             "LANGUAGE": "語言",
             "SHOW_PROGRAM_DETAILS": "顯示關於該節目的詳細資訊",
             "EPISODE": "集數",
-            "DURATION": "時長"
+            "DURATION": "時長",
+            "RECORD_PROGRAM": "錄製節目"
         },
         "FETCH_SUCCESS": "EPG 已成功擷取",
         "IMPORT_PROGRESS": "EPG 匯入",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "所有廣播"
     },
     "INFORMATION": "資訊",
+    "RECORDINGS": {
+        "TITLE": "錄影",
+        "SUBTITLE": "預約錄影與本機 DVR 媒體庫",
+        "DESKTOP_ONLY_TITLE": "桌面版應用程式支援錄影功能",
+        "DESKTOP_ONLY_BODY": "DVR 預約錄影需要讓 IPTVnator 在電腦上保持執行。",
+        "ENGINE_UNAVAILABLE_TITLE": "錄影引擎無法使用",
+        "ENGINE_UNAVAILABLE_BODY": "沒有可用的受支援錄影引擎。請安裝 Embedded MPV 或 VLC 以排程新錄影。",
+        "ACTIVE_COUNT_LABEL": "使用中的錄影：{{count}}",
+        "RETRY": "重試",
+        "LOAD_FAILED_TITLE": "無法載入錄影媒體庫",
+        "LOAD_FAILED_BODY": "請檢查桌面應用程式連線，然後重試。",
+        "FILTER_LABEL": "篩選錄影",
+        "FILTERS": {
+            "ALL": "全部",
+            "UPCOMING": "預約錄影",
+            "LIBRARY": "媒體庫"
+        },
+        "EMPTY_TITLE": "尚無錄影",
+        "EMPTY_BODY": "從 EPG 預約錄製直播節目，即可將其新增至此處。",
+        "CANCEL": "取消錄影",
+        "PLAY": "播放",
+        "REVEAL": "在檔案夾中顯示",
+        "REMOVE": "從媒體庫移除",
+        "ACTION_COMPLETE": "錄影媒體庫已更新",
+        "ACTION_FAILED": "無法完成錄影操作",
+        "STATUS": {
+            "SCHEDULED": "已預約",
+            "RECORDING": "錄影中",
+            "COMPLETED": "已完成",
+            "FAILED": "失敗",
+            "CANCELED": "已取消",
+            "MISSED": "已錯過",
+            "INTERRUPTED": "已中斷"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "由於入口網站產生的播放連結有效期較短，暫不支援 Stalker 預約錄影。你可以錄製目前正在播出的節目。"
+    },
     "DOWNLOADS": {
         "TITLE": "下載",
         "DOWNLOAD": "下載",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "展開導覽",
+            "COLLAPSE_NAVIGATION": "收合導覽",
             "RAIL_DASHBOARD": "儀表板",
             "OPEN_DASHBOARD": "開啟儀表板",
             "RAIL_SOURCES": "來源",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "最近觀看",
             "RAIL_FAVORITES": "我的最愛",
             "RAIL_DOWNLOADS": "下載",
+            "RAIL_RECORDINGS": "錄影",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "所有頻道",
             "RAIL_GROUPS": "群組",

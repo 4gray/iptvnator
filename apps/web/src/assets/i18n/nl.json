@@ -657,7 +657,8 @@
             "LANGUAGE": "Taal",
             "SHOW_PROGRAM_DETAILS": "Toon details over dit programma",
             "EPISODE": "Aflevering",
-            "DURATION": "Duur"
+            "DURATION": "Duur",
+            "RECORD_PROGRAM": "Programma opnemen"
         },
         "FETCH_SUCCESS": "TV-Gids bijgewerkt",
         "IMPORT_PROGRESS": "EPG-import",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Alle radio"
     },
     "INFORMATION": "Informatie",
+    "RECORDINGS": {
+        "TITLE": "Opnamen",
+        "SUBTITLE": "Geplande opnamen en je lokale DVR-bibliotheek",
+        "DESKTOP_ONLY_TITLE": "Opnamen zijn beschikbaar in de desktop-app",
+        "DESKTOP_ONLY_BODY": "Voor de DVR-planner moet IPTVnator actief zijn op je computer.",
+        "ENGINE_UNAVAILABLE_TITLE": "Opname-engine niet beschikbaar",
+        "ENGINE_UNAVAILABLE_BODY": "Er is geen ondersteunde opname-engine beschikbaar. Installeer Embedded MPV of VLC om nieuwe opnamen te plannen.",
+        "ACTIVE_COUNT_LABEL": "Actieve opnamen: {{count}}",
+        "RETRY": "Opnieuw proberen",
+        "LOAD_FAILED_TITLE": "De opnamebibliotheek kon niet worden geladen",
+        "LOAD_FAILED_BODY": "Controleer de verbinding met de desktopapp en probeer het opnieuw.",
+        "FILTER_LABEL": "Opnamen filteren",
+        "FILTERS": {
+            "ALL": "Alle",
+            "UPCOMING": "Gepland",
+            "LIBRARY": "Bibliotheek"
+        },
+        "EMPTY_TITLE": "Nog geen opnamen",
+        "EMPTY_BODY": "Plan de opname van een liveprogramma via de tv-gids om het hier toe te voegen.",
+        "CANCEL": "Opname annuleren",
+        "PLAY": "Afspelen",
+        "REVEAL": "Weergeven in map",
+        "REMOVE": "Uit bibliotheek verwijderen",
+        "ACTION_COMPLETE": "Opnamebibliotheek bijgewerkt",
+        "ACTION_FAILED": "De opnameactie kon niet worden voltooid",
+        "STATUS": {
+            "SCHEDULED": "Gepland",
+            "RECORDING": "Wordt opgenomen",
+            "COMPLETED": "Voltooid",
+            "FAILED": "Mislukt",
+            "CANCELED": "Geannuleerd",
+            "MISSED": "Gemist",
+            "INTERRUPTED": "Onderbroken"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Toekomstige Stalker-opnamen zijn niet beschikbaar omdat het portaal kortlevende links maakt. Je kunt het huidige programma opnemen."
+    },
     "DOWNLOADS": {
         "TITLE": "Downloads",
         "DOWNLOAD": "Downloaden",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Navigatie uitklappen",
+            "COLLAPSE_NAVIGATION": "Navigatie inklappen",
             "RAIL_DASHBOARD": "Dashboard",
             "OPEN_DASHBOARD": "Open dashboard",
             "RAIL_SOURCES": "Bronnen",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Recent bekeken",
             "RAIL_FAVORITES": "Favorieten",
             "RAIL_DOWNLOADS": "Downloads",
+            "RAIL_RECORDINGS": "Opnamen",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Alle kanalen",
             "RAIL_GROUPS": "Groepen",

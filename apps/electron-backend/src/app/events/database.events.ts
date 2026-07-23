@@ -13,6 +13,7 @@ import './database/favorites.events';
 import './database/playback-position.events';
 import './database/playlist.events';
 import './database/recently-viewed.events';
+import './database/recordings.events';
 import './database/tmdb.events';
 import './database/xtream.events';
 

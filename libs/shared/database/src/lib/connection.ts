@@ -13,7 +13,13 @@ import Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
+import { secureDatabaseFilePermissions } from './database-file-permissions';
 import { getIptvnatorDatabasePath } from './path-utils';
+import {
+    RECORDINGS_INDEX_SQL,
+    RECORDINGS_TABLE_SQL,
+    relaxRecordingPlaybackSnapshotNullability,
+} from './recording-table-migration';
 
 export type DatabaseInstance = BetterSQLite3Database<typeof schema>;
 
@@ -46,7 +52,11 @@ function isSqlTraceEnabled(): boolean {
 }
 
 function compactSqlForTrace(sql: string): string {
-    const compactSql = sql.replace(/\s+/g, ' ').trim();
+    const compactSql = sql
+        .replace(/\b[xX]'(?:''|[^'])*'/g, '?')
+        .replace(/'(?:''|[^'])*'/g, '?')
+        .replace(/\s+/g, ' ')
+        .trim();
     return compactSql.length <= 180
         ? compactSql
         : `${compactSql.slice(0, 177)}...`;
@@ -83,7 +93,6 @@ const TMDB_METADATA_TABLE_SQL = `CREATE TABLE IF NOT EXISTS tmdb_metadata (
       fetched_at TEXT DEFAULT (datetime('now'))
   )`;
 const TMDB_METADATA_INDEX_SQL = `CREATE UNIQUE INDEX IF NOT EXISTS tmdb_metadata_lookup_unique ON tmdb_metadata(media_type, lookup_key, language)`;
-
 const CREATE_TABLE_STATEMENTS = [
     `CREATE TABLE IF NOT EXISTS playlists (
       id TEXT PRIMARY KEY,
@@ -315,6 +324,10 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
     `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
+    // DVR schedules and recording library. Source metadata is snapshotted so
+    // completed recordings remain visible after their playlist is removed.
+    RECORDINGS_TABLE_SQL,
+    ...RECORDINGS_INDEX_SQL,
     // TMDB metadata cache (details payloads + search match resolutions)
     TMDB_METADATA_TABLE_SQL,
     TMDB_METADATA_INDEX_SQL,
@@ -373,7 +386,9 @@ export const __databaseConnectionTestHooks = {
     normalizeXtreamContentAddedEpochs,
     ensureContentTitleFts,
     backfillEpgProgramSourceUrls,
+    relaxRecordingPlaybackSnapshotNullability,
     runMigrations,
+    recordingTableSql: RECORDINGS_TABLE_SQL,
 } as const;
 
 /**
@@ -773,6 +788,7 @@ function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
  */
 function runMigrations(sqliteDb: Database.Database): void {
     widenTmdbMetadataMediaTypeCheck(sqliteDb);
+    relaxRecordingPlaybackSnapshotNullability(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
     ensureContentTitleFts(sqliteDb);
     deduplicateXtreamCache(sqliteDb);
@@ -813,10 +829,11 @@ export async function initDatabase(
                   }
                 : undefined,
         });
+        secureDatabaseFilePermissions(filePath);
 
         if (isSqlTraceEnabled()) {
             traceSql('sql-main', 'open', {
-                filePath,
+                filePath: '[REDACTED]',
                 readonly,
             });
         }
@@ -827,6 +844,7 @@ export async function initDatabase(
 
         if (!readonly) {
             sqlite.pragma('journal_mode = WAL');
+            secureDatabaseFilePermissions(filePath);
             sqlite.pragma('synchronous = NORMAL');
         }
 

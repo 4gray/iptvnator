@@ -6,6 +6,7 @@ Electron app.
 Related:
 
 - [Category Management](./category-management.md)
+- [DVR Recording](./dvr-recording.md)
 - [Workspace Shell](./workspace-shell.md)
 
 ## Summary
@@ -56,6 +57,7 @@ Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 2. `apps/electron-backend/src/app/database/operations/content.operations.ts`
 3. `apps/electron-backend/src/app/database/operations/playlist.operations.ts`
 4. `apps/electron-backend/src/app/database/operations/xtream.operations.ts`
+5. `apps/electron-backend/src/app/database/operations/recording.operations.ts`
 
 ## Worker Architecture
 
@@ -64,8 +66,12 @@ Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 1. Renderer calls the existing preload API such as `window.electron.dbSaveContent`.
 2. `ipcMain.handle(...)` in the Electron backend builds a payload and delegates
    to `DatabaseWorkerClient`.
-3. `DatabaseWorkerClient` lazily starts one long-lived `worker_threads` worker
+3. `DatabaseWorkerClient` first awaits the shared main-process database
+   initialization barrier, so schema migrations finish before any worker opens
+   the SQLite file. It then lazily starts one long-lived `worker_threads` worker
    and correlates requests with a generated `requestId`.
+   EPG fetch and clear workers await the same barrier before creation, so they
+   cannot race a startup schema migration either.
 4. The worker executes SQLite work and sends back either:
     1. `ready`
     2. `event`
@@ -79,6 +85,16 @@ Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 - It centralizes failure handling and restart behavior.
 - It mirrors the existing EPG worker approach without multiplying writable
   SQLite owners.
+- Shutdown is terminal for a client instance: pending work is rejected and a
+  later request cannot recreate a worker during Electron teardown.
+- Worker event handlers are bound to the instance that registered them. A
+  delayed `exit` from an errored worker cannot reset its replacement or reject
+  the replacement's requests.
+
+When SQL tracing is enabled, main and worker connections redact database paths
+and replace expanded SQL string/blob literals with placeholders before logging.
+Do not log raw worker payloads or expanded values that can contain stream URLs,
+headers, playlist credentials, or local paths.
 
 ### Packaged worker bootstrap
 
@@ -179,6 +195,27 @@ falls back to the legacy progress API if the newer event channel is missing.
 1. `createOperationId(...)`
 2. `cancelOperation(operationId)`
 3. `isDbAbortError(error)`
+
+### Main-process-only recording operations
+
+The recording scheduler persists through the same database worker, but its raw
+CRUD operations are not part of the renderer DB bridge:
+
+1. `DB_CREATE_RECORDING`
+2. `DB_GET_RECORDING`
+3. `DB_LIST_RECORDINGS`
+4. `DB_UPDATE_RECORDING`
+5. `DB_DELETE_RECORDING`
+
+`DB_MAIN_PROCESS_ONLY_WORKER_OPERATIONS` identifies these operations and
+`DB_RENDERER_WORKER_OPERATIONS` excludes them from generic renderer IPC
+registration. Only `RecordingRepository` in the trusted Electron main process
+uses them. The renderer schedules and manages DVR entries through higher-level
+`recordings*` preload methods, which preserve scheduler validation and prevent
+direct mutation of state, stream credentials, or local file paths.
+
+See [DVR Recording](./dvr-recording.md) for the state machine and sanitized
+public DTO contract.
 
 ## Migrated Operations
 
@@ -314,6 +351,18 @@ is unavailable or the SQLite playlist migration has not completed.
 4. `DB_GET_RECENT_PLAYBACK_POSITIONS`
 5. `DB_GET_ALL_PLAYBACK_POSITIONS`
 6. `DB_CLEAR_PLAYBACK_POSITION`
+
+### DVR recordings (main process only)
+
+1. `DB_CREATE_RECORDING`
+2. `DB_GET_RECORDING`
+3. `DB_LIST_RECORDINGS`
+4. `DB_UPDATE_RECORDING`
+5. `DB_DELETE_RECORDING`
+
+These operations are lightweight CRUD calls rather than request-scoped bulk
+jobs, so they do not emit `DB_OPERATION_EVENT` progress. They remain in the
+worker to keep the scheduler's SQLite access off the Electron event loop.
 
 ## SQLite Concurrency Rules
 
@@ -513,7 +562,8 @@ executed inside a synchronous transaction callback:
 ```ts
 // favorites is playlist-scoped: filter by (contentId, playlistId), otherwise
 // a same-contentId favorite in another playlist gets rewritten too.
-const stmt = db.update(schema.favorites)
+const stmt = db
+    .update(schema.favorites)
     .set({ position: sql<number>`${sql.placeholder('position')}` })
     .where(
         and(
@@ -693,3 +743,13 @@ When adding another heavy SQLite operation:
 6. Reuse existing preload/service APIs where possible instead of creating a new
    renderer-facing contract.
 7. Re-run the worker unit test and at least one Electron runtime smoke.
+
+If an operation contains scheduler state, playback credentials, or trusted
+filesystem paths, add it to the main-process-only operation set and expose a
+semantic preload action instead of registering raw renderer DB IPC.
+
+The main process finishes `initDatabase()` (table creation and migrations)
+before `WorkerRecordingRepository` dispatches any recording operation. This
+barrier prevents the database worker from racing the pre-release recordings
+table rebuild. POSIX database directories/files are also tightened to
+`0700`/`0600` during initialization.

@@ -657,7 +657,8 @@
             "LANGUAGE": "Dil",
             "SHOW_PROGRAM_DETAILS": "Bu program hakkında detayları göster",
             "EPISODE": "Bölüm",
-            "DURATION": "Süre"
+            "DURATION": "Süre",
+            "RECORD_PROGRAM": "Programı kaydet"
         },
         "FETCH_SUCCESS": "EPG verileri başarıyla alındı",
         "IMPORT_PROGRESS": "EPG İçe Aktarımı",
@@ -977,6 +978,42 @@
         "ALL_RADIO": "Tüm radyolar"
     },
     "INFORMATION": "Bilgi",
+    "RECORDINGS": {
+        "TITLE": "Kayıtlar",
+        "SUBTITLE": "Planlanmış kayıtlar ve yerel DVR kitaplığınız",
+        "DESKTOP_ONLY_TITLE": "Kayıtlar masaüstü uygulamasında kullanılabilir",
+        "DESKTOP_ONLY_BODY": "DVR zamanlayıcısının çalışması için IPTVnator bilgisayarınızda açık olmalıdır.",
+        "ENGINE_UNAVAILABLE_TITLE": "Kayıt motoru kullanılamıyor",
+        "ENGINE_UNAVAILABLE_BODY": "Desteklenen bir kayıt motoru kullanılamıyor. Yeni kayıtlar planlamak için Embedded MPV veya VLC yükleyin.",
+        "ACTIVE_COUNT_LABEL": "Etkin kayıtlar: {{count}}",
+        "RETRY": "Yeniden dene",
+        "LOAD_FAILED_TITLE": "Kayıt kitaplığı yüklenemedi",
+        "LOAD_FAILED_BODY": "Masaüstü uygulaması bağlantısını kontrol edip yeniden deneyin.",
+        "FILTER_LABEL": "Kayıtları filtrele",
+        "FILTERS": {
+            "ALL": "Tümü",
+            "UPCOMING": "Yaklaşanlar",
+            "LIBRARY": "Kitaplık"
+        },
+        "EMPTY_TITLE": "Henüz kayıt yok",
+        "EMPTY_BODY": "Buraya eklemek için EPG’den canlı bir programın kaydını planlayın.",
+        "CANCEL": "Kaydı iptal et",
+        "PLAY": "Oynat",
+        "REVEAL": "Klasörde göster",
+        "REMOVE": "Kitaplıktan kaldır",
+        "ACTION_COMPLETE": "Kayıt kitaplığı güncellendi",
+        "ACTION_FAILED": "Kayıt işlemi tamamlanamadı",
+        "STATUS": {
+            "SCHEDULED": "Planlandı",
+            "RECORDING": "Kaydediliyor",
+            "COMPLETED": "Tamamlandı",
+            "FAILED": "Başarısız",
+            "CANCELED": "İptal edildi",
+            "MISSED": "Kaçırıldı",
+            "INTERRUPTED": "Kesintiye uğradı"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Portal kısa ömürlü bağlantılar oluşturduğu için gelecekteki Stalker kayıtları kullanılamaz. Şu anda yayınlanan programı kaydedebilirsiniz."
+    },
     "DOWNLOADS": {
         "TITLE": "İndirilenler",
         "DOWNLOAD": "İndir",
@@ -1079,6 +1116,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Gezinmeyi genişlet",
+            "COLLAPSE_NAVIGATION": "Gezinmeyi daralt",
             "RAIL_DASHBOARD": "Pano",
             "OPEN_DASHBOARD": "Panoyu aç",
             "RAIL_SOURCES": "Kaynaklar",
@@ -1097,6 +1136,7 @@
             "RAIL_RECENT": "Son izlenenler",
             "RAIL_FAVORITES": "Favoriler",
             "RAIL_DOWNLOADS": "İndirilenler",
+            "RAIL_RECORDINGS": "Kayıtlar",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Tüm kanallar",
             "RAIL_GROUPS": "Gruplar",
