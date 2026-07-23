@@ -968,6 +968,11 @@
         "CONTENT_NOT_AVAILABLE": "Este conteúdo não está disponível neste servidor",
         "PLAYBACK_ERROR": "Falha ao obter URL de reprodução",
         "LOADING_SEASONS": "Carregando temporadas...",
+        "LOADING_ALL_CHANNELS": "A carregar a lista completa de canais…",
+        "REFRESH_CHANNEL_LIST": "Atualizar lista de canais",
+        "NO_CHANNELS_IN_CATEGORY": "Nenhum canal nesta categoria",
+        "ITEM": "item",
+        "ITEMS": "itens",
         "NO_EPISODES": "Nenhum episódio disponível",
         "ALL_RADIO": "Todas as rádios"
     },

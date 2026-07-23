@@ -968,6 +968,11 @@
         "CONTENT_NOT_AVAILABLE": "此服务器上没有此内容",
         "PLAYBACK_ERROR": "获取播放 URL 失败",
         "LOADING_SEASONS": "正在加载季…",
+        "LOADING_ALL_CHANNELS": "正在加载完整频道列表…",
+        "REFRESH_CHANNEL_LIST": "刷新频道列表",
+        "NO_CHANNELS_IN_CATEGORY": "此分类中没有频道",
+        "ITEM": "项",
+        "ITEMS": "项",
         "NO_EPISODES": "没有可用的剧集",
         "ALL_RADIO": "所有广播"
     },

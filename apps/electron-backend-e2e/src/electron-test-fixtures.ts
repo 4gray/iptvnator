@@ -1596,6 +1596,15 @@ export async function expectWorkspaceSearchStatus(
     ).toHaveText(expected);
 }
 
+/** The degraded-search hint chip must be absent (e.g. complete local search). */
+export async function expectNoWorkspaceSearchStatus(
+    page: Page
+): Promise<void> {
+    await expect(
+        page.locator('app-workspace-shell-header .search-chip--status')
+    ).toHaveCount(0);
+}
+
 async function startPortalDebugCapture(page: Page): Promise<void> {
     await page.evaluate(() => {
         const electronApi = window.electron as typeof window.electron & {

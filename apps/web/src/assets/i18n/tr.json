@@ -968,6 +968,11 @@
         "CONTENT_NOT_AVAILABLE": "Bu içerik bu sunucuda mevcut değil",
         "PLAYBACK_ERROR": "Oynatma URL'si alınamadı",
         "LOADING_SEASONS": "Sezonlar yükleniyor...",
+        "LOADING_ALL_CHANNELS": "Tüm kanal listesi yükleniyor…",
+        "REFRESH_CHANNEL_LIST": "Kanal listesini yenile",
+        "NO_CHANNELS_IN_CATEGORY": "Bu kategoride kanal yok",
+        "ITEM": "öğe",
+        "ITEMS": "öğe",
         "NO_EPISODES": "Bölüm mevcut değil",
         "ALL_RADIO": "Tüm radyolar"
     },

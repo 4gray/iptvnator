@@ -15,15 +15,30 @@
                 <h2 class="category-title">
                     {{ selectedCategoryTitle() }}
                 </h2>
-                @if (visibleChannels().length > 0) {
+                @if (totalChannelCount() > 0) {
                     <span class="category-subtitle"
-                        >{{ visibleChannels().length }}
+                        >{{ totalChannelCount() }}
                         {{
-                            visibleChannels().length === 1 ? 'item' : 'items'
+                            (totalChannelCount() === 1
+                                ? 'PORTALS.ITEM'
+                                : 'PORTALS.ITEMS'
+                            ) | translate
                         }}</span
                     >
                 }
             </div>
+            @if (isFullListMode()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    [disabled]="isFullListLoading()"
+                    [attr.aria-label]="'PORTALS.REFRESH_CHANNEL_LIST' | translate"
+                    [matTooltip]="'PORTALS.REFRESH_CHANNEL_LIST' | translate"
+                    (click)="refreshChannels()"
+                >
+                    <mat-icon>refresh</mat-icon>
+                </button>
+            }
             <button
                 mat-icon-button
                 type="button"
@@ -35,6 +50,20 @@
                 <mat-icon>chevron_left</mat-icon>
             </button>
         </div>
+
+        @if (isFullListLoading()) {
+            <div class="full-list-progress" role="status">
+                <mat-spinner diameter="14" />
+                <span class="full-list-progress__label">
+                    {{ 'PORTALS.LOADING_ALL_CHANNELS' | translate }}
+                </span>
+                @if (fullListProgress(); as progress) {
+                    <span class="full-list-progress__count">
+                        {{ progress.loaded }}/{{ progress.total }}
+                    </span>
+                }
+            </div>
+        }
 
         <div #scrollContainer class="channels-list">
             @if (isInitialChannelsLoading()) {
@@ -48,6 +77,13 @@
                     <app-portal-empty-state
                         icon="search_off"
                         [message]="'CHANNELS.NO_SEARCH_RESULTS' | translate"
+                    />
+                </div>
+            } @else if (isCategoryEmpty()) {
+                <div class="empty-search-state">
+                    <app-portal-empty-state
+                        icon="tv_off"
+                        [message]="'PORTALS.NO_CHANNELS_IN_CATEGORY' | translate"
                     />
                 </div>
             } @else {
@@ -108,11 +144,23 @@
             <mat-icon>chevron_right</mat-icon>
         </button>
     }
-    @if (!stalkerStore.selectedCategoryId()) {
-        <app-portal-empty-state
-            icon="live_tv"
-            [message]="'PORTALS.SELECT_CATEGORY' | translate"
-        />
+    @if (!stalkerStore.selectedItem() && !stalkerStore.selectedCategoryId()) {
+        @if (showItvAllItems()) {
+            <!-- Xtream parity: all channels of the portal, paginated, before
+                 any category is picked. Clicking a card starts playback. -->
+            <app-stalker-itv-all-items
+                [channels]="itvFullChannelList()"
+                [loading]="isFullListLoading()"
+                [progress]="fullListProgress()"
+                [searchTerm]="searchTerm()"
+                (channelActivated)="playChannel($event)"
+            />
+        } @else {
+            <app-portal-empty-state
+                icon="live_tv"
+                [message]="'PORTALS.SELECT_CATEGORY' | translate"
+            />
+        }
     } @else if (stalkerStore.selectedItem()) {
         @if (streamUrl() && (isEmbeddedPlayer || isRadioMode())) {
             <div class="video-player">

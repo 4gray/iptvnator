@@ -72,6 +72,7 @@ class MockXtreamStore {
 class MockStalkerStore {
     readonly searchPhrase = signal('');
     readonly getSelectedCategoryName = signal('All Items');
+    readonly itvFullListActive = signal(false);
 
     setSearchPhrase = jest.fn((term: string) => this.searchPhrase.set(term));
 }
@@ -594,7 +595,17 @@ describe('WorkspaceShellFacade', () => {
         );
     });
 
-    it('treats stalker radio search as a remote section search', () => {
+    it('drops the loaded-only status once the full ITV channel list is cached', () => {
+        stalkerStore.itvFullListActive.set(true);
+        facade.currentUrl.set('/workspace/stalker/pl-1/itv?q=cnn');
+        searchSync.syncSearchFromRoute();
+        TestBed.flushEffects();
+
+        expect(facade.canUseSearch()).toBe(true);
+        expect(facade.searchStatusLabel()).toBe('');
+    });
+
+    it('marks stalker radio search as loaded-only (radio always pages)', () => {
         facade.currentUrl.set('/workspace/stalker/pl-1/radio?q=jazz');
         searchSync.syncSearchFromRoute();
         TestBed.flushEffects();
@@ -604,7 +615,11 @@ describe('WorkspaceShellFacade', () => {
         expect(facade.searchScopeLabel()).toBe(
             'WORKSPACE.SHELL.RAIL_RADIO / All Items'
         );
-        expect(facade.searchStatusLabel()).toBe('');
+        // Radio has no full-list cache, so its local search only covers loaded
+        // stations — surface the same "loaded only" hint as degraded ITV.
+        expect(facade.searchStatusLabel()).toBe(
+            'WORKSPACE.SHELL.SEARCH_STATUS_LOADED_ONLY'
+        );
     });
 
     it('applies q to Xtream category search on vod routes', () => {

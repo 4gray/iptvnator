@@ -968,6 +968,11 @@
         "CONTENT_NOT_AVAILABLE": "이 서버에서는 이 콘텐츠를 사용할 수 없습니다",
         "PLAYBACK_ERROR": "재생 URL을 가져오지 못했습니다",
         "LOADING_SEASONS": "시즌을 불러오는 중...",
+        "LOADING_ALL_CHANNELS": "전체 채널 목록 불러오는 중…",
+        "REFRESH_CHANNEL_LIST": "채널 목록 새로고침",
+        "NO_CHANNELS_IN_CATEGORY": "이 카테고리에 채널이 없습니다",
+        "ITEM": "개",
+        "ITEMS": "개",
         "NO_EPISODES": "사용 가능한 에피소드가 없습니다",
         "ALL_RADIO": "모든 라디오"
     },

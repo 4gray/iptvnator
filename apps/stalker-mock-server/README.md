@@ -38,6 +38,7 @@ Then in IPTVnator, add a new Stalker portal:
 | `00:1A:79:00:00:03` | **minimal** | 2 categories, 5 items — edge case testing (empty states, single items) |
 | `00:1A:79:00:00:04` | **is-series** | 60% of VOD items have `is_series=1` — tests the Ministra lazy-season flow |
 | `00:1A:79:00:00:05` | **embedded-series** | 50% of VOD items have embedded `series[]` arrays — tests the embedded series flow |
+| `00:1A:79:00:00:06` | **legacy-pagination** | No `get_all_channels` support — tests the paginated `get_ordered_list` crawl fallback for the full ITV channel list |
 | `<any other MAC>` | **auto** | MAC bytes used as seed → deterministic unique dataset |
 
 ## Configuration
@@ -65,6 +66,7 @@ All endpoints are served at `GET /portal.php?action=<action>&...` matching the r
 | `get_categories` | Category list filtered by `type` (itv/vod/series) |
 | `get_genres` | Genre list (mirrors categories) |
 | `get_ordered_list` | Paginated content list; if `movie_id` is present → returns seasons |
+| `get_all_channels` | Complete ITV channel list in one response (`type=itv` only); excludes censored (adult) genres; disabled in the `legacy-pagination` scenario |
 | `create_link` | Returns a real public HLS stream URL for playback |
 | `favorites` | Add / remove / get favorites (in-memory, resets on restart) |
 | `get_short_epg` | Current-and-upcoming EPG window for a channel (`ch_id`, `size`) |

@@ -36,6 +36,36 @@
     );
 }
 
+.full-list-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--mat-sys-surface-container);
+    border-bottom: 1px solid var(--app-separator);
+
+    mat-spinner {
+        flex: 0 0 auto;
+    }
+
+    &__label {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__count {
+        flex: 0 0 auto;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.85;
+    }
+}
+
 .channels-list {
     flex: 1;
     overflow-y: auto;

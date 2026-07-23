@@ -32,6 +32,12 @@ export class WorkspaceContextCategoryViewComponent {
     readonly itemCounts = input<Map<number, number>>(new Map());
     readonly showCounts = input(false);
     readonly countDisplayMode = input<'loading' | 'ready'>('ready');
+    /**
+     * When true, items without an entry in `itemCounts` render no badge at
+     * all instead of "0" — used for Stalker censored (adult) genres whose
+     * real channel count is unknown to the full-list cache.
+     */
+    readonly omitMissingCounts = input(false);
     readonly interactionEnabled = input(true);
     readonly statusText = input('');
 
@@ -91,6 +97,15 @@ export class WorkspaceContextCategoryViewComponent {
     getItemCount(item: WorkspaceCategoryViewItem): number {
         const itemId = Number(item.id ?? item.category_id);
         return this.itemCounts().get(itemId) ?? 0;
+    }
+
+    hasItemCount(item: WorkspaceCategoryViewItem): boolean {
+        if (!this.omitMissingCounts()) {
+            return true;
+        }
+
+        // NaN (from the "*" all-category id) is a valid Map key here.
+        return this.itemCounts().has(Number(item.id ?? item.category_id));
     }
 
     onCategoryClick(item: WorkspaceCategoryViewItem): void {

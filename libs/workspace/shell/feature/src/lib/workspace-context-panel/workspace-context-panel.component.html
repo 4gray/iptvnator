@@ -166,6 +166,10 @@
             <app-workspace-context-category-view
                 [items]="filteredStalkerCategories()"
                 [selectedCategoryId]="$any(stalkerSelectedCategoryId())"
+                [itemCounts]="stalkerCategoryItemCounts()"
+                [showCounts]="stalkerShowCounts()"
+                [countDisplayMode]="stalkerCountDisplayMode()"
+                [omitMissingCounts]="true"
                 (categoryClicked)="onStalkerCategoryClicked($any($event))"
             />
         }

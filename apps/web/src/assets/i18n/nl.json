@@ -968,6 +968,11 @@
         "CONTENT_NOT_AVAILABLE": "Deze inhoud is niet beschikbaar op deze server",
         "PLAYBACK_ERROR": "Ophalen van afspeel-URL mislukt",
         "LOADING_SEASONS": "Seizoenen laden...",
+        "LOADING_ALL_CHANNELS": "Volledige zenderlijst wordt geladen…",
+        "REFRESH_CHANNEL_LIST": "Zenderlijst vernieuwen",
+        "NO_CHANNELS_IN_CATEGORY": "Geen zenders in deze categorie",
+        "ITEM": "item",
+        "ITEMS": "items",
         "NO_EPISODES": "Geen afleveringen beschikbaar",
         "ALL_RADIO": "Alle radio"
     },
