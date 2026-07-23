@@ -449,22 +449,28 @@ describe('RecentPlaylistsComponent busy state', () => {
         );
         expect(setItemSpy).toHaveBeenCalledWith(
             `xtream-restore-${item._id}`,
-            JSON.stringify({
-                hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-                favorites: [
-                    { xtreamId: 101, contentType: 'live' },
-                    { xtreamId: 202, contentType: 'movie' },
-                ],
-                recentlyViewed: [
-                    {
-                        xtreamId: 303,
-                        contentType: 'series',
-                        viewedAt: '2026-04-03T11:15:00.000Z',
-                    },
-                ],
-                playbackPositions: [],
-            })
+            expect.any(String)
         );
+        const persistedRestoreState = JSON.parse(
+            setItemSpy.mock.calls.find(
+                ([key]) => key === `xtream-restore-${item._id}`
+            )?.[1] ?? 'null'
+        );
+        expect(persistedRestoreState).toEqual({
+            hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
+            favorites: [
+                { xtreamId: 101, contentType: 'live' },
+                { xtreamId: 202, contentType: 'movie' },
+            ],
+            recentlyViewed: [
+                {
+                    xtreamId: 303,
+                    contentType: 'series',
+                    viewedAt: '2026-04-03T11:15:00.000Z',
+                },
+            ],
+            playbackPositions: [],
+        });
         expect(router.navigate).toHaveBeenCalledWith([
             '/workspace',
             'xtreams',

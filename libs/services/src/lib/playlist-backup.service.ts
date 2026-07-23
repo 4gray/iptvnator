@@ -8,6 +8,7 @@ import { PlaybackPositionService } from './playback-position.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import {
     isM3uRecentlyViewedItem,
+    normalizeXtreamPendingRestoreState,
     M3uPlaylistBackupEntry,
     M3uRecentlyViewedItem,
     Playlist,
@@ -737,20 +738,12 @@ export class PlaylistBackupService {
         playlistId: string,
         entry: XtreamPlaylistBackupEntry
     ): Promise<void> {
-        const restoreState: XtreamPendingRestoreState = {
-            hiddenCategories: entry.userState.hiddenCategories.map((item) => ({
-                ...item,
-            })),
-            favorites: entry.userState.favorites.map((item) => ({ ...item })),
-            recentlyViewed: entry.userState.recentlyViewed.map((item) => ({
-                ...item,
-            })),
-            playbackPositions: entry.userState.playbackPositions.map(
-                (item) => ({
-                    ...item,
-                })
-            ),
-        };
+        // Backup files are user-supplied JSON; normalization drops user-state
+        // entries without a usable numeric xtreamId (e.g. hiddenCategories
+        // exported by builds affected by issue #1017) so they cannot match
+        // arbitrary categories during restore.
+        const restoreState: XtreamPendingRestoreState =
+            normalizeXtreamPendingRestoreState(entry.userState);
 
         this.pendingRestoreService.set(playlistId, restoreState);
 
