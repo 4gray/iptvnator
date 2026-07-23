@@ -13,6 +13,11 @@ import {
     GlobalSearchResultSource,
 } from './global-search-result.interface';
 import { M3uFavoriteChannel } from './m3u-favorite-channel.interface';
+import {
+    LocalTimeshiftSession,
+    LocalTimeshiftSupport,
+    StartLocalTimeshiftRequest,
+} from './local-timeshift.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 import {
     XtreamBackupFavoriteItem,
@@ -949,6 +954,16 @@ export interface ElectronBridgeApi {
      */
     attachEmbeddedMpvFrameView?: (sessionId: string) => Promise<boolean>;
     detachEmbeddedMpvFrameView?: () => void;
+    getLocalTimeshiftSupport: () => Promise<LocalTimeshiftSupport>;
+    startLocalTimeshift: (
+        request: StartLocalTimeshiftRequest
+    ) => Promise<LocalTimeshiftSession>;
+    stopLocalTimeshift: (
+        sessionId?: string
+    ) => Promise<LocalTimeshiftSession | null>;
+    onLocalTimeshiftSessionUpdate: (
+        callback: (session: LocalTimeshiftSession) => void
+    ) => () => void;
     downloadsStart: (
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;

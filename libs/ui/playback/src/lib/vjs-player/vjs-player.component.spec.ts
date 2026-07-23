@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 import type { VideoJsPlayer } from './vjs-player.types';
@@ -43,7 +44,7 @@ describe('VjsPlayerComponent', () => {
             );
         mpegTsIsSupportedMock.mockReset().mockReturnValue(false);
         await TestBed.configureTestingModule({
-            imports: [VjsPlayerComponent],
+            imports: [VjsPlayerComponent, TranslateModule.forRoot()],
         }).compileComponents();
         fixture = TestBed.createComponent(VjsPlayerComponent);
         component = fixture.componentInstance;
@@ -64,6 +65,35 @@ describe('VjsPlayerComponent', () => {
         expect(component.showCaptions()).toBe(false);
         expect(typeof component.timeUpdate.emit).toBe('function');
         expect(typeof component.playbackIssue.emit).toBe('function');
+    });
+
+    it('shows the LIVE action only for local timeshift and seeks to the live edge', () => {
+        render({
+            isLive: true,
+            sources: [
+                {
+                    src: 'http://127.0.0.1:43123/timeshift/session/index.m3u8',
+                    type: 'application/x-mpegURL',
+                },
+            ],
+        });
+        expect(getLiveButton(fixture)).toBeNull();
+
+        const video = fixture.nativeElement.querySelector(
+            'video'
+        ) as HTMLVideoElement;
+        Object.defineProperty(video, 'seekable', {
+            configurable: true,
+            value: createTimeRanges([[0, 75]]),
+        });
+        const play = jest.spyOn(video, 'play').mockResolvedValue(undefined);
+
+        fixture.componentRef.setInput('localTimeshiftActive', true);
+        fixture.detectChanges();
+        getLiveButton(fixture)?.nativeElement.click();
+
+        expect(video.currentTime).toBe(74.75);
+        expect(play).toHaveBeenCalledTimes(1);
     });
 
     it('preserves legacy Video.js options and controls while the flag is off', () => {
@@ -329,4 +359,18 @@ function createPlayerHarness() {
         aspectRatioPanel: jest.fn(),
     } as unknown as VideoJsPlayer;
     return harness;
+}
+
+function createTimeRanges(ranges: Array<[number, number]>): TimeRanges {
+    return {
+        length: ranges.length,
+        start: (index: number) => ranges[index][0],
+        end: (index: number) => ranges[index][1],
+    } as TimeRanges;
+}
+
+function getLiveButton(fixture: ComponentFixture<VjsPlayerComponentInstance>) {
+    return fixture.debugElement.query(
+        By.css('[data-test-id="local-timeshift-go-live"]')
+    );
 }

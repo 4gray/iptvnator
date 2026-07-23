@@ -24,6 +24,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
+        expect(service.supportsLocalTimeshift).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsPlaybackPositionStorage).toBe(false);
         expect(service.supportsPlaybackPositionUpdates).toBe(false);
@@ -397,6 +398,24 @@ describe('RuntimeCapabilitiesService', () => {
         };
 
         expect(service.supportsDesktopFileSave).toBe(true);
+    });
+
+    it('requires the complete local Timeshift preload surface', () => {
+        testWindow.electron = { getLocalTimeshiftSupport: jest.fn() };
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.supportsLocalTimeshift).toBe(false);
+
+        testWindow.electron = {
+            getLocalTimeshiftSupport: jest.fn(),
+            startLocalTimeshift: jest.fn(),
+            stopLocalTimeshift: jest.fn(),
+            onLocalTimeshiftSessionUpdate: jest.fn(),
+        };
+
+        expect(service.supportsLocalTimeshift).toBe(true);
+        delete testWindow.electron['stopLocalTimeshift'];
+        expect(service.supportsLocalTimeshift).toBe(false);
     });
 
     it('requires the complete playlist refresh preload surface', () => {

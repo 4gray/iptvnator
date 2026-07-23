@@ -11,6 +11,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
+    DEFAULT_LOCAL_TIMESHIFT_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
     ElectronBridgeTrustOptions,
     EpgViewMode,
@@ -22,6 +23,7 @@ import {
     Theme,
     VideoPlayer,
     normalizeDashboardRailsSettings,
+    normalizeLocalTimeshiftSettings,
 } from '@iptvnator/shared/interfaces';
 
 const DEFAULT_SETTINGS: Settings = {
@@ -48,6 +50,7 @@ const DEFAULT_SETTINGS: Settings = {
     downloadFolder: '',
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    localTimeshift: DEFAULT_LOCAL_TIMESHIFT_SETTINGS,
     coverSize: 'medium',
     epgViewMode: 'timeline',
     dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
@@ -132,6 +135,9 @@ export const SettingsStore = signalStore(
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
                             ),
+                            localTimeshift: normalizeLocalTimeshiftSettings(
+                                storedSettings.localTimeshift
+                            ),
                         });
                         void this.sanitizeEmbeddedMpvSelection().catch(
                             (error) => {
@@ -164,6 +170,13 @@ export const SettingsStore = signalStore(
                         ? {
                               dashboardRails: normalizeDashboardRailsSettings(
                                   settings.dashboardRails
+                              ),
+                          }
+                        : {}),
+                    ...(settings.localTimeshift !== undefined
+                        ? {
+                              localTimeshift: normalizeLocalTimeshiftSettings(
+                                  settings.localTimeshift
                               ),
                           }
                         : {}),
@@ -218,6 +231,9 @@ export const SettingsStore = signalStore(
                         DEFAULT_SETTINGS.recordingFolder,
                     embeddedMpvFrameCopy:
                         store.embeddedMpvFrameCopy?.() ?? false,
+                    localTimeshift: normalizeLocalTimeshiftSettings(
+                        store.localTimeshift?.()
+                    ),
                     coverSize:
                         store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
                     epgViewMode:

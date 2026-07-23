@@ -371,6 +371,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Ordner für Live-Stream-Aufnahmen aus Embedded MPV. Leer lassen, um den systemweiten Downloads-Ordner zu verwenden.",
         "RECORDING_FOLDER": "Aufnahmeordner",
         "RECORDING_FOLDER_SELECT": "Aufnahmeordner auswählen",
+        "LOCAL_TIMESHIFT": "Lokaler Timeshift",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Live-TV mit einem temporären Puffer auf diesem Gerät pausieren und zurückspulen.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Maximale Pufferdauer",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Ältere Pufferinhalte werden nach dieser Anzahl von Minuten entfernt.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Gib eine ganze Zahl zwischen 5 und 180 ein.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Pufferordner",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Leer lassen, um den Systemcache zu verwenden. Pufferdateien werden automatisch gelöscht.",
         "VLC_PLAYER_PATH_LABEL": "VLC-Pfad",
         "VLC_PLAYER_PATH_DESCRIPTION": "Lege den Pfad zu VLC fest. Unter macOS kannst du das VLC-App-Bundle wie /Applications/VLC.app oder den ausführbaren Pfad verwenden.",
         "VLC_PLAYER_PATH": "VLC-Playerpfad",
@@ -450,6 +457,9 @@
         "MUTE": "Stummschalten",
         "UNMUTE": "Stummschaltung aufheben",
         "VOLUME": "Lautstärke"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Lokaler Timeshift wird gestartet…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

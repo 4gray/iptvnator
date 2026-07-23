@@ -105,6 +105,11 @@ const DEFAULT_SETTINGS = {
     epgUrl: [],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    localTimeshift: {
+        enabled: false,
+        maxDurationMinutes: 30,
+        bufferDirectory: '',
+    },
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,

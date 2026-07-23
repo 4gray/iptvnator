@@ -25,6 +25,8 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { DEFAULT_LIVE_EDGE_TOLERANCE_SECONDS } from '../timeshift/live-edge';
+import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
 import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
@@ -63,6 +65,7 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
         MatIconModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
+        LiveEdgeButtonComponent,
         PlayerControlsComponent,
         TranslatePipe,
     ],
@@ -76,6 +79,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
     readonly recordingFolder = input('');
+    readonly localTimeshiftActive = input(false);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
 
     readonly timeUpdate = output<{
@@ -170,8 +174,24 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     });
     readonly canSeek = computed(
         () =>
-            !this.isLivePlayback() && (this.session()?.durationSeconds ?? 0) > 0
+            (!this.isLivePlayback() || this.localTimeshiftActive()) &&
+            (this.session()?.durationSeconds ?? 0) > 0
     );
+    /** Mirrors isMediaAtLiveEdge() for the mpv session. */
+    readonly atLiveEdge = computed(() => {
+        const session = this.session();
+        if (session?.status !== 'playing') {
+            return false;
+        }
+        const duration = session.durationSeconds ?? 0;
+        if (!Number.isFinite(duration) || duration <= 0) {
+            return true;
+        }
+        return (
+            duration - (session.positionSeconds ?? 0) <=
+            DEFAULT_LIVE_EDGE_TOLERANCE_SECONDS
+        );
+    });
     readonly canFullscreen = computed(
         () =>
             typeof document !== 'undefined' &&
@@ -370,6 +390,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             playback: this.playback,
             seriesNavigation: this.seriesNavigation,
             recordingFolder: this.recordingFolder,
+            localTimeshiftActive: this.localTimeshiftActive,
         });
 
         if (typeof document !== 'undefined') {
@@ -561,6 +582,23 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 deltaSeconds >= 0 ? 'forward_10' : 'replay_10',
                 `${deltaSeconds >= 0 ? '+' : ''}${Math.round(deltaSeconds)}s`
             );
+        }
+    }
+
+    async goLive(): Promise<void> {
+        this.legacyInteractions.revealControls();
+        const durationSeconds = this.session()?.durationSeconds;
+        if (
+            typeof durationSeconds !== 'number' ||
+            !Number.isFinite(durationSeconds) ||
+            durationSeconds <= 0
+        ) {
+            return;
+        }
+
+        await this.controller.seekTo(Math.max(0, durationSeconds - 0.25));
+        if (this.isPaused()) {
+            await this.controller.togglePaused();
         }
     }
 

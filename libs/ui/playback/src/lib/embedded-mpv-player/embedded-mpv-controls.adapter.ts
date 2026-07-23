@@ -43,6 +43,7 @@ export interface EmbeddedMpvControlsContext {
     readonly playback: Signal<ResolvedPortalPlayback>;
     readonly seriesNavigation: Signal<SeriesPlaybackNavigation | null>;
     readonly recordingFolder: Signal<string>;
+    readonly localTimeshiftActive?: Signal<boolean>;
 }
 
 interface MappedPlayerStatus {
@@ -103,11 +104,12 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         }
 
         const isLive = this.isLivePlayback(context.playback());
+        const canSeek = !isLive || context.localTimeshiftActive?.() === true;
         const optionalCapabilities = this.controller.support()?.capabilities;
 
         return {
             ...DEFAULT_PLAYER_CAPABILITIES,
-            seek: !isLive,
+            seek: canSeek,
             volume: true,
             audioTracks: true,
             subtitles: optionalCapabilities?.subtitles ?? false,
@@ -131,9 +133,10 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         const session = this.controller.session();
         const playback = context.playback();
         const isLive = this.isLivePlayback(playback);
-        const durationSeconds = isLive
-            ? null
-            : (session?.durationSeconds ?? null);
+        const canSeek = !isLive || context.localTimeshiftActive?.() === true;
+        const durationSeconds = canSeek
+            ? (session?.durationSeconds ?? null)
+            : null;
         const seriesNavigation = context.seriesNavigation();
         const hasSeriesNavigation = !isLive && seriesNavigation !== null;
         const mappedStatus = this.mapStatus(support, session);
@@ -145,7 +148,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             positionSeconds: Math.max(0, session?.positionSeconds ?? 0),
             durationSeconds,
             isLive,
-            canSeek: !isLive && (durationSeconds ?? 0) > 0,
+            canSeek: canSeek && (durationSeconds ?? 0) > 0,
             volume: session?.volume ?? readStoredVolume(),
             audioTracks: (session?.audioTracks ?? []).map((track, index) => ({
                 id: track.id,

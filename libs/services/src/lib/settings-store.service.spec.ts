@@ -3,6 +3,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { of, Subject } from 'rxjs';
 import {
     DashboardRailsSettings,
+    DEFAULT_LOCAL_TIMESHIFT_SETTINGS,
     Language,
     Settings,
     StartupBehavior,
@@ -27,7 +28,7 @@ const expectedDashboardRails = (
     ...overrides,
 });
 
-describe('SettingsStore dashboard rail settings', () => {
+describe('SettingsStore settings normalization', () => {
     let storedSettings: Partial<Settings> | null;
     let injector: Injector;
     let storage: {
@@ -113,6 +114,9 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().streamFormat).toBe('auto');
         expect(store.getSettings().dashboardRails).toEqual(
             expectedDashboardRails()
+        );
+        expect(store.getSettings().localTimeshift).toEqual(
+            DEFAULT_LOCAL_TIMESHIFT_SETTINGS
         );
     });
 
@@ -247,6 +251,52 @@ describe('SettingsStore dashboard rail settings', () => {
                     liveFavorites: false,
                     recentSources: false,
                 }),
+            })
+        );
+    });
+
+    it('deep-merges a legacy partial local timeshift value with safe defaults', async () => {
+        storedSettings = {
+            localTimeshift: {
+                enabled: true,
+            },
+        } as unknown as Partial<Settings>;
+
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().localTimeshift).toEqual({
+            enabled: true,
+            maxDurationMinutes: 30,
+            bufferDirectory: '',
+        });
+    });
+
+    it('normalizes and persists local timeshift settings as part of the complete payload', async () => {
+        const store = injector.get(SettingsStore);
+
+        await store.updateSettings({
+            localTimeshift: {
+                enabled: true,
+                maxDurationMinutes: 60,
+                bufferDirectory: '  /tmp/timeshift  ',
+            },
+        });
+
+        expect(store.getSettings().localTimeshift).toEqual({
+            enabled: true,
+            maxDurationMinutes: 60,
+            bufferDirectory: '/tmp/timeshift',
+        });
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                localTimeshift: {
+                    enabled: true,
+                    maxDurationMinutes: 60,
+                    bufferDirectory: '/tmp/timeshift',
+                },
             })
         );
     });

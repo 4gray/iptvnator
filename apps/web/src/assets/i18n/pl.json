@@ -371,6 +371,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Folder na nagrania strumieni na żywo z wbudowanego MPV. Pozostaw puste, aby użyć systemowego folderu Pobrane.",
         "RECORDING_FOLDER": "Folder nagrań",
         "RECORDING_FOLDER_SELECT": "Wybierz folder nagrań",
+        "LOCAL_TIMESHIFT": "Lokalny timeshift",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Wstrzymuj i przewijaj telewizję na żywo za pomocą tymczasowego bufora na tym urządzeniu.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Maksymalny czas bufora",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Starsza zawartość bufora jest usuwana po tej liczbie minut.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Wpisz liczbę całkowitą od 5 do 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Folder bufora",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Pozostaw puste, aby użyć pamięci podręcznej systemu. Pliki bufora są usuwane automatycznie.",
         "VLC_PLAYER_PATH_LABEL": "Ścieżka VLC",
         "VLC_PLAYER_PATH_DESCRIPTION": "Ustaw ścieżkę do VLC. W macOS możesz użyć pakietu aplikacji VLC, np. /Applications/VLC.app, albo ścieżki do pliku wykonywalnego.",
         "VLC_PLAYER_PATH": "Ścieżka odtwarzacza VLC",
@@ -450,6 +457,9 @@
         "MUTE": "Wycisz",
         "UNMUTE": "Wyłącz wyciszenie",
         "VOLUME": "Głośność"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Uruchamianie lokalnego timeshiftu…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

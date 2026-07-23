@@ -8,6 +8,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { By } from '@angular/platform-browser';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule } from '@ngx-translate/core';
@@ -36,6 +37,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 class StubVjsPlayerComponent {
     readonly options = input<unknown>();
     readonly volume = input(1);
+    readonly localTimeshiftActive = input(false);
     readonly showCaptions = input(false);
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
@@ -54,6 +56,7 @@ class StubVjsPlayerComponent {
 class StubHtmlVideoPlayerComponent {
     readonly channel = input<unknown>();
     readonly volume = input(1);
+    readonly localTimeshiftActive = input(false);
     readonly showCaptions = input(false);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
@@ -77,6 +80,7 @@ class StubArtPlayerComponent {
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
+    readonly localTimeshiftActive = input(false);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
@@ -92,6 +96,7 @@ class StubArtPlayerComponent {
 class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
     readonly recordingFolder = input('');
+    readonly localTimeshiftActive = input(false);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackEnded = output<void>();
@@ -138,6 +143,7 @@ describe('WebPlayerViewComponent', () => {
                         ClipboardModule,
                         MatButtonModule,
                         MatIconModule,
+                        MatProgressSpinnerModule,
                         MatTooltipModule,
                         TranslateModule,
                     ],

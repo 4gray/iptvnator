@@ -371,6 +371,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Map voor live-streamopnames vanuit Embedded MPV. Laat leeg om de systeemmap Downloads te gebruiken.",
         "RECORDING_FOLDER": "Opnamemap",
         "RECORDING_FOLDER_SELECT": "Opnamemap selecteren",
+        "LOCAL_TIMESHIFT": "Lokale timeshift",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Pauzeer en spoel live-tv terug met een tijdelijke buffer op dit apparaat.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Maximale bufferduur",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Oudere bufferinhoud wordt na dit aantal minuten verwijderd.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Voer een geheel getal van 5 tot en met 180 in.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Buffermap",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Laat leeg om de systeemcache te gebruiken. Bufferbestanden worden automatisch verwijderd.",
         "VLC_PLAYER_PATH_LABEL": "VLC-bestandspad",
         "VLC_PLAYER_PATH_DESCRIPTION": "Stel het pad naar VLC in. Op macOS kun je de VLC-appbundel gebruiken, zoals /Applications/VLC.app, of het pad naar het uitvoerbare bestand.",
         "VLC_PLAYER_PATH": "VLC-speler bestandspad",
@@ -450,6 +457,9 @@
         "MUTE": "Dempen",
         "UNMUTE": "Dempen opheffen",
         "VOLUME": "Volume"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Lokale timeshift starten…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

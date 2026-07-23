@@ -268,7 +268,8 @@ export class StreamResolverService {
 
     private buildM3uPlayback(
         channel: Channel,
-        playlist?: Playlist
+        playlist: Playlist | undefined,
+        isLive: boolean | undefined
     ): ResolvedPortalPlayback {
         const userAgent =
             channel.http?.['user-agent']?.trim() || playlist?.userAgent;
@@ -289,6 +290,7 @@ export class StreamResolverService {
             streamUrl: channel.url ?? '',
             title: channel.name,
             thumbnail: channel.tvg?.logo ?? null,
+            isLive,
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent,
             referer,
@@ -596,7 +598,13 @@ export class StreamResolverService {
                 : [];
 
         return {
-            playback: this.buildM3uPlayback(channel, playlist),
+            playback: this.buildM3uPlayback(
+                channel,
+                playlist,
+                item.contentType === 'live' && channel.radio !== 'true'
+                    ? true
+                    : undefined
+            ),
             epgMode: 'm3u',
             channel,
             epgPrograms,

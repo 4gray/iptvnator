@@ -7,11 +7,13 @@ import {
 import {
     CoverSize,
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
+    DEFAULT_LOCAL_TIMESHIFT_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
     EpgViewMode,
     Language,
     normalizeDashboardRailsSettings,
     normalizeExternalPlayerArguments,
+    normalizeLocalTimeshiftSettings,
     Settings,
     StartupBehavior,
     StreamFormat,
@@ -75,6 +77,19 @@ export function createSettingsForm(
         ],
         recordingFolder: '',
         embeddedMpvFrameCopy: false,
+        localTimeshift: formBuilder.group({
+            enabled: DEFAULT_LOCAL_TIMESHIFT_SETTINGS.enabled,
+            maxDurationMinutes: [
+                DEFAULT_LOCAL_TIMESHIFT_SETTINGS.maxDurationMinutes,
+                [
+                    Validators.required,
+                    Validators.min(5),
+                    Validators.max(180),
+                    Validators.pattern(/^\d+$/),
+                ],
+            ],
+            bufferDirectory: DEFAULT_LOCAL_TIMESHIFT_SETTINGS.bufferDirectory,
+        }),
         coverSize: 'medium' as CoverSize,
         ...(supportsEpg
             ? {
@@ -141,6 +156,7 @@ export function createSettingsFromFormValue(
         remoteControlPort: Number(value.remoteControlPort ?? 8765),
         recordingFolder: value.recordingFolder ?? '',
         embeddedMpvFrameCopy: value.embeddedMpvFrameCopy ?? false,
+        localTimeshift: normalizeLocalTimeshiftSettings(value.localTimeshift),
         coverSize: value.coverSize ?? 'medium',
         epgUrl,
         preferUploadedEpgOverXtream:

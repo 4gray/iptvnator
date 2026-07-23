@@ -11,6 +11,13 @@ import { TranslateModule } from '@ngx-translate/core';
 import { StreamFormat, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { SettingsPlayerOption } from './settings.models';
 
+const BUILT_IN_INLINE_PLAYERS = new Set<VideoPlayer>([
+    VideoPlayer.VideoJs,
+    VideoPlayer.Html5Player,
+    VideoPlayer.ArtPlayer,
+    VideoPlayer.EmbeddedMpv,
+]);
+
 @Component({
     selector: 'app-settings-playback-section',
     imports: [
@@ -65,5 +72,10 @@ export class SettingsPlaybackSectionComponent {
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;
         return player === VideoPlayer.MPV || player === VideoPlayer.VLC;
+    }
+
+    isBuiltInInlinePlayerSelected(): boolean {
+        const player = this.form().value.player;
+        return BUILT_IN_INLINE_PLAYERS.has(player);
     }
 }

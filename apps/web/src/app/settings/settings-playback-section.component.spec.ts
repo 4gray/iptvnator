@@ -20,6 +20,9 @@ const WEB_PLAYER_SHARED_CONTROLS_LABEL =
 describe('SettingsPlaybackSectionComponent', () => {
     let fixture: ComponentFixture<SettingsPlaybackSectionComponent>;
 
+    const query = <T extends Element = HTMLElement>(selector: string) =>
+        fixture.nativeElement.querySelector(selector) as T | null;
+
     const queryByTestId = (testId: string): Element | null =>
         fixture.nativeElement.querySelector(`[data-test-id="${testId}"]`);
 
@@ -349,9 +352,7 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#mpvPlayerArguments'
-            )?.placeholder
+            query<HTMLTextAreaElement>('#mpvPlayerArguments')?.placeholder
         ).toBe(MPV_ARGUMENTS_PLACEHOLDER);
     });
 
@@ -370,9 +371,7 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#vlcPlayerArguments'
-            )?.placeholder
+            query<HTMLTextAreaElement>('#vlcPlayerArguments')?.placeholder
         ).toBe(VLC_ARGUMENTS_PLACEHOLDER);
     });
 });
@@ -392,5 +391,10 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         vlcPlayerArguments: new FormControl(''),
         vlcReuseInstance: new FormControl(false),
         recordingFolder: new FormControl(''),
+        localTimeshift: new FormGroup({
+            enabled: new FormControl(false),
+            maxDurationMinutes: new FormControl(30),
+            bufferDirectory: new FormControl(''),
+        }),
     });
 }

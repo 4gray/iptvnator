@@ -371,6 +371,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Folder for live stream recordings from Embedded MPV. Leave empty to use the system Downloads folder.",
         "RECORDING_FOLDER": "Recording folder",
         "RECORDING_FOLDER_SELECT": "Select recording folder",
+        "LOCAL_TIMESHIFT": "Local timeshift",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Pause and rewind live TV using a temporary buffer on this device.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Maximum buffer duration",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Older buffered content is removed after this many minutes.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Enter a whole number from 5 to 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Buffer directory",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Leave empty to use the system cache. Buffer files are deleted automatically.",
         "VLC_PLAYER_PATH_LABEL": "VLC path",
         "VLC_PLAYER_PATH_DESCRIPTION": "Set the path to VLC. On macOS you can use the VLC app bundle, such as /Applications/VLC.app, or the executable path.",
         "VLC_PLAYER_PATH": "VLC player path",
@@ -450,6 +457,9 @@
         "MUTE": "Mute",
         "UNMUTE": "Unmute",
         "VOLUME": "Volume"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Starting local timeshift…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

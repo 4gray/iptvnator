@@ -17,12 +17,7 @@ import { createDevLogger } from '@iptvnator/shared/interfaces';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
 import 'videojs-quality-selector-hls';
-import {
-    InlinePlaybackPlayer,
-    type PlaybackDiagnostic,
-    classifyNativePlaybackIssue,
-    createPlaybackSourceMetadata,
-} from '../playback-diagnostics/playback-diagnostics.util';
+import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
 import {
     PlayerControlsComponent,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -30,6 +25,9 @@ import {
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
+import { seekMediaToLiveEdge } from '../timeshift/live-edge';
+import { LiveEdgeObserver } from '../timeshift/live-edge-observer';
 import {
     VjsAudioTracks,
     logVjsAudioTracks,
@@ -38,6 +36,7 @@ import {
 import { VjsMpegTsSession } from './vjs-mpegts-session';
 import { VjsPlayerControlsBridge } from './vjs-player-controls.bridge';
 import {
+    classifyVjsPlaybackError,
     createVjsPlayerOptions,
     exitOwnedVjsFullscreen,
     initializeVjsPlugins,
@@ -61,6 +60,7 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
     styleUrls: ['./vjs-player.component.scss'],
     encapsulation: ViewEncapsulation.None,
     imports: [
+        LiveEdgeButtonComponent,
         PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
     ],
@@ -74,6 +74,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly options = input.required<VideoPlayerOptions>();
     readonly volume = input(1);
     readonly startTime = input(0);
+    readonly localTimeshiftActive = input(false);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
@@ -89,6 +90,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     readonly sharedControls = inject(WEB_PLAYER_SHARED_CONTROLS);
     readonly controlsAdapter = inject(WebVideoControlsAdapter);
+    readonly liveEdge = new LiveEdgeObserver(() => this.target().nativeElement);
     player!: VideoJsPlayer;
 
     private readonly seriesNavigationSignal =
@@ -115,6 +117,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private readyHandled = false;
     private destroyed = false;
 
+    goLive(): void {
+        seekMediaToLiveEdge(this.target().nativeElement as HTMLVideoElement);
+    }
+
     ngOnInit(): void {
         this.desiredSource = this.options().sources?.[0] ?? null;
         this.seriesNavigationSignal.set(this.seriesNavigation());
@@ -136,11 +142,15 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         ) as unknown as VideoJsPlayer;
         this.bindPlayerEvents();
         initializeVjsPlugins(this.player);
+        this.liveEdge.sync(this.localTimeshiftActive());
     }
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['seriesNavigation']) {
             this.seriesNavigationSignal.set(this.seriesNavigation());
+        }
+        if (changes['localTimeshiftActive'] && this.player) {
+            this.liveEdge.sync(this.localTimeshiftActive());
         }
         if (changes['options']?.previousValue && this.player) {
             const previousOptions = changes['options']
@@ -182,6 +192,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     ngOnDestroy(): void {
         this.destroyed = true;
+        this.liveEdge.disconnect();
         this.resetCoordinator.destroy();
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
@@ -229,25 +240,13 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     };
 
     private readonly handleVideoJsError = () => {
-        const source = this.desiredSource;
         const video =
             this.videoSession.video() ??
             getVideoJsTechVideo(this.player) ??
             this.target().nativeElement;
-        const playerError =
-            typeof this.player.error === 'function'
-                ? this.player.error()
-                : null;
         this.mpegTsSession.syncDuration();
         this.playbackIssue.emit(
-            classifyNativePlaybackIssue(
-                playerError ?? video.error,
-                createPlaybackSourceMetadata({
-                    url: source?.src ?? video.currentSrc ?? '',
-                    mimeType: source?.type,
-                    player: InlinePlaybackPlayer.VideoJs,
-                })
-            )
+            classifyVjsPlaybackError(this.player, video, this.desiredSource)
         );
     };
 

@@ -248,7 +248,7 @@ This is an Nx monorepo with the following structure:
     - **shared/testing** - Shared test helpers
     - **ui/components** - Reusable UI components (incl. channel list)
     - **ui/epg** - EPG UI (timeline ribbon, multi-EPG, progress panel, program dialogs)
-    - **ui/playback** - Player UI (video/audio players)
+    - **ui/playback** - Player UI (video/audio players) and the Electron local-timeshift coordinator
     - **ui/pipes** - Angular pipes
     - **ui/remote-control** - Remote-control UI pieces
     - **ui/shared-portals** - Shared portal types (`LiveEpgPanelSummary`)
@@ -600,6 +600,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `xtream.events.ts` - Xtream Codes API
     - `stalker.events.ts` - Stalker portal API
     - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
+    - `local-timeshift.events.ts` - Renderer-owned local-timeshift IPC; FFmpeg, bounded HLS, and loopback-server lifecycle live in `local-timeshift*.ts` services
     - `settings.events.ts` - App settings
     - `electron.events.ts` - App version, etc.
 
@@ -775,6 +776,15 @@ engine` (restart required) or
   chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
   keyboard shortcut, and Embedded MPV popup/native support are out of scope.
 
+**Local Timeshift** (opt-in, Electron only):
+
+- FFmpeg remuxes explicit M3U, Xtream, and Stalker live-video playback into a bounded, four-second sliding HLS buffer served from a token-protected ephemeral `127.0.0.1` endpoint; radio, VOD/series, and catch-up remain ineligible
+- The same local playlist supports pause/rewind in Video.js, HTML5/HLS.js, ArtPlayer, and Embedded MPV; external MPV/VLC windows, radio, VOD/series, and provider catch-up are unchanged
+- Defaults: disabled, 30 minutes, system temp/cache; valid duration is 5–180 minutes and an optional parent buffer directory can be configured
+- Sessions are renderer-owned, pending starts are cancelable during rapid channel changes, and FFmpeg/server/files are cleaned up on playback replacement, renderer destruction, and app shutdown
+- FFmpeg is detected through `FFMPEG_PATH`, `PATH`, or known platform locations; unavailable/failed startup falls back to the original stream
+- Architecture and security contract: `docs/architecture/local-timeshift.md`
+
 **VOD/Series Detail Pages (two-state layout)**:
 
 - Xtream and Stalker detail pages use the shared `PortalDetailShellComponent` (`libs/ui/components/src/lib/portal-detail-shell/`) with two states: **Browse** (hero with poster/metadata/actions, episodes below) and **Watch** (hero collapses with a ~300ms morph, the inline player takes the full content width, metadata moves to an About block below the episodes)
@@ -852,6 +862,7 @@ IPTVnator supports both Electron (desktop app) and PWA (web browser) to provide 
     - Electron → SQLite/Drizzle ORM → `~/.iptvnator/databases/iptvnator.db`
     - PWA → IndexedDB → Browser storage
 - External player support (MPV/VLC) only available in Electron
+- Local timeshift is Electron-only and requires a detectable FFmpeg executable; it applies only to built-in inline live-TV playback
 - File system operations only available in Electron (uploading playlists from disk)
 
 **Base Href Configuration**:

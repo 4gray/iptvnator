@@ -371,6 +371,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Φάκελος για εγγραφές ζωντανών ροών από το ενσωματωμένο MPV. Αφήστε το κενό για να χρησιμοποιηθεί ο φάκελος Λήψεις του συστήματος.",
         "RECORDING_FOLDER": "Φάκελος εγγραφών",
         "RECORDING_FOLDER_SELECT": "Επιλογή φακέλου εγγραφών",
+        "LOCAL_TIMESHIFT": "Τοπική χρονική μετατόπιση",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Κάντε παύση και γυρίστε πίσω τη ζωντανή τηλεόραση με ένα προσωρινό buffer σε αυτήν τη συσκευή.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Μέγιστη διάρκεια buffer",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Το παλαιότερο περιεχόμενο αφαιρείται από το buffer μετά από αυτά τα λεπτά.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Εισαγάγετε έναν ακέραιο αριθμό από 5 έως 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Φάκελος buffer",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Αφήστε το κενό για χρήση της προσωρινής μνήμης του συστήματος. Τα αρχεία buffer διαγράφονται αυτόματα.",
         "VLC_PLAYER_PATH_LABEL": "διαδρομή VLC",
         "VLC_PLAYER_PATH_DESCRIPTION": "Ορίστε τη διαδρομή προς το VLC. Στο macOS μπορείτε να χρησιμοποιήσετε το πακέτο εφαρμογής VLC, όπως /Applications/VLC.app, ή τη διαδρομή του εκτελέσιμου αρχείου.",
         "VLC_PLAYER_PATH": "διαδρομή VLC player",
@@ -450,6 +457,9 @@
         "MUTE": "Σίγαση",
         "UNMUTE": "Κατάργηση σίγασης",
         "VOLUME": "Ένταση"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Έναρξη τοπικής χρονικής μετατόπισης…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

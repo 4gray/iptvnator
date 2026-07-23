@@ -371,6 +371,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Embedded MPV のライブストリーム録画を保存するフォルダーです。空のままにするとシステムのダウンロードフォルダーを使用します。",
         "RECORDING_FOLDER": "録画フォルダー",
         "RECORDING_FOLDER_SELECT": "録画フォルダーを選択",
+        "LOCAL_TIMESHIFT": "ローカルタイムシフト",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "このデバイスの一時バッファーを使用して、ライブテレビを一時停止したり巻き戻したりします。",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "バッファーの最大時間",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "指定した分数を超えた古いバッファー内容は削除されます。",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "5～180 の整数を入力してください。",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "バッファーフォルダー",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "空欄の場合はシステムキャッシュを使用します。バッファーファイルは自動的に削除されます。",
         "VLC_PLAYER_PATH_LABEL": "VLCのパス",
         "VLC_PLAYER_PATH_DESCRIPTION": "VLC へのパスを設定します。macOS では /Applications/VLC.app のような VLC アプリバンドル、または実行ファイルのパスを使用できます。",
         "VLC_PLAYER_PATH": "VLCプレーヤーのパス",
@@ -450,6 +457,9 @@
         "MUTE": "ミュート",
         "UNMUTE": "ミュート解除",
         "VOLUME": "音量"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "ローカルタイムシフトを開始しています…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

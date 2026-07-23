@@ -229,6 +229,19 @@
     font-variant-numeric: tabular-nums;
 }
 
+.embedded-mpv-player__time-end {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.embedded-mpv-player__frame-copy-live-edge {
+    position: absolute;
+    right: 16px;
+    bottom: calc(var(--embedded-mpv-controls-height) + 16px);
+    z-index: 3;
+}
+
 .embedded-mpv-player__recording-status {
     display: flex;
     align-items: center;

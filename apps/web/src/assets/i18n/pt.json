@@ -371,6 +371,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Pasta para gravações de streams ao vivo do MPV incorporado. Deixe em branco para usar a pasta Downloads do sistema.",
         "RECORDING_FOLDER": "Pasta de gravações",
         "RECORDING_FOLDER_SELECT": "Selecionar pasta de gravações",
+        "LOCAL_TIMESHIFT": "Timeshift local",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Pause e recue a TV em direto usando um buffer temporário neste dispositivo.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Duração máxima do buffer",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "O conteúdo mais antigo é removido do buffer após este número de minutos.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Introduza um número inteiro entre 5 e 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Pasta do buffer",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Deixe em branco para usar a cache do sistema. Os ficheiros do buffer são eliminados automaticamente.",
         "VLC_PLAYER_PATH_LABEL": "Caminho do VLC",
         "VLC_PLAYER_PATH_DESCRIPTION": "Defina o caminho para o VLC. No macOS você pode usar o pacote do app VLC, como /Applications/VLC.app, ou o caminho do executável.",
         "VLC_PLAYER_PATH": "Caminho do reprodutor VLC",
@@ -450,6 +457,9 @@
         "MUTE": "Silenciar",
         "UNMUTE": "Ativar som",
         "VOLUME": "Volume"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "A iniciar o timeshift local…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

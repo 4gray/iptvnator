@@ -48,6 +48,52 @@ export const DEFAULT_DASHBOARD_RAILS_SETTINGS: DashboardRailsSettings = {
     tmdbTrending: true,
 };
 
+/**
+ * Local pause-and-rewind buffer used by Electron's built-in inline players.
+ * This is deliberately named `localTimeshift` to distinguish it from the
+ * provider catch-up metadata stored in `Channel.timeshift`.
+ */
+export interface LocalTimeshiftSettings {
+    enabled: boolean;
+    maxDurationMinutes: number;
+    /** Empty means the Electron-managed system cache directory. */
+    bufferDirectory: string;
+}
+
+export const DEFAULT_LOCAL_TIMESHIFT_SETTINGS: LocalTimeshiftSettings = {
+    enabled: false,
+    maxDurationMinutes: 30,
+    bufferDirectory: '',
+};
+
+export type LocalTimeshiftSettingsInput = Partial<
+    Record<keyof LocalTimeshiftSettings, unknown>
+>;
+
+export function normalizeLocalTimeshiftSettings(
+    settings?: LocalTimeshiftSettingsInput | null
+): LocalTimeshiftSettings {
+    const maxDurationMinutes = settings?.maxDurationMinutes;
+
+    return {
+        enabled:
+            typeof settings?.enabled === 'boolean'
+                ? settings.enabled
+                : DEFAULT_LOCAL_TIMESHIFT_SETTINGS.enabled,
+        maxDurationMinutes:
+            typeof maxDurationMinutes === 'number' &&
+            Number.isInteger(maxDurationMinutes) &&
+            maxDurationMinutes >= 5 &&
+            maxDurationMinutes <= 180
+                ? maxDurationMinutes
+                : DEFAULT_LOCAL_TIMESHIFT_SETTINGS.maxDurationMinutes,
+        bufferDirectory:
+            typeof settings?.bufferDirectory === 'string'
+                ? settings.bufferDirectory.trim()
+                : DEFAULT_LOCAL_TIMESHIFT_SETTINGS.bufferDirectory,
+    };
+}
+
 export type DashboardRailsSettingsInput = Partial<
     Record<keyof DashboardRailsSettings, boolean | null | undefined>
 >;
@@ -121,6 +167,8 @@ export interface Settings {
      * for its preload frame pump, which is fixed at window creation.
      */
     embeddedMpvFrameCopy?: boolean;
+    /** Electron-only local pause-and-rewind buffer for built-in inline players. */
+    localTimeshift?: LocalTimeshiftSettings;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */

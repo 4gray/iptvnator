@@ -21,6 +21,11 @@ import {
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
+import {
+    observeMediaLiveEdge,
+    seekMediaToLiveEdge,
+} from '../timeshift/live-edge';
 import {
     buildArtPlayerChrome,
     exitOwnedArtPlayerFullscreen,
@@ -37,6 +42,7 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 @Component({
     selector: 'app-art-player',
     imports: [
+        LiveEdgeButtonComponent,
         PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
     ],
@@ -49,6 +55,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     readonly volume = input(1);
     readonly showCaptions = input(false);
     readonly startTime = input(0);
+    readonly localTimeshiftActive = input(false);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
@@ -70,9 +77,12 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     private readonly seriesNavigationSignal =
         signal<SeriesPlaybackNavigation | null>(null);
 
+    readonly atLiveEdge = signal(false);
+
     private player: Artplayer | null = null;
     private sourceSession: ArtPlayerSourceSession | null = null;
     private videoSession: ArtPlayerVideoSession | null = null;
+    private liveEdgeDispose: (() => void) | null = null;
 
     ngOnInit(): void {
         this.seriesNavigationSignal.set(this.seriesNavigation());
@@ -96,7 +106,15 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             changes['isLive'] &&
             !changes['isLive'].firstChange &&
             changes['isLive'].previousValue !== changes['isLive'].currentValue;
-        if (this.player && (channelChanged || authoritativeLiveChanged)) {
+        const localTimeshiftChanged =
+            changes['localTimeshiftActive'] &&
+            !changes['localTimeshiftActive'].firstChange;
+        if (
+            this.player &&
+            (channelChanged ||
+                authoritativeLiveChanged ||
+                localTimeshiftChanged)
+        ) {
             this.destroyPlayer();
             this.initPlayer();
         }
@@ -141,11 +159,15 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             container: this.artplayerContainer().nativeElement,
             url: sourceUrl,
             volume: this.clampVolume(this.volume()),
-            isLive: resolveArtPlayerIsLive(
-                this.sharedControls,
-                this.isLive(),
-                channel.url
-            ),
+            // ArtPlayer hides its progress and time controls in live mode. A
+            // local sliding playlist is still semantically live, but its
+            // buffered window must remain seekable in the player UI.
+            isLive:
+                resolveArtPlayerIsLive(
+                    this.sharedControls,
+                    this.isLive(),
+                    channel.url
+                ) && !this.localTimeshiftActive(),
             autoplay: true,
             type: getArtPlayerVideoType(channel.url),
             playsInline: true,
@@ -171,6 +193,13 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         this.videoSession = videoSession;
         videoSession.attach();
 
+        if (this.localTimeshiftActive()) {
+            this.liveEdgeDispose = observeMediaLiveEdge(
+                player.video,
+                (atLiveEdge) => this.atLiveEdge.set(atLiveEdge)
+            );
+        }
+
         // ArtPlayer synchronously restores `artplayer_settings.volume` after
         // applying the constructor option. Shared controls use the app-wide
         // volume as authoritative, so reapply it directly to the media element.
@@ -179,7 +208,17 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         }
     }
 
+    goLive(): void {
+        if (this.player?.video) {
+            seekMediaToLiveEdge(this.player.video);
+        }
+    }
+
     private destroyPlayer(): void {
+        this.liveEdgeDispose?.();
+        this.liveEdgeDispose = null;
+        this.atLiveEdge.set(false);
+
         const sourceSession = this.sourceSession;
         this.sourceSession = null;
         sourceSession?.destroy();
