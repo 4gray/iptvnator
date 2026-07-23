@@ -3,8 +3,11 @@ import { isDashChannel, isDashStreamUrl } from './dash.utils';
 describe('dash.utils', () => {
     it.each([
         'https://example.com/live/stream.mpd',
+        'https://example.com/live/stream.MPD',
         'https://example.com/live/stream.mpd?token=abc#frag',
         'https://example.com/play?extension=mpd',
+        'https://example.com/play?ext=mpd',
+        'https://example.com/play?format=mpd',
     ])('detects %s as DASH', (url) => {
         expect(isDashStreamUrl(url)).toBe(true);
     });
