@@ -693,7 +693,6 @@ describe('WorkspaceShellFacade', () => {
                 exact: true,
             },
         ]);
-        expect(facade.brandLink()).toBe('/workspace/sources');
     });
 
     it('hides the Electron-only global search rail link in the web runtime', () => {

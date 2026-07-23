@@ -1079,6 +1079,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "وسّع التنقل",
+            "COLLAPSE_NAVIGATION": "طوي التنقل",
             "RAIL_DASHBOARD": "لوحة التحكم",
             "OPEN_DASHBOARD": "حل لوحة التحكم",
             "RAIL_SOURCES": "المصادر",

@@ -1079,6 +1079,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "展开导航",
+            "COLLAPSE_NAVIGATION": "收起导航",
             "RAIL_DASHBOARD": "仪表盘",
             "OPEN_DASHBOARD": "打开仪表盘",
             "RAIL_SOURCES": "源",
