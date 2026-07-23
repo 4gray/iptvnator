@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+    findAvailableFinalPath,
     getPartialDownloadPath,
     getPartialDownloadSize,
     removePartialDownload,
@@ -172,6 +173,23 @@ describe('partial download helpers', () => {
         } finally {
             rmSync(directory, { force: true, recursive: true });
         }
+    });
+
+    it('finds the next numbered destination whose final and partial paths are free', () => {
+        const occupied = new Set([
+            join('/downloads', 'movie.mp4'),
+            join('/downloads', 'movie (1).mp4'),
+            join('/downloads', 'movie (2).mp4.part'),
+        ]);
+
+        expect(
+            findAvailableFinalPath(join('/downloads', 'movie.mp4'), (path) =>
+                occupied.has(path)
+            )
+        ).toEqual({
+            filename: 'movie (3).mp4',
+            path: join('/downloads', 'movie (3).mp4'),
+        });
     });
 
     it('reports zero for a missing .part with the default stat reader', () => {

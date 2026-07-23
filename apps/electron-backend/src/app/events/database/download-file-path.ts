@@ -5,7 +5,7 @@ import {
     openSync,
     unlinkSync,
 } from 'node:fs';
-import { extname, join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 
 export interface ReservedDownloadFile {
     filename: string;
@@ -29,6 +29,31 @@ function createExistsError(filePath: string): NodeJS.ErrnoException {
 
 export function getPartialDownloadPath(filePath: string): string {
     return `${filePath}.part`;
+}
+
+/**
+ * Next numbered destination whose final and .part paths are both free. Used
+ * when a retained download's recorded destination got occupied while it was
+ * paused or failed — the occupying file is never inspected or deleted.
+ */
+export function findAvailableFinalPath(
+    filePath: string,
+    pathExists: (candidate: string) => boolean = existsSync
+): { filename: string; path: string } {
+    const directory = dirname(filePath);
+    const extension = extname(filePath);
+    const stem = basename(filePath, extension);
+
+    for (let suffix = 1; ; suffix++) {
+        const filename = `${stem} (${suffix})${extension}`;
+        const candidate = join(directory, filename);
+        if (
+            !pathExists(candidate) &&
+            !pathExists(getPartialDownloadPath(candidate))
+        ) {
+            return { filename, path: candidate };
+        }
+    }
 }
 
 export function reserveAvailableDownloadFile(

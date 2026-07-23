@@ -61,6 +61,59 @@ describe('download requests resume', () => {
         });
     });
 
+    it('does not enqueue when a concurrent resume already claimed the row', async () => {
+        jest.resetModules();
+
+        const row = {
+            filePath: '/downloads/movie.mp4',
+            id: 42,
+            requestHeaders: null,
+            resumeValidator: null,
+            status: 'paused',
+            title: 'Movie',
+            totalBytes: 100,
+            url: 'https://example.test/movie.mp4',
+        };
+        const limit = jest.fn().mockResolvedValue([row]);
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn(() => ({ limit })),
+                })),
+            })),
+            update: jest.fn(() => ({
+                set: jest.fn(() => ({
+                    // The conditional status='paused' claim matched no rows.
+                    where: jest.fn().mockResolvedValue({ changes: 0 }),
+                })),
+            })),
+        };
+        const enqueueDownload = jest.fn();
+        const authorizer = {
+            requireAuthorized: jest.fn(async (directory: string) => directory),
+        } as unknown as DownloadDirectoryAuthorizer;
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('../url-safety', () => ({
+            assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
+        }));
+        jest.doMock('./download-runtime', () => ({
+            enqueueDownload,
+        }));
+
+        const { resumeDownloadRequest } = await import('./download-requests');
+
+        await expect(
+            resumeDownloadRequest(42, '/unused', authorizer)
+        ).resolves.toEqual({
+            error: 'Can only resume paused downloads',
+            success: false,
+        });
+        expect(enqueueDownload).not.toHaveBeenCalled();
+    });
+
     it('retries a failed download with a retained partial at the original target path', async () => {
         jest.resetModules();
 

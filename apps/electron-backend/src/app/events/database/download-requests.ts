@@ -327,7 +327,9 @@ export async function resumeDownloadRequest(
         ? basename(item.filePath)
         : createFileName(item.title, item.url);
 
-    await db
+    // Claim the row atomically: a concurrent resume for the same id loses
+    // this conditional update and must not enqueue a second task.
+    const claim = await db
         .update(schema.downloads)
         .set({
             errorMessage: null,
@@ -335,7 +337,19 @@ export async function resumeDownloadRequest(
             status: 'queued',
             updatedAt: sql`CURRENT_TIMESTAMP`,
         })
-        .where(eq(schema.downloads.id, downloadId));
+        .where(
+            and(
+                eq(schema.downloads.id, downloadId),
+                eq(schema.downloads.status, 'paused')
+            )
+        );
+    if (hasNoChanges(claim)) {
+        return {
+            error: 'Can only resume paused downloads',
+            success: false,
+        };
+    }
+
     enqueueDownload({
         directory,
         fileName,
@@ -347,4 +361,13 @@ export async function resumeDownloadRequest(
         url: item.url,
     });
     return { success: true };
+}
+
+function hasNoChanges(result: unknown): boolean {
+    return (
+        typeof result === 'object' &&
+        result !== null &&
+        'changes' in result &&
+        (result as { changes: number }).changes === 0
+    );
 }
