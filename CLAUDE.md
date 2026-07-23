@@ -199,7 +199,7 @@ Before finishing behavior changes or bug fixes, follow `Regression Prevention An
 ### Linting
 
 ```bash
-# Lint all projects (what CI enforces on every PR)
+# Lint all projects (CI runs this on master; PRs lint affected projects)
 pnpm run lint
 
 # Lint a single project
