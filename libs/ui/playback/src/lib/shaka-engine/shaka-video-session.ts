@@ -64,6 +64,7 @@ export class ShakaVideoSession {
     private playerRefreshListener: (() => void) | null = null;
     private readonly refreshListeners = new Set<() => void>();
     private operationChain: Promise<void> = Promise.resolve();
+    private pendingTeardown: Promise<void> = Promise.resolve();
     private generation = 0;
     private destroyed = false;
 
@@ -87,8 +88,9 @@ export class ShakaVideoSession {
         }
 
         const generation = ++this.generation;
+        this.beginPlayerTeardown();
         this.enqueue(async () => {
-            await this.destroyPlayer();
+            await this.pendingTeardown;
             if (this.isStale(generation)) {
                 return;
             }
@@ -99,7 +101,7 @@ export class ShakaVideoSession {
     /** Tears down the current engine (if any) without ending the session. */
     stop(): void {
         this.generation += 1;
-        this.enqueue(() => this.destroyPlayer());
+        this.beginPlayerTeardown();
     }
 
     destroy(): void {
@@ -108,8 +110,9 @@ export class ShakaVideoSession {
         }
 
         this.destroyed = true;
+        this.generation += 1;
         this.refreshListeners.clear();
-        this.stop();
+        this.beginPlayerTeardown();
     }
 
     /** Current engine, for the shared-controls track bridge. */
@@ -209,6 +212,9 @@ export class ShakaVideoSession {
                 this.createMetadata(url)
             )
         );
+        // Never leave a non-functional engine attached to the media element
+        // or exposed to the shared-controls bridge.
+        this.beginPlayerTeardown();
     }
 
     private bindPlayerListeners(
@@ -245,7 +251,14 @@ export class ShakaVideoSession {
         }
     }
 
-    private async destroyPlayer(): Promise<void> {
+    /**
+     * Detaches and destroys the current engine immediately — never queued
+     * behind pending operations. `player.destroy()` interrupts an in-flight
+     * `load()` (it rejects with `LOAD_INTERRUPTED`), so a stalled manifest
+     * fetch cannot wedge the operation chain. New starts await
+     * {@link pendingTeardown} before attaching to the media element.
+     */
+    private beginPlayerTeardown(): void {
         const player = this.player;
         this.player = null;
         if (!player) {
@@ -266,11 +279,11 @@ export class ShakaVideoSession {
         this.playerRefreshListener = null;
         this.notifyRefresh();
 
-        try {
-            await player.destroy();
-        } catch {
-            // Destroy failures leave nothing actionable for the session.
-        }
+        const teardown = player.destroy().then(
+            () => undefined,
+            () => undefined
+        );
+        this.pendingTeardown = this.pendingTeardown.then(() => teardown);
     }
 
     private async loadModule(): Promise<ShakaModuleLike> {
