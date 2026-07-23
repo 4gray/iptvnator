@@ -3,7 +3,7 @@ import {
     createTask,
     waitForCallCount,
     waitForStatus,
-} from './download-spec-helpers';
+} from './download.test-helpers';
 
 describe('download finalization', () => {
     it('falls back to copying the completed partial when hard links are unsupported', async () => {

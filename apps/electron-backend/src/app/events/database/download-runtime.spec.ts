@@ -8,7 +8,7 @@ import {
     waitForCallCount,
     waitForStatus,
     waitForStatusCount,
-} from './download-spec-helpers';
+} from './download.test-helpers';
 
 describe('download task interruption', () => {
     it('aborts an active task when cancellation is requested', () => {

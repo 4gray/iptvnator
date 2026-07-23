@@ -26,6 +26,7 @@ import {
 } from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
+import { createVodDownloadState } from './vod-download-state.util';
 
 /**
  * Unified VOD details component for both Xtream and Stalker portals.
@@ -189,32 +190,13 @@ export class VodDetailsComponent {
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     });
 
-    /** Whether VOD is already downloaded */
-    readonly isDownloaded = computed(() => {
-        const item = this.item();
-        // Access signal to create reactive dependency
-        this.downloadsService.downloads();
-        const vodId = getVodNumericId(item);
-        return this.downloadsService.isDownloaded(vodId, item.playlistId, 'vod');
-    });
-
-    /** Whether VOD is currently downloading */
-    readonly isDownloading = computed(() => {
-        const item = this.item();
-        // Access signal to create reactive dependency
-        this.downloadsService.downloads();
-        const vodId = getVodNumericId(item);
-        return this.downloadsService.isDownloading(vodId, item.playlistId, 'vod');
-    });
-
-    /** Whether the VOD download is paused */
-    readonly isPausedDownload = computed(() => {
-        const item = this.item();
-        // Access signal to create reactive dependency
-        this.downloadsService.downloads();
-        const vodId = getVodNumericId(item);
-        return this.downloadsService.isPaused(vodId, item.playlistId, 'vod');
-    });
+    private readonly downloadState = createVodDownloadState(
+        this.downloadsService,
+        this.item
+    );
+    readonly isDownloaded = this.downloadState.isDownloaded;
+    readonly isDownloading = this.downloadState.isDownloading;
+    readonly isPausedDownload = this.downloadState.isPausedDownload;
 
     readonly matchedExternalPlayback = computed(() => {
         const session = this.externalPlayback();

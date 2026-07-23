@@ -1,5 +1,5 @@
 import { PassThrough } from 'node:stream';
-import { createTask, waitForStatus } from './download-spec-helpers';
+import { createTask, waitForStatus } from './download.test-helpers';
 
 describe('retained completed partials', () => {
     it('finalizes a retained completed partial without another HTTP request', async () => {
