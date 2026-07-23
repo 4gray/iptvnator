@@ -50,6 +50,13 @@
         </header>
 
         <div class="player-shell__viewport">
+            @if (ambientEnabled()) {
+                <div
+                    class="player-shell__ambient"
+                    aria-hidden="true"
+                    [style.--ambient-image]="ambientImageStyle()"
+                ></div>
+            }
             <app-web-player-view
                 [streamUrl]="streamUrl()"
                 [title]="title()"

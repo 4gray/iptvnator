@@ -202,4 +202,115 @@ describe('PortalInlinePlayerComponent', () => {
             expect(component.title()).toBe('US | Some Movie');
         });
     });
+
+    describe('ambient background fill', () => {
+        async function setup(
+            ambientEnabled: boolean,
+            player = 'videojs'
+        ): Promise<void> {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [
+                    PortalInlinePlayerComponent,
+                    TranslateModule.forRoot(),
+                ],
+                providers: [
+                    {
+                        provide: SettingsStore,
+                        useValue: {
+                            player: signal(player),
+                            playerAmbientMode: signal(ambientEnabled),
+                            stripCountryPrefix: signal(false),
+                        },
+                    },
+                ],
+            })
+                .overrideComponent(PortalInlinePlayerComponent, {
+                    remove: { imports: [WebPlayerViewComponent] },
+                    add: { imports: [StubWebPlayerViewComponent] },
+                })
+                .compileComponents();
+
+            fixture = TestBed.createComponent(PortalInlinePlayerComponent);
+            component = fixture.componentInstance;
+        }
+
+        const ambientEl = () =>
+            fixture.nativeElement.querySelector('.player-shell__ambient');
+
+        it('renders a poster-backed ambient layer for VOD when enabled', async () => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Some Movie',
+                thumbnail: 'https://cdn.example.com/poster.jpg',
+            });
+            fixture.detectChanges();
+
+            const layer = ambientEl() as HTMLElement | null;
+            expect(component.ambientEnabled()).toBe(true);
+            expect(layer).toBeTruthy();
+            expect(layer?.style.getPropertyValue('--ambient-image')).toBe(
+                'url("https://cdn.example.com/poster.jpg")'
+            );
+        });
+
+        it('does not render the ambient layer when the setting is off', async () => {
+            await setup(false);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Some Movie',
+                thumbnail: 'https://cdn.example.com/poster.jpg',
+            });
+            fixture.detectChanges();
+
+            expect(component.ambientEnabled()).toBe(false);
+            expect(ambientEl()).toBeNull();
+        });
+
+        it('skips the ambient layer for live channels and without a poster', async () => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'CNN',
+                thumbnail: 'https://cdn.example.com/logo.png',
+                isLive: true,
+            });
+            fixture.detectChanges();
+            expect(ambientEl()).toBeNull();
+
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'No Poster Movie',
+            });
+            fixture.detectChanges();
+            expect(ambientEl()).toBeNull();
+        });
+
+        it('keeps the ambient layer off for non-web engines like embedded MPV', async () => {
+            await setup(true, 'embedded-mpv');
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Some Movie',
+                thumbnail: 'https://cdn.example.com/poster.jpg',
+            });
+            fixture.detectChanges();
+
+            expect(component.ambientEnabled()).toBe(false);
+            expect(ambientEl()).toBeNull();
+        });
+
+        it('rejects non-http(s) poster URLs to avoid CSS breakout', async () => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Sneaky',
+                thumbnail: 'javascript:alert(1)',
+            });
+            fixture.detectChanges();
+
+            expect(component.ambientImageStyle()).toBeNull();
+            expect(ambientEl()).toBeNull();
+        });
+    });
 });

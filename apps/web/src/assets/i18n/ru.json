@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
         "WEB_PLAYER_SHARED_CONTROLS": "Единые элементы управления для веб-плееров (экспериментально)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Использовать общие элементы управления IPTVnator в HTML5, Video.js и ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Заливка фона за плеером",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Заполнять пространство вокруг плеера размытым затемнённым постером вместо чёрных полос.",
         "STREAM_FORMAT_DESCRIPTION": "Выбрать формат потока по умолчанию (Xtream)",
         "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
         "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
