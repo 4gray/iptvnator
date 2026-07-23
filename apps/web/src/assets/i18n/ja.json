@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "デフォルトのビデオプレーヤーを選択",
         "WEB_PLAYER_SHARED_CONTROLS": "Webプレーヤーの統一コントロール（試験的）",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5、Video.js、ArtPlayerでIPTVnator共通のコントロールを使用します。",
+        "PLAYER_AMBIENT_MODE": "プレーヤー周囲のぼかし背景",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "プレーヤーの周囲をぼかしたポスター画像で埋め、通常の黒い枠の代わりに表示します。",
         "STREAM_FORMAT_DESCRIPTION": "デフォルトのストリーム形式を選択（Xtream）",
         "LANGUAGE_DESCRIPTION": "アプリケーションの言語を選択",
         "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",

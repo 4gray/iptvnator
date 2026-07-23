@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
         "WEB_PLAYER_SHARED_CONTROLS": "Uniforme bediening voor webspelers (experimenteel)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Gebruik de gedeelde IPTVnator-bediening in HTML5, Video.js en ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Ambient achtergrond",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Vult de ruimte rond de speler met een vervaagde, gedimde posterafbeelding in plaats van zwarte balken.",
         "STREAM_FORMAT_DESCRIPTION": "Selecteer het standaard streamformaat (xtream)",
         "LANGUAGE_DESCRIPTION": "Selecteer de taal van de applicatie",
         "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",

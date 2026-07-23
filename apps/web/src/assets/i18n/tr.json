@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Varsayılan video oynatıcıyı seçin",
         "WEB_PLAYER_SHARED_CONTROLS": "Web oynatıcıları için birleşik kontroller (deneysel)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5, Video.js ve ArtPlayer'da IPTVnator'ın ortak kontrollerini kullan.",
+        "PLAYER_AMBIENT_MODE": "Ortam ışığı dolgusu",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Oynatıcının çevresindeki boşluğu siyah çubuklar yerine bulanık ve karartılmış bir poster ile doldurur.",
         "STREAM_FORMAT_DESCRIPTION": "Varsayılan yayın formatını seçin (xtream)",
         "LANGUAGE_DESCRIPTION": "Uygulamanın dilini seçin",
         "THEME_DESCRIPTION": "Uygulamanın görünüm temasını seçin",

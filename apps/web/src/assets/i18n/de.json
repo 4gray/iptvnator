@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Wählen Sie den Standard-Videoplayer aus",
         "WEB_PLAYER_SHARED_CONTROLS": "Einheitliche Steuerung für Web-Player (experimentell)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Verwendet die gemeinsamen IPTVnator-Steuerelemente in HTML5, Video.js und ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Umgebungs-Hintergrund",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Füllt den Bereich um den Player mit einem unscharfen, gedimmten Poster auf, anstelle von einfachen schwarzen Balken.",
         "STREAM_FORMAT_DESCRIPTION": "Standard-Streamformat auswählen (Xtream)",
         "LANGUAGE_DESCRIPTION": "Wählen Sie die Sprache der Anwendung aus",
         "THEME_DESCRIPTION": "Wählen Sie das visuelle Thema der Anwendung aus",

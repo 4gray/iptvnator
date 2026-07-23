@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
         "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器統一控制項（實驗性）",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共用控制項。",
+        "PLAYER_AMBIENT_MODE": "環境背景填充",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、昏暗的海報填充播放器周圍的空間，取代純黑色邊框。",
         "STREAM_FORMAT_DESCRIPTION": "選擇預設串流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
         "THEME_DESCRIPTION": "選擇應用程式視覺主題",

@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Επιλογή προεπιλεγμένου προγράμματος αναπαραγωγής βίντεο",
         "WEB_PLAYER_SHARED_CONTROLS": "Ενοποιημένα στοιχεία ελέγχου για web players (πειραματικό)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Χρησιμοποιήστε τα κοινά στοιχεία ελέγχου του IPTVnator σε HTML5, Video.js και ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Περιβαλλοντικό γέμισμα",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Γεμίστε το χώρο γύρω από τον αναπαραγωγό με θολωμένη, σκοτεινή αφίσα αντί για απλές μαύρες ράβδους.",
         "STREAM_FORMAT_DESCRIPTION": "Επιλογή προεπιλεγμένης μορφής ροής (xtream)",
         "LANGUAGE_DESCRIPTION": "Επιλέξτε τη γλώσσα της εφαρμογής",
         "THEME_DESCRIPTION": "Επιλέξτε οπτικό θέμα της εφαρμογής",

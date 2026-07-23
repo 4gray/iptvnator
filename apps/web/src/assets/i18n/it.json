@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Seleziona lettore video predefinito",
         "WEB_PLAYER_SHARED_CONTROLS": "Controlli unificati per i player web (sperimentale)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa i controlli condivisi di IPTVnator in HTML5, Video.js e ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Riempimento ambientale dello sfondo",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Riempie lo spazio intorno al lettore con un poster sfocato e scurito invece delle semplici barre nere.",
         "STREAM_FORMAT_DESCRIPTION": "Seleziona il formato di streaming predefinito (xtream)",
         "LANGUAGE_DESCRIPTION": "Seleziona la lingua dell'applicazione",
         "THEME_DESCRIPTION": "Seleziona il tema visivo dell'applicazione",
