@@ -15,7 +15,30 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+    contents: read
+
 jobs:
+    actionlint:
+        name: Workflow lint
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            # Image pinned by digest (tag 1.7.12). False positives are
+            # suppressed in .github/actionlint.yaml; shellcheck runs at
+            # warning+ severity so style/info notes in long release scripts
+            # don't fail CI while real quoting/logic bugs still do.
+            - name: Run actionlint
+              uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+              with:
+                  args: -color
+              env:
+                  SHELLCHECK_OPTS: --severity=warning
+
     lint:
         name: Lint
         runs-on: ubuntu-latest
