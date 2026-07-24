@@ -856,4 +856,43 @@ describe('StalkerSeriesViewComponent', () => {
         // the title marker names the real TMDB season.
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
     });
+
+    it('drops the retained season selection on detail-to-detail navigation', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        // No show-level TMDB match yet — nothing fetched for the first item
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // Detail-to-detail navigation reuses the component; the new item's
+        // TMDB match can arrive while the season resource still holds the
+        // previous series' seasons.
+        selectedItem.set({
+            id: '30002',
+            cmd: '/media/file_30002.mpg',
+            info: {
+                name: 'Other Series (2 season)',
+                description: 'Other description',
+                movie_image: 'poster2.jpg',
+                tmdb_id: 888,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // The retained season key must NOT pair the new tmdb_id with the
+        // previous series' season context (the fetch cache is idempotent,
+        // so a stale fetch would block the correct one forever).
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // Only the new item's own season selection triggers the fetch —
+        // here a single-season slice resolving to the title-marked season.
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).toHaveBeenCalledWith(888, 2);
+    });
 });

@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     input,
+    linkedSignal,
     output,
     signal,
     untracked,
@@ -162,8 +163,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         });
     });
 
-    /** Season currently selected in the season container. */
-    private readonly selectedSeasonKey = signal<string | null>(null);
+    /**
+     * Season currently selected in the season container. Resets when the
+     * displayed item's identity changes: the router reuses this component
+     * for detail-to-detail navigation, and a retained selection would let
+     * the NEW item's tmdb_id pair with the PREVIOUS series' season context
+     * in the TMDB fetch effect (poisoning its idempotent per-season cache)
+     * before the new season resource loads.
+     */
+    private readonly selectedSeasonKey = linkedSignal<
+        string | number | undefined,
+        string | null
+    >({
+        source: () => this.displayItem()?.id,
+        // displayItem produces a fresh object on every recomputation, so
+        // the id must be compared here — resetting on every source
+        // invalidation would drop valid selections of the SAME item.
+        computation: (id, previous) =>
+            previous !== undefined && previous.source === id
+                ? previous.value
+                : null,
+    });
 
     /** Season descriptions for the season tabs (TMDB overview per season). */
     readonly seasonDescriptions = computed<Record<string, string>>(() =>
