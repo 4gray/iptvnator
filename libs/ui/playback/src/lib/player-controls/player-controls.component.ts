@@ -21,11 +21,15 @@ import { ControlsMenuSelection } from './controls-menu-selection';
 import { ControlsMenuState } from './controls-menu-state';
 import { ControlsShortcuts } from './controls-shortcuts';
 import { ControlsSurface } from './controls-surface';
+import { ControlsTimeline } from './controls-timeline';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
 import { formatTime, speedLabel } from './controls-format.utils';
-import type { PlayerController } from './player-controls.model';
+import type {
+    PlayerController,
+    PlayerMediaTitle,
+} from './player-controls.model';
 
 @Component({
     selector: 'app-player-controls',
@@ -45,6 +49,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly playerSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
     readonly shortcutsEnabled = input(true);
+    readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly barHovered = signal(false);
@@ -86,28 +91,24 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
     private readonly controllerVolume = computed(() => this.state().volume);
-    readonly scrubPosition = signal<number | null>(null);
-    readonly timelineDuration = computed(() => {
-        const duration = this.state().durationSeconds;
-        return typeof duration === 'number' && Number.isFinite(duration)
-            ? Math.max(0, duration)
-            : 0;
-    });
-    readonly timelineValue = computed(
-        () =>
-            this.normalizeTimelineValue(
-                this.scrubPosition() ?? this.state().positionSeconds
-            ) ?? 0
-    );
-    readonly timelineProgress = computed(() => {
-        const duration = this.timelineDuration();
-        return this.state().canSeek && duration > 0
-            ? (this.timelineValue() / duration) * 100
-            : 0;
-    });
+    private readonly timeline = new ControlsTimeline(this.state);
+    readonly scrubPosition = this.timeline.scrubPosition;
+    readonly timelineDuration = this.timeline.duration;
+    readonly timelineValue = this.timeline.value;
+    readonly timelineProgress = this.timeline.progress;
 
     readonly displayVolume = this.volume.value;
     readonly isFullscreen = this.fullscreen.isFullscreen;
+
+    // The page around the player already names the content; the overlay only
+    // fills that gap in fullscreen, where no other chrome is visible.
+    readonly fullscreenMediaTitle = computed<PlayerMediaTitle | null>(() => {
+        if (!this.showControls() || !this.isFullscreen()) {
+            return null;
+        }
+        const mediaTitle = this.mediaTitle();
+        return mediaTitle?.primary?.trim() ? mediaTitle : null;
+    });
 
     private readonly vm = createControlsViewModel({
         state: this.state,
@@ -246,11 +247,11 @@ export class PlayerControlsComponent implements OnDestroy {
     }
     onTimelineInput(event: Event): void {
         this.reveal();
-        this.scrubPosition.set(this.readTimelineValue(event));
+        this.scrubPosition.set(this.timeline.readEventValue(event));
     }
     onTimelineCommit(event: Event): void {
         this.reveal();
-        const target = this.readTimelineValue(event);
+        const target = this.timeline.readEventValue(event);
         this.scrubPosition.set(null);
         if (
             target === null ||
@@ -331,24 +332,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.volume.adjust(delta);
         this.reveal();
     }
-    private readTimelineValue(event: Event): number | null {
-        return this.normalizeTimelineValue(
-            Number((event.target as HTMLInputElement).value)
-        );
-    }
-    private normalizeTimelineValue(value: number): number | null {
-        if (!Number.isFinite(value)) {
-            return null;
-        }
-
-        const duration = this.state().durationSeconds;
-        const upperBound =
-            typeof duration === 'number' && Number.isFinite(duration)
-                ? Math.max(0, duration)
-                : Number.POSITIVE_INFINITY;
-        return Math.min(Math.max(0, value), upperBound);
-    }
-
     private closePopovers(): void {
         if (!this.menus.anyOpen()) {
             return;

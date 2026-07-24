@@ -16,6 +16,7 @@ import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
 import {
     PlayerControlsComponent,
+    type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -52,6 +53,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
+    readonly mediaTitle = input<PlayerMediaTitle | null>(null);
 
     readonly timeUpdate = output<{
         currentTime: number;

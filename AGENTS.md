@@ -132,6 +132,13 @@ Key files:
   engine-neutral `PlayerController` contract, standalone
   `app-player-controls`, generic web-video adapter/helper, and component-scoped
   `WEB_PLAYER_SHARED_CONTROLS` rollout token.
+- In fullscreen, `app-player-controls` shows a pointer-transparent media-title
+  overlay at the top while controls are revealed (`mediaTitle` input:
+  movie/channel/series name, plus an `S01E03` second line for episodes). Series
+  names flow from the Xtream/Stalker detail views through
+  `PortalInlinePlayerComponent.seriesTitle` and `WebPlayerViewComponent.mediaTitle`;
+  movie and live hosts fall back to `playback.title`, skipping raw stream-URL
+  fallbacks. Outside fullscreen the overlay stays hidden.
 - Persisted `Settings.webPlayerSharedControls` is default-off, and its checkbox
   appears only when HTML5, Video.js, or ArtPlayer is selected.
   `WebPlayerViewComponent` snapshots the preference into

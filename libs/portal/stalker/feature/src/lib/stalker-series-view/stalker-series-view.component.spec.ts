@@ -53,6 +53,7 @@ class StubSeasonContainerComponent {
 class StubPortalInlinePlayerComponent {
     readonly playback = input<unknown>(null);
     readonly episodeMetadata = input<unknown>(null);
+    readonly seriesTitle = input<string | null>(null);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();

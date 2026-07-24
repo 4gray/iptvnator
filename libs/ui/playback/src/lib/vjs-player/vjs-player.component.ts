@@ -25,6 +25,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import {
     PlayerControlsComponent,
+    type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -77,6 +78,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
+    readonly mediaTitle = input<PlayerMediaTitle | null>(null);
 
     readonly timeUpdate = output<{
         currentTime: number;

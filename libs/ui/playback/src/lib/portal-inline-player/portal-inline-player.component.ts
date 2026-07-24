@@ -19,6 +19,7 @@ import {
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import type { PlayerMediaTitle } from '../player-controls';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 import type {
     SeriesEpisodeMetadata,
@@ -47,6 +48,9 @@ export class PortalInlinePlayerComponent {
     readonly playback = input<ResolvedPortalPlayback | null>(null);
     readonly episodeMetadata = input<SeriesEpisodeMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
+    /** Series name for the fullscreen title overlay. Xtream episode playback
+     * carries the episode title, so the series name must come from the host. */
+    readonly seriesTitle = input<string | null>(null);
     private readonly settingsStore = inject(SettingsStore);
     // Strip only live-channel titles — VOD/series titles ("Mission:
     // Impossible - Fallout") must never lose their leading segment.
@@ -110,6 +114,17 @@ export class PortalInlinePlayerComponent {
         return metadata.title
             ? `${metadata.label} - ${metadata.title}`
             : metadata.label;
+    });
+    readonly playerMediaTitle = computed<PlayerMediaTitle | null>(() => {
+        const metadata = this.episodeMetadata();
+        const primary = (
+            (metadata ? this.seriesTitle() : null) || this.title()
+        )?.trim();
+        if (!primary) {
+            return null;
+        }
+
+        return { primary, secondary: metadata?.label ?? null };
     });
 
     readonly closed = output<void>();
