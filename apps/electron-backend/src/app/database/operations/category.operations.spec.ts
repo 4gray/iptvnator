@@ -1,6 +1,23 @@
 import type { AppDatabase } from '../database.types';
 import * as schema from '@iptvnator/shared/database/schema';
-import { getCategories, saveCategories } from './category.operations';
+import {
+    getAllCategories,
+    getCategories,
+    saveCategories,
+} from './category.operations';
+
+// Renderer consumers (XCategoryFromDb/XtreamCategoryFromDb) expect category
+// rows in this snake_case wire shape. A bare select() would return Drizzle's
+// camelCase property names and silently break the playlist backup
+// export/restore (issue #1017).
+const categoryWireShape = {
+    id: schema.categories.id,
+    playlist_id: schema.categories.playlistId,
+    name: schema.categories.name,
+    type: schema.categories.type,
+    xtream_id: schema.categories.xtreamId,
+    hidden: schema.categories.hidden,
+};
 
 function createDbMock(existingCount = 0) {
     const where = jest.fn().mockResolvedValue([{ count: existingCount }]);
@@ -37,6 +54,21 @@ describe('category.operations', () => {
         await getCategories(db, 'playlist-1', 'live');
 
         expect(orderBy).toHaveBeenCalledWith(schema.categories.id);
+        expect(select).toHaveBeenCalledWith(categoryWireShape);
+    });
+
+    it('projects all categories to the snake_case wire shape', async () => {
+        const orderBy = jest.fn().mockResolvedValue([]);
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const from = jest.fn().mockReturnValue({ where });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await getAllCategories(db, 'playlist-1', 'movies');
+
+        expect(select).toHaveBeenCalledWith(categoryWireShape);
     });
 
     it('restores hidden categories when Xtream API category IDs are strings', async () => {

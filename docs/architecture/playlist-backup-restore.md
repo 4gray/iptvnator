@@ -150,6 +150,18 @@ Runtime contract:
     - settings backup import
     - Xtream content initialization
 
+Restore state originates from untrusted sources (user-supplied backup files,
+stale localStorage entries), so every read and write goes through
+`normalizeXtreamPendingRestoreState` (`libs/shared/interfaces`). Entries in
+`hiddenCategories`, `favorites`, and `recentlyViewed` without a usable numeric
+`xtreamId` are dropped rather than restored: backups exported by builds
+affected by issue #1017 contain ID-less hidden-category entries, and matching
+them against category rows would otherwise degrade to a type-only comparison
+that hides every category of that type. Category rows themselves cross the DB
+worker IPC boundary in the snake_case wire shape declared by
+`XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
+their Drizzle rows explicitly to keep that contract true.
+
 Electron restore behavior:
 
 1. Category import reads pending hidden-category state while saving categories.

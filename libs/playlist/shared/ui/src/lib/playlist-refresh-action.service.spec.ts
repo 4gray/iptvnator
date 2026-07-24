@@ -418,28 +418,34 @@ describe('PlaylistRefreshActionService', () => {
         );
         expect(setItemSpy).toHaveBeenCalledWith(
             `xtream-restore-${item._id}`,
-            JSON.stringify({
-                hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-                favorites: [
-                    {
-                        xtreamId: 101,
-                        contentType: 'live',
-                    },
-                    {
-                        xtreamId: 202,
-                        contentType: 'movie',
-                    },
-                ],
-                recentlyViewed: [
-                    {
-                        xtreamId: 303,
-                        contentType: 'series',
-                        viewedAt: '2026-04-04T08:00:00.000Z',
-                    },
-                ],
-                playbackPositions: [],
-            })
+            expect.any(String)
         );
+        const persistedRestoreState = JSON.parse(
+            setItemSpy.mock.calls.find(
+                ([key]) => key === `xtream-restore-${item._id}`
+            )?.[1] ?? 'null'
+        );
+        expect(persistedRestoreState).toEqual({
+            hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
+            favorites: [
+                {
+                    xtreamId: 101,
+                    contentType: 'live',
+                },
+                {
+                    xtreamId: 202,
+                    contentType: 'movie',
+                },
+            ],
+            recentlyViewed: [
+                {
+                    xtreamId: 303,
+                    contentType: 'series',
+                    viewedAt: '2026-04-04T08:00:00.000Z',
+                },
+            ],
+            playbackPositions: [],
+        });
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
                 playlist: { ...item, updateDate: 1712217600000 },
