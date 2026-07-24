@@ -7,6 +7,11 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { isFrameCopyPlatformSupported } from './embedded-mpv-frame-copy-platform.util';
+import { createLinuxFrameCopyHelperLaunch } from './embedded-mpv-frame-copy-runtime';
+import type {
+    EmbeddedMpvFrameCopyRuntimeMode,
+    LinuxFrameCopyHelperLaunchFileSystem,
+} from './embedded-mpv-frame-copy-runtime';
 import type {
     NativeEmbeddedMpvAddon,
     NativeEmbeddedMpvSessionSnapshot,
@@ -28,6 +33,9 @@ import type {
 
 export interface EmbeddedMpvFrameCopyAdapterOptions {
     resolveHelperPath: () => string | null;
+    resolveRuntimeMode: () => EmbeddedMpvFrameCopyRuntimeMode | null;
+    environment?: NodeJS.ProcessEnv;
+    helperLaunchFileSystem?: LinuxFrameCopyHelperLaunchFileSystem;
     getScaleFactor: () => number;
     onFrameSourceChanged: (
         sessionId: string,
@@ -76,14 +84,18 @@ function createInitialSnapshot(): NativeEmbeddedMpvSessionSnapshot {
 export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     private readonly sessions = new Map<string, FrameCopyRuntimeSession>();
 
-    constructor(
-        private readonly options: EmbeddedMpvFrameCopyAdapterOptions
-    ) {}
+    constructor(private readonly options: EmbeddedMpvFrameCopyAdapterOptions) {}
 
     isSupported(): boolean {
+        if (
+            !isFrameCopyPlatformSupported() ||
+            this.options.resolveHelperPath() === null
+        ) {
+            return false;
+        }
         return (
-            isFrameCopyPlatformSupported() &&
-            this.options.resolveHelperPath() !== null
+            process.platform !== 'linux' ||
+            this.options.resolveRuntimeMode() !== null
         );
     }
 
@@ -104,30 +116,56 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         const scale = this.options.getScaleFactor();
         const width = Math.max(16, Math.round(bounds.width * scale));
         const height = Math.max(16, Math.round(bounds.height * scale));
+        const helperArgs = [
+            '--shm-base',
+            `/${sessionId}`,
+            '--width',
+            String(width),
+            '--height',
+            String(height),
+            '--volume',
+            String(Math.min(Math.max(initialVolume ?? 1, 0), 1)),
+            // Lip-sync compensation for the video path's added latency
+            // (~10 ms measured on M1 Pro); tunable until calibration
+            // lands, see the architecture doc.
+            ...(process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY
+                ? [
+                      '--audio-delay',
+                      process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY,
+                  ]
+                : []),
+        ];
+        let helperCommand = helperPath;
+        let resolvedHelperArgs = helperArgs;
+        let helperEnvironment: NodeJS.ProcessEnv | undefined;
+        if (process.platform === 'linux') {
+            const runtimeMode = this.options.resolveRuntimeMode();
+            if (!runtimeMode) {
+                throw new Error(
+                    'A validated Linux frame-copy runtime is not available.'
+                );
+            }
+            const launch = createLinuxFrameCopyHelperLaunch({
+                environment: this.options.environment ?? process.env,
+                helperPath,
+                helperArgs,
+                runtimeMode,
+                fileSystem: this.options.helperLaunchFileSystem,
+            });
+            if (!launch.usable) {
+                throw new Error(
+                    'The connected Snap graphics provider is not available.'
+                );
+            }
+            helperCommand = launch.command;
+            resolvedHelperArgs = launch.args;
+            helperEnvironment = launch.env;
+        }
 
-        const child = spawn(
-            helperPath,
-            [
-                '--shm-base',
-                `/${sessionId}`,
-                '--width',
-                String(width),
-                '--height',
-                String(height),
-                '--volume',
-                String(Math.min(Math.max(initialVolume ?? 1, 0), 1)),
-                // Lip-sync compensation for the video path's added latency
-                // (~10 ms measured on M1 Pro); tunable until calibration
-                // lands, see the architecture doc.
-                ...(process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY
-                    ? [
-                          '--audio-delay',
-                          process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY,
-                      ]
-                    : []),
-            ],
-            { stdio: ['pipe', 'pipe', 'pipe'] }
-        );
+        const child = spawn(helperCommand, resolvedHelperArgs, {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            ...(helperEnvironment ? { env: helperEnvironment } : {}),
+        });
 
         console.log(
             `[embedded-mpv-fc][${sessionId}] spawn ${width}x${height} (pid pending)`
@@ -177,7 +215,9 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     }
 
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void {
-        const fields: string[] = [`url=${encodeProtocolValue(playback.streamUrl)}`];
+        const fields: string[] = [
+            `url=${encodeProtocolValue(playback.streamUrl)}`,
+        ];
         if (playback.title) {
             fields.push(
                 `opt.force-media-title=${encodeProtocolValue(playback.title)}`

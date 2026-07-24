@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "デフォルトのビデオプレーヤーを選択",
         "WEB_PLAYER_SHARED_CONTROLS": "Webプレーヤーの統一コントロール（試験的）",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5、Video.js、ArtPlayerでIPTVnator共通のコントロールを使用します。",
+        "PLAYER_AMBIENT_MODE": "プレーヤー周囲のぼかし背景",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "プレーヤーの周囲をぼかしたポスター画像で埋め、通常の黒い枠の代わりに表示します。",
         "STREAM_FORMAT_DESCRIPTION": "デフォルトのストリーム形式を選択（Xtream）",
         "LANGUAGE_DESCRIPTION": "アプリケーションの言語を選択",
         "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "戻る",
             "RETRY": "再試行",
             "STALLED": "このストリームの開始に予想より時間がかかっています。",
             "PLAYBACK_FAILED": "組み込みMPVでの再生に失敗しました。",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "お気に入りから削除",
         "ADD_FAVORITE": "お気に入りに追加",
         "SHOW_DETAILS": "チャンネルの詳細を表示",
+        "MAP_EPG": "EPGチャンネルを割り当て",
         "FAVORITES_UPDATED": "お気に入りが更新されました！",
         "SELECT_CHANNEL_PLAYBACK": "再生を開始するチャンネルを選択してください",
         "SORT_BY": "並び替え",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "表示 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPGチャンネルの割り当て",
+        "SUBTITLE": "「{{channelName}}」のEPGチャンネルを手動で選択します",
+        "SEARCH_PLACEHOLDER": "EPGチャンネルを検索...",
+        "CURRENT_MAPPING": "現在の割り当て",
+        "NO_MAPPING": "EPGの割り当てはありません",
+        "SAVE": "割り当てを保存",
+        "REMOVE": "割り当てを削除",
+        "CLOSE": "閉じる",
+        "NO_RESULTS": "EPGチャンネルが見つかりません",
+        "SEARCH_HINT": "検索するには{{min}}文字以上入力してください",
+        "SAVED": "EPGの割り当てを保存しました",
+        "REMOVED": "EPGの割り当てを削除しました",
+        "SAVE_FAILED": "EPGの割り当てを更新できませんでした"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "出演者",
         "DIRECTOR": "監督",
         "SIMILAR": "類似作品",
+        "CREW_JOB_DIRECTOR": "監督",
+        "CREW_JOB_CREATOR": "クリエイター",
         "ACTOR_FILMOGRAPHY": "出演作品",
         "ACTOR_FILTER_ALL": "すべて",
         "ACTOR_SCOPE_THIS_PORTAL": "このポータル",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "このコンテンツはこのサーバーでは利用できません",
         "PLAYBACK_ERROR": "再生URLの取得に失敗しました",
         "LOADING_SEASONS": "シーズンを読み込み中...",
+        "LOADING_ALL_CHANNELS": "全チャンネルリストを読み込み中…",
+        "REFRESH_CHANNEL_LIST": "チャンネルリストを更新",
+        "NO_CHANNELS_IN_CATEGORY": "このカテゴリーにチャンネルがありません",
+        "ITEM": "件",
+        "ITEMS": "件",
         "NO_EPISODES": "利用可能なエピソードはありません",
         "ALL_RADIO": "すべてのラジオ"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "ソースのプレイリストが削除されたため、このダウンロードはライブラリで開けなくなりました。",
         "FILE_NOT_FOUND": "このダウンロードファイルはディスク上で見つかりませんでした。",
         "FILE_ACTION_ERROR": "ファイル操作を完了できませんでした。",
+        "ACTION_FAILED": "操作に失敗しました",
+        "PAUSE": "一時停止",
+        "RESUME": "再開",
         "CANCEL": "キャンセル",
         "RETRY": "再試行",
         "REMOVE": "削除",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "ダウンロード中",
             "COMPLETED": "完了",
             "FAILED": "失敗",
-            "CANCELED": "キャンセル済み"
+            "CANCELED": "キャンセル済み",
+            "PAUSED": "一時停止中"
         }
     },
     "REMOTE_CONTROL": {

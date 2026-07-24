@@ -245,6 +245,13 @@ describe('stalker-vod.utils regressions', () => {
                 rating_imdb: '',
                 rating_kinopoisk: '8.1',
                 tmdb_cast: tmdbCast,
+                tmdb_directors: [
+                    {
+                        name: 'Eric Kripke',
+                        profileUrl: null,
+                        tmdbPersonId: 1216630,
+                    },
+                ],
                 tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/boys.jpg',
                 tmdb_trailer: 'abc123def',
                 tmdb_recommendations: tmdbRecommendations,
@@ -252,6 +259,7 @@ describe('stalker-vod.utils regressions', () => {
         });
 
         expect(info.tmdb_cast).toEqual(tmdbCast);
+        expect(info.tmdb_directors?.[0]?.name).toBe('Eric Kripke');
         expect(info.tmdb_backdrop).toBe(
             'https://image.tmdb.org/t/p/w1280/boys.jpg'
         );

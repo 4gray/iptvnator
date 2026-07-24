@@ -10,10 +10,17 @@ const mockElectronApp = {
 jest.mock('electron', () => ({ app: mockElectronApp }));
 
 import {
+    getEmbeddedMpvAddonCandidatePaths,
+    getFrameCopyRuntimeAvailability,
     isFrameCopyPlatformSupported,
+    isFrameCopyRuntimeUsable,
     resolveFrameCopyHelperPath,
+    shouldPromotePersistedFrameCopyOptIn,
 } from './embedded-mpv-frame-copy-platform.util';
-import * as frameCopyPlatform from './embedded-mpv-frame-copy-platform.util';
+import type {
+    EmbeddedMpvFrameCopyManifestContract,
+    EmbeddedMpvFrameCopyRuntimeResult,
+} from './embedded-mpv-frame-copy-runtime';
 
 describe('embedded-mpv-frame-copy-platform.util', () => {
     describe('isFrameCopyPlatformSupported', () => {
@@ -31,7 +38,8 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             ['darwin', 'arm64', true],
             ['darwin', 'x64', false],
             ['linux', 'x64', true],
-            ['linux', 'arm64', true],
+            ['linux', 'arm64', false],
+            ['linux', 'arm', false],
             ['win32', 'x64', true],
             ['freebsd', 'x64', false],
         ])('%s/%s -> %s', (platform, arch, expected) => {
@@ -61,8 +69,7 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             process.platform === 'win32'
                 ? 'iptvnator_mpv_helper.exe'
                 : 'iptvnator_mpv_helper';
-        const helperPath = () =>
-            path.join(releaseDir(), helperFileName());
+        const helperPath = () => path.join(releaseDir(), helperFileName());
         const readerPath = () =>
             path.join(releaseDir(), 'embedded_mpv_frame_reader.node');
 
@@ -152,24 +159,184 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
 
             expect(resolveFrameCopyHelperPath()).toBe(packagedHelper);
         });
+
+        it('limits packaged native-view addon discovery to package-owned paths', () => {
+            mockElectronApp.isPackaged = true;
+            const resourcesPath = path.join(tempDir, 'IPTVnator', 'Resources');
+            Object.defineProperty(process, 'resourcesPath', {
+                configurable: true,
+                value: resourcesPath,
+            });
+            mockElectronApp.getAppPath.mockReturnValue(
+                path.join(resourcesPath, 'app.asar')
+            );
+
+            expect(getEmbeddedMpvAddonCandidatePaths()).toEqual([
+                path.join(
+                    resourcesPath,
+                    'app.asar.unpacked',
+                    'electron-backend',
+                    'native',
+                    'embedded_mpv.node'
+                ),
+            ]);
+        });
     });
 
-    it('promotes a stored opt-in only without an explicit env override and with a usable runtime', () => {
-        const shouldPromote = (
-            frameCopyPlatform as typeof frameCopyPlatform & {
-                shouldPromotePersistedFrameCopyOptIn?: (
-                    storedEnabled: boolean,
-                    explicitEnv: string | undefined,
-                    runtimeUsable: boolean
-                ) => boolean;
-            }
-        ).shouldPromotePersistedFrameCopyOptIn;
+    describe('isFrameCopyRuntimeUsable', () => {
+        const originalPlatform = process.platform;
+        const originalArch = process.arch;
 
-        expect(shouldPromote).toBeDefined();
-        expect(shouldPromote?.(true, undefined, true)).toBe(true);
-        expect(shouldPromote?.(true, undefined, false)).toBe(false);
-        expect(shouldPromote?.(true, '0', true)).toBe(false);
-        expect(shouldPromote?.(true, '1', true)).toBe(false);
-        expect(shouldPromote?.(false, undefined, true)).toBe(false);
+        beforeEach(() => {
+            mockElectronApp.isPackaged = false;
+        });
+
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', {
+                value: originalPlatform,
+            });
+            Object.defineProperty(process, 'arch', { value: originalArch });
+            mockElectronApp.isPackaged = false;
+        });
+
+        it('requires a successful Linux x64 runtime probe', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn<
+                EmbeddedMpvFrameCopyRuntimeResult,
+                [string, EmbeddedMpvFrameCopyManifestContract]
+            >(() => ({
+                usable: true,
+                profile: 'system',
+                runtimeMode: 'system',
+                libmpv: '2.3',
+                renderApi: 'egl',
+            }));
+
+            expect(isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)).toBe(
+                true
+            );
+            expect(probeRuntime).toHaveBeenCalledWith(
+                '/native/iptvnator_mpv_helper',
+                'development'
+            );
+
+            probeRuntime.mockReturnValueOnce({
+                usable: false,
+                reason: 'helper-probe-failed',
+            });
+            expect(
+                getFrameCopyRuntimeAvailability(resolveHelper, probeRuntime)
+            ).toEqual({
+                usable: false,
+                reason: 'helper-probe-failed',
+            });
+        });
+
+        it('selects the packaged manifest contract only from app.isPackaged', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+            mockElectronApp.isPackaged = true;
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn<
+                EmbeddedMpvFrameCopyRuntimeResult,
+                [string, EmbeddedMpvFrameCopyManifestContract]
+            >(() => ({
+                usable: true,
+                profile: 'system',
+                runtimeMode: 'system',
+                libmpv: '2.3',
+                renderApi: 'egl',
+            }));
+
+            expect(isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)).toBe(
+                true
+            );
+            expect(probeRuntime).toHaveBeenCalledWith(
+                '/native/iptvnator_mpv_helper',
+                'packaged'
+            );
+        });
+
+        it.each<[NodeJS.Platform, string]>([
+            ['darwin', 'arm64'],
+            ['win32', 'x64'],
+        ])(
+            'keeps the existing helper-presence gate on %s',
+            (platform, arch) => {
+                Object.defineProperty(process, 'platform', {
+                    value: platform,
+                });
+                Object.defineProperty(process, 'arch', { value: arch });
+                const resolveHelper = jest.fn(
+                    () => '/native/iptvnator_mpv_helper'
+                );
+                const probeRuntime = jest.fn();
+
+                expect(
+                    isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)
+                ).toBe(true);
+                expect(probeRuntime).not.toHaveBeenCalled();
+            }
+        );
+
+        it('rejects Linux ARM before helper discovery or probing', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            Object.defineProperty(process, 'arch', { value: 'arm64' });
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn();
+
+            expect(isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)).toBe(
+                false
+            );
+            expect(resolveHelper).not.toHaveBeenCalled();
+            expect(probeRuntime).not.toHaveBeenCalled();
+        });
+
+        it('reports unsupported architecture for Intel macOS', () => {
+            Object.defineProperty(process, 'platform', { value: 'darwin' });
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn();
+
+            expect(
+                getFrameCopyRuntimeAvailability(resolveHelper, probeRuntime)
+            ).toEqual({
+                usable: false,
+                reason: 'unsupported-architecture',
+            });
+            expect(resolveHelper).not.toHaveBeenCalled();
+            expect(probeRuntime).not.toHaveBeenCalled();
+        });
+    });
+
+    it('lazily probes only a stored opt-in without an explicit env override', () => {
+        const runtimeUsable = jest.fn(() => true);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(
+                false,
+                undefined,
+                runtimeUsable
+            )
+        ).toBe(false);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, '0', runtimeUsable)
+        ).toBe(false);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, '1', runtimeUsable)
+        ).toBe(false);
+        expect(runtimeUsable).not.toHaveBeenCalled();
+
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, undefined, runtimeUsable)
+        ).toBe(true);
+        expect(runtimeUsable).toHaveBeenCalledTimes(1);
+
+        runtimeUsable.mockReturnValue(false);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, undefined, runtimeUsable)
+        ).toBe(false);
+        expect(runtimeUsable).toHaveBeenCalledTimes(2);
     });
 });

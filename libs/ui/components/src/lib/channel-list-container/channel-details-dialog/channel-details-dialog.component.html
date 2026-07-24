@@ -227,6 +227,12 @@
 </mat-dialog-content>
 
 <mat-dialog-actions class="channel-dialog__actions">
+    @if (supportsEpgMapping) {
+        <button mat-stroked-button (click)="openEpgMapping()">
+            <mat-icon>settings_remote</mat-icon>
+            {{ 'CHANNELS.MAP_EPG' | translate }}
+        </button>
+    }
     <button mat-stroked-button mat-dialog-close class="channel-dialog__close">
         {{ 'CLOSE' | translate }}
     </button>

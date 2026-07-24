@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
         "WEB_PLAYER_SHARED_CONTROLS": "Unified controls for web players (experimental)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Ambient background fill",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Fill the space around the player with a blurred, dimmed poster instead of plain black bars.",
         "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Back",
             "RETRY": "Retry",
             "STALLED": "This stream is taking longer than expected to start.",
             "PLAYBACK_FAILED": "Embedded MPV playback failed.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "Remove from favorites",
         "ADD_FAVORITE": "Add to favorites",
         "SHOW_DETAILS": "Show channel details",
+        "MAP_EPG": "Map EPG channel",
         "FAVORITES_UPDATED": "Favorites were updated!",
         "SELECT_CHANNEL_PLAYBACK": "Please select a channel to start playback",
         "SORT_BY": "Sort by",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "show ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Map EPG Channel",
+        "SUBTITLE": "Manually select an EPG channel for \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Search EPG channels...",
+        "CURRENT_MAPPING": "Current mapping",
+        "NO_MAPPING": "No EPG mapping set",
+        "SAVE": "Save mapping",
+        "REMOVE": "Remove mapping",
+        "CLOSE": "Close",
+        "NO_RESULTS": "No EPG channels found",
+        "SEARCH_HINT": "Type at least {{min}} characters to search",
+        "SAVED": "EPG mapping saved",
+        "REMOVED": "EPG mapping removed",
+        "SAVE_FAILED": "Could not update the EPG mapping"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "Actors",
         "DIRECTOR": "Director",
         "SIMILAR": "Similar",
+        "CREW_JOB_DIRECTOR": "Director",
+        "CREW_JOB_CREATOR": "Creator",
         "ACTOR_FILMOGRAPHY": "Filmography",
         "ACTOR_FILTER_ALL": "All",
         "ACTOR_SCOPE_THIS_PORTAL": "This portal",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "This content is not available on this server",
         "PLAYBACK_ERROR": "Failed to get playback URL",
         "LOADING_SEASONS": "Loading seasons...",
+        "LOADING_ALL_CHANNELS": "Loading full channel list…",
+        "REFRESH_CHANNEL_LIST": "Refresh channel list",
+        "NO_CHANNELS_IN_CATEGORY": "No channels in this category",
+        "ITEM": "item",
+        "ITEMS": "items",
         "NO_EPISODES": "No episodes available",
         "ALL_RADIO": "All radio"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "This download can no longer open in the library because its source playlist was removed.",
         "FILE_NOT_FOUND": "This downloaded file is no longer available on disk.",
         "FILE_ACTION_ERROR": "The file action could not be completed.",
+        "ACTION_FAILED": "Action failed",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "Cancel",
         "RETRY": "Retry",
         "REMOVE": "Remove",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "Downloading",
             "COMPLETED": "Completed",
             "FAILED": "Failed",
-            "CANCELED": "Canceled"
+            "CANCELED": "Canceled",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

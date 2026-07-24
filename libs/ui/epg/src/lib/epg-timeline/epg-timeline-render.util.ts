@@ -109,7 +109,7 @@ function toRenderBlock(
         nowFillPercent: nowFillFor(block, nowMs),
         canCatchUp:
             archivePlaybackAvailable &&
-            block.when === 'past' &&
+            (block.when === 'past' || block.when === 'now') &&
             block.startMs >= archiveWindowStartMs,
     };
 }

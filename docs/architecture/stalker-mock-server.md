@@ -22,7 +22,7 @@ The mock server enables:
 Per-request random data would break navigation: if category IDs change between calls, content fetched under a category ID won't match the category list. Instead:
 
 - Data is generated **once per MAC address** on first request, then cached in memory.
-- `@faker-js/faker` is seeded with a numeric value derived from the MAC address before generation.
+- `@faker-js/faker` is seeded with the scenario's `seed` value before generation: predefined scenario MACs use fixed seeds from `scenarios.ts`; unknown MACs derive the seed from the MAC via `macToSeed()`.
 - Same MAC → identical data on every server restart.
 - Restart the server to reshuffle all data.
 
@@ -41,7 +41,7 @@ No files or databases are written. All state (generated content + favorites) liv
 ## Data Generation Pipeline
 
 ```
-faker.seed(macToNumber(mac))
+faker.seed(config.seed)   // scenario seed; unknown MACs: macToSeed(mac)
 │
 ├── generateCategories('itv', N)  → itvCategories[]
 │     └── generateChannels()      → channels Map<categoryId, channel[]>
@@ -123,7 +123,7 @@ marker and an `ffrt4://radio/...` command.
       "id": "30001-s1",
       "name": "Season 1",
       "cmd": "ffrt4://series/30001/season/1",
-      "series": ["30001-s1-e1", "30001-s1-e2", ...],
+      "series": ["1", "2", "3", ...],
       "screenshot_uri": "https://picsum.photos/seed/30001-s1/300/200",
       "director": "...",
       "actors": "...",
@@ -217,8 +217,18 @@ interface ScenarioConfig {
   episodesPerSeason: number;
   isSeriesFraction: number;      // 0–1: fraction of VOD with is_series=1
   embeddedSeriesFraction: number; // 0–1: fraction of VOD with embedded series[]
+  supportsGetAllChannels?: boolean; // default true; false mimics legacy portals
+                                    // without the ITV get_all_channels action
 }
 ```
+
+The `legacy-pagination` scenario (`00:1A:79:00:00:06`) sets
+`supportsGetAllChannels: false`: `get_all_channels` then answers with an error
+payload so clients fall back to the paginated `get_ordered_list` crawl. For
+supporting scenarios, `get_all_channels` (`get-all-channels.handler.ts`,
+`type=itv` only) returns the complete ITV channel list in one
+`{ js: { data, total_items } }` response, excluding channels from censored
+(adult) genres.
 
 ### Adding a New Scenario
 
@@ -257,7 +267,7 @@ Playwright waits for both servers to be healthy before starting tests. If either
 
 Each stalker e2e test calls `POST http://localhost:3210/reset` in `beforeEach` to clear in-memory state. This ensures tests don't bleed favorites or other mutable state into each other.
 
-The generated content (categories, items) is **not** cleared on reset — it's deterministic and doesn't need to be. Only in-memory favorites are cleared.
+`resetAll()` clears both the generated-content cache and in-memory favorites (`data-store.ts`). Because generation is seed-deterministic, the next request regenerates identical content, so the observable data does not change across resets.
 
 ### Recommended Test Structure
 

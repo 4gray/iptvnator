@@ -1,6 +1,31 @@
+const crypto = require('node:crypto');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { isDeepStrictEqual } = require('node:util');
+const {
+    EXTERNAL_SYSTEM_LIBRARIES,
+    GLIBC_TOOLCHAIN_ALLOWLIST,
+    parseReadelfDynamic,
+    validateRuntimeDependencyClosure,
+} = require('../embedded-mpv/build-linux-runtime.cjs');
+const {
+    validateLinuxRuntimeManifest,
+} = require('../embedded-mpv/linux-runtime-manifest.cjs');
+const {
+    validateLinuxSourceArchiveBinding,
+} = require('../embedded-mpv/linux-source-archive-contract.cjs');
+const {
+    NOTICE_MANIFEST,
+    THIRD_PARTY_NOTICES,
+    validateLinuxRuntimeNotices,
+} = require('../embedded-mpv/generate-linux-runtime-notices.cjs');
+const {
+    LINUX_SYSTEM_PACKAGE_DEPENDENCIES,
+    resolveLinuxFrameCopyProfile,
+    validateLinuxProfileTargets,
+} = require('./linux-frame-copy-profile.cjs');
+const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
 
 const forbiddenRuntimePathPrefixes = ['/opt/homebrew/', '/usr/local/'];
 const systemRuntimePathPrefixes = ['/System/Library/', '/usr/lib/'];
@@ -10,6 +35,39 @@ const windowsMpvRuntimeNames = [
     'mpv.dll',
     'libmpv.dll',
 ];
+const linuxFrameCopyArtifacts = Object.freeze({
+    addon: Object.freeze({
+        name: 'embedded_mpv.node',
+        regularFile: true,
+        readable: true,
+    }),
+    frameReader: Object.freeze({
+        name: 'embedded_mpv_frame_reader.node',
+        regularFile: true,
+        readable: true,
+    }),
+    helper: Object.freeze({
+        name: 'iptvnator_mpv_helper',
+        regularFile: true,
+        readable: true,
+        executable: true,
+    }),
+});
+const linuxFrameCopyProcessIsolation = Object.freeze({
+    addonLoadsLibmpv: false,
+    readerLoadsLibmpv: false,
+    electronLoadsLibmpv: false,
+    helperLinksLibmpv: true,
+    helperRunpath: Object.freeze(['$ORIGIN/lib']),
+});
+const linuxNativeViewFallback = 'process-isolated mpv --wid';
+const versionedLinuxLibmpvPattern = /^libmpv\.so\.\d+(?:\.\d+)*$/;
+const anyLinuxLibmpvPattern = /^libmpv\.so(?:\.|$)/;
+const linuxRuntimeLegalPaths = Object.freeze([
+    NOTICE_MANIFEST,
+    THIRD_PARTY_NOTICES,
+    'licenses',
+]);
 
 function run(command, args, options = {}) {
     const result = spawnSync(command, args, {
@@ -638,31 +696,80 @@ const ELECTRON_BUILDER_ARCH_NAMES = [
 
 function resolveElectronBuilderArchName(arch) {
     if (typeof arch === 'string') {
-        return arch;
+        return ELECTRON_BUILDER_ARCH_NAMES.includes(arch) ? arch : null;
     }
     return ELECTRON_BUILDER_ARCH_NAMES[arch] ?? null;
 }
 
-function getEmbeddedMpvAddonArch(env = process.env) {
-    return env.IPTVNATOR_EMBEDDED_MPV_ARCH || process.arch;
+function resolveConfiguredLinuxTargetNames(configuredTargets, targetArch) {
+    if (!Array.isArray(configuredTargets)) {
+        throw new TypeError('Electron Builder linux.target must be an array.');
+    }
+    const archName = resolveElectronBuilderArchName(targetArch);
+    if (!archName) {
+        throw new Error(
+            `Unknown Electron Builder architecture: ${String(targetArch)}.`
+        );
+    }
+
+    const targetNames = new Set();
+    for (const target of configuredTargets) {
+        const targetName =
+            typeof target === 'string'
+                ? target
+                : target && typeof target === 'object'
+                  ? target.target
+                  : null;
+        if (typeof targetName !== 'string' || targetName.trim() === '') {
+            throw new Error(
+                'Electron Builder Linux targets must have a non-empty target name.'
+            );
+        }
+
+        if (target && typeof target === 'object' && target.arch !== undefined) {
+            const configuredArches = Array.isArray(target.arch)
+                ? target.arch
+                : [target.arch];
+            const configuredArchNames = configuredArches.map(
+                (configuredArch) => {
+                    const configuredArchName =
+                        resolveElectronBuilderArchName(configuredArch);
+                    if (!configuredArchName) {
+                        throw new Error(
+                            `Unknown Electron Builder architecture: ${String(
+                                configuredArch
+                            )}.`
+                        );
+                    }
+                    return configuredArchName;
+                }
+            );
+            if (!configuredArchNames.includes(archName)) {
+                continue;
+            }
+        }
+        targetNames.add(targetName.trim().toLowerCase());
+    }
+
+    if (targetNames.size === 0) {
+        throw new Error(
+            `Electron Builder has no Linux targets configured for ${archName}.`
+        );
+    }
+    return [...targetNames].sort();
 }
 
 /**
- * The embedded MPV addon is compiled once per CI host (x64 on Linux), but
- * electron-builder also produces arm64/armv7l Linux packages from the same
- * dist output. Those packages must not ship a foreign-architecture
- * `embedded_mpv.node` — it can never load and produces a cryptic error.
+ * Official Linux frame-copy support is x64-only. electron-builder also
+ * produces arm64/armv7l packages, which must always carry only the
+ * unavailable marker and native-view fallback.
  */
-function isForeignLinuxEmbeddedMpvArch(
-    platform,
-    targetArch,
-    env = process.env
-) {
+function isForeignLinuxEmbeddedMpvArch(platform, targetArch) {
     if (normalizeEmbeddedMpvPlatform(platform) !== 'linux') {
         return false;
     }
     const archName = resolveElectronBuilderArchName(targetArch);
-    return Boolean(archName) && archName !== getEmbeddedMpvAddonArch(env);
+    return Boolean(archName) && archName !== 'x64';
 }
 
 // Maps electron-builder Linux output directory names (`linux-unpacked`,
@@ -676,8 +783,1029 @@ function linuxUnpackedDirArch(unpackedDirName) {
     return match[1] ?? 'x64';
 }
 
+function pathExistsByLstat(filePath) {
+    try {
+        fs.lstatSync(filePath);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function inspectRegularReadableFile(
+    filePath,
+    label,
+    errors,
+    expectedMode = null
+) {
+    let stat;
+    try {
+        stat = fs.lstatSync(filePath);
+    } catch {
+        errors.push(`Missing ${label}: ${filePath}`);
+        return null;
+    }
+
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+        errors.push(`${label} must be a regular file: ${filePath}`);
+        return null;
+    }
+    try {
+        fs.accessSync(filePath, fs.constants.R_OK);
+    } catch {
+        errors.push(`${label} must be readable: ${filePath}`);
+    }
+
+    if (expectedMode !== null && (stat.mode & 0o7777) !== expectedMode) {
+        errors.push(
+            `${label} must have mode ${expectedMode
+                .toString(8)
+                .padStart(4, '0')}: ${filePath}`
+        );
+    }
+    return stat;
+}
+
+function readPackagedJson(filePath, label, errors) {
+    let contents;
+    try {
+        contents = fs.readFileSync(filePath, 'utf8');
+    } catch (error) {
+        errors.push(
+            `Unable to read ${label} at ${filePath}: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return null;
+    }
+
+    try {
+        return JSON.parse(contents);
+    } catch (error) {
+        errors.push(
+            `Invalid JSON in ${label} at ${filePath}: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return null;
+    }
+}
+
+function validateForeignLinuxNativeDir(nativeDir) {
+    const errors = [];
+    const markerName = 'embedded-mpv-unavailable.txt';
+    const markerPath = path.join(nativeDir, markerName);
+    let nativeStat;
+    try {
+        nativeStat = fs.lstatSync(nativeDir);
+    } catch {
+        return [
+            `Missing embedded MPV unavailable marker for foreign-architecture package: ${markerPath}`,
+        ];
+    }
+    if (!nativeStat.isDirectory() || nativeStat.isSymbolicLink()) {
+        return [
+            `Foreign-architecture embedded MPV native path must be a regular directory: ${nativeDir}`,
+        ];
+    }
+
+    const entries = fs.readdirSync(nativeDir).sort();
+    const unexpectedEntries = entries.filter((name) => name !== markerName);
+    if (unexpectedEntries.length > 0) {
+        errors.push(
+            [
+                'Embedded MPV artifacts must not ship in foreign-architecture Linux packages; only the unavailable marker is allowed.',
+                ...unexpectedEntries.map(
+                    (name) => `- ${path.join(nativeDir, name)}`
+                ),
+            ].join('\n')
+        );
+    }
+    if (!entries.includes(markerName)) {
+        errors.push(
+            `Missing embedded MPV unavailable marker for foreign-architecture package: ${markerPath}`
+        );
+    } else {
+        inspectRegularReadableFile(
+            markerPath,
+            'embedded MPV unavailable marker',
+            errors
+        );
+    }
+    return errors;
+}
+
+function validateNativeViewOnlyLinuxPackage(
+    nativeDir,
+    addonPath,
+    manifestPath,
+    errors
+) {
+    for (const legalPath of linuxRuntimeLegalPaths) {
+        const packagedLegalPath = path.join(nativeDir, legalPath);
+        if (pathExistsByLstat(packagedLegalPath)) {
+            errors.push(
+                `Linux native-view-only packages must not ship bundled runtime legal files: ${packagedLegalPath}`
+            );
+        }
+    }
+    for (const artifactName of [
+        'iptvnator_mpv_helper',
+        'iptvnator_mpv_helper.exe',
+        'embedded_mpv_frame_reader.node',
+    ]) {
+        const artifactPath = path.join(nativeDir, artifactName);
+        if (pathExistsByLstat(artifactPath)) {
+            errors.push(
+                `Linux native-view-only packages must not ship frame-copy helpers or readers: ${artifactPath}`
+            );
+        }
+    }
+
+    const markerPath = path.join(nativeDir, 'embedded-mpv-unavailable.txt');
+    if (pathExistsByLstat(markerPath)) {
+        errors.push(
+            `Same-architecture Linux packages must not retain the unavailable marker: ${markerPath}`
+        );
+    }
+
+    const libDir = path.join(nativeDir, 'lib');
+    if (pathExistsByLstat(libDir)) {
+        errors.push(
+            `Linux native-view-only packages must not bundle libmpv or retain a private runtime directory: ${libDir}`
+        );
+    }
+
+    inspectRegularReadableFile(addonPath, 'embedded MPV native addon', errors);
+    if (
+        !inspectRegularReadableFile(
+            manifestPath,
+            'embedded MPV runtime manifest',
+            errors
+        )
+    ) {
+        return;
+    }
+    const manifest = readPackagedJson(
+        manifestPath,
+        'embedded MPV runtime manifest',
+        errors
+    );
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+        if (manifest !== null) {
+            errors.push('Embedded MPV runtime manifest must be an object.');
+        }
+        return;
+    }
+
+    const expectedFields = {
+        schemaVersion: 1,
+        origin: 'external-mpv-process',
+        platform: 'linux',
+        arch: 'x64',
+        runtimeMode: 'native-view-only',
+        frameCopyAvailable: false,
+        artifacts: { addon: 'embedded_mpv.node' },
+        nativeViewFallback: linuxNativeViewFallback,
+    };
+    for (const [field, expected] of Object.entries(expectedFields)) {
+        if (!isDeepStrictEqual(manifest[field], expected)) {
+            errors.push(
+                `Linux native-view-only manifest ${field} must equal ${JSON.stringify(
+                    expected
+                )}; received ${JSON.stringify(manifest[field])}.`
+            );
+        }
+    }
+    if (Object.hasOwn(manifest, 'profile')) {
+        errors.push(
+            'Linux native-view-only manifest must not include a frame-copy profile.'
+        );
+    }
+}
+
+function normalizeLinuxTargetNames(targetNames, errors) {
+    if (!Array.isArray(targetNames) || targetNames.length === 0) {
+        errors.push(
+            'Linux frame-copy package validation requires at least one target name.'
+        );
+        return [];
+    }
+    const normalized = [];
+    for (const targetName of targetNames) {
+        const name = String(targetName ?? '')
+            .trim()
+            .toLowerCase();
+        if (!name) {
+            errors.push(
+                'Linux frame-copy target names must be non-empty strings.'
+            );
+            continue;
+        }
+        if (normalized.includes(name)) {
+            errors.push(`Linux frame-copy target "${name}" is duplicated.`);
+            continue;
+        }
+        normalized.push(name);
+    }
+    return normalized.sort();
+}
+
+function validatePackagedManifestContract(
+    manifest,
+    profile,
+    targetNames,
+    errors
+) {
+    const expectedFields = {
+        schemaVersion: 1,
+        origin: profile.manifestOrigin,
+        platform: 'linux',
+        arch: 'x64',
+        profile: profile.name,
+        runtimeMode: profile.runtimeMode,
+        targets: targetNames,
+        artifacts: linuxFrameCopyArtifacts,
+        processIsolation: linuxFrameCopyProcessIsolation,
+        nativeViewFallback: linuxNativeViewFallback,
+    };
+    for (const [field, expected] of Object.entries(expectedFields)) {
+        if (!isDeepStrictEqual(manifest[field], expected)) {
+            errors.push(
+                `Linux frame-copy manifest ${field} for profile "${profile.name}" must equal ${JSON.stringify(
+                    expected
+                )}; received ${JSON.stringify(manifest[field])}.`
+            );
+        }
+    }
+
+    if (
+        typeof manifest.generatedAt !== 'string' ||
+        manifest.generatedAt.trim() === '' ||
+        Number.isNaN(Date.parse(manifest.generatedAt))
+    ) {
+        errors.push(
+            'Linux frame-copy manifest generatedAt must be a valid timestamp.'
+        );
+    }
+    if (
+        typeof manifest.libmpvSoname !== 'string' ||
+        !versionedLinuxLibmpvPattern.test(manifest.libmpvSoname)
+    ) {
+        errors.push(
+            'Linux frame-copy manifest libmpvSoname must be a versioned libmpv SONAME.'
+        );
+    }
+}
+
+function validateSystemLinuxRuntime(nativeDir, manifest, errors) {
+    for (const legalPath of linuxRuntimeLegalPaths) {
+        const packagedLegalPath = path.join(nativeDir, legalPath);
+        if (pathExistsByLstat(packagedLegalPath)) {
+            errors.push(
+                `Linux system frame-copy packages must not ship bundled runtime legal files: ${packagedLegalPath}`
+            );
+        }
+    }
+    if (
+        !isDeepStrictEqual(
+            manifest.packageDependencies,
+            LINUX_SYSTEM_PACKAGE_DEPENDENCIES
+        )
+    ) {
+        errors.push(
+            `Linux system frame-copy manifest packageDependencies must equal ${JSON.stringify(
+                LINUX_SYSTEM_PACKAGE_DEPENDENCIES
+            )}.`
+        );
+    }
+    if (!isDeepStrictEqual(manifest.runtimeFiles, [])) {
+        errors.push(
+            'Linux system frame-copy manifest runtimeFiles must be empty.'
+        );
+    }
+    if (manifest.runtimeTotalBytes !== 0) {
+        errors.push(
+            'Linux system frame-copy manifest runtimeTotalBytes must equal 0.'
+        );
+    }
+    for (const forbiddenField of [
+        'runtimeDependencyClosure',
+        'externalSystemLibraries',
+        'sourceArchive',
+        'sourceRuntime',
+    ]) {
+        if (Object.hasOwn(manifest, forbiddenField)) {
+            errors.push(
+                `Linux system frame-copy manifest must not include ${forbiddenField}.`
+            );
+        }
+    }
+
+    const libDir = path.join(nativeDir, 'lib');
+    if (pathExistsByLstat(libDir)) {
+        errors.push(
+            `Linux system frame-copy packages must not retain a private runtime directory: ${libDir}`
+        );
+    }
+}
+
+function sha256File(filePath) {
+    return crypto
+        .createHash('sha256')
+        .update(fs.readFileSync(filePath))
+        .digest('hex');
+}
+
+function validateBundledLinuxRuntime(nativeDir, manifest, errors) {
+    if (!isDeepStrictEqual(manifest.packageDependencies, {})) {
+        errors.push(
+            'Linux bundled frame-copy manifest packageDependencies must be empty.'
+        );
+    }
+
+    const sourceRuntimeErrors = validateLinuxRuntimeManifest(
+        manifest.sourceRuntime
+    );
+    errors.push(
+        ...sourceRuntimeErrors.map(
+            (error) => `Invalid packaged Linux source runtime: ${error}`
+        )
+    );
+    errors.push(
+        ...validateLinuxSourceArchiveBinding(manifest.sourceArchive).map(
+            (error) => `Invalid packaged Linux source archive binding: ${error}`
+        )
+    );
+    errors.push(
+        ...validateLinuxRuntimeNotices(nativeDir, manifest.sourceRuntime, {
+            allowUnrelatedFiles: true,
+        }).map((error) => `Invalid packaged Linux runtime notices: ${error}`)
+    );
+    if (
+        !isDeepStrictEqual(
+            manifest.runtimeFiles,
+            manifest.sourceRuntime?.runtimeFiles
+        )
+    ) {
+        errors.push(
+            'Linux bundled frame-copy manifest runtimeFiles must exactly match sourceRuntime.runtimeFiles.'
+        );
+    }
+    if (
+        !isDeepStrictEqual(
+            manifest.runtimeDependencyClosure,
+            manifest.sourceRuntime?.runtimeDependencyClosure
+        )
+    ) {
+        errors.push(
+            'Linux bundled frame-copy manifest runtimeDependencyClosure must exactly match sourceRuntime.runtimeDependencyClosure.'
+        );
+    }
+    if (
+        !isDeepStrictEqual(
+            manifest.externalSystemLibraries,
+            manifest.sourceRuntime?.externalSystemLibraries
+        )
+    ) {
+        errors.push(
+            'Linux bundled frame-copy manifest externalSystemLibraries must exactly match sourceRuntime.externalSystemLibraries.'
+        );
+    }
+
+    if (!Array.isArray(manifest.runtimeFiles)) {
+        errors.push(
+            'Linux bundled frame-copy manifest runtimeFiles must be an array.'
+        );
+        return;
+    }
+    const expectedTotal = manifest.runtimeFiles.reduce(
+        (total, runtimeFile) =>
+            total +
+            (runtimeFile &&
+            Number.isSafeInteger(runtimeFile.size) &&
+            runtimeFile.size > 0
+                ? runtimeFile.size
+                : 0),
+        0
+    );
+    if (manifest.runtimeTotalBytes !== expectedTotal) {
+        errors.push(
+            `Linux bundled frame-copy manifest runtimeTotalBytes must equal ${expectedTotal}.`
+        );
+    }
+
+    const libDir = path.join(nativeDir, 'lib');
+    let libStat;
+    try {
+        libStat = fs.lstatSync(libDir);
+    } catch {
+        errors.push(`Missing bundled Linux runtime directory: ${libDir}`);
+        return;
+    }
+    if (!libStat.isDirectory() || libStat.isSymbolicLink()) {
+        errors.push(
+            `Bundled Linux runtime path must be a regular directory: ${libDir}`
+        );
+        return;
+    }
+
+    const declaredNames = new Set();
+    for (const runtimeFile of manifest.runtimeFiles) {
+        if (
+            !runtimeFile ||
+            typeof runtimeFile.name !== 'string' ||
+            path.basename(runtimeFile.name) !== runtimeFile.name ||
+            runtimeFile.name === '.' ||
+            runtimeFile.name === '..'
+        ) {
+            errors.push(
+                `Bundled Linux runtime manifest contains an unsafe file name: ${JSON.stringify(
+                    runtimeFile?.name
+                )}.`
+            );
+            continue;
+        }
+        if (declaredNames.has(runtimeFile.name)) {
+            errors.push(
+                `Bundled Linux runtime manifest contains duplicate file ${runtimeFile.name}.`
+            );
+            continue;
+        }
+        declaredNames.add(runtimeFile.name);
+    }
+
+    let packagedEntries;
+    try {
+        packagedEntries = fs.readdirSync(libDir).sort();
+    } catch (error) {
+        errors.push(
+            `Unable to enumerate bundled Linux runtime at ${libDir}: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return;
+    }
+    for (const entryName of packagedEntries) {
+        if (!declaredNames.has(entryName)) {
+            errors.push(
+                `Found undeclared bundled Linux runtime artifact: ${path.join(
+                    libDir,
+                    entryName
+                )}`
+            );
+        }
+    }
+
+    for (const runtimeFile of manifest.runtimeFiles) {
+        if (!runtimeFile || !declaredNames.has(runtimeFile.name)) {
+            continue;
+        }
+        const runtimePath = path.join(libDir, runtimeFile.name);
+        const stat = inspectRegularReadableFile(
+            runtimePath,
+            `bundled Linux runtime file ${runtimeFile.name}`,
+            errors
+        );
+        if (!stat) {
+            continue;
+        }
+        if (stat.size !== runtimeFile.size) {
+            errors.push(
+                `Bundled Linux runtime size mismatch for ${runtimeFile.name}: expected ${runtimeFile.size}, received ${stat.size}.`
+            );
+        }
+        let actualSha256;
+        try {
+            actualSha256 = sha256File(runtimePath);
+        } catch (error) {
+            errors.push(
+                `Unable to hash bundled Linux runtime file ${runtimePath}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+            continue;
+        }
+        if (actualSha256 !== runtimeFile.sha256) {
+            errors.push(
+                `Bundled Linux runtime SHA-256 mismatch for ${runtimeFile.name}: expected ${runtimeFile.sha256}, received ${actualSha256}.`
+            );
+        }
+    }
+}
+
+function normalizeElfInspection(value, binaryPath) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error(
+            `ELF inspection for ${binaryPath} must return an object.`
+        );
+    }
+    const result = {
+        soname: value.soname ?? null,
+    };
+    if (
+        result.soname !== null &&
+        (typeof result.soname !== 'string' ||
+            path.basename(result.soname) !== result.soname)
+    ) {
+        throw new Error(
+            `ELF inspection for ${binaryPath} must return a safe SONAME or null.`
+        );
+    }
+    for (const field of ['needed', 'rpath', 'runpath']) {
+        if (
+            !Array.isArray(value[field]) ||
+            value[field].some((entry) => typeof entry !== 'string')
+        ) {
+            throw new Error(
+                `ELF inspection for ${binaryPath} must return string array ${field}.`
+            );
+        }
+        result[field] = [...new Set(value[field])].sort();
+    }
+    return result;
+}
+
+function dependencyFileName(dependencyName) {
+    return dependencyName.replaceAll('\\', '/').split('/').at(-1) ?? '';
+}
+
+function listElectronShippedLinuxLibraries(resourceDir, options = {}) {
+    const appDir = path.dirname(resourceDir);
+    const normalizedResourceDir = path.resolve(resourceDir);
+    const excludedSnapLibraryRoots =
+        options.artifactFormat === 'snap'
+            ? new Set(
+                  [
+                      path.join(appDir, 'lib'),
+                      path.join(appDir, 'usr', 'lib'),
+                  ].map((directoryPath) => path.resolve(directoryPath))
+              )
+            : new Set();
+    const libraries = [];
+
+    function visit(directoryPath) {
+        for (const entry of fs.readdirSync(directoryPath, {
+            withFileTypes: true,
+        })) {
+            const entryPath = path.join(directoryPath, entry.name);
+            if (path.resolve(entryPath) === normalizedResourceDir) {
+                continue;
+            }
+            if (entry.isDirectory()) {
+                if (excludedSnapLibraryRoots.has(path.resolve(entryPath))) {
+                    continue;
+                }
+                visit(entryPath);
+                continue;
+            }
+            if (
+                (entry.isFile() || entry.isSymbolicLink()) &&
+                /\.so(?:\.\d+)*$/.test(entry.name)
+            ) {
+                libraries.push(entryPath);
+            }
+        }
+    }
+
+    // afterPack and unpacked-layout checks see the pristine Electron tree, so
+    // recurse to catch future nested Electron libraries. An extracted Snap
+    // overlays package-manager lib/ and usr/lib/ trees onto that same root;
+    // exclude exactly those target-provided roots while scanning everything
+    // else recursively.
+    visit(appDir);
+    return libraries.sort();
+}
+
+function inspectLinuxElfIsolation(
+    resourceDir,
+    nativeDir,
+    manifest,
+    targetNames,
+    options,
+    errors
+) {
+    const executableName = options.executableName ?? 'iptvnator';
+    let launcherLayout;
+    try {
+        launcherLayout = resolveLinuxLauncherLayout(
+            targetNames,
+            executableName
+        );
+    } catch (error) {
+        errors.push(
+            `Unable to resolve Linux launcher layout: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return;
+    }
+
+    const hostPlatform = options.hostPlatform ?? process.platform;
+    let inspectElf = options.elfInspector;
+    if (!inspectElf) {
+        if (hostPlatform !== 'linux') {
+            return;
+        }
+        if (!commandExists('readelf')) {
+            errors.push(
+                'readelf is required to validate Linux embedded MPV packaging.'
+            );
+            return;
+        }
+        inspectElf = (binaryPath) =>
+            parseReadelfDynamic(run('readelf', ['-d', binaryPath]));
+    }
+    if (typeof inspectElf !== 'function') {
+        errors.push('Linux ELF inspector must be a function.');
+        return;
+    }
+
+    const inspectedPaths = {
+        electron: path.join(
+            path.dirname(resourceDir),
+            launcherLayout.electronBinaryName
+        ),
+        addon: path.join(nativeDir, linuxFrameCopyArtifacts.addon.name),
+        reader: path.join(nativeDir, linuxFrameCopyArtifacts.frameReader.name),
+        helper: path.join(nativeDir, linuxFrameCopyArtifacts.helper.name),
+    };
+    for (const [index, libraryPath] of listElectronShippedLinuxLibraries(
+        resourceDir,
+        { artifactFormat: options.artifactFormat }
+    ).entries()) {
+        inspectedPaths[`electronLibrary:${index}`] = libraryPath;
+    }
+    const inspections = {};
+    for (const [label, binaryPath] of Object.entries(inspectedPaths)) {
+        if (
+            !inspectRegularReadableFile(
+                binaryPath,
+                `Linux ${label} ELF binary`,
+                errors
+            )
+        ) {
+            continue;
+        }
+        try {
+            inspections[label] = normalizeElfInspection(
+                inspectElf(binaryPath),
+                binaryPath
+            );
+        } catch (error) {
+            errors.push(
+                `Unable to inspect Linux ${label} ELF binary at ${binaryPath}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+        }
+    }
+
+    for (const label of Object.keys(inspections).filter(
+        (name) =>
+            name === 'electron' ||
+            name === 'addon' ||
+            name === 'reader' ||
+            name.startsWith('electronLibrary:')
+    )) {
+        const dynamic = inspections[label];
+        if (!dynamic) {
+            continue;
+        }
+        const displayLabel = label.startsWith('electronLibrary:')
+            ? 'Electron library'
+            : label;
+        for (const dependencyName of dynamic.needed) {
+            if (dependencyFileName(dependencyName) !== dependencyName) {
+                errors.push(
+                    `Linux ${displayLabel} DT_NEEDED entry must not contain a path: ${dependencyName} in ${inspectedPaths[label]}.`
+                );
+            }
+        }
+        const libmpvDependencies = dynamic.needed.filter((dependencyName) =>
+            anyLinuxLibmpvPattern.test(dependencyFileName(dependencyName))
+        );
+        if (libmpvDependencies.length > 0) {
+            errors.push(
+                `Linux ${displayLabel} must not link libmpv; found ${libmpvDependencies.join(
+                    ', '
+                )} in ${inspectedPaths[label]}.`
+            );
+        }
+    }
+
+    const helper = inspections.helper;
+    if (helper) {
+        if (!helper.needed.includes(manifest.libmpvSoname)) {
+            errors.push(
+                `Linux frame-copy helper must directly need ${manifest.libmpvSoname}.`
+            );
+        }
+        const unexpectedLibmpvDependencies = helper.needed.filter(
+            (dependencyName) =>
+                anyLinuxLibmpvPattern.test(
+                    dependencyFileName(dependencyName)
+                ) && dependencyName !== manifest.libmpvSoname
+        );
+        if (unexpectedLibmpvDependencies.length > 0) {
+            errors.push(
+                `Linux frame-copy helper must not need a different libmpv SONAME: ${unexpectedLibmpvDependencies.join(
+                    ', '
+                )}.`
+            );
+        }
+        if (helper.rpath.length > 0) {
+            errors.push(
+                `Linux frame-copy helper must not contain RPATH; found ${helper.rpath.join(
+                    ':'
+                )}.`
+            );
+        }
+        if (
+            helper.runpath.length !== 1 ||
+            helper.runpath[0] !== '$ORIGIN/lib'
+        ) {
+            errors.push(
+                `Linux frame-copy helper RUNPATH must be exactly $ORIGIN/lib; received ${
+                    helper.runpath.length > 0
+                        ? helper.runpath.join(':')
+                        : '<empty>'
+                }.`
+            );
+        }
+
+        const allowedHelperDependencies = new Set([
+            manifest.libmpvSoname,
+            ...GLIBC_TOOLCHAIN_ALLOWLIST,
+            ...EXTERNAL_SYSTEM_LIBRARIES.map(({ name }) => name),
+            ...(manifest.runtimeMode === 'bundled' &&
+            Array.isArray(manifest.runtimeFiles)
+                ? manifest.runtimeFiles.map(({ name }) => name)
+                : []),
+            ...(manifest.runtimeMode === 'bundled' &&
+            Array.isArray(
+                manifest.runtimeDependencyClosure?.externalDependencies
+            )
+                ? manifest.runtimeDependencyClosure.externalDependencies
+                : []),
+        ]);
+        for (const dependencyName of helper.needed) {
+            if (
+                dependencyFileName(dependencyName) !== dependencyName ||
+                !allowedHelperDependencies.has(dependencyName)
+            ) {
+                errors.push(
+                    `Linux frame-copy helper dependency is not bundled or allowlisted: ${dependencyName}.`
+                );
+            }
+        }
+    }
+
+    if (
+        manifest.runtimeMode !== 'bundled' ||
+        !Array.isArray(manifest.runtimeFiles)
+    ) {
+        return;
+    }
+
+    const runtimeFileNames = manifest.runtimeFiles
+        .map((runtimeFile) => runtimeFile?.name)
+        .filter((name) => typeof name === 'string');
+    const runtimeNameSet = new Set(runtimeFileNames);
+    const allowedExternalNames = new Set([
+        ...GLIBC_TOOLCHAIN_ALLOWLIST,
+        ...EXTERNAL_SYSTEM_LIBRARIES.map(({ name }) => name),
+    ]);
+    const closureEntries = [];
+    let closureHasErrors = false;
+    for (const runtimeFileName of runtimeFileNames) {
+        const runtimePath = path.join(nativeDir, 'lib', runtimeFileName);
+        let dynamic;
+        try {
+            dynamic = normalizeElfInspection(
+                inspectElf(runtimePath),
+                runtimePath
+            );
+        } catch (error) {
+            closureHasErrors = true;
+            errors.push(
+                `Unable to inspect bundled Linux runtime ELF at ${runtimePath}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+            continue;
+        }
+        closureEntries.push({
+            name: runtimeFileName,
+            soname: dynamic.soname,
+            needed: dynamic.needed,
+            rpath: dynamic.rpath,
+            runpath: dynamic.runpath,
+        });
+        if (dynamic.rpath.length > 0) {
+            closureHasErrors = true;
+            errors.push(
+                `${runtimeFileName} has forbidden RPATH ${dynamic.rpath.join(
+                    ':'
+                )}.`
+            );
+        }
+        if (dynamic.runpath.length !== 1 || dynamic.runpath[0] !== '$ORIGIN') {
+            closureHasErrors = true;
+            errors.push(
+                `${runtimeFileName} RUNPATH must be exactly $ORIGIN; got ${
+                    dynamic.runpath.length > 0
+                        ? dynamic.runpath.join(':')
+                        : '<empty>'
+                }.`
+            );
+        }
+        for (const dependencyName of dynamic.needed) {
+            if (
+                !runtimeNameSet.has(dependencyName) &&
+                !allowedExternalNames.has(dependencyName)
+            ) {
+                closureHasErrors = true;
+                errors.push(
+                    `Runtime dependency is not bundled or allowlisted: ${runtimeFileName} -> ${dependencyName}.`
+                );
+            }
+        }
+    }
+
+    if (closureHasErrors) {
+        return;
+    }
+    try {
+        const actualClosure = validateRuntimeDependencyClosure({
+            entries: closureEntries,
+            runtimeFileNames,
+            buildPrefix: '',
+        });
+        if (
+            !isDeepStrictEqual(actualClosure, manifest.runtimeDependencyClosure)
+        ) {
+            errors.push(
+                'Actual bundled Linux ELF dependency closure does not match the packaged manifest.'
+            );
+        }
+    } catch (error) {
+        errors.push(
+            `Invalid bundled Linux ELF dependency closure: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+    }
+}
+
+function validateLinuxPackagedEmbeddedMpv(resourceDir, options) {
+    const nativeDir = path.join(
+        resourceDir,
+        'app.asar.unpacked',
+        'electron-backend',
+        'native'
+    );
+    if (options.foreignArch) {
+        return validateForeignLinuxNativeDir(nativeDir);
+    }
+
+    const errors = [];
+    const addonPath = path.join(nativeDir, 'embedded_mpv.node');
+    const manifestPath = path.join(nativeDir, 'embedded-mpv-runtime.json');
+    if (!pathExistsByLstat(addonPath)) {
+        if (options.required) {
+            errors.push(`Missing embedded MPV native addon: ${addonPath}`);
+        }
+        if (pathExistsByLstat(nativeDir)) {
+            for (const staleName of [
+                'embedded_mpv_frame_reader.node',
+                'iptvnator_mpv_helper',
+                'iptvnator_mpv_helper.exe',
+                'embedded-mpv-runtime.json',
+                'embedded-mpv-unavailable.txt',
+                'lib',
+            ]) {
+                const stalePath = path.join(nativeDir, staleName);
+                if (pathExistsByLstat(stalePath)) {
+                    errors.push(
+                        `Embedded MPV addon is missing but stale packaged artifact remains: ${stalePath}`
+                    );
+                }
+            }
+        }
+        return errors;
+    }
+
+    if (!options.profile) {
+        if (options.required) {
+            errors.push(
+                'Linux frame-copy profile is required for a required same-architecture package.'
+            );
+        }
+        validateNativeViewOnlyLinuxPackage(
+            nativeDir,
+            addonPath,
+            manifestPath,
+            errors
+        );
+        return errors;
+    }
+
+    let profile;
+    try {
+        profile = resolveLinuxFrameCopyProfile(options.profile);
+    } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+        return errors;
+    }
+    const targetNames = normalizeLinuxTargetNames(options.targetNames, errors);
+    if (targetNames.length > 0) {
+        try {
+            errors.push(
+                ...validateLinuxProfileTargets(profile.name, targetNames)
+            );
+        } catch (error) {
+            errors.push(error instanceof Error ? error.message : String(error));
+        }
+    }
+
+    const readerPath = path.join(
+        nativeDir,
+        linuxFrameCopyArtifacts.frameReader.name
+    );
+    const helperPath = path.join(
+        nativeDir,
+        linuxFrameCopyArtifacts.helper.name
+    );
+    inspectRegularReadableFile(addonPath, 'embedded MPV native addon', errors);
+    inspectRegularReadableFile(
+        readerPath,
+        'embedded MPV frame reader',
+        errors,
+        0o644
+    );
+    inspectRegularReadableFile(
+        helperPath,
+        'embedded MPV frame-copy helper',
+        errors,
+        0o755
+    );
+    const staleWindowsHelper = path.join(nativeDir, 'iptvnator_mpv_helper.exe');
+    if (pathExistsByLstat(staleWindowsHelper)) {
+        errors.push(
+            `Linux frame-copy package must not retain the Windows helper: ${staleWindowsHelper}`
+        );
+    }
+    const staleMarker = path.join(nativeDir, 'embedded-mpv-unavailable.txt');
+    if (pathExistsByLstat(staleMarker)) {
+        errors.push(
+            `Same-architecture Linux package must not retain the unavailable marker: ${staleMarker}`
+        );
+    }
+
+    if (
+        !inspectRegularReadableFile(
+            manifestPath,
+            'embedded MPV runtime manifest',
+            errors
+        )
+    ) {
+        return errors;
+    }
+    const manifest = readPackagedJson(
+        manifestPath,
+        'embedded MPV runtime manifest',
+        errors
+    );
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+        if (manifest !== null) {
+            errors.push('Embedded MPV runtime manifest must be an object.');
+        }
+        return errors;
+    }
+
+    validatePackagedManifestContract(manifest, profile, targetNames, errors);
+    if (profile.runtimeMode === 'system') {
+        validateSystemLinuxRuntime(nativeDir, manifest, errors);
+    } else {
+        validateBundledLinuxRuntime(nativeDir, manifest, errors);
+    }
+    inspectLinuxElfIsolation(
+        resourceDir,
+        nativeDir,
+        manifest,
+        targetNames,
+        options,
+        errors
+    );
+    return errors;
+}
+
 function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
     const platform = normalizeEmbeddedMpvPlatform(options.platform);
+    if (platform === 'linux') {
+        return validateLinuxPackagedEmbeddedMpv(resourceDir, options);
+    }
     const unpackedNativeDir = path.join(
         resourceDir,
         'app.asar.unpacked',
@@ -692,24 +1820,6 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
     );
     const errors = [];
 
-    if (options.foreignArch) {
-        if (fs.existsSync(addonPath)) {
-            errors.push(
-                `Embedded MPV addon must not ship in foreign-architecture Linux packages: ${addonPath}`
-            );
-        }
-        const markerPath = path.join(
-            unpackedNativeDir,
-            'embedded-mpv-unavailable.txt'
-        );
-        if (!fs.existsSync(markerPath)) {
-            errors.push(
-                `Missing embedded MPV unavailable marker for foreign-architecture package: ${markerPath}`
-            );
-        }
-        return errors;
-    }
-
     if (!fs.existsSync(addonPath)) {
         if (options.required) {
             errors.push(`Missing embedded MPV native addon: ${addonPath}`);
@@ -721,8 +1831,7 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         // The frame-copy engine artifacts are built by the same binding.gyp
         // run as the addon; a macOS/Windows package that ships the addon
         // without them would silently lose the engine (support probe hides
-        // it). Linux packages intentionally strip the helper until the
-        // bundled-libmpv runtime lands (see electron-after-pack.cjs).
+        // it).
         const missingFrameCopyArtifacts = [
             platform === 'win32'
                 ? 'iptvnator_mpv_helper.exe'
@@ -814,45 +1923,10 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         errors.push(`Missing embedded MPV runtime manifest: ${manifestPath}`);
     } else {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        const expectedOrigin =
-            platform === 'linux' ? 'external-mpv-process' : 'vendored-lgpl';
+        const expectedOrigin = 'vendored-lgpl';
         if (manifest.origin !== expectedOrigin) {
             errors.push(
                 `Embedded MPV packaged runtime must be ${expectedOrigin}, received: ${manifest.origin}`
-            );
-        }
-    }
-
-    if (platform === 'linux') {
-        const packagedFrameCopyHelpers = [
-            path.join(unpackedNativeDir, 'iptvnator_mpv_helper'),
-            path.join(unpackedNativeDir, 'iptvnator_mpv_helper.exe'),
-        ].filter((candidate) => fs.existsSync(candidate));
-        if (packagedFrameCopyHelpers.length > 0) {
-            errors.push(
-                [
-                    'Linux packages must not ship frame-copy helpers linked against the build host system libmpv.',
-                    'Remove:',
-                    ...packagedFrameCopyHelpers.map(
-                        (candidate) => `- ${candidate}`
-                    ),
-                ].join('\n')
-            );
-        }
-
-        const bundledLinuxRuntime = [
-            path.join(libDir, 'libmpv.so.2'),
-            path.join(libDir, 'libmpv.so.1'),
-            path.join(libDir, 'libmpv.so'),
-        ].filter((candidate) => fs.existsSync(candidate));
-
-        if (bundledLinuxRuntime.length > 0) {
-            errors.push(
-                [
-                    'Linux embedded MPV must use the external mpv process backend and must not bundle libmpv.',
-                    'Remove:',
-                    ...bundledLinuxRuntime.map((candidate) => `- ${candidate}`),
-                ].join('\n')
             );
         }
     }
@@ -898,6 +1972,7 @@ module.exports = {
     commandExists,
     copyRuntimeToNativeBuild,
     findLibMpv,
+    listElectronShippedLinuxLibraries,
     listRuntimeFiles,
     listDylibs,
     parseOtoolDependencies,
@@ -906,8 +1981,8 @@ module.exports = {
     validateNoForbiddenRuntimeLinks,
     getPackagedRuntimeCandidates,
     validatePackagedEmbeddedMpv,
-    getEmbeddedMpvAddonArch,
     isForeignLinuxEmbeddedMpvArch,
     linuxUnpackedDirArch,
+    resolveConfiguredLinuxTargetNames,
     resolveElectronBuilderArchName,
 };

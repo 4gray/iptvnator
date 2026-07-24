@@ -35,6 +35,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 })
 class StubVjsPlayerComponent {
     readonly options = input<unknown>();
+    readonly mediaTitle = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
     readonly interactionEnabled = input(true);
@@ -53,6 +54,7 @@ class StubVjsPlayerComponent {
 })
 class StubHtmlVideoPlayerComponent {
     readonly channel = input<unknown>();
+    readonly mediaTitle = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
     readonly isLive = input(true);
@@ -72,6 +74,7 @@ class StubHtmlVideoPlayerComponent {
 })
 class StubArtPlayerComponent {
     readonly channel = input<unknown>();
+    readonly mediaTitle = input<unknown>(null);
     readonly volume = input(1);
     readonly showCaptions = input(false);
     readonly isLive = input(true);
@@ -91,6 +94,7 @@ class StubArtPlayerComponent {
 })
 class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
+    readonly mediaTitle = input<unknown>(null);
     readonly recordingFolder = input('');
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
@@ -165,6 +169,47 @@ describe('WebPlayerViewComponent', () => {
         expect(fixture.nativeElement.classList).toContain('web-player-view');
     });
 
+    describe('resolvedMediaTitle', () => {
+        it('prefers an explicit media title over the playback title', async () => {
+            fixture.componentRef.setInput('mediaTitle', {
+                primary: 'Breaking Code',
+                secondary: 'S01E02',
+            });
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.resolvedMediaTitle()).toEqual({
+                primary: 'Breaking Code',
+                secondary: 'S01E02',
+            });
+
+            const player = fixture.debugElement.query(
+                By.directive(StubVjsPlayerComponent)
+            ).componentInstance as StubVjsPlayerComponent;
+            expect(player.mediaTitle()).toEqual({
+                primary: 'Breaking Code',
+                secondary: 'S01E02',
+            });
+        });
+
+        it('falls back to the playback title as a single line', () => {
+            fixture.detectChanges();
+
+            expect(component.resolvedMediaTitle()).toEqual({
+                primary: 'Example Movie',
+                secondary: null,
+            });
+        });
+
+        it('is null when the title falls back to the raw stream URL', () => {
+            fixture.componentRef.setInput('title', '');
+            fixture.detectChanges();
+
+            expect(component.resolvedMediaTitle()).toBeNull();
+        });
+    });
+
     it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {
         const requests: unknown[] = [];
         runtimeCapabilities.supportsManagedExternalPlayers = true;
@@ -215,6 +260,33 @@ describe('WebPlayerViewComponent', () => {
             {
                 src: streamUrl,
                 type: 'application/x-mpegURL',
+            },
+        ]);
+    });
+
+    it('uses the Matroska mime type for MKV paths', () => {
+        const streamUrl = 'https://example.com/archive/movie.mkv';
+
+        component.setVjsOptions(streamUrl);
+
+        expect(component.vjsOptions.sources).toEqual([
+            {
+                src: streamUrl,
+                type: 'video/matroska',
+            },
+        ]);
+    });
+
+    it('uses the Matroska mime type for query-declared MKV streams', () => {
+        const streamUrl =
+            'https://example.com/play?container=mkv&token=signed';
+
+        component.setVjsOptions(streamUrl);
+
+        expect(component.vjsOptions.sources).toEqual([
+            {
+                src: streamUrl,
+                type: 'video/matroska',
             },
         ]);
     });

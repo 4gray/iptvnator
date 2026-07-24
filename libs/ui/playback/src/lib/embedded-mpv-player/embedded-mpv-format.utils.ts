@@ -10,16 +10,6 @@ export const HIDDEN_BOUNDS: EmbeddedMpvBounds = Object.freeze({
     height: 1,
 }) as EmbeddedMpvBounds;
 
-/**
- * Vertical pixels to subtract from the MPV view's height when a control
- * popover (volume, audio, subtitle, speed, aspect) is open above the
- * controls strip. The native NSView paints over the WebContents, so we
- * shrink it from the bottom to expose the popover region in DOM. Sized to
- * cover the tallest popover (audio/subtitle list capped at ~240 px plus
- * title + padding); video keeps playing in the upper region.
- */
-export const MENU_OPEN_BOTTOM_CUTOUT_PX = 300;
-
 export const SPEED_PRESETS: ReadonlyArray<{ value: number; label: string }> = [
     { value: 0.5, label: '0.5×' },
     { value: 0.75, label: '0.75×' },
@@ -120,12 +110,19 @@ export function persistVolume(value: number): void {
     localStorage.setItem('volume', String(value));
 }
 
+/**
+ * Measures the host element in CSS pixels without rounding. The main process
+ * converts these bounds to native units (page zoom × display scale) and
+ * rounds exactly once, after scaling — pre-rounding here would bake up to
+ * ±0.5px of CSS error that the scale factor then amplifies into visible
+ * off-by-one seams (e.g. a 10.49px edge at 200% renders at 21px, not 20px).
+ */
 export function measureBounds(host: HTMLElement): EmbeddedMpvBounds {
     const rect = host.getBoundingClientRect();
     return {
-        x: Math.round(rect.left),
-        y: Math.round(rect.top),
-        width: Math.max(1, Math.round(rect.width)),
-        height: Math.max(1, Math.round(rect.height)),
+        x: rect.left,
+        y: rect.top,
+        width: Math.max(1, rect.width),
+        height: Math.max(1, rect.height),
     };
 }

@@ -119,6 +119,7 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
     Completed: 'completed',
     Downloading: 'downloading',
     Failed: 'failed',
+    Paused: 'paused',
     Queued: 'queued',
 } as const;
 
@@ -264,6 +265,19 @@ export interface ElectronBridgeTrustOptions {
 export interface ElectronBridgeEpgFreshnessResult {
     staleUrls: string[];
     freshUrls: string[];
+}
+
+export interface ElectronBridgeEpgMapping {
+    id: number;
+    channelKey: string;
+    epgChannelId: string;
+    playlistId: string | null;
+}
+
+export interface ElectronBridgeEpgSearchResult {
+    id: string;
+    displayName: string;
+    iconUrl: string | null;
 }
 
 export interface ElectronBridgeEpgLookupOptions {
@@ -616,6 +630,25 @@ export interface ElectronBridgeApi {
         searchTerm: string,
         limit?: number
     ) => Promise<EpgProgram[]>;
+
+    // EPG channel mapping (manual user overrides)
+    getEpgMapping: (
+        channelKey: string
+    ) => Promise<ElectronBridgeEpgMapping | null>;
+    getEpgMappingsBatch: (
+        channelKeys: string[]
+    ) => Promise<Record<string, string>>;
+    setEpgMapping: (
+        channelKey: string,
+        epgChannelId: string,
+        playlistId?: string
+    ) => Promise<ElectronBridgeResult>;
+    deleteEpgMapping: (channelKey: string) => Promise<ElectronBridgeResult>;
+    searchEpgChannels: (
+        searchTerm: string,
+        limit?: number
+    ) => Promise<ElectronBridgeEpgSearchResult[]>;
+
     updateSettings: (settings: Partial<Settings>) => Promise<void>;
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
@@ -921,6 +954,11 @@ export interface ElectronBridgeApi {
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;
     downloadsCancel: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
+    downloadsPause: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
+    downloadsResume: (
+        downloadId: number,
+        downloadFolder: string
+    ) => Promise<ElectronBridgeErrorResult>;
     downloadsRetry: (
         downloadId: number,
         downloadFolder: string

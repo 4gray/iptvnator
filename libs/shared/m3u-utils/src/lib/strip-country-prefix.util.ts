@@ -3,9 +3,19 @@
  * country/group tag — they routinely appear inside real channel names
  * ("Sky - Sports F1", "Discovery - Science"). Pipes are conventionally
  * used only as tag separators, so they always count.
+ *
+ * Before a dash a tag is either a compound ("4K-DE", "AR-SUBS", "4K-OSN+"
+ * — the inner hyphen is the tag signal) or a plain 2–3 char code ("US",
+ * "4K"). A bare 4–5 char word before a spaced dash is a real title
+ * ("DUNE - Part Two", "ALIEN - Covenant"), so it is not a tag. Colon tags
+ * stay 2–3 chars — longer acronyms are franchise titles ("NCIS: LA").
+ * Every segment must contain a letter so numbers ("1917 - ...") are safe.
  */
-const DASH_OR_COLON_SEPARATORS = [' - ', '- ', ' -', ': '];
-const TAG_PREFIX_PATTERN = /^[A-Z0-9]{2,3}$/;
+const DASH_SEPARATORS = [' - ', '- ', ' -'];
+const COLON_SEPARATOR = ': ';
+const TAG_PREFIX_PATTERN =
+    /^(?:(?=[0-9+]*[A-Z])[A-Z0-9+]{2,5}(?:-(?=[0-9+]*[A-Z])[A-Z0-9+]{2,6}){1,2}|(?=[0-9+]*[A-Z])[A-Z0-9+]{2,3})$/;
+const COLON_TAG_PATTERN = /^(?=[0-9+]*[A-Z])[A-Z0-9+]{2,3}$/;
 
 interface SeparatorMatch {
     index: number;
@@ -68,10 +78,14 @@ function findTagSeparator(name: string): SeparatorMatch | null {
         best = { index: pipeIndex, length: 1 };
     }
 
-    for (const separator of DASH_OR_COLON_SEPARATORS) {
+    for (const separator of [...DASH_SEPARATORS, COLON_SEPARATOR]) {
         const index = name.indexOf(separator);
         if (index === -1 || (best && best.index <= index)) continue;
-        if (!TAG_PREFIX_PATTERN.test(name.slice(0, index).trim())) continue;
+        const pattern =
+            separator === COLON_SEPARATOR
+                ? COLON_TAG_PATTERN
+                : TAG_PREFIX_PATTERN;
+        if (!pattern.test(name.slice(0, index).trim())) continue;
         best = { index, length: separator.length };
     }
 

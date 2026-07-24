@@ -21,7 +21,14 @@ import {
     ChannelListItemComponent,
 } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    buildStalkerEpgMappingKey,
+    buildXtreamEpgMappingKey,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
+import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -52,6 +59,8 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
 })
 export class GlobalFavoritesListComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
     private readonly settingsStore = inject(SettingsStore);
 
     readonly contextMenuTrigger =
@@ -77,6 +86,8 @@ export class GlobalFavoritesListComponent {
     readonly channelsReordered = output<UnifiedFavoriteChannel[]>();
     readonly favoriteToggled = output<UnifiedFavoriteChannel>();
     readonly removeRequested = output<UnifiedFavoriteChannel>();
+    /** Emitted after the mapping dialog closes having changed a mapping. */
+    readonly epgMappingChanged = output<void>();
 
     readonly contextMenuChannel = signal<EnrichedUnifiedFavorite | null>(null);
     readonly contextMenuPosition = signal({
@@ -163,7 +174,75 @@ export class GlobalFavoritesListComponent {
     }
 
     hasChannelContextMenu(channel: UnifiedFavoriteChannel): boolean {
-        return Boolean(channel.m3uChannel) || this.mode() === 'recent';
+        return (
+            Boolean(channel.m3uChannel) ||
+            this.mode() === 'recent' ||
+            (this.supportsEpgMapping &&
+                (channel.xtreamId != null ||
+                    Boolean(this.stalkerItemId(channel))))
+        );
+    }
+
+    openEpgMapping(): void {
+        const item = this.contextMenuChannel();
+        if (!item) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        const stalkerId = this.stalkerItemId(item);
+        const channelKey = item.m3uChannel
+            ? resolveChannelEpgLookupKey(item.m3uChannel)
+            : item.xtreamId != null
+              ? buildXtreamEpgMappingKey(item.playlistId, item.xtreamId)
+              : stalkerId
+                ? buildStalkerEpgMappingKey(item.playlistId, stalkerId)
+                : null;
+        if (!channelKey) {
+            return;
+        }
+
+        void this.openEpgMappingDialog(channelKey, item);
+    }
+
+    private async openEpgMappingDialog(
+        channelKey: string,
+        item: UnifiedFavoriteChannel
+    ): Promise<void> {
+        const before = await this.epgBridge
+            .getEpgMapping(channelKey)
+            .catch(() => null);
+
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: item.name,
+            playlistId: item.m3uChannel ? undefined : item.playlistId,
+        })
+            .afterClosed()
+            .subscribe(async () => {
+                const after = await this.epgBridge
+                    .getEpgMapping(channelKey)
+                    .catch(() => null);
+                if (
+                    (after?.epgChannelId ?? null) !==
+                    (before?.epgChannelId ?? null)
+                ) {
+                    this.epgMappingChanged.emit();
+                }
+            });
+    }
+
+    /**
+     * The stalker item id lives in the uid's third segment
+     * (`stalker::{playlistId}::{stalkerId}`) — same extraction the
+     * unified favorites data service uses.
+     */
+    private stalkerItemId(channel: UnifiedFavoriteChannel): string | null {
+        if (channel.sourceType !== 'stalker') {
+            return null;
+        }
+        const id = channel.uid.split('::')[2]?.trim();
+        return id || null;
     }
 
     openChannelDetails(): void {

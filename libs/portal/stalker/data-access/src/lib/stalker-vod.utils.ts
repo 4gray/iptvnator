@@ -158,6 +158,9 @@ export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
         // views normalize the selected item on every render
         ...(info.tmdb_id ? { tmdb_id: info.tmdb_id } : {}),
         ...(info.tmdb_cast ? { tmdb_cast: info.tmdb_cast } : {}),
+        ...(info.tmdb_directors
+            ? { tmdb_directors: info.tmdb_directors }
+            : {}),
         ...(info.tmdb_backdrop ? { tmdb_backdrop: info.tmdb_backdrop } : {}),
         ...(info.tmdb_trailer ? { tmdb_trailer: info.tmdb_trailer } : {}),
         ...(info.tmdb_recommendations

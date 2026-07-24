@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
         "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器統一控制項（實驗性）",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共用控制項。",
+        "PLAYER_AMBIENT_MODE": "環境背景填充",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、昏暗的海報填充播放器周圍的空間，取代純黑色邊框。",
         "STREAM_FORMAT_DESCRIPTION": "選擇預設串流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
         "THEME_DESCRIPTION": "選擇應用程式視覺主題",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "返回",
             "RETRY": "重試",
             "STALLED": "此串流的啟動時間比預期長。",
             "PLAYBACK_FAILED": "內嵌 MPV 播放失敗。",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "從我的最愛中移除",
         "ADD_FAVORITE": "加入我的最愛",
         "SHOW_DETAILS": "顯示頻道詳細資訊",
+        "MAP_EPG": "對應 EPG 頻道",
         "FAVORITES_UPDATED": "我的最愛已更新！",
         "SELECT_CHANNEL_PLAYBACK": "請選擇一個頻道以開始播放",
         "SORT_BY": "排序依據",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "顯示 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "對應 EPG 頻道",
+        "SUBTITLE": "為「{{channelName}}」手動選擇 EPG 頻道",
+        "SEARCH_PLACEHOLDER": "搜尋 EPG 頻道...",
+        "CURRENT_MAPPING": "目前對應",
+        "NO_MAPPING": "尚未設定 EPG 對應",
+        "SAVE": "儲存對應",
+        "REMOVE": "移除對應",
+        "CLOSE": "關閉",
+        "NO_RESULTS": "找不到 EPG 頻道",
+        "SEARCH_HINT": "輸入至少 {{min}} 個字元進行搜尋",
+        "SAVED": "EPG 對應已儲存",
+        "REMOVED": "EPG 對應已移除",
+        "SAVE_FAILED": "無法更新 EPG 對應"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "演員",
         "DIRECTOR": "導演",
         "SIMILAR": "類似作品",
+        "CREW_JOB_DIRECTOR": "導演",
+        "CREW_JOB_CREATOR": "主創",
         "ACTOR_FILMOGRAPHY": "參演作品",
         "ACTOR_FILTER_ALL": "全部",
         "ACTOR_SCOPE_THIS_PORTAL": "目前入口",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "此伺服器上未提供此內容",
         "PLAYBACK_ERROR": "無法取得播放網址",
         "LOADING_SEASONS": "正在載入季數...",
+        "LOADING_ALL_CHANNELS": "正在載入完整頻道清單…",
+        "REFRESH_CHANNEL_LIST": "重新整理頻道清單",
+        "NO_CHANNELS_IN_CATEGORY": "此分類中沒有頻道",
+        "ITEM": "項",
+        "ITEMS": "項",
         "NO_EPISODES": "沒有可用的集數",
         "ALL_RADIO": "所有廣播"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "此下載項目無法在媒體庫中開啟，因為其來源播放清單已被移除。",
         "FILE_NOT_FOUND": "此下載檔案在磁碟上已不存在。",
         "FILE_ACTION_ERROR": "無法完成檔案操作。",
+        "ACTION_FAILED": "操作失敗",
+        "PAUSE": "暫停",
+        "RESUME": "繼續",
         "CANCEL": "取消",
         "RETRY": "重試",
         "REMOVE": "移除",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "下載中",
             "COMPLETED": "已完成",
             "FAILED": "失敗",
-            "CANCELED": "已取消"
+            "CANCELED": "已取消",
+            "PAUSED": "已暫停"
         }
     },
     "REMOTE_CONTROL": {

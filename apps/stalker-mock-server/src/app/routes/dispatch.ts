@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { handleHandshake } from '../handlers/handshake.handler.js';
 import { handleDoAuth } from '../handlers/do-auth.handler.js';
+import { handleGetAllChannels } from '../handlers/get-all-channels.handler.js';
 import { handleGetCategories } from '../handlers/get-categories.handler.js';
 import { handleGetOrderedList } from '../handlers/get-ordered-list.handler.js';
 import { handleGetSeasons } from '../handlers/get-seasons.handler.js';
@@ -38,6 +39,9 @@ export default function dispatchPortalAction(req: Request, res: Response): void 
             } else {
                 handleGetOrderedList(req, res);
             }
+            break;
+        case 'get_all_channels':
+            handleGetAllChannels(req, res);
             break;
         case 'create_link':
             handleCreateLink(req, res);

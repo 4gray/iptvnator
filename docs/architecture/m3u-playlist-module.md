@@ -42,36 +42,41 @@ The M3U playlist module provides:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+## M3U Parsing (`iptv-playlist-parser` fork)
+
+All four parse call sites (Electron `playlist-source.ts` import, `playlist-refresh.worker.ts`, `web-backend` `/parse`, PWA `playlists.service.ts`) use the
+[4gray/iptv-playlist-parser](https://github.com/4gray/iptv-playlist-parser) fork, pinned by commit SHA in `package.json`. The fork tracks upstream
+`freearhey/iptv-playlist-parser` (currently synced to v0.15.2) plus two deliberate deltas iptvnator depends on:
+
+- **`radio` attribute** — `item.radio` (string, `'true'` triggers the radio player, EPG suppression, and external-player gating app-wide). Upstream does not have this field; it must survive every upstream sync.
+- **Pipe stripping** — `item.url` is cut at the first `|`; `|User-Agent=` / `|Referer=` params still land in `item.http`. Upstream 0.15.0 stopped stripping, but iptvnator consumes `item.url` verbatim in hls.js/mpv/vlc, catch-up URL building, and url-keyed favorites.
+
+There is intentionally **no URL validation** (upstream removed it in 0.15.0): any non-empty non-`#` line after `#EXTINF` becomes the item URL. This is what fixes issue #1189 (Pluto TV JWT URLs longer than validator's 2084-char IE-era limit used to be rejected, and the stalled item index collapsed the whole playlist into one channel). `#` comment lines and unknown directives are appended to `item.raw` and never treated as URLs.
+
+The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
+
 ## State Management (libs/m3u-state/)
 
 ### State Structure
 
 ```typescript
+// libs/m3u-state/src/lib/state.ts
 interface PlaylistState {
-    // Active channel being played
-    active: Channel | undefined;
+    active: Channel | undefined; // Active channel being played
+    activePlaybackUrl: string | null;
+    activeEpgProgram: EpgProgram | undefined;
+    currentEpgProgram: EpgProgram | undefined;
+    epgAvailable: boolean;
+    channelsLoading: boolean; // Route still resolving channel data
+    channels: Channel[]; // All channels from current playlist
+    playlists: PlaylistMetaState; // Playlist metadata (entity adapter)
+}
 
-    // Whether the current route is still resolving channel data
-    channelsLoading: boolean;
-
-    // All channels from current playlist
-    channels: Channel[];
-
-    // EPG state
-    epg: {
-        epgAvailable: boolean;
-        activeEpgProgram: EpgProgram | undefined;
-        currentEpgProgram: EpgProgram | undefined;
-    };
-
-    // Playlist metadata (entity adapter)
-    playlistsMeta: {
-        ids: string[];
-        entities: Record<string, PlaylistMeta>;
-        selectedId: string | undefined;
-        allPlaylistsLoaded: boolean;
-        selectedFilters: PlaylistSourceFilter[];
-    };
+// libs/m3u-state/src/lib/playlists.state.ts
+interface PlaylistMetaState extends EntityState<PlaylistMeta> {
+    selectedId: string;
+    allPlaylistsLoaded: boolean;
+    selectedFilters: string[]; // 'm3u' | 'xtream' | 'stalker'
 }
 ```
 
@@ -101,7 +106,7 @@ selectFavorites; // Favorite channel URLs
 // Playlist selectors
 selectAllPlaylistsMeta; // All playlists
 selectActivePlaylistId; // Selected playlist ID
-selectCurrentPlaylist; // Active playlist object
+selectActivePlaylist; // Active playlist object
 selectPlaylistTitle; // Title with "Global favorites" fallback
 
 // EPG selectors
@@ -121,20 +126,25 @@ channel-list-container/
 ├── channel-list-container.component.html
 ├── channel-list-container.component.scss
 │
-├── all-channels-tab/                      # Virtual scroll + search
-│   ├── all-channels-tab.component.ts
-│   ├── all-channels-tab.component.html
-│   └── all-channels-tab.component.scss
+├── all-channels-view/                     # Virtual scroll + debounced search
+│   ├── all-channels-view.component.ts
+│   ├── all-channels-view.component.html
+│   └── all-channels-view.component.scss
 │
-├── groups-tab/                            # Expansion panels + infinite scroll
-│   ├── groups-tab.component.ts
-│   ├── groups-tab.component.html
-│   └── groups-tab.component.scss
+├── groups-view/                           # Expansion panels + infinite scroll
+│   ├── groups-view.component.ts
+│   ├── groups-view.component.html
+│   └── groups-view.component.scss
 │
-├── favorites-tab/                         # Drag-drop reordering
-│   ├── favorites-tab.component.ts
-│   ├── favorites-tab.component.html
-│   └── favorites-tab.component.scss
+├── favorites-view/                        # Drag-drop reordering
+│   ├── favorites-view.component.ts
+│   ├── favorites-view.component.html
+│   └── favorites-view.component.scss
+│
+├── recent-view/                           # Recently viewed channels
+│   ├── recent-view.component.ts
+│   ├── recent-view.component.html
+│   └── recent-view.component.scss
 │
 └── channel-list-item/                     # Individual channel display
     ├── channel-list-item.component.ts
@@ -222,14 +232,17 @@ channel-list-container/
   rendering. Playlist order avoids cloning the full list when no search term is
   active.
 
-### EnrichedChannel Pattern
+### ChannelEpgMetadata Pattern
 
-For performance optimization, channels are pre-enriched with EPG data:
+For performance optimization, EPG data is kept in a side-car map instead of
+being cloned onto every channel (the older `EnrichedChannel` pattern that
+spread-cloned every channel on every ~30 s tick was removed —
+`channel-list-container/epg-enrichment.util.ts`):
 
 ```typescript
-interface EnrichedChannel extends Channel {
+// libs/ui/components/src/lib/channel-list-container/epg-enrichment.util.ts
+interface ChannelEpgMetadata {
     epgProgram: EpgProgram | null | undefined;
-    logo: string; // Playlist tvg-logo first, XMLTV icon fallback second
     progressPercentage: number; // Pre-computed by parent
 }
 ```
@@ -341,7 +354,7 @@ activation, and the details dialog behave identically to the timeline.
   `isLivePlayback`, `loading`, `emptyReason`, `selectedDate`, `collapsed`,
   `summary` and emits `programActivated`, `returnToLive`, `selectedDateChange`,
   `openEpgSettings`, `retry`, `collapsedChange`. The host layout owns playback,
-  persists the collapse state (`liveEpgPanelState` in localStorage), and (for
+  persists the collapse state (`live-epg-panel-state` in localStorage), and (for
   the M3U player) the `EpgActions.setCurrentEpgProgram` / `setEpgAvailableFlag`
   / `setActiveEpgProgram` dispatches. The timeline owns the **single** panel
   bar — collapse chevron + channel name on the left, return-to-live / jump /
@@ -363,7 +376,8 @@ activation, and the details dialog behave identically to the timeline.
   no-EPG-anywhere states and while loading. Return-to-live is a playback control
   (`!isLivePlayback()`) and is independent of EPG state.
 - **State-driven affordances.** Blocks are coloured past / now / future, with a
-  red "now" playhead. Catch-up "Watch" appears on past blocks only when
+  red "now" playhead. Catch-up "Watch" appears on past blocks — and as a
+  start-over replay button on the currently-airing block — only when
   `archivePlaybackAvailable` (Xtream `tv_archive`, M3U `catchup-*`); Stalker is
   schedule-only (dimmed past + a notice, no false buttons). The "i" button opens
   the shared `app-epg-item-description` dialog with a state-aware action.
@@ -543,25 +557,25 @@ These URLs are playlist-scoped by default:
 #### AllChannelsViewComponent
 
 - **Inputs**: `channels`, `channelEpgMap`, `channelIconMap`, `progressTick`, `shouldShowEpg`, `itemSize`, `activeChannelUrl`, `favoriteIds`
-- **Outputs**: `channelSelected`, `favoriteToggled`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `favoriteToggled`, `sidebarToggleRequested`
 - **Features**: Workspace search, persisted channel sorting, virtual scrolling, no-results placeholder
 
 #### GroupsViewComponent
 
-- **Inputs**: Same as AllChannelsTab + `groupedChannels`
-- **Outputs**: `channelSelected`, `favoriteToggled`
+- **Inputs**: Same as AllChannelsViewComponent + `groupedChannels`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `favoriteToggled`, `hiddenGroupTitlesChanged`, sidebar sizing outputs
 - **Features**: Resizable groups rail, local group search, group visibility management, persisted selected-group channel sorting
 
 #### FavoritesViewComponent
 
 - **Inputs**: `favorites`, `channelEpgMap`, `channelIconMap`, `progressTick`, `shouldShowEpg`, `activeChannelUrl`
-- **Outputs**: `channelSelected`, `favoriteToggled`, `favoritesReordered`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `favoriteToggled`, `favoritesReordered`
 - **Features**: Drag-and-drop reordering with CDK DragDrop, read-only channel details context menu
 
 #### RecentViewComponent
 
 - **Inputs**: recent channels, `channelEpgMap`, `channelIconMap`, `progressTick`, `shouldShowEpg`, `activeChannelUrl`
-- **Outputs**: `channelSelected`, `favoriteToggled`, `recentItemRemoved`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `removeRecent`
 - **Features**: Read-only channel details context menu, row-level and context-menu removal
 
 ## EPG Integration
@@ -791,16 +805,21 @@ interface EpgProgram {
 
 ## Routes
 
+Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts`
+(`createM3uWorkspaceRoutes()`), nested under the workspace shell:
+
 ```
-/playlists/:id          # Video player with playlist
-/iptv                   # Default IPTV route
+/workspace/playlists/:id            # M3U player (redirects to .../all)
+/workspace/playlists/:id/favorites  # Favorites collection view
+/workspace/playlists/:id/recent     # Recently viewed collection view
+/workspace/playlists/:id/:view      # Video player with channel list view
 ```
 
 ## Adding New Features
 
-### To add a new tab to channel list:
+### To add a new view to channel list:
 
-1. Create component in `channel-list-container/new-tab/`
+1. Create component in `channel-list-container/new-view/`
 2. Accept inputs: `channels`, `channelEpgMap`, `progressTick`, `shouldShowEpg`, `activeChannelUrl`
 3. Emit `channelSelected` output
 4. Add to parent template and imports

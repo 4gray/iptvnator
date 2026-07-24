@@ -121,6 +121,29 @@ Contracts:
 - Entering watch scrolls the shell to the top; leaving keeps the scroll
   position.
 
+### Inline player stage (theater + ambient fill)
+
+`PortalInlinePlayerComponent`
+(`libs/ui/playback/src/lib/portal-inline-player/`) wraps the projected
+`WebPlayerViewComponent` in a `.player-shell__viewport` "theater stage".
+The stage spans the full content width and is capped at
+`min(70vh, 720px)`; on wide-short windows it becomes wider than 16:9. The
+player is sized as the largest 16:9 box that fits the stage height and is
+centered, so the leftover is always the stage's own black background — never
+a stray strip of app surface. This is the YouTube-style letterbox and is the
+default behavior for every inline engine.
+
+The optional `playerAmbientMode` setting (Settings → Playback, default off,
+shown only for the built-in web players) renders a blurred, dimmed copy of the
+poster (`ResolvedPortalPlayback.thumbnail`) behind the player via the
+`--ambient-image` custom property, turning the letterbox margins into
+atmosphere (YouTube "Ambient mode" / Netflix backdrops). The component also
+enforces the web-player scope at runtime (HTML5, Video.js, ArtPlayer): with
+Embedded MPV selected, a persisted `playerAmbientMode=true` never renders the
+layer, keeping extra DOM out of the native-video compositing path. Live
+channels are excluded (their `thumbnail` is a logo), and only
+`http(s):`/`data:` poster URLs are accepted to avoid CSS `url()` breakout.
+
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
 seasons-grid + "Back to seasons" level. A season is auto-selected
@@ -263,6 +286,13 @@ mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decod
 The diagnostic surface covers the inline player viewport when playback fails, with a compact warning badge, a native-player fallback headline, and player-card actions for configured external players. It exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, and raw HLS/mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
+
+MKV sources are attempted through Chromium's native Matroska path. Video.js
+receives `video/matroska` for `.mkv` URLs and explicit query metadata such as
+`extension=mkv` or `container=mkv`; ArtPlayer and HTML5 continue to use their
+native video paths. This is container support rather than a universal codec
+guarantee: native source or decode failures still produce the existing
+diagnostic and explicit MPV/VLC fallback.
 
 Portal VOD and episode payloads with `contentInfo` are treated as non-live by the inline players unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. Embedded MPV uses the same live decision rule and shows an unknown duration placeholder for VOD/episode snapshots until MPV reports a finite duration. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
 

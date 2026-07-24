@@ -15,9 +15,19 @@ Stalker now uses two EPG paths with different purposes:
 - The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a
   7-day window once per playlist session, caches programs by channel id, and
   renders the selected channel through the shared `app-epg-timeline` component.
-- Channel rows no longer send preview EPG requests during initial category load.
-  They stay empty until bulk EPG has been fetched once, then derive their
-  current program and progress bar from the cached bulk map.
+- Channel rows never send per-row EPG requests. The bulk EPG load is triggered
+  **eagerly when a category's channels first render** (a constructor effect in
+  `StalkerLiveStreamLayoutComponent` calls `ensureBulkItvEpg(168)` once ITV
+  channels are present) — not only after the first channel is played — so the
+  row "now playing" previews and the EPG panel populate immediately. Rows derive
+  their current program and progress bar from the cached bulk map.
+  - Effect ordering matters: the eager-EPG effect is registered **after** the
+    playlist-change effect that calls `clearBulkItvEpgCache()`. On a portal
+    switch the cache is cleared first and then refilled; if the order is
+    reversed the clear clobbers the just-loaded bulk EPG on initial render.
+  - `ensureBulkItvEpg` de-duplicates (via `isLoadingBulkItvEpg` /
+    `bulkItvEpgLoaded` + matching playlist/period), so the eager trigger and the
+    play-time `loadEpgForChannel` path never double-fetch.
 - If a portal does not return usable bulk data for the selected channel, the
   active panel falls back to `get_short_epg`.
 
@@ -262,6 +272,29 @@ This keeps the panel usable even on limited portals, while still taking
 advantage of the richer bulk API when it is available. Row previews do not
 fallback to per-channel requests in this mode; they remain empty until bulk EPG
 is available.
+
+## Manual EPG Mapping
+
+Stalker channels carry no XMLTV identifier, so when the portal's own EPG is
+missing or wrong the only uploaded-EPG entry point is a **manual mapping**:
+right-click a channel in the ITV sidebar (or in global favorites) and pick
+"Map EPG channel" to attach it to a channel from an uploaded XMLTV guide.
+
+- Mappings are stored in the shared `epg_channel_mappings` table under the
+  playlist-scoped key `stalker:{playlistId}:{channelId}`
+  (`buildStalkerEpgMappingKey` in
+  `libs/shared/interfaces/src/lib/epg-mapping-key.util.ts`).
+- `withStalkerEpg().applyMappedItvEpg(channelIds)` batch-resolves mappings
+  (one `getEpgMappingsBatch` IPC per new id set) and overlays the mapped
+  XMLTV programs onto `bulkItvEpgByChannel`, so both the active panel and
+  the row previews pick them up with no template changes. Overrides are
+  re-merged whenever `ensureBulkItvEpg` replaces the bulk record and are
+  re-checked after the mapping dialog closes with a change.
+- The collection views (global favorites/recent) resolve the same keys in
+  `StreamResolverService` (`loadStalkerEpgItems` for the detail panel,
+  `loadStalkerEpgBatch` + `prefetchEpgMappings` for row previews).
+- Everything is gated behind `supportsEpgMapping`, so the PWA never shows
+  the menu entry.
 
 ## Future Enhancements
 

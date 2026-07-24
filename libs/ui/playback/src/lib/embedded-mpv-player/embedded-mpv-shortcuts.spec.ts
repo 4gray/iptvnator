@@ -48,6 +48,23 @@ describe('EmbeddedMpvShortcuts', () => {
         expect(handlers.toggleMute).toHaveBeenCalledTimes(1);
     });
 
+    it('suspends arrow shortcuts while a dock chip panel owns the keyboard', () => {
+        shortcuts.detach();
+        shortcuts.attach({ ...handlers, arrowKeysBlocked: () => true });
+
+        expect(dispatchKey('ArrowLeft')).toBe(false);
+        expect(dispatchKey('ArrowRight')).toBe(false);
+        expect(dispatchKey('ArrowUp')).toBe(false);
+        expect(dispatchKey('ArrowDown')).toBe(false);
+        expect(dispatchKey(' ')).toBe(true);
+        expect(dispatchKey('m')).toBe(true);
+
+        expect(handlers.seekBy).not.toHaveBeenCalled();
+        expect(handlers.adjustVolume).not.toHaveBeenCalled();
+        expect(handlers.togglePaused).toHaveBeenCalledTimes(1);
+        expect(handlers.toggleMute).toHaveBeenCalledTimes(1);
+    });
+
     it('always allows escape to close popovers even when playback is unavailable', () => {
         handlers.isAvailable.mockReturnValue(false);
 

@@ -17,7 +17,6 @@ export interface EmbeddedMpvLegacyInteractionsDeps {
     readonly statusLabel: () => string;
     readonly togglePaused: () => void | Promise<void>;
     readonly toggleFullscreen: () => void | Promise<void>;
-    readonly triggerBoundsSync: () => void;
 }
 
 export class EmbeddedMpvLegacyInteractions {
@@ -165,8 +164,9 @@ export class EmbeddedMpvLegacyInteractions {
         if (!this.deps.isAvailable() || !this.deps.menus.anyOpen()) {
             return;
         }
+        // Menus live inside the fixed-height dock strip, so closing them
+        // needs no bounds resync — the native MPV view never moved.
         this.deps.menus.closeAll();
-        this.deps.triggerBoundsSync();
         this.scheduleControlsHide();
     }
 

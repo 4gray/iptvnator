@@ -141,8 +141,10 @@ describe('EmbeddedMpvSessionController', () => {
         );
 
         expect(electron.prepareEmbeddedMpv).toHaveBeenCalled();
+        // Fractional CSS edges stay unrounded: the main process rounds once,
+        // after converting them to native units.
         expect(electron.createEmbeddedMpvSession).toHaveBeenCalledWith(
-            { x: 11, y: 21, width: 640, height: 360 },
+            { x: 10.6, y: 20.5, width: 640, height: 360 },
             'Example Movie',
             0.7
         );

@@ -5,7 +5,9 @@ settings screen.
 
 ## Entry Points
 
-- UI: `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings.component.ts`
+- UI: `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup-section.component.ts`
+  (embedded in `settings.component.html`), with the file read/handoff in
+  `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup.facade.ts`
 - Backup service: `/Users/4gray/Code/iptvnator/libs/services/src/lib/playlist-backup.service.ts`
 - Manifest types: `/Users/4gray/Code/iptvnator/libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
 - Xtream pending restore storage:
@@ -102,7 +104,9 @@ Only EPG source URLs are backed up at the app-settings level.
 
 ## Import Flow
 
-The settings component hands file contents to `PlaylistBackupService`.
+The settings backup facade (`settings-backup.facade.ts`, driven by
+`settings-backup-section.component.ts`) reads the file (`file.text()`) and
+hands its contents to `PlaylistBackupService.importBackup()`.
 
 The service:
 

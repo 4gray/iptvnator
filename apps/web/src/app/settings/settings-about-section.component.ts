@@ -18,14 +18,24 @@ import {
     imports: [MatButtonModule, MatIconModule, TranslateModule],
     templateUrl: './settings-about-section.component.html',
     encapsulation: ViewEncapsulation.None,
-    styles: [':host { display: contents; }'],
+    styles: [
+        ':host { display: contents; }',
+        '.version-block .build-commit { opacity: 0.65; font-size: 0.85em; }',
+    ],
 })
 export class SettingsAboutSectionComponent {
     readonly activeSection = input.required<string>();
     readonly isDesktop = input(false);
     readonly version = input<string | undefined>();
+    readonly buildCommit = input<string | undefined>();
     readonly updateMessage = input<string | undefined>();
     readonly appUpdateStatus = input<ElectronBridgeAppUpdateStatus | null>(null);
+
+    readonly buildCommitShort = computed(() => {
+        const commit = this.buildCommit()?.trim();
+
+        return commit ? commit.slice(0, 7) : undefined;
+    });
 
     readonly checkForAppUpdate = output<void>();
     readonly downloadAppUpdate = output<void>();

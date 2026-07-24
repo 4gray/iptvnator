@@ -9,6 +9,13 @@ import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
 import { epgQueryService } from './epg-query.service';
 import { epgWorkerService } from './epg-worker.service';
+import {
+    getEpgMapping,
+    getEpgMappingsBatch,
+    setEpgMapping,
+    deleteEpgMapping,
+    searchEpgChannels,
+} from '../database/operations/epg-mapping.operations';
 
 /**
  * EPG Events Handler
@@ -125,6 +132,59 @@ export default class EpgEvents {
                 return this.checkEpgFreshness(
                     args.urls,
                     args.maxAgeHours ?? 12
+                );
+            }
+        );
+
+        // EPG channel mapping CRUD
+        ipcMain.handle(
+            'EPG_MAPPING_GET',
+            async (_event, args: { channelKey: string }) => {
+                return this.handleGetEpgMapping(args.channelKey);
+            }
+        );
+
+        ipcMain.handle(
+            'EPG_MAPPING_SET',
+            async (
+                _event,
+                args: {
+                    channelKey: string;
+                    epgChannelId: string;
+                    playlistId?: string;
+                }
+            ) => {
+                return this.handleSetEpgMapping(
+                    args.channelKey,
+                    args.epgChannelId,
+                    args.playlistId
+                );
+            }
+        );
+
+        ipcMain.handle(
+            'EPG_MAPPING_GET_BATCH',
+            async (_event, args: { channelKeys: string[] }) => {
+                return this.handleGetEpgMappingsBatch(args.channelKeys);
+            }
+        );
+
+        ipcMain.handle(
+            'EPG_MAPPING_DELETE',
+            async (_event, args: { channelKey: string }) => {
+                return this.handleDeleteEpgMapping(args.channelKey);
+            }
+        );
+
+        ipcMain.handle(
+            'EPG_CHANNEL_SEARCH',
+            async (
+                _event,
+                args: { searchTerm: string; limit?: number }
+            ) => {
+                return this.handleSearchEpgChannels(
+                    args.searchTerm,
+                    args.limit
                 );
             }
         );
@@ -294,7 +354,21 @@ export default class EpgEvents {
         channelIds: string[],
         options?: { sourceUrls?: string[] }
     ): Promise<Record<string, EpgProgram | null>> {
-        return epgQueryService.getCurrentProgramsBatch(channelIds, options);
+        const resolvedMap = await this.resolveChannelIds(channelIds);
+        const resolvedIds = channelIds.map(
+            (id) => resolvedMap.get(id) ?? id
+        );
+        const results = await epgQueryService.getCurrentProgramsBatch(
+            resolvedIds,
+            options
+        );
+        // Remap results back to the original request keys.
+        const remapped: Record<string, EpgProgram | null> = {};
+        for (const originalId of channelIds) {
+            const resolvedId = resolvedMap.get(originalId) ?? originalId;
+            remapped[originalId] = results[resolvedId] ?? null;
+        }
+        return remapped;
     }
 
     private static async handleGetAllChannels(): Promise<{
@@ -308,7 +382,21 @@ export default class EpgEvents {
         channelIds: string[],
         options?: { sourceUrls?: string[] }
     ): Promise<Record<string, EpgChannelMetadata | null>> {
-        return epgQueryService.getChannelMetadata(channelIds, options);
+        const resolvedMap = await this.resolveChannelIds(channelIds);
+        const resolvedIds = channelIds.map(
+            (id) => resolvedMap.get(id) ?? id
+        );
+        const results = await epgQueryService.getChannelMetadata(
+            resolvedIds,
+            options
+        );
+        // Remap results back to the original request keys.
+        const remapped: Record<string, EpgChannelMetadata | null> = {};
+        for (const originalId of channelIds) {
+            const resolvedId = resolvedMap.get(originalId) ?? originalId;
+            remapped[originalId] = results[resolvedId] ?? null;
+        }
+        return remapped;
     }
 
     private static async handleGetChannelsByRange(
@@ -323,6 +411,97 @@ export default class EpgEvents {
         }>
     > {
         return epgQueryService.getChannelsByRange(skip, limit);
+    }
+
+    // ---------------------------------------------------------------------------
+    // EPG mapping resolution — called at the IPC boundary before queries.
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Batch-resolve multiple channel IDs through manual mappings.
+     * Returns a Map of original ID → mapped ID (identity when no mapping).
+     */
+    private static async resolveChannelIds(
+        channelIds: string[]
+    ): Promise<Map<string, string>> {
+        try {
+            const db = await getDatabase();
+            const mappings = await getEpgMappingsBatch(db, channelIds);
+            return mappings;
+        } catch {
+            return new Map();
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // EPG mapping CRUD handlers
+    // ---------------------------------------------------------------------------
+
+    private static async handleGetEpgMapping(
+        channelKey: string
+    ): Promise<{ id: number; channelKey: string; epgChannelId: string; playlistId: string | null } | null> {
+        try {
+            const db = await getDatabase();
+            return getEpgMapping(db, channelKey);
+        } catch {
+            return null;
+        }
+    }
+
+    private static async handleGetEpgMappingsBatch(
+        channelKeys: string[]
+    ): Promise<Record<string, string>> {
+        if (!Array.isArray(channelKeys) || channelKeys.length === 0) {
+            return {};
+        }
+
+        try {
+            const db = await getDatabase();
+            const mappings = await getEpgMappingsBatch(db, channelKeys);
+            return Object.fromEntries(mappings);
+        } catch {
+            return {};
+        }
+    }
+
+    private static async handleSetEpgMapping(
+        channelKey: string,
+        epgChannelId: string,
+        playlistId?: string
+    ): Promise<{ success: boolean }> {
+        try {
+            const db = await getDatabase();
+            return setEpgMapping(db, channelKey, epgChannelId, playlistId);
+        } catch {
+            return { success: false };
+        }
+    }
+
+    private static async handleDeleteEpgMapping(
+        channelKey: string
+    ): Promise<{ success: boolean }> {
+        try {
+            const db = await getDatabase();
+            return deleteEpgMapping(db, channelKey);
+        } catch {
+            return { success: false };
+        }
+    }
+
+    private static async handleSearchEpgChannels(
+        searchTerm: string,
+        limit?: number
+    ): Promise<Array<{ id: string; displayName: string; iconUrl: string | null }>> {
+        if (!searchTerm?.trim()) {
+            return [];
+        }
+
+        try {
+            const db = await getDatabase();
+            return searchEpgChannels(db, searchTerm, limit);
+        } catch {
+            return [];
+        }
     }
 
     static async clearEpgData(): Promise<void> {

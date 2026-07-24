@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Wybierz domyślny odtwarzacz wideo",
         "WEB_PLAYER_SHARED_CONTROLS": "Ujednolicone sterowanie odtwarzaczami internetowymi (eksperymentalne)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Używaj wspólnych elementów sterowania IPTVnator w HTML5, Video.js i ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Rozmyte tło",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Wypełnij przestrzeń wokół odtwarzacza rozmytym, przyciemnianym plakatem zamiast zwykłych czarnych pasków.",
         "STREAM_FORMAT_DESCRIPTION": "Wybierz domyślny format strumienia (xtream)",
         "LANGUAGE_DESCRIPTION": "Wybierz język aplikacji",
         "THEME_DESCRIPTION": "Wybierz motyw wizualny aplikacji",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Wstecz",
             "RETRY": "Spróbuj ponownie",
             "STALLED": "Uruchamianie tego strumienia trwa dłużej niż zwykle.",
             "PLAYBACK_FAILED": "Odtwarzanie we wbudowanym MPV nie powiodło się.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "Usuń z ulubionych",
         "ADD_FAVORITE": "Dodaj do ulubionych",
         "SHOW_DETAILS": "Pokaż szczegóły kanału",
+        "MAP_EPG": "Przypisz kanał EPG",
         "FAVORITES_UPDATED": "Ulubione zostały zaktualizowane!",
         "SELECT_CHANNEL_PLAYBACK": "Wybierz kanał, aby rozpocząć odtwarzanie",
         "SORT_BY": "Sortuj według",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "pokaż ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Przypisz kanał EPG",
+        "SUBTITLE": "Ręcznie wybierz kanał EPG dla \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Szukaj kanałów EPG...",
+        "CURRENT_MAPPING": "Bieżące przypisanie",
+        "NO_MAPPING": "Brak przypisania EPG",
+        "SAVE": "Zapisz przypisanie",
+        "REMOVE": "Usuń przypisanie",
+        "CLOSE": "Zamknij",
+        "NO_RESULTS": "Nie znaleziono kanałów EPG",
+        "SEARCH_HINT": "Wpisz co najmniej {{min}} znaki, aby wyszukać",
+        "SAVED": "Przypisanie EPG zapisane",
+        "REMOVED": "Przypisanie EPG usunięte",
+        "SAVE_FAILED": "Nie udało się zaktualizować przypisania EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "Aktorzy",
         "DIRECTOR": "Reżyser",
         "SIMILAR": "Podobne",
+        "CREW_JOB_DIRECTOR": "Reżyser",
+        "CREW_JOB_CREATOR": "Twórca",
         "ACTOR_FILMOGRAPHY": "Filmografia",
         "ACTOR_FILTER_ALL": "Wszystkie",
         "ACTOR_SCOPE_THIS_PORTAL": "Ten portal",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "Ta treść jest niedostępna na tym serwerze",
         "PLAYBACK_ERROR": "Nie udało się uzyskać URL odtwarzania",
         "LOADING_SEASONS": "Ładowanie sezonów...",
+        "LOADING_ALL_CHANNELS": "Ładowanie pełnej listy kanałów…",
+        "REFRESH_CHANNEL_LIST": "Odśwież listę kanałów",
+        "NO_CHANNELS_IN_CATEGORY": "Brak kanałów w tej kategorii",
+        "ITEM": "pozycja",
+        "ITEMS": "pozycji",
         "NO_EPISODES": "Brak dostępnych odcinków",
         "ALL_RADIO": "Wszystkie radia"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Tego pobrania nie można już otworzyć w bibliotece, ponieważ jego źródłowa lista odtwarzania została usunięta.",
         "FILE_NOT_FOUND": "Ten pobrany plik nie jest już dostępny na dysku.",
         "FILE_ACTION_ERROR": "Nie udało się wykonać akcji na pliku.",
+        "ACTION_FAILED": "Akcja nie powiodła się",
+        "PAUSE": "Wstrzymaj",
+        "RESUME": "Wznów",
         "CANCEL": "Anuluj",
         "RETRY": "Spróbuj ponownie",
         "REMOVE": "Usuń",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "Pobieranie",
             "COMPLETED": "Ukończone",
             "FAILED": "Niepowodzenie",
-            "CANCELED": "Anulowane"
+            "CANCELED": "Anulowane",
+            "PAUSED": "Wstrzymane"
         }
     },
     "REMOTE_CONTROL": {

@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Seleccionar reproductor de vídeo predeterminado",
         "WEB_PLAYER_SHARED_CONTROLS": "Controles unificados para reproductores web (experimental)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa los controles compartidos de IPTVnator en HTML5, Video.js y ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Relleno de fondo ambiental",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Rellena el espacio alrededor del reproductor con una imagen de póster desenfocada y oscurecida en lugar de barras negras simples.",
         "STREAM_FORMAT_DESCRIPTION": "Selecciona el formato de transmision predeterminado (Xtream)",
         "LANGUAGE_DESCRIPTION": "Seleccione el idioma de la aplicación",
         "THEME_DESCRIPTION": "Seleccione el tema visual de la aplicación.",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Atrás",
             "RETRY": "Reintentar",
             "STALLED": "Este stream está tardando más de lo esperado en iniciarse.",
             "PLAYBACK_FAILED": "Falló la reproducción de MPV integrado.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "Quitar de favoritos",
         "ADD_FAVORITE": "Agregar a favoritos",
         "SHOW_DETAILS": "Mostrar detalles del canal",
+        "MAP_EPG": "Asignar canal EPG",
         "FAVORITES_UPDATED": "¡Se actualizaron los favoritos!",
         "SELECT_CHANNEL_PLAYBACK": "Selecciona un canal para iniciar la reproducción",
         "SORT_BY": "Ordenar por",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "ver ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Asignar canal EPG",
+        "SUBTITLE": "Selecciona manualmente un canal EPG para \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Buscar canales EPG...",
+        "CURRENT_MAPPING": "Asignación actual",
+        "NO_MAPPING": "No hay asignación EPG",
+        "SAVE": "Guardar asignación",
+        "REMOVE": "Eliminar asignación",
+        "CLOSE": "Cerrar",
+        "NO_RESULTS": "No se encontraron canales EPG",
+        "SEARCH_HINT": "Escribe al menos {{min}} caracteres para buscar",
+        "SAVED": "Asignación EPG guardada",
+        "REMOVED": "Asignación EPG eliminada",
+        "SAVE_FAILED": "No se pudo actualizar la asignación EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "Actores",
         "DIRECTOR": "Director",
         "SIMILAR": "Similares",
+        "CREW_JOB_DIRECTOR": "Director",
+        "CREW_JOB_CREATOR": "Creador",
         "ACTOR_FILMOGRAPHY": "Filmografía",
         "ACTOR_FILTER_ALL": "Todas",
         "ACTOR_SCOPE_THIS_PORTAL": "Este portal",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "Este contenido no está disponible en este servidor",
         "PLAYBACK_ERROR": "No se pudo obtener la URL de reproducción",
         "LOADING_SEASONS": "Cargando temporadas…",
+        "LOADING_ALL_CHANNELS": "Cargando la lista completa de canales…",
+        "REFRESH_CHANNEL_LIST": "Actualizar lista de canales",
+        "NO_CHANNELS_IN_CATEGORY": "No hay canales en esta categoría",
+        "ITEM": "elemento",
+        "ITEMS": "elementos",
         "NO_EPISODES": "No hay episodios disponibles",
         "ALL_RADIO": "Todas las radios"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Esta descarga ya no se puede abrir en la biblioteca porque su lista de reproducción de origen fue eliminada.",
         "FILE_NOT_FOUND": "Este archivo descargado ya no está disponible en el disco.",
         "FILE_ACTION_ERROR": "No se pudo completar la acción del archivo.",
+        "ACTION_FAILED": "La acción ha fallado",
+        "PAUSE": "Pausar",
+        "RESUME": "Reanudar",
         "CANCEL": "Cancelar",
         "RETRY": "Reintentar",
         "REMOVE": "Eliminar",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "Descargando",
             "COMPLETED": "Completado",
             "FAILED": "Fallido",
-            "CANCELED": "Cancelado"
+            "CANCELED": "Cancelado",
+            "PAUSED": "En pausa"
         }
     },
     "REMOTE_CONTROL": {

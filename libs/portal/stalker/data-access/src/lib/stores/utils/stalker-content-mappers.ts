@@ -61,6 +61,24 @@ export function toStalkerContentItem(
     };
 }
 
+/**
+ * Local category filter for fully cached ITV channel lists.
+ * Mirrors the portal-side `genre=<id>` filter of `get_ordered_list`.
+ */
+export function filterItvChannelsByGenre(
+    channels: StalkerItvChannel[],
+    categoryId: string | null | undefined
+): StalkerItvChannel[] {
+    if (!categoryId || categoryId === '*') {
+        return channels;
+    }
+
+    const target = String(categoryId);
+    return channels.filter(
+        (channel) => String(channel.tv_genre_id ?? '') === target
+    );
+}
+
 export function toStalkerItvChannel(item: StalkerContentItem): StalkerItvChannel {
     return {
         ...item,

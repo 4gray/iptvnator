@@ -64,6 +64,46 @@ function creatorNames(details: TmdbTvDetails): string {
         .join(', ');
 }
 
+/**
+ * Directors (movies) as clickable person chips — same shape as the cast
+ * chips, so a director opens the same person page as an actor. Deduped by
+ * TMDB id to collapse the duplicate crew rows TMDB sometimes returns.
+ */
+function enrichedDirectors(
+    credits: TmdbCredits | undefined
+): TmdbEnrichedCastMember[] {
+    const seen = new Set<number>();
+    const directors: TmdbEnrichedCastMember[] = [];
+    for (const member of credits?.crew ?? []) {
+        if (member.job !== 'Director' || !member.name) {
+            continue;
+        }
+        if (member.id !== undefined) {
+            if (seen.has(member.id)) {
+                continue;
+            }
+            seen.add(member.id);
+        }
+        directors.push({
+            name: member.name,
+            profileUrl: tmdbProfileUrl(member.profile_path),
+            ...(member.id ? { tmdbPersonId: member.id } : {}),
+        });
+    }
+    return directors;
+}
+
+/** Series creators as clickable person chips (TV shows have no director) */
+function enrichedCreators(details: TmdbTvDetails): TmdbEnrichedCastMember[] {
+    return (details.created_by ?? [])
+        .filter((creator) => Boolean(creator.name))
+        .map((creator) => ({
+            name: creator.name,
+            profileUrl: tmdbProfileUrl(creator.profile_path),
+            ...(creator.id ? { tmdbPersonId: creator.id } : {}),
+        }));
+}
+
 const MAX_RECOMMENDATIONS = 12;
 
 /** Best YouTube trailer key: official trailer > any trailer > teaser */
@@ -130,6 +170,7 @@ export function mergeVodInfoWithTmdb(
     details: TmdbMovieDetails
 ): XtreamVodInfo {
     const tmdbCast = enrichedCast(details.credits);
+    const tmdbDirectors = enrichedDirectors(details.credits);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
     const cast = castNames(details.credits);
@@ -163,6 +204,7 @@ export function mergeVodInfoWithTmdb(
         backdrop_path: mergedBackdrops(details, info.backdrop_path),
         episode_run_time: info.episode_run_time || (details.runtime ?? 0),
         youtube_trailer: prefer(trailer, info.youtube_trailer),
+        ...(tmdbDirectors.length > 0 ? { tmdb_directors: tmdbDirectors } : {}),
         ...(tmdbCast.length > 0 ? { tmdb_cast: tmdbCast } : {}),
         ...(recommendations.length > 0
             ? { tmdb_recommendations: recommendations }
@@ -175,6 +217,7 @@ export function mergeSerieInfoWithTmdb(
     details: TmdbTvDetails
 ): XtreamSerieInfo {
     const tmdbCast = enrichedCast(details.credits);
+    const tmdbDirectors = enrichedCreators(details);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
     const cast = castNames(details.credits);
@@ -197,6 +240,7 @@ export function mergeSerieInfoWithTmdb(
         backdrop_path: mergedBackdrops(details, info.backdrop_path),
         youtube_trailer: prefer(trailer, info.youtube_trailer),
         tmdb_id: details.id,
+        ...(tmdbDirectors.length > 0 ? { tmdb_directors: tmdbDirectors } : {}),
         ...(tmdbCast.length > 0 ? { tmdb_cast: tmdbCast } : {}),
         ...(recommendations.length > 0
             ? { tmdb_recommendations: recommendations }
@@ -216,6 +260,10 @@ export function mergeStalkerInfoWithTmdb(
     mediaType: TmdbMediaType
 ): StalkerVodInfo {
     const tmdbCast = enrichedCast(details.credits);
+    const tmdbDirectors =
+        mediaType === 'movie'
+            ? enrichedDirectors(details.credits)
+            : enrichedCreators(details as TmdbTvDetails);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
     const cast = castNames(details.credits);
@@ -245,6 +293,7 @@ export function mergeStalkerInfoWithTmdb(
         tmdb_id: details.id,
         ...(backdrop ? { tmdb_backdrop: backdrop } : {}),
         ...(trailer ? { tmdb_trailer: trailer } : {}),
+        ...(tmdbDirectors.length > 0 ? { tmdb_directors: tmdbDirectors } : {}),
         ...(tmdbCast.length > 0 ? { tmdb_cast: tmdbCast } : {}),
         ...(recommendations.length > 0
             ? { tmdb_recommendations: recommendations }

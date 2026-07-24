@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Выбраць стандартны відэапрайгравальнік",
         "WEB_PLAYER_SHARED_CONTROLS": "Адзіныя элементы кіравання для вэб-прайгравальнікаў (эксперыментальна)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Выкарыстоўваць агульныя элементы кіравання IPTVnator у HTML5, Video.js і ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Атмасфернае запаўненне",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Запаўніць прастор вакол плэйра размытай, затемнёнай вокладкай замяст чорных палос.",
         "STREAM_FORMAT_DESCRIPTION": "Выберыце фармат патоку па змаўчанні (xtream)",
         "LANGUAGE_DESCRIPTION": "Выбраць мову праграмы",
         "THEME_DESCRIPTION": "Выбраць візуальную тэму афармлення",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Назад",
             "RETRY": "Паўтарыць",
             "STALLED": "Гэты паток запускаецца даўжэй, чым чакалася.",
             "PLAYBACK_FAILED": "Не ўдалося прайграць праз убудаваны MPV.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "Выдаліць са спісу фаварытаў",
         "ADD_FAVORITE": "Дадаць у выбранае",
         "SHOW_DETAILS": "Паказаць інфармацыю аб канале",
+        "MAP_EPG": "Прывязаць канал EPG",
         "FAVORITES_UPDATED": "Спіс фаварытаў быў абноўлены!",
         "SELECT_CHANNEL_PLAYBACK": "Калі ласка, выберыце канал, каб пачаць прайграванне",
         "SORT_BY": "Сартаваць па",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "паказаць ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Прывязка канала EPG",
+        "SUBTITLE": "Выберыце канал EPG для \"{{channelName}}\" уручную",
+        "SEARCH_PLACEHOLDER": "Пошук каналаў EPG...",
+        "CURRENT_MAPPING": "Бягучая прывязка",
+        "NO_MAPPING": "Прывязка EPG не зададзена",
+        "SAVE": "Захаваць прывязку",
+        "REMOVE": "Выдаліць прывязку",
+        "CLOSE": "Закрыць",
+        "NO_RESULTS": "Каналы EPG не знойдзены",
+        "SEARCH_HINT": "Увядзіце не менш за {{min}} сімвалы для пошуку",
+        "SAVED": "Прывязка EPG захавана",
+        "REMOVED": "Прывязка EPG выдалена",
+        "SAVE_FAILED": "Не ўдалося абнавіць прывязку EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "Акцёры",
         "DIRECTOR": "Рэжысёр",
         "SIMILAR": "Падобнае",
+        "CREW_JOB_DIRECTOR": "Рэжысёр",
+        "CREW_JOB_CREATOR": "Стваральнік",
         "ACTOR_FILMOGRAPHY": "Фільмаграфія",
         "ACTOR_FILTER_ALL": "Усе",
         "ACTOR_SCOPE_THIS_PORTAL": "Гэты партал",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "Гэты кантэнт недаступны на дадзеным серверы",
         "PLAYBACK_ERROR": "Не ўдалося атрымаць URL для прайгравання",
         "LOADING_SEASONS": "Загрузка сезонаў...",
+        "LOADING_ALL_CHANNELS": "Загрузка поўнага спісу каналаў…",
+        "REFRESH_CHANNEL_LIST": "Абнавіць спіс каналаў",
+        "NO_CHANNELS_IN_CATEGORY": "У гэтай катэгорыі няма каналаў",
+        "ITEM": "элемент",
+        "ITEMS": "элементаў",
         "NO_EPISODES": "Няма даступных эпізодаў",
         "ALL_RADIO": "Усе радыё"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Гэта спампаванне больш нельга адкрыць у бібліятэцы, бо яго зыходны плэйліст быў выдалены.",
         "FILE_NOT_FOUND": "Гэты спампаваны файл больш недаступны на дыску.",
         "FILE_ACTION_ERROR": "Не ўдалося выканаць дзеянне з файлам.",
+        "ACTION_FAILED": "Дзеянне не выканана",
+        "PAUSE": "Паўза",
+        "RESUME": "Узнавіць",
         "CANCEL": "Скасаваць",
         "RETRY": "Паўтарыць",
         "REMOVE": "Выдаліць",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "Спампоўваецца",
             "COMPLETED": "Завершана",
             "FAILED": "Няўдала",
-            "CANCELED": "Скасавана"
+            "CANCELED": "Скасавана",
+            "PAUSED": "На паўзе"
         }
     },
     "REMOTE_CONTROL": {

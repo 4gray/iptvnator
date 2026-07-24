@@ -54,6 +54,8 @@ export interface Playlist {
     recentlyViewed?: PlaylistRecentlyViewedItem[];
     /** Indicates if this is a full stalker portal URL (e.g., /stalker_portal/c) requiring handshake authentication */
     isFullStalkerPortal?: boolean;
+    /** Xtream server timezone string for catch-up URL construction */
+    serverTimezone?: string;
     /** Session token for full stalker portal authentication - persisted for session */
     stalkerToken?: string;
     /** Serial number for stalker portal - generated once and stored for consistency */

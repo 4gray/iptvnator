@@ -21,7 +21,8 @@ export function isWithinArchiveWindow(
     return startMs >= nowMs - archiveDays * DAY_MS;
 }
 
-/** Whether a past programme is playable from the catch-up archive. */
+/** Whether a programme is playable from the catch-up archive —
+ *  both past programmes and the currently-airing programme (start-over). */
 export function canCatchUpProgramme(
     when: TimelineWhen,
     startMs: number,
@@ -31,7 +32,7 @@ export function canCatchUpProgramme(
 ): boolean {
     return (
         archivePlaybackAvailable &&
-        when === 'past' &&
+        (when === 'past' || when === 'now') &&
         isWithinArchiveWindow(startMs, archiveDays, nowMs)
     );
 }
@@ -41,7 +42,7 @@ export function epgDialogActionFor(
     when: TimelineWhen,
     canCatchUp: boolean
 ): EpgItemDialogAction | null {
-    if (when === 'now') {
+    if (when === 'now' && !canCatchUp) {
         return 'live';
     }
     if (canCatchUp) {

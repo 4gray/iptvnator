@@ -11,8 +11,8 @@ export class EpgDatabase {
     private readonly knownChannelIds = new Set<string>();
     private readonly insertChannelStmt: BetterSqlite3.Statement;
     private readonly insertProgramStmt: BetterSqlite3.Statement;
-    private readonly deleteProgramsForSourceStmt: BetterSqlite3.Statement;
     private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
+    private readonly deleteTodayAndFutureStmt: BetterSqlite3.Statement;
 
     constructor(Database: typeof BetterSqlite3) {
         this.db = new Database(getIptvnatorDatabasePath());
@@ -30,14 +30,33 @@ export class EpgDatabase {
                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         `);
 
-        this.insertProgramStmt = this.db.prepare(`
-            INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+        // Guard against duplicate entries when the clearFirst logic misses old
+        // rows. The same channel + start + title + source is treated as the
+        // same programme — a later import with a corrected stop time simply
+        // updates the earlier row. `source_url` is part of the key so that
+        // programmes imported from different EPG sources that happen to share
+        // channel_id/start/title stay isolated: the query layer scopes by
+        // source_url, and source-scoped deletes must not clobber another
+        // source's rows.
+        // The upsert (instead of INSERT OR REPLACE) keeps the epg_programs_fts
+        // triggers consistent: REPLACE deletes rows without firing the delete
+        // trigger unless recursive_triggers is enabled, leaving ghost FTS rows.
+        const dedupIndexReady = this.ensureProgramDedupIndex();
 
-        this.deleteProgramsForSourceStmt = this.db.prepare(`
-            DELETE FROM epg_programs WHERE source_url = ?
-        `);
+        this.insertProgramStmt = this.db.prepare(
+            dedupIndexReady
+                ? `INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(channel_id, start, title, source_url) DO UPDATE SET
+                       stop = excluded.stop,
+                       description = excluded.description,
+                       category = excluded.category,
+                       icon_url = excluded.icon_url,
+                       rating = excluded.rating,
+                       episode_num = excluded.episode_num`
+                : `INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
 
         this.deleteOrphanChannelsForSourceStmt = this.db.prepare(`
             DELETE FROM epg_channels
@@ -48,21 +67,28 @@ export class EpgDatabase {
                   WHERE epg_programs.channel_id = epg_channels.id
               )
         `);
+
+        this.deleteTodayAndFutureStmt = this.db.prepare(`
+            DELETE FROM epg_programs
+            WHERE source_url = ?
+              AND (start >= date('now') OR start < date('now', '-7 days'))
+        `);
     }
 
     /**
-     * Insert a batch of channels. When `clearFirst` is true, the existing rows
-     * for `sourceUrl` are deleted inside the same transaction as the insert so
-     * old data is preserved if the fetch/parse never produces any channels.
+     * Insert a batch of channels. When `clearTodayAndFuture` is true, the
+     * selective delete (today+future and older-than-7-days) runs inside the
+     * same transaction so a parse failure after the delete atomically rolls
+     * back both — no gap left in the schedule.
      */
     insertChannels(
         channels: ParsedChannel[],
         sourceUrl: string,
-        clearFirst = false
+        clearTodayAndFuture = false
     ): void {
         const insertMany = this.db.transaction((channels: ParsedChannel[]) => {
-            if (clearFirst) {
-                this.deleteProgramsForSourceStmt.run(sourceUrl);
+            if (clearTodayAndFuture) {
+                this.deleteTodayAndFutureStmt.run(sourceUrl);
                 this.deleteOrphanChannelsForSourceStmt.run(sourceUrl);
                 this.knownChannelIds.clear();
             }
@@ -130,6 +156,57 @@ export class EpgDatabase {
 
     close(): void {
         this.db.close();
+    }
+
+    /**
+     * Create the unique (channel_id, start, title, source_url) dedup index.
+     *
+     * Databases that predate the index may already contain duplicate rows —
+     * exactly the situation the index is meant to prevent — so those are
+     * removed first; a plain `CREATE UNIQUE INDEX` would otherwise throw in
+     * this constructor and permanently break EPG imports for upgrading users.
+     *
+     * The `_v2` name migrates users off the earlier source-blind index
+     * (`idx_epg_programs_dedup` on `channel_id, start, title`), which
+     * collapsed programmes imported from different EPG sources that shared
+     * those three columns. The old index is dropped so it can no longer
+     * enforce the source-blind uniqueness.
+     *
+     * Returns false when the index could not be created, in which case the
+     * insert statement falls back to the previous plain-INSERT behaviour.
+     */
+    private ensureProgramDedupIndex(): boolean {
+        try {
+            const exists = this.db
+                .prepare(
+                    `SELECT 1 FROM sqlite_master
+                     WHERE type = 'index' AND name = 'idx_epg_programs_dedup_v2'`
+                )
+                .get();
+            if (!exists) {
+                this.db
+                    .prepare(`DROP INDEX IF EXISTS idx_epg_programs_dedup`)
+                    .run();
+                this.db
+                    .prepare(
+                        `DELETE FROM epg_programs
+                         WHERE id NOT IN (
+                             SELECT MIN(id) FROM epg_programs
+                             GROUP BY channel_id, start, title, source_url
+                         )`
+                    )
+                    .run();
+                this.db
+                    .prepare(
+                        `CREATE UNIQUE INDEX idx_epg_programs_dedup_v2
+                         ON epg_programs(channel_id, start, title, source_url)`
+                    )
+                    .run();
+            }
+            return true;
+        } catch {
+            return false;
+        }
     }
 }
 

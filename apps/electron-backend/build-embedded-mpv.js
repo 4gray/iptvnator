@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
@@ -10,6 +11,25 @@ const {
 const {
     removeStaleFrameCopyArtifacts,
 } = require('../../tools/packaging/embedded-mpv-frame-copy-files.cjs');
+const {
+    isLinuxSystemBuildInputManifest,
+    validateLinuxRuntimeManifest,
+    validateLinuxSystemBuildInputManifest,
+} = require('../../tools/embedded-mpv/linux-runtime-manifest.cjs');
+const {
+    SOURCE_ARCHIVE_BINDING_NAME,
+    validateLinuxSourceArchiveBinding,
+} = require('../../tools/embedded-mpv/linux-source-archive-contract.cjs');
+const {
+    resolveLinuxFrameCopyLinkageInputs,
+    resolveVerifiedLinuxLibMpvSoname,
+    runWithCleanup,
+    validateLinuxFrameCopyLinkage,
+} = require('./embedded-mpv-linux-linkage.cjs');
+
+const LINUX_PACKAGE_RUNTIME_MODES = Object.freeze(['system', 'bundled']);
+const LINUX_STAGED_RUNTIME_ORIGIN = 'vendored-lgpl';
+const LINUX_SOURCE_RUNTIME_ORIGIN = 'vendored-lgpl-source-build';
 
 const workspaceRoot = process.cwd();
 const addonRoot = path.join(
@@ -109,6 +129,158 @@ function readRuntimeManifest(runtimeRoot) {
     return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 }
 
+function readLinuxSourceArchiveBinding(runtimeRoot, errors) {
+    const bindingPath = path.join(runtimeRoot, SOURCE_ARCHIVE_BINDING_NAME);
+    if (!fs.existsSync(bindingPath)) {
+        return null;
+    }
+    let binding;
+    try {
+        const stat = fs.lstatSync(bindingPath);
+        if (!stat.isFile() || stat.isSymbolicLink()) {
+            throw new Error('binding must be a regular file');
+        }
+        binding = JSON.parse(fs.readFileSync(bindingPath, 'utf8'));
+    } catch (error) {
+        errors.push(
+            `source archive binding is invalid: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return null;
+    }
+    errors.push(
+        ...validateLinuxSourceArchiveBinding(binding).map(
+            (error) => `source archive binding is invalid: ${error}`
+        )
+    );
+    return binding;
+}
+
+function validatedLinuxSourceRuntime(runtimeRoot) {
+    const stagedManifest = readRuntimeManifest(runtimeRoot);
+    if (
+        stagedManifest === null ||
+        typeof stagedManifest !== 'object' ||
+        Array.isArray(stagedManifest)
+    ) {
+        throw new Error(
+            `Staged Linux runtime manifest must be an object: ${path.join(
+                runtimeRoot,
+                'runtime-manifest.json'
+            )}`
+        );
+    }
+
+    const envelopeErrors = [];
+    if (stagedManifest.origin !== LINUX_STAGED_RUNTIME_ORIGIN) {
+        envelopeErrors.push(`origin must be "${LINUX_STAGED_RUNTIME_ORIGIN}"`);
+    }
+    if (stagedManifest.platform !== 'linux') {
+        envelopeErrors.push('platform must be "linux"');
+    }
+    if (stagedManifest.arch !== targetArch) {
+        envelopeErrors.push(`arch must be "${targetArch}"`);
+    }
+    if (
+        typeof stagedManifest.stagedAt !== 'string' ||
+        stagedManifest.stagedAt.trim().length === 0
+    ) {
+        envelopeErrors.push('stagedAt must be a non-empty string');
+    }
+    if (!Array.isArray(stagedManifest.runtimeFiles)) {
+        envelopeErrors.push('runtimeFiles must be an array');
+    }
+
+    const systemBuildInputs = isLinuxSystemBuildInputManifest(stagedManifest);
+    let buildInputMode;
+    let sourceArchive = null;
+    let sourceRuntimeManifest;
+    if (systemBuildInputs) {
+        buildInputMode = 'system-build-inputs';
+        sourceRuntimeManifest = {
+            linuxBackend: stagedManifest.linuxBackend,
+            buildInputs: stagedManifest.buildInputs,
+            sourceDistribution: stagedManifest.sourceDistribution,
+        };
+        if (
+            Array.isArray(stagedManifest.runtimeFiles) &&
+            stagedManifest.runtimeFiles.length !== 0
+        ) {
+            envelopeErrors.push(
+                'system build inputs must not declare staged runtime files'
+            );
+        }
+        if (stagedManifest.sourceBuildOrigin !== undefined) {
+            envelopeErrors.push(
+                'system build inputs must not declare sourceBuildOrigin'
+            );
+        }
+    } else {
+        buildInputMode = 'bundled-runtime';
+        sourceArchive = readLinuxSourceArchiveBinding(
+            runtimeRoot,
+            envelopeErrors
+        );
+        const sourceBuildOrigin = stagedManifest.sourceBuildOrigin;
+        const sourceMetadata = { ...stagedManifest };
+        delete sourceMetadata.sourceBuildOrigin;
+        delete sourceMetadata.stagedAt;
+        sourceRuntimeManifest = {
+            ...sourceMetadata,
+            origin: sourceBuildOrigin,
+        };
+        if (sourceBuildOrigin !== LINUX_SOURCE_RUNTIME_ORIGIN) {
+            envelopeErrors.push(
+                `sourceBuildOrigin must be "${LINUX_SOURCE_RUNTIME_ORIGIN}"`
+            );
+        }
+    }
+
+    const sourceManifestErrors =
+        buildInputMode === 'system-build-inputs'
+            ? validateLinuxSystemBuildInputManifest(sourceRuntimeManifest)
+            : validateLinuxRuntimeManifest(sourceRuntimeManifest);
+    const declaredRuntimeFileNames = Array.isArray(
+        sourceRuntimeManifest.runtimeFiles
+    )
+        ? sourceRuntimeManifest.runtimeFiles
+              .map((runtimeFile) => runtimeFile.name)
+              .sort()
+        : [];
+    const stagedRuntimeFileNames = listRuntimeFiles(
+        path.join(runtimeRoot, 'lib'),
+        runtimeFilePredicate
+    )
+        .map((runtimeFile) => path.basename(runtimeFile))
+        .sort();
+    if (
+        JSON.stringify(stagedRuntimeFileNames) !==
+        JSON.stringify(declaredRuntimeFileNames)
+    ) {
+        envelopeErrors.push(
+            'staged lib directory must exactly match manifest runtimeFiles'
+        );
+    }
+
+    const errors = [...envelopeErrors, ...sourceManifestErrors];
+    if (errors.length > 0) {
+        throw new Error(
+            [
+                `Invalid staged Linux runtime at ${runtimeRoot}:`,
+                ...errors.map((error) => `- ${error}`),
+            ].join('\n')
+        );
+    }
+
+    return {
+        buildInputMode,
+        sourceArchive,
+        sourceRuntimeManifest,
+        sourceRuntimeValidated: buildInputMode === 'bundled-runtime',
+    };
+}
+
 function fileExists(filePath) {
     return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
 }
@@ -183,9 +355,9 @@ function findWindowsLibMpv(runtimeRoot) {
 }
 
 /* Debian/Ubuntu install linker targets under the multiarch triple dir. The
- * compiler's built-in search paths cover it for -l resolution either way;
- * this keeps the -L flag and the helper's baked rpath pointing somewhere
- * real. */
+ * compiler's built-in search paths cover it for -l resolution either way.
+ * This directory is a link-time input only; the helper runtime intentionally
+ * stays on the sanitized system loader contract. */
 function defaultLinuxSystemLibDir() {
     const multiarchTriples = {
         arm: 'arm-linux-gnueabihf',
@@ -211,15 +383,19 @@ function findLinuxLibMpv(libDir) {
 }
 
 function resolveRuntime() {
+    const vendoredHeader = path.join(vendoredIncludeDir, 'mpv', 'client.h');
+    const stagedLinuxRuntime =
+        targetPlatform === 'linux' && fs.existsSync(vendoredHeader)
+            ? validatedLinuxSourceRuntime(vendoredRuntimeRoot)
+            : null;
     const vendoredLibMpv =
         targetPlatform === 'darwin'
             ? findLibMpv(vendoredLibDir)
             : targetPlatform === 'win32'
               ? findWindowsLibMpv(vendoredRuntimeRoot)
               : targetPlatform === 'linux'
-                ? true
+                ? stagedLinuxRuntime
                 : null;
-    const vendoredHeader = path.join(vendoredIncludeDir, 'mpv', 'client.h');
 
     if (vendoredLibMpv && fs.existsSync(vendoredHeader)) {
         const windowsImportLib =
@@ -237,17 +413,23 @@ function resolveRuntime() {
             binDir: vendoredBinDir,
             manifest: readRuntimeManifest(vendoredRuntimeRoot),
             windowsImportLib,
+            ...(stagedLinuxRuntime ?? {}),
         };
     }
 
     if (targetPlatform === 'linux') {
         // Dev-first Linux flow (frame-copy helper links system libmpv): a
         // distro libmpv-dev install is a full runtime — no staging needed.
-        // LIBMPV_INCLUDE_DIR / LINUX_NATIVE_LIBRARY_DIR override the system
-        // paths for machines with a local (non-root) libmpv prefix.
+        // LIBMPV_INCLUDE_DIR overrides the header path.
+        // LINUX_NATIVE_LIBRARY_DIR overrides the link-time library directory,
+        // which must already be visible to the system dynamic loader.
         const systemIncludeDir =
             process.env.LIBMPV_INCLUDE_DIR || '/usr/include';
         if (fs.existsSync(path.join(systemIncludeDir, 'mpv', 'client.h'))) {
+            const sourceRuntimeManifest = {
+                linuxBackend: 'process-isolated mpv --wid',
+                warning: 'Development-only unmanaged system libmpv toolchain.',
+            };
             return {
                 origin: 'system-dev',
                 includeDir: systemIncludeDir,
@@ -255,10 +437,10 @@ function resolveRuntime() {
                     process.env.LINUX_NATIVE_LIBRARY_DIR ||
                     defaultLinuxSystemLibDir(),
                 binDir: undefined,
-                manifest: {
-                    warning:
-                        'Development-only system libmpv toolchain. Release packaging keeps the external-mpv-process contract.',
-                },
+                manifest: sourceRuntimeManifest,
+                buildInputMode: 'system-dev',
+                sourceRuntimeManifest,
+                sourceRuntimeValidated: false,
                 windowsImportLib: null,
             };
         }
@@ -288,19 +470,141 @@ function resolveRuntime() {
     return null;
 }
 
-function writeLinuxProcessRuntimeManifest(runtime) {
+function hasStagedLinuxLibMpvLinkerInput(runtime) {
+    return (
+        Array.isArray(runtime.sourceRuntimeManifest?.runtimeFiles) &&
+        runtime.sourceRuntimeManifest.runtimeFiles.some(
+            (runtimeFile) => runtimeFile.name === 'libmpv.so'
+        )
+    );
+}
+
+function assertRequiredLinuxFrameCopyRuntime(runtime) {
+    if (targetPlatform !== 'linux' || !embeddedMpvRequired) {
+        return;
+    }
+
+    if (
+        runtime.buildInputMode !== 'bundled-runtime' ||
+        runtime.sourceRuntimeValidated !== true ||
+        !runtime.sourceArchive ||
+        !hasStagedLinuxLibMpvLinkerInput(runtime)
+    ) {
+        cleanOutput();
+        throw new Error(
+            'Required Linux builds must use the validated bundled source runtime containing staged libmpv.'
+        );
+    }
+}
+
+function copyLinuxRuntimeClosureToNativeBuild(runtime) {
     fs.rmSync(outputLibDir, { recursive: true, force: true });
 
+    const declaredRuntimeFiles =
+        runtime.buildInputMode === 'bundled-runtime'
+            ? runtime.sourceRuntimeManifest.runtimeFiles
+            : [];
+    if (declaredRuntimeFiles.length === 0) {
+        return [];
+    }
+
+    fs.mkdirSync(outputLibDir, { recursive: true });
+    const copiedRuntimeFiles = [];
+    for (const runtimeFile of declaredRuntimeFiles) {
+        const sourcePath = path.join(runtime.libDir, runtimeFile.name);
+        let descriptor;
+        try {
+            descriptor = fs.openSync(
+                sourcePath,
+                fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW
+            );
+            const stat = fs.fstatSync(descriptor);
+            if (!stat.isFile()) {
+                throw new Error(
+                    `Staged Linux runtime path is not a regular file: ${sourcePath}`
+                );
+            }
+
+            const contents = fs.readFileSync(descriptor);
+            if (contents.byteLength !== runtimeFile.size) {
+                throw new Error(
+                    `Size mismatch for staged Linux runtime file ${runtimeFile.name}: expected ${runtimeFile.size}, received ${contents.byteLength}.`
+                );
+            }
+            const actualSha256 = crypto
+                .createHash('sha256')
+                .update(contents)
+                .digest('hex');
+            if (actualSha256 !== runtimeFile.sha256) {
+                throw new Error(
+                    `SHA-256 mismatch for staged Linux runtime file ${runtimeFile.name}: expected ${runtimeFile.sha256}, received ${actualSha256}.`
+                );
+            }
+
+            const destinationPath = path.join(outputLibDir, runtimeFile.name);
+            fs.writeFileSync(destinationPath, contents, { mode: 0o755 });
+            copiedRuntimeFiles.push({ ...runtimeFile });
+        } finally {
+            if (descriptor !== undefined) {
+                fs.closeSync(descriptor);
+            }
+        }
+    }
+
+    return copiedRuntimeFiles;
+}
+
+function writeLinuxFrameCopyBuildManifest(runtime) {
+    const copiedRuntimeFiles = copyLinuxRuntimeClosureToNativeBuild(runtime);
+    const libmpvSoname =
+        runtime.sourceRuntimeValidated === true &&
+        runtime.buildInputMode === 'bundled-runtime' &&
+        copiedRuntimeFiles.length > 0
+            ? resolveVerifiedLinuxLibMpvSoname({
+                  outputLibDir,
+                  runtimeFiles: copiedRuntimeFiles,
+                  runtimeDependencyClosure:
+                      runtime.sourceRuntimeManifest.runtimeDependencyClosure,
+                  readDynamicSection: readLinuxDynamicSection,
+              })
+            : null;
+    const packageRuntimeAvailable =
+        runtime.sourceRuntimeValidated === true &&
+        runtime.buildInputMode === 'bundled-runtime' &&
+        copiedRuntimeFiles.length > 0 &&
+        libmpvSoname !== null;
     const manifest = {
-        ...runtime.manifest,
-        origin: 'external-mpv-process',
+        schemaVersion: 1,
+        origin: 'linux-frame-copy-build',
         generatedAt: new Date().toISOString(),
-        runtimeFiles: [],
-        linuxBackend:
-            runtime.manifest.linuxBackend ?? 'process-isolated mpv --wid',
-        mpvExecutable: 'mpv',
         platform: targetPlatform,
-        targetArch,
+        arch: targetArch,
+        buildInputMode: runtime.buildInputMode,
+        sourceRuntimeValidated: runtime.sourceRuntimeValidated,
+        allowedPackageRuntimeModes: [...LINUX_PACKAGE_RUNTIME_MODES],
+        packageRuntimeAvailability: {
+            system: packageRuntimeAvailable,
+            bundled: packageRuntimeAvailable,
+        },
+        artifacts: {
+            addon: 'embedded_mpv.node',
+            frameReader: 'embedded_mpv_frame_reader.node',
+            helper: 'iptvnator_mpv_helper',
+        },
+        processIsolation: {
+            addonLoadsLibmpv: false,
+            helperLinksLibmpv: true,
+            helperRunpath: ['$ORIGIN/lib'],
+        },
+        nativeViewFallback: 'process-isolated mpv --wid',
+        libmpvSoname,
+        runtimeFiles: copiedRuntimeFiles,
+        runtimeTotalBytes: copiedRuntimeFiles.reduce(
+            (total, runtimeFile) => total + runtimeFile.size,
+            0
+        ),
+        sourceArchive: runtime.sourceArchive ?? null,
+        sourceRuntime: runtime.sourceRuntimeManifest,
     };
 
     fs.writeFileSync(
@@ -428,12 +732,33 @@ function runNodeGyp(command, env) {
     }
 }
 
+function readLinuxDynamicSection(filePath) {
+    const result = spawnSync('readelf', ['-d', filePath], {
+        cwd: workspaceRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (result.error) {
+        throw new Error(
+            `Unable to run readelf for ${filePath}: ${result.error.message}`
+        );
+    }
+    if (result.status !== 0) {
+        throw new Error(
+            `readelf -d failed for ${filePath} with status ${
+                result.status ?? 1
+            }: ${(result.stderr ?? '').trim()}`
+        );
+    }
+    return result.stdout;
+}
+
 function main() {
     fs.mkdirSync(outputDir, { recursive: true });
     cleanDistNativeOutput();
+    cleanOutput();
 
     if (targetPlatform !== process.platform) {
-        cleanOutput();
         if (embeddedMpvRequired) {
             throw new Error(
                 `Embedded MPV is required for ${targetPlatform}-${targetArch}, but this host is ${process.platform}-${process.arch}.`
@@ -465,58 +790,114 @@ function main() {
         return;
     }
 
-    const runtimeManifest =
-        targetPlatform === 'darwin'
-            ? copyRuntimeToNativeBuild({
-                  runtimeLibDir: runtime.libDir,
-                  outputLibDir,
-                  runtimeOrigin: runtime.origin,
-                  runtimeManifest: {
-                      targetArch,
-                      ...runtime.manifest,
-                  },
-              })
-            : targetPlatform === 'linux'
-              ? writeLinuxProcessRuntimeManifest(runtime)
-              : copyGenericRuntimeToNativeBuild(runtime);
-    fs.rmSync(unavailableMarkerFile, { force: true });
+    assertRequiredLinuxFrameCopyRuntime(runtime);
 
-    const electronPackageJson = require(
-        path.join(workspaceRoot, 'node_modules', 'electron', 'package.json')
-    );
-    const electronVersion = electronPackageJson.version;
-    const env = {
-        ...process.env,
-        npm_config_runtime: 'electron',
-        npm_config_target: electronVersion,
-        npm_config_arch: targetArch,
-        npm_config_disturl: 'https://electronjs.org/headers',
-        npm_config_build_from_source: 'true',
-        npm_config_update_binary: 'false',
-        LIBMPV_INCLUDE_DIR: runtime.includeDir,
-        ...(targetPlatform === 'linux'
-            ? {
-                  LINUX_NATIVE_LIBRARY_DIR:
-                      process.env.LINUX_NATIVE_LIBRARY_DIR || runtime.libDir,
-              }
-            : { LIBMPV_LIBRARY_DIR: outputLibDir }),
-        ...(runtime.windowsImportLib
-            ? {
-                  LIBMPV_IMPORT_LIB: path.join(
+    const buildNativeArtifacts = () => {
+        const runtimeManifest =
+            targetPlatform === 'darwin'
+                ? copyRuntimeToNativeBuild({
+                      runtimeLibDir: runtime.libDir,
                       outputLibDir,
-                      path.basename(runtime.windowsImportLib)
-                  ),
-              }
-            : {}),
-    };
+                      runtimeOrigin: runtime.origin,
+                      runtimeManifest: {
+                          targetArch,
+                          ...runtime.manifest,
+                      },
+                  })
+                : targetPlatform === 'linux'
+                  ? writeLinuxFrameCopyBuildManifest(runtime)
+                  : copyGenericRuntimeToNativeBuild(runtime);
+        const linuxLinkageInputs =
+            targetPlatform === 'linux'
+                ? resolveLinuxFrameCopyLinkageInputs({
+                      buildInputMode: runtime.buildInputMode,
+                      outputLibDir,
+                      packagedLibmpvSoname: runtimeManifest.libmpvSoname,
+                      readDynamicSection: readLinuxDynamicSection,
+                      runtimeLibDir: runtime.libDir,
+                  })
+                : null;
 
-    log(
-        `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
-    );
-    cleanNativeBuildIntermediates();
-    try {
+        const electronPackageJson = require(
+            path.join(workspaceRoot, 'node_modules', 'electron', 'package.json')
+        );
+        const electronVersion = electronPackageJson.version;
+        const env = {
+            ...process.env,
+            npm_config_runtime: 'electron',
+            npm_config_target: electronVersion,
+            npm_config_arch: targetArch,
+            npm_config_disturl: 'https://electronjs.org/headers',
+            npm_config_build_from_source: 'true',
+            npm_config_update_binary: 'false',
+            LIBMPV_INCLUDE_DIR: runtime.includeDir,
+            ...(targetPlatform === 'linux'
+                ? {
+                      LINUX_VERIFIED_RUNTIME_LIBRARY_DIR:
+                          linuxLinkageInputs.linkerLibraryDir,
+                  }
+                : { LIBMPV_LIBRARY_DIR: outputLibDir }),
+            ...(runtime.windowsImportLib
+                ? {
+                      LIBMPV_IMPORT_LIB: path.join(
+                          outputLibDir,
+                          path.basename(runtime.windowsImportLib)
+                      ),
+                  }
+                : {}),
+        };
+
+        log(
+            `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
+        );
+        cleanNativeBuildIntermediates();
         runNodeGyp('configure', env);
         runNodeGyp('build', env);
+
+        if (!fs.existsSync(outputFile)) {
+            throw new Error(`Build finished without producing ${outputFile}.`);
+        }
+
+        if (targetPlatform === 'linux') {
+            validateLinuxFrameCopyLinkage({
+                expectedLibmpvSoname: linuxLinkageInputs.expectedLibmpvSoname,
+                outputDir,
+                readDynamicSection: readLinuxDynamicSection,
+            });
+        }
+
+        if (targetPlatform === 'darwin') {
+            patchAddonForBundledRuntime(outputFile, outputLibDir);
+            // The frame-copy helper executable links libmpv too and sits next
+            // to the same lib/ directory, so it gets the identical
+            // dependency-path rewrite + ad-hoc re-sign.
+            const frameHelperFile = path.join(
+                outputDir,
+                'iptvnator_mpv_helper'
+            );
+            if (fs.existsSync(frameHelperFile)) {
+                patchAddonForBundledRuntime(frameHelperFile, outputLibDir);
+            }
+            const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
+                outputFile,
+                ...(fs.existsSync(frameHelperFile) ? [frameHelperFile] : []),
+                ...runtimeManifest.dylibs.map((dylib) =>
+                    path.join(outputLibDir, dylib)
+                ),
+            ]);
+            if (
+                runtime.origin === 'vendored-lgpl' &&
+                forbiddenLinkErrors.length > 0
+            ) {
+                throw new Error(forbiddenLinkErrors.join('\n'));
+            }
+        }
+
+        fs.rmSync(unavailableMarkerFile, { force: true });
+    };
+
+    try {
+        runWithCleanup(buildNativeArtifacts, cleanOutput);
     } catch (error) {
         if (!embeddedMpvRequired && runtime.origin === 'system-dev') {
             // The system-dev fallback triggers on any machine with
@@ -528,38 +909,9 @@ function main() {
                     error instanceof Error ? error.message : String(error)
                 }`
             );
-            cleanOutput();
             return;
         }
         throw error;
-    }
-
-    if (!fs.existsSync(outputFile)) {
-        throw new Error(`Build finished without producing ${outputFile}.`);
-    }
-
-    if (targetPlatform === 'darwin') {
-        patchAddonForBundledRuntime(outputFile, outputLibDir);
-        // The frame-copy helper executable links libmpv too and sits next to
-        // the same lib/ directory, so it gets the identical dependency-path
-        // rewrite + ad-hoc re-sign.
-        const frameHelperFile = path.join(outputDir, 'iptvnator_mpv_helper');
-        if (fs.existsSync(frameHelperFile)) {
-            patchAddonForBundledRuntime(frameHelperFile, outputLibDir);
-        }
-        const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
-            outputFile,
-            ...(fs.existsSync(frameHelperFile) ? [frameHelperFile] : []),
-            ...runtimeManifest.dylibs.map((dylib) =>
-                path.join(outputLibDir, dylib)
-            ),
-        ]);
-        if (
-            runtime.origin === 'vendored-lgpl' &&
-            forbiddenLinkErrors.length > 0
-        ) {
-            throw new Error(forbiddenLinkErrors.join('\n'));
-        }
     }
 
     log(`Built ${path.relative(workspaceRoot, outputFile)}.`);

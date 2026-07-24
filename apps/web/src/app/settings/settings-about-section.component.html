@@ -19,7 +19,17 @@
             <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
         </div>
         <div class="setting-item__control version-block">
-            <span>{{ version() }}</span>
+            <span data-test-id="app-version">
+                {{ version() }}
+                @if (buildCommitShort(); as commit) {
+                    <span
+                        class="build-commit"
+                        data-test-id="app-build-commit"
+                        [title]="buildCommit()"
+                        >({{ commit }})</span
+                    >
+                }
+            </span>
             <small>{{ updateMessage() }}</small>
         </div>
     </div>

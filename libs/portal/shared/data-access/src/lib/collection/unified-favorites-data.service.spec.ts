@@ -209,6 +209,8 @@ describe('UnifiedFavoritesDataService', () => {
                 title: 'Live One',
                 type: 'live',
                 poster_url: 'live.png',
+                tv_archive: 1,
+                tv_archive_duration: 7,
                 added_at: '2026-03-26T09:00:00.000Z',
                 position: 0,
             },
@@ -247,6 +249,10 @@ describe('UnifiedFavoritesDataService', () => {
                     contentType: 'live',
                     logo: 'live.png',
                     posterUrl: null,
+                    // Regression for issue #1138: archive metadata must
+                    // survive the global favorites mapping for catch-up.
+                    tvArchive: 1,
+                    tvArchiveDuration: 7,
                 }),
                 expect.objectContaining({
                     name: 'Movie One',

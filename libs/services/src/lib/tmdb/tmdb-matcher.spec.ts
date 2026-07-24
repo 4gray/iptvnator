@@ -78,10 +78,10 @@ describe('extractYear', () => {
 describe('lookup keys', () => {
     it('builds stable search and details keys', () => {
         expect(buildSearchLookupKey('the matrix', 1999)).toBe(
-            'title:the matrix|year:1999'
+            'title:the matrix|year:1999|v2'
         );
         expect(buildSearchLookupKey('the matrix', null)).toBe(
-            'title:the matrix|year:'
+            'title:the matrix|year:|v2'
         );
         expect(buildDetailsLookupKey(603)).toBe('id:603|v2');
     });

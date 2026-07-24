@@ -73,6 +73,8 @@ export async function getFavorites(db: AppDatabase, playlistId: string) {
             poster_url: schema.content.posterUrl,
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
+            tv_archive: schema.content.tvArchive,
+            tv_archive_duration: schema.content.tvArchiveDuration,
             added_at: schema.favorites.addedAt,
             position: schema.favorites.position,
         })
@@ -117,6 +119,8 @@ function selectGlobalFavoriteRows(
                 : {}),
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
+            tv_archive: schema.content.tvArchive,
+            tv_archive_duration: schema.content.tvArchiveDuration,
             playlist_id: schema.playlists.id,
             playlist_name: schema.playlists.name,
             added_at: schema.favorites.addedAt,

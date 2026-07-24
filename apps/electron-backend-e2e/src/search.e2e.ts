@@ -6,8 +6,8 @@ import {
     closeElectronApp,
     defaultStalkerMacAddress,
     expect,
+    expectNoWorkspaceSearchStatus,
     expectWorkspaceSearchScope,
-    expectWorkspaceSearchStatus,
     fillWorkspaceSearch,
     goToDashboard,
     importM3uPlaylistFromNativeDialog,
@@ -987,7 +987,7 @@ test.describe('Electron Workspace Search', () => {
         }
     });
 
-    test('@search @stalker shows loaded-only scope and filters channels on ITV routes', async ({
+    test('@search @stalker searches the complete channel list on ITV routes', async ({
         dataDir,
         request,
     }) => {
@@ -1030,26 +1030,22 @@ test.describe('Electron Workspace Search', () => {
                 app.mainWindow,
                 `Live TV / ${sample.categoryName}`
             );
-            await expectWorkspaceSearchStatus(
-                app.mainWindow,
-                'Loaded channels only'
-            );
+            // Entering Live TV preloads the COMPLETE channel list (Ministra
+            // get_all_channels), so search runs locally over every channel:
+            // no portal-side search request, and no "Loaded channels only"
+            // degraded hint.
             await waitForPortalDebugEvent(app.mainWindow, {
                 provider: 'stalker',
-                operation: 'get_ordered_list',
+                operation: 'get_all_channels',
                 predicate: (event) => {
                     const requestPayload = event.request as {
                         params?: Record<string, string | number>;
                     };
 
-                    return (
-                        requestPayload.params?.['type'] === 'itv' &&
-                        String(requestPayload.params?.['category']) ===
-                            sample.categoryId &&
-                        requestPayload.params?.['search'] === itvQuery
-                    );
+                    return requestPayload.params?.['type'] === 'itv';
                 },
             });
+            await expectNoWorkspaceSearchStatus(app.mainWindow);
             await expect(
                 channelItemByTitle(app.mainWindow, sample.targetTitle).first()
             ).toBeVisible();

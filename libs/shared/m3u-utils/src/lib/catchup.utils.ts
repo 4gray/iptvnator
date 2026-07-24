@@ -112,9 +112,13 @@ function getEpgProgramTimestampSeconds(
         Number(hour),
         Number(minute)
     );
+    // Derive the sign from the string: for offsets like "-0030" the hour part
+    // is "-00", and Number("-00") === -0, so Math.sign() would drop the
+    // minutes' sign and yield a zero offset instead of -30 minutes.
+    const offsetSign = offsetHours.startsWith('-') ? -1 : 1;
     const offsetTotalMinutes =
-        Number(offsetHours) * 60 +
-        Math.sign(Number(offsetHours)) * Number(offsetMinutes);
+        offsetSign *
+        (Math.abs(Number(offsetHours)) * 60 + Number(offsetMinutes));
 
     return Math.floor((utcMillis - offsetTotalMinutes * 60_000) / 1000);
 }

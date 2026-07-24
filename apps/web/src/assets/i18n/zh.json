@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "选择默认视频播放器",
         "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器统一控件（实验性）",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共享控件。",
+        "PLAYER_AMBIENT_MODE": "环境背景填充",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、暗淡的海报填充播放器周围的空白，而不是黑条纹。",
         "STREAM_FORMAT_DESCRIPTION": "选择默认的流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "选择应用程序的语言",
         "THEME_DESCRIPTION": "选择应用程序的视觉主题",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "返回",
             "RETRY": "重试",
             "STALLED": "该流的启动时间超出预期。",
             "PLAYBACK_FAILED": "嵌入式 MPV 播放失败。",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "从收藏夹中删除",
         "ADD_FAVORITE": "添加到收藏",
         "SHOW_DETAILS": "显示频道详情",
+        "MAP_EPG": "映射 EPG 频道",
         "FAVORITES_UPDATED": "收藏夹已更新！",
         "SELECT_CHANNEL_PLAYBACK": "请选择一个频道开始播放",
         "SORT_BY": "排序方式",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "展开 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "映射 EPG 频道",
+        "SUBTITLE": "为“{{channelName}}”手动选择 EPG 频道",
+        "SEARCH_PLACEHOLDER": "搜索 EPG 频道...",
+        "CURRENT_MAPPING": "当前映射",
+        "NO_MAPPING": "未设置 EPG 映射",
+        "SAVE": "保存映射",
+        "REMOVE": "移除映射",
+        "CLOSE": "关闭",
+        "NO_RESULTS": "未找到 EPG 频道",
+        "SEARCH_HINT": "输入至少 {{min}} 个字符进行搜索",
+        "SAVED": "EPG 映射已保存",
+        "REMOVED": "EPG 映射已移除",
+        "SAVE_FAILED": "无法更新 EPG 映射"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "演员",
         "DIRECTOR": "导演",
         "SIMILAR": "类似影片",
+        "CREW_JOB_DIRECTOR": "导演",
+        "CREW_JOB_CREATOR": "主创",
         "ACTOR_FILMOGRAPHY": "参演作品",
         "ACTOR_FILTER_ALL": "全部",
         "ACTOR_SCOPE_THIS_PORTAL": "当前门户",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "此服务器上没有此内容",
         "PLAYBACK_ERROR": "获取播放 URL 失败",
         "LOADING_SEASONS": "正在加载季…",
+        "LOADING_ALL_CHANNELS": "正在加载完整频道列表…",
+        "REFRESH_CHANNEL_LIST": "刷新频道列表",
+        "NO_CHANNELS_IN_CATEGORY": "此分类中没有频道",
+        "ITEM": "项",
+        "ITEMS": "项",
         "NO_EPISODES": "没有可用的剧集",
         "ALL_RADIO": "所有广播"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "由于源播放列表已被移除，此下载项无法在库中打开。",
         "FILE_NOT_FOUND": "此下载文件已不在磁盘上。",
         "FILE_ACTION_ERROR": "无法完成此文件操作。",
+        "ACTION_FAILED": "操作失败",
+        "PAUSE": "暂停",
+        "RESUME": "继续",
         "CANCEL": "取消",
         "RETRY": "重试",
         "REMOVE": "移除",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "下载中",
             "COMPLETED": "已完成",
             "FAILED": "失败",
-            "CANCELED": "已取消"
+            "CANCELED": "已取消",
+            "PAUSED": "已暂停"
         }
     },
     "REMOTE_CONTROL": {

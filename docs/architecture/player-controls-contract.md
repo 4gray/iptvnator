@@ -225,8 +225,28 @@ It owns only transient presentation behavior:
 - `ControlsVolume` — persisted/optimistic volume state reconciled from
   controller state;
 - `ControlsShortcuts` — document keyboard routing;
-- `ControlsSurface` — pointer/click/double-click surface interactions; and
+- `ControlsSurface` — pointer/click/double-click surface interactions;
+- `ControlsTimeline` — scrub state and timeline projections; and
 - `controls-view-model.ts` — derived display state.
+
+### Fullscreen media title
+
+The component accepts an optional `mediaTitle` input
+(`PlayerMediaTitle { primary, secondary? }`) with display-ready strings — the
+movie title, channel name, or series name, plus an optional second line such
+as the `S01E03` episode label. The overlay renders at the top of the player
+only in fullscreen while the controls are revealed, follows the same
+auto-hide transition as the bottom bar, and is pointer-transparent. Outside
+fullscreen the surrounding page chrome already names the content, so the
+overlay stays hidden.
+
+Hosts supply the value: `WebPlayerViewComponent` derives a single-line title
+from the resolved playback (skipping raw stream-URL fallbacks) unless its own
+`mediaTitle` input was set, and `PortalInlinePlayerComponent` builds the
+two-line series form from its `seriesTitle` input plus the episode metadata
+label. The Xtream and Stalker series detail views pass the series name via
+`seriesTitle`; movie and live hosts need no extra wiring because
+`playback.title` already names the content.
 
 ### Keyboard ownership
 
@@ -506,8 +526,9 @@ back to the command's stale baseline.
 
 The native MPV surface paints outside Chromium's DOM stacking model. It keeps
 the compositor-safe fixed controls dock below the viewport. Modal overlays hide
-the native surface with `HIDDEN_BOUNDS`, and control popovers reserve a bottom
-cutout so their DOM region remains interactive.
+the native surface with `HIDDEN_BOUNDS`; control menus render as horizontal
+panels inside the fixed-height dock strip, so they stay interactive without
+any bounds change.
 
 The transparent BrowserWindow / `NSWindowBelow` tunnel-and-backdrop approach is
 not the shipped architecture. The shared-controls integration does not add
@@ -634,6 +655,7 @@ The guarded ArtPlayer integration lives in:
 
 ```text
 libs/ui/playback/src/lib/art-player/
+├── art-player-audio-tracks.ts
 ├── art-player-setup.ts
 ├── art-player-source-session.ts
 ├── art-player-video-session.ts

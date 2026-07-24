@@ -35,6 +35,30 @@ const person: TmdbPersonDetails = {
             { id: 42, title: 'No media type' },
             { id: 43, media_type: 'movie', title: '   ' },
         ],
+        crew: [
+            {
+                id: 16869,
+                media_type: 'movie',
+                title: 'Legends of the Fall',
+                release_date: '1994-12-16',
+                job: 'Producer',
+            },
+            {
+                id: 1422,
+                media_type: 'movie',
+                title: 'The Departed',
+                release_date: '2006-10-05',
+                job: 'Director',
+            },
+            {
+                // Directed a title he also starred in — acting credit wins
+                id: 550,
+                media_type: 'movie',
+                title: 'Fight Club',
+                release_date: '1999-10-15',
+                job: 'Director',
+            },
+        ],
     },
 };
 
@@ -57,19 +81,47 @@ describe('mapPersonFilmography', () => {
         const credits = mapPersonFilmography(person);
 
         expect(credits.map((credit) => credit.tmdbId)).toEqual([
-            550, 1104, 999,
+            1422, 550, 1104, 999,
         ]);
-        expect(credits[0]).toEqual({
+        expect(credits[1]).toEqual({
             tmdbId: 550,
             mediaType: 'movie',
             title: 'Fight Club',
             year: 1999,
             posterUrl: 'https://image.tmdb.org/t/p/w500/fc.jpg',
             character: 'Tyler Durden',
+            crewJob: null,
         });
-        expect(credits[1].mediaType).toBe('tv');
+        expect(credits[2].mediaType).toBe('tv');
         // Undated entries sort last
-        expect(credits[2].year).toBeNull();
+        expect(credits[3].year).toBeNull();
+    });
+
+    it('includes directing credits from the crew, acting wins the dedup', () => {
+        const credits = mapPersonFilmography(person);
+
+        // Directed-only title carries the role separately from character,
+        // so the UI can render it through a translated label
+        const departed = credits.find((credit) => credit.tmdbId === 1422);
+        expect(departed).toEqual({
+            tmdbId: 1422,
+            mediaType: 'movie',
+            title: 'The Departed',
+            year: 2006,
+            posterUrl: null,
+            character: null,
+            crewJob: 'Director',
+        });
+
+        // Non-director crew jobs (Producer) are not part of the filmography
+        expect(
+            credits.find((credit) => credit.tmdbId === 16869)
+        ).toBeUndefined();
+
+        // Fight Club was acted AND directed — the acting credit wins
+        const fightClub = credits.find((credit) => credit.tmdbId === 550);
+        expect(fightClub?.character).toBe('Tyler Durden');
+        expect(fightClub?.crewJob).toBeNull();
     });
 
     it('handles a person without credits', () => {

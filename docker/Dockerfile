@@ -15,6 +15,11 @@ RUN corepack enable && pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
 
+# CI passes the git commit so Settings > About shows "<version> (<sha>)";
+# the inject script is a no-op when BUILD_COMMIT is empty (local builds).
+ARG BUILD_COMMIT=""
+RUN node tools/build/inject-build-commit.mjs
+
 RUN pnpm nx build web --configuration=pwa
 RUN pnpm nx build web-backend
 

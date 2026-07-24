@@ -29,52 +29,56 @@ Stalker support covers:
 
 ## Routing Structure
 
-Primary route tree lives in `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`.
+Primary route tree lives in
+`libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`.
 
-- `/stalker/:id/vod`
-- `/stalker/:id/series`
+- `/stalker/:id/vod` (plus `vod/:categoryId` child)
+- `/stalker/:id/series` (plus `series/:categoryId` child)
 - `/stalker/:id/itv`
 - `/stalker/:id/radio`
 - `/stalker/:id/favorites`
 - `/stalker/:id/recent`
 - `/stalker/:id/search`
-- `/stalker/:id/downloads` (shared downloads module from Xtream UI)
+- `/stalker/:id/actor/:personId`
+- `/stalker/:id/downloads` (shared `DownloadsComponent` from `@iptvnator/portal/downloads/feature`)
 
 ## Runtime Architecture
 
 1. Angular Stalker screens call methods/resources in `StalkerStore`.
 2. `StalkerStore` builds request params based on selected content type and current view state.
 3. Requests go through `DataService.sendIpcEvent(STALKER_REQUEST, ...)` or `StalkerSessionService` (full portal auth).
-4. Electron main process handles `STALKER_REQUEST` in `/Users/4gray/Code/iptvnator/apps/electron-backend/src/app/events/stalker.events.ts`.
-5. Axios calls Stalker `load.php` API with required headers/cookies and returns normalized payloads to renderer.
+4. Electron main process handles `STALKER_REQUEST` in
+   `apps/electron-backend/src/app/events/stalker.events.ts`.
+5. Axios calls Stalker `load.php` API with required headers/cookies and returns the raw `response.data` to the renderer; normalization happens in the store feature slices.
 
 ## Main UI Components
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-main-container.component.ts`
-    - Category + content layout for `vod` and `series`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
+- `CategoryContentViewComponent` from `@iptvnator/portal/catalog/feature` (`libs/portal/catalog/feature`)
+    - Shared category + content layout used by the `vod` and `series` routes (wired in `stalker-feature.routes.ts` via `loadCategoryContentViewComponent`)
+- `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
     - ITV live playback, radio playback, channel/station navigation, EPG panel integration
-- `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
+- `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
     - Shared inline audio player used by M3U radio channels and Stalker radio stations
-- `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/stalker-series-view/stalker-series-view.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
     - Season/episode UI for all Stalker series modes
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-collection-route.component.ts`
+    - Favorites and recently-viewed collection views (`mode = 'favorites' | 'recent'` route data), rendering `stalker-collection-detail.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 
 ## Store and Data Flow
 
 Stalker store is now feature-composed:
 
-- Facade: `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stalker.store.ts`
-- Feature slices: `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stores/features/*`
-- Shared helpers: `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/*`
+- Facade: `libs/portal/stalker/data-access/src/lib/stalker.store.ts`
+- Feature slices: `libs/portal/stalker/data-access/src/lib/stores/features/*`
+- Shared helpers: `libs/portal/stalker/data-access/src/lib/*`
 
 Important store responsibilities:
 
 - Selected content/category/item state
 - Category and paginated content resources
-- ITV channel list + pagination
+- ITV channel list + pagination (full-list session cache when the portal
+  supports it, legacy 14-per-page lazy loading otherwise)
 - Radio category/station list + pagination
 - Regular series seasons resource
 - VOD-series (`is_series=1`) seasons + episodes resources
@@ -140,6 +144,9 @@ The Stalker live route and radio route intentionally share
 - `itv` uses `type=itv&action=get_ordered_list`, stores results in
   `itvChannels`, resolves playback through `resolveItvPlayback(...)`, and keeps
   the EPG panel visible.
+- ITV additionally loads the COMPLETE channel list once per portal session (see
+  "Full ITV channel list cache" below), so category views and search are not
+  limited to the lazily loaded 14-item pages.
 - `radio` uses `type=radio&action=get_ordered_list`, stores results in
   `radioChannels`, resolves playback through `resolveRadioPlayback(...)`, and
   renders `AudioPlayerComponent` instead of a video player.
@@ -154,6 +161,107 @@ The Stalker live route and radio route intentionally share
 - Some Stalker portals do not expose radio categories. Radio category loading
   falls back to a synthetic `PORTALS.ALL_RADIO` category with
   `category_id: '*'` so the station list can still be loaded.
+
+## Full ITV Channel List Cache
+
+Stalker portals paginate `get_ordered_list` with a server-side page size
+(typically 14 items), so lazy loading alone can never power a complete local
+search — this used to limit ITV search to whatever pages the user had scrolled
+through. `StalkerItvCacheService`
+(`libs/portal/stalker/data-access/src/lib/stalker-itv-cache.service.ts`) fixes
+this with a per-portal, in-memory session cache of the complete live channel
+list:
+
+- Load strategy: first try the Ministra `get_all_channels` action (`type=itv`,
+  returns ALL channels in one response — the same call STB clients use); if
+  the portal does not implement it, crawl `get_ordered_list` pages
+  (`category=*`, `genre=*`, concurrency 4, one retry per page, early stop on
+  an empty page **or a page that adds no new channel ids** — some portals
+  ignore `p` and repeat — 30k-channel hard cap) with progress reporting. The
+  assembled list is de-duplicated by channel id (both strategies) so it never
+  collides with the template's `track item.id`. The loading strategy itself is
+  a stateless helper (`stalker-itv-channel-loader.ts`); the service owns state.
+- Outcomes: a well-formed but unusable response marks the portal
+  `unsupported` for the session (legacy paged flow stays in charge); a
+  transient failure (network, or a page that failed both attempts) is retried
+  later but throttled by a per-portal cooldown (`ERROR_COOLDOWN_MS`, 30s) so a
+  deterministically-failing page can't trigger an unbounded re-crawl loop.
+- Per-portal reactivity: the "cache ready / refreshed" trigger is a
+  **per-portal** version signal (`versionFor(playlist)`), not one global
+  counter, and the content resource reads it **only for ITV**. This is
+  load-bearing: a global counter re-fired the resource for whatever was on
+  screen (radio, another portal), and the legacy paged branch appends at
+  `pageIndex > 1`, so an unrelated load completing duplicated the visible page
+  (colliding `track item.id` → NG0955). The `isCurrentRequest` guard is scoped
+  the same way.
+- Integration: the `getContentResource` loader in
+  `with-stalker-content.feature.ts` serves ITV categories from the cache when
+  ready (local `tv_genre_id` filtering via `filterItvChannelsByGenre`,
+  `hasMoreChannels=false`), and otherwise runs the legacy paged fetch while
+  `ensureLoaded()` fills the cache in the background; the resource re-fires
+  via the `cacheVersion` signal once the full list arrives.
+- UI: `StalkerLiveStreamLayoutComponent` windows the rendered list
+  (100-item chunks extended by the existing scroll handler) so multi-thousand
+  channel lists do not blow up the DOM; the header count and search cover the
+  whole category; a refresh button re-loads the list in place; a progress line
+  shows crawl status.
+- Loading state contract (important — regressions here strand the sidebar on a
+  skeleton): in full-list mode the content loader serves the filtered list
+  **synchronously** from the cache. The category-change reset effect therefore
+  must NOT `setItvChannels([])` while `itvFullListActive()` is true — it runs
+  after the store resource and would clobber the freshly served list, leaving
+  every category after the first stuck on a skeleton. The initial-loading
+  skeleton (`isInitialChannelsLoading`) must key off an actual in-flight load
+  (`itvFullListLoading()` or `isPaginatedContentLoading()`), not merely an empty
+  channel list; an empty result once loading has settled is an empty category
+  and renders `PORTALS.NO_CHANNELS_IN_CATEGORY`, not a spinner.
+- Search: with the cache active, the header search spans the ENTIRE portal
+  (all genres) — filtering the store's `itvFullChannelList`, not just the
+  selected category — so searching "CNN" while a "Sports" genre is selected
+  still finds it; clearing the term returns to the selected category. The
+  workspace shell drops the `degraded-loaded-only` / "loaded only" status for
+  Stalker ITV once `itvFullListActive`; radio (no full-list cache) always keeps
+  the loaded-only hint (`workspace-shell-search.service.ts`).
+- Windowed selection: remote channel-up/down and numeric select operate over
+  the full filtered category, so the render window (`renderLimit`) grows to
+  include a selection beyond it (`ensureChannelWithinRenderWindow`) instead of
+  drifting off-screen.
+- Category count badges: the context panel shows per-genre channel counts on
+  Stalker **Live TV** categories (like Xtream/M3U), fed by the store computed
+  `itvCategoryItemCounts` (the full list grouped by numeric `tv_genre_id`; the
+  `'*'` "All" row's total is stored under the `NaN` key that
+  `Number('*')` produces). Badges are ITV-only — VOD/series/radio still page
+  lazily so their per-category totals are unknown — and show a loading shimmer
+  while the full list is still loading (`workspace-context-panel` →
+  `stalkerShowCounts` / `stalkerCountDisplayMode`).
+- Censored (adult) genres: portals typically EXCLUDE these channels from
+  `get_all_channels` (sometimes without even flagging the genre `censored` in
+  `get_genres`), so the cache legitimately has zero channels for them. The
+  content loader therefore serves a genre from the cache only when the
+  genre-filtered result is non-empty; otherwise it falls back to the legacy
+  paged `get_ordered_list` fetch, which still returns those channels. The
+  store computed `itvSelectedCategoryFromCache` is the single source of truth
+  for this mode — the live layout keys windowing/infinite-scroll/`loadMore`
+  and the category-change reset off it, NOT off `itvFullListActive`. Count
+  badges: genres with no cached channels get NO map entry and the category
+  view omits their badge (`omitMissingCounts`) instead of showing a
+  misleading "0". The mock server ships a censored `For adults` ITV category
+  (id 1099) to exercise this path.
+- Eager preload + all-channels view (Xtream parity): entering the Live TV
+  section immediately starts the full-list load (`preloadItvChannels()`, fired
+  from an effect in `StalkerLiveStreamLayoutComponent` — not from the first
+  category click), so the count badges and the all-channels view are available
+  right away. Before a category is selected, the main area shows
+  `StalkerItvAllItemsComponent` — a paginated card grid of every channel in
+  the portal (client-side pagination only; it must never touch the store's
+  legacy `page` state, which would re-fire portal requests). Clicking a card
+  runs the same `playChannel` flow as the sidebar. Portals without a usable
+  full list keep the "select a category" placeholder.
+- Scope: ITV only. VOD/series keep server-side search; radio keeps legacy
+  paging (station lists are small).
+- The stalker-mock-server implements `get_all_channels` and provides the
+  `legacy-pagination` scenario MAC (`00:1A:79:00:00:06`) to exercise the
+  crawl fallback.
 
 ## VOD/Series Modes
 
@@ -185,6 +293,9 @@ Stalker has multiple real-world data shapes. The current implementation supports
 - For unloaded VOD-series seasons, the CTA target label is derived from season
   metadata and rendered as `SxxE01` until episode details are loaded.
 - Uses unique generated tracking IDs for episode playback position compatibility.
+- Quick-start actions preserve both their translation key and interpolation
+  parameters when adapted for the Stalker CTA. Dropping `labelParams` exposes
+  the raw `{{episode}}` placeholder.
 
 Series inline playback behavior is shared across all three modes:
 
@@ -194,11 +305,30 @@ Series inline playback behavior is shared across all three modes:
 - Inline series autoplay is enabled by default. On player EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.
 - Autoplay and Next stop at the last episode of the current season. They do not jump to the next season and do not lazy-load an unloaded `is_series=1` season. Quick start remains the only flow that may load another VOD-series season before playback.
 - Previous is disabled on the first episode of the current season and otherwise switches directly to the previous episode.
+- Before either inline or external playback starts, the resolved content info
+  includes the parent `seriesXtreamId` and the mapped `seasonNumber` /
+  `episodeNumber`. Future playback-position rows therefore carry enough
+  metadata for workspace surfaces to render an episode badge. Existing rows
+  without those fields are intentionally not migrated and remain badge-less
+  until the episode is played again.
+- Ministra payloads may omit `season_number`. Episode mapping and lazy
+  quick-start labels share the same naturally ordered season fallback so later
+  seasons are not persisted as season 1.
+
+The VOD-series contract is cross-surface:
+
+- Favorites and recently viewed records preserve the raw `is_series` flag and
+  VOD origin so reopening still uses the lazy Ministra resources.
+- `extractStalkerItemType()` normalizes those activity records to dashboard
+  type `series`.
+- The dashboard resolves episode progress by the parent `seriesXtreamId` and
+  renders the saved season/episode metadata. It does not infer episode numbers
+  from provider payloads.
 
 Core decision logic and normalization are centralized in:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stalker-vod.utils.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/models/*.ts`
+- `libs/portal/stalker/data-access/src/lib/stalker-vod.utils.ts`
+- `libs/portal/stalker/data-access/src/lib/models/*.ts`
 
 ## Favorites and Recently Viewed
 
@@ -213,10 +343,10 @@ Current implementation is shared via Stalker-specific helpers:
 
 Where this is used:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-collection-detail.component.ts` (favorites + recently viewed)
+- `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
 
 Navigation rule to preserve:
 
@@ -264,7 +394,7 @@ Import rule:
 
 Stalker live remote control is implemented in:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
 
 Supported today:
 
@@ -279,7 +409,7 @@ See full backend and web-remote flow in [Remote Control Architecture](./remote-c
 Stalker ITV now splits EPG usage:
 
 - active channel panel: bulk `get_epg_info` cached once per playlist and rendered
-  through shared `app-epg-list`
+  through the shared EPG panel (`app-epg-timeline`, or `app-epg-list-view` in list mode)
 - channel row preview: no pre-playback network requests; previews are derived
   from cached bulk EPG only after the first active-channel fetch succeeds
 - active panel fallback: `get_short_epg` when bulk EPG is missing or unsupported
@@ -299,9 +429,12 @@ This reduces duplicate UI logic across portal types and keeps compatibility beha
 
 ## Regression Coverage
 
-Focused regression tests for Stalker VOD mode branching live in:
+Focused regression tests for Stalker VOD mode branching and the cross-surface
+series contract live in:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stalker-vod.utils.spec.ts`
+- `libs/portal/stalker/data-access/src/lib/stalker-vod.utils.spec.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.spec.ts`
+- `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.spec.ts`
 
 Covered scenarios include:
 
@@ -310,3 +443,7 @@ Covered scenarios include:
 - VOD-backed series favorites keep VOD-series loading semantics when opened from
   favorites/global favorites
 - Favorite toggle helper path invokes the expected add/remove flow
+- Quick-start episode labels interpolate their episode number
+- Inline and external episode handoffs carry resolved season/episode metadata
+- Dashboard activity classifies `is_series` VOD as series and resolves its
+  saved episode position

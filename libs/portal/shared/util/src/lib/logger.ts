@@ -3,6 +3,7 @@ import {
     PortalDebugProvider,
     PortalDebugTransport,
 } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 
 export interface Logger {
     debug: (...args: unknown[]) => void;
@@ -26,19 +27,31 @@ export function createLogger(scope: string): Logger {
     return {
         debug: (...args: unknown[]) => {
             if (debugEnabled) {
-                console.debug(prefix, ...args);
+                console.debug(
+                    prefix,
+                    ...args.map((arg) => redactSensitiveData(arg))
+                );
             }
         },
         info: (...args: unknown[]) => {
             if (debugEnabled) {
-                console.info(prefix, ...args);
+                console.info(
+                    prefix,
+                    ...args.map((arg) => redactSensitiveData(arg))
+                );
             }
         },
         warn: (...args: unknown[]) => {
-            console.warn(prefix, ...args);
+            console.warn(
+                prefix,
+                ...args.map((arg) => redactSensitiveData(arg))
+            );
         },
         error: (...args: unknown[]) => {
-            console.error(prefix, ...args);
+            console.error(
+                prefix,
+                ...args.map((arg) => redactSensitiveData(arg))
+            );
         },
     };
 }
@@ -78,7 +91,7 @@ function logPortalDebugSection(
     method: 'log' | 'error' = 'log'
 ): void {
     if (typeof console[method] === 'function') {
-        console[method](label, value);
+        console[method](label, redactSensitiveData(value));
     }
 }
 

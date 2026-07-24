@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Seleziona lettore video predefinito",
         "WEB_PLAYER_SHARED_CONTROLS": "Controlli unificati per i player web (sperimentale)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa i controlli condivisi di IPTVnator in HTML5, Video.js e ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Riempimento ambientale dello sfondo",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Riempie lo spazio intorno al lettore con un poster sfocato e scurito invece delle semplici barre nere.",
         "STREAM_FORMAT_DESCRIPTION": "Seleziona il formato di streaming predefinito (xtream)",
         "LANGUAGE_DESCRIPTION": "Seleziona la lingua dell'applicazione",
         "THEME_DESCRIPTION": "Seleziona il tema visivo dell'applicazione",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Indietro",
             "RETRY": "Riprova",
             "STALLED": "L'avvio di questo stream sta richiedendo più tempo del previsto.",
             "PLAYBACK_FAILED": "Riproduzione con MPV integrato non riuscita.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "Rimuovi dai preferiti",
         "ADD_FAVORITE": "Aggiungi ai preferiti",
         "SHOW_DETAILS": "Mostra dettagli canale",
+        "MAP_EPG": "Associa canale EPG",
         "FAVORITES_UPDATED": "Aggiornamento preferiti completato!",
         "SELECT_CHANNEL_PLAYBACK": "Seleziona un canale per avviare la riproduzione",
         "SORT_BY": "Ordina per",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "mostra ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Associa canale EPG",
+        "SUBTITLE": "Seleziona manualmente un canale EPG per \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Cerca canali EPG...",
+        "CURRENT_MAPPING": "Associazione attuale",
+        "NO_MAPPING": "Nessuna associazione EPG impostata",
+        "SAVE": "Salva associazione",
+        "REMOVE": "Rimuovi associazione",
+        "CLOSE": "Chiudi",
+        "NO_RESULTS": "Nessun canale EPG trovato",
+        "SEARCH_HINT": "Digita almeno {{min}} caratteri per cercare",
+        "SAVED": "Associazione EPG salvata",
+        "REMOVED": "Associazione EPG rimossa",
+        "SAVE_FAILED": "Impossibile aggiornare l'associazione EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "Attori",
         "DIRECTOR": "Regista",
         "SIMILAR": "Simili",
+        "CREW_JOB_DIRECTOR": "Regista",
+        "CREW_JOB_CREATOR": "Ideatore",
         "ACTOR_FILMOGRAPHY": "Filmografia",
         "ACTOR_FILTER_ALL": "Tutti",
         "ACTOR_SCOPE_THIS_PORTAL": "Questo portale",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "Questo contenuto non è disponibile su questo server",
         "PLAYBACK_ERROR": "Impossibile ottenere l'URL di riproduzione",
         "LOADING_SEASONS": "Caricamento stagioni...",
+        "LOADING_ALL_CHANNELS": "Caricamento dell'elenco completo dei canali…",
+        "REFRESH_CHANNEL_LIST": "Aggiorna elenco canali",
+        "NO_CHANNELS_IN_CATEGORY": "Nessun canale in questa categoria",
+        "ITEM": "elemento",
+        "ITEMS": "elementi",
         "NO_EPISODES": "Nessun episodio disponibile",
         "ALL_RADIO": "Tutte le radio"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Questo download non può più essere aperto nella libreria perché la playlist di origine è stata rimossa.",
         "FILE_NOT_FOUND": "Questo file scaricato non è più disponibile su disco.",
         "FILE_ACTION_ERROR": "Impossibile completare l'azione sul file.",
+        "ACTION_FAILED": "Azione non riuscita",
+        "PAUSE": "Pausa",
+        "RESUME": "Riprendi",
         "CANCEL": "Annulla",
         "RETRY": "Riprova",
         "REMOVE": "Rimuovi",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "In download",
             "COMPLETED": "Completato",
             "FAILED": "Non riuscito",
-            "CANCELED": "Annullato"
+            "CANCELED": "Annullato",
+            "PAUSED": "In pausa"
         }
     },
     "REMOTE_CONTROL": {

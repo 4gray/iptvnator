@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
         "WEB_PLAYER_SHARED_CONTROLS": "Uniforme bediening voor webspelers (experimenteel)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Gebruik de gedeelde IPTVnator-bediening in HTML5, Video.js en ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Ambient achtergrond",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Vult de ruimte rond de speler met een vervaagde, gedimde posterafbeelding in plaats van zwarte balken.",
         "STREAM_FORMAT_DESCRIPTION": "Selecteer het standaard streamformaat (xtream)",
         "LANGUAGE_DESCRIPTION": "Selecteer de taal van de applicatie",
         "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Terug",
             "RETRY": "Opnieuw proberen",
             "STALLED": "Deze stream doet er langer over dan verwacht om te starten.",
             "PLAYBACK_FAILED": "Afspelen via Embedded MPV is mislukt.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "Verwijder uit favorieten",
         "ADD_FAVORITE": "Toevoegen aan favorieten",
         "SHOW_DETAILS": "Toon kanaaldetails",
+        "MAP_EPG": "EPG-kanaal koppelen",
         "FAVORITES_UPDATED": "Favorieten zijn bijgewerkt!",
         "SELECT_CHANNEL_PLAYBACK": "Selecteer een kanaal om af te spelen",
         "SORT_BY": "Sorteren op",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "toon ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG-kanaal koppelen",
+        "SUBTITLE": "Selecteer handmatig een EPG-kanaal voor \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "EPG-kanalen zoeken...",
+        "CURRENT_MAPPING": "Huidige koppeling",
+        "NO_MAPPING": "Geen EPG-koppeling ingesteld",
+        "SAVE": "Koppeling opslaan",
+        "REMOVE": "Koppeling verwijderen",
+        "CLOSE": "Sluiten",
+        "NO_RESULTS": "Geen EPG-kanalen gevonden",
+        "SEARCH_HINT": "Typ minimaal {{min}} tekens om te zoeken",
+        "SAVED": "EPG-koppeling opgeslagen",
+        "REMOVED": "EPG-koppeling verwijderd",
+        "SAVE_FAILED": "Kan de EPG-koppeling niet bijwerken"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "Acteurs",
         "DIRECTOR": "Regisseur",
         "SIMILAR": "Vergelijkbaar",
+        "CREW_JOB_DIRECTOR": "Regisseur",
+        "CREW_JOB_CREATOR": "Bedenker",
         "ACTOR_FILMOGRAPHY": "Filmografie",
         "ACTOR_FILTER_ALL": "Alles",
         "ACTOR_SCOPE_THIS_PORTAL": "Dit portaal",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "Deze inhoud is niet beschikbaar op deze server",
         "PLAYBACK_ERROR": "Ophalen van afspeel-URL mislukt",
         "LOADING_SEASONS": "Seizoenen laden...",
+        "LOADING_ALL_CHANNELS": "Volledige zenderlijst wordt geladen…",
+        "REFRESH_CHANNEL_LIST": "Zenderlijst vernieuwen",
+        "NO_CHANNELS_IN_CATEGORY": "Geen zenders in deze categorie",
+        "ITEM": "item",
+        "ITEMS": "items",
         "NO_EPISODES": "Geen afleveringen beschikbaar",
         "ALL_RADIO": "Alle radio"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Deze download kan niet meer worden geopend in de bibliotheek omdat de bronafspeellijst is verwijderd.",
         "FILE_NOT_FOUND": "Dit gedownloade bestand is niet meer beschikbaar op de schijf.",
         "FILE_ACTION_ERROR": "De bestandsactie kon niet worden voltooid.",
+        "ACTION_FAILED": "Actie mislukt",
+        "PAUSE": "Pauzeren",
+        "RESUME": "Hervatten",
         "CANCEL": "Annuleren",
         "RETRY": "Opnieuw proberen",
         "REMOVE": "Verwijderen",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "Downloaden",
             "COMPLETED": "Voltooid",
             "FAILED": "Mislukt",
-            "CANCELED": "Geannuleerd"
+            "CANCELED": "Geannuleerd",
+            "PAUSED": "Gepauzeerd"
         }
     },
     "REMOTE_CONTROL": {

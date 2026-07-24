@@ -30,6 +30,8 @@ const CONTENT_TITLE_FTS_MIGRATION_KEY =
     'migration:content-title-fts-trigram:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY =
     'migration:epg-program-source-url-backfill:v1';
+const TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY =
+    'migration:tmdb-search-lookup-v2-cache-cleanup:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_BATCH_SIZE = 50_000;
 
 function readTraceFlag(name: string): boolean {
@@ -83,6 +85,34 @@ const TMDB_METADATA_TABLE_SQL = `CREATE TABLE IF NOT EXISTS tmdb_metadata (
       fetched_at TEXT DEFAULT (datetime('now'))
   )`;
 const TMDB_METADATA_INDEX_SQL = `CREATE UNIQUE INDEX IF NOT EXISTS tmdb_metadata_lookup_unique ON tmdb_metadata(media_type, lookup_key, language)`;
+const DOWNLOADS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS downloads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      playlist_id TEXT NOT NULL,
+      xtream_id INTEGER NOT NULL,
+      content_type TEXT NOT NULL CHECK (content_type IN ('vod', 'episode')),
+      series_xtream_id INTEGER,
+      season_number INTEGER,
+      episode_number INTEGER,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      file_name TEXT,
+      file_path TEXT,
+      poster_url TEXT,
+      request_headers TEXT,
+      resume_validator TEXT,
+      status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled')),
+      bytes_downloaded INTEGER DEFAULT 0,
+      total_bytes INTEGER,
+      error_message TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`;
+const DOWNLOADS_INDEX_STATEMENTS = [
+    `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
+    `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
+    `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
+];
 
 const CREATE_TABLE_STATEMENTS = [
     `CREATE TABLE IF NOT EXISTS playlists (
@@ -169,6 +199,7 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS idx_categories_playlist ON categories(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_title ON content(title)`,
     `CREATE INDEX IF NOT EXISTS idx_content_xtream ON content(xtream_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_content_epg_channel ON content(epg_channel_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_type_added ON content(type, added)`,
     `CREATE INDEX IF NOT EXISTS idx_categories_type ON categories(type)`,
     // Partial covering index for visible categories — supports the dashboard's
@@ -261,6 +292,15 @@ const CREATE_TABLE_STATEMENTS = [
       INSERT INTO epg_programs_fts(rowid, title, description, category)
       VALUES (new.id, new.title, new.description, new.category);
   END`,
+    // EPG channel mappings (manual user overrides)
+    `CREATE TABLE IF NOT EXISTS epg_channel_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_key TEXT NOT NULL UNIQUE,
+      epg_channel_id TEXT NOT NULL,
+      playlist_id TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+    `CREATE INDEX IF NOT EXISTS idx_epg_channel_mappings_playlist ON epg_channel_mappings(playlist_id)`,
     // Playback Positions table
     `CREATE TABLE IF NOT EXISTS playback_positions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -281,30 +321,8 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS playback_positions_updated_idx ON playback_positions(updated_at)`,
     `CREATE INDEX IF NOT EXISTS playback_positions_playlist_updated_idx ON playback_positions(playlist_id, updated_at DESC)`,
     // Downloads table
-    `CREATE TABLE IF NOT EXISTS downloads (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      playlist_id TEXT NOT NULL,
-      xtream_id INTEGER NOT NULL,
-      content_type TEXT NOT NULL CHECK (content_type IN ('vod', 'episode')),
-      series_xtream_id INTEGER,
-      season_number INTEGER,
-      episode_number INTEGER,
-      title TEXT NOT NULL,
-      url TEXT NOT NULL,
-      file_name TEXT,
-      file_path TEXT,
-      poster_url TEXT,
-      status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'completed', 'failed', 'canceled')),
-      bytes_downloaded INTEGER DEFAULT 0,
-      total_bytes INTEGER,
-      error_message TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
-  )`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
-    `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
-    `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
+    DOWNLOADS_TABLE_SQL,
+    ...DOWNLOADS_INDEX_STATEMENTS,
     // TMDB metadata cache (details payloads + search match resolutions)
     TMDB_METADATA_TABLE_SQL,
     TMDB_METADATA_INDEX_SQL,
@@ -342,6 +360,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE content ADD COLUMN backdrop_url TEXT`,
     // v1.7.1: Scope XMLTV programs to their source URL for playlist-local EPG lookup
     `ALTER TABLE epg_programs ADD COLUMN source_url TEXT`,
+    // Pause/resume: entity validator (ETag/Last-Modified) sent as If-Range on resume
+    `ALTER TABLE downloads ADD COLUMN resume_validator TEXT`,
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [
@@ -360,9 +380,11 @@ export const __databaseConnectionTestHooks = {
     createTableStatements: CREATE_TABLE_STATEMENTS,
     columnMigrationStatements: COLUMN_MIGRATION_STATEMENTS,
     indexMigrationStatements: INDEX_MIGRATION_STATEMENTS,
+    ensureDownloadsPauseResumeSchema,
     normalizeXtreamContentAddedEpochs,
     ensureContentTitleFts,
     backfillEpgProgramSourceUrls,
+    cleanupLegacyTmdbSearchCache,
     runMigrations,
 } as const;
 
@@ -759,10 +781,163 @@ function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
 }
 
 /**
+ * Search-match cache keys gained a v2 suffix when title normalization changed.
+ * Remove the now-unreachable unversioned rows once rather than leaving negative
+ * resolutions and other legacy search matches in long-lived installations.
+ */
+function cleanupLegacyTmdbSearchCache(sqliteDb: Database.Database): void {
+    try {
+        const migrationState = sqliteDb
+            .prepare(`SELECT value FROM app_state WHERE key = ?`)
+            .get(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY) as
+            | { value?: unknown }
+            | undefined;
+
+        if (migrationState?.value === 'done') {
+            return;
+        }
+
+        const executeCleanup = sqliteDb.transaction(() => {
+            sqliteDb
+                .prepare(
+                    `DELETE FROM tmdb_metadata
+                     WHERE lookup_key LIKE 'title:%|year:%'
+                       AND lookup_key NOT LIKE 'title:%|year:%|v%'`
+                )
+                .run();
+            sqliteDb
+                .prepare(
+                    `INSERT INTO app_state (key, value, updated_at)
+                     VALUES (?, 'done', datetime('now'))
+                     ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = excluded.updated_at`
+                )
+                .run(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY);
+        });
+
+        executeCleanup();
+    } catch (error) {
+        const message =
+            typeof error === 'object' && error !== null && 'message' in error
+                ? String((error as { message?: unknown }).message ?? error)
+                : String(error);
+
+        console.warn(
+            `Legacy TMDB search cache cleanup failed (continuing): ${message}`
+        );
+    }
+}
+
+/**
+ * Existing downloads tables had a status CHECK without 'paused'. SQLite cannot
+ * alter CHECK constraints in place, so rebuild only when the table SQL still
+ * reflects the old contract or lacks request_headers.
+ */
+function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
+    try {
+        const row = sqliteDb
+            .prepare(
+                `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'downloads'`
+            )
+            .get() as { sql?: string } | undefined;
+        if (!row?.sql) {
+            return;
+        }
+
+        const hasPausedStatus = row.sql.includes(`'paused'`);
+        const hasRequestHeaders = row.sql.includes('request_headers');
+        if (hasPausedStatus && hasRequestHeaders) {
+            return;
+        }
+
+        const legacyHeadersSelect = hasRequestHeaders
+            ? 'request_headers'
+            : 'NULL AS request_headers';
+        const rebuild = sqliteDb.transaction(() => {
+            for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
+                const match = statement.match(
+                    /^CREATE\s+(?:UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS\s+([^\s]+)\s+/i
+                );
+                if (match?.[1]) {
+                    sqliteDb.prepare(`DROP INDEX IF EXISTS ${match[1]}`).run();
+                }
+            }
+
+            sqliteDb
+                .prepare(
+                    `ALTER TABLE downloads RENAME TO downloads_pause_resume_legacy`
+                )
+                .run();
+            sqliteDb.prepare(DOWNLOADS_TABLE_SQL).run();
+            sqliteDb
+                .prepare(
+                    `INSERT INTO downloads (
+                        id,
+                        playlist_id,
+                        xtream_id,
+                        content_type,
+                        series_xtream_id,
+                        season_number,
+                        episode_number,
+                        title,
+                        url,
+                        file_name,
+                        file_path,
+                        poster_url,
+                        request_headers,
+                        status,
+                        bytes_downloaded,
+                        total_bytes,
+                        error_message,
+                        created_at,
+                        updated_at
+                    )
+                    SELECT
+                        id,
+                        playlist_id,
+                        xtream_id,
+                        content_type,
+                        series_xtream_id,
+                        season_number,
+                        episode_number,
+                        title,
+                        url,
+                        file_name,
+                        file_path,
+                        poster_url,
+                        ${legacyHeadersSelect},
+                        status,
+                        bytes_downloaded,
+                        total_bytes,
+                        error_message,
+                        created_at,
+                        updated_at
+                    FROM downloads_pause_resume_legacy`
+                )
+                .run();
+            sqliteDb
+                .prepare(`DROP TABLE downloads_pause_resume_legacy`)
+                .run();
+            for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
+                sqliteDb.prepare(statement).run();
+            }
+        });
+
+        rebuild();
+        console.log('[DB] Rebuilt downloads table with pause/resume schema');
+    } catch (error) {
+        console.warn('[DB] downloads pause/resume migration failed:', error);
+    }
+}
+
+/**
  * Run migrations that may fail if already applied
  */
 function runMigrations(sqliteDb: Database.Database): void {
     widenTmdbMetadataMediaTypeCheck(sqliteDb);
+    cleanupLegacyTmdbSearchCache(sqliteDb);
+    ensureDownloadsPauseResumeSchema(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
     ensureContentTitleFts(sqliteDb);
     deduplicateXtreamCache(sqliteDb);

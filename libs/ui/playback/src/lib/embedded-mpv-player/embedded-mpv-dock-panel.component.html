@@ -1,0 +1,65 @@
+<div class="embedded-mpv-dock-panel" (keydown)="onPanelKeydown($event)">
+    <button
+        mat-icon-button
+        type="button"
+        class="embedded-mpv-dock-panel__back"
+        data-test-id="embedded-mpv-dock-panel-back"
+        (click)="closed.emit()"
+        [attr.aria-label]="backLabel()"
+        [matTooltip]="backLabel()"
+        matTooltipPosition="above"
+    >
+        <mat-icon>arrow_back</mat-icon>
+    </button>
+
+    <span class="embedded-mpv-dock-panel__title">{{ panel().title }}</span>
+
+    <div class="embedded-mpv-dock-panel__ribbon-shell">
+        <div
+            #ribbon
+            class="embedded-mpv-dock-panel__ribbon"
+            role="menu"
+            aria-orientation="horizontal"
+            [attr.aria-label]="panel().title"
+            (scroll)="onRibbonScroll()"
+            (wheel)="onRibbonWheel($event)"
+        >
+            @for (
+                chip of panel().chips;
+                track chip.id;
+                let index = $index
+            ) {
+                <button
+                    #chip
+                    type="button"
+                    role="menuitemradio"
+                    class="embedded-mpv-dock-panel__chip"
+                    [class.embedded-mpv-dock-panel__chip--selected]="
+                        chip.selected
+                    "
+                    [attr.aria-checked]="chip.selected"
+                    [attr.tabindex]="chipTabIndex(chip.selected, index)"
+                    [title]="chip.label"
+                    (click)="chipSelected.emit(chip.id)"
+                >
+                    @if (chip.selected) {
+                        <mat-icon aria-hidden="true">check</mat-icon>
+                    }
+                    <span class="embedded-mpv-dock-panel__chip-label">{{
+                        chip.label
+                    }}</span>
+                </button>
+            }
+        </div>
+        <div
+            class="embedded-mpv-dock-panel__fade embedded-mpv-dock-panel__fade--start"
+            [class.embedded-mpv-dock-panel__fade--visible]="canScrollStart()"
+            aria-hidden="true"
+        ></div>
+        <div
+            class="embedded-mpv-dock-panel__fade embedded-mpv-dock-panel__fade--end"
+            [class.embedded-mpv-dock-panel__fade--visible]="canScrollEnd()"
+            aria-hidden="true"
+        ></div>
+    </div>
+</div>

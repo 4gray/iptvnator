@@ -80,6 +80,7 @@
                 "libs/shared/m3u-utils/src/index.ts"
             ],
             "@iptvnator/shared/testing": ["libs/shared/testing/src/index.ts"],
+            "@iptvnator/shared/logging": ["libs/shared/logging/src/index.ts"],
             "@iptvnator/services": ["libs/services/src/index.ts"],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"

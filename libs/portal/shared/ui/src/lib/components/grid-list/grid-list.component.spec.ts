@@ -59,7 +59,7 @@ describe('GridListComponent', () => {
         fixture = TestBed.createComponent(GridListComponent);
     });
 
-    it('renders live logo cards with stream icons and a live badge', () => {
+    it('renders live logo cards with stream icons', () => {
         fixture.componentRef.setInput('items', [
             {
                 name: 'Live Channel',
@@ -73,15 +73,26 @@ describe('GridListComponent', () => {
 
         const card = fixture.debugElement.query(By.css('mat-card'));
         const image = fixture.debugElement.query(By.css('.stream-icon'));
-        const badge = fixture.debugElement.query(By.css('.type-badge'));
 
         expect(card.nativeElement.classList).toContain('grid-card--logo');
         expect(image.nativeElement.getAttribute('src')).toBe(
             'channel-logo.png'
         );
-        expect(badge.nativeElement.classList).toContain('live');
-        expect(badge.nativeElement.textContent.trim()).toBe('live');
     });
+
+    it.each(['live', 'vod', 'series'] as const)(
+        'does not render a redundant %s type badge in homogeneous grids',
+        (type) => {
+            fixture.componentRef.setInput('items', [
+                { name: 'Catalog item', stream_icon: 'catalog-item.png' },
+            ]);
+            fixture.componentRef.setInput('type', type);
+            fixture.detectChanges();
+            expect(
+                fixture.debugElement.query(By.css('.type-badge'))
+            ).toBeNull();
+        }
+    );
 
     it('renders the live placeholder for logo cards without artwork', () => {
         fixture.componentRef.setInput('items', [

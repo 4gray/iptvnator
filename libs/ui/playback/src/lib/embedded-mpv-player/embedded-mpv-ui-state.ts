@@ -8,8 +8,10 @@ export type EmbeddedMpvMenu =
     | 'aspect';
 
 /**
- * Tracks which menu/popover is currently open and exposes individual signals
- * the template binds to. Only one menu can be open at a time.
+ * Tracks which menu is currently open and exposes individual signals the
+ * template binds to. Only one menu can be open at a time. Menus render as
+ * horizontal panels inside the fixed-height controls strip, so open state
+ * never affects the native MPV view bounds.
  */
 export class EmbeddedMpvMenuState {
     readonly volumeOpen = signal(false);
@@ -21,6 +23,19 @@ export class EmbeddedMpvMenuState {
     readonly anyOpen = computed(
         () =>
             this.volumeOpen() ||
+            this.audioOpen() ||
+            this.subtitleOpen() ||
+            this.speedOpen() ||
+            this.aspectOpen()
+    );
+
+    /**
+     * True while a chip panel morphs the dock row (audio, subtitle, speed,
+     * aspect — not the inline volume slider). While open, arrow keys walk
+     * the chips instead of seeking or changing the volume.
+     */
+    readonly dockPanelOpen = computed(
+        () =>
             this.audioOpen() ||
             this.subtitleOpen() ||
             this.speedOpen() ||

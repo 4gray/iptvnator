@@ -9,6 +9,23 @@
     </div>
 }
 
+@if (fullscreenMediaTitle(); as mediaTitle) {
+    <div
+        class="player-controls__title"
+        [class.player-controls__title--visible]="controlsAreVisible()"
+        data-test-id="player-controls-media-title"
+    >
+        <div class="player-controls__title-primary">
+            {{ mediaTitle.primary }}
+        </div>
+        @if (mediaTitle.secondary) {
+            <div class="player-controls__title-secondary">
+                {{ mediaTitle.secondary }}
+            </div>
+        }
+    </div>
+}
+
 @if (showControls()) {
     <div
         #controlsBar

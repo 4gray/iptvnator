@@ -62,6 +62,12 @@
 ></div>
 
 <mat-menu #channelContextMenu="matMenu">
+    @if (supportsEpgMapping) {
+        <button mat-menu-item (click)="openEpgMapping()">
+            <mat-icon>settings_remote</mat-icon>
+            <span>{{ 'CHANNELS.MAP_EPG' | translate }}</span>
+        </button>
+    }
     <button mat-menu-item (click)="openChannelDetails()">
         <mat-icon>info</mat-icon>
         <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>

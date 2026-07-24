@@ -158,14 +158,14 @@
             ],
             "ldflags": [
               "-pthread",
-              "-Wl,-rpath,'$$ORIGIN/lib'",
-              "-Wl,-rpath,<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")"
+              "-Wl,--enable-new-dtags",
+              "-Wl,-rpath,'$$ORIGIN/lib'"
             ],
             "libraries": [
-              "-L<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")",
-              "-lmpv",
+              "-L<!(node -e \"const dir = process.env.LINUX_VERIFIED_RUNTIME_LIBRARY_DIR; if (!dir) { throw new Error('Missing LINUX_VERIFIED_RUNTIME_LIBRARY_DIR'); } process.stdout.write(dir)\")",
+              "<!(node -e \"const path = require('path'); const dir = process.env.LINUX_VERIFIED_RUNTIME_LIBRARY_DIR; if (!dir) { throw new Error('Missing LINUX_VERIFIED_RUNTIME_LIBRARY_DIR'); } process.stdout.write(path.join(dir, 'libmpv.so'))\")",
               "-lEGL",
-              "-lOpenGL",
+              "-lGL",
               "-lgbm",
               "-ldl"
             ]

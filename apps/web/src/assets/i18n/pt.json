@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Selecionar reprodutor de vídeo padrão",
         "WEB_PLAYER_SHARED_CONTROLS": "Controlos unificados para leitores web (experimental)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa os controlos partilhados do IPTVnator em HTML5, Video.js e ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Preenchimento de fundo ambiente",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Preenche o espaço ao redor do reprodutor com um pôster desfocado e escurecido em vez de barras pretas simples.",
         "STREAM_FORMAT_DESCRIPTION": "Selecionar formato de stream padrão (xtream)",
         "LANGUAGE_DESCRIPTION": "Selecionar idioma do aplicativo",
         "THEME_DESCRIPTION": "Selecionar tema visual do aplicativo",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Voltar",
             "RETRY": "Tentar novamente",
             "STALLED": "Este stream está demorando mais do que o esperado para iniciar.",
             "PLAYBACK_FAILED": "Falha na reprodução do MPV integrado.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "Remover dos favoritos",
         "ADD_FAVORITE": "Adicionar aos favoritos",
         "SHOW_DETAILS": "Mostrar detalhes do canal",
+        "MAP_EPG": "Associar canal EPG",
         "FAVORITES_UPDATED": "Favoritos foram atualizados!",
         "SELECT_CHANNEL_PLAYBACK": "Selecione um canal para iniciar a reprodução",
         "SORT_BY": "Ordenar por",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "mostrar ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Associar canal EPG",
+        "SUBTITLE": "Selecione manualmente um canal EPG para \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Pesquisar canais EPG...",
+        "CURRENT_MAPPING": "Associação atual",
+        "NO_MAPPING": "Nenhuma associação EPG definida",
+        "SAVE": "Guardar associação",
+        "REMOVE": "Remover associação",
+        "CLOSE": "Fechar",
+        "NO_RESULTS": "Nenhum canal EPG encontrado",
+        "SEARCH_HINT": "Digite pelo menos {{min}} caracteres para pesquisar",
+        "SAVED": "Associação EPG guardada",
+        "REMOVED": "Associação EPG removida",
+        "SAVE_FAILED": "Não foi possível atualizar a associação EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "Atores",
         "DIRECTOR": "Diretor",
         "SIMILAR": "Semelhantes",
+        "CREW_JOB_DIRECTOR": "Diretor",
+        "CREW_JOB_CREATOR": "Criador",
         "ACTOR_FILMOGRAPHY": "Filmografia",
         "ACTOR_FILTER_ALL": "Todos",
         "ACTOR_SCOPE_THIS_PORTAL": "Este portal",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "Este conteúdo não está disponível neste servidor",
         "PLAYBACK_ERROR": "Falha ao obter URL de reprodução",
         "LOADING_SEASONS": "Carregando temporadas...",
+        "LOADING_ALL_CHANNELS": "A carregar a lista completa de canais…",
+        "REFRESH_CHANNEL_LIST": "Atualizar lista de canais",
+        "NO_CHANNELS_IN_CATEGORY": "Nenhum canal nesta categoria",
+        "ITEM": "item",
+        "ITEMS": "itens",
         "NO_EPISODES": "Nenhum episódio disponível",
         "ALL_RADIO": "Todas as rádios"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "Este download não pode mais ser aberto na biblioteca porque sua playlist de origem foi removida.",
         "FILE_NOT_FOUND": "Este arquivo baixado não está mais disponível no disco.",
         "FILE_ACTION_ERROR": "A ação do arquivo não pôde ser concluída.",
+        "ACTION_FAILED": "Falha na ação",
+        "PAUSE": "Pausar",
+        "RESUME": "Retomar",
         "CANCEL": "Cancelar",
         "RETRY": "Tentar novamente",
         "REMOVE": "Remover",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "Baixando",
             "COMPLETED": "Concluído",
             "FAILED": "Falhou",
-            "CANCELED": "Cancelado"
+            "CANCELED": "Cancelado",
+            "PAUSED": "Pausado"
         }
     },
     "REMOTE_CONTROL": {

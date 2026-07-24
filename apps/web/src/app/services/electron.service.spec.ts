@@ -16,6 +16,7 @@ describe('ElectronService', () => {
     const session = { id: 'session-1' };
     let electronBridge: {
         fetchPlaylistByUrl: jest.Mock;
+        onPlayerError: jest.Mock;
         openInMpv: jest.Mock;
         openInVlc: jest.Mock;
     };
@@ -24,9 +25,11 @@ describe('ElectronService', () => {
 
     beforeEach(() => {
         jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
         electronBridge = {
             fetchPlaylistByUrl: jest.fn(),
+            onPlayerError: jest.fn(),
             openInMpv: jest.fn().mockResolvedValue(session),
             openInVlc: jest.fn().mockResolvedValue(session),
         };
@@ -97,6 +100,23 @@ describe('ElectronService', () => {
         await service.sendIpcEvent(PLAYLIST_PARSE_BY_URL);
 
         expect(electronBridge.fetchPlaylistByUrl).not.toHaveBeenCalled();
+    });
+
+    it('redacts credentials from backend player errors before logging', () => {
+        const secret = 'player-error-token-secret';
+        const listener = electronBridge.onPlayerError.mock.calls[0][0];
+
+        listener({
+            player: 'MPV',
+            error: 'Playback failed',
+            originalError: `Request failed: token=${secret}&channel=news`,
+        });
+
+        const output = JSON.stringify(
+            (console.error as jest.Mock).mock.calls
+        );
+        expect(output).not.toContain(secret);
+        expect(output).toContain('channel=news');
     });
 
     it('shows the trust-host action for Electron-wrapped security errors', async () => {

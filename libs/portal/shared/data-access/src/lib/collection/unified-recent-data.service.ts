@@ -389,6 +389,8 @@ export class UnifiedRecentDataService {
                 xtreamId: row.xtream_id,
                 categoryId: row.category_id,
                 tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
+                tvArchive: row.tv_archive ?? null,
+                tvArchiveDuration: row.tv_archive_duration ?? null,
                 contentId: row.id,
                 viewedAt: normalizeStalkerDate(row.viewed_at),
             }));
@@ -428,6 +430,8 @@ export class UnifiedRecentDataService {
                 xtreamId: row.xtream_id,
                 categoryId: row.category_id,
                 tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
+                tvArchive: row.tv_archive ?? null,
+                tvArchiveDuration: row.tv_archive_duration ?? null,
                 contentId: row.id,
                 viewedAt: normalizeStalkerDate(row.viewed_at),
             }));
@@ -485,6 +489,8 @@ export class UnifiedRecentDataService {
             xtreamId: item.xtream_id,
             categoryId: item.category_id,
             tvgId: contentType === 'live' ? String(item.xtream_id) : undefined,
+            tvArchive: item.tv_archive ?? null,
+            tvArchiveDuration: item.tv_archive_duration ?? null,
             contentId: item.id,
             viewedAt: normalizeStalkerDate(item.viewed_at),
         };

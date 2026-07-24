@@ -83,6 +83,12 @@ export interface Settings {
      * Missing values remain off for compatibility with older saved settings.
      */
     webPlayerSharedControls?: boolean;
+    /**
+     * Fill the empty space around the inline VOD/series player with a blurred,
+     * dimmed copy of the poster (YouTube "Ambient mode" style) instead of plain
+     * black bars. Off by default; only affects the built-in web players.
+     */
+    playerAmbientMode?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;

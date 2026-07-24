@@ -52,6 +52,13 @@ export class ActorViewComponent {
 
     readonly filterMode = signal<'all' | 'available'>('all');
 
+    /** Translated label key for a crew-only credit ("Director"/"Creator") */
+    crewJobKey(job: 'Director' | 'Creator'): string {
+        return job === 'Creator'
+            ? 'XTREAM.CREW_JOB_CREATOR'
+            : 'XTREAM.CREW_JOB_DIRECTOR';
+    }
+
     readonly visibleItems = computed(() =>
         this.showAvailabilityFilter() && this.filterMode() === 'available'
             ? this.items().filter((item) => item.available)

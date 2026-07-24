@@ -5,10 +5,13 @@ interface ProviderTargetPayload {
 }
 
 const BACKEND_ORIGIN = 'http://localhost:3000';
+const APP_ORIGIN = process.env['BASE_URL']
+    ? new URL(process.env['BASE_URL']).origin
+    : 'http://localhost:4200';
 const CORS_HEADERS = {
     'access-control-allow-headers': 'content-type',
     'access-control-allow-methods': 'POST, OPTIONS',
-    'access-control-allow-origin': 'http://localhost:4200',
+    'access-control-allow-origin': APP_ORIGIN,
 } as const;
 
 export async function interceptProviderTargetRegistration(

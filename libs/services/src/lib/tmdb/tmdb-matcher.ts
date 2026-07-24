@@ -70,7 +70,10 @@ export function buildSearchLookupKey(
     normalizedTitle: string,
     year: number | null
 ): string {
-    return `title:${normalizedTitle}|year:${year ?? ''}`;
+    // v2: normalizeTitleKeys learned to strip appended language/quality
+    // tags; the version suffix invalidates cached (incl. negative) match
+    // resolutions keyed on the old polluted titles
+    return `title:${normalizedTitle}|year:${year ?? ''}|v2`;
 }
 
 export function buildDetailsLookupKey(tmdbId: number): string {

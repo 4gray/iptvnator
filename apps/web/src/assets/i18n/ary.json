@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "اختار مشغل الفيديو الافتراضي",
         "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحدة لمشغلات الويب (تجريبية)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استعمل عناصر التحكم المشتركة ديال IPTVnator مع HTML5 وVideo.js وArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "خلفية محيطة",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "ملي المساحة حول المشغل بغلاف معتم وطابت بلاصة الشرائط السوداء.",
         "STREAM_FORMAT_DESCRIPTION": "اختار صيغة البث الافتراضية (xtream)",
         "LANGUAGE_DESCRIPTION": "اختار لغة التطبيق",
         "THEME_DESCRIPTION": "اختار المظهر المرئي للتطبيق",
@@ -453,6 +455,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "رجوع",
             "RETRY": "حاول مرة أخرى",
             "STALLED": "هاد البث كياخد وقت كثر من المتوقع باش يبدا.",
             "PLAYBACK_FAILED": "فشل التشغيل بـ MPV المدمج.",
@@ -569,6 +572,7 @@
         "REMOVE_FAVORITE": "حيد من المفضلة",
         "ADD_FAVORITE": "زيد للمفضلة",
         "SHOW_DETAILS": "وري تفاصيل القناة",
+        "MAP_EPG": "ربط قناة ديال EPG",
         "FAVORITES_UPDATED": "المفضلة تحدثات!",
         "SELECT_CHANNEL_PLAYBACK": "عفاك اختار قناة باش يبدا التشغيل",
         "SORT_BY": "رتب بـ",
@@ -714,6 +718,21 @@
             "GROUP_EXPAND": "وري ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "ربط قناة ديال EPG",
+        "SUBTITLE": "اختار يدويا قناة EPG لـ \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "قلب على قنوات EPG...",
+        "CURRENT_MAPPING": "الربط الحالي",
+        "NO_MAPPING": "ما كاين حتى ربط ديال EPG",
+        "SAVE": "سجل الربط",
+        "REMOVE": "حيد الربط",
+        "CLOSE": "سد",
+        "NO_RESULTS": "ما لقينا حتى قناة EPG",
+        "SEARCH_HINT": "كتب على الأقل {{min}} حروف باش تقلب",
+        "SAVED": "تسجل الربط ديال EPG",
+        "REMOVED": "تحيد الربط ديال EPG",
+        "SAVE_FAILED": "ما قدرناش نبدلو الربط ديال EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -766,6 +785,8 @@
         "ACTORS": "الممثلون",
         "DIRECTOR": "المخرج",
         "SIMILAR": "بحال هادو",
+        "CREW_JOB_DIRECTOR": "المخرج",
+        "CREW_JOB_CREATOR": "المبتكر",
         "ACTOR_FILMOGRAPHY": "الأفلام ديالو",
         "ACTOR_FILTER_ALL": "كلشي",
         "ACTOR_SCOPE_THIS_PORTAL": "هاد البوابة",
@@ -951,6 +972,11 @@
         "CONTENT_NOT_AVAILABLE": "هاد المحتوى ما متوفرش على هاد السيرفر",
         "PLAYBACK_ERROR": "فشل جلب رابط التشغيل",
         "LOADING_SEASONS": "جاري تشريج المواسم...",
+        "LOADING_ALL_CHANNELS": "كيتم تحميل لائحة القنوات كاملة…",
+        "REFRESH_CHANNEL_LIST": "تحديث لائحة القنوات",
+        "NO_CHANNELS_IN_CATEGORY": "ماكاينش قنوات فهاد الصنف",
+        "ITEM": "عنصر",
+        "ITEMS": "عناصر",
         "NO_EPISODES": "ما كاينش حلقات متوفرة",
         "ALL_RADIO": "All radio"
     },
@@ -978,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "هاد التحميل ما يقدرش يتحل في المكتبة حيت قائمة التشغيل المصدر تحيدات.",
         "FILE_NOT_FOUND": "هاد الملف المحمل ما بقاش متوفر على القرص.",
         "FILE_ACTION_ERROR": "العملية على الملف ما تكملاتش.",
+        "ACTION_FAILED": "العملية ما نجحاتش",
+        "PAUSE": "وقّف مؤقتاً",
+        "RESUME": "كمّل",
         "CANCEL": "إلغاء",
         "RETRY": "حاول مرة أخرى",
         "REMOVE": "حيد",
@@ -991,7 +1020,8 @@
             "DOWNLOADING": "جاري التحميل",
             "COMPLETED": "كمل",
             "FAILED": "فشل",
-            "CANCELED": "تلغى"
+            "CANCELED": "تلغى",
+            "PAUSED": "موقوف مؤقتاً"
         }
     },
     "REMOTE_CONTROL": {
