@@ -111,6 +111,28 @@
     aspect-ratio: 16 / 9;
 }
 
+// "Up Next" rail: instead of centering, the player docks left and the
+// leftover column becomes the episode rail. The rail is an opaque panel on
+// top of the stage, so the ambient fill stays behind it (and shows in the
+// flexible gap between player and rail on very wide stages).
+.player-shell__viewport--with-rail {
+    justify-content: space-between;
+    gap: 18px;
+    // Insets the docked player and the rail from the stage edges; the player
+    // keeps sizing itself as the largest 16:9 box fitting the (now smaller)
+    // content height.
+    padding: 12px;
+}
+
+.player-shell__rail {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    align-self: stretch;
+    min-width: 0;
+    max-width: 440px;
+}
+
 // "Ambient mode": a blurred, dimmed copy of the poster fills the whole stage
 // behind the player, turning the letterbox margins into atmosphere.
 .player-shell__ambient {

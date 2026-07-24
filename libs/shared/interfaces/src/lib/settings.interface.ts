@@ -89,6 +89,13 @@ export interface Settings {
      * black bars. Off by default; only affects the built-in web players.
      */
     playerAmbientMode?: boolean;
+    /**
+     * Dock the inline series player to the left and show an "Up Next"
+     * episode rail in the leftover stage column on wide windows. On by
+     * default (the rail only appears when there is genuinely unused space);
+     * missing values mean enabled. Only affects the built-in web players.
+     */
+    playerUpNextRail?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;

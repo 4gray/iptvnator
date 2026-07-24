@@ -86,6 +86,7 @@ const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
     webPlayerSharedControls: false,
     playerAmbientMode: false,
+    playerUpNextRail: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,

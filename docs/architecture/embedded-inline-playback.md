@@ -144,6 +144,39 @@ layer, keeping extra DOM out of the native-video compositing path. Live
 channels are excluded (their `thumbnail` is a logo), and only
 `http(s):`/`data:` poster URLs are accepted to avoid CSS `url()` breakout.
 
+### Up Next side rail (series)
+
+For inline **series** playback the stage can trade its centered letterbox for
+a Netflix/Plex-style layout: the player docks left and the leftover column
+becomes an "Up Next" episode rail (`app-up-next-rail`,
+`libs/ui/playback/src/lib/portal-inline-player/up-next-rail.component.ts`).
+The rail lists the currently playing episode (highlighted, click-inert)
+followed by the rest of its season and a spillover into the following
+seasons, with per-episode watch-progress bars from playback positions.
+
+- Data flow: the hosts (Xtream `SerialDetailsComponent`, Stalker
+  `StalkerSeriesViewComponent`) build the entries with
+  `buildUpNextRailItems()` (`up-next-rail.util.ts`) from their
+  season→episodes map, the inline episode state, and the playback-position
+  map, and pass them into `PortalInlinePlayerComponent` via the
+  `upNextEpisodes` input. Selection comes back through
+  `upNextEpisodeSelected`, carrying the host's raw episode object, and is
+  routed into the host's existing episode-play flow — the same path the
+  season container uses.
+- Width gating: a ResizeObserver on `.player-shell__viewport` feeds the
+  component's `stageSize`; the rail docks in only when the stage's leftover
+  width beside the largest 16:9 box fitting its height is ≥ 320px
+  (`UP_NEXT_RAIL_MIN_WIDTH`). On near-16:9 or taller windows the rail
+  auto-hides and the centered theater/ambient behavior above remains.
+- Gating mirrors ambient mode: the `playerUpNextRail` setting (Settings →
+  Playback, **default on**, shown only for the built-in web players) plus a
+  runtime web-engine check; the rail also requires
+  `contentInfo.contentType === 'episode'` and non-live playback, so movies
+  and live channels always keep the centered stage.
+- Layering: the rail is an opaque panel rendered on top of the stage, so the
+  ambient fill stays behind it and shows in the flexible gap between the
+  docked player and the rail on very wide stages.
+
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
 seasons-grid + "Back to seasons" level. A season is auto-selected

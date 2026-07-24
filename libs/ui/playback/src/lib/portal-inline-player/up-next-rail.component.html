@@ -1,0 +1,57 @@
+<aside class="up-next" [attr.aria-label]="'PORTALS.UP_NEXT' | translate">
+    <h4 class="up-next__heading">{{ 'PORTALS.UP_NEXT' | translate }}</h4>
+    <div class="up-next__list" role="list">
+        @for (item of items(); track item.id) {
+            <button
+                type="button"
+                role="listitem"
+                class="up-next__item"
+                data-testid="up-next-episode"
+                [class.up-next__item--playing]="item.isPlaying"
+                [attr.aria-current]="item.isPlaying ? 'true' : null"
+                (click)="onSelect(item)"
+            >
+                <span class="up-next__thumb" aria-hidden="true">
+                    @if (item.thumbnailUrl) {
+                        <img
+                            class="up-next__thumb-image"
+                            [src]="item.thumbnailUrl"
+                            alt=""
+                            loading="lazy"
+                        />
+                    } @else {
+                        <mat-icon class="up-next__thumb-fallback"
+                            >smart_display</mat-icon
+                        >
+                    }
+                    @if (item.isPlaying) {
+                        <span class="up-next__playing-badge">
+                            <mat-icon>equalizer</mat-icon>
+                        </span>
+                    }
+                    @if (item.progressPercent !== null) {
+                        <span class="up-next__progress">
+                            <span
+                                class="up-next__progress-bar"
+                                [style.width.%]="item.progressPercent"
+                            ></span>
+                        </span>
+                    }
+                </span>
+                <span class="up-next__meta">
+                    <span class="up-next__label">
+                        {{ item.label }}
+                        @if (item.isPlaying) {
+                            <span class="up-next__now-playing">
+                                {{ 'PORTALS.NOW_PLAYING' | translate }}
+                            </span>
+                        }
+                    </span>
+                    @if (item.title) {
+                        <span class="up-next__title">{{ item.title }}</span>
+                    }
+                </span>
+            </button>
+        }
+    </div>
+</aside>

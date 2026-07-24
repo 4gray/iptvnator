@@ -1,0 +1,151 @@
+// Opaque panel docked on the stage's right column — it sits on top of the
+// black stage (or the ambient fill), so its own dark surface works for both
+// app themes without :host-context branching.
+:host {
+    display: block;
+    height: 100%;
+    min-height: 0;
+}
+
+.up-next {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 14px 6px 14px 14px;
+    border-radius: 12px;
+    background: rgba(16, 16, 18, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.up-next__heading {
+    margin: 0 8px 10px 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.up-next__list {
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.up-next__item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 6px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+.up-next__item--playing {
+    background: rgba(255, 255, 255, 0.14);
+    cursor: default;
+}
+
+.up-next__thumb {
+    position: relative;
+    flex: none;
+    width: 104px;
+    aspect-ratio: 16 / 9;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.up-next__thumb-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.up-next__thumb-fallback {
+    color: rgba(255, 255, 255, 0.38);
+}
+
+.up-next__playing-badge {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+
+    mat-icon {
+        color: #fff;
+    }
+}
+
+.up-next__progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.up-next__progress-bar {
+    display: block;
+    height: 100%;
+    background: #e50914;
+}
+
+.up-next__meta {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.up-next__label {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.up-next__now-playing {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7dd87d;
+}
+
+.up-next__title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #fff;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

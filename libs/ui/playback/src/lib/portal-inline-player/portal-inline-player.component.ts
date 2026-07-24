@@ -3,9 +3,13 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
+    ElementRef,
     inject,
     input,
     output,
+    signal,
+    viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,6 +29,14 @@ import type {
     SeriesEpisodeMetadata,
     SeriesPlaybackNavigation,
 } from './series-playback-navigation';
+import { UpNextRailComponent } from './up-next-rail.component';
+import type { UpNextRailItem } from './up-next-rail.util';
+
+/**
+ * Minimum leftover stage width (px) beyond the 16:9 player box before the
+ * "Up Next" rail docks in; includes the flex gap between player and rail.
+ */
+const UP_NEXT_RAIL_MIN_WIDTH = 320;
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -36,6 +48,7 @@ import type {
         MatIconModule,
         MatTooltipModule,
         TranslateModule,
+        UpNextRailComponent,
         WebPlayerViewComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -51,6 +64,8 @@ export class PortalInlinePlayerComponent {
     /** Series name for the fullscreen title overlay. Xtream episode playback
      * carries the episode title, so the series name must come from the host. */
     readonly seriesTitle = input<string | null>(null);
+    /** "Up Next" entries built by the series host; null for movies/live. */
+    readonly upNextEpisodes = input<UpNextRailItem[] | null>(null);
     private readonly settingsStore = inject(SettingsStore);
     // Strip only live-channel titles — VOD/series titles ("Mission:
     // Impossible - Fallout") must never lose their leading segment.
@@ -85,18 +100,20 @@ export class PortalInlinePlayerComponent {
         const safe = url.replace(/"/g, '%22').replace(/\\/g, '%5C');
         return `url("${safe}")`;
     });
-    readonly ambientEnabled = computed<boolean>(() => {
-        // Web players only — mirrors the settings UI, which offers the toggle
-        // for HTML5, Video.js, and ArtPlayer. Embedded MPV composites a native
-        // video layer, so an extra DOM layer behind it stays out of the mix.
+    // Web players only — mirrors the settings UI, which offers the ambient
+    // and Up Next toggles for HTML5, Video.js, and ArtPlayer. Embedded MPV
+    // composites a native video layer, so extra DOM stays out of the mix.
+    private readonly isWebPlayerEngine = computed<boolean>(() => {
         const player = this.settingsStore.player?.();
-        const isWebPlayer =
+        return (
             player === VideoPlayer.VideoJs ||
             player === VideoPlayer.Html5Player ||
-            player === VideoPlayer.ArtPlayer;
-
+            player === VideoPlayer.ArtPlayer
+        );
+    });
+    readonly ambientEnabled = computed<boolean>(() => {
         return (
-            isWebPlayer &&
+            this.isWebPlayerEngine() &&
             this.settingsStore.playerAmbientMode?.() === true &&
             !!this.ambientImageStyle()
         );
@@ -127,6 +144,41 @@ export class PortalInlinePlayerComponent {
         return { primary, secondary: metadata?.label ?? null };
     });
 
+    private readonly stageViewport = viewChild<ElementRef<HTMLElement>>(
+        'stageViewport'
+    );
+    /** Rendered size of the theater stage; written by a ResizeObserver. */
+    readonly stageSize = signal<{ width: number; height: number } | null>(
+        null
+    );
+    /** Leftover stage width beside the largest 16:9 box fitting its height. */
+    private readonly stageLeftoverWidth = computed<number>(() => {
+        const size = this.stageSize();
+        if (!size || size.height <= 0) {
+            return 0;
+        }
+        return size.width - (size.height * 16) / 9;
+    });
+    /**
+     * The rail docks in only for inline series playback on web engines, when
+     * the setting (default on) is enabled and the stage is wide enough; on
+     * near-16:9 or taller windows the theater/ambient centering remains.
+     */
+    readonly upNextRailVisible = computed<boolean>(() => {
+        const playback = this.playback();
+        return (
+            this.settingsStore.playerUpNextRail?.() !== false &&
+            this.isWebPlayerEngine() &&
+            !!this.upNextEpisodes()?.length &&
+            !playback?.isLive &&
+            playback?.contentInfo?.contentType === 'episode' &&
+            this.stageLeftoverWidth() >= UP_NEXT_RAIL_MIN_WIDTH
+        );
+    });
+    readonly upNextRailItems = computed<UpNextRailItem[]>(
+        () => this.upNextEpisodes() ?? []
+    );
+
     readonly closed = output<void>();
     /** Back arrow in the now-playing bar: route-level back, not just close. */
     readonly backClicked = output<void>();
@@ -139,6 +191,29 @@ export class PortalInlinePlayerComponent {
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
+    readonly upNextEpisodeSelected = output<UpNextRailItem>();
+
+    constructor() {
+        effect((onCleanup) => {
+            const element = this.stageViewport()?.nativeElement;
+            if (!element || typeof ResizeObserver === 'undefined') {
+                this.stageSize.set(null);
+                return;
+            }
+
+            const observer = new ResizeObserver((entries) => {
+                const rect = entries[0]?.contentRect;
+                if (rect) {
+                    this.stageSize.set({
+                        width: rect.width,
+                        height: rect.height,
+                    });
+                }
+            });
+            observer.observe(element);
+            onCleanup(() => observer.disconnect());
+        });
+    }
 
     onClose(): void {
         this.closed.emit();
@@ -170,5 +245,9 @@ export class PortalInlinePlayerComponent {
 
     onNextEpisodeRequested(): void {
         this.nextEpisodeRequested.emit();
+    }
+
+    onUpNextEpisodeSelected(item: UpNextRailItem): void {
+        this.upNextEpisodeSelected.emit(item);
     }
 }

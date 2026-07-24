@@ -55,12 +55,14 @@ import {
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    buildUpNextRailItems,
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
     resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
+    type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
     CrossPortalSimilarItem,
@@ -419,6 +421,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly inlineSeriesNavigation = computed(() =>
         getSeriesPlaybackNavigation(this.inlineEpisodeState())
     );
+    /** "Up Next" rail entries for the inline player (series only). */
+    readonly upNextEpisodes = computed<UpNextRailItem[]>(() =>
+        buildUpNextRailItems({
+            episodesBySeason: this.mappedSeasons(),
+            currentEpisodeId: this.inlineEpisodeState()?.episode.id,
+            playbackPositions: this.episodePlaybackPositions(),
+        })
+    );
 
     /**
      * Handles season selection from the container.
@@ -698,6 +708,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             return;
         }
         this.onEpisodeClicked(next);
+    }
+
+    playUpNextEpisode(item: UpNextRailItem): void {
+        this.onEpisodeClicked(item.episode as XtreamSerieEpisode);
     }
 
     handleInlinePlaybackEnded(): void {
