@@ -12,7 +12,8 @@
         "src/**/*.spec.ts",
         "src/test-setup.ts",
         "jest.config.ts",
-        "src/**/*.test.ts"
+        "src/**/*.test.ts",
+        "src/**/*.test-helpers.ts"
     ],
     "include": ["src/**/*.ts", "../../../global.d.ts"]
 }
