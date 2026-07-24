@@ -165,6 +165,8 @@
                             }
                             @if (item.character) {
                                 · {{ item.character }}
+                            } @else if (item.crewJob) {
+                                · {{ crewJobKey(item.crewJob) | translate }}
                             }
                         </span>
                     </button>

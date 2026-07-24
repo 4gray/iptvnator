@@ -37,7 +37,7 @@
                         <div class="details__cast-strip">
                             @for (
                                 member of serial.info.tmdb_cast;
-                                track member.name
+                                track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index
                             ) {
                                 <span
                                     class="details__cast-chip"
@@ -78,12 +78,43 @@
                     }
                 </div>
             }
-            @if (serial.info.director) {
+            @if (serial.info.director || serial.info.tmdb_directors?.length) {
                 <div class="details__meta-item">
-                    <span class="label">{{
-                        'XTREAM.DIRECTOR' | translate
-                    }}</span>
-                    <span class="value">{{ serial.info.director }}</span>
+                    <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+                    @if (serial.info.tmdb_directors?.length) {
+                        <div class="details__cast-strip">
+                            @for (member of serial.info.tmdb_directors; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                                <span
+                                    class="details__cast-chip"
+                                    [class.details__cast-chip--clickable]="
+                                        !!member.tmdbPersonId
+                                    "
+                                    (click)="openActor(member)"
+                                    [title]="member.name"
+                                >
+                                    @if (member.profileUrl) {
+                                        <img
+                                            class="details__cast-avatar"
+                                            [src]="member.profileUrl"
+                                            [alt]="member.name"
+                                            loading="lazy"
+                                        />
+                                    } @else {
+                                        <span
+                                            class="details__cast-avatar details__cast-avatar--fallback"
+                                        >
+                                            {{ member.name.charAt(0) }}
+                                        </span>
+                                    }
+                                    <span class="details__cast-name">{{
+                                        member.name
+                                    }}</span>
+                                </span>
+                            }
+                        </div>
+                    } @else {
+                        <span class="value">{{ serial.info.director }}</span>
+                    }
                 </div>
             }
         </ng-template>

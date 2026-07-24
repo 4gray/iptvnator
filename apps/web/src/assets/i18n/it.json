@@ -785,6 +785,8 @@
         "ACTORS": "Attori",
         "DIRECTOR": "Regista",
         "SIMILAR": "Simili",
+        "CREW_JOB_DIRECTOR": "Regista",
+        "CREW_JOB_CREATOR": "Ideatore",
         "ACTOR_FILMOGRAPHY": "Filmografia",
         "ACTOR_FILTER_ALL": "Tutti",
         "ACTOR_SCOPE_THIS_PORTAL": "Questo portale",

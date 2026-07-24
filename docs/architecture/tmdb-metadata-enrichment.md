@@ -65,8 +65,11 @@ Integration glue per portal:
 
 Components read the selection through signals and re-render when the merged
 item lands. Enriched cast (`tmdb_cast` with profile photos) renders as
-avatar chips in the detail views; a "check key" button in the settings
-section validates the API key against `/configuration`.
+avatar chips in the detail views, and so do directors/creators
+(`tmdb_directors`: movie directors from `credits.crew` with
+`job === 'Director'`, series creators from `created_by`) — both chip kinds
+carry `tmdbPersonId` and open the same person page. A "check key" button
+in the settings section validates the API key against `/configuration`.
 
 ## Match Confidence
 
@@ -187,7 +190,11 @@ Cast chips carry the TMDB person id (`tmdbPersonId` on
 current portal. The page loads `/person/{id}?append_to_response=
 combined_credits` via `TmdbEnrichmentService.getPersonDetails` (cached
 under `person:{id}` with media_type `person`) and renders the shared
-`ActorViewComponent` (`libs/ui/shared-portals`).
+`ActorViewComponent` (`libs/ui/shared-portals`). The filmography merges
+acting credits (`combined_credits.cast`) with directing/creating credits
+(`combined_credits.crew`, jobs `Director`/`Creator`) into one list —
+acting wins the per-title dedup, directing-only titles show the job in
+the character slot — so the page serves actors and directors alike.
 
 Filmography has two scopes:
 

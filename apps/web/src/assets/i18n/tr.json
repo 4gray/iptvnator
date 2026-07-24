@@ -785,6 +785,8 @@
         "ACTORS": "Oyuncular",
         "DIRECTOR": "Yönetmen",
         "SIMILAR": "Benzerler",
+        "CREW_JOB_DIRECTOR": "Yönetmen",
+        "CREW_JOB_CREATOR": "Yaratıcı",
         "ACTOR_FILMOGRAPHY": "Filmografi",
         "ACTOR_FILTER_ALL": "Tümü",
         "ACTOR_SCOPE_THIS_PORTAL": "Bu portal",

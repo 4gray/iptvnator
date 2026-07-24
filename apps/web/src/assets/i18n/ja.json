@@ -785,6 +785,8 @@
         "ACTORS": "出演者",
         "DIRECTOR": "監督",
         "SIMILAR": "類似作品",
+        "CREW_JOB_DIRECTOR": "監督",
+        "CREW_JOB_CREATOR": "クリエイター",
         "ACTOR_FILMOGRAPHY": "出演作品",
         "ACTOR_FILTER_ALL": "すべて",
         "ACTOR_SCOPE_THIS_PORTAL": "このポータル",

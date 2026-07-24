@@ -84,6 +84,8 @@ export interface NormalizedVodMeta {
     youtubeTrailer?: string;
     /** Cast with profile photos, populated by TMDB enrichment */
     tmdbCast?: TmdbEnrichedCastMember[];
+    /** Directors (movies) / creators (series) as clickable person chips */
+    tmdbDirectors?: TmdbEnrichedCastMember[];
     /** TMDB recommendations (drives the cross-portal "Similar" rail) */
     tmdbRecommendations?: TmdbRecommendation[];
 }

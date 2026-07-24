@@ -785,6 +785,8 @@
         "ACTORS": "Aktorzy",
         "DIRECTOR": "Reżyser",
         "SIMILAR": "Podobne",
+        "CREW_JOB_DIRECTOR": "Reżyser",
+        "CREW_JOB_CREATOR": "Twórca",
         "ACTOR_FILMOGRAPHY": "Filmografia",
         "ACTOR_FILTER_ALL": "Wszystkie",
         "ACTOR_SCOPE_THIS_PORTAL": "Ten portal",

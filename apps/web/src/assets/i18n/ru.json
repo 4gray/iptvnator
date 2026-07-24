@@ -785,6 +785,8 @@
         "ACTORS": "Актеры",
         "DIRECTOR": "Режиссёр",
         "SIMILAR": "Похожее",
+        "CREW_JOB_DIRECTOR": "Режиссёр",
+        "CREW_JOB_CREATOR": "Создатель",
         "ACTOR_FILMOGRAPHY": "Фильмография",
         "ACTOR_FILTER_ALL": "Все",
         "ACTOR_SCOPE_THIS_PORTAL": "Этот портал",
