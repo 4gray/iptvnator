@@ -1,8 +1,31 @@
+import {
+    InlinePlaybackPlayer,
+    type PlaybackDiagnostic,
+    classifyNativePlaybackIssue,
+    createPlaybackSourceMetadata,
+} from '../playback-diagnostics/playback-diagnostics.util';
 import type {
     VideoJsPlayer,
     VideoPlayerOptions,
     VideoPlayerSource,
 } from './vjs-player.types';
+
+export function classifyVjsPlaybackError(
+    player: VideoJsPlayer,
+    video: HTMLVideoElement,
+    source: VideoPlayerSource | null
+): PlaybackDiagnostic {
+    const playerError =
+        typeof player.error === 'function' ? player.error() : null;
+    return classifyNativePlaybackIssue(
+        playerError ?? video.error,
+        createPlaybackSourceMetadata({
+            url: source?.src ?? video.currentSrc ?? '',
+            mimeType: source?.type,
+            player: InlinePlaybackPlayer.VideoJs,
+        })
+    );
+}
 
 export function createVjsPlayerOptions(
     options: VideoPlayerOptions,

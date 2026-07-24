@@ -5,6 +5,13 @@
 >
     <div #artplayer class="artplayer-container"></div>
 
+    @if (localTimeshiftActive()) {
+        <app-live-edge-button
+            [atLiveEdge]="atLiveEdge()"
+            (goLive)="goLive()"
+        />
+    }
+
     @if (sharedControls) {
         <div class="art-player-interaction-capture" aria-hidden="true"></div>
         <app-player-controls

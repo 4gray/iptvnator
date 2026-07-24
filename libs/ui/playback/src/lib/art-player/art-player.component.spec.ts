@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import type { ArtPlayerComponent as ArtPlayerComponentInstance } from './art-player.component';
@@ -46,7 +47,7 @@ describe('ArtPlayerComponent', () => {
         localStorage.clear();
 
         TestBed.configureTestingModule({
-            imports: [ArtPlayerComponent],
+            imports: [ArtPlayerComponent, TranslateModule.forRoot()],
             providers: [
                 { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
             ],
@@ -155,6 +156,34 @@ describe('ArtPlayerComponent', () => {
 
         expect(artPlayerInstances[0].options['type']).toBe('m3u8');
         expect(artPlayerInstances[0].options['isLive']).toBe(true);
+    });
+
+    it('recreates the live player with seekable controls for local timeshift', () => {
+        createComponent({
+            url: 'http://127.0.0.1:43123/timeshift/session/index.m3u8',
+            name: 'Local Timeshift',
+        });
+        const livePlayer = artPlayerInstances[0];
+        expect(livePlayer.options['isLive']).toBe(true);
+        expect(getLiveButton()).toBeNull();
+
+        fixture.componentRef.setInput('localTimeshiftActive', true);
+        fixture.detectChanges();
+
+        expect(livePlayer.destroy).toHaveBeenCalledTimes(1);
+        expect(artPlayerInstances).toHaveLength(2);
+        expect(artPlayerInstances[1].options['type']).toBe('m3u8');
+        expect(artPlayerInstances[1].options['isLive']).toBe(false);
+        const video = artPlayerInstances[1].video;
+        Object.defineProperty(video, 'duration', {
+            configurable: true,
+            value: 90,
+        });
+        const play = jest.spyOn(video, 'play').mockResolvedValue(undefined);
+        getLiveButton()?.nativeElement.click();
+
+        expect(video.currentTime).toBe(89.75);
+        expect(play).toHaveBeenCalledTimes(1);
     });
 
     it('applies volume input changes without recreating the player', () => {
@@ -345,5 +374,11 @@ describe('ArtPlayerComponent', () => {
         component = fixture.componentInstance;
         fixture.componentRef.setInput('channel', channel);
         fixture.detectChanges();
+    }
+
+    function getLiveButton() {
+        return fixture.debugElement.query(
+            By.css('[data-test-id="local-timeshift-go-live"]')
+        );
     }
 });

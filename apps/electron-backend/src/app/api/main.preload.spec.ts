@@ -9,6 +9,10 @@ import {
     APP_UPDATE_GET_STATUS,
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
+    LOCAL_TIMESHIFT_GET_SUPPORT,
+    LOCAL_TIMESHIFT_SESSION_UPDATE,
+    LOCAL_TIMESHIFT_START,
+    LOCAL_TIMESHIFT_STOP,
 } from '@iptvnator/shared/interfaces';
 import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 import {
@@ -186,6 +190,54 @@ describe('main preload DB IPC contract', () => {
         expect(callback).toHaveBeenCalledWith(status);
         expect(mockIpcRenderer.off).toHaveBeenCalledWith(
             APP_UPDATE_STATUS_CHANGED,
+            handler
+        );
+    });
+
+    it('exposes local Timeshift lifecycle and session updates', async () => {
+        const api = getExposedApi();
+        const callback = jest.fn();
+        const request = {
+            playback: {
+                streamUrl: 'https://stream.example/live.ts',
+                title: 'Live news',
+                isLive: true,
+            },
+            maxDurationMinutes: 30,
+        };
+
+        await api.getLocalTimeshiftSupport();
+        await api.startLocalTimeshift(request);
+        await api.stopLocalTimeshift('timeshift-1');
+        const unsubscribe = api.onLocalTimeshiftSessionUpdate(callback);
+        const handler = mockIpcRenderer.on.mock.calls.at(-1)?.[1];
+        const session = {
+            id: 'timeshift-1',
+            playbackUrl: 'http://127.0.0.1:4000/token/index.m3u8',
+            status: 'ready',
+        };
+
+        handler({}, session);
+        unsubscribe();
+
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
+            LOCAL_TIMESHIFT_GET_SUPPORT
+        );
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
+            LOCAL_TIMESHIFT_START,
+            request
+        );
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
+            LOCAL_TIMESHIFT_STOP,
+            'timeshift-1'
+        );
+        expect(mockIpcRenderer.on).toHaveBeenCalledWith(
+            LOCAL_TIMESHIFT_SESSION_UPDATE,
+            expect.any(Function)
+        );
+        expect(callback).toHaveBeenCalledWith(session);
+        expect(mockIpcRenderer.off).toHaveBeenCalledWith(
+            LOCAL_TIMESHIFT_SESSION_UPDATE,
             handler
         );
     });

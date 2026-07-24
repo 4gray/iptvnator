@@ -1,0 +1,89 @@
+:host {
+    display: inline-flex;
+    pointer-events: auto;
+    -webkit-app-region: no-drag;
+}
+
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 74px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--app-separator, rgb(255 255 255 / 24%));
+    border-radius: 999px;
+    color: var(--app-heading-color, #f5f7fb);
+    background: color-mix(
+        in srgb,
+        var(--app-widget-bg, #20242c) 90%,
+        transparent
+    );
+    box-shadow: 0 2px 10px rgb(0 0 0 / 24%);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition:
+        background-color 140ms ease,
+        border-color 140ms ease,
+        box-shadow 140ms ease,
+        transform 140ms ease;
+}
+
+button:hover {
+    border-color: var(--app-selection-border, #2f7bff);
+    background: var(--app-widget-header-bg, #292e38);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 30%);
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button:focus-visible {
+    outline: 2px solid var(--app-selection-color, #2f7bff);
+    outline-offset: 2px;
+}
+
+.live-edge-button__dot {
+    display: block;
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--app-live-color, #d12c2c);
+    box-shadow: 0 0 0 3px
+        color-mix(in srgb, var(--app-live-color, #d12c2c) 18%, transparent);
+    animation: live-edge-pulse 1.8s ease-in-out infinite;
+}
+
+button.live-edge-button--behind {
+    color: var(--app-text-color, #c8cdd6);
+}
+
+button.live-edge-button--behind .live-edge-button__dot {
+    background: var(--app-muted-text-color, #8a919e);
+    box-shadow: none;
+    animation: none;
+}
+
+@keyframes live-edge-pulse {
+    50% {
+        box-shadow: 0 0 0 5px
+            color-mix(in srgb, var(--app-live-color, #d12c2c) 8%, transparent);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button {
+        transition: none;
+    }
+
+    .live-edge-button__dot {
+        animation: none;
+    }
+}

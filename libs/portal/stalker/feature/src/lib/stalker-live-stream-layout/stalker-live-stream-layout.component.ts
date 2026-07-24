@@ -444,8 +444,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             // store dedupes per channel id, so this is cheap on rerenders.
             if (this.supportsEpgMapping && channels.length > 0) {
                 const channelIds = channels.map((channel) => channel.id);
-                untracked(() =>
-                    void this.stalkerStore.applyMappedItvEpg(channelIds)
+                untracked(
+                    () => void this.stalkerStore.applyMappedItvEpg(channelIds)
                 );
             }
         });

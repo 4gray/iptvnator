@@ -7,6 +7,7 @@ import {
 } from '@angular/core/testing';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -36,6 +37,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 class StubVjsPlayerComponent {
     readonly options = input<unknown>();
     readonly volume = input(1);
+    readonly localTimeshiftActive = input(false);
     readonly showCaptions = input(false);
     readonly interactionEnabled = input(true);
     readonly startTime = input(0);
@@ -51,6 +53,7 @@ class StubVjsPlayerComponent {
 class StubHtmlVideoPlayerComponent {
     readonly channel = input<unknown>();
     readonly volume = input(1);
+    readonly localTimeshiftActive = input(false);
     readonly showCaptions = input(false);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
@@ -67,6 +70,7 @@ class StubHtmlVideoPlayerComponent {
 class StubArtPlayerComponent {
     readonly channel = input<unknown>();
     readonly volume = input(1);
+    readonly localTimeshiftActive = input(false);
     readonly showCaptions = input(false);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
@@ -82,6 +86,7 @@ class StubArtPlayerComponent {
 @Component({ selector: 'app-embedded-mpv-player', template: '' })
 class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
+    readonly localTimeshiftActive = input(false);
     readonly recordingFolder = input('');
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
@@ -135,6 +140,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
                         ClipboardModule,
                         MatButtonModule,
                         MatIconModule,
+                        MatProgressSpinnerModule,
                         MatTooltipModule,
                         TranslateModule,
                     ],

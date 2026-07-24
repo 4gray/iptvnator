@@ -103,6 +103,13 @@
             (previousEpisodeRequested)="requestPreviousEpisode()"
             (nextEpisodeRequested)="requestNextEpisode()"
         />
+        @if (showControls() && localTimeshiftActive()) {
+            <app-live-edge-button
+                class="embedded-mpv-player__frame-copy-live-edge"
+                [atLiveEdge]="atLiveEdge()"
+                (goLive)="goLive()"
+            />
+        }
     }
 
     @if (!isFrameCopyEngine() && showControls() && isSupported()) {
@@ -213,12 +220,10 @@
                         [disabled]="!canSeek()"
                         (click)="seekBy(10)"
                         [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
-                                | translate
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
                         "
                         [matTooltip]="
-                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS'
-                                | translate
+                            'EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS' | translate
                         "
                         matTooltipPosition="above"
                     >
@@ -249,9 +254,17 @@
                     <div class="embedded-mpv-player__time">
                         <span>{{ formatTime(timelineValue()) }}</span>
                         @if (canSeek()) {
-                            <span>{{
-                                formatTime(session()?.durationSeconds)
-                            }}</span>
+                            <span class="embedded-mpv-player__time-end">
+                                <span>{{
+                                    formatTime(session()?.durationSeconds)
+                                }}</span>
+                                @if (localTimeshiftActive()) {
+                                    <app-live-edge-button
+                                        [atLiveEdge]="atLiveEdge()"
+                                        (goLive)="goLive()"
+                                    />
+                                }
+                            </span>
                         } @else if (isLivePlayback()) {
                             <span
                                 class="embedded-mpv-player__live-badge"
@@ -328,9 +341,7 @@
                             >
                                 <input
                                     class="embedded-mpv-player__slider embedded-mpv-player__slider--volume"
-                                    [style.--slider-progress.%]="
-                                        volume() * 100
-                                    "
+                                    [style.--slider-progress.%]="volume() * 100"
                                     type="range"
                                     min="0"
                                     max="1"

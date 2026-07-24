@@ -17,6 +17,9 @@ import EpgEvents from './app/events/epg.events';
 import AppUpdateEvents from './app/events/app-update.events';
 import { shutdownMpvSession } from './app/events/mpv-session.service';
 import PlayerEvents from './app/events/player.events';
+import LocalTimeshiftEvents, {
+    shutdownLocalTimeshift,
+} from './app/events/local-timeshift.events';
 import { shutdownVlcSession } from './app/events/vlc-session.service';
 import PlaylistEvents from './app/events/playlist.events';
 import RemoteControlEvents from './app/events/remote-control.events';
@@ -79,6 +82,8 @@ if (
 }
 
 let fixPathScheduled = false;
+let shutdownStarted = false;
+let shutdownComplete = false;
 
 /**
  * Update process.env.PATH from the user's interactive login shell so that
@@ -141,6 +146,7 @@ export default class Main {
         PlaylistEvents.bootstrapPlaylistEvents();
         SharedEvents.bootstrapSharedEvents();
         PlayerEvents.bootstrapPlayerEvents();
+        LocalTimeshiftEvents.bootstrapLocalTimeshiftEvents();
         SettingsEvents.bootstrapSettingsEvents();
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();
@@ -205,10 +211,42 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
         await Main.bootstrapAppEvents();
     });
 
-    app.on('before-quit', () => {
-        shutdownEmbeddedMpv();
-        shutdownMpvSession();
-        shutdownVlcSession();
-        void databaseWorkerClient.shutdown();
+    app.on('before-quit', (event) => {
+        if (shutdownComplete) {
+            return;
+        }
+
+        event.preventDefault();
+        if (shutdownStarted) {
+            return;
+        }
+        shutdownStarted = true;
+
+        void (async () => {
+            try {
+                await shutdownLocalTimeshift();
+            } catch (error) {
+                console.error(
+                    'Failed to stop local Timeshift sessions:',
+                    error
+                );
+            }
+            try {
+                shutdownEmbeddedMpv();
+                shutdownMpvSession();
+                shutdownVlcSession();
+            } catch (error) {
+                console.error('Failed to stop native player sessions:', error);
+            }
+            // Preserve the upstream non-blocking database-worker shutdown.
+            // Waiting for it here can keep Electron's before-quit event open
+            // indefinitely and prevent restarts or automated close flows.
+            void databaseWorkerClient.shutdown().catch((error) => {
+                console.error('Failed to stop the database worker:', error);
+            });
+        })().finally(() => {
+            shutdownComplete = true;
+            app.quit();
+        });
     });
 });
