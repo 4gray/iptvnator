@@ -332,9 +332,18 @@ export const downloads = sqliteTable(
         fileName: text('file_name'),
         filePath: text('file_path'),
         posterUrl: text('poster_url'),
+        requestHeaders: text('request_headers'),
+        resumeValidator: text('resume_validator'),
         // Download progress
         status: text('status', {
-            enum: ['queued', 'downloading', 'completed', 'failed', 'canceled'],
+            enum: [
+                'queued',
+                'downloading',
+                'paused',
+                'completed',
+                'failed',
+                'canceled',
+            ],
         })
             .notNull()
             .default('queued'),

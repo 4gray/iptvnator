@@ -1004,6 +1004,9 @@
         "SOURCE_PLAYLIST_MISSING": "원본 재생목록이 제거되어 이 다운로드 항목을 라이브러리에서 더 이상 열 수 없습니다.",
         "FILE_NOT_FOUND": "이 다운로드한 파일을 디스크에서 더 이상 사용할 수 없습니다.",
         "FILE_ACTION_ERROR": "파일 작업을 완료하지 못했습니다.",
+        "ACTION_FAILED": "작업 실패",
+        "PAUSE": "일시정지",
+        "RESUME": "재개",
         "CANCEL": "취소",
         "RETRY": "다시 시도",
         "REMOVE": "제거",
@@ -1017,7 +1020,8 @@
             "DOWNLOADING": "다운로드 중",
             "COMPLETED": "완료됨",
             "FAILED": "실패",
-            "CANCELED": "취소됨"
+            "CANCELED": "취소됨",
+            "PAUSED": "일시정지됨"
         }
     },
     "REMOTE_CONTROL": {

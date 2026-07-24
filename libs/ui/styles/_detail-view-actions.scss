@@ -95,6 +95,16 @@
             background: rgba(255, 255, 255, 0.04);
         }
     }
+
+    &--paused {
+        background: rgba(251, 191, 36, 0.14);
+        border-color: rgba(251, 191, 36, 0.4);
+        color: #fbbf24;
+
+        &:hover {
+            background: rgba(251, 191, 36, 0.22);
+        }
+    }
 }
 
 @mixin mobile-action-buttons {

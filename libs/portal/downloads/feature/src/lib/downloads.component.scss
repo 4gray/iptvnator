@@ -442,6 +442,11 @@
             &.status-queued {
                 color: var(--mat-sys-on-surface-variant);
             }
+
+            &.status-paused {
+                color: #f59e0b;
+                background: color-mix(in srgb, #f59e0b 14%, transparent);
+            }
         }
 
         &-size {
