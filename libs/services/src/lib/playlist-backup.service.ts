@@ -444,6 +444,22 @@ export class PlaylistBackupService {
                         `Xtream backup "${entry.title}" is missing connection metadata.`
                     );
                 }
+
+                // Restore treats the backup's user state as authoritative and
+                // replaces the existing state with it. Every v1 export writes
+                // all four collections, so a missing one signals a damaged or
+                // hand-edited file — reject it instead of wiping user data
+                // with normalized empty arrays.
+                if (
+                    !Array.isArray(entry.userState?.hiddenCategories) ||
+                    !Array.isArray(entry.userState?.favorites) ||
+                    !Array.isArray(entry.userState?.recentlyViewed) ||
+                    !Array.isArray(entry.userState?.playbackPositions)
+                ) {
+                    throw new PlaylistBackupError(
+                        `Xtream backup "${entry.title}" has incomplete user state.`
+                    );
+                }
                 break;
             case 'stalker':
                 if (

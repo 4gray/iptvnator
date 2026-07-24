@@ -190,6 +190,29 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         );
     });
 
+    it('rejects entries with missing user-state collections instead of wiping user data', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService(collaborators);
+
+        // A damaged or hand-edited manifest without userState must not be
+        // treated as an authoritative "empty" state: the merge path would
+        // unhide every category and delete favorites/recent/positions.
+        const manifest = createXtreamManifest([]);
+        delete (
+            manifest.playlists[0] as unknown as { userState?: unknown }
+        ).userState;
+
+        await expect(
+            service.importBackup(JSON.stringify(manifest))
+        ).rejects.toThrow(/incomplete user state/);
+        expect(
+            collaborators.databaseService.updateCategoryVisibility
+        ).not.toHaveBeenCalled();
+        expect(
+            collaborators.databaseService.restoreXtreamUserData
+        ).not.toHaveBeenCalled();
+    });
+
     it('ignores legacy hidden-category entries without an xtream ID instead of hiding everything', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService(collaborators);
