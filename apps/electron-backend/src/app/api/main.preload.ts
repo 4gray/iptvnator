@@ -842,6 +842,10 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DOWNLOADS_START', data),
     downloadsCancel: (downloadId: number) =>
         ipcRenderer.invoke('DOWNLOADS_CANCEL', downloadId),
+    downloadsPause: (downloadId: number) =>
+        ipcRenderer.invoke('DOWNLOADS_PAUSE', downloadId),
+    downloadsResume: (downloadId: number, downloadFolder: string) =>
+        ipcRenderer.invoke('DOWNLOADS_RESUME', downloadId, downloadFolder),
     downloadsRetry: (downloadId: number, downloadFolder: string) =>
         ipcRenderer.invoke('DOWNLOADS_RETRY', downloadId, downloadFolder),
     downloadsRemove: (downloadId: number) =>

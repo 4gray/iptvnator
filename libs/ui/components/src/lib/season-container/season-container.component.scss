@@ -394,6 +394,14 @@ app-season-tabs {
             color: rgba(255, 255, 255, 0.5) !important;
             cursor: not-allowed;
         }
+
+        .download-btn--paused {
+            color: #fbbf24 !important;
+
+            &:hover {
+                background: color-mix(in srgb, #fbbf24 20%, transparent);
+            }
+        }
     }
 
     &:hover {

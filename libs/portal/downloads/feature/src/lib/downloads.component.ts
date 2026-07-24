@@ -212,6 +212,8 @@ export class DownloadsComponent {
                 return 'schedule';
             case 'downloading':
                 return 'downloading';
+            case 'paused':
+                return 'pause_circle';
             case 'completed':
                 return 'check_circle';
             case 'failed':
@@ -229,6 +231,8 @@ export class DownloadsComponent {
                 return 'status-queued';
             case 'downloading':
                 return 'status-downloading';
+            case 'paused':
+                return 'status-paused';
             case 'completed':
                 return 'status-completed';
             case 'failed':
@@ -257,15 +261,38 @@ export class DownloadsComponent {
     }
 
     async cancel(item: DownloadItem) {
-        await this.downloadsService.cancelDownload(item.id);
+        const result = await this.downloadsService.cancelDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
+    }
+
+    async pause(item: DownloadItem) {
+        const result = await this.downloadsService.pauseDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
+    }
+
+    async resume(item: DownloadItem) {
+        const result = await this.downloadsService.resumeDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async retry(item: DownloadItem) {
-        await this.downloadsService.retryDownload(item.id);
+        const result = await this.downloadsService.retryDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async remove(item: DownloadItem) {
-        await this.downloadsService.removeDownload(item.id);
+        const result = await this.downloadsService.removeDownload(item.id);
+        if (!result.success) {
+            this.showActionError(result.error);
+        }
     }
 
     async play(item: DownloadItem) {
@@ -569,6 +596,17 @@ export class DownloadsComponent {
 
     private getPosterKey(item: DownloadItem): string {
         return `${item.id}:${item.posterUrl ?? ''}`;
+    }
+
+    private showActionError(error?: string): void {
+        const message = error
+            ? `${this.translate.instant('DOWNLOADS.ACTION_FAILED')}: ${error}`
+            : this.translate.instant('DOWNLOADS.ACTION_FAILED');
+
+        this.snackBar.open(message, undefined, {
+            duration: 4000,
+            horizontalPosition: 'start',
+        });
     }
 
     private handleFileActionError(error?: string): void {
