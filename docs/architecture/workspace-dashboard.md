@@ -12,8 +12,12 @@ Related:
 - The dashboard is the default `/workspace` landing page.
 - It is a **rail-based** content surface (Netflix / Apple TV pattern), not a
   customizable widget grid.
-- Layout is static and curated — there is no edit mode, drag-drop, size
-  stepper, show/hide toggle, or persisted layout. Rails auto-hide when empty.
+- Layout order is static and curated — there is no edit mode, drag-drop, or
+  size stepper. Each rail has a persisted show/hide toggle
+  (`Settings.dashboardRails`, `DashboardRailsSettings` in
+  `libs/shared/interfaces/src/lib/settings.interface.ts`, surfaced under
+  Settings → Dashboard); every template rail is gated by
+  `dashboardRails().<key>`. Rails additionally auto-hide when empty.
 - First-run users see the shared welcome empty-state with a single primary
   CTA to add their first playlist.
 
@@ -38,13 +42,22 @@ Core implementation:
 │  Continue Watching · See all →                                      │
 │  [poster][poster][poster][poster] →→                                │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Live now on your favorites / Continue with live TV · See all →     │
+│  Live now on your favorites · See all →                             │
 │  [channel][channel][channel][channel] →→                            │
+├─────────────────────────────────────────────────────────────────────┤
+│  Recently watched live TV · See all →                               │
+│  [channel][channel][channel][channel] →→                            │
+├─────────────────────────────────────────────────────────────────────┤
+│  Favorite movies & series · See all →                               │
+│  [poster][poster][poster][poster] →→                                │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Recently Used Sources · See all →                                  │
 │  [tile][tile][tile][tile] →→                                        │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Recently Added on Xtream (aggregated across providers)             │
+│  [poster][poster][poster] →→                                        │
+├─────────────────────────────────────────────────────────────────────┤
+│  Trending this week (TMDB, opt-in, Electron-only)                   │
 │  [poster][poster][poster] →→                                        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -55,7 +68,7 @@ Render rules:
    page no longer uses `dashboardReady()` as a page-wide skeleton gate.
    Initial hero/recent/favorites loading states render scoped skeletons so one
    slow rail does not hide already available content.
-2. `hasPlaylists() === false` → render `<app-empty-state type="welcome">`
+2. `hasPlaylists() === false` → render `<app-empty-state [type]="'welcome-dashboard'">`
    full-bleed. All rails and the hero are skipped.
 3. `hero()` = `globalRecentItems()[0]`. If present, render the hero panel.
 4. Each rail is emitted via `@if (cards.length > 0)`. Empty rails are hidden
@@ -63,9 +76,11 @@ Render rules:
 5. The continue-watching hero prefers a stored Xtream `backdrop_url`; when it
    is missing the UI falls back to a blurred poster treatment instead of
    showing a flat panel.
-6. The mixed global favorites rail is not rendered on the dashboard. Live
-   favorites are promoted into the live rail, while mixed favorites stay on
-   `/workspace/global-favorites`.
+6. Live favorites are promoted into their own live rail; movie/series
+   favorites render in a separate `Favorite movies & series` rail
+   (`favoriteMoviesAndSeriesCards`, `data-test-id="dashboard-favorite-vod-rail"`,
+   mapped from `globalFavoriteItems()` filtered to movie/series). Full mixed
+   favorites management stays on `/workspace/global-favorites`.
 7. The live favorites rail keeps its scoped skeleton until the initial global
    favorites load has completed for both Xtream-backed and playlist-backed
    favorites. This avoids first-paint partial counts such as a single Stalker
@@ -106,9 +121,10 @@ Render rules:
        metadata and playback positions load, the detail player consumes the
        target once and resumes the saved episode. Opening the same item normally
        from the global recent grid remains a detail-only action.
-    3. `liveOnFavoritesCardsEnriched` — maps favorited live channels first,
-       falling back to recently watched live channels when no live favorites
-       exist. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
+    3. `liveFavoriteCardsEnriched` and `recentLiveCardsEnriched` — two
+       independent rails (`dashboard-live-favorites-rail` and
+       `dashboard-recent-live-rail`); there is no fallback from one to the
+       other. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
        fallback order (`tvg-id` -> `tvg-name` -> channel name); EPG enrichment
        must use that key before falling back to the card title.
     4. `xtreamRecentlyAddedCards` — maps `xtreamRecentlyAddedItems()` to rail
@@ -130,7 +146,10 @@ Render rules:
 3. `DashboardDataService` is passive on construction. The dashboard feature
    owns the initial reloads for recent items, favorites, and Xtream recently
    added rows on page entry.
-4. No `Layout` state, no localStorage keys, no migrations.
+4. No dashboard-local `Layout` state, no localStorage keys, no migrations.
+   Per-rail visibility is the one persisted preference, and it lives in the
+   global settings store (`Settings.dashboardRails`), not in a
+   dashboard-owned layout blob.
 5. Navigation state + deep-link targets come from the existing
    `getRecentItemLink()` / `getGlobalFavoriteLink()` / `getPlaylistLink()`
    helpers on `DashboardDataService` and reuse the workspace navigation
@@ -162,7 +181,7 @@ Render rules:
 ## Empty State
 
 The welcome state is rendered via the existing
-`EmptyStateComponent` (`type="welcome"`) from
+`EmptyStateComponent` (`type="welcome-dashboard"`) from
 `libs/playlist/shared/ui`:
 
 1. Illustration + headline + description from the existing M3U welcome
@@ -189,8 +208,9 @@ The welcome state is rendered via the existing
 7. `Recently Used Sources` reflects recent source usage across all provider
    types, not just recent imports.
 8. The live rail title key must match the rendered source: favorites use
-   `WORKSPACE.DASHBOARD.LIVE_FAVORITES`; recently watched fallback uses
-   `WORKSPACE.DASHBOARD.LIVE_RECENT`.
+   `WORKSPACE.DASHBOARD.LIVE_FAVORITES`; the recently-watched-live rail uses
+   `WORKSPACE.DASHBOARD.RECENTLY_WATCHED_LIVE_TV`
+   (`liveRailTitleKeyForSource` in `rails/dashboard-rail.utils.ts`).
 
 ## Adding Or Changing Rails
 
@@ -210,8 +230,9 @@ Current workflow:
 
 Intentionally out of scope:
 
-1. Customizable layout (drag/drop, resize, show/hide toggles, layout
-   persistence). Removed in favor of a curated, opinionated order.
+1. Customizable layout (drag/drop, resize, freeform reordering). The rail
+   order stays curated and opinionated. (Per-rail show/hide toggles have
+   since shipped via `Settings.dashboardRails` — see Summary.)
 2. Freeform widget grid with collision management.
 3. External data rails such as RSS, sports, or news adapters.
 4. Per-user A/B variants of rail ordering.

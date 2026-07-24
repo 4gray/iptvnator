@@ -32,14 +32,15 @@ Stalker support covers:
 Primary route tree lives in
 `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`.
 
-- `/stalker/:id/vod`
-- `/stalker/:id/series`
+- `/stalker/:id/vod` (plus `vod/:categoryId` child)
+- `/stalker/:id/series` (plus `series/:categoryId` child)
 - `/stalker/:id/itv`
 - `/stalker/:id/radio`
 - `/stalker/:id/favorites`
 - `/stalker/:id/recent`
 - `/stalker/:id/search`
-- `/stalker/:id/downloads` (shared downloads module from Xtream UI)
+- `/stalker/:id/actor/:personId`
+- `/stalker/:id/downloads` (shared `DownloadsComponent` from `@iptvnator/portal/downloads/feature`)
 
 ## Runtime Architecture
 
@@ -48,20 +49,20 @@ Primary route tree lives in
 3. Requests go through `DataService.sendIpcEvent(STALKER_REQUEST, ...)` or `StalkerSessionService` (full portal auth).
 4. Electron main process handles `STALKER_REQUEST` in
    `apps/electron-backend/src/app/events/stalker.events.ts`.
-5. Axios calls Stalker `load.php` API with required headers/cookies and returns normalized payloads to renderer.
+5. Axios calls Stalker `load.php` API with required headers/cookies and returns the raw `response.data` to the renderer; normalization happens in the store feature slices.
 
 ## Main UI Components
 
-- `libs/portal/stalker/feature/src/lib/stalker-main-container.component.ts`
-    - Category + content layout for `vod` and `series`
+- `CategoryContentViewComponent` from `@iptvnator/portal/catalog/feature` (`libs/portal/catalog/feature`)
+    - Shared category + content layout used by the `vod` and `series` routes (wired in `stalker-feature.routes.ts` via `loadCategoryContentViewComponent`)
 - `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`
     - ITV live playback, radio playback, channel/station navigation, EPG panel integration
 - `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
     - Shared inline audio player used by M3U radio channels and Stalker radio stations
 - `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
     - Season/episode UI for all Stalker series modes
-- `libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
-- `libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-collection-route.component.ts`
+    - Favorites and recently-viewed collection views (`mode = 'favorites' | 'recent'` route data), rendering `stalker-collection-detail.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 
 ## Store and Data Flow
@@ -342,9 +343,9 @@ Current implementation is shared via Stalker-specific helpers:
 
 Where this is used:
 
-- `libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
-- `libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-collection-detail.component.ts` (favorites + recently viewed)
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
 
 Navigation rule to preserve:
@@ -408,7 +409,7 @@ See full backend and web-remote flow in [Remote Control Architecture](./remote-c
 Stalker ITV now splits EPG usage:
 
 - active channel panel: bulk `get_epg_info` cached once per playlist and rendered
-  through shared `app-epg-list`
+  through the shared EPG panel (`app-epg-timeline`, or `app-epg-list-view` in list mode)
 - channel row preview: no pre-playback network requests; previews are derived
   from cached bulk EPG only after the first active-channel fetch succeeds
 - active panel fallback: `get_short_epg` when bulk EPG is missing or unsupported

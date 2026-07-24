@@ -9,7 +9,9 @@ explicit hardened `webPreferences` object:
 
 - `contextIsolation: true`
 - `nodeIntegration: false`
-- `sandbox: true`
+- `sandbox: !frameCopyExperiment` — `true` by default; the opt-in Embedded MPV
+  frame-copy experiment is the one path that disables the renderer sandbox
+  (`contextIsolation`/`nodeIntegration` stay hardened regardless)
 - `webSecurity: true`
 - `preload: apps/electron-backend/src/app/api/main.preload.ts`
 
@@ -98,11 +100,13 @@ produce both `dmg` and `zip` targets, and publish a single merged
 
 The Angular shell defines a baseline CSP in `apps/web/src/index.html`.
 
-The policy keeps the application self-hosted for scripts, blocks object and
-frame embedding, limits forms to the app origin, and allows IPTV playback
-sources through `media-src` and `connect-src` for `http:`, `https:`, `blob:`,
-and `data:`. The policy keeps `script-src` self-hosted and currently keeps
-`unsafe-inline` for existing inline styles.
+The policy keeps the application self-hosted for scripts, blocks object
+embedding (`object-src 'none'`) while allowing frames only from
+`https://www.youtube-nocookie.com` (`frame-src`, used for TMDB trailers),
+limits forms to the app origin, and allows IPTV playback sources through
+`media-src` and `connect-src` for `http:`, `https:`, `blob:`, and `data:`. The
+policy keeps `script-src` self-hosted and currently keeps `unsafe-inline` for
+existing inline styles.
 
 Angular production builds must not rely on inline event handlers for stylesheet
 activation. Keep `web:build:production` and `web:build:pwa` configured without

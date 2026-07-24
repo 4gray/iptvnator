@@ -300,13 +300,6 @@ This redirects the SQLite database, Electron user data, and local config under
 the given directory. Delete that directory whenever you want a fresh empty
 state.
 
-If you need to debug renderer freezes or GPU/compositor issues in Electron, you
-can disable hardware acceleration for a run:
-
-```
-$ IPTVNATOR_DISABLE_HARDWARE_ACCELERATION=1 pnpm run serve:backend
-```
-
 If you need startup diagnostics for a white screen or a frozen route, you can
 also turn on opt-in Electron tracing. These logs are written to the Electron
 terminal output so they still help when the renderer DevTools never open:

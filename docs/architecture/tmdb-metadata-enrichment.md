@@ -215,7 +215,7 @@ Single table with two row kinds discriminated by `lookup_key` prefix:
 ```
 tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
-  lookup_key  'id:<tmdbId>'                  -- details payload row
+  lookup_key  'id:<tmdbId>|v2'               -- details payload row
               'title:<normalized>|year:<y>|v2' -- search resolution row
               'person:<personId>'            -- person payload row
   language    TEXT,       -- TMDB language code
@@ -229,8 +229,11 @@ tmdb_metadata (
 TTLs (enforced at read time in `TmdbCacheService.isFresh`): details and
 positive matches 30 days, negative matches 7 days.
 
-Search keys carry a version suffix so normalization changes cannot reuse stale
-positive or negative resolutions. Database startup deletes the obsolete
+Search and details keys carry a `|v2` version suffix (`buildDetailsLookupKey`
+in `tmdb-matcher.ts`): for search rows so normalization changes cannot reuse
+stale positive or negative resolutions, for details rows because payloads now
+include videos via `append_to_response` and pre-videos cache rows had to be
+invalidated. Database startup deletes the obsolete
 unversioned search rows once and records
 `migration:tmdb-search-lookup-v2-cache-cleanup:v1` in `app_state`; details and
 person cache rows are unaffected.

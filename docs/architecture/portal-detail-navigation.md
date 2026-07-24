@@ -50,7 +50,7 @@ Implication:
 
 Current code paths:
 
-- `libs/portal/xtream/feature/src/lib/favorites/favorites.component.ts`
+- `libs/portal/xtream/feature/src/lib/xtream-collection-detail.component.ts` (favorites + recent, with shared UI from `libs/portal/shared/ui/src/lib/components/favorites-layout/`)
 - `libs/portal/xtream/feature/src/lib/search-results/search-results.component.ts`
 - `libs/portal/catalog/feature/src/lib/category-content-view/category-content-view.component.ts`
 
@@ -113,8 +113,7 @@ Implication:
 
 Current code paths:
 
-- `libs/portal/stalker/feature/src/lib/stalker-favorites/stalker-favorites.component.ts`
-- `libs/portal/stalker/feature/src/lib/recently-viewed/recently-viewed.component.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-collection-route.component.ts` (favorites + recent via `mode` route data) -> `stalker-collection-detail.component.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 - `libs/portal/catalog/feature/src/lib/category-content-view/category-content-view.component.ts` (Stalker branch)
 

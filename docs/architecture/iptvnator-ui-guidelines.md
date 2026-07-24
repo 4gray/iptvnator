@@ -88,10 +88,10 @@ Do not add extra badges, left rails, or second selection systems unless there is
 
 ## Detail Views
 
-VOD and series detail screens share the `detail-view` Sass mixin from
-`libs/ui/styles/_detail-view.scss`. Feature-local `styles/detail-view.scss`
-files should only import that mixin and pass small typography overrides when a
-provider needs them.
+VOD and series detail screens share the detail-view Sass mixin (`@mixin base`)
+from `libs/ui/styles/_detail-view.scss`. Feature-local `styles/detail-view.scss`
+files should only `@use` that module and `@include detail-view.base(...)` with
+small typography overrides when a provider needs them.
 
 Do not copy the full detail-view stylesheet into feature libraries. Add shared
 layout changes to the mixin, and keep provider-specific differences explicit in
@@ -201,7 +201,8 @@ The shared row should be reused instead of rebuilding channel markup per view.
 ### EPG Card
 
 - Radius:
-  `14px`
+  `11px` (`.epg-timeline__block` in
+  `libs/ui/epg/src/lib/epg-timeline/epg-timeline-track.component.scss`)
 - Neutral cards use low-contrast surface treatment
 - Current card uses selection surface and selection border
 - Description should clamp rather than overflow

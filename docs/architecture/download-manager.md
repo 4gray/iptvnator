@@ -1,11 +1,11 @@
 # Download Manager Architecture
 
-The download manager is a desktop-only feature that layers a curated queue, progress tracking, storage configuration, and playback controls on top of the existing Xtream (xtream-electron folder) + Stalker viewers. Backend work is handled in the Electron process while the Angular renderer surface exposes a dedicated `/downloads` route, contextual buttons, and theme-aware styling.
+The download manager is a desktop-only feature that layers a curated queue, progress tracking, storage configuration, and playback controls on top of the existing Xtream (`libs/portal/xtream`) + Stalker (`libs/portal/stalker`) portal views. Backend work is handled in the Electron process while the Angular renderer surface exposes a dedicated `/downloads` route, contextual buttons, and theme-aware styling.
 
 ## Backend responsibilities
 
 - **Queue control (`apps/electron-backend/src/app/events/database/download-runtime.ts`)**
-  `DownloadTask` mirrors the shared `DownloadItem` table plus transient cancel/progress helpers. Request validation and row creation live in `download-requests.ts`, while `downloads.events.ts` stays focused on IPC registration. `enqueueDownload()` pushes the task onto `downloadQueue` and triggers `processQueue()`. `processQueue()` keeps one active download, updates the row to `downloading`, and calls `startDownload()`.
+  `DownloadTask` mirrors a row of the shared `downloads` table (type `Download` in `libs/shared/database/src/lib/schema.ts`) plus transient cancel/progress helpers. Request validation and row creation live in `download-requests.ts`, while `downloads.events.ts` stays focused on IPC registration. `enqueueDownload()` pushes the task onto `downloadQueue` and triggers `processQueue()`. `processQueue()` keeps one active download, updates the row to `downloading`, and calls `startDownload()`.
 - **electron-dl integration**
   `startDownload()` calls `electron-dl`'s `download()` helper. Headers (user agent, referer, origin) are attached, and the `onStarted`, `onProgress`, `onCompleted`, and `onCancel` callbacks translate the helper's payload into Drizzle updates. A cancellation requested before `onStarted` is remembered and applied as soon as Electron supplies the `DownloadItem`, so the request cannot be lost in the startup race.
 - **Destination collision policy**
@@ -24,10 +24,8 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 - **Downloads service** (`libs/services/src/lib/downloads.service.ts`)
   Signals back the current download list while `hasDownloads` and `isAvailable` gates UI rendering. Before each download the service asks the main process for the authorized folder and calls `downloadsStart`. The backend extracts the file extension from the URL or falls back to `mp4`. `onDownloadsUpdate` updates the signal, while helper methods `retryDownload`, `removeDownload`, `cancelDownload`, and `playDownload` talk to the corresponding IPC commands so retries reuse existing rows and completed items can open the recorded path.
 - **Downloads view** (`libs/portal/downloads/feature`)  
-  A standalone page exposes the queue, desktop-only messaging, folder picker, and action buttons. `downloads.component.html` now wraps the list inside a scrollable panel (`downloads__list-wrapper`) so long queues stay reachable, and `downloads.component.scss` drives a bold two-tone aesthetic inspired by the frontend-design mandate—gradient cards, floating avatars, and theme-aware variables triggered via `body.dark-theme`.
+  A standalone page exposes the queue, desktop-only messaging, folder picker, and action buttons. `downloads.component.html` wraps the list inside a scrollable panel (`downloads__list-wrapper`) so long queues stay reachable, and `downloads.component.scss` drives gradient cards with theme-aware styling through Angular Material system CSS variables (`var(--mat-sys-*)`, `var(--app-*)`, `color-mix`) — theming tracks the active Material theme rather than a `body.dark-theme` hook.
   Failed/canceled cards now show retry/delete controls, queued/downloading cards show a cancel icon, and completed cards render inline play/open buttons with `mat-icon` cues. The header also shows the resolved download folder and a `CHANGE FOLDER` action.
-- **Theme fixes**  
-  To keep typography legible in both modes, `app-search-result-item` now inherits color from `:host-context(body.dark-theme)` and `:host-context(body:not(.dark-theme))`, ensuring dense light-theme grids no longer show white text on white backgrounds.
 
 ## Global API surface
 
@@ -37,7 +35,7 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 ## Routing and navigation
 
 - `/downloads` is available under both portal flavors: the Xtream routes already load `DownloadsComponent`, and the Stalker routes now import the same component so the sidebar link can target `/stalker/:id/downloads` without returning to the startup screen.
-- The navigation component already points `routerLink="./downloads"` inside the shared nav pane, so both portals reuse the same download page.
+- Downloads navigation is data-driven: `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts` emits a `downloads` section link (`path: [...root, 'downloads']`) for both portals, so they reuse the same download page.
 
 ## Queuing, persistence, and UX notes
 

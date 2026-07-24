@@ -134,12 +134,6 @@ Settings, portal request/response, and trace payloads must use
 `@iptvnator/shared/logging` or the redacting portal logger before reaching
 `console.*`; never log raw credentials while debugging.
 
-For GPU/compositor debugging:
-
-```bash
-IPTVNATOR_DISABLE_HARDWARE_ACCELERATION=1 nx serve electron-backend
-```
-
 If the Nx daemon gets into a bad state before rerunning Electron:
 
 ```bash
@@ -578,6 +572,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `favorites` - User favorites
     - `recentlyViewed` - Watch history
     - `epgChannels`, `epgPrograms` - Persisted EPG data
+    - `epgChannelMappings` (`epg_channel_mappings`) - Manual EPG channel mappings (defined in `epg-mapping.schema.ts`, re-exported by `schema.ts`)
     - `playbackPositions` - Resume positions
     - `downloads` - Download manager state
     - `appState` - Key-value app state (also tracks one-off data migrations)

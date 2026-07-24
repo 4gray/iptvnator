@@ -77,12 +77,6 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
   `@iptvnator/shared/logging` or the redacting portal logger before reaching
   `console.*`; never log raw credentials while debugging.
 
-- GPU/compositor debugging:
-
-```bash
-IPTVNATOR_DISABLE_HARDWARE_ACCELERATION=1 nx serve electron-backend
-```
-
 - If local Nx state gets weird before a rerun:
 
 ```bash

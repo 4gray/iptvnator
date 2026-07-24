@@ -635,6 +635,7 @@ The guarded ArtPlayer integration lives in:
 
 ```text
 libs/ui/playback/src/lib/art-player/
+├── art-player-audio-tracks.ts
 ├── art-player-setup.ts
 ├── art-player-source-session.ts
 ├── art-player-video-session.ts

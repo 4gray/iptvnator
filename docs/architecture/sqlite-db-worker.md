@@ -56,6 +56,15 @@ Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 2. `apps/electron-backend/src/app/database/operations/content.operations.ts`
 3. `apps/electron-backend/src/app/database/operations/playlist.operations.ts`
 4. `apps/electron-backend/src/app/database/operations/xtream.operations.ts`
+5. `apps/electron-backend/src/app/database/operations/favorites.operations.ts`
+6. `apps/electron-backend/src/app/database/operations/recently-viewed.operations.ts`
+7. `apps/electron-backend/src/app/database/operations/playback-position.operations.ts`
+8. `apps/electron-backend/src/app/database/operations/content-backdrop.operations.ts`
+9. `apps/electron-backend/src/app/database/operations/title-match.operations.ts`
+10. `apps/electron-backend/src/app/database/operations/tmdb.operations.ts`
+11. `apps/electron-backend/src/app/database/operations/epg-mapping.operations.ts`
+
+(plus the shared cancellation helper `operation-control.ts` in the same directory)
 
 ## Worker Architecture
 
@@ -675,11 +684,16 @@ CI=1 NX_TASKS_RUNNER_DYNAMIC_OUTPUT=false pnpm nx run electron-backend:build --s
 
 These are intentionally still out of scope for this first cut:
 
-1. request cancellation
-2. moving network-heavy Xtream fetches off the current path
-3. migrating every remaining small SQLite IPC handler to the worker
-4. richer delete progress reporting for bulk destructive operations
-5. repo-wide Angular/Jest cleanup for the currently failing web test baseline
+1. moving network-heavy Xtream fetches off the current path
+2. migrating every remaining small SQLite IPC handler to the worker
+3. richer delete progress reporting for bulk destructive operations
+4. repo-wide Angular/Jest cleanup for the currently failing web test baseline
+
+(Request cancellation, originally listed here, has since shipped — see the
+"Cancellation contract" section above: `DB_CANCEL_OPERATION` in
+`apps/electron-backend/src/app/api/main.preload.ts`, `AbortError` production in
+`database.worker.ts`, and `DatabaseService.cancelOperation` in
+`libs/services/src/lib/database-electron.service.ts`.)
 
 ## Extending The Worker
 

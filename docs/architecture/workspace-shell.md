@@ -38,10 +38,15 @@ Core implementation:
 Current workspace routes:
 
 1. `/` -> `/workspace`
-2. `/workspace` -> `/workspace/dashboard`
+2. `/workspace` -> functional redirect `workspaceEntryRedirect`
+   (`WorkspaceStartupPreferencesService.resolveInitialWorkspacePath()`;
+   `/workspace/dashboard` by default, `/workspace/sources` when the dashboard
+   is disabled, or the last restorable route under
+   `StartupBehavior.RestoreLastView` — `dashboard` itself is guarded by
+   `dashboardAccessGuard`)
 3. `/workspace/dashboard`
 4. `/workspace/sources`
-5. `/workspace/playlists/:id/:view`
+5. `/workspace/playlists/:id/:view` (plus `favorites` and `recent` siblings)
 6. `/workspace/global-favorites`
 7. `/workspace/global-recent`
 8. `/workspace/search`

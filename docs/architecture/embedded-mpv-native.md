@@ -209,8 +209,9 @@ the frame-copy canvas.
 embedded MPV experiment flag) switches macOS/arm64, Linux and Windows to a
 second rendering engine that replaces the native-view compositing entirely
 (gate: `isFrameCopyPlatformSupported()` in
-`embedded-mpv-frame-copy-platform.util.ts`, shared by `main.ts`, the
-service and the adapter):
+`embedded-mpv-frame-copy-platform.util.ts`; the adapter imports it directly,
+while `main.ts` and the service call it transitively through the same util
+module's `isFrameCopyRuntimeUsable()` / `getFrameCopyRuntimeAvailability()`):
 
 - `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper`, a
   one-process-per-session libmpv host. It decodes (hwdec), renders
@@ -259,7 +260,8 @@ service and the adapter):
   bounds sync.
 
 Enabling it: the `Settings > Playback > Embedded MPV: frame-copy engine`
-checkbox (shown only when support reports `frameCopyAvailable`) persists to
+checkbox (shown when support reports `frameCopyAvailable` or the option is
+already enabled, so it stays visible for turning off) persists to
 the main-process config store (`electron-conf`), which `main.ts` reads before
 creating the window and translates into the env flag; an explicitly set env
 var (including `0`) wins over the stored preference, but cannot bypass the

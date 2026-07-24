@@ -127,19 +127,20 @@ apps/stalker-mock-server/
 │       ├── scenarios.ts                   # MAC → scenario config mapping
 │       ├── data-generator.ts              # Seeded faker data generation
 │       ├── data-store.ts                  # Lazy per-MAC in-memory cache
-│       └── routes/
-│           ├── portal.route.ts            # /portal.php dispatcher
-│           └── handlers/
-│               ├── handshake.handler.ts
-│               ├── do-auth.handler.ts
-│               ├── get-categories.handler.ts
-│               ├── get-ordered-list.handler.ts
-│               ├── get-seasons.handler.ts
-│               ├── create-link.handler.ts
-│               ├── favorites.handler.ts
-│               ├── get-epg-info.handler.ts
-│               ├── get-short-epg.handler.ts
-│               └── get-genres.handler.ts
+│       ├── routes/
+│       │   ├── portal.route.ts            # /portal.php route
+│       │   └── dispatch.ts                # Shared Stalker action dispatcher
+│       └── handlers/
+│           ├── handshake.handler.ts
+│           ├── do-auth.handler.ts
+│           ├── get-categories.handler.ts
+│           ├── get-ordered-list.handler.ts
+│           ├── get-seasons.handler.ts
+│           ├── create-link.handler.ts
+│           ├── favorites.handler.ts
+│           ├── get-epg-info.handler.ts
+│           ├── get-short-epg.handler.ts
+│           └── get-genres.handler.ts
 ├── project.json
 ├── tsconfig.json
 └── README.md
