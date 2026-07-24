@@ -9,7 +9,36 @@ on:
             - master
     workflow_dispatch:
 
+# Superseded PR pushes cancel their still-running checks; master pushes are
+# never cancelled so every merged commit keeps a full lint/test record.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+    contents: read
+
 jobs:
+    actionlint:
+        name: Workflow lint
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            # Image pinned by digest (tag 1.7.12). False positives are
+            # suppressed in .github/actionlint.yaml; shellcheck runs at
+            # warning+ severity so style/info notes in long release scripts
+            # don't fail CI while real quoting/logic bugs still do.
+            - name: Run actionlint
+              uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+              with:
+                  args: -color
+              env:
+                  SHELLCHECK_OPTS: --severity=warning
+
     lint:
         name: Lint
         runs-on: ubuntu-latest
@@ -18,6 +47,9 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
+              with:
+                  # nx affected needs the merge-base with the PR target branch.
+                  fetch-depth: 0
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -31,7 +63,18 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
-            - name: Lint all projects
+            # PRs lint only affected projects for faster feedback; root config
+            # or lockfile changes make every project affected, so the
+            # module-boundary and max-lines rules cannot be dodged this way.
+            - name: Lint affected projects (PR)
+              if: github.event_name == 'pull_request'
+              run: pnpm nx affected --target=lint --base=origin/${{ github.base_ref }} --head=HEAD --parallel=3 --output-style=static
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            - name: Lint all projects (master)
+              if: github.event_name != 'pull_request'
               run: pnpm nx run-many --target=lint --all --parallel=3 --output-style=static
               env:
                   CI: true

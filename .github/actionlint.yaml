@@ -1,0 +1,10 @@
+paths:
+    # build-cross-platform and build-linux share their steps via a YAML anchor
+    # (steps: *electron-build-steps). actionlint type-checks the anchored steps
+    # against each job's own matrix, so matrix.linux_profile — defined only in
+    # build-linux — is reported as unknown when the same steps are checked
+    # against the build-cross-platform matrix. The steps guard every use with
+    # `matrix.os == 'linux'` or a `|| ''` fallback, so this is a false positive.
+    .github/workflows/build-and-make.yaml:
+        ignore:
+            - 'property "linux_profile" is not defined in object type'
