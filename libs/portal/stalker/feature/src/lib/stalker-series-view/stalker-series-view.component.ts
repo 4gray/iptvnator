@@ -207,9 +207,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             const item = this.displayItem();
             const tmdbId = item?.info?.tmdb_id;
             const seasonKey = this.selectedSeasonKey();
-            if (tmdbId && seasonKey) {
-                untracked(() => {
-                    const seasons = this.mappedSeasons();
+            // The season map is read TRACKED: the TMDB match can arrive
+            // before the async season resource, and a fetch made with an
+            // empty map would pass seasonCount 0 (suppressing the
+            // title-marker override) and cache the wrong season forever.
+            // Waiting for a non-empty map and re-running on its updates is
+            // safe — fetchSeason is idempotent per (tmdbId, seasonKey), so
+            // the overlay-driven recomputation cannot loop.
+            const seasons = this.mappedSeasons();
+            if (tmdbId && seasonKey && Object.keys(seasons).length > 0) {
+                untracked(() =>
                     void this.tmdbSeasons.fetchSeason(
                         tmdbId,
                         seasonKey,
@@ -218,8 +225,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                             rawTitle: item?.info?.name ?? null,
                             seasonCount: Object.keys(seasons).length,
                         }
-                    );
-                });
+                    )
+                );
             }
         });
 

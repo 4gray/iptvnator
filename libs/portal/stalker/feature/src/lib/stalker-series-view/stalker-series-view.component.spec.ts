@@ -816,4 +816,44 @@ describe('StalkerSeriesViewComponent', () => {
 
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 1);
     });
+
+    it('waits for the season map before fetching so a per-season slice gets the title-marked season', async () => {
+        serialSeasonsResource.set([]);
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series (2 season)',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Season resource still loading — fetching now would pass a zero
+        // season count, suppress the title-marker override and cache the
+        // wrong season forever (fetchSeason is idempotent).
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        serialSeasonsResource.set([
+            {
+                id: 'season-1',
+                name: 'Season 1',
+                cmd: '/media/file_30001.mpg',
+                series: [1, 2],
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Single-season slice whose provider season is renumbered to 1:
+        // the title marker names the real TMDB season.
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
+    });
 });
