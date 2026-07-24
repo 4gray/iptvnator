@@ -193,7 +193,12 @@ show-level match is unaffected by them.
 Wiring: Xtream — `XtreamStore.enrichSelectedSerialSeason(seasonKey)` fired
 from the serial detail's `(seasonSelected)`; Stalker — the series view
 keeps a `${tmdbId}|${seasonKey}`-keyed map and overlays it inside its
-`mappedSeasons` computed. Without a show-level match or with enrichment
+`mappedSeasons` computed. Each Stalker entry records the RESOLVED season
+it was fetched for: per-season slices of one show share
+(tmdbId, provider key "1") but resolve to different seasons, and a fetch
+made with stale detail-to-detail navigation context is overwritten once
+the real context re-resolves — the fetch effect waits for a non-empty
+season map and the season selection resets on item identity change. Without a show-level match or with enrichment
 disabled everything is a no-op — the `SeasonContainer` UI already renders
 every episode field conditionally.
 
