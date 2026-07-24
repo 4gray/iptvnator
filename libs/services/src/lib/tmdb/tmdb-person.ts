@@ -23,10 +23,13 @@ export interface ActorFilmographyCredit {
     title: string;
     year: number | null;
     posterUrl: string | null;
+    /** Character (acting credits) or job like "Director" (crew credits) */
     character: string | null;
 }
 
 const MAX_FILMOGRAPHY_CREDITS = 80;
+/** Crew jobs worth showing on the person page (directors, TV creators) */
+const FILMOGRAPHY_CREW_JOBS = new Set(['Director', 'Creator']);
 
 export function mapPersonProfile(person: TmdbPersonDetails): ActorProfile {
     return {
@@ -41,8 +44,11 @@ export function mapPersonProfile(person: TmdbPersonDetails): ActorProfile {
 }
 
 /**
- * Deduplicated acting credits, newest first (undated entries last),
- * capped at {@link MAX_FILMOGRAPHY_CREDITS}.
+ * Deduplicated acting + directing credits in one merged list, newest
+ * first (undated entries last), capped at {@link MAX_FILMOGRAPHY_CREDITS}.
+ * Acting credits win the dedup so "Actor — Character" survives when a
+ * person both starred in and directed the same title; directing-only
+ * titles show the job ("Director") in the character slot.
  */
 export function mapPersonFilmography(
     person: TmdbPersonDetails
@@ -50,7 +56,12 @@ export function mapPersonFilmography(
     const seen = new Set<string>();
     const credits: ActorFilmographyCredit[] = [];
 
-    for (const credit of person.combined_credits?.cast ?? []) {
+    const castCredits = person.combined_credits?.cast ?? [];
+    const crewCredits = (person.combined_credits?.crew ?? []).filter(
+        (credit) => credit.job && FILMOGRAPHY_CREW_JOBS.has(credit.job)
+    );
+
+    for (const credit of [...castCredits, ...crewCredits]) {
         const mediaType =
             credit.media_type === 'movie' || credit.media_type === 'tv'
                 ? credit.media_type
@@ -68,7 +79,7 @@ export function mapPersonFilmography(
             title,
             year: extractYear(credit.release_date ?? credit.first_air_date),
             posterUrl: tmdbPosterUrl(credit.poster_path),
-            character: credit.character?.trim() || null,
+            character: credit.character?.trim() || credit.job?.trim() || null,
         });
     }
 

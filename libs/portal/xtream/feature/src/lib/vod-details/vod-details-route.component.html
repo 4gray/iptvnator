@@ -79,12 +79,43 @@
                     }
                 </div>
             }
-            @if (info.director) {
+            @if (info.director || info.tmdb_directors?.length) {
                 <div class="details__meta-item">
-                    <span class="label">{{
-                        'XTREAM.DIRECTOR' | translate
-                    }}</span>
-                    <span class="value">{{ info.director }}</span>
+                    <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+                    @if (info.tmdb_directors?.length) {
+                        <div class="details__cast-strip">
+                            @for (member of info.tmdb_directors; track member.name) {
+                                <span
+                                    class="details__cast-chip"
+                                    [class.details__cast-chip--clickable]="
+                                        !!member.tmdbPersonId
+                                    "
+                                    (click)="openActor(member)"
+                                    [title]="member.name"
+                                >
+                                    @if (member.profileUrl) {
+                                        <img
+                                            class="details__cast-avatar"
+                                            [src]="member.profileUrl"
+                                            [alt]="member.name"
+                                            loading="lazy"
+                                        />
+                                    } @else {
+                                        <span
+                                            class="details__cast-avatar details__cast-avatar--fallback"
+                                        >
+                                            {{ member.name.charAt(0) }}
+                                        </span>
+                                    }
+                                    <span class="details__cast-name">{{
+                                        member.name
+                                    }}</span>
+                                </span>
+                            }
+                        </div>
+                    } @else {
+                        <span class="value">{{ info.director }}</span>
+                    }
                 </div>
             }
             @if (info.rating_kinopoisk) {

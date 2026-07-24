@@ -39,6 +39,8 @@ export interface StalkerVodInfo {
     rating_kinopoisk: string;
     /** Populated by TMDB enrichment; absent in raw portal responses */
     tmdb_cast?: TmdbEnrichedCastMember[];
+    /** Directors (movies) / creators (series) as clickable person chips */
+    tmdb_directors?: TmdbEnrichedCastMember[];
     /** TMDB backdrop URL — Stalker portals never provide one themselves */
     tmdb_backdrop?: string;
     /** YouTube trailer key from TMDB — Stalker portals provide no trailers */

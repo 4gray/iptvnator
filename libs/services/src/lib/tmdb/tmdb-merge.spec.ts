@@ -68,8 +68,15 @@ const tmdbMovie: TmdbMovieDetails = {
             { name: 'Laurence Fishburne', order: 1, profile_path: null },
         ],
         crew: [
-            { name: 'Lana Wachowski', job: 'Director' },
-            { name: 'Lilly Wachowski', job: 'Director' },
+            {
+                id: 9339,
+                name: 'Lana Wachowski',
+                job: 'Director',
+                profile_path: '/lana.jpg',
+            },
+            { id: 9340, name: 'Lilly Wachowski', job: 'Director' },
+            // Duplicate crew row TMDB sometimes returns — must be deduped
+            { id: 9339, name: 'Lana Wachowski', job: 'Director' },
             { name: 'Someone Else', job: 'Producer' },
         ],
     },
@@ -106,7 +113,21 @@ describe('mergeVodInfoWithTmdb', () => {
         expect(merged.description).toBe('TMDB overview');
         expect(merged.cast).toBe('Keanu Reeves, Laurence Fishburne');
         expect(merged.actors).toBe('Keanu Reeves, Laurence Fishburne');
-        expect(merged.director).toBe('Lana Wachowski, Lilly Wachowski');
+        expect(merged.director).toBe(
+            'Lana Wachowski, Lilly Wachowski, Lana Wachowski'
+        );
+        expect(merged.tmdb_directors).toEqual([
+            {
+                name: 'Lana Wachowski',
+                profileUrl: 'https://image.tmdb.org/t/p/w185/lana.jpg',
+                tmdbPersonId: 9339,
+            },
+            {
+                name: 'Lilly Wachowski',
+                profileUrl: null,
+                tmdbPersonId: 9340,
+            },
+        ]);
         expect(merged.genre).toBe('Action, Science Fiction');
         expect(merged.rating).toBe(8.2);
         expect(merged.tmdb_id).toBe(603);
@@ -242,7 +263,10 @@ describe('mergeSerieInfoWithTmdb', () => {
         vote_count: 3200,
         poster_path: '/dark-poster.jpg',
         backdrop_path: '/dark-backdrop.jpg',
-        created_by: [{ name: 'Baran bo Odar' }, { name: 'Jantje Friese' }],
+        created_by: [
+            { id: 91, name: 'Baran bo Odar', profile_path: '/odar.jpg' },
+            { name: 'Jantje Friese' },
+        ],
         credits: {
             cast: [{ name: 'Louis Hofmann', order: 0 }],
         },
@@ -254,6 +278,14 @@ describe('mergeSerieInfoWithTmdb', () => {
         expect(merged.plot).toBe('TMDB tv overview');
         expect(merged.cast).toBe('Louis Hofmann');
         expect(merged.director).toBe('Baran bo Odar, Jantje Friese');
+        expect(merged.tmdb_directors).toEqual([
+            {
+                name: 'Baran bo Odar',
+                profileUrl: 'https://image.tmdb.org/t/p/w185/odar.jpg',
+                tmdbPersonId: 91,
+            },
+            { name: 'Jantje Friese', profileUrl: null },
+        ]);
         expect(merged.genre).toBe('Mystery');
         expect(merged.rating).toBe('8.4');
         expect(merged.rating_5based).toBe(4.2);
@@ -312,7 +344,7 @@ describe('mergeStalkerInfoWithTmdb', () => {
                     profile_path: '/myagkov.jpg',
                 },
             ],
-            crew: [{ name: 'Эльдар Рязанов', job: 'Director' }],
+            crew: [{ id: 77, name: 'Эльдар Рязанов', job: 'Director' }],
         },
     };
 
@@ -326,6 +358,11 @@ describe('mergeStalkerInfoWithTmdb', () => {
         expect(merged.description).toBe('Описание из TMDB');
         expect(merged.actors).toBe('Андрей Мягков');
         expect(merged.director).toBe('Эльдар Рязанов');
+        expect(merged.tmdb_directors?.[0]).toEqual({
+            name: 'Эльдар Рязанов',
+            profileUrl: null,
+            tmdbPersonId: 77,
+        });
         expect(merged.genre).toBe('комедия');
         expect(merged.movie_image).toBe(
             'https://image.tmdb.org/t/p/w500/irony-poster.jpg'
