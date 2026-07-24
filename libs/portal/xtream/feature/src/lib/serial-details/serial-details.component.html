@@ -134,6 +134,7 @@
                 detail-player
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
+                [seriesTitle]="item.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"

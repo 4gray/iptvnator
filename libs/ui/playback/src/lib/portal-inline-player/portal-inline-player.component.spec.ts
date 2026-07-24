@@ -21,6 +21,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 class StubWebPlayerViewComponent {
     readonly streamUrl = input.required<string>();
     readonly title = input('');
+    readonly mediaTitle = input<unknown>(null);
     readonly playback = input<unknown>(null);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
@@ -121,6 +122,78 @@ describe('PortalInlinePlayerComponent', () => {
         webPlayer.nextEpisodeRequested.emit();
 
         expect(events).toEqual(['ended', 'previous', 'next']);
+    });
+
+    describe('playerMediaTitle', () => {
+        it('uses the series title with the episode label for episode playback', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/series/1002.mp4',
+                title: 'Episode 2',
+            });
+            fixture.componentRef.setInput('episodeMetadata', {
+                label: 'S01E02',
+                title: 'Episode 2',
+                seasonNumber: 1,
+                episodeNumber: 2,
+            });
+            fixture.componentRef.setInput('seriesTitle', 'Breaking Code');
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toEqual({
+                primary: 'Breaking Code',
+                secondary: 'S01E02',
+            });
+
+            const webPlayer = fixture.debugElement.query(
+                By.directive(StubWebPlayerViewComponent)
+            ).componentInstance as StubWebPlayerViewComponent;
+            expect(webPlayer.mediaTitle()).toEqual({
+                primary: 'Breaking Code',
+                secondary: 'S01E02',
+            });
+        });
+
+        it('falls back to the playback title when no series title is provided', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/series/1002.mp4',
+                title: 'Episode 2',
+            });
+            fixture.componentRef.setInput('episodeMetadata', {
+                label: 'S01E02',
+                seasonNumber: 1,
+                episodeNumber: 2,
+            });
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toEqual({
+                primary: 'Episode 2',
+                secondary: 'S01E02',
+            });
+        });
+
+        it('is a single line for movie playback and ignores the series title', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/vod/1.mp4',
+                title: 'Some Movie',
+            });
+            fixture.componentRef.setInput('seriesTitle', 'Unrelated Series');
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toEqual({
+                primary: 'Some Movie',
+                secondary: null,
+            });
+        });
+
+        it('is null without a playback title', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/vod/1.mp4',
+                title: '',
+            });
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toBeNull();
+        });
     });
 
     it('emits backClicked (not closed) from the back button in the now-playing bar', () => {

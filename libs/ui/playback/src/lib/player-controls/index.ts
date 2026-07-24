@@ -6,6 +6,7 @@ export * from './controls-feedback';
 export * from './controls-fullscreen';
 export * from './controls-shortcuts';
 export * from './controls-surface';
+export * from './controls-timeline';
 export * from './controls-view-model';
 export * from './controls-visibility';
 export * from './controls-volume';

@@ -72,6 +72,59 @@
     }
 }
 
+.player-controls__title {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    // Generous bottom padding lets the scrim fall below the text and fade out.
+    padding: 20px 24px 40px;
+    opacity: 0;
+    // Purely informative: never intercept clicks meant for the video surface.
+    pointer-events: none;
+    transform: translateY(-8px);
+    // Mirror of the bottom bar's scrim so the title reads over bright video.
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.7) 0%,
+        rgba(0, 0, 0, 0.35) 55%,
+        transparent 100%
+    );
+    transition:
+        opacity 180ms ease-out,
+        transform 200ms ease-out;
+}
+
+.player-controls__title--visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.player-controls__title-primary {
+    overflow: hidden;
+    color: var(--pc-text);
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.player-controls__title-secondary {
+    overflow: hidden;
+    color: var(--pc-text-dim);
+    font-size: 0.85rem;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
 .player-controls__bar {
     position: absolute;
     right: 0;

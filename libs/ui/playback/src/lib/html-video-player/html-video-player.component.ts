@@ -28,6 +28,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import {
     PlayerControlsComponent,
+    type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -64,6 +65,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
+    readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     @Output() timeUpdate = new EventEmitter<{
         currentTime: number;
         duration: number;
