@@ -165,7 +165,7 @@ export class ShakaVideoSession {
 
         const player = new module.Player();
         this.player = player;
-        this.bindPlayerListeners(player, generation, url);
+        this.bindPlayerListeners(player, generation, url, drm !== undefined);
 
         if (drm?.clearKeys) {
             player.configure({ drm: { clearKeys: drm.clearKeys } });
@@ -175,7 +175,13 @@ export class ShakaVideoSession {
             await player.attach(video);
             await player.load(url);
         } catch (error: unknown) {
-            this.handleLoadFailure(generation, player, url, error);
+            this.handleLoadFailure(
+                generation,
+                player,
+                url,
+                error,
+                drm !== undefined
+            );
             return;
         }
 
@@ -195,7 +201,8 @@ export class ShakaVideoSession {
         generation: number,
         player: ShakaPlayerLike,
         url: string,
-        error: unknown
+        error: unknown,
+        drmProvided: boolean
     ): void {
         const shakaError = asShakaError(error);
         if (
@@ -207,9 +214,12 @@ export class ShakaVideoSession {
         }
 
         this.config.emitPlaybackIssue(
-            classifyShakaPlaybackIssue(
-                shakaError ?? { message: toErrorMessage(error) },
-                this.createMetadata(url)
+            this.withoutUnusableDrmFallback(
+                classifyShakaPlaybackIssue(
+                    shakaError ?? { message: toErrorMessage(error) },
+                    this.createMetadata(url)
+                ),
+                drmProvided
             )
         );
         // Never leave a non-functional engine attached to the media element
@@ -217,10 +227,26 @@ export class ShakaVideoSession {
         this.beginPlayerTeardown();
     }
 
+    /**
+     * For channels carrying KODIPROP ClearKey config, DRM failures (wrong or
+     * rotated keys, …) cannot be solved by MPV/VLC either — they never
+     * receive the license config — so the diagnostic must not offer them.
+     */
+    private withoutUnusableDrmFallback(
+        issue: PlaybackDiagnostic,
+        drmProvided: boolean
+    ): PlaybackDiagnostic {
+        if (!drmProvided || issue.code !== DiagnosticCode.DrmOrEncryption) {
+            return issue;
+        }
+        return { ...issue, externalFallbackRecommended: false };
+    }
+
     private bindPlayerListeners(
         player: ShakaPlayerLike,
         generation: number,
-        url: string
+        url: string,
+        drmProvided: boolean
     ): void {
         const errorListener = (event: Event): void => {
             if (this.isStale(generation) || this.player !== player) {
@@ -234,7 +260,13 @@ export class ShakaVideoSession {
             }
 
             this.config.emitPlaybackIssue(
-                classifyShakaPlaybackIssue(detail, this.createMetadata(url))
+                this.withoutUnusableDrmFallback(
+                    classifyShakaPlaybackIssue(
+                        detail,
+                        this.createMetadata(url)
+                    ),
+                    drmProvided
+                )
             );
             // Critical errors end playback; never leave the dead engine
             // attached or exposed to the shared-controls bridge.
