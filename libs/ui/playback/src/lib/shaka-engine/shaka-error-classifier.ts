@@ -117,6 +117,29 @@ export function createUnsupportedDrmDiagnostic(
     });
 }
 
+/** Narrows an unknown rejection to a Shaka-error-like shape, if it is one. */
+export function asShakaError(
+    error: unknown
+): Partial<ShakaErrorLike> | null {
+    if (!error || typeof error !== 'object') {
+        return null;
+    }
+
+    const candidate = error as Partial<ShakaErrorLike>;
+    return typeof candidate.code === 'number' ||
+        typeof candidate.category === 'number'
+        ? candidate
+        : null;
+}
+
+export function toErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return typeof error === 'string' ? error : String(error);
+}
+
 function formatShakaErrorDetails(
     error: Partial<ShakaErrorLike> | null | undefined
 ): string {

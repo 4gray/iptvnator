@@ -11,9 +11,12 @@ import {
     createPlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import {
+    asShakaError,
     classifyShakaPlaybackIssue,
     createUnsupportedDrmDiagnostic,
+    toErrorMessage,
 } from './shaka-error-classifier';
+import { ShakaTextTrackSuppression } from './shaka-text-track-suppression';
 import {
     loadShakaModule,
     type ShakaErrorLike,
@@ -65,7 +68,7 @@ export class ShakaVideoSession {
     private readonly refreshListeners = new Set<() => void>();
     private operationChain: Promise<void> = Promise.resolve();
     private pendingTeardown: Promise<void> = Promise.resolve();
-    private suppressedTextTrackId: number | null = null;
+    private readonly textSuppression = new ShakaTextTrackSuppression();
     private generation = 0;
     private destroyed = false;
 
@@ -193,7 +196,7 @@ export class ShakaVideoSession {
         // Shaka 5 shows a text track by selecting it; keep captions off when
         // the preference is disabled in case the manifest auto-selected one.
         if (!(this.config.showCaptions?.() ?? false)) {
-            this.suppressTextTracksOn(player);
+            this.textSuppression.suppress(player);
         }
         this.notifyRefresh();
     }
@@ -202,36 +205,16 @@ export class ShakaVideoSession {
     suppressTextTracks(): void {
         const player = this.player;
         if (player) {
-            this.suppressTextTracksOn(player);
+            this.textSuppression.suppress(player);
         }
     }
 
     /** Reselects the text track hidden by {@link suppressTextTracks}. */
     restoreSuppressedTextTrack(): void {
         const player = this.player;
-        if (!player || this.suppressedTextTrackId === null) {
-            return;
+        if (player) {
+            this.textSuppression.restore(player);
         }
-
-        const track = player
-            .getTextTracks()
-            .find((candidate) => candidate.id === this.suppressedTextTrackId);
-        this.suppressedTextTrackId = null;
-        if (track && !track.active) {
-            player.selectTextTrack(track);
-        }
-    }
-
-    private suppressTextTracksOn(player: ShakaPlayerLike): void {
-        const active = player
-            .getTextTracks()
-            .find((candidate) => candidate.active);
-        if (!active) {
-            return;
-        }
-
-        this.suppressedTextTrackId = active.id;
-        player.selectTextTrack(null);
     }
 
     private handleLoadFailure(
@@ -334,7 +317,7 @@ export class ShakaVideoSession {
     private beginPlayerTeardown(): void {
         const player = this.player;
         this.player = null;
-        this.suppressedTextTrackId = null;
+        this.textSuppression.reset();
         if (!player) {
             this.playerErrorListener = null;
             this.playerRefreshListener = null;
@@ -402,24 +385,4 @@ export class ShakaVideoSession {
             listener();
         }
     }
-}
-
-function asShakaError(error: unknown): Partial<ShakaErrorLike> | null {
-    if (!error || typeof error !== 'object') {
-        return null;
-    }
-
-    const candidate = error as Partial<ShakaErrorLike>;
-    return typeof candidate.code === 'number' ||
-        typeof candidate.category === 'number'
-        ? candidate
-        : null;
-}
-
-function toErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
-    }
-
-    return typeof error === 'string' ? error : String(error);
 }
