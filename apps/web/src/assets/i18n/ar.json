@@ -783,6 +783,8 @@
         "ACTORS": "الممثلون",
         "DIRECTOR": "المخرج",
         "SIMILAR": "مشابه",
+        "CREW_JOB_DIRECTOR": "المخرج",
+        "CREW_JOB_CREATOR": "المبتكر",
         "ACTOR_FILMOGRAPHY": "الأعمال الفنية",
         "ACTOR_FILTER_ALL": "الكل",
         "ACTOR_SCOPE_THIS_PORTAL": "هذه البوابة",

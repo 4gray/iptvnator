@@ -783,6 +783,8 @@
         "ACTORS": "Acteurs",
         "DIRECTOR": "Regisseur",
         "SIMILAR": "Vergelijkbaar",
+        "CREW_JOB_DIRECTOR": "Regisseur",
+        "CREW_JOB_CREATOR": "Bedenker",
         "ACTOR_FILMOGRAPHY": "Filmografie",
         "ACTOR_FILTER_ALL": "Alles",
         "ACTOR_SCOPE_THIS_PORTAL": "Dit portaal",

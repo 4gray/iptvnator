@@ -37,7 +37,7 @@
                 <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
                 @if (meta.tmdbCast?.length) {
                     <div class="details__cast-strip">
-                        @for (member of meta.tmdbCast; track member.name) {
+                        @for (member of meta.tmdbCast; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
                             <span
                                 class="details__cast-chip"
                                 [class.details__cast-chip--clickable]="
@@ -80,7 +80,7 @@
                 <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
                 @if (meta.tmdbDirectors?.length) {
                     <div class="details__cast-strip">
-                        @for (member of meta.tmdbDirectors; track member.name) {
+                        @for (member of meta.tmdbDirectors; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
                             <span
                                 class="details__cast-chip"
                                 [class.details__cast-chip--clickable]="

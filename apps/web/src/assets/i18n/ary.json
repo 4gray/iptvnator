@@ -783,6 +783,8 @@
         "ACTORS": "الممثلون",
         "DIRECTOR": "المخرج",
         "SIMILAR": "بحال هادو",
+        "CREW_JOB_DIRECTOR": "المخرج",
+        "CREW_JOB_CREATOR": "المبتكر",
         "ACTOR_FILMOGRAPHY": "الأفلام ديالو",
         "ACTOR_FILTER_ALL": "كلشي",
         "ACTOR_SCOPE_THIS_PORTAL": "هاد البوابة",

@@ -783,6 +783,8 @@
         "ACTORS": "Ηθοποιοί",
         "DIRECTOR": "Σκηνοθέτης",
         "SIMILAR": "Παρόμοια",
+        "CREW_JOB_DIRECTOR": "Σκηνοθέτης",
+        "CREW_JOB_CREATOR": "Δημιουργός",
         "ACTOR_FILMOGRAPHY": "Φιλμογραφία",
         "ACTOR_FILTER_ALL": "Όλα",
         "ACTOR_SCOPE_THIS_PORTAL": "Αυτή η πύλη",

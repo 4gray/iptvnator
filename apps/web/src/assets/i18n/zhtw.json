@@ -783,6 +783,8 @@
         "ACTORS": "演員",
         "DIRECTOR": "導演",
         "SIMILAR": "類似作品",
+        "CREW_JOB_DIRECTOR": "導演",
+        "CREW_JOB_CREATOR": "主創",
         "ACTOR_FILMOGRAPHY": "參演作品",
         "ACTOR_FILTER_ALL": "全部",
         "ACTOR_SCOPE_THIS_PORTAL": "目前入口",

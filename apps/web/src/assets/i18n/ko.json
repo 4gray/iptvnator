@@ -783,6 +783,8 @@
         "ACTORS": "배우",
         "DIRECTOR": "감독",
         "SIMILAR": "비슷한 콘텐츠",
+        "CREW_JOB_DIRECTOR": "감독",
+        "CREW_JOB_CREATOR": "크리에이터",
         "ACTOR_FILMOGRAPHY": "출연 작품",
         "ACTOR_FILTER_ALL": "전체",
         "ACTOR_SCOPE_THIS_PORTAL": "현재 포털",

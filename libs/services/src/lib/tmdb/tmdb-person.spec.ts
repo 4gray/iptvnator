@@ -90,6 +90,7 @@ describe('mapPersonFilmography', () => {
             year: 1999,
             posterUrl: 'https://image.tmdb.org/t/p/w500/fc.jpg',
             character: 'Tyler Durden',
+            crewJob: null,
         });
         expect(credits[2].mediaType).toBe('tv');
         // Undated entries sort last
@@ -99,7 +100,8 @@ describe('mapPersonFilmography', () => {
     it('includes directing credits from the crew, acting wins the dedup', () => {
         const credits = mapPersonFilmography(person);
 
-        // Directed-only title appears with the job in the character slot
+        // Directed-only title carries the role separately from character,
+        // so the UI can render it through a translated label
         const departed = credits.find((credit) => credit.tmdbId === 1422);
         expect(departed).toEqual({
             tmdbId: 1422,
@@ -107,7 +109,8 @@ describe('mapPersonFilmography', () => {
             title: 'The Departed',
             year: 2006,
             posterUrl: null,
-            character: 'Director',
+            character: null,
+            crewJob: 'Director',
         });
 
         // Non-director crew jobs (Producer) are not part of the filmography
@@ -118,6 +121,7 @@ describe('mapPersonFilmography', () => {
         // Fight Club was acted AND directed — the acting credit wins
         const fightClub = credits.find((credit) => credit.tmdbId === 550);
         expect(fightClub?.character).toBe('Tyler Durden');
+        expect(fightClub?.crewJob).toBeNull();
     });
 
     it('handles a person without credits', () => {
