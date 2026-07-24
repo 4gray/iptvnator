@@ -32,4 +32,6 @@ export interface Channel {
     };
     radio: string;
     drm?: ChannelDrm;
+    /** Raw M3U block of the entry as preserved by the playlist parser. */
+    raw?: string;
 }

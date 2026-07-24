@@ -24,6 +24,8 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
+    extractDrmFromRaw,
+    isDashChannel,
     isDashStreamUrl,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
@@ -175,15 +177,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
     /**
-     * DASH (.mpd) playback always runs inline via the Shaka engine. Uses the
-     * effective playback URL, so catch-up/archive replays that resolve to a
-     * DASH manifest route inline too — matching the external-player guard in
-     * the m3u-state effects, which also checks the resolved URL.
+     * DASH (.mpd) playback always runs inline via the Shaka engine. True when
+     * either the channel itself or the resolved catch-up URL is DASH —
+     * mirroring the external-player guard in the m3u-state effects, so a
+     * DASH-flavored session can never end up with no player at all.
      */
-    readonly activeChannelIsDash = computed(() =>
-        isDashStreamUrl(
-            this.activePlaybackUrl() ?? this.activeChannel()?.url
-        )
+    readonly activeChannelIsDash = computed(
+        () =>
+            isDashStreamUrl(this.activePlaybackUrl() ?? undefined) ||
+            isDashChannel(this.activeChannel())
     );
     /**
      * Player forced for DASH channels: ArtPlayer keeps ArtPlayer (it has a
@@ -303,7 +305,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             userAgent: http['user-agent'] || undefined,
             referer: http.referrer || undefined,
             origin: http.origin || undefined,
-            drm: playbackTarget.drm,
+            // Playlists imported before the DRM feature carry no drm field
+            // yet, but their raw KODIPROP block survived in the stored items
+            // — extract lazily so they work without a re-import.
+            drm: playbackTarget.drm ?? extractDrmFromRaw(playbackTarget.raw),
         };
     });
     readonly sidebarStorageKey = computed(() =>

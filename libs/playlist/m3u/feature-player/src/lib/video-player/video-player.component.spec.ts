@@ -662,6 +662,56 @@ describe('VideoPlayerComponent', () => {
         expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
     });
 
+    it('keeps a DASH channel inline when its catch-up resolves to a non-DASH URL', () => {
+        syncStoreState({
+            ...sampleChannel,
+            url: 'http://localhost/live.mpd',
+        } as Channel);
+        activePlaybackUrl.set('http://localhost/archive/replay.m3u8');
+        player.set(VideoPlayer.MPV);
+
+        fixture.detectChanges();
+
+        // The external-player guard declines DASH channels, so the inline
+        // player must stay — otherwise the session has no player at all.
+        expect(
+            fixture.debugElement.query(
+                By.directive(StubWebPlayerViewComponent)
+            )
+        ).not.toBeNull();
+    });
+
+    it('extracts DRM lazily from raw KODIPROP for pre-upgrade playlists', () => {
+        const kid = '00112233445566778899aabbccddeeff';
+        const key = 'ffeeddccbbaa99887766554433221100';
+        syncStoreState({
+            ...sampleChannel,
+            url: 'http://localhost/enc.mpd',
+            raw: [
+                '#EXTINF:-1,Encrypted',
+                '#KODIPROP:inputstream.adaptive.license_type=clearkey',
+                `#KODIPROP:inputstream.adaptive.license_key=${kid}:${key}`,
+                'http://localhost/enc.mpd',
+            ].join('\r\n'),
+        } as Channel);
+        player.set(VideoPlayer.Html5Player);
+
+        fixture.detectChanges();
+
+        const stub = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        expect(stub.playback()).toEqual(
+            expect.objectContaining({
+                drm: {
+                    licenseType: 'clearkey',
+                    supported: true,
+                    clearKeys: { [kid]: key },
+                },
+            })
+        );
+    });
+
     it('keeps ArtPlayer for DASH channels and forwards the ClearKey DRM config', () => {
         const drm = {
             licenseType: 'clearkey',
