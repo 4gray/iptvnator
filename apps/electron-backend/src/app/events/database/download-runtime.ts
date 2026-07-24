@@ -13,10 +13,8 @@ import {
 import {
     completeDownloadFromPartial,
     getCompletedPartialProgress,
-    getExistingCompletedFileProgress,
     getPausedByteCount,
-    persistCompletedPartialFailure,
-    persistCompletion,
+    handleDownloadFailure,
     removePartialFile,
 } from './download-finalize';
 import {
@@ -199,6 +197,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
         .where(eq(schema.downloads.id, task.id));
     broadcastDownloadUpdate();
 
+    let reservation: ReservedPartialDownloadFile | undefined;
     try {
         if (task.cancelRequested) {
             await persistCancellation(db, task);
@@ -209,7 +208,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        const reservation = await reserveTarget(task);
+        reservation = await reserveTarget(task);
         task.fileName = reservation.filename;
         task.filePath = reservation.path;
         await db
@@ -263,47 +262,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        const existingCompletedFileProgress =
-            await getExistingCompletedFileProgress(task);
-        if (existingCompletedFileProgress) {
-            removePartialFile(existingCompletedFileProgress.filePath);
-            await persistCompletion(
-                db,
-                task,
-                task.fileName,
-                existingCompletedFileProgress.filePath,
-                existingCompletedFileProgress.bytesDownloaded,
-                existingCompletedFileProgress.totalBytes
-            );
-            return;
-        }
-
-        const completedPartialProgress = getCompletedPartialProgress(task);
-        if (completedPartialProgress) {
-            await persistCompletedPartialFailure(
-                db,
-                task,
-                completedPartialProgress,
-                error
-            );
-            return;
-        }
-
-        console.error(
-            `[Downloads] Error downloading ${task.fileName}:`,
-            describeError(error)
-        );
-        removePartialFile(task.filePath);
-        await db
-            .update(schema.downloads)
-            .set({
-                errorMessage: describeError(error),
-                filePath: null,
-                resumeValidator: null,
-                status: 'failed',
-                updatedAt: sql`CURRENT_TIMESTAMP`,
-            })
-            .where(eq(schema.downloads.id, task.id));
+        await handleDownloadFailure(db, task, reservation, error);
     } finally {
         task.abortController = undefined;
         finishTask(task);

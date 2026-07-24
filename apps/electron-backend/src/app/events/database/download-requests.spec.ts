@@ -48,7 +48,8 @@ describe('download requests resume', () => {
             resumeDownloadRequest(42, '/unused', authorizer)
         ).resolves.toEqual({ success: true });
 
-        expect(authorizer.requireAuthorized).toHaveBeenCalledWith('/downloads');
+        // DB-recorded retained paths stay usable after folder switches.
+        expect(authorizer.requireAuthorized).not.toHaveBeenCalled();
         expect(enqueueDownload).toHaveBeenCalledWith({
             directory: '/downloads',
             fileName: 'movie.mp4',
@@ -164,7 +165,7 @@ describe('download requests resume', () => {
         ).resolves.toEqual({ success: true });
 
         const update = set.mock.calls[0][0];
-        expect(authorizer.requireAuthorized).toHaveBeenCalledWith('/downloads');
+        expect(authorizer.requireAuthorized).not.toHaveBeenCalled();
         expect(update).toEqual(
             expect.objectContaining({
                 errorMessage: null,
@@ -263,5 +264,88 @@ describe('download requests resume', () => {
                 status: 'queued',
             })
         );
+    });
+
+    it('fails the re-download when the retained partial cannot be deleted', async () => {
+        jest.resetModules();
+
+        const failedRow = {
+            contentType: 'vod',
+            filePath: '/downloads/movie.mp4',
+            id: 42,
+            playlistId: 'playlist-1',
+            status: 'failed',
+            title: 'Movie',
+            url: 'https://example.test/movie.mp4',
+            xtreamId: 7,
+        };
+        const limit = jest
+            .fn()
+            .mockResolvedValueOnce([{ id: 'playlist-1' }])
+            .mockResolvedValueOnce([failedRow]);
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn(() => ({ limit })),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const enqueueDownload = jest.fn();
+        const removePartialDownloadFile = jest.fn(() => {
+            throw new Error('EPERM: locked');
+        });
+        const authorizer = {
+            requireAuthorized: jest.fn(async (directory: string) => directory),
+        } as unknown as DownloadDirectoryAuthorizer;
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('../url-safety', () => ({
+            assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            removePartialDownloadFile,
+        }));
+        jest.doMock('./download-runtime', () => ({
+            enqueueDownload,
+        }));
+
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            const { startDownloadRequest } = await import(
+                './download-requests'
+            );
+
+            await expect(
+                startDownloadRequest(
+                    {
+                        contentType: 'vod',
+                        downloadFolder: '/downloads',
+                        playlistId: 'playlist-1',
+                        title: 'Movie',
+                        url: 'https://example.test/movie.mp4',
+                        xtreamId: 7,
+                    },
+                    authorizer
+                )
+            ).resolves.toEqual({
+                error: 'Could not delete the previous partial file',
+                id: 42,
+                success: false,
+            });
+        } finally {
+            consoleError.mockRestore();
+        }
+
+        // The row keeps its filePath ownership and nothing is enqueued.
+        expect(set).not.toHaveBeenCalled();
+        expect(enqueueDownload).not.toHaveBeenCalled();
     });
 });

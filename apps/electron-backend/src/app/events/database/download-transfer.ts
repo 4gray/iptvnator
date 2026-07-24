@@ -23,6 +23,17 @@ export function describeError(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * The response stream ended cleanly before the advertised representation
+ * size was reached (e.g. a proxy that caps each response). The partial is
+ * valid — the caller must retain it so a retry can continue via Range.
+ */
+export class TruncatedTransferError extends Error {
+    constructor(readonly progress: TransferProgress) {
+        super('Transfer ended before the advertised size');
+    }
+}
+
 export async function transferToPartialFile(
     db: DownloadsDatabase,
     task: DownloadTask,
@@ -124,6 +135,9 @@ export async function transferToPartialFile(
     }
 
     await persistProgress(db, task, { bytesDownloaded, totalBytes });
+    if (totalBytes !== null && bytesDownloaded < totalBytes) {
+        throw new TruncatedTransferError({ bytesDownloaded, totalBytes });
+    }
     return { bytesDownloaded, totalBytes };
 }
 

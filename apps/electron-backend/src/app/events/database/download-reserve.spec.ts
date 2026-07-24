@@ -18,7 +18,7 @@ describe('destination collision handling', () => {
         const requestWithValidatedRedirects = jest.fn(
             async () =>
                 ({
-                    data: Readable.from([Buffer.from('rest')]),
+                    data: Readable.from([Buffer.alloc(50, 'r')]),
                     headers: { 'content-range': 'bytes 50-99/100' },
                     status: 206,
                 }) as never

@@ -14,7 +14,78 @@ import type {
     DownloadTask,
     TransferProgress,
 } from './download-task';
-import { describeError } from './download-transfer';
+import { describeError, TruncatedTransferError } from './download-transfer';
+
+/**
+ * Persistence for a failed startDownload() attempt, after its cancel/pause
+ * checkpoints have been ruled out. Chooses between: retaining a truncated
+ * transfer for a Range retry, committing an already-finalized file,
+ * retaining a completed partial, or the generic delete-partial failure.
+ */
+export async function handleDownloadFailure(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    reservation: ReservedPartialDownloadFile | undefined,
+    error: unknown
+): Promise<void> {
+    if (error instanceof TruncatedTransferError && reservation) {
+        // The short response is retained so a retry can continue the
+        // transfer via Range instead of starting over.
+        await persistCompletedPartialFailure(
+            db,
+            task,
+            {
+                bytesDownloaded: error.progress.bytesDownloaded,
+                filePath: reservation.path,
+                totalBytes: error.progress.totalBytes,
+            },
+            error
+        );
+        return;
+    }
+
+    const existingCompletedFileProgress =
+        await getExistingCompletedFileProgress(task);
+    if (existingCompletedFileProgress) {
+        removePartialFile(existingCompletedFileProgress.filePath);
+        await persistCompletion(
+            db,
+            task,
+            task.fileName,
+            existingCompletedFileProgress.filePath,
+            existingCompletedFileProgress.bytesDownloaded,
+            existingCompletedFileProgress.totalBytes
+        );
+        return;
+    }
+
+    const completedPartialProgress = getCompletedPartialProgress(task);
+    if (completedPartialProgress) {
+        await persistCompletedPartialFailure(
+            db,
+            task,
+            completedPartialProgress,
+            error
+        );
+        return;
+    }
+
+    console.error(
+        `[Downloads] Error downloading ${task.fileName}:`,
+        describeError(error)
+    );
+    removePartialFile(task.filePath);
+    await db
+        .update(schema.downloads)
+        .set({
+            errorMessage: describeError(error),
+            filePath: null,
+            resumeValidator: null,
+            status: 'failed',
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.downloads.id, task.id));
+}
 
 export async function completeDownloadFromPartial(
     db: DownloadsDatabase,

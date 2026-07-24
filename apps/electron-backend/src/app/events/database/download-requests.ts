@@ -166,6 +166,8 @@ export async function startDownloadRequest(
         if (item.status === 'failed' && item.filePath) {
             // A failed row can still reference a retained .part; delete it
             // before the restart clears filePath, or the file is orphaned.
+            // A locked .part must keep its database owner, so fail the
+            // restart instead of proceeding without the cleanup.
             try {
                 removePartialDownloadFile(item.filePath);
             } catch (error) {
@@ -173,6 +175,11 @@ export async function startDownloadRequest(
                     '[Downloads] Failed to delete retained partial before re-download:',
                     error
                 );
+                return {
+                    error: 'Could not delete the previous partial file',
+                    id: item.id,
+                    success: false,
+                };
             }
         }
 
@@ -254,8 +261,11 @@ export async function retryDownloadRequest(
 
     const retainedFilePath =
         item.status === 'failed' && item.filePath ? item.filePath : null;
+    // A retained filePath was written by the main process after its folder
+    // was authorized; requiring the folder to still be the CURRENT selection
+    // would strand the retry after the user switches download folders.
     const directory = retainedFilePath
-        ? await authorizer.requireAuthorized(dirname(retainedFilePath))
+        ? dirname(retainedFilePath)
         : await authorizer.requireAuthorized(downloadFolder);
     const fileName = retainedFilePath
         ? basename(retainedFilePath)
@@ -320,8 +330,10 @@ export async function resumeDownloadRequest(
         };
     }
 
+    // See retryDownloadRequest: DB-recorded retained paths stay usable after
+    // the user switches download folders.
     const directory = item.filePath
-        ? await authorizer.requireAuthorized(dirname(item.filePath))
+        ? dirname(item.filePath)
         : await authorizer.requireAuthorized(downloadFolder);
     const fileName = item.filePath
         ? basename(item.filePath)

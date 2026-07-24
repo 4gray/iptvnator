@@ -226,6 +226,44 @@ describe('download resume validation', () => {
         }
     });
 
+    it('retains the partial when a 206 ends before the advertised size', async () => {
+        const harness = await setupResumeHarness({
+            finalSize: 'enoent',
+            partialSize: 50,
+            response: {
+                // Only 20 of the 50 remaining bytes arrive before EOF.
+                data: Readable.from([Buffer.alloc(20, 'r')]),
+                headers: { 'content-range': 'bytes 50-99/100' },
+                status: 206,
+            },
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            harness.runtime.enqueueDownload(
+                createTask({
+                    filePath: '/downloads/movie.mp4',
+                    totalBytes: 100,
+                })
+            );
+            await waitForStatus(harness.set, 'failed');
+
+            expect(harness.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 70,
+                    errorMessage: 'Transfer ended before the advertised size',
+                    filePath: '/downloads/movie.mp4',
+                    status: 'failed',
+                })
+            );
+            expect(harness.removePartialDownloadFile).not.toHaveBeenCalled();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('captures a strong ETag from the first response for later resumes', async () => {
         const harness = await setupResumeHarness({
             finalSize: 4,

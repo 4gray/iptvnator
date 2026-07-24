@@ -1,3 +1,13 @@
+type StatSyncStub = (path: string) => { isFile: () => boolean; size: number };
+let statSyncOverride: StatSyncStub | null = null;
+jest.mock('node:fs', () => ({
+    ...jest.requireActual('node:fs'),
+    statSync: (path: string) =>
+        statSyncOverride
+            ? statSyncOverride(path)
+            : jest.requireActual('node:fs').statSync(path),
+}));
+
 describe('resetStaleDownloads', () => {
     it('keeps interrupted partial downloads as paused and pauses queued rows', async () => {
         jest.resetModules();
@@ -57,6 +67,66 @@ describe('resetStaleDownloads', () => {
             expect.objectContaining({ status: 'failed' })
         );
         expect(removePartialDownloadFile).not.toHaveBeenCalled();
+    });
+
+    it('commits a finalized download whose completion was interrupted', async () => {
+        jest.resetModules();
+
+        // Crash happened after finalizePartialDownload() (final file on disk,
+        // .part gone) but before persistCompletion() flipped the row.
+        const staleDownloads = [
+            {
+                filePath: '/downloads/movie.mp4',
+                id: 9,
+                status: 'downloading',
+                totalBytes: 100,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(staleDownloads),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const removePartialDownloadFile = jest.fn();
+
+        statSyncOverride = () => ({ isFile: () => true, size: 100 });
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize: jest.fn(() => 0),
+            removePartialDownloadFile,
+        }));
+
+        try {
+            const recovery = await import('./download-recovery');
+            await recovery.resetStaleDownloads();
+        } finally {
+            statSyncOverride = null;
+        }
+
+        expect(set).toHaveBeenCalledTimes(1);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                bytesDownloaded: 100,
+                errorMessage: null,
+                status: 'completed',
+            })
+        );
+        // Any leftover .part from the interrupted commit is cleaned up, and
+        // the final file's path is never cleared or deleted.
+        expect(removePartialDownloadFile).toHaveBeenCalledWith(
+            '/downloads/movie.mp4'
+        );
+        expect(set).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'failed' })
+        );
     });
 
     it('keeps the retained partial of a resumed download that was still queued', async () => {
