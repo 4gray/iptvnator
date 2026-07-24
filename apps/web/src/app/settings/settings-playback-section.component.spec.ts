@@ -381,6 +381,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
     return new FormGroup({
         player: new FormControl(player),
         webPlayerSharedControls: new FormControl(false),
+        playerAmbientMode: new FormControl(false),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),

@@ -121,6 +121,29 @@ Contracts:
 - Entering watch scrolls the shell to the top; leaving keeps the scroll
   position.
 
+### Inline player stage (theater + ambient fill)
+
+`PortalInlinePlayerComponent`
+(`libs/ui/playback/src/lib/portal-inline-player/`) wraps the projected
+`WebPlayerViewComponent` in a `.player-shell__viewport` "theater stage".
+The stage spans the full content width and is capped at
+`min(70vh, 720px)`; on wide-short windows it becomes wider than 16:9. The
+player is sized as the largest 16:9 box that fits the stage height and is
+centered, so the leftover is always the stage's own black background — never
+a stray strip of app surface. This is the YouTube-style letterbox and is the
+default behavior for every inline engine.
+
+The optional `playerAmbientMode` setting (Settings → Playback, default off,
+shown only for the built-in web players) renders a blurred, dimmed copy of the
+poster (`ResolvedPortalPlayback.thumbnail`) behind the player via the
+`--ambient-image` custom property, turning the letterbox margins into
+atmosphere (YouTube "Ambient mode" / Netflix backdrops). The component also
+enforces the web-player scope at runtime (HTML5, Video.js, ArtPlayer): with
+Embedded MPV selected, a persisted `playerAmbientMode=true` never renders the
+layer, keeping extra DOM out of the native-video compositing path. Live
+channels are excluded (their `thumbnail` is a logo), and only
+`http(s):`/`data:` poster URLs are accepted to avoid CSS `url()` breakout.
+
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
 seasons-grid + "Back to seasons" level. A season is auto-selected

@@ -14,6 +14,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
+    VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { SettingsStore } from '@iptvnator/services';
@@ -58,6 +59,44 @@ export class PortalInlinePlayerComponent {
     );
     readonly streamUrl = computed(() => this.playback()?.streamUrl ?? '');
     readonly startTime = computed(() => this.playback()?.startTime ?? 0);
+    /**
+     * Poster used for the "Ambient mode" fill behind the player. Live channels
+     * carry logos rather than posters, so they are excluded.
+     */
+    private readonly ambientImageUrl = computed<string | null>(() => {
+        const playback = this.playback();
+        if (!playback || playback.isLive) {
+            return null;
+        }
+
+        return playback.thumbnail ?? null;
+    });
+    /** Safe `url(...)` value, or null when the poster URL is not a plain http/data URL. */
+    readonly ambientImageStyle = computed<string | null>(() => {
+        const url = this.ambientImageUrl();
+        if (!url || !/^(https?:|data:)/i.test(url)) {
+            return null;
+        }
+
+        const safe = url.replace(/"/g, '%22').replace(/\\/g, '%5C');
+        return `url("${safe}")`;
+    });
+    readonly ambientEnabled = computed<boolean>(() => {
+        // Web players only — mirrors the settings UI, which offers the toggle
+        // for HTML5, Video.js, and ArtPlayer. Embedded MPV composites a native
+        // video layer, so an extra DOM layer behind it stays out of the mix.
+        const player = this.settingsStore.player?.();
+        const isWebPlayer =
+            player === VideoPlayer.VideoJs ||
+            player === VideoPlayer.Html5Player ||
+            player === VideoPlayer.ArtPlayer;
+
+        return (
+            isWebPlayer &&
+            this.settingsStore.playerAmbientMode?.() === true &&
+            !!this.ambientImageStyle()
+        );
+    });
     readonly contentInfo = computed<PlayerContentInfo | undefined>(
         () => this.playback()?.contentInfo
     );

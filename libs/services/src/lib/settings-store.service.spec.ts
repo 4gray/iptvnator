@@ -145,6 +145,24 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().stripCountryPrefix).toBe(false);
     });
 
+    it('defaults ambient player mode to false when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerAmbientMode).toBe(false);
+    });
+
+    it('restores a persisted true ambient player mode preference', async () => {
+        storedSettings = { playerAmbientMode: true };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerAmbientMode).toBe(true);
+    });
+
     it('restores a persisted true strip country prefix preference', async () => {
         storedSettings = {
             stripCountryPrefix: true,

@@ -6,6 +6,7 @@ const {
     createTableStatements,
     indexMigrationStatements,
     runMigrations,
+    cleanupLegacyTmdbSearchCache,
 } = __databaseConnectionTestHooks;
 
 type SqliteHandle = Parameters<typeof runMigrations>[0];
@@ -22,10 +23,7 @@ type StatementHandler = {
 
 type HandlerRule = [pattern: string, handler: StatementHandler];
 
-function createSqliteMock(
-    rules: HandlerRule[],
-    exec: jest.Mock = jest.fn()
-) {
+function createSqliteMock(rules: HandlerRule[], exec: jest.Mock = jest.fn()) {
     const prepare = jest.fn((statement: string) => {
         const compact = compactSql(statement);
         const rule = rules.find(([pattern]) => compact.includes(pattern));
@@ -129,6 +127,45 @@ describe('runMigrations error tolerance', () => {
     });
 });
 
+describe('TMDB search lookup v2 cache cleanup', () => {
+    it('deletes legacy search rows and records the migration atomically', () => {
+        const deleteRun = jest.fn();
+        const markerRun = jest.fn();
+        const { sqlite, transaction } = createSqliteMock([
+            ['SELECT value FROM app_state', { get: () => undefined }],
+            ['DELETE FROM tmdb_metadata', { run: deleteRun }],
+            ['INSERT INTO app_state', { run: markerRun }],
+        ]);
+
+        cleanupLegacyTmdbSearchCache(sqlite);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(deleteRun).toHaveBeenCalledTimes(1);
+        expect(markerRun).toHaveBeenCalledWith(
+            'migration:tmdb-search-lookup-v2-cache-cleanup:v1'
+        );
+        const deleteSql = compactSql(
+            (sqlite.prepare as jest.Mock).mock.calls.find(([statement]) =>
+                statement.includes('DELETE FROM tmdb_metadata')
+            )?.[0]
+        );
+        expect(deleteSql).toContain(
+            "lookup_key LIKE 'title:%|year:%' AND lookup_key NOT LIKE 'title:%|year:%|v%'"
+        );
+    });
+
+    it('does nothing after the migration has completed', () => {
+        const { sqlite, prepare, transaction } = createSqliteMock([
+            completedMigrationStateRule,
+        ]);
+
+        cleanupLegacyTmdbSearchCache(sqlite);
+
+        expect(transaction).not.toHaveBeenCalled();
+        expect(prepare).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('runMigrations Xtream cache deduplication', () => {
     it('re-points content to the canonical duplicate category before deleting the rest', () => {
         const candidatesAll = jest.fn(() => [
@@ -141,7 +178,11 @@ describe('runMigrations Xtream cache deduplication', () => {
             completedMigrationStateRule,
             [
                 'FROM categories GROUP BY playlist_id, type, xtream_id',
-                { all: () => [{ playlistId: 'p1', type: 'live', xtreamId: 5 }] },
+                {
+                    all: () => [
+                        { playlistId: 'p1', type: 'live', xtreamId: 5 },
+                    ],
+                },
             ],
             ['LEFT JOIN content', { all: candidatesAll }],
             [
@@ -149,7 +190,10 @@ describe('runMigrations Xtream cache deduplication', () => {
                 { run: updateContentRun },
             ],
             ['DELETE FROM categories WHERE id = ?', { run: deleteCategoryRun }],
-            ['FROM content GROUP BY category_id, type, xtream_id', { all: () => [] }],
+            [
+                'FROM content GROUP BY category_id, type, xtream_id',
+                { all: () => [] },
+            ],
         ]);
 
         runMigrations(sqlite);

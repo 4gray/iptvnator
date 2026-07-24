@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Sélectionnez le lecteur vidéo par défaut",
         "WEB_PLAYER_SHARED_CONTROLS": "Commandes unifiées pour les lecteurs web (expérimental)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Utilise les commandes partagées d’IPTVnator dans HTML5, Video.js et ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Mode ambiant",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Remplit l'espace autour du lecteur avec une affiche floue et assombrie au lieu de barres noires simples.",
         "STREAM_FORMAT_DESCRIPTION": "Sélectionnez le format de flux par défaut (xtream)",
         "LANGUAGE_DESCRIPTION": "Sélectionnez la langue de l'application",
         "THEME_DESCRIPTION": "Sélectionnez le thème visuel de l'application",

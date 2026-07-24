@@ -95,6 +95,24 @@
                 ></mat-checkbox>
             </div>
         </div>
+
+        <div class="setting-item" data-test-id="player-ambient-mode-setting">
+            <div class="setting-item__meta">
+                <h4>
+                    {{ 'SETTINGS.PLAYER_AMBIENT_MODE' | translate }}
+                </h4>
+                <p>
+                    {{ 'SETTINGS.PLAYER_AMBIENT_MODE_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    [aria-label]="'SETTINGS.PLAYER_AMBIENT_MODE' | translate"
+                    formControlName="playerAmbientMode"
+                    data-test-id="player-ambient-mode-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
     }
 
     @if (supportsManagedExternalPlayers() && isExternalPlayerSelected()) {

@@ -298,6 +298,8 @@
         "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
         "WEB_PLAYER_SHARED_CONTROLS": "Unified controls for web players (experimental)",
         "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Ambient background fill",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Fill the space around the player with a blurred, dimmed poster instead of plain black bars.",
         "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",

@@ -34,19 +34,19 @@ without creating dependency cycles (`portal/shared/data-access` already
 depends on `portal/xtream/data-access`, so it cannot host code the Xtream
 store imports):
 
-| File | Responsibility |
-| --- | --- |
-| `tmdb-config.ts` | API/image base URLs, embedded default API key, cache TTLs, app-language → TMDB-language mapping |
-| `tmdb.types.ts` | TMDB v3 response shapes (search, details with credits) |
-| `tmdb-api.service.ts` | Thin `fetch`-based client (TMDB supports CORS; works in Electron renderer and PWA). Accepts v3 keys (`api_key` param) and v4 tokens (Bearer) |
-| `tmdb-matcher.ts` | Title normalization, year extraction, and the match-confidence gate (pure functions) |
-| `tmdb-cache.service.ts` | Environment-aware cache (Electron IPC bridge vs in-memory LRU capped at 300 entries) with caller-supplied TTLs |
-| `tmdb-merge.ts` | Field-level merge into `XtreamVodInfo` / `XtreamSerieInfo` (pure functions, no mutation) |
-| `tmdb-runtime.service.ts` | Shared runtime context: opt-in gate, effective API key, language resolution |
-| `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups |
-| `tmdb-person.service.ts` | Cached person details + combined filmography (`person:<id>` rows) |
-| `tmdb-season.service.ts` | Cached lazy per-season episode lists (`id:<id>\|season:<n>` rows) |
-| `tmdb-trending.service.ts` | Weekly trending (movie + tv merged by popularity, `trending:week` rows, 1-day TTL) |
+| File                         | Responsibility                                                                                                                               |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tmdb-config.ts`             | API/image base URLs, embedded default API key, cache TTLs, app-language → TMDB-language mapping                                              |
+| `tmdb.types.ts`              | TMDB v3 response shapes (search, details with credits)                                                                                       |
+| `tmdb-api.service.ts`        | Thin `fetch`-based client (TMDB supports CORS; works in Electron renderer and PWA). Accepts v3 keys (`api_key` param) and v4 tokens (Bearer) |
+| `tmdb-matcher.ts`            | Title normalization, year extraction, and the match-confidence gate (pure functions)                                                         |
+| `tmdb-cache.service.ts`      | Environment-aware cache (Electron IPC bridge vs in-memory LRU capped at 300 entries) with caller-supplied TTLs                               |
+| `tmdb-merge.ts`              | Field-level merge into `XtreamVodInfo` / `XtreamSerieInfo` (pure functions, no mutation)                                                     |
+| `tmdb-runtime.service.ts`    | Shared runtime context: opt-in gate, effective API key, language resolution                                                                  |
+| `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups                                     |
+| `tmdb-person.service.ts`     | Cached person details + combined filmography (`person:<id>` rows)                                                                            |
+| `tmdb-season.service.ts`     | Cached lazy per-season episode lists (`id:<id>\|season:<n>` rows)                                                                            |
+| `tmdb-trending.service.ts`   | Weekly trending (movie + tv merged by popularity, `trending:week` rows, 1-day TTL)                                                           |
 
 Integration glue per portal:
 
@@ -101,7 +101,7 @@ The year filter is applied client-side rather than via TMDB's strict
 when the provider's year is off by one.
 
 **Non-Latin titles**: TMDB matches translated titles but returns `title` in
-the *request* language, so a Cyrillic query issued with `en-US` would come
+the _request_ language, so a Cyrillic query issued with `en-US` would come
 back with an English title and fail the exact-match gate.
 `tmdbSearchLanguageForTitle` detects Cyrillic queries and issues the search
 with `ru-RU` (unless the app language is already Cyrillic-based); details
@@ -216,7 +216,7 @@ Single table with two row kinds discriminated by `lookup_key` prefix:
 tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>'                  -- details payload row
-              'title:<normalized>|year:<y>'  -- search resolution row
+              'title:<normalized>|year:<y>|v2' -- search resolution row
               'person:<personId>'            -- person payload row
   language    TEXT,       -- TMDB language code
   tmdb_id     INTEGER,    -- NULL on a search row = negative cache
@@ -228,6 +228,12 @@ tmdb_metadata (
 
 TTLs (enforced at read time in `TmdbCacheService.isFresh`): details and
 positive matches 30 days, negative matches 7 days.
+
+Search keys carry a version suffix so normalization changes cannot reuse stale
+positive or negative resolutions. Database startup deletes the obsolete
+unversioned search rows once and records
+`migration:tmdb-search-lookup-v2-cache-cleanup:v1` in `app_state`; details and
+person cache rows are unaffected.
 
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):
