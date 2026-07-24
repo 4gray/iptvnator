@@ -56,12 +56,16 @@ function toArray(value: unknown): unknown[] {
     return Array.isArray(value) ? value : [];
 }
 
+// The web build compiles this lib with lib=es2018, so Array#flatMap is not
+// available here; stick to filter/map/push.
 function withNumericXtreamId<T extends { xtreamId: number }>(
     items: unknown[]
 ): T[] {
-    return items.flatMap((item): T[] => {
+    const result: T[] = [];
+
+    for (const item of items) {
         if (!isRecord(item)) {
-            return [];
+            continue;
         }
 
         const xtreamId = normalizeXtreamBackupId(
@@ -69,11 +73,13 @@ function withNumericXtreamId<T extends { xtreamId: number }>(
         );
 
         if (xtreamId === null) {
-            return [];
+            continue;
         }
 
-        return [{ ...item, xtreamId } as T];
-    });
+        result.push({ ...item, xtreamId } as T);
+    }
+
+    return result;
 }
 
 /**
@@ -98,26 +104,26 @@ export function normalizeXtreamPendingRestoreState(
 
     const candidate = value as RestoreStateCandidate;
 
-    const hiddenCategories = toArray(candidate.hiddenCategories).flatMap(
-        (item): XtreamBackupHiddenCategory[] => {
-            if (!isRecord(item)) {
-                return [];
-            }
+    const hiddenCategories: XtreamBackupHiddenCategory[] = [];
 
-            const entry = item as RestoreEntryCandidate;
-            const xtreamId = normalizeXtreamBackupId(entry.xtreamId);
-            const categoryType = entry.categoryType as XtreamBackupCategoryType;
-
-            if (
-                xtreamId === null ||
-                !XTREAM_BACKUP_CATEGORY_TYPES.includes(categoryType)
-            ) {
-                return [];
-            }
-
-            return [{ categoryType, xtreamId }];
+    for (const item of toArray(candidate.hiddenCategories)) {
+        if (!isRecord(item)) {
+            continue;
         }
-    );
+
+        const entry = item as RestoreEntryCandidate;
+        const xtreamId = normalizeXtreamBackupId(entry.xtreamId);
+        const categoryType = entry.categoryType as XtreamBackupCategoryType;
+
+        if (
+            xtreamId === null ||
+            !XTREAM_BACKUP_CATEGORY_TYPES.includes(categoryType)
+        ) {
+            continue;
+        }
+
+        hiddenCategories.push({ categoryType, xtreamId });
+    }
 
     return {
         hiddenCategories,
