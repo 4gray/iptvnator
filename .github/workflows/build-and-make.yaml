@@ -5,6 +5,14 @@ name: Build and Make Electron App
 # builds the website to verify AppStream screenshot assets. Tag pushes are
 # unaffected — GitHub does not evaluate paths filters for tags, so v* release
 # builds always run.
+#
+# Known accepted edge case: if a PR built a test-pr-<n> draft and later
+# reverts its code changes so the remaining diff is docs-only, new pushes
+# skip this workflow and the draft keeps assets from the older commit. The
+# draft's title/body name the exact commit they were built from, and
+# cleanup-pr-draft.yml deletes the draft when the PR closes, so the stale
+# window is visible and bounded; refreshing drafts on skipped runs is not
+# worth a separate workflow.
 on:
     push:
         branches:

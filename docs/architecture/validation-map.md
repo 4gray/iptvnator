@@ -49,7 +49,11 @@ project is missing from the policy, a listed project no longer exists, or a
 Tier A entry has no test target. CI runs Tier A with coverage (uploaded to
 Codecov) and each Tier B/C project's `validationCommand` (falling back to
 `nx test`) without coverage; projects with an `e2e` target are skipped there
-because the E2E workflow already runs them on every PR.
+because the E2E workflow already runs them on every PR that touches app code.
+Docs-only changes (Markdown, `docs/`, `.plans/`, `.codex/`, `.claude/`) and
+`apps/website/**` changes skip the E2E workflow via `paths-ignore` — for those
+PRs no E2E validation runs in CI, which is intentional: they cannot affect app
+behavior.
 
 | Tier | Rule | Validation |
 | --- | --- | --- |
