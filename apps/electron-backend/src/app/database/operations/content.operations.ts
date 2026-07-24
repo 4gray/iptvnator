@@ -15,92 +15,30 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
+    buildCompoundFtsMatchQuery,
+    buildCompoundLikePatterns,
+    buildContentTitleFtsMatchQuery,
+    buildGlobPrefixPatterns,
+    buildLikePatterns,
+    buildM3uPayloadCompoundPatterns,
+    buildM3uPayloadTextFieldPatterns,
+    getCompoundResidualTokenGroups,
+    getSearchWordPlans,
+    getSqlSearchTokenGroups,
+    isShortSearchTokenGroup,
+    normalizeSearchMatchText,
+    scoreSearchTextMatch,
+    shouldUseContentTitleFts,
+    shouldUseContentTitlePrefixIndex,
+} from './content-search.util';
+import {
     checkpointOperation,
     chunkValues,
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
 
-function escapeLikePattern(term: string): string {
-    return term.replace(/[%_\\]/g, '\\$&');
-}
-
-function normalizeSearchMatchText(value: unknown): string {
-    return typeof value === 'string'
-        ? value
-              .normalize('NFKD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .toLocaleLowerCase()
-              .replace(/[^\p{L}\p{N}]+/gu, ' ')
-              .trim()
-              .replace(/\s+/g, ' ')
-        : '';
-}
-
-function normalizeSqlSearchText(value: unknown): string {
-    return typeof value === 'string'
-        ? value
-              .toLocaleLowerCase()
-              .replace(/[^\p{L}\p{N}]+/gu, ' ')
-              .trim()
-              .replace(/\s+/g, ' ')
-        : '';
-}
-
-function getSearchTokens(value: unknown): string[] {
-    const normalized = normalizeSearchMatchText(value);
-    return normalized ? normalized.split(' ') : [];
-}
-
-function getSqlSearchTokenGroups(value: unknown): string[][] {
-    const rawTokens = normalizeSqlSearchText(value).split(' ').filter(Boolean);
-    const normalizedTokens = getSearchTokens(value);
-    const tokenCount = Math.max(rawTokens.length, normalizedTokens.length);
-
-    return Array.from({ length: tokenCount }, (_, index) =>
-        [...new Set([rawTokens[index], normalizedTokens[index]])].filter(
-            Boolean
-        )
-    ).filter((group) => group.length > 0);
-}
-
-function isShortSearchTokenGroup(tokens: readonly string[]): boolean {
-    return tokens.some((token) => token.length <= 2);
-}
-
-function getSqlSearchTokenVariants(value: unknown): string[] {
-    return [...new Set(getSqlSearchTokenGroups(value).flat())];
-}
-
-function buildLikePatterns(
-    term: string,
-    mode: 'contains' | 'prefix' = 'contains'
-): string[] {
-    const variants = new Set<string>();
-
-    for (const value of [term, ...getSqlSearchTokenVariants(term)]) {
-        const trimmedValue = value.trim();
-        if (!trimmedValue) {
-            continue;
-        }
-
-        const titleCase =
-            trimmedValue.length > 0
-                ? trimmedValue.charAt(0).toLocaleUpperCase() +
-                  trimmedValue.slice(1).toLocaleLowerCase()
-                : trimmedValue;
-
-        variants.add(trimmedValue);
-        variants.add(trimmedValue.toLocaleLowerCase());
-        variants.add(trimmedValue.toLocaleUpperCase());
-        variants.add(titleCase);
-    }
-
-    return [...variants].map((value) => {
-        const escapedValue = escapeLikePattern(value);
-        return mode === 'prefix' ? `${escapedValue}%` : `%${escapedValue}%`;
-    });
-}
+export { scoreSearchTextMatch } from './content-search.util';
 
 const DEFAULT_GLOBAL_SEARCH_LIMIT = 50;
 const MAX_GLOBAL_SEARCH_LIMIT = 500;
@@ -174,65 +112,6 @@ function normalizeGlobalSearchPagination(
     return { limit, offset };
 }
 
-export function scoreSearchTextMatch(
-    value: string,
-    searchTerm: string
-): number | null {
-    const candidateText = normalizeSearchMatchText(value);
-    const searchText = normalizeSearchMatchText(searchTerm);
-    if (!candidateText || !searchText) {
-        return null;
-    }
-
-    const searchTokens = searchText.split(' ');
-    const candidateTokens = candidateText.split(' ');
-    const firstSearchToken = searchTokens[0];
-
-    if (
-        firstSearchToken.length <= 2 &&
-        !candidateText.startsWith(firstSearchToken)
-    ) {
-        return null;
-    }
-
-    if (candidateText === searchText) {
-        return 0;
-    }
-
-    if (
-        candidateText.startsWith(searchText) &&
-        (searchTokens.length > 1 || firstSearchToken.length <= 2)
-    ) {
-        return 10;
-    }
-
-    if (candidateTokens.some((token) => token.startsWith(searchText))) {
-        return 20;
-    }
-
-    if (
-        searchTokens.every((searchToken) =>
-            candidateTokens.some((candidateToken) =>
-                candidateToken.startsWith(searchToken)
-            )
-        )
-    ) {
-        return 30;
-    }
-
-    if (candidateText.includes(searchText)) {
-        return 40;
-    }
-
-    if (
-        searchTokens.every((searchToken) => candidateText.includes(searchToken))
-    ) {
-        return 50;
-    }
-
-    return null;
-}
-
 function compareScoredGlobalSearchResults(
     first: ScoredGlobalSearchResult,
     second: ScoredGlobalSearchResult
@@ -278,73 +157,55 @@ function getGlobalSearchCandidateLimit(): number {
     return MAX_GLOBAL_SEARCH_CANDIDATE_LIMIT;
 }
 
+/**
+ * Per-word title conditions, AND-ed by the caller. A word's condition is the
+ * AND of its token-group LIKE conditions; a punctuation-joined word ("A&E")
+ * additionally matches as an intact contains pattern anywhere in the title
+ * (issue #1161). Composing per word keeps the other words' constraints on
+ * the compound arm, so "A&E HD" cannot fill the SQL candidate limit with
+ * titles that only contain "A&E".
+ */
 function buildContentTitleSearchConditions(searchTerm: string) {
-    const tokenGroups = getSqlSearchTokenGroups(searchTerm);
-    if (tokenGroups.length === 0) {
-        return [];
-    }
+    let groupIndex = 0;
 
-    return tokenGroups
-        .map((tokens, index) => {
-            const mode =
-                index === 0 && isShortSearchTokenGroup(tokens)
-                    ? 'prefix'
-                    : 'contains';
-            const likeConditions = tokens.flatMap((token) =>
-                buildLikePatterns(token, mode).map(
-                    (pattern) =>
-                        sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
-                )
-            );
-            return or(...likeConditions);
-        })
-        .filter((condition) => condition !== undefined);
-}
+    return getSearchWordPlans(searchTerm)
+        .map((plan) => {
+            const tokenConditions = plan.tokenGroups
+                .map((tokens) => {
+                    const mode =
+                        groupIndex === 0 && isShortSearchTokenGroup(tokens)
+                            ? 'prefix'
+                            : 'contains';
+                    groupIndex += 1;
+                    const likeConditions = tokens.flatMap((token) =>
+                        buildLikePatterns(token, mode).map(
+                            (pattern) =>
+                                sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+                        )
+                    );
+                    return or(...likeConditions);
+                })
+                .filter((condition) => condition !== undefined);
 
-function shouldUseContentTitlePrefixIndex(searchTerm: string): boolean {
-    const [firstTokenGroup] = getSqlSearchTokenGroups(searchTerm);
-
-    return !!firstTokenGroup && isShortSearchTokenGroup(firstTokenGroup);
-}
-
-function buildContentTitleFtsMatchQuery(searchTerm: string): string {
-    return getSqlSearchTokenGroups(searchTerm)
-        .map((tokens) => {
-            const quotedTokens = tokens
-                .filter((token) => token.length >= 3)
-                .map((token) => `"${token.replace(/"/g, '""')}"`);
-
-            if (quotedTokens.length <= 1) {
-                return quotedTokens[0] ?? '';
+            const tokenArm =
+                tokenConditions.length > 0
+                    ? and(...tokenConditions)
+                    : undefined;
+            if (plan.compound === null) {
+                return tokenArm;
             }
 
-            return `(${quotedTokens.join(' OR ')})`;
+            const compoundConditions = buildCompoundLikePatterns(
+                plan.compound
+            ).map(
+                (pattern) =>
+                    sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+            );
+            return tokenArm === undefined
+                ? or(...compoundConditions)
+                : or(tokenArm, ...compoundConditions);
         })
-        .filter(Boolean)
-        .join(' AND ');
-}
-
-function shouldUseContentTitleFts(searchTerm: string): boolean {
-    return (
-        !shouldUseContentTitlePrefixIndex(searchTerm) &&
-        buildContentTitleFtsMatchQuery(searchTerm).length > 0
-    );
-}
-
-function buildGlobPrefixPatterns(token: string): string[] {
-    const variants = new Set<string>();
-
-    for (const value of [token, ...getSqlSearchTokenVariants(token)]) {
-        variants.add(value);
-        variants.add(value.toLocaleLowerCase());
-        variants.add(value.toLocaleUpperCase());
-        variants.add(
-            value.charAt(0).toLocaleUpperCase() +
-                value.slice(1).toLocaleLowerCase()
-        );
-    }
-
-    return [...variants].map((value) => `${value}*`);
+        .filter((condition) => condition !== undefined);
 }
 
 function buildRawContentTitleSearchSql(searchTerm: string): SQL[] {
@@ -368,6 +229,40 @@ function buildRawContentTitleSearchSql(searchTerm: string): SQL[] {
             ),
             sql` OR `
         )})`;
+    });
+}
+
+/**
+ * Contains-mode LIKE conditions for the non-compound words of the term,
+ * applied on top of the compound FTS lookup so `A&E HD` only surfaces
+ * candidates that also contain `hd` (the FTS phrase can only express the
+ * compound word — trigram tokens need >= 3 chars).
+ */
+function buildCompoundResidualTitleSql(searchTerm: string): SQL[] {
+    return getCompoundResidualTokenGroups(searchTerm).map(
+        (tokens) =>
+            sql`(${sql.join(
+                tokens.flatMap((token) =>
+                    buildLikePatterns(token).map(
+                        (pattern) => sql`c.title LIKE ${pattern} ESCAPE '\\'`
+                    )
+                ),
+                sql` OR `
+            )})`
+    );
+}
+
+function dedupeXtreamCandidatesById(
+    candidates: XtreamGlobalSearchCandidate[]
+): XtreamGlobalSearchCandidate[] {
+    const seenIds = new Set<number>();
+
+    return candidates.filter((candidate) => {
+        if (seenIds.has(candidate.id)) {
+            return false;
+        }
+        seenIds.add(candidate.id);
+        return true;
     });
 }
 
@@ -415,12 +310,12 @@ async function selectXtreamGlobalSearchCandidatesWithTitleIndex(
 
 async function selectXtreamGlobalSearchCandidatesWithFts(
     db: AppDatabase,
-    searchTerm: string,
+    matchQuery: string,
     types: string[],
     excludeHidden: boolean,
-    candidateLimit: number
+    candidateLimit: number,
+    residualTitleConditions: SQL[] = []
 ): Promise<XtreamGlobalSearchCandidate[]> {
-    const matchQuery = buildContentTitleFtsMatchQuery(searchTerm);
     if (!matchQuery || types.length === 0) {
         return [];
     }
@@ -450,6 +345,11 @@ async function selectXtreamGlobalSearchCandidatesWithFts(
             types.map((type) => sql`${type}`),
             sql`, `
         )})
+        ${
+            residualTitleConditions.length > 0
+                ? sql`AND ${sql.join(residualTitleConditions, sql` AND `)}`
+                : sql``
+        }
         ${excludeHidden ? sql`AND cat.hidden = 0` : sql``}
         ORDER BY rank, c.title
         LIMIT ${candidateLimit}
@@ -495,38 +395,52 @@ async function selectXtreamGlobalSearchCandidatesWithContentScan(
         .limit(candidateLimit);
 }
 
-function buildM3uPayloadTextFieldPatterns(
-    token: string,
-    mode: 'contains' | 'prefix'
-): string[] {
-    return buildLikePatterns(token, mode).flatMap((pattern) => [
-        `%"name":"${pattern}"%`,
-        `%"name": "${pattern}"%`,
-        `%"title":"${pattern}"%`,
-        `%"title": "${pattern}"%`,
-    ]);
-}
-
+/**
+ * Per-word M3U payload prefilter conditions, AND-ed by the caller — the same
+ * compound-word composition as `buildContentTitleSearchConditions`: "A&E"
+ * must reach channel names like "US: A&E" (issue #1161), while the other
+ * words of the query keep constraining the candidate playlists.
+ */
 function buildM3uPayloadSearchConditions(searchTerm: string) {
-    const tokenGroups = getSqlSearchTokenGroups(searchTerm);
-    if (tokenGroups.length === 0) {
-        return [];
-    }
+    let groupIndex = 0;
 
-    return tokenGroups
-        .map((tokens, index) => {
-            const mode =
-                index === 0 && isShortSearchTokenGroup(tokens)
-                    ? 'prefix'
-                    : 'contains';
-            const patterns = tokens.flatMap((token) =>
-                buildM3uPayloadTextFieldPatterns(token, mode)
-            );
-            const likeConditions = patterns.map(
+    return getSearchWordPlans(searchTerm)
+        .map((plan) => {
+            const tokenConditions = plan.tokenGroups
+                .map((tokens) => {
+                    const mode =
+                        groupIndex === 0 && isShortSearchTokenGroup(tokens)
+                            ? 'prefix'
+                            : 'contains';
+                    groupIndex += 1;
+                    const patterns = tokens.flatMap((token) =>
+                        buildM3uPayloadTextFieldPatterns(token, mode)
+                    );
+                    const likeConditions = patterns.map(
+                        (pattern) =>
+                            sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
+                    );
+                    return or(...likeConditions);
+                })
+                .filter((condition) => condition !== undefined);
+
+            const tokenArm =
+                tokenConditions.length > 0
+                    ? and(...tokenConditions)
+                    : undefined;
+            if (plan.compound === null) {
+                return tokenArm;
+            }
+
+            const compoundConditions = buildM3uPayloadCompoundPatterns(
+                plan.compound
+            ).map(
                 (pattern) =>
                     sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
             );
-            return or(...likeConditions);
+            return tokenArm === undefined
+                ? or(...compoundConditions)
+                : or(tokenArm, ...compoundConditions);
         })
         .filter((condition) => condition !== undefined);
 }
@@ -1207,11 +1121,45 @@ export async function globalSearch(
                 excludeHidden,
                 candidateLimit
             );
+
+            // The prefix arm only sees titles that start with the short first
+            // token ("A&E" -> GLOB 'a*'), so a compound word like "a&e" is
+            // additionally looked up as a trigram FTS substring to reach
+            // titles such as "US: A&E" (issue #1161). The non-compound words
+            // of the query stay applied as LIKE conditions so this arm cannot
+            // fill the candidate limit with compound-only matches.
+            const compoundMatchQuery = buildCompoundFtsMatchQuery(searchTerm);
+            if (compoundMatchQuery) {
+                try {
+                    const compoundCandidates =
+                        await selectXtreamGlobalSearchCandidatesWithFts(
+                            db,
+                            compoundMatchQuery,
+                            types,
+                            excludeHidden,
+                            candidateLimit,
+                            buildCompoundResidualTitleSql(searchTerm)
+                        );
+                    candidates = dedupeXtreamCandidatesById([
+                        ...candidates,
+                        ...compoundCandidates,
+                    ]);
+                } catch {
+                    candidates =
+                        await selectXtreamGlobalSearchCandidatesWithContentScan(
+                            db,
+                            searchTerm,
+                            types,
+                            excludeHidden,
+                            candidateLimit
+                        );
+                }
+            }
         } else if (shouldUseContentTitleFts(searchTerm)) {
             try {
                 candidates = await selectXtreamGlobalSearchCandidatesWithFts(
                     db,
-                    searchTerm,
+                    buildContentTitleFtsMatchQuery(searchTerm),
                     types,
                     excludeHidden,
                     candidateLimit
