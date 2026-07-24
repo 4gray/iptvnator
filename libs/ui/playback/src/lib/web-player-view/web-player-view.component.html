@@ -2,6 +2,7 @@
     @defer (on immediate) {
         <app-vjs-player
             [options]="vjsOptions"
+            [mediaTitle]="resolvedMediaTitle()"
             [volume]="volume()"
             [showCaptions]="showCaptions()"
             [interactionEnabled]="playbackInteractionEnabled()"
@@ -20,6 +21,7 @@
     @defer (on immediate) {
         <app-html-video-player
             [channel]="$any(channel)"
+            [mediaTitle]="resolvedMediaTitle()"
             [volume]="volume()"
             [showCaptions]="showCaptions()"
             [isLive]="resolvedIsLive()"
@@ -39,6 +41,7 @@
     @defer (on immediate) {
         <app-art-player
             [channel]="$any(channel)"
+            [mediaTitle]="resolvedMediaTitle()"
             [volume]="volume()"
             [showCaptions]="showCaptions()"
             [isLive]="resolvedIsLive()"
@@ -57,6 +60,7 @@
 } @else if (selectedPlayer() === 'embedded-mpv') {
     <app-embedded-mpv-player
         [playback]="resolvedPlayback()"
+        [mediaTitle]="resolvedMediaTitle()"
         [recordingFolder]="recordingFolder()"
         [seriesNavigation]="seriesNavigation()"
         (timeUpdate)="timeUpdate.emit($event)"
@@ -68,6 +72,7 @@
     @defer (on immediate) {
         <app-vjs-player
             [options]="vjsOptions"
+            [mediaTitle]="resolvedMediaTitle()"
             [volume]="volume()"
             [showCaptions]="showCaptions()"
             [interactionEnabled]="playbackInteractionEnabled()"

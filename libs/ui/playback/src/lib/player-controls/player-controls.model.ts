@@ -28,6 +28,18 @@ export interface PlayerTrack {
     selected: boolean;
 }
 
+/**
+ * Content title lines rendered over the player while the controls are visible
+ * in fullscreen. Hosts pass display-ready strings; the controls never derive
+ * them from playback data.
+ */
+export interface PlayerMediaTitle {
+    /** Movie title, channel name, or series name. */
+    primary: string;
+    /** Optional second line, e.g. the "S01E03" label for series episodes. */
+    secondary?: string | null;
+}
+
 export interface PlayerPreset<T> {
     value: T;
     label: string;

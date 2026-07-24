@@ -30,23 +30,24 @@ import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import {
+    type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
     WEB_PLAYER_SHARED_CONTROLS_ENABLED,
 } from '../player-controls';
 import {
     type PlaybackDiagnostic,
-    PlaybackDiagnosticCode,
     type PlaybackFallbackRequest,
-    getLikelyBrowserUnsupportedCodecLabels,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
-
-type PlaybackDiagnosticDetail = {
-    readonly labelKey: string;
-    readonly value: string;
-};
+import {
+    getDiagnosticCodecHint,
+    getDiagnosticDescriptionKey,
+    getDiagnosticDetails,
+    getDiagnosticMeta,
+    getDiagnosticTitleKey,
+} from './web-player-view-diagnostics.utils';
 
 function resolveWebPlayerSharedControls(): boolean {
     const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
@@ -93,6 +94,9 @@ export class WebPlayerViewComponent {
     showCaptions = input<boolean>(false);
     playerOverride = input<VideoPlayer | null>(null);
     seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
+    /** Display-ready title lines for the fullscreen overlay; hosts with richer
+     * context (e.g. series name + episode label) pass it explicitly. */
+    mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
@@ -157,6 +161,20 @@ export class WebPlayerViewComponent {
             this.settings()?.player ??
             VideoPlayer.VideoJs
     );
+    readonly resolvedMediaTitle = computed<PlayerMediaTitle | null>(() => {
+        const explicit = this.mediaTitle();
+        if (explicit?.primary?.trim()) {
+            return explicit;
+        }
+        const playback = this.resolvedPlayback();
+        const title = playback.title?.trim();
+        // resolvedPlayback() falls back to the stream URL as title; a raw URL
+        // is not a watchable overlay title.
+        if (!title || title === playback.streamUrl) {
+            return null;
+        }
+        return { primary: title, secondary: null };
+    });
     readonly recordingFolder = computed(() => this.settings()?.recordingFolder ?? '');
 
     constructor() {
@@ -259,99 +277,16 @@ export class WebPlayerViewComponent {
         this.setVjsOptions(playback.streamUrl, this.resolvedIsLive());
     }
 
-    getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
-        return `${this.getDiagnosticTranslationBase(issue)}.TITLE`;
-    }
+    readonly getDiagnosticTitleKey = getDiagnosticTitleKey;
+    readonly getDiagnosticMeta = getDiagnosticMeta;
+    readonly getDiagnosticCodecHint = getDiagnosticCodecHint;
+    readonly getDiagnosticDetails = getDiagnosticDetails;
 
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
-        if (
-            issue.code === PlaybackDiagnosticCode.BrowserAccessError &&
-            !this.runtime.supportsManagedExternalPlayers
-        ) {
-            return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION';
-        }
-
-        return `${this.getDiagnosticTranslationBase(issue)}.DESCRIPTION`;
-    }
-
-    getDiagnosticMeta(issue: PlaybackDiagnostic): string {
-        const codecs = [...issue.videoCodecs, ...issue.audioCodecs].join(', ');
-        if (codecs) {
-            return codecs;
-        }
-
-        return issue.container || issue.mimeType || '';
-    }
-
-    getDiagnosticCodecHint(issue: PlaybackDiagnostic): string {
-        return getLikelyBrowserUnsupportedCodecLabels(issue).join(', ');
-    }
-
-    getDiagnosticDetails(
-        issue: PlaybackDiagnostic
-    ): readonly PlaybackDiagnosticDetail[] {
-        return [
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CODE',
-                value: issue.code,
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_PLAYER',
-                value: this.formatPlayer(issue.player),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
-                value: this.formatDiagnosticSource(issue.source),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CONTAINER',
-                value: issue.container,
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_MIME_TYPE',
-                value: issue.mimeType ?? '',
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_VIDEO_CODECS',
-                value: issue.videoCodecs.join(', '),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_AUDIO_CODECS',
-                value: issue.audioCodecs.join(', '),
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_CODE',
-                value: issue.nativeErrorCode?.toString() ?? '',
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_MESSAGE',
-                value: issue.nativeErrorMessage ?? '',
-            },
-            {
-                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
-                value: issue.details ?? '',
-            },
-        ].filter(({ value }) => value.trim().length > 0);
-    }
-
-    private getDiagnosticTranslationBase(issue: PlaybackDiagnostic): string {
-        switch (issue.code) {
-            case PlaybackDiagnosticCode.UnsupportedContainer:
-                return 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER';
-            case PlaybackDiagnosticCode.UnsupportedCodec:
-                return 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CODEC';
-            case PlaybackDiagnosticCode.MediaDecodeError:
-                return 'PLAYBACK_DIAGNOSTICS.MEDIA_DECODE_ERROR';
-            case PlaybackDiagnosticCode.NetworkError:
-                return 'PLAYBACK_DIAGNOSTICS.NETWORK_ERROR';
-            case PlaybackDiagnosticCode.BrowserAccessError:
-                return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR';
-            case PlaybackDiagnosticCode.DrmOrEncryption:
-                return 'PLAYBACK_DIAGNOSTICS.DRM_OR_ENCRYPTION';
-            case PlaybackDiagnosticCode.UnknownPlaybackError:
-            default:
-                return 'PLAYBACK_DIAGNOSTICS.UNKNOWN_PLAYBACK_ERROR';
-        }
+        return getDiagnosticDescriptionKey(
+            issue,
+            this.runtime.supportsManagedExternalPlayers
+        );
     }
 
     private getHeaderValue(
@@ -366,35 +301,5 @@ export class WebPlayerViewComponent {
             (key) => key.toLowerCase() === name.toLowerCase()
         );
         return matchingKey ? headers[matchingKey] : undefined;
-    }
-
-    private formatPlayer(player: PlaybackDiagnostic['player']): string {
-        switch (player) {
-            case 'videojs':
-                return 'Video.js';
-            case 'html5':
-                return 'HTML5';
-            case 'artplayer':
-                return 'ArtPlayer';
-            default:
-                return '';
-        }
-    }
-
-    private formatDiagnosticSource(
-        source: PlaybackDiagnostic['source']
-    ): string {
-        switch (source) {
-            case 'hls':
-                return 'HLS.js';
-            case 'mpegts':
-                return 'mpegts.js';
-            case 'native':
-                return 'Native media element';
-            case 'source':
-                return 'Stream metadata';
-            default:
-                return source;
-        }
     }
 }
