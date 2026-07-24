@@ -197,8 +197,12 @@ keeps a `${tmdbId}|${seasonKey}`-keyed map and overlays it inside its
 it was fetched for: per-season slices of one show share
 (tmdbId, provider key "1") but resolve to different seasons, and a fetch
 made with stale detail-to-detail navigation context is overwritten once
-the real context re-resolves — the fetch effect waits for a non-empty
-season map and the season selection resets on item identity change. Without a show-level match or with enrichment
+the real context re-resolves. The fetch effect gates on coherence rather
+than timing: it waits while the season resource reloads and requires the
+selected key to exist in the map with episodes. The retained season
+selection deliberately survives navigation — the season container
+deduplicates `seasonSelected` emissions, so items sharing one season-key
+set would otherwise never re-trigger enrichment. Without a show-level match or with enrichment
 disabled everything is a no-op — the `SeasonContainer` UI already renders
 every episode field conditionally.
 

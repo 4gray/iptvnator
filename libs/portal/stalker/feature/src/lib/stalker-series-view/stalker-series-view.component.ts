@@ -5,7 +5,6 @@ import {
     effect,
     inject,
     input,
-    linkedSignal,
     output,
     signal,
     untracked,
@@ -165,32 +164,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     });
 
     /**
-     * Season currently selected in the season container. Resets when the
-     * displayed item's identity changes: the router reuses this component
-     * for detail-to-detail navigation, and a retained selection would let
-     * the NEW item's tmdb_id pair with the PREVIOUS series' season context
-     * in the TMDB fetch effect before the new season resource loads. The
-     * identity combines id and title — provider ids can repeat or be
-     * absent across distinct items.
+     * Season currently selected in the season container. Deliberately NOT
+     * reset on detail-to-detail navigation: the season container keeps its
+     * own selection and deduplicates `seasonSelected` emissions, so when
+     * two items share the same season-key set (commonly just "1") it never
+     * re-emits — a parent-side reset would leave the new item permanently
+     * unenriched. Stale-context safety lives in the fetch effect's
+     * coherence gates instead (see the constructor).
      */
-    private readonly selectedSeasonKey = linkedSignal<
-        string | undefined,
-        string | null
-    >({
-        source: () => {
-            const item = this.displayItem();
-            return item
-                ? `${item.id ?? ''}|${item.info?.name ?? ''}`
-                : undefined;
-        },
-        // displayItem produces a fresh object on every recomputation, so
-        // the identity must be compared here — resetting on every source
-        // invalidation would drop valid selections of the SAME item.
-        computation: (identity, previous) =>
-            previous !== undefined && previous.source === identity
-                ? previous.value
-                : null,
-    });
+    private readonly selectedSeasonKey = signal<string | null>(null);
 
     /** Season descriptions for the season tabs (TMDB overview per season). */
     readonly seasonDescriptions = computed<Record<string, string>>(() =>
@@ -234,21 +216,31 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             const item = this.displayItem();
             const tmdbId = item?.info?.tmdb_id;
             const seasonKey = this.selectedSeasonKey();
-            // The season map is read TRACKED: the TMDB match can arrive
-            // before the async season resource, and a fetch made with an
-            // empty map would pass seasonCount 0, suppressing the
-            // title-marker override. Re-running on map updates is safe —
-            // fetchSeason skips when its entry already holds the resolved
-            // season, so overlay recomputation cannot loop, and a fetch
-            // made with stale context self-heals once the real map arrives
-            // and the resolution changes.
+            // Coherence gates instead of timing assumptions. All inputs are
+            // read TRACKED so the effect re-runs as each one settles:
+            // - the season resource must not be mid-reload — during
+            //   detail-to-detail navigation a reused component briefly
+            //   pairs the NEW item's tmdb_id with the PREVIOUS item's map
+            // - the selected key must exist in the map with episodes — an
+            //   empty map would pass seasonCount 0 (suppressing the
+            //   title-marker override), and a key retained from the
+            //   previous item is only usable when the new item has that
+            //   season too (otherwise the container's auto-select re-emits)
+            // Re-running on overlay updates cannot loop (fetchSeason skips
+            // when its entry already holds the resolved season), and a
+            // fetch made with a stale snapshot is overwritten once the
+            // real context re-resolves to a different season.
+            const seasonsLoading = this.isVodSeries()
+                ? this.isVodSeriesSeasonsLoading()
+                : this.isSerialSeasonsLoading();
             const seasons = this.mappedSeasons();
-            if (tmdbId && seasonKey && Object.keys(seasons).length > 0) {
+            const episodes = seasonKey ? seasons[seasonKey] : undefined;
+            if (tmdbId && seasonKey && !seasonsLoading && episodes?.length) {
                 untracked(() =>
                     void this.tmdbSeasons.fetchSeason(
                         tmdbId,
                         seasonKey,
-                        seasons[seasonKey],
+                        episodes,
                         {
                             // The season marker can live in either title
                             // field (generic name + descriptive o_name)

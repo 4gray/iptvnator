@@ -79,6 +79,7 @@ describe('StalkerSeriesViewComponent', () => {
     const selectedItem = signal<StalkerVodSource | null>(null);
     const serialSeasonsResource = signal<unknown[]>([]);
     const vodSeriesSeasonsResource = signal<unknown[]>([]);
+    const isSerialSeasonsLoading = signal(false);
     const fetchVodSeriesEpisodes = jest.fn();
     const resolveVodPlayback = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
@@ -106,6 +107,7 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
         vodSeriesSeasonsResource.set([]);
+        isSerialSeasonsLoading.set(false);
         fetchVodSeriesEpisodes.mockReset();
         resolveVodPlayback.mockReset();
         resolveVodPlayback.mockImplementation(
@@ -156,7 +158,7 @@ describe('StalkerSeriesViewComponent', () => {
                         getVodSeriesSeasonsResource: () =>
                             vodSeriesSeasonsResource(),
                         isVodSeriesSeasonsLoading: signal(false),
-                        isSerialSeasonsLoading: signal(false),
+                        isSerialSeasonsLoading,
                         fetchVodSeriesEpisodes,
                         resolveVodPlayback,
                         fetchLinkToPlay: jest.fn(),
@@ -857,7 +859,7 @@ describe('StalkerSeriesViewComponent', () => {
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
     });
 
-    it('drops the retained season selection on detail-to-detail navigation', async () => {
+    it('gates the fetch on the reloading season resource during detail-to-detail navigation', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
@@ -868,8 +870,9 @@ describe('StalkerSeriesViewComponent', () => {
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
         // Detail-to-detail navigation reuses the component; the new item's
-        // TMDB match can arrive while the season resource still holds the
-        // previous series' seasons.
+        // TMDB match can arrive while the season resource reloads and the
+        // map still shows the previous series' seasons.
+        isSerialSeasonsLoading.set(true);
         selectedItem.set({
             id: '30002',
             cmd: '/media/file_30002.mpg',
@@ -883,28 +886,38 @@ describe('StalkerSeriesViewComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // The retained season key must NOT pair the new tmdb_id with the
-        // previous series' season context (the fetch cache is idempotent,
-        // so a stale fetch would block the correct one forever).
+        // The new tmdb_id must NOT pair with the previous series' season
+        // context while the resource reloads.
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
-        // Only the new item's own season selection triggers the fetch —
-        // here a single-season slice resolving to the title-marked season.
-        fixture.componentInstance.onSeasonSelected('1');
+        // Once the new item's own seasons land, the fetch runs WITHOUT a
+        // new seasonSelected emission — the season container deduplicates
+        // emissions when both items share the same season-key set, so the
+        // retained key must stay usable.
+        serialSeasonsResource.set([
+            {
+                id: 'season-1',
+                name: 'Season 1',
+                cmd: '/media/file_30002.mpg',
+                series: [1, 2],
+            },
+        ]);
+        isSerialSeasonsLoading.set(false);
         fixture.detectChanges();
         await fixture.whenStable();
         expect(tmdbGetSeason).toHaveBeenCalledWith(888, 2);
     });
 
-    it('drops the retained selection when only the item TITLE changes (equal provider ids)', async () => {
+    it('enriches after equal-id navigation once the season resource settles', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.componentInstance.onSeasonSelected('1');
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // Distinct series can share (or lack) a provider id — identity
-        // falls back to the title, so the selection still resets.
+        // Distinct items can reuse a provider id; the loading gate (not an
+        // id comparison) keeps the stale map from being used.
+        isSerialSeasonsLoading.set(true);
         selectedItem.set({
             id: '30001',
             cmd: '/media/file_30001.mpg',
@@ -917,10 +930,9 @@ describe('StalkerSeriesViewComponent', () => {
         } as never);
         fixture.detectChanges();
         await fixture.whenStable();
-
         expect(tmdbGetSeason).not.toHaveBeenCalled();
 
-        fixture.componentInstance.onSeasonSelected('1');
+        isSerialSeasonsLoading.set(false);
         fixture.detectChanges();
         await fixture.whenStable();
         expect(tmdbGetSeason).toHaveBeenCalledWith(999, 3);
