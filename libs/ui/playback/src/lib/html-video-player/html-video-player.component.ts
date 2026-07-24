@@ -197,7 +197,14 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     url,
                     channel.drm
                 );
-                this.handlePlayOperation();
+                if (channel.drm && !channel.drm.supported) {
+                    // No source is loaded for unsupported DRM; reset the
+                    // element so the previous stream cannot resume playing
+                    // underneath the diagnostic banner.
+                    this.videoPlayer.nativeElement.load();
+                } else {
+                    this.handlePlayOperation();
+                }
             } else if (
                 (extension === 'ts' || !extension) &&
                 mpegts.isSupported()

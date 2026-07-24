@@ -228,15 +228,16 @@ export class ShakaVideoSession {
     }
 
     /**
-     * For channels carrying KODIPROP ClearKey config, DRM failures (wrong or
-     * rotated keys, …) cannot be solved by MPV/VLC either — they never
-     * receive the license config — so the diagnostic must not offer them.
+     * Channels carrying KODIPROP ClearKey config cannot be handed to MPV/VLC
+     * at all — external players never receive the license config, so the
+     * encrypted stream fails there regardless of what broke inline (DRM,
+     * manifest, codec, network, …). Suppress the fallback hint entirely.
      */
     private withoutUnusableDrmFallback(
         issue: PlaybackDiagnostic,
         drmProvided: boolean
     ): PlaybackDiagnostic {
-        if (!drmProvided || issue.code !== DiagnosticCode.DrmOrEncryption) {
+        if (!drmProvided || !issue.externalFallbackRecommended) {
             return issue;
         }
         return { ...issue, externalFallbackRecommended: false };

@@ -224,6 +224,35 @@ describe('HtmlVideoPlayerComponent', () => {
         );
     });
 
+    it('does not resume the previous source when a channel declares unsupported DRM', () => {
+        const video = component.videoPlayer.nativeElement;
+        const loadSpy = jest
+            .spyOn(video, 'load')
+            .mockImplementation(() => undefined);
+        const playSpy = jest.spyOn(video, 'play').mockResolvedValue(undefined);
+
+        component.playChannel({
+            ...TEST_CHANNEL,
+            url: 'https://stream.example/movie.mp4',
+        });
+        playSpy.mockClear();
+        loadSpy.mockClear();
+
+        component.playChannel({
+            ...TEST_CHANNEL,
+            url: 'https://stream.example/enc.mpd',
+            drm: {
+                licenseType: 'com.widevine.alpha',
+                supported: false,
+            },
+        });
+
+        // No source is loaded for unsupported DRM: play() must not run, and
+        // the element is reset so the old stream cannot keep playing.
+        expect(playSpy).not.toHaveBeenCalled();
+        expect(loadSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('emits a playback issue when the native video element reports an unsupported source', () => {
         const issues: unknown[] = [];
         component.channel = TEST_CHANNEL;

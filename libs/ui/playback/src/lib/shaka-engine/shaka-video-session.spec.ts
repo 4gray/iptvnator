@@ -114,7 +114,7 @@ describe('ShakaVideoSession', () => {
         expect(session.getPlayer()).toBeNull();
     });
 
-    it('drops the external-fallback hint for DRM errors on ClearKey channels', async () => {
+    it('drops the external-fallback hint for every failure on ClearKey channels', async () => {
         const environment = createFakeShakaEnvironment();
         const session = createSession(environment);
         session.start(video, 'http://example.com/enc.mpd', {
@@ -135,6 +135,24 @@ describe('ShakaVideoSession', () => {
         // MPV/VLC never receive the KODIPROP license config, so they are not
         // offered as a fallback for key failures on ClearKey channels.
         expect(issues[0].externalFallbackRecommended).toBe(false);
+
+        // Non-DRM failures (media/codec/manifest/…) are equally unsolvable
+        // externally while the stream itself stays encrypted.
+        session.start(video, 'http://example.com/enc.mpd', {
+            licenseType: 'clearkey',
+            supported: true,
+            clearKeys: { abc: 'def' },
+        });
+        await flush();
+        environment.instances[1].dispatch('error', {
+            severity: 2,
+            category: 3,
+            code: 3016,
+        });
+
+        expect(issues).toHaveLength(2);
+        expect(issues[1].code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
+        expect(issues[1].externalFallbackRecommended).toBe(false);
     });
 
     it('emits a diagnostic and tears the engine down when load rejects', async () => {
