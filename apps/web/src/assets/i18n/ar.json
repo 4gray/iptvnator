@@ -947,6 +947,7 @@
             "RESULTS_FOUND": "تم العثور على {{count}} نتيجة",
             "NO_RESULTS_FOR": "لم يتم العثور على نتائج لـ \"{{term}}\"",
             "GROUP_BY_PLAYLIST": "تجميع النتائج حسب قائمة التشغيل",
+            "GROUP_SIMILAR_TITLES": "تجميع العناوين المتشابهة",
             "VISIBLE_CATEGORIES_ONLY": "الفئات المرئية فقط",
             "GLOBAL_SEARCH_SOURCE_NOTE": "Global search includes results from Xtream and M3U playlists.",
             "GLOBAL_INITIAL_DESCRIPTION": "Enter at least 2 characters to search across Xtream and M3U playlists.",

@@ -947,6 +947,7 @@
             "RESULTS_FOUND": "{{count}}件の結果が見つかりました",
             "NO_RESULTS_FOR": "「{{term}}」に一致する結果は見つかりませんでした",
             "GROUP_BY_PLAYLIST": "プレイリストごとに結果をグループ化",
+            "GROUP_SIMILAR_TITLES": "類似タイトルをグループ化",
             "VISIBLE_CATEGORIES_ONLY": "表示中のカテゴリーのみ",
             "GLOBAL_SEARCH_SOURCE_NOTE": "Global search includes results from Xtream and M3U playlists.",
             "GLOBAL_INITIAL_DESCRIPTION": "Enter at least 2 characters to search across Xtream and M3U playlists.",

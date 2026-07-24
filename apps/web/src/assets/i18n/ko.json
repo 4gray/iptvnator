@@ -947,6 +947,7 @@
             "RESULTS_FOUND": "{{count}}개의 결과를 찾았습니다",
             "NO_RESULTS_FOR": "\"{{term}}\"에 대한 결과를 찾을 수 없습니다",
             "GROUP_BY_PLAYLIST": "재생목록별로 결과 그룹화",
+            "GROUP_SIMILAR_TITLES": "유사한 제목 그룹화",
             "VISIBLE_CATEGORIES_ONLY": "표시되는 카테고리만",
             "GLOBAL_SEARCH_SOURCE_NOTE": "Global search includes results from Xtream and M3U playlists.",
             "GLOBAL_INITIAL_DESCRIPTION": "Enter at least 2 characters to search across Xtream and M3U playlists.",

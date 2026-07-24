@@ -947,6 +947,7 @@
             "RESULTS_FOUND": "找到 {{count}} 条结果",
             "NO_RESULTS_FOR": "未找到与“{{term}}”匹配的结果",
             "GROUP_BY_PLAYLIST": "按播放列表分组结果",
+            "GROUP_SIMILAR_TITLES": "将相似标题分组",
             "VISIBLE_CATEGORIES_ONLY": "仅可见分类",
             "GLOBAL_SEARCH_SOURCE_NOTE": "Global search includes results from Xtream and M3U playlists.",
             "GLOBAL_INITIAL_DESCRIPTION": "Enter at least 2 characters to search across Xtream and M3U playlists.",

@@ -947,6 +947,7 @@
             "RESULTS_FOUND": "Найдено {{count}} результатов",
             "NO_RESULTS_FOR": "Нет результатов по запросу \"{{term}}\"",
             "GROUP_BY_PLAYLIST": "Группировать результаты по плейлистам",
+            "GROUP_SIMILAR_TITLES": "Группировать похожие названия",
             "VISIBLE_CATEGORIES_ONLY": "Только видимые категории",
             "GLOBAL_SEARCH_SOURCE_NOTE": "Глобальный поиск включает результаты из плейлистов Xtream и M3U.",
             "GLOBAL_INITIAL_DESCRIPTION": "Введите минимум 2 символа для поиска по плейлистам Xtream и M3U.",
