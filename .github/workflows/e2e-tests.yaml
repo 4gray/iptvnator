@@ -24,9 +24,12 @@ on:
     workflow_dispatch:
 
 # Superseded PR pushes cancel their still-running E2E matrix (the most
-# expensive per-PR runner time); master pushes are never cancelled.
+# expensive per-PR runner time). Non-PR runs get a unique group (run_id):
+# GitHub keeps at most one pending run per group even with
+# cancel-in-progress: false, so a shared ref group could silently drop a
+# queued master run between two rapid pushes.
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:

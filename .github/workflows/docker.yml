@@ -26,10 +26,12 @@ on:
 permissions:
     contents: read
 
-# Superseded PR pushes cancel their still-running image build; master/tag
-# pushes are never cancelled so published images always finish.
+# Superseded PR pushes cancel their still-running image build. Master/tag/
+# manual runs get a unique group (run_id): GitHub keeps at most one pending
+# run per group even with cancel-in-progress: false, so a shared ref group
+# could silently drop a queued publish between two rapid master pushes.
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

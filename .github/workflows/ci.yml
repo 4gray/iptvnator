@@ -9,10 +9,13 @@ on:
             - master
     workflow_dispatch:
 
-# Superseded PR pushes cancel their still-running checks; master pushes are
-# never cancelled so every merged commit keeps a full lint/test record.
+# Superseded PR pushes cancel their still-running checks. Non-PR runs get a
+# unique group (run_id) because GitHub keeps at most one pending run per
+# group even with cancel-in-progress: false — a shared ref group would let a
+# rapid master push silently replace a queued sibling and leave a merged
+# commit without a lint/test record.
 concurrency:
-    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
