@@ -126,6 +126,37 @@ describe('HtmlVideoPlayerComponent shared controls sources', () => {
         );
     });
 
+    it('owns one Shaka source for DASH (.mpd) streams', () => {
+        const { component } = renderSharedControls(
+            HtmlVideoPlayerComponent,
+            fixtures
+        );
+        const setSource = observeBridgeSourceBinding(component);
+
+        component.playChannel({
+            ...TEST_CHANNEL,
+            url: 'https://example.test/live.mpd',
+            drm: {
+                licenseType: 'clearkey',
+                supported: true,
+                clearKeys: { abc: 'def' },
+            },
+        });
+
+        const internals = readHtmlPlayerInternals(component);
+        expect(setSource).toHaveBeenCalledTimes(1);
+        expect(setSource).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'shaka' })
+        );
+        expect(internals.controlsSource).toEqual(
+            expect.objectContaining({ kind: 'shaka' })
+        );
+        expect(internals.hls).toBeNull();
+        expect(internals.mpegtsPlayer).toBeNull();
+        expect(hlsInstances).toHaveLength(0);
+        expect(mpegTsInstances).toHaveLength(0);
+    });
+
     it('owns one native source before loading native media', () => {
         const { component, fixture } = renderSharedControls(
             HtmlVideoPlayerComponent,

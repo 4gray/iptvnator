@@ -24,6 +24,9 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
+    extractDrmFromRaw,
+    isDashChannel,
+    isDashStreamUrl,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -173,6 +176,28 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
+    /**
+     * DASH (.mpd) playback always runs inline via the Shaka engine. True when
+     * either the channel itself or the resolved catch-up URL is DASH —
+     * mirroring the external-player guard in the m3u-state effects, so a
+     * DASH-flavored session can never end up with no player at all.
+     */
+    readonly activeChannelIsDash = computed(
+        () =>
+            isDashStreamUrl(this.activePlaybackUrl() ?? undefined) ||
+            isDashChannel(this.activeChannel())
+    );
+    /**
+     * Player forced for DASH channels: ArtPlayer keeps ArtPlayer (it has a
+     * Shaka source engine); every other choice — Video.js (no DASH bridge),
+     * embedded/external MPV and VLC (no KODIPROP ClearKey support) — falls
+     * back to the HTML5 player.
+     */
+    readonly dashPlayerOverride = computed<VideoPlayer>(() =>
+        this.settingsStore.player() === VideoPlayer.ArtPlayer
+            ? VideoPlayer.ArtPlayer
+            : VideoPlayer.Html5Player
+    );
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
@@ -280,6 +305,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             userAgent: http['user-agent'] || undefined,
             referer: http.referrer || undefined,
             origin: http.origin || undefined,
+            // Playlists imported before the DRM feature carry no drm field
+            // yet, but their raw KODIPROP block survived in the stored items
+            // — extract lazily so they work without a re-import.
+            drm: playbackTarget.drm ?? extractDrmFromRaw(playbackTarget.raw),
         };
     });
     readonly sidebarStorageKey = computed(() =>
@@ -990,6 +1019,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     shouldShowInlinePlayer(channel: Channel | null | undefined): boolean {
         if (!channel) {
             return false;
+        }
+
+        // DASH playback bypasses the external-player setting (radio
+        // precedent): MPV/VLC cannot receive the KODIPROP ClearKey
+        // configuration. Checked on the effective (possibly catch-up) URL.
+        if (this.activeChannelIsDash()) {
+            return true;
         }
 
         return !this.isExternalPlayer(this.playerSettings.player);

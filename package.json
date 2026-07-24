@@ -104,6 +104,7 @@
         "ngx-skeleton-loader": "11.3.0",
         "rxjs": "7.8.2",
         "saxes": "6.0.0",
+        "shaka-player": "5.2.1",
         "uuid": "9.0.0",
         "video.js": "8.23.4",
         "videojs-contrib-quality-levels": "4.1.0",

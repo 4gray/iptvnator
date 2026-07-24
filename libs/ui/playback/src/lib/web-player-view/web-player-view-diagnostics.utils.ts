@@ -128,6 +128,8 @@ function formatDiagnosticSource(source: PlaybackDiagnostic['source']): string {
             return 'mpegts.js';
         case 'native':
             return 'Native media element';
+        case 'shaka':
+            return 'Shaka Player';
         case 'source':
             return 'Stream metadata';
         default:

@@ -83,6 +83,17 @@ describe('ArtPlayer setup', () => {
         );
     });
 
+    it('routes DASH manifests to the mpd custom type', () => {
+        expect(getArtPlayerVideoType('https://example.test/live.mpd')).toBe(
+            'mpd'
+        );
+        expect(
+            getArtPlayerVideoType(
+                'https://example.test/live.mpd?token=signed#frag'
+            )
+        ).toBe('mpd');
+    });
+
     it('exits fullscreen only when the shared ArtPlayer shell owns it', () => {
         const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(
             document,

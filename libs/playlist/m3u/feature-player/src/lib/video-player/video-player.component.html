@@ -76,7 +76,11 @@
                         [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
                         [title]="inlinePlayerTitle()"
                         [playback]="embeddedPlayback()"
-                        [playerOverride]="playerSettings.player ?? null"
+                        [playerOverride]="
+                            activeChannelIsDash()
+                                ? dashPlayerOverride()
+                                : (playerSettings.player ?? null)
+                        "
                         [volume]="volume()"
                         [showCaptions]="!!playerSettings.showCaptions"
                         (externalFallbackRequested)="

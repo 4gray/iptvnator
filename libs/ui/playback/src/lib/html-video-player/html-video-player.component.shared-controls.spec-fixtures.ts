@@ -19,7 +19,7 @@ export type SharedControlsFixture =
     ComponentFixture<HtmlVideoPlayerComponentInstance>;
 
 export interface ControlsSource {
-    kind: 'native' | 'mpegts' | 'hls';
+    kind: 'native' | 'mpegts' | 'hls' | 'shaka';
 }
 
 export interface HtmlPlayerInternals {

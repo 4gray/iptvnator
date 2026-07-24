@@ -1,6 +1,9 @@
-import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
+import { Channel, EpgProgram, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { EpgActions } from './actions';
-import { buildExternalPlayerPayload } from './external-player-payload.util';
+import {
+    buildExternalPlayerPayload,
+    shouldAutoLaunchExternalPlayer,
+} from './external-player-payload.util';
 import { resolveActiveEpgProgramAction } from './resolve-active-epg-program.util';
 
 describe('buildExternalPlayerPayload', () => {
@@ -42,6 +45,99 @@ describe('buildExternalPlayerPayload', () => {
             'user-agent': 'Codex Test Agent',
             referer: 'https://referrer.example.com',
             origin: 'https://origin.example.com',
+        });
+    });
+
+    describe('shouldAutoLaunchExternalPlayer', () => {
+        const mpvSettings = { player: VideoPlayer.MPV };
+
+        it('launches the configured external player for regular channels', () => {
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    mpvSettings,
+                    true,
+                    activeChannel,
+                    VideoPlayer.MPV
+                )
+            ).toBe(true);
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    mpvSettings,
+                    true,
+                    activeChannel,
+                    VideoPlayer.VLC
+                )
+            ).toBe(false);
+        });
+
+        it('never launches external players for DASH (.mpd) channels', () => {
+            const dashChannel: Channel = {
+                ...activeChannel,
+                url: 'https://streams.example.com/live.mpd',
+            };
+
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    mpvSettings,
+                    true,
+                    dashChannel,
+                    VideoPlayer.MPV
+                )
+            ).toBe(false);
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    { player: VideoPlayer.VLC },
+                    true,
+                    dashChannel,
+                    VideoPlayer.VLC
+                )
+            ).toBe(false);
+        });
+
+        it('never launches external players for radio channels', () => {
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    mpvSettings,
+                    true,
+                    { ...activeChannel, radio: 'true' },
+                    VideoPlayer.MPV
+                )
+            ).toBe(false);
+        });
+
+        it('respects the double-click setting and missing settings', () => {
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    { ...mpvSettings, openStreamOnDoubleClick: true },
+                    undefined,
+                    activeChannel,
+                    VideoPlayer.MPV
+                )
+            ).toBe(false);
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    { ...mpvSettings, openStreamOnDoubleClick: true },
+                    true,
+                    activeChannel,
+                    VideoPlayer.MPV
+                )
+            ).toBe(true);
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    null,
+                    true,
+                    activeChannel,
+                    VideoPlayer.MPV
+                )
+            ).toBe(false);
+            expect(
+                shouldAutoLaunchExternalPlayer(
+                    {},
+                    true,
+                    activeChannel,
+                    VideoPlayer.MPV
+                )
+            ).toBe(false);
         });
     });
 });

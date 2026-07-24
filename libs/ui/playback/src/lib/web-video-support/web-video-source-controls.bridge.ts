@@ -1,13 +1,16 @@
 import type Hls from 'hls.js';
 import type { PlayerTrack } from '../player-controls/player-controls.model';
 import type { WebVideoControlsAdapter } from '../player-controls/web-video-controls.adapter';
+import type { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
 import { WebVideoHlsControls } from './web-video-hls-controls';
 import { WebVideoNativeTextTracks } from './web-video-native-text-tracks';
+import { WebVideoShakaControls } from './web-video-shaka-controls';
 
 export type WebVideoControlsSource =
     | { kind: 'native' }
     | { kind: 'mpegts' }
-    | { kind: 'hls'; hls: Hls };
+    | { kind: 'hls'; hls: Hls }
+    | { kind: 'shaka'; session: ShakaVideoSession };
 
 export interface WebVideoSourceControlsBridgeConfig {
     video: HTMLVideoElement;
@@ -19,6 +22,7 @@ export interface WebVideoSourceControlsBridgeConfig {
 export class WebVideoSourceControlsBridge {
     private readonly config: WebVideoSourceControlsBridgeConfig;
     private readonly hlsControls: WebVideoHlsControls;
+    private readonly shakaControls: WebVideoShakaControls;
     private readonly nativeTextTracks: WebVideoNativeTextTracks;
     private source: WebVideoControlsSource | null = null;
     private attached = false;
@@ -28,6 +32,10 @@ export class WebVideoSourceControlsBridge {
         this.config = config;
         const refresh = () => this.config.adapter.refresh();
         this.hlsControls = new WebVideoHlsControls({
+            showCaptions: config.showCaptions,
+            refresh,
+        });
+        this.shakaControls = new WebVideoShakaControls({
             showCaptions: config.showCaptions,
             refresh,
         });
@@ -63,6 +71,8 @@ export class WebVideoSourceControlsBridge {
         this.source = source;
         if (source.kind === 'hls') {
             this.hlsControls.bind(source.hls);
+        } else if (source.kind === 'shaka') {
+            this.shakaControls.bind(source.session);
         } else {
             this.nativeTextTracks.bind();
         }
@@ -76,6 +86,8 @@ export class WebVideoSourceControlsBridge {
 
         if (this.source?.kind === 'hls') {
             this.hlsControls.refreshInputs();
+        } else if (this.source?.kind === 'shaka') {
+            this.shakaControls.refreshInputs();
         } else if (this.source) {
             this.nativeTextTracks.refreshInputs();
         }
@@ -130,14 +142,20 @@ export class WebVideoSourceControlsBridge {
     }
 
     private getAudioTracks(): PlayerTrack[] {
-        return this.source?.kind === 'hls'
-            ? this.hlsControls.getAudioTracks()
-            : [];
+        if (this.source?.kind === 'hls') {
+            return this.hlsControls.getAudioTracks();
+        }
+        if (this.source?.kind === 'shaka') {
+            return this.shakaControls.getAudioTracks();
+        }
+        return [];
     }
 
     private setAudioTrack(id: number): void {
         if (this.source?.kind === 'hls') {
             this.hlsControls.setAudioTrack(id);
+        } else if (this.source?.kind === 'shaka') {
+            this.shakaControls.setAudioTrack(id);
         }
     }
 
@@ -145,12 +163,17 @@ export class WebVideoSourceControlsBridge {
         if (this.source?.kind === 'hls') {
             return this.hlsControls.getSubtitleTracks();
         }
+        if (this.source?.kind === 'shaka') {
+            return this.shakaControls.getSubtitleTracks();
+        }
         return this.source ? this.nativeTextTracks.getSubtitleTracks() : [];
     }
 
     private setSubtitleTrack(id: number): void {
         if (this.source?.kind === 'hls') {
             this.hlsControls.setSubtitleTrack(id);
+        } else if (this.source?.kind === 'shaka') {
+            this.shakaControls.setSubtitleTrack(id);
         } else if (this.source) {
             this.nativeTextTracks.setSubtitleTrack(id);
         }
@@ -159,6 +182,8 @@ export class WebVideoSourceControlsBridge {
     private clearActiveSource(): void {
         if (this.source?.kind === 'hls') {
             this.hlsControls.clear();
+        } else if (this.source?.kind === 'shaka') {
+            this.shakaControls.clear();
         } else if (this.source) {
             this.nativeTextTracks.clear();
         }

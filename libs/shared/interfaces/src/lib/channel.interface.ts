@@ -1,3 +1,5 @@
+import { ChannelDrm } from './channel-drm.interface';
+
 /**
  * Represents channel object
  * TODO: define channel interface in iptv-parser library
@@ -29,4 +31,7 @@ export interface Channel {
         origin: string;
     };
     radio: string;
+    drm?: ChannelDrm;
+    /** Raw M3U block of the entry as preserved by the playlist parser. */
+    raw?: string;
 }

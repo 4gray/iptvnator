@@ -8,6 +8,7 @@ import axios from 'axios';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
 import { normalizeXtreamServerUrl } from '@iptvnator/shared/interfaces';
+import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 
 export interface WebBackendHttpGetOptions {
     readonly headers?: Record<string, string>;
@@ -514,10 +515,20 @@ function createPlaylistObject(options: {
         count: options.playlist.items.length,
         playlist: {
             ...options.playlist,
-            items: options.playlist.items.map((item) => ({
-                id: options.guid(),
-                ...item,
-            })),
+            items: options.playlist.items.map((item) => {
+                // Keep this builder aligned with the shared
+                // createPlaylistObject() in @iptvnator/shared/m3u-utils:
+                // KODIPROP ClearKey DRM must survive the /parse URL-import
+                // path too.
+                const drm = extractDrmFromRaw(
+                    typeof item['raw'] === 'string' ? item['raw'] : undefined
+                );
+                return {
+                    id: options.guid(),
+                    ...item,
+                    ...(drm ? { drm } : {}),
+                };
+            }),
         },
         importDate: timestamp,
         lastUsage: timestamp,

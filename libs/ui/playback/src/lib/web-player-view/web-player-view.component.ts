@@ -243,6 +243,7 @@ export class WebPlayerViewComponent {
                     '',
             },
             radio: 'false',
+            drm: playback.drm,
         };
     }
 
