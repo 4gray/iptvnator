@@ -689,8 +689,12 @@ player in settings.
 3. The typed result lands on `Channel.drm` (`ChannelDrm` in
    `@iptvnator/shared/interfaces`), travels through
    `ResolvedPortalPlayback.drm` into `WebPlayerViewComponent`'s synthetic
-   channel, and reaches the engine. Persistence is free (playlist JSON blob /
-   IndexedDB object).
+   channel, and reaches the engine. Persistence is free for newly imported or
+   refreshed playlists (playlist JSON blob / IndexedDB object). Playlists
+   imported **before** the DRM feature carry no `drm` field yet, but the raw
+   `#KODIPROP` block survived in the stored items — the M3U player page falls
+   back to `extractDrmFromRaw(channel.raw)` at playback time, so encrypted
+   channels of pre-upgrade playlists work without a re-import.
 
 **Engine selection and routing:**
 

@@ -155,10 +155,16 @@ Key files:
   commands are cancelled. Same-session IPC replies also yield to a broadcast
   snapshot received while the command was pending, preventing a successful
   recording acknowledgement from being rolled back by a stale reply.
+- DASH (`.mpd`) sources play through a lazily imported Shaka Player source
+  engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
+  ArtPlayer components; ClearKey keys come from KODIPROP-derived
+  `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
+  source kind `shaka`. See the CLAUDE.md "Video Players" feature entry and
+  `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped
   `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared
-  with ArtPlayer and owns HLS/native tracks, MPEG-TS VOD duration correction,
+  with ArtPlayer and owns HLS/Shaka(DASH)/native tracks, MPEG-TS VOD duration correction,
   caption preference, and source cleanup.
   `HtmlVideoElementSession` owns native video-event lifecycle, persisted
   volume, start-time/time/ended propagation, and legacy post-play caption
@@ -181,10 +187,10 @@ Key files:
   path keeps the existing Video.js skin and legacy series navigation unchanged.
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
-  HLS/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
+  HLS/DASH(Shaka)/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
   a destroyed-session guard for delayed `customType` callbacks, while
   `ArtPlayerVideoSession` owns native media/ArtPlayer events. Shared mode uses
-  authoritative live/VOD metadata, HLS/native tracks and caption preference,
+  authoritative live/VOD metadata, HLS/Shaka/native tracks and caption preference,
   MPEG-TS VOD duration correction, and reapplies app volume directly after
   ArtPlayer restores its own stored volume. Vendor chrome/hotkeys are disabled,
   and a transparent capture layer gives shared controls exclusive click and

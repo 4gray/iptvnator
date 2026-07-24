@@ -37,7 +37,7 @@ those control systems is active at a time.
 
 When `WEB_PLAYER_SHARED_CONTROLS` is enabled, the built-in HTML5 player mounts
 the same presentation component over its real player shell and disables the
-native video controls. Its neutral source bridge supplies HLS/native tracks,
+native video controls. Its neutral source bridge supplies HLS/Shaka/native tracks,
 corrected MPEG-TS VOD duration, and authoritative live/VOD metadata to the
 generic web adapter. When the host token resolves to false, the native controls
 and legacy series navigation remain unchanged and the adapter is not attached.
@@ -50,7 +50,7 @@ keeps its existing skin and legacy series navigation.
 
 ArtPlayer is the fourth consumer. Its source session owns HLS, MPEG-TS, native
 source selection, and delayed `customType` callbacks, while the neutral
-web-video source bridge exposes HLS/native tracks, caption preference, and
+web-video source bridge exposes HLS/Shaka/native tracks, caption preference, and
 MPEG-TS VOD duration to the adapter. Its video session owns native media and
 ArtPlayer event listeners. Shared mode uses authoritative live/VOD metadata,
 reapplies the app volume directly to the media element after ArtPlayer restores
@@ -643,7 +643,7 @@ libs/ui/playback/src/lib/art-player/
 ```
 
 `ArtPlayerComponent` provides a component-scoped `WebVideoControlsAdapter`.
-`ArtPlayerSourceSession` owns HLS/MPEG-TS/native engines, the neutral source
+`ArtPlayerSourceSession` owns HLS/DASH(Shaka)/MPEG-TS/native engines, the neutral source
 bridge, exact engine/listener cleanup, and a destroyed-session guard for
 ArtPlayer's delayed `customType` dispatch. `ArtPlayerVideoSession` owns native
 media errors, readiness, volume persistence, ended/time updates, and exact
