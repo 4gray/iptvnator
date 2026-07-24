@@ -35,6 +35,7 @@ export * from './lib/store-keys.enum';
 export * from './lib/stream-format.enum';
 export * from './lib/catalog-title-match.interface';
 export * from './lib/theme.enum';
+export * from './lib/season-marker.util';
 export * from './lib/title-normalization.util';
 export * from './lib/tmdb.interface';
 export * from './lib/xtream-account-info-dialog-data.interface';

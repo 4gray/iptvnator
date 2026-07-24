@@ -4,6 +4,8 @@
  * matching). Pure functions — no Angular/Node dependencies.
  */
 
+import { SEASON_WORD_ALTERNATIVES } from './season-marker.util';
+
 const QUALITY_TAGS = new Set([
     '4k',
     'uhd',
@@ -175,12 +177,22 @@ const YEAR_PATTERN = /\b(19\d{2}|20\d{2})\b/;
 const TRAILING_YEAR_PATTERN = /(?:^|\s)(19\d{2}|20\d{2})$/;
 
 /**
- * Trailing season markers on series titles: "The Boys s05", "сезон 2".
- * Uses (?:^|\s) instead of \b — JS word boundaries are ASCII-only and
- * never fire next to Cyrillic letters.
+ * Trailing season markers on series titles: "The Boys s05", "сезон 2",
+ * plus number-first forms ("2 season", "Пацаны 2 сезон", "2nd Season" —
+ * "2-й" normalizes to "2 й", hence the optional ordinal token). The
+ * ordinal list carries NFD-decomposed forms too: this pattern runs after
+ * diacritics stripping, which turns "й" into "и" ("2-й сезон" → "2 и
+ * сезон"). Uses (?:^|\s) instead of \b — JS word boundaries are
+ * ASCII-only and never fire next to Cyrillic letters.
  */
-const SEASON_SUFFIX_PATTERN =
-    /(?:^|\s)(?:s\d{1,2}|season\s*\d{1,2}|сезон\s*\d{1,2}|staffel\s*\d{1,2}|temporada\s*\d{1,2})$/i;
+const SEASON_SUFFIX_PATTERN = new RegExp(
+    '(?:^|\\s)(?:' +
+        's\\d{1,2}' +
+        `|(?:${SEASON_WORD_ALTERNATIVES})\\s*\\d{1,2}` +
+        `|\\d{1,2}\\s*(?:st|nd|rd|th|й|и|я|ой|ои)?\\s+(?:${SEASON_WORD_ALTERNATIVES})` +
+        ')$',
+    'iu'
+);
 
 /**
  * A provider title normalized on two tiers. Trailing years on provider

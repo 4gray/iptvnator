@@ -1,5 +1,6 @@
 import type { TmdbEnrichmentService } from '@iptvnator/services';
 import {
+    enrichSerialSeasonWithTmdb,
     enrichSerialSelectionWithTmdb,
     enrichVodSelectionWithTmdb,
 } from './xtream-tmdb-enrichment';
@@ -25,6 +26,7 @@ function createEnrichment(overrides: Partial<TmdbEnrichmentService> = {}) {
         isEnabled: jest.fn(() => true),
         enrichMovie: jest.fn().mockResolvedValue(null),
         enrichTv: jest.fn().mockResolvedValue(null),
+        getSeasonEpisodes: jest.fn().mockResolvedValue(null),
         ...overrides,
     } as unknown as TmdbEnrichmentService;
 }
@@ -171,5 +173,81 @@ describe('enrichSerialSelectionWithTmdb', () => {
         await enrichSerialSelectionWithTmdb(store, enrichment, '7');
 
         expect(enrichment.enrichTv).not.toHaveBeenCalled();
+    });
+});
+
+describe('enrichSerialSeasonWithTmdb', () => {
+    function seasonSliceItem(
+        name: string,
+        episodes: Record<string, { episode_num: number; season: number }[]>
+    ) {
+        return {
+            series_id: '7',
+            info: { ...serialItem.info, name, tmdb_id: 82856 },
+            episodes: Object.fromEntries(
+                Object.entries(episodes).map(([key, list]) => [
+                    key,
+                    list.map((episode) => ({
+                        id: `${key}-${episode.episode_num}`,
+                        title: `Episode ${episode.episode_num}`,
+                        ...episode,
+                    })),
+                ])
+            ),
+        };
+    }
+
+    it('fetches the title-marked season for a renumbered single-season slice', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian (2 season)', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeasonEpisodes: jest
+                .fn()
+                .mockResolvedValue([
+                    { episode_number: 1, name: 'The Marshal' },
+                ]),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        expect(enrichment.getSeasonEpisodes).toHaveBeenCalledWith(82856, 2);
+        const updated = store.setSelectedItem.mock.calls[0][0] as {
+            episodes: Record<string, { title: string }[]>;
+        };
+        expect(updated.episodes['1'][0].title).toBe('The Marshal');
+    });
+
+    it('keeps provider numbering for multi-season items despite a marker', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian (2 season)', {
+                '1': [{ episode_num: 1, season: 1 }],
+                '2': [{ episode_num: 1, season: 2 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeasonEpisodes: jest.fn().mockResolvedValue([]),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        expect(enrichment.getSeasonEpisodes).toHaveBeenCalledWith(82856, 1);
+    });
+
+    it('keeps provider numbering when the title has no marker', async () => {
+        const store = createStore(
+            seasonSliceItem('The Mandalorian', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeasonEpisodes: jest.fn().mockResolvedValue([]),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(store, enrichment, '1');
+
+        expect(enrichment.getSeasonEpisodes).toHaveBeenCalledWith(82856, 1);
     });
 });

@@ -4,7 +4,10 @@ import {
     mergeEpisodesWithTmdb,
     type TmdbEpisode,
 } from '@iptvnator/services';
-import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import {
+    XtreamSerieEpisode,
+    resolveEnrichmentSeasonNumber,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Component-scoped holder for lazily fetched TMDB season data (episode
@@ -72,12 +75,16 @@ export class StalkerSeriesTmdbSeasonsService {
     /**
      * Lazily pulls the TMDB season (episode list + overview) for an opened
      * season; a no-op without a show-level TMDB match, with enrichment
-     * disabled, or when the season was already fetched.
+     * disabled, or when the season was already fetched. `context` carries
+     * the raw provider title and total season count so a per-season slice
+     * ("The Mandalorian (2 season)" with its single season renumbered to 1)
+     * fetches the season the title names instead of the provider's number.
      */
     async fetchSeason(
         tmdbId: number | null | undefined,
         seasonKey: string,
-        episodes: XtreamSerieEpisode[] | undefined
+        episodes: XtreamSerieEpisode[] | undefined,
+        context?: { rawTitle?: string | null; seasonCount?: number }
     ): Promise<void> {
         if (!tmdbId) {
             return;
@@ -88,10 +95,16 @@ export class StalkerSeriesTmdbSeasonsService {
             return;
         }
 
-        const seasonNumber = Number(episodes?.[0]?.season ?? seasonKey);
-        if (!Number.isFinite(seasonNumber)) {
+        const providerSeasonNumber = Number(episodes?.[0]?.season ?? seasonKey);
+        if (!Number.isFinite(providerSeasonNumber)) {
             return;
         }
+
+        const seasonNumber = resolveEnrichmentSeasonNumber({
+            rawTitle: context?.rawTitle,
+            providerSeasonNumber,
+            providerSeasonCount: context?.seasonCount ?? 0,
+        });
 
         const season = await this.tmdbEnrichment.getSeason(
             tmdbId,

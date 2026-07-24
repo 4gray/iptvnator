@@ -204,16 +204,22 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         // tmdb_id — so the fetch must re-run when the match arrives, not only
         // on selection. fetchSeason is idempotent per (tmdbId, season).
         effect(() => {
-            const tmdbId = this.displayItem()?.info?.tmdb_id;
+            const item = this.displayItem();
+            const tmdbId = item?.info?.tmdb_id;
             const seasonKey = this.selectedSeasonKey();
             if (tmdbId && seasonKey) {
-                untracked(() =>
+                untracked(() => {
+                    const seasons = this.mappedSeasons();
                     void this.tmdbSeasons.fetchSeason(
                         tmdbId,
                         seasonKey,
-                        this.mappedSeasons()[seasonKey]
-                    )
-                );
+                        seasons[seasonKey],
+                        {
+                            rawTitle: item?.info?.name ?? null,
+                            seasonCount: Object.keys(seasons).length,
+                        }
+                    );
+                });
             }
         });
 
