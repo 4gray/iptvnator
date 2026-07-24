@@ -167,6 +167,57 @@ export function getCompoundSearchWords(value: unknown): string[] {
     return [...words];
 }
 
+/**
+ * One whitespace-delimited search word with its token groups. `compound` is
+ * the intact word when it contains internal punctuation (see
+ * `getCompoundSearchWords`), else null. SQL condition builders compose
+ * per-word conditions from this so a compound word's substring arm stays
+ * AND-constrained by the other words of the query — `A&E HD` must not let
+ * plain `A&E` titles flood the SQL candidate window before scoring runs.
+ */
+export interface SearchWordPlan {
+    compound: string | null;
+    tokenGroups: string[][];
+}
+
+export function getSearchWordPlans(value: unknown): SearchWordPlan[] {
+    if (typeof value !== 'string') {
+        return [];
+    }
+
+    const plans: SearchWordPlan[] = [];
+    for (const rawWord of value.split(/\s+/)) {
+        const word = rawWord.replace(WORD_EDGE_PUNCTUATION_REGEXP, '');
+        if (!word) {
+            continue;
+        }
+
+        const tokenGroups = getSqlSearchTokenGroups(word);
+        if (tokenGroups.length === 0) {
+            continue;
+        }
+
+        const isCompound =
+            word.length >= MIN_COMPOUND_WORD_LENGTH &&
+            INNER_PUNCTUATION_REGEXP.test(word);
+        plans.push({ compound: isCompound ? word : null, tokenGroups });
+    }
+
+    return plans;
+}
+
+/**
+ * Token groups of the non-compound words of the term. When the compound FTS
+ * arm looks up `"a&e"` for `A&E HD`, these groups (`hd`) are re-applied as
+ * LIKE conditions so the supplement cannot fill the candidate limit with
+ * titles that match the compound word alone.
+ */
+export function getCompoundResidualTokenGroups(value: unknown): string[][] {
+    return getSearchWordPlans(value)
+        .filter((plan) => plan.compound === null)
+        .flatMap((plan) => plan.tokenGroups);
+}
+
 /** As-typed plus diacritic-stripped forms, both long enough for trigram FTS. */
 function getCompoundWordVariants(word: string): string[] {
     const stripped = word.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');

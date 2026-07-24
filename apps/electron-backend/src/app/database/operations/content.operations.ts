@@ -22,7 +22,8 @@ import {
     buildLikePatterns,
     buildM3uPayloadCompoundPatterns,
     buildM3uPayloadTextFieldPatterns,
-    getCompoundSearchWords,
+    getCompoundResidualTokenGroups,
+    getSearchWordPlans,
     getSqlSearchTokenGroups,
     isShortSearchTokenGroup,
     normalizeSearchMatchText,
@@ -156,45 +157,55 @@ function getGlobalSearchCandidateLimit(): number {
     return MAX_GLOBAL_SEARCH_CANDIDATE_LIMIT;
 }
 
+/**
+ * Per-word title conditions, AND-ed by the caller. A word's condition is the
+ * AND of its token-group LIKE conditions; a punctuation-joined word ("A&E")
+ * additionally matches as an intact contains pattern anywhere in the title
+ * (issue #1161). Composing per word keeps the other words' constraints on
+ * the compound arm, so "A&E HD" cannot fill the SQL candidate limit with
+ * titles that only contain "A&E".
+ */
 function buildContentTitleSearchConditions(searchTerm: string) {
-    const tokenGroups = getSqlSearchTokenGroups(searchTerm);
-    if (tokenGroups.length === 0) {
-        return [];
-    }
+    let groupIndex = 0;
 
-    const groupConditions = tokenGroups
-        .map((tokens, index) => {
-            const mode =
-                index === 0 && isShortSearchTokenGroup(tokens)
-                    ? 'prefix'
-                    : 'contains';
-            const likeConditions = tokens.flatMap((token) =>
-                buildLikePatterns(token, mode).map(
-                    (pattern) =>
-                        sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
-                )
-            );
-            return or(...likeConditions);
-        })
-        .filter((condition) => condition !== undefined);
+    return getSearchWordPlans(searchTerm)
+        .map((plan) => {
+            const tokenConditions = plan.tokenGroups
+                .map((tokens) => {
+                    const mode =
+                        groupIndex === 0 && isShortSearchTokenGroup(tokens)
+                            ? 'prefix'
+                            : 'contains';
+                    groupIndex += 1;
+                    const likeConditions = tokens.flatMap((token) =>
+                        buildLikePatterns(token, mode).map(
+                            (pattern) =>
+                                sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+                        )
+                    );
+                    return or(...likeConditions);
+                })
+                .filter((condition) => condition !== undefined);
 
-    // Punctuation-joined words ("A&E") tokenize into short fragments whose
-    // prefix anchoring would miss "US: A&E", so the intact word also matches
-    // as a contains pattern anywhere in the title (issue #1161).
-    const compoundConditions = getCompoundSearchWords(searchTerm).flatMap(
-        (word) =>
-            buildCompoundLikePatterns(word).map(
+            const tokenArm =
+                tokenConditions.length > 0
+                    ? and(...tokenConditions)
+                    : undefined;
+            if (plan.compound === null) {
+                return tokenArm;
+            }
+
+            const compoundConditions = buildCompoundLikePatterns(
+                plan.compound
+            ).map(
                 (pattern) =>
                     sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
-            )
-    );
-
-    if (compoundConditions.length === 0 || groupConditions.length === 0) {
-        return groupConditions;
-    }
-
-    const combined = or(and(...groupConditions), ...compoundConditions);
-    return combined === undefined ? groupConditions : [combined];
+            );
+            return tokenArm === undefined
+                ? or(...compoundConditions)
+                : or(tokenArm, ...compoundConditions);
+        })
+        .filter((condition) => condition !== undefined);
 }
 
 function buildRawContentTitleSearchSql(searchTerm: string): SQL[] {
@@ -219,6 +230,26 @@ function buildRawContentTitleSearchSql(searchTerm: string): SQL[] {
             sql` OR `
         )})`;
     });
+}
+
+/**
+ * Contains-mode LIKE conditions for the non-compound words of the term,
+ * applied on top of the compound FTS lookup so `A&E HD` only surfaces
+ * candidates that also contain `hd` (the FTS phrase can only express the
+ * compound word — trigram tokens need >= 3 chars).
+ */
+function buildCompoundResidualTitleSql(searchTerm: string): SQL[] {
+    return getCompoundResidualTokenGroups(searchTerm).map(
+        (tokens) =>
+            sql`(${sql.join(
+                tokens.flatMap((token) =>
+                    buildLikePatterns(token).map(
+                        (pattern) => sql`c.title LIKE ${pattern} ESCAPE '\\'`
+                    )
+                ),
+                sql` OR `
+            )})`
+    );
 }
 
 function dedupeXtreamCandidatesById(
@@ -282,7 +313,8 @@ async function selectXtreamGlobalSearchCandidatesWithFts(
     matchQuery: string,
     types: string[],
     excludeHidden: boolean,
-    candidateLimit: number
+    candidateLimit: number,
+    residualTitleConditions: SQL[] = []
 ): Promise<XtreamGlobalSearchCandidate[]> {
     if (!matchQuery || types.length === 0) {
         return [];
@@ -313,6 +345,11 @@ async function selectXtreamGlobalSearchCandidatesWithFts(
             types.map((type) => sql`${type}`),
             sql`, `
         )})
+        ${
+            residualTitleConditions.length > 0
+                ? sql`AND ${sql.join(residualTitleConditions, sql` AND `)}`
+                : sql``
+        }
         ${excludeHidden ? sql`AND cat.hidden = 0` : sql``}
         ORDER BY rank, c.title
         LIMIT ${candidateLimit}
@@ -358,46 +395,54 @@ async function selectXtreamGlobalSearchCandidatesWithContentScan(
         .limit(candidateLimit);
 }
 
+/**
+ * Per-word M3U payload prefilter conditions, AND-ed by the caller — the same
+ * compound-word composition as `buildContentTitleSearchConditions`: "A&E"
+ * must reach channel names like "US: A&E" (issue #1161), while the other
+ * words of the query keep constraining the candidate playlists.
+ */
 function buildM3uPayloadSearchConditions(searchTerm: string) {
-    const tokenGroups = getSqlSearchTokenGroups(searchTerm);
-    if (tokenGroups.length === 0) {
-        return [];
-    }
+    let groupIndex = 0;
 
-    const groupConditions = tokenGroups
-        .map((tokens, index) => {
-            const mode =
-                index === 0 && isShortSearchTokenGroup(tokens)
-                    ? 'prefix'
-                    : 'contains';
-            const patterns = tokens.flatMap((token) =>
-                buildM3uPayloadTextFieldPatterns(token, mode)
-            );
-            const likeConditions = patterns.map(
+    return getSearchWordPlans(searchTerm)
+        .map((plan) => {
+            const tokenConditions = plan.tokenGroups
+                .map((tokens) => {
+                    const mode =
+                        groupIndex === 0 && isShortSearchTokenGroup(tokens)
+                            ? 'prefix'
+                            : 'contains';
+                    groupIndex += 1;
+                    const patterns = tokens.flatMap((token) =>
+                        buildM3uPayloadTextFieldPatterns(token, mode)
+                    );
+                    const likeConditions = patterns.map(
+                        (pattern) =>
+                            sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
+                    );
+                    return or(...likeConditions);
+                })
+                .filter((condition) => condition !== undefined);
+
+            const tokenArm =
+                tokenConditions.length > 0
+                    ? and(...tokenConditions)
+                    : undefined;
+            if (plan.compound === null) {
+                return tokenArm;
+            }
+
+            const compoundConditions = buildM3uPayloadCompoundPatterns(
+                plan.compound
+            ).map(
                 (pattern) =>
                     sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
             );
-            return or(...likeConditions);
+            return tokenArm === undefined
+                ? or(...compoundConditions)
+                : or(tokenArm, ...compoundConditions);
         })
         .filter((condition) => condition !== undefined);
-
-    // Same compound-word rescue as the content title conditions: "A&E" must
-    // match channel names like "US: A&E" that the prefix-anchored short
-    // tokens would exclude at the playlist payload prefilter (issue #1161).
-    const compoundConditions = getCompoundSearchWords(searchTerm).flatMap(
-        (word) =>
-            buildM3uPayloadCompoundPatterns(word).map(
-                (pattern) =>
-                    sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
-            )
-    );
-
-    if (compoundConditions.length === 0 || groupConditions.length === 0) {
-        return groupConditions;
-    }
-
-    const combined = or(and(...groupConditions), ...compoundConditions);
-    return combined === undefined ? groupConditions : [combined];
 }
 
 function asStringArray(value: unknown): string[] {
@@ -1080,7 +1125,9 @@ export async function globalSearch(
             // The prefix arm only sees titles that start with the short first
             // token ("A&E" -> GLOB 'a*'), so a compound word like "a&e" is
             // additionally looked up as a trigram FTS substring to reach
-            // titles such as "US: A&E" (issue #1161).
+            // titles such as "US: A&E" (issue #1161). The non-compound words
+            // of the query stay applied as LIKE conditions so this arm cannot
+            // fill the candidate limit with compound-only matches.
             const compoundMatchQuery = buildCompoundFtsMatchQuery(searchTerm);
             if (compoundMatchQuery) {
                 try {
@@ -1090,7 +1137,8 @@ export async function globalSearch(
                             compoundMatchQuery,
                             types,
                             excludeHidden,
-                            candidateLimit
+                            candidateLimit,
+                            buildCompoundResidualTitleSql(searchTerm)
                         );
                     candidates = dedupeXtreamCandidatesById([
                         ...candidates,

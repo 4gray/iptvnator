@@ -902,6 +902,68 @@ describe('content.operations', () => {
         expect(results.map((item) => item.title)).toEqual(['A&E', 'US: A&E']);
     });
 
+    it('keeps non-compound tokens as conditions on the compound FTS supplement', async () => {
+        const all = jest.fn().mockResolvedValue([]);
+        const db = {
+            all,
+            select: jest.fn(),
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'A&E HD', ['live'], false, ['xtream'], {
+            limit: 10,
+        });
+
+        expect(all).toHaveBeenCalledTimes(2);
+
+        const matchSqlCall = sqlMock.mock.calls.find(([strings]) =>
+            Array.from(strings as TemplateStringsArray)
+                .join(' ')
+                .includes('content_title_fts MATCH')
+        );
+        expect(matchSqlCall?.[1]).toBe('"a&e"');
+
+        // The FTS arm must AND-in the residual "hd" token so plain "A&E"
+        // titles cannot exhaust the candidate limit before scoring runs.
+        const residualPatterns = sqlMock.mock.calls
+            .filter(([strings]) =>
+                Array.from(strings as TemplateStringsArray)
+                    .join(' ')
+                    .includes('c.title LIKE')
+            )
+            .flatMap(([, ...values]) => values)
+            .filter((value): value is string => typeof value === 'string');
+        expect(residualPatterns).toContain('%hd%');
+    });
+
+    it('requires every word of a multi-token compound term in per-playlist SQL conditions', async () => {
+        const limit = jest.fn().mockResolvedValue([]);
+        const where = jest.fn().mockReturnValue({ limit });
+        const innerJoin = jest.fn().mockReturnValue({ where });
+        const from = jest.fn().mockReturnValue({ innerJoin });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await searchContent(db, 'playlist-1', 'A&E HD', ['live']);
+
+        // One condition per word: the compound "A&E" word (an OR with the
+        // intact-substring arm) plus the plain "hd" word — both AND-ed, so
+        // the compound arm cannot bypass the "hd" requirement.
+        const conditions = where.mock.calls[0][0].conditions as Array<{
+            kind: string;
+        }>;
+        expect(conditions).toHaveLength(4);
+        expect(conditions[2]).toEqual(expect.objectContaining({ kind: 'or' }));
+        expect(conditions[3]).toEqual(expect.objectContaining({ kind: 'and' }));
+
+        const patterns = sqlMock.mock.calls
+            .flatMap(([, ...values]) => values)
+            .filter((value): value is string => typeof value === 'string');
+        expect(patterns).toContain('%a&e%');
+        expect(patterns).toContain('%hd%');
+    });
+
     it('falls back to a content scan when the compound FTS lookup fails', async () => {
         const globRow = {
             id: 1,

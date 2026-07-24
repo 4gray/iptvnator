@@ -2,7 +2,9 @@ import {
     buildCompoundFtsMatchQuery,
     buildCompoundLikePatterns,
     buildM3uPayloadCompoundPatterns,
+    getCompoundResidualTokenGroups,
     getCompoundSearchWords,
+    getSearchWordPlans,
     scoreSearchTextMatch,
     shouldUseContentTitlePrefixIndex,
 } from './content-search.util';
@@ -31,6 +33,32 @@ describe('content-search.util', () => {
             expect(getCompoundSearchWords(undefined)).toEqual([]);
         });
 
+    });
+
+    describe('getSearchWordPlans', () => {
+        it('keeps each word with its own token groups and compound flag', () => {
+            expect(getSearchWordPlans('A&E HD')).toEqual([
+                { compound: 'A&E', tokenGroups: [['a'], ['e']] },
+                { compound: null, tokenGroups: [['hd']] },
+            ]);
+        });
+
+        it('skips punctuation-only words', () => {
+            expect(getSearchWordPlans('Tom & Jerry')).toEqual([
+                { compound: null, tokenGroups: [['tom']] },
+                { compound: null, tokenGroups: [['jerry']] },
+            ]);
+        });
+    });
+
+    describe('getCompoundResidualTokenGroups', () => {
+        it('returns the token groups of the non-compound words only', () => {
+            expect(getCompoundResidualTokenGroups('A&E HD')).toEqual([['hd']]);
+            expect(getCompoundResidualTokenGroups('A&E')).toEqual([]);
+            expect(getCompoundResidualTokenGroups('History')).toEqual([
+                ['history'],
+            ]);
+        });
     });
 
     describe('buildCompoundFtsMatchQuery', () => {
