@@ -176,10 +176,33 @@ detail views lazily fetch `/tv/{tmdbId}/season/{n}` via
 - episodes without a TMDB counterpart (by episode number) pass through
   untouched
 
+The season number `{n}` is the provider's episode season number, with one
+correction (`resolveEnrichmentSeasonNumber` in
+`libs/shared/interfaces/src/lib/season-marker.util.ts`): providers often
+slice a show into per-season catalog items ("The Mandalorian (2 season)",
+"Пацаны 2 сезон", "The Boys S05") and renumber the single contained season
+to 1. When the item contains exactly ONE season and the raw title carries
+an explicit season marker (`extractSeasonFromTitle`: `s02`, `season 2`,
+`2 season`, `2nd season`, `сезон 2`, `2-й сезон`, `staffel`/`temporada`/
+`saison` forms, bracketed or not) that differs from the provider's number,
+the marker wins and that TMDB season is fetched. Multi-season items always
+keep provider numbering. `normalizeTitleKeys` strips the same markers
+(including number-first forms like "2 сезон") from search titles, so the
+show-level match is unaffected by them.
+
 Wiring: Xtream — `XtreamStore.enrichSelectedSerialSeason(seasonKey)` fired
 from the serial detail's `(seasonSelected)`; Stalker — the series view
 keeps a `${tmdbId}|${seasonKey}`-keyed map and overlays it inside its
-`mappedSeasons` computed. Without a show-level match or with enrichment
+`mappedSeasons` computed. Each Stalker entry records the RESOLVED season
+it was fetched for: per-season slices of one show share
+(tmdbId, provider key "1") but resolve to different seasons, and a fetch
+made with stale detail-to-detail navigation context is overwritten once
+the real context re-resolves. The fetch effect gates on coherence rather
+than timing: it waits while the season resource reloads and requires the
+selected key to exist in the map with episodes. The retained season
+selection deliberately survives navigation — the season container
+deduplicates `seasonSelected` emissions, so items sharing one season-key
+set would otherwise never re-trigger enrichment. Without a show-level match or with enrichment
 disabled everything is a no-op — the `SeasonContainer` UI already renders
 every episode field conditionally.
 

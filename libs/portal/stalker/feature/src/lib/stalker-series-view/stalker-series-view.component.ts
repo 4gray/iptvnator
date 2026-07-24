@@ -27,6 +27,7 @@ import {
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
+    pickSeasonMarkedTitle,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import { SafePipe } from '@iptvnator/pipes';
@@ -162,7 +163,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         });
     });
 
-    /** Season currently selected in the season container. */
+    /**
+     * Season currently selected in the season container. Deliberately NOT
+     * reset on detail-to-detail navigation: the season container keeps its
+     * own selection and deduplicates `seasonSelected` emissions, so when
+     * two items share the same season-key set (commonly just "1") it never
+     * re-emits — a parent-side reset would leave the new item permanently
+     * unenriched. Stale-context safety lives in the fetch effect's
+     * coherence gates instead (see the constructor).
+     */
     private readonly selectedSeasonKey = signal<string | null>(null);
 
     /** Season descriptions for the season tabs (TMDB overview per season). */
@@ -204,14 +213,43 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         // tmdb_id — so the fetch must re-run when the match arrives, not only
         // on selection. fetchSeason is idempotent per (tmdbId, season).
         effect(() => {
-            const tmdbId = this.displayItem()?.info?.tmdb_id;
+            const item = this.displayItem();
+            const tmdbId = item?.info?.tmdb_id;
             const seasonKey = this.selectedSeasonKey();
-            if (tmdbId && seasonKey) {
+            // Coherence gates instead of timing assumptions. All inputs are
+            // read TRACKED so the effect re-runs as each one settles:
+            // - the season resource must not be mid-reload — during
+            //   detail-to-detail navigation a reused component briefly
+            //   pairs the NEW item's tmdb_id with the PREVIOUS item's map
+            // - the selected key must exist in the map with episodes — an
+            //   empty map would pass seasonCount 0 (suppressing the
+            //   title-marker override), and a key retained from the
+            //   previous item is only usable when the new item has that
+            //   season too (otherwise the container's auto-select re-emits)
+            // Re-running on overlay updates cannot loop (fetchSeason skips
+            // when its entry already holds the resolved season), and a
+            // fetch made with a stale snapshot is overwritten once the
+            // real context re-resolves to a different season.
+            const seasonsLoading = this.isVodSeries()
+                ? this.isVodSeriesSeasonsLoading()
+                : this.isSerialSeasonsLoading();
+            const seasons = this.mappedSeasons();
+            const episodes = seasonKey ? seasons[seasonKey] : undefined;
+            if (tmdbId && seasonKey && !seasonsLoading && episodes?.length) {
                 untracked(() =>
                     void this.tmdbSeasons.fetchSeason(
                         tmdbId,
                         seasonKey,
-                        this.mappedSeasons()[seasonKey]
+                        episodes,
+                        {
+                            // The season marker can live in either title
+                            // field (generic name + descriptive o_name)
+                            rawTitle: pickSeasonMarkedTitle(
+                                item?.info?.name,
+                                item?.info?.o_name
+                            ),
+                            seasonCount: Object.keys(seasons).length,
+                        }
                     )
                 );
             }

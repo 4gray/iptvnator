@@ -79,6 +79,7 @@ describe('StalkerSeriesViewComponent', () => {
     const selectedItem = signal<StalkerVodSource | null>(null);
     const serialSeasonsResource = signal<unknown[]>([]);
     const vodSeriesSeasonsResource = signal<unknown[]>([]);
+    const isSerialSeasonsLoading = signal(false);
     const fetchVodSeriesEpisodes = jest.fn();
     const resolveVodPlayback = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
@@ -106,6 +107,7 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
         vodSeriesSeasonsResource.set([]);
+        isSerialSeasonsLoading.set(false);
         fetchVodSeriesEpisodes.mockReset();
         resolveVodPlayback.mockReset();
         resolveVodPlayback.mockImplementation(
@@ -156,7 +158,7 @@ describe('StalkerSeriesViewComponent', () => {
                         getVodSeriesSeasonsResource: () =>
                             vodSeriesSeasonsResource(),
                         isVodSeriesSeasonsLoading: signal(false),
-                        isSerialSeasonsLoading: signal(false),
+                        isSerialSeasonsLoading,
                         fetchVodSeriesEpisodes,
                         resolveVodPlayback,
                         fetchLinkToPlay: jest.fn(),
@@ -815,5 +817,146 @@ describe('StalkerSeriesViewComponent', () => {
         await fixture.whenStable();
 
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 1);
+    });
+
+    it('waits for the season map before fetching so a per-season slice gets the title-marked season', async () => {
+        serialSeasonsResource.set([]);
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series (2 season)',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Season resource still loading — fetching now would pass a zero
+        // season count, suppress the title-marker override and cache the
+        // wrong season forever (fetchSeason is idempotent).
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        serialSeasonsResource.set([
+            {
+                id: 'season-1',
+                name: 'Season 1',
+                cmd: '/media/file_30001.mpg',
+                series: [1, 2],
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Single-season slice whose provider season is renumbered to 1:
+        // the title marker names the real TMDB season.
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
+    });
+
+    it('gates the fetch on the reloading season resource during detail-to-detail navigation', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        // No show-level TMDB match yet — nothing fetched for the first item
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // Detail-to-detail navigation reuses the component; the new item's
+        // TMDB match can arrive while the season resource reloads and the
+        // map still shows the previous series' seasons.
+        isSerialSeasonsLoading.set(true);
+        selectedItem.set({
+            id: '30002',
+            cmd: '/media/file_30002.mpg',
+            info: {
+                name: 'Other Series (2 season)',
+                description: 'Other description',
+                movie_image: 'poster2.jpg',
+                tmdb_id: 888,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // The new tmdb_id must NOT pair with the previous series' season
+        // context while the resource reloads.
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // Once the new item's own seasons land, the fetch runs WITHOUT a
+        // new seasonSelected emission — the season container deduplicates
+        // emissions when both items share the same season-key set, so the
+        // retained key must stay usable.
+        serialSeasonsResource.set([
+            {
+                id: 'season-1',
+                name: 'Season 1',
+                cmd: '/media/file_30002.mpg',
+                series: [1, 2],
+            },
+        ]);
+        isSerialSeasonsLoading.set(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).toHaveBeenCalledWith(888, 2);
+    });
+
+    it('enriches after equal-id navigation once the season resource settles', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Distinct items can reuse a provider id; the loading gate (not an
+        // id comparison) keeps the stale map from being used.
+        isSerialSeasonsLoading.set(true);
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Different Series (3 season)',
+                description: 'Different description',
+                movie_image: 'poster3.jpg',
+                tmdb_id: 999,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        isSerialSeasonsLoading.set(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).toHaveBeenCalledWith(999, 3);
+    });
+
+    it('reads the season marker from o_name when name is generic', async () => {
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series',
+                o_name: 'Regular Series (2 season)',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
     });
 });

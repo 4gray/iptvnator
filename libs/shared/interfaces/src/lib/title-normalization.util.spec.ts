@@ -54,6 +54,21 @@ describe('normalizeTitleKeys', () => {
         expect(normalizeTitleKeys('The Boys s05').exact).toBe('the boys');
         expect(normalizeTitleKeys('Пацаны сезон 2').base).toBe('пацаны');
     });
+
+    it('strips number-first season suffixes ("2 season", "2 сезон")', () => {
+        expect(normalizeTitle('The Mandalorian 2 Season')).toBe(
+            'the mandalorian'
+        );
+        expect(normalizeTitle('The Mandalorian 2nd Season')).toBe(
+            'the mandalorian'
+        );
+        expect(normalizeTitle('Мандалорец 2 сезон')).toBe('мандалорец');
+        expect(normalizeTitle('Пацаны 2-й сезон')).toBe('пацаны');
+    });
+
+    it('keeps plural "seasons" endings — only singular markers are tags', () => {
+        expect(normalizeTitle('Best of 2 Seasons')).toBe('best of 2 seasons');
+    });
 });
 
 describe('provider tag stripping', () => {
