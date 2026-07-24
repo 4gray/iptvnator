@@ -1,5 +1,6 @@
 import {
     extractSeasonFromTitle,
+    pickSeasonMarkedTitle,
     resolveEnrichmentSeasonNumber,
 } from './season-marker.util';
 
@@ -48,6 +49,27 @@ describe('extractSeasonFromTitle', () => {
         expect(extractSeasonFromTitle('Best of 2 Seasons')).toBeNull();
         expect(extractSeasonFromTitle('Postseason 3')).toBeNull();
         expect(extractSeasonFromTitle('Dark S00')).toBeNull();
+    });
+});
+
+describe('pickSeasonMarkedTitle', () => {
+    it('prefers the title that carries a season marker', () => {
+        expect(
+            pickSeasonMarkedTitle(
+                'Regular Series',
+                'The Mandalorian (2 season)'
+            )
+        ).toBe('The Mandalorian (2 season)');
+        expect(
+            pickSeasonMarkedTitle('The Boys S05', 'The Boys')
+        ).toBe('The Boys S05');
+    });
+
+    it('falls back to the first non-empty title without markers', () => {
+        expect(pickSeasonMarkedTitle(undefined, 'The Mandalorian')).toBe(
+            'The Mandalorian'
+        );
+        expect(pickSeasonMarkedTitle('', null)).toBeNull();
     });
 });
 

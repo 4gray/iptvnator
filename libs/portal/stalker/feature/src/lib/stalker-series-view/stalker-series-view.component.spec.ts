@@ -895,4 +895,56 @@ describe('StalkerSeriesViewComponent', () => {
         await fixture.whenStable();
         expect(tmdbGetSeason).toHaveBeenCalledWith(888, 2);
     });
+
+    it('drops the retained selection when only the item TITLE changes (equal provider ids)', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Distinct series can share (or lack) a provider id — identity
+        // falls back to the title, so the selection still resets.
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Different Series (3 season)',
+                description: 'Different description',
+                movie_image: 'poster3.jpg',
+                tmdb_id: 999,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).toHaveBeenCalledWith(999, 3);
+    });
+
+    it('reads the season marker from o_name when name is generic', async () => {
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series',
+                o_name: 'Regular Series (2 season)',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
+    });
 });

@@ -28,6 +28,7 @@ import {
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
+    pickSeasonMarkedTitle,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import { SafePipe } from '@iptvnator/pipes';
@@ -168,19 +169,25 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * displayed item's identity changes: the router reuses this component
      * for detail-to-detail navigation, and a retained selection would let
      * the NEW item's tmdb_id pair with the PREVIOUS series' season context
-     * in the TMDB fetch effect (poisoning its idempotent per-season cache)
-     * before the new season resource loads.
+     * in the TMDB fetch effect before the new season resource loads. The
+     * identity combines id and title — provider ids can repeat or be
+     * absent across distinct items.
      */
     private readonly selectedSeasonKey = linkedSignal<
-        string | number | undefined,
+        string | undefined,
         string | null
     >({
-        source: () => this.displayItem()?.id,
+        source: () => {
+            const item = this.displayItem();
+            return item
+                ? `${item.id ?? ''}|${item.info?.name ?? ''}`
+                : undefined;
+        },
         // displayItem produces a fresh object on every recomputation, so
-        // the id must be compared here — resetting on every source
+        // the identity must be compared here — resetting on every source
         // invalidation would drop valid selections of the SAME item.
-        computation: (id, previous) =>
-            previous !== undefined && previous.source === id
+        computation: (identity, previous) =>
+            previous !== undefined && previous.source === identity
                 ? previous.value
                 : null,
     });
@@ -243,7 +250,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                         seasonKey,
                         seasons[seasonKey],
                         {
-                            rawTitle: item?.info?.name ?? null,
+                            // The season marker can live in either title
+                            // field (generic name + descriptive o_name)
+                            rawTitle: pickSeasonMarkedTitle(
+                                item?.info?.name,
+                                item?.info?.o_name
+                            ),
                             seasonCount: Object.keys(seasons).length,
                         }
                     )

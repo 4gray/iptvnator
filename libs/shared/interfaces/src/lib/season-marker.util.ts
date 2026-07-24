@@ -73,6 +73,23 @@ export function extractSeasonFromTitle(
     return null;
 }
 
+/**
+ * The first candidate title carrying an explicit season marker, else the
+ * first non-empty one. Providers spread the descriptive title across
+ * fields (a generic `name` with the marker only in `o_name`), and the
+ * marker must be read from whichever field carries it.
+ */
+export function pickSeasonMarkedTitle(
+    ...titles: readonly (string | null | undefined)[]
+): string | null {
+    for (const title of titles) {
+        if (extractSeasonFromTitle(title) !== null) {
+            return title ?? null;
+        }
+    }
+    return titles.find((title) => !!title) ?? null;
+}
+
 export interface SeasonNumberResolution {
     /** RAW provider title of the series item (not normalized) */
     rawTitle: string | null | undefined;
