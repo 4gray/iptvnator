@@ -94,6 +94,9 @@ export class FakeShakaPlayer implements ShakaPlayerLike {
 
     selectTextTrack(track: ShakaTextTrackLike | null): void {
         this.selectTextTrackCalls.push(track);
+        for (const candidate of this.textTracks) {
+            candidate.active = candidate === track;
+        }
     }
 
     isLive(): boolean {

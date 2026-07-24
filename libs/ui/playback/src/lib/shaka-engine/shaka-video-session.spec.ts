@@ -226,11 +226,42 @@ describe('ShakaVideoSession', () => {
         ];
         expect(slow.destroyCount).toBe(1);
         expect(fast.loadedUrls).toEqual(['http://example.com/fast.mpd']);
-        // The slow player resolved after being superseded; its post-load
-        // caption suppression must not have been applied.
+        // The slow player resolved after being superseded; nothing may have
+        // touched its text tracks afterwards.
         expect(slow.selectTextTrackCalls).toEqual([]);
-        expect(fast.selectTextTrackCalls).toEqual([null]);
         expect(issues).toEqual([]);
+    });
+
+    it('suppresses auto-selected captions on load and restores them on demand', async () => {
+        const environment = createFakeShakaEnvironment({
+            onCreate: (player) => {
+                player.textTracks = [
+                    {
+                        id: 7,
+                        active: true,
+                        language: 'en',
+                        label: 'English',
+                        kind: 'subtitles',
+                    },
+                ];
+            },
+        });
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/subs.mpd');
+        await flush();
+
+        const player = environment.instances[0];
+        // showCaptions() is false: the auto-selected track is hidden…
+        expect(player.selectTextTrackCalls).toEqual([null]);
+        expect(player.textTracks[0].active).toBe(false);
+
+        // …and remembered, so re-enabling the preference restores it.
+        session.restoreSuppressedTextTrack();
+        expect(player.textTracks[0].active).toBe(true);
+
+        // The restore is one-shot.
+        session.restoreSuppressedTextTrack();
+        expect(player.selectTextTrackCalls).toHaveLength(2);
     });
 
     it('emits an unsupported-container diagnostic when the browser lacks MSE/EME', async () => {

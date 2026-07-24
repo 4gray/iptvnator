@@ -106,20 +106,19 @@ export class WebVideoShakaControls {
     }
 
     private applyCaptionState(): void {
-        const player = this.getPlayer();
-        if (!player) {
+        const session = this.session;
+        if (!session || this.subtitleOverride !== null) {
+            // A user selection (subtitleOverride) always wins.
             return;
         }
 
-        // Without an explicit user choice, keep manifest-auto-selected text
-        // hidden while the captions preference is off (HLS parity). A user
-        // selection (subtitleOverride) always wins.
-        if (
-            this.subtitleOverride === null &&
-            !this.config.showCaptions() &&
-            player.getTextTracks().some((track) => track.active)
-        ) {
-            player.selectTextTrack(null);
+        // Without an explicit user choice, mirror the HLS bridge: keep
+        // manifest-auto-selected text hidden while the captions preference is
+        // off, and reselect the suppressed track when it turns back on.
+        if (this.config.showCaptions()) {
+            session.restoreSuppressedTextTrack();
+        } else {
+            session.suppressTextTracks();
         }
     }
 
