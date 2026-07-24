@@ -105,6 +105,41 @@ describe('StalkerSeriesTmdbSeasonsService', () => {
         expect(service.descriptions(82856)['1']).toBe('Season 3 overview');
     });
 
+    it('drops the stale entry when a replacement fetch fails', async () => {
+        getSeason.mockResolvedValueOnce({
+            overview: 'Season 2 overview',
+            episodes: [{ episode_number: 1, name: 'Season 2 Episode' }],
+        });
+        await service.fetchSeason(82856, '1', episodesOfSeason(1), {
+            rawTitle: 'Мандалорец (2 сезон)',
+            seasonCount: 1,
+        });
+
+        // Replacement resolution (another slice of the show) fails —
+        // the season-2 entry must not stay on screen for the new slice
+        getSeason.mockResolvedValueOnce(null);
+        await service.fetchSeason(82856, '1', episodesOfSeason(1), {
+            rawTitle: 'Мандалорец (3 сезон)',
+            seasonCount: 1,
+        });
+
+        const overlaid = service.overlay({ '1': episodesOfSeason(1) }, 82856);
+        expect(overlaid['1'][0].title).toBe('Episode 1');
+        expect(service.descriptions(82856)).toEqual({});
+
+        // A later trigger retries and fills the correct season
+        getSeason.mockResolvedValueOnce({
+            overview: 'Season 3 overview',
+            episodes: [{ episode_number: 1, name: 'Season 3 Episode' }],
+        });
+        await service.fetchSeason(82856, '1', episodesOfSeason(1), {
+            rawTitle: 'Мандалорец (3 сезон)',
+            seasonCount: 1,
+        });
+        const healed = service.overlay({ '1': episodesOfSeason(1) }, 82856);
+        expect(healed['1'][0].title).toBe('Season 3 Episode');
+    });
+
     it('does not cache a failed fetch, so a later trigger retries', async () => {
         getSeason.mockResolvedValueOnce(null);
         await service.fetchSeason(82856, '1', episodesOfSeason(1), {

@@ -117,14 +117,23 @@ export class StalkerSeriesTmdbSeasonsService {
         });
 
         const mapKey = `${tmdbId}|${seasonKey}`;
+        const cached = this.seasonsByKey().get(mapKey);
         if (
-            this.seasonsByKey().get(mapKey)?.seasonNumber === seasonNumber ||
+            cached?.seasonNumber === seasonNumber ||
             this.pending.get(mapKey) === seasonNumber
         ) {
             return;
         }
 
         this.pending.set(mapKey, seasonNumber);
+
+        // A mismatched entry belongs to another slice/context of this
+        // show — drop it BEFORE fetching so a failed replacement fetch
+        // can never leave the wrong season's metadata on screen (the
+        // overlay then falls back to provider data until a retry).
+        if (cached) {
+            this.deleteEntry(mapKey);
+        }
         try {
             const season = await this.tmdbEnrichment.getSeason(
                 tmdbId,
@@ -161,5 +170,15 @@ export class StalkerSeriesTmdbSeasonsService {
                 this.pending.delete(mapKey);
             }
         }
+    }
+
+    private deleteEntry(mapKey: string): void {
+        const next = new Map(this.seasonsByKey());
+        next.delete(mapKey);
+        this.seasonsByKey.set(next);
+
+        const overviews = new Map(this.overviewsByKey());
+        overviews.delete(mapKey);
+        this.overviewsByKey.set(overviews);
     }
 }
