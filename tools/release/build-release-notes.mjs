@@ -160,18 +160,31 @@ function detectPreviousVersion() {
     }
 }
 
-function requireVersion(options) {
-    if (!options.version) {
-        throw new Error('--version is required (for example --version 0.24.0)');
+/**
+ * The release version is the one in the root package.json — bumping it is the
+ * deliberate act that starts a release. `--version` stays available as an
+ * override (dry runs, previewing a version before the bump), but the default
+ * keeps a single source of truth and lets the package scripts run bare.
+ */
+function resolveVersion(options) {
+    let version = options.version;
+
+    if (!version) {
+        version = JSON.parse(
+            readFileSync(path.join(workspaceRoot, 'package.json'), 'utf8')
+        ).version;
+
+        // stderr, so `--format github` keeps a clean pipeable stdout.
+        console.error(`Using version ${version} from package.json.`);
     }
 
-    if (!/^\d+\.\d+\.\d+$/.test(options.version)) {
+    if (!/^\d+\.\d+\.\d+$/.test(version)) {
         throw new Error(
-            `--version must be a bare semver like 0.24.0, got "${options.version}"`
+            `version must be a bare semver like 0.24.0, got "${version}"`
         );
     }
 
-    return options.version;
+    return version;
 }
 
 function writeChangelog(section) {
@@ -201,7 +214,12 @@ function writeBlogScaffold(content, version, force) {
 
     if (existsSync(target) && !force) {
         throw new Error(
-            `${path.relative(workspaceRoot, target)} already exists; pass --force to overwrite`
+            [
+                `${path.relative(workspaceRoot, target)} already exists.`,
+                'The website publishes one post per minor version, so a patch',
+                'release edits the existing post instead of creating a new one.',
+                'Pass --force only to regenerate it from scratch.',
+            ].join(' ')
         );
     }
 
@@ -237,7 +255,7 @@ function main() {
             );
         }
 
-        const version = requireVersion(options);
+        const version = resolveVersion(options);
         const links = resolveLinks(notes);
 
         if (notes.length === 0) {

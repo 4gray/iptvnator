@@ -61,11 +61,19 @@ docs, CI/workflow plumbing, and pure refactors with no behaviour change.
 ## Commands
 
 ```bash
-node tools/release/build-release-notes.mjs --validate
-node tools/release/build-release-notes.mjs --version 0.24.0 --format github
-node tools/release/build-release-notes.mjs --version 0.24.0 --format changelog
-node tools/release/build-release-notes.mjs --version 0.24.0 --format blog
-node tools/release/build-release-notes.mjs --version 0.24.0 --consume
+pnpm run release:notes:validate
+pnpm run release:notes:github
+pnpm run release:notes:changelog
+pnpm run release:notes:blog
+node tools/release/build-release-notes.mjs --consume
 ```
 
+The release version comes from the root `package.json` — bump it first, then
+generate. `--version 0.24.0` overrides it for a dry run before the bump.
+
 Only `--consume` deletes anything; every other mode is a safe dry run.
+
+The website publishes **one post per minor version** (`v0-18` … `v0-22`), and
+release screenshots live under the matching `blog/v0-24/` directory. A patch
+release therefore edits the existing post rather than generating a new one, so
+`--format blog` refuses to overwrite unless you pass `--force`.

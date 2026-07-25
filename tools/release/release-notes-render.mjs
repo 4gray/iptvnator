@@ -31,7 +31,15 @@ export function formatLongDate(isoDate) {
     return `${MONTHS[month - 1]} ${day}, ${year}`;
 }
 
-/** @param {string} version @returns {string} e.g. `v0-24` */
+/**
+ * Deliberately minor-scoped: the website publishes one release post per minor
+ * version (`v0-18` … `v0-22`), and its screenshot assets live under the same
+ * directory. A patch release therefore reuses its minor's post rather than
+ * starting a new one.
+ *
+ * @param {string} version
+ * @returns {string} e.g. `v0-24` for both `0.24.0` and `0.24.1`
+ */
 export function releaseSlug(version) {
     const [major, minor] = version.split('.');
 
@@ -179,7 +187,12 @@ function renderBlogGroup(group, { slug, links }) {
         // The heading is editorial work — a note body makes a terrible one.
         // Leave a visible TODO instead of pretending otherwise; the whole
         // scaffold ships as `draft: true` anyway.
-        const alt = truncate(oneLine(note.body), 120).replace(/'/g, "\\'");
+        // Embedded in a single-quoted JS string inside MDX. Backslashes must
+        // be escaped before apostrophes, or a body ending in `\` produces an
+        // unterminated string and breaks the website build.
+        const alt = truncate(oneLine(note.body), 120)
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'");
         const images = ['dark', 'light']
             .map(
                 (theme) =>

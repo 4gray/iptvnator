@@ -325,6 +325,24 @@ describe('renderBlogScaffold', () => {
         assert.doesNotMatch(alt, /\s…$/);
     });
 
+    it('escapes backslashes and apostrophes inside the alt string literal', () => {
+        const content = renderBlogScaffold(
+            [
+                note({
+                    body: "Windows paths like C:\\Users no longer break the app's import.",
+                    screenshot: 'windows-import',
+                }),
+            ],
+            { version: '0.24.0', date: '2026-08-01' }
+        );
+        const alt = content.match(/alt: '(.*)',/)[1];
+
+        assert.match(alt, /C:\\\\Users/);
+        assert.match(alt, /app\\'s/);
+        // An odd number of trailing backslashes would escape the closing quote.
+        assert.doesNotMatch(alt, /(^|[^\\])(\\\\)*\\$/);
+    });
+
     it('escapes characters MDX would parse as markup', () => {
         const content = renderBlogScaffold(
             [note({ body: 'Channels named <live> and {vod} now sort correctly.' })],
