@@ -182,7 +182,16 @@ export class TmdbCacheService {
         // Let writes issued before this point land first — the clear below
         // then takes them too. Rows written afterwards are kept on purpose.
         if (this.pendingWrites.size > 0) {
-            await Promise.allSettled([...this.pendingWrites]);
+            // Not Promise.allSettled: the web target compiles against
+            // lib es2018. The writes swallow their own errors anyway.
+            await Promise.all(
+                [...this.pendingWrites].map((write) =>
+                    write.then(
+                        () => undefined,
+                        () => undefined
+                    )
+                )
+            );
         }
 
         try {
