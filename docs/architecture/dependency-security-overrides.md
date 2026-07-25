@@ -45,10 +45,18 @@ npm view <parent>@<version> dependencies --json
 
 ## Verifying an override actually applied
 
-pnpm leaves the superseded package block in `pnpm-lock.yaml` even when nothing
-resolves to it any more, so grepping for the old version is misleading — it will
-still be there. Check the _dependents_ instead, or resolve the real path on
-disk:
+Grepping `pnpm-lock.yaml` for the old version still finds it, but that hit is
+not a leftover package block — pnpm removes those once nothing resolves to them.
+It is the override's own selector key, echoed in the `overrides:` block at the
+top of the lockfile:
+
+```yaml
+overrides:
+    '@xmldom/xmldom@0.8.11': 0.8.13
+```
+
+So a bare grep proves only that the override is declared, never that it took
+effect. Resolve the real path on disk instead:
 
 ```bash
 node -e "console.log(require('./node_modules/.pnpm/mpd-parser@1.3.1/node_modules/@xmldom/xmldom/package.json').version)"
