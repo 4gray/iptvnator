@@ -42,6 +42,49 @@ jobs:
               env:
                   SHELLCHECK_OPTS: --severity=warning
 
+    release-note-gate:
+        name: Release note gate
+        if: github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read
+            pull-requests: read
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            # The gate scripts are dependency-free Node, so this job skips
+            # pnpm install entirely and stays cheap.
+            - name: Validate release note format
+              run: node tools/release/build-release-notes.mjs --validate
+
+            # Labels are fetched live rather than read from the (stale) event
+            # payload, so applying `no-release-note` and re-running the check
+            # works without a new push. Policy lives in a unit-tested script,
+            # not in workflow bash.
+            - name: Require a release note for user-visible changes
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+              run: |
+                  set -euo pipefail
+
+                  gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+                      --paginate --jq '[.[] | {filename, status}]' |
+                      jq -s 'add // []' > /tmp/pr-files.json
+
+                  gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels?per_page=100" \
+                      --paginate --jq '[.[].name]' |
+                      jq -s 'add // []' > /tmp/pr-labels.json
+
+                  jq -n \
+                      --slurpfile files /tmp/pr-files.json \
+                      --slurpfile labels /tmp/pr-labels.json \
+                      '{files: $files[0], labels: $labels[0]}' |
+                      node tools/release/check-release-note-gate.mjs
+
     lint:
         name: Lint
         runs-on: ubuntu-latest
