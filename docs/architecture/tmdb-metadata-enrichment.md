@@ -6,6 +6,8 @@ service layer, the SQLite cache, and the Xtream detail-view integration.
 
 Related:
 
+- [TMDB Capability Roadmap](./tmdb-roadmap.md) — follow-up backlog: unused
+  API surface, known defects, and what we deliberately will not build
 - [SQLite DB Worker](./sqlite-db-worker.md)
 - [Nx Workspace Boundaries](./nx-workspace-boundaries.md)
 
@@ -68,7 +70,12 @@ item lands. Enriched cast (`tmdb_cast` with profile photos) renders as
 avatar chips in the detail views, and so do directors/creators
 (`tmdb_directors`: movie directors from `credits.crew` with
 `job === 'Director'`, series creators from `created_by`) — both chip kinds
-carry `tmdbPersonId` and open the same person page. A "check key" button
+carry `tmdbPersonId` and open the same person page. Series detail views
+also show a production-status chip (`tmdb_status`): TMDB returns `status`
+as an ENGLISH string regardless of the request language, so it is
+normalized to a token (`normalizeSeriesStatus`) and rendered through
+translated labels (`seriesStatusLabelKey`) — the raw value never reaches
+the UI. Unknown values are dropped rather than displayed. A "check key" button
 in the settings section validates the API key against `/configuration`.
 
 ## Match Confidence

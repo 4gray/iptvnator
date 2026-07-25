@@ -1,0 +1,39 @@
+# Every Dependabot PR triggers the full pipeline (~15 jobs), so version
+# updates are batched: weekly cadence, minor+patch bumps grouped into one PR
+# per ecosystem, majors as individual PRs so CI gates them one by one.
+# Security updates are separate and are not limited by this schedule.
+version: 2
+updates:
+    - package-ecosystem: npm
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+          time: '06:00'
+      open-pull-requests-limit: 5
+      groups:
+          npm-minor-patch:
+              update-types:
+                  - minor
+                  - patch
+
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+          time: '06:00'
+      groups:
+          actions-minor-patch:
+              patterns:
+                  - '*'
+              update-types:
+                  - minor
+                  - patch
+
+    - package-ecosystem: docker
+      directory: /docker
+      schedule:
+          interval: weekly
+          day: monday
+          time: '06:00'

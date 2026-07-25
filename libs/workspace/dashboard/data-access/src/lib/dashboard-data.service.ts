@@ -1065,23 +1065,15 @@ export class DashboardDataService {
         }
 
         if (item.source === 'm3u') {
-            const playlist = await firstValueFrom(
-                this.playlistsService.getPlaylistById(item.playlist_id)
-            );
-            const currentFavorites = Array.isArray(playlist?.favorites)
-                ? playlist.favorites.filter(
-                      (favorite): favorite is string =>
-                          typeof favorite === 'string'
-                  )
-                : [];
-            const filteredFavorites = currentFavorites.filter(
-                (favorite) => favorite !== String(item.id)
-            );
-
             await firstValueFrom(
-                this.playlistsService.setFavorites(
+                this.playlistsService.transformPlaylistFavorites(
                     item.playlist_id,
-                    filteredFavorites
+                    (current) =>
+                        current.filter(
+                            (favorite) =>
+                                typeof favorite !== 'string' ||
+                                favorite !== String(item.id)
+                        )
                 )
             );
             await this.reloadGlobalFavorites();
@@ -1221,14 +1213,16 @@ export class DashboardDataService {
         const fallbackTimestamp =
             this.getM3uFavoriteTimestamp(playlistMeta) ??
             new Date(0).toISOString();
-        const items = resolvedChannels.slice().map((favorite) =>
-            this.createM3uFavoriteItem(
-                playlistMeta,
-                favorite.favoriteId,
-                favorite.channel,
-                fallbackTimestamp
-            )
-        );
+        const items = resolvedChannels
+            .slice()
+            .map((favorite) =>
+                this.createM3uFavoriteItem(
+                    playlistMeta,
+                    favorite.favoriteId,
+                    favorite.channel,
+                    fallbackTimestamp
+                )
+            );
 
         this.m3uFavoritesCache.set(playlistMeta._id, {
             fingerprint,

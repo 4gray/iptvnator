@@ -55,7 +55,8 @@ export interface RawVodItem {
     category_id: string;
     is_series: 0 | 1 | '1';
     has_files: number;
-    series?: RawEmbeddedEpisode[];
+    /** vclub-style embedded episode numbers, e.g. ['1', '2', '3'] */
+    series?: string[];
 }
 
 export interface RawSeriesItem {
@@ -93,12 +94,6 @@ export interface RawSeason {
     screenshot_uri: string;
     added: string;
     series: string[];
-}
-
-export interface RawEmbeddedEpisode {
-    id: number;
-    name: string;
-    cmd: string;
 }
 
 export interface RawEpgProgram {
@@ -388,19 +383,19 @@ function generateVodItems(
         };
 
         if (hasEmbeddedSeries) {
-            item.series = generateEmbeddedEpisodes(id, seasonsPerSeries * episodesPerSeason);
+            // Real vclub portals expose embedded episodes as an array of
+            // episode numbers; playback appends the number to the item cmd.
+            item.series = generateEmbeddedEpisodes(
+                seasonsPerSeries * episodesPerSeason
+            );
         }
 
         return item;
     });
 }
 
-function generateEmbeddedEpisodes(parentId: string, count: number): RawEmbeddedEpisode[] {
-    return Array.from({ length: count }, (_, i) => ({
-        id: parseInt(parentId) * 100 + i,
-        name: `Episode ${i + 1}`,
-        cmd: `ffrt4://vod/${parentId}/ep${i + 1}/index.m3u8`,
-    }));
+function generateEmbeddedEpisodes(count: number): string[] {
+    return Array.from({ length: count }, (_, i) => String(i + 1));
 }
 
 // ---------------------------------------------------------------------------

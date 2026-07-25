@@ -123,7 +123,15 @@ Consumer directories sampled:
 
 ## Invariants to Preserve During Refactor
 
-- Selection IDs (`selectedVodId`, `selectedSerialId`, `selectedItvId`) are synchronized in `setSelectedItem`.
+- Selection IDs (`selectedVodId`, `selectedItvId`) are synchronized in `setSelectedItem`.
+- `selectedSerialId` is set only when `selectedContentType` is `series`, and is
+  cleared for every other content type. `serialSeasonsResource` fires a
+  `get_ordered_list&type=series` portal request on each change of that id, and
+  it is the only episode source for a `series` selection — while VOD-context
+  shapes (embedded `series[]`, Ministra `is_series`) resolve their episodes
+  elsewhere, so carrying the id there only wastes a request. The gate must stay
+  on content type alone: gating it on item shape would leave a series-section
+  item that happens to carry `is_series`/`series[]` with an empty episode list.
 - `setSelectedCategory(...)` resets `page` to `0`.
 - `getPaginatedContent()` and `getCategoryResource()` always return arrays,
   even when the underlying request fails.

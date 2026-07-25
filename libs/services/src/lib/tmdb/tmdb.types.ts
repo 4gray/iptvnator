@@ -98,6 +98,8 @@ export interface TmdbTvDetails extends TmdbDetailsBase {
     name?: string;
     original_name?: string;
     first_air_date?: string;
+    /** English production status ("Ended", "Returning Series", ...) */
+    status?: string;
     episode_run_time?: number[];
     created_by?: {
         id?: number;

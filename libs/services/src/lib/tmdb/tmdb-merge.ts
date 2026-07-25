@@ -1,4 +1,5 @@
 import {
+    normalizeSeriesStatus,
     StalkerVodInfo,
     TmdbEnrichedCastMember,
     TmdbMediaType,
@@ -218,6 +219,7 @@ export function mergeSerieInfoWithTmdb(
 ): XtreamSerieInfo {
     const tmdbCast = enrichedCast(details.credits);
     const tmdbDirectors = enrichedCreators(details);
+    const status = normalizeSeriesStatus(details.status);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
     const cast = castNames(details.credits);
@@ -240,6 +242,7 @@ export function mergeSerieInfoWithTmdb(
         backdrop_path: mergedBackdrops(details, info.backdrop_path),
         youtube_trailer: prefer(trailer, info.youtube_trailer),
         tmdb_id: details.id,
+        ...(status ? { tmdb_status: status } : {}),
         ...(tmdbDirectors.length > 0 ? { tmdb_directors: tmdbDirectors } : {}),
         ...(tmdbCast.length > 0 ? { tmdb_cast: tmdbCast } : {}),
         ...(recommendations.length > 0
@@ -264,6 +267,10 @@ export function mergeStalkerInfoWithTmdb(
         mediaType === 'movie'
             ? enrichedDirectors(details.credits)
             : enrichedCreators(details as TmdbTvDetails);
+    const status =
+        mediaType === 'tv'
+            ? normalizeSeriesStatus((details as TmdbTvDetails).status)
+            : null;
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
     const cast = castNames(details.credits);
@@ -291,6 +298,7 @@ export function mergeStalkerInfoWithTmdb(
         rating_imdb:
             info.rating_imdb || (rating !== null ? String(rating) : ''),
         tmdb_id: details.id,
+        ...(status ? { tmdb_status: status } : {}),
         ...(backdrop ? { tmdb_backdrop: backdrop } : {}),
         ...(trailer ? { tmdb_trailer: trailer } : {}),
         ...(tmdbDirectors.length > 0 ? { tmdb_directors: tmdbDirectors } : {}),

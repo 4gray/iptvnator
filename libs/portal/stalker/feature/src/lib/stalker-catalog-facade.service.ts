@@ -194,6 +194,10 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         return null;
     }
 
+    refreshSnapshotSelection(): void {
+        void this.stalkerStore.refreshEmbeddedSeriesSelection();
+    }
+
     getItemProgress(item: StalkerVodSource): PortalCatalogItemProgress {
         const numericId = Number(item.id);
         if (Number.isNaN(numericId)) {

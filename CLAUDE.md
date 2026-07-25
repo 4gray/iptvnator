@@ -26,6 +26,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Repo docs are canonical even when they were originally drafted by an LLM.
 - Final task summaries should state whether docs were updated and which doc changed.
 
+## Release Notes For User-Visible Changes
+
+- Any change a user could notice — new behavior, changed behavior, bug fix, performance win, breaking change — must add one note file under `.changes/` in the same PR. Format, field table, and writing rules: `.changes/README.md`.
+- Name it `<area>-<short-slug>.md`; `area` matches the conventional-commit scope. There is no version field — the release version is chosen at release time.
+- Write the body for a user, not a reviewer: "the player now remembers volume between episodes", not "hoist volume state into the session". Max 400 characters; depth belongs in the release blog post.
+- Skip the note for test-only changes, docs, CI/workflow plumbing, and pure refactors with no behavior change. When skipping on a PR that touches `apps/**` or `libs/**`, apply the `no-release-note` label.
+- CI enforces this: the "Release note gate" job in `.github/workflows/ci.yml` fails PRs that change runtime code without an added `.changes/*.md` or the label (policy in `tools/release/check-release-note-gate.mjs`; tests/e2e/website/mock-server/docs paths are auto-exempt).
+- The `release-notes` skill covers writing notes; the `release-cut` skill covers the full release sequence.
+- Validate before finishing: `pnpm run release:notes:validate`.
+- Release-post screenshots come only from the release capture script running against the mock servers. Never add a screenshot taken from a real playlist or account to `apps/website/public/blog/**` — real streams, logos, and metadata are copyrighted, and credentials must never reach a published image.
+- Final task summaries should state whether a release note was added or why it was skipped.
+
 ## Regression Prevention And Test Updates
 
 - Before the final summary for any feature, behavior change, bug fix, data-flow change, Electron IPC/database change, or user-visible UI workflow change, Claude Code must complete a test impact pass. Identify the affected projects and decide whether unit, integration, E2E, build, lint, or manual/CDP verification is required.
@@ -59,7 +71,7 @@ pnpm nx show projects
 - Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json`.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
-- Repository-specific skills are committed under `.codex/skills/`. If Claude Code does not load skills directly, treat those files as concise ownership docs.
+- Repository-specific skills are committed under `.codex/skills/`. Claude Code only discovers skills under `.claude/skills/`, so `release-notes` and `release-cut` are mirrored there and the two copies must be kept in sync; every other entry in `.claude/skills/` is personal and stays gitignored. If an agent does not load skills directly, treat those files as concise ownership docs.
 
 ### Building and Serving
 
@@ -193,7 +205,7 @@ Before finishing behavior changes or bug fixes, follow `Regression Prevention An
 ### Linting
 
 ```bash
-# Lint all projects (what CI enforces on every PR)
+# Lint all projects (CI runs this on master; PRs lint affected projects)
 pnpm run lint
 
 # Lint a single project
@@ -201,7 +213,8 @@ nx lint web
 nx lint electron-backend
 ```
 
-CI runs lint for every project (`.github/workflows/ci.yml`). This enforces the
+CI lints affected projects on PRs (`nx affected`) and every project on master
+pushes (`.github/workflows/ci.yml`). This enforces the
 Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
 rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
 are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
@@ -819,6 +832,7 @@ engine` (restart required) or
 - "Similar" rail in ALL detail views: TMDB recommendations matched against the provider catalog by normalized title, two-tier — exact form first, year-stripped fallback gated on year compatibility (`libs/portal/xtream/feature/src/lib/tmdb-similar.util.ts`, `normalizeTitleKeys`); cross-portal matches from other imported Xtream playlists supplement the Xtream rail and fully power the Stalker rail (`CrossPortalSimilarService` in `libs/services`, batched `DB_MATCH_TITLES`, Electron only); detail components re-initialize on route param changes since the router reuses them for detail→detail navigation
 - Season/episode enrichment: opening a season lazily fetches `/tv/{id}/season/{n}` and overlays real episode names, overviews and stills via `mergeEpisodesWithTmdb` (Xtream: `XtreamStore.enrichSelectedSerialSeason`; Stalker: overlay in the series view's `mappedSeasons`); for single-season provider slices whose title carries an explicit season marker ("The Mandalorian (2 season)", "s02", "2 сезон"), the marker overrides the provider's renumbered season (`resolveEnrichmentSeasonNumber` in `libs/shared/interfaces/src/lib/season-marker.util.ts`)
 - Dashboard: opt-in "Trending this week" rail (weekly TMDB trending matched against imported Xtream playlists via one batched `DB_MATCH_TITLES` request; Electron-only, `dashboardRails.tmdbTrending` toggle) and hero TMDB extras (backdrop fallback, rating + genre badges, memoized per session; series heroes show the tracked S/E badge from playback positions) — `DashboardTrendingService` in `libs/workspace/dashboard/data-access`, `DashboardHeroTmdbService` in `libs/workspace/dashboard/feature`; both load async after first paint
+- Series detail views show a TMDB production-status chip (`tmdb_status`, e.g. Ended / Returning) — TMDB sends `status` in English regardless of request language, so it is normalized to a token by `normalizeSeriesStatus` and rendered via `seriesStatusLabelKey` translations; person pages show `deathday` alongside `birthday`
 - Actor pages: cast avatar chips are clickable (TMDB person id) and open `actor/:personId` inside the current portal — TMDB person bio + full filmography (acting + directing credits merged; acting wins the per-title dedup); director/creator chips (`tmdb_directors` via `enrichedDirectors`/`enrichedCreators` in `tmdb-merge.ts`) are clickable the same way and open the same person page; Xtream matches titles against the loaded catalog (direct navigation), unmatched titles and all Stalker titles open the portal search prefilled (`?q=`); the in-portal search page shows a Back button (`SearchLayoutComponent.showBackButton` → `Location.back()`) so users can return to the actor page; shared UI in `libs/ui/shared-portals` (`ActorViewComponent`)
 - Actor page "All portals" scope (Electron only): batched `DB_MATCH_TITLES` worker op (trigram FTS over all imported Xtream playlists, `apps/electron-backend/src/app/database/operations/title-match.operations.ts`); `normalizeTitle` is shared renderer/worker via `libs/shared/interfaces/src/lib/title-normalization.util.ts`
 - Opt-in via `Settings > Metadata (TMDB)` (sends titles to TMDB); optional user API key overrides the embedded default (`DEFAULT_TMDB_API_KEY` in `libs/services/src/lib/tmdb/tmdb-config.ts` — an empty placeholder in the repo by design; the real key lives in the `TMDB_API_KEY` GitHub Actions secret and is injected at CI build time by `tools/tmdb/inject-tmdb-key.mjs`)
