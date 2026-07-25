@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { TmdbMediaType } from '@iptvnator/shared/interfaces';
-import { TmdbApiService } from './tmdb-api.service';
+import { TmdbApiService, isTmdbNotFound } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
 import { TMDB_DETAILS_CACHE_TTL_MS } from './tmdb-config';
 import {
@@ -156,7 +156,15 @@ export class TmdbEnrichmentService {
                 `TMDB ${mediaType} details for provider id ${providerId} failed, falling back to search:`,
                 error
             );
-            await this.idResolver.rememberBadProviderId(mediaType, providerId);
+            // Only a 404 proves the id is dead. Auth, rate-limit, 5xx and
+            // offline failures are transient — remembering those would
+            // disable a perfectly good id until the marker expires.
+            if (isTmdbNotFound(error)) {
+                await this.idResolver.rememberBadProviderId(
+                    mediaType,
+                    providerId
+                );
+            }
             return null;
         }
 
@@ -167,6 +175,13 @@ export class TmdbEnrichmentService {
         // The id resolves, but to something that does not look like our
         // item. Let the search try to beat it; keep these details if it
         // cannot, since a title mismatch alone is not proof of a bad id.
+        //
+        // Deliberately NOT remembered: the id exists and may be correct for
+        // a DIFFERENT item. The bad-id cache is keyed by id alone and shared
+        // across playlists, so recording a per-item mismatch there would
+        // deny the direct lookup to every other item that legitimately uses
+        // the same id. The search verdict is cached anyway, so the repeat
+        // cost is one details fetch.
         const searchedId = await this.idResolver.resolveBySearch(
             mediaType,
             query
@@ -178,12 +193,7 @@ export class TmdbEnrichmentService {
         const searched = await this.getDetails(mediaType, searchedId).catch(
             () => null
         );
-        if (!searched) {
-            return details;
-        }
-
-        await this.idResolver.rememberBadProviderId(mediaType, providerId);
-        return searched;
+        return searched ?? details;
     }
 
     private async getDetails(

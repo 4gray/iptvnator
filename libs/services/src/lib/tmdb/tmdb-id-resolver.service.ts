@@ -121,9 +121,15 @@ export class TmdbIdResolverService {
     }
 
     /**
-     * True when this provider-supplied id already failed us. Without this
-     * a dead id costs one wasted 404 on every single detail open, forever —
+     * True when this id is known NOT TO EXIST on TMDB. Without this a dead
+     * id costs one wasted 404 on every single detail open, forever —
      * failed detail fetches cache nothing.
+     *
+     * The verdict is deliberately about the ID, not about the item that
+     * supplied it: the row is keyed by id alone and shared across
+     * playlists, so only "TMDB returned 404 for this id" may be recorded
+     * here. A per-item mismatch is never cached — see
+     * `TmdbEnrichmentService.detailsForProviderId`.
      */
     async isKnownBadProviderId(
         mediaType: TmdbMediaType,

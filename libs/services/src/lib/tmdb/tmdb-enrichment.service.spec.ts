@@ -1,5 +1,5 @@
 import { Injector, runInInjectionContext } from '@angular/core';
-import { TmdbApiService } from './tmdb-api.service';
+import { TmdbApiError, TmdbApiService } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
 import { TmdbEnrichmentService } from './tmdb-enrichment.service';
 import { TmdbIdResolverService } from './tmdb-id-resolver.service';
@@ -104,7 +104,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
 
     it('falls back to the title search when the provider id 404s', async () => {
         getMovieDetails
-            .mockRejectedValueOnce(new Error('TMDB 404'))
+            .mockRejectedValueOnce(new TmdbApiError(404, 'Not Found'))
             .mockResolvedValueOnce(matrix);
         resolveBySearch.mockResolvedValue(603);
         const service = createService();
@@ -137,7 +137,33 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         });
 
         expect(details?.id).toBe(603);
-        expect(rememberBadProviderId).toHaveBeenCalledWith('movie', 999);
+        // The id EXISTS — it is just wrong for this item. The bad-id row is
+        // keyed by id alone and shared across playlists, so recording a
+        // per-item mismatch would deny the direct lookup to every other
+        // item that legitimately uses the same id.
+        expect(rememberBadProviderId).not.toHaveBeenCalled();
+    });
+
+    it('does not blame the id for a transient failure', async () => {
+        // Rate limit, bad key, 5xx or offline: the id may be perfectly
+        // fine, so it must stay retryable rather than be disabled for days
+        getMovieDetails.mockRejectedValue(new TmdbApiError(429, 'Too Many'));
+        resolveBySearch.mockResolvedValue(null);
+        const service = createService();
+
+        await service.enrichMovie({ tmdbId: 603, title: 'The Matrix' });
+
+        expect(rememberBadProviderId).not.toHaveBeenCalled();
+    });
+
+    it('does not blame the id for a network error', async () => {
+        getMovieDetails.mockRejectedValue(new Error('offline'));
+        resolveBySearch.mockResolvedValue(null);
+        const service = createService();
+
+        await service.enrichMovie({ tmdbId: 603, title: 'The Matrix' });
+
+        expect(rememberBadProviderId).not.toHaveBeenCalled();
     });
 
     it('keeps the provider payload when the title differs but the search finds nothing', async () => {

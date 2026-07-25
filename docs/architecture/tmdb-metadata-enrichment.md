@@ -240,14 +240,18 @@ Filmography has two scopes:
 
 ## Cache
 
-Single table with two row kinds discriminated by `lookup_key` prefix:
+Single table with several row kinds discriminated by the `lookup_key`
+prefix:
 
 ```
 tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>|v2'               -- details payload row
+              'id:<tmdbId>|season:<n>'       -- season payload row
               'title:<normalized>|year:<y>|v2' -- search resolution row
               'person:<personId>'            -- person payload row
+              'trending:week'                -- trending list row
+              'badProviderId:<tmdbId>'       -- id confirmed 404 by TMDB
   language    TEXT,       -- TMDB language code
   tmdb_id     INTEGER,    -- NULL on a search row = negative cache
   payload     TEXT,       -- raw JSON details, NULL for search rows
@@ -336,3 +340,18 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   heroes additionally show the tracked "S{n}·E{n}" badge from the playback
   position (no TMDB involved); the watch-progress bar is limited to
   movie/series heroes.
+
+### `badProviderId:` rows
+
+Providers ship `tmdb_id` values that do not exist. A failed details fetch
+caches nothing, so without a marker the same 404 is re-issued on every
+detail open, forever. These rows record that verdict: `tmdb_id` NULL,
+language `any` (a dead id is dead in every language), read with the
+negative-match TTL.
+
+Only a **confirmed 404** is recorded. Transient failures (401, 429, 5xx,
+offline) leave no marker — they say nothing about the id. Neither does a
+title mismatch: that id exists and may be correct for a *different* item,
+and since the row is keyed by id alone and shared across playlists,
+recording per-item mismatches here would deny the direct lookup to every
+other item that legitimately uses the same id.
