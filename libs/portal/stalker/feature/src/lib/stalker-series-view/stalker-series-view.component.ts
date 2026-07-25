@@ -431,21 +431,33 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
 
     /**
-     * Seasons this view already asked the portal for on the rail's behalf.
-     * A failed or genuinely empty season leaves `episodes` empty with
-     * `isLoading` back to false, so without this guard the effect below would
-     * re-request it on every emission for as long as playback continues.
+     * Seasons the portal has already answered for on the rail's behalf. An
+     * answered-but-empty season is a real answer, so it is recorded here and
+     * never asked for again — otherwise the effect below would re-request it
+     * on every emission for as long as playback continues.
      */
     private readonly prefetchedSpilloverSeasonIds = new Set<string>();
+    /**
+     * The last spillover request that *failed*, tagged with the episode that
+     * triggered it. A failure is not permanent (it may be a transient network
+     * or authorization error), but retrying immediately would loop: the
+     * failure itself flips `isLoading` and re-runs the effect. Pinning it to
+     * the episode defers the retry to the next playback change instead.
+     */
+    private spilloverPrefetchFailure: {
+        key: string;
+        episodeId: string | number;
+    } | null = null;
 
     /**
      * Ministra VOD-series seasons hold no episodes until their tab is opened,
      * so the rail's next-season spillover would silently stop at the end of
      * the playing season. While an episode plays inline, fetch the following
-     * season's episodes once so the spillover is actually there.
+     * season's episodes so the spillover is actually there.
      */
     private readonly prefetchRailSpilloverSeason = effect(() => {
-        const seasonKey = this.inlineEpisodeState()?.seasonKey;
+        const episodeState = this.inlineEpisodeState();
+        const seasonKey = episodeState?.seasonKey;
         const seasons = this.vodSeriesSeasons();
         if (!this.isVodSeries() || !seasonKey) {
             return;
@@ -461,12 +473,34 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
 
         const prefetchKey = `${nextSeason.video_id}:${nextSeason.id}`;
-        if (this.prefetchedSpilloverSeasonIds.has(prefetchKey)) {
+        const episodeId = episodeState.episode.id;
+        if (
+            this.prefetchedSpilloverSeasonIds.has(prefetchKey) ||
+            (this.spilloverPrefetchFailure?.key === prefetchKey &&
+                this.spilloverPrefetchFailure.episodeId === episodeId)
+        ) {
             return;
         }
+
+        // Claim the season synchronously: awaiting first would let the
+        // `isLoading` flip re-run this effect and fire a duplicate request
+        // before the answer arrives. A failure releases the claim below.
         this.prefetchedSpilloverSeasonIds.add(prefetchKey);
 
-        untracked(() => void this.loadEpisodesForSeason(nextSeason));
+        untracked(() =>
+            void this.loadEpisodesForSeason(nextSeason).then((answered) => {
+                if (answered) {
+                    this.spilloverPrefetchFailure = null;
+                    return;
+                }
+
+                this.spilloverPrefetchFailure = {
+                    key: prefetchKey,
+                    episodeId,
+                };
+                this.prefetchedSpilloverSeasonIds.delete(prefetchKey);
+            })
+        );
     });
 
     /**
@@ -493,11 +527,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     /**
      * Loads episodes for a specific VOD season
      */
-    async loadEpisodesForSeason(season: VodSeriesSeasonVm) {
+    /** Resolves true when the portal answered, false when the request failed. */
+    async loadEpisodesForSeason(season: VodSeriesSeasonVm): Promise<boolean> {
         // Set loading state in local signal
         const seasons = this.vodSeriesSeasons();
         const index = seasons.findIndex((s) => s.id === season.id);
-        if (index === -1) return;
+        if (index === -1) return false;
 
         const updatedSeasons = [...seasons];
         updatedSeasons[index] = { ...updatedSeasons[index], isLoading: true };
@@ -520,6 +555,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 };
                 this.vodSeriesSeasons.set(newSeasons);
             }
+            return true;
         } catch (error) {
             this.logger.error('Failed to load episodes', error);
             const newSeasons = [...this.vodSeriesSeasons()];
@@ -531,6 +567,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 };
                 this.vodSeriesSeasons.set(newSeasons);
             }
+            return false;
         }
     }
 

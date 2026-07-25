@@ -177,7 +177,13 @@ seasons, with per-episode watch-progress bars from playback positions.
 - Lazy Stalker seasons: Ministra VOD-series seasons carry no episodes until
   their tab is opened, so `StalkerSeriesViewComponent` prefetches the season
   after the playing one while inline playback is active — otherwise the rail's
-  next-season spillover would silently stop at the current season's end.
+  next-season spillover would silently stop at the current season's end. The
+  prefetch is claimed synchronously and answered seasons (including genuinely
+  empty ones) are never re-requested: a failed request leaves `episodes` empty
+  with `isLoading` back to false, which would otherwise re-run the effect that
+  issued it and loop. A *failed* request releases the claim but is pinned to
+  the episode that triggered it, so a transient portal error retries on the
+  next playback change instead of either looping or giving up permanently.
 - Gating mirrors ambient mode: the `playerUpNextRail` setting (Settings →
   Playback, **default on**, shown only for the built-in web players) plus a
   runtime web-engine check; the rail also requires
