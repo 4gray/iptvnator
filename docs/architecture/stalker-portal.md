@@ -370,6 +370,36 @@ Navigation rule to preserve:
   branch.
 - See [Portal Detail Navigation](./portal-detail-navigation.md).
 
+### Embedded-series snapshot refresh
+
+Favorites and recently-viewed rows store the whole Stalker item as a JSON
+snapshot, so an embedded `series[]` episode list (and its playback `cmd`)
+freezes at the moment the row was written — newly released episodes would
+never appear when the item is reopened from favorites, recents, or the
+dashboard rails. `withStalkerSnapshotRefresh()`
+(`stores/features/with-stalker-snapshot-refresh.feature.ts`) fixes this with a
+snapshot-first + background re-fetch contract:
+
+- The stored snapshot renders immediately; the store method
+  `refreshEmbeddedSeriesSelection()` then re-fetches the item via a portal
+  title search (`get_ordered_list&type=vod&search=<title>`, item matched by
+  id, paginated up to 5 pages, wildcard-category retry) in the background.
+- When the episode list or `cmd` changed, the selection is patched in place.
+  The guard requires both the item id **and** the active playlist id to be
+  unchanged, because Stalker ids are only unique per portal.
+- Only the in-memory selection is patched — the stored snapshot row is
+  deliberately left alone. Every entry path into the detail view runs this
+  refresh, so a stale stored episode list is never rendered for longer than
+  one background request, and writing it back would add an uncontrolled
+  background writer to the whole-playlist read-modify-write that every
+  favorite/recent mutation performs (lost-update risk).
+- Triggers: `stalker-collection-detail.component.ts` (favorites/recent tabs,
+  global collections, dashboard handoffs) and the optional catalog-facade hook
+  `refreshSnapshotSelection()` for snapshot-injected browse detail
+  (`openStalkerItem` navigation state).
+- Regular `type=series` and Ministra `is_series` favorites are unaffected —
+  their seasons/episodes are always fetched fresh on open.
+
 ## Backup and Restore
 
 Versioned playlist backups include Stalker connection metadata plus playlist-
