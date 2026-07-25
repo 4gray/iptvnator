@@ -1,0 +1,31 @@
+{
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "name": "release-tools",
+    "projectType": "library",
+    "sourceRoot": "tools/release",
+    "targets": {
+        "test": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "inputs": [
+                "{workspaceRoot}/tools/release/release-notes.mjs",
+                "{workspaceRoot}/tools/release/release-notes-render.mjs",
+                "{workspaceRoot}/tools/release/release-notes.test.mjs"
+            ],
+            "options": {
+                "command": "node --test tools/release/release-notes.test.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        },
+        "lint": {
+            "inputs": [
+                "default",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ],
+            "command": "eslint \"tools/release/*.mjs\""
+        }
+    },
+    "tags": ["scope:tools", "domain:release", "type:tool"]
+}
