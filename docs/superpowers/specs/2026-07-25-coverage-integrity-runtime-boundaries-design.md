@@ -45,8 +45,8 @@ The audit file status on the same baseline is:
 | `apps/electron-backend/src/app/workers/database.worker.ts`                              |       0 / 205 (0%) |
 | `apps/electron-backend/src/app/events/remote-control.events.ts`                         |       0 / 115 (0%) |
 | `apps/electron-backend/src/app/server/http-server.ts`                                   |        0 / 73 (0%) |
-| `apps/electron-backend/src/app/events/database/downloads.events.ts`                     |  69 / 147 (46.94%) |
-| `apps/electron-backend/src/app/events/settings.events.ts`                               |   16 / 27 (59.26%) |
+| `apps/electron-backend/src/app/events/database/downloads.events.ts`                     |  69 / 147 (46.93%) |
+| `apps/electron-backend/src/app/events/settings.events.ts`                               |   16 / 27 (59.25%) |
 | `libs/workspace/dashboard/feature/src/lib/rails/workspace-dashboard-rails.component.ts` |       0 / 206 (0%) |
 | `libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`        |       0 / 166 (0%) |
 | `libs/m3u-state/src/lib/effects.ts`                                                     |             absent |
