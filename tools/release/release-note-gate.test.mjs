@@ -52,10 +52,32 @@ describe('evaluateGate', () => {
         assert.equal(verdict.ok, false);
     });
 
-    it('a renamed note still satisfies the gate', () => {
+    it('a renamed note does not satisfy the gate', () => {
+        // A note added and renamed within one PR still reports as `added`;
+        // `renamed` means it came from the base branch, i.e. another PR's.
         const verdict = gate([
             file('libs/m3u-state/src/lib/reducer.ts'),
             file('.changes/m3u-better-name.md', 'renamed'),
+        ]);
+
+        assert.equal(verdict.ok, false);
+    });
+
+    it('a nested note does not satisfy the gate', () => {
+        // loadNotes() only reads the immediate directory, so a nested file
+        // would never be validated or rendered into a release surface.
+        const verdict = gate([
+            file('libs/m3u-state/src/lib/reducer.ts'),
+            file('.changes/subdir/m3u-note.md', 'added'),
+        ]);
+
+        assert.equal(verdict.ok, false);
+    });
+
+    it('accepts a top-level note regardless of surrounding path noise', () => {
+        const verdict = gate([
+            file('libs/m3u-state/src/lib/reducer.ts'),
+            file('.changes/m3u-long-urls.md', 'added'),
         ]);
 
         assert.equal(verdict.ok, true);

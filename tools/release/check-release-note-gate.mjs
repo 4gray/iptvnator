@@ -50,16 +50,26 @@ function requiresNote(file) {
 }
 
 /**
+ * Only a note this PR actually authored satisfies the gate.
+ *
+ * `status: 'added'` exclusively: the PR files API compares base…head, so a
+ * note created and then renamed inside the same PR still reports as `added`.
+ * A `renamed` entry therefore means the file already existed on the base
+ * branch — moving another PR's unconsumed note is not documenting this
+ * change, and the generator resolves PR links from the commit that added a
+ * path, which a rename does not provide.
+ *
+ * Direct children only: `loadNotes()` reads the immediate `.changes/`
+ * directory, so a nested `.changes/sub/note.md` would satisfy a prefix check
+ * while never being validated or rendered into any release surface.
+ *
  * @param {{ filename: string, status: string }} file
  * @returns {boolean} true when this file satisfies the gate
  */
 function isAddedNote(file) {
-    return (
-        file.filename.startsWith('.changes/') &&
-        file.filename.endsWith('.md') &&
-        !file.filename.endsWith('README.md') &&
-        (file.status === 'added' || file.status === 'renamed')
-    );
+    const match = file.filename.match(/^\.changes\/([^/]+)\.md$/);
+
+    return Boolean(match) && match[1] !== 'README' && file.status === 'added';
 }
 
 /**
