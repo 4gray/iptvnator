@@ -49,7 +49,7 @@ jobs:
                 os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -103,7 +103,7 @@ jobs:
             NX_SKIP_NX_CACHE: true
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4

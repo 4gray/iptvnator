@@ -56,7 +56,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
@@ -370,7 +370,7 @@ jobs:
 
         steps: &electron-build-steps
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -1294,7 +1294,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Download all artifacts
               uses: actions/download-artifact@v4
