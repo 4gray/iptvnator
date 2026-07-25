@@ -16,6 +16,7 @@ import {
     renderBlogScaffold,
     renderChangelogSection,
     renderGithubBody,
+    upsertChangelogSection,
 } from './release-notes-render.mjs';
 import { extractSection } from './extract-changelog-section.mjs';
 
@@ -364,6 +365,81 @@ describe('renderBlogScaffold', () => {
 
         assert.match(content, /import ReleaseMeta from/);
         assert.match(content, /import BlogImageSlider from/);
+    });
+});
+
+describe('upsertChangelogSection', () => {
+    const marker = '<!-- next-release -->';
+    const base = [
+        '# Changelog',
+        '',
+        marker,
+        '',
+        '# [0.12.0](https://example.com) (2023-03-11)',
+        '',
+        '- old entry',
+    ].join('\n');
+
+    it('inserts a new section below the marker', () => {
+        const { content, replaced } = upsertChangelogSection(
+            base,
+            '# [0.24.0](url) (2026-08-01)\n\n### Features\n\n- entry',
+            '0.24.0',
+            marker
+        );
+
+        assert.equal(replaced, false);
+        assert.match(
+            content,
+            /<!-- next-release -->\n\n# \[0\.24\.0\]\(url\) \(2026-08-01\)/
+        );
+        assert.match(content, /- entry\n\n# \[0\.12\.0\]/);
+    });
+
+    it('replaces an existing section for the same version instead of duplicating', () => {
+        const first = upsertChangelogSection(
+            base,
+            '# [0.24.0](url) (2026-08-01)\n\n- v1 entry',
+            '0.24.0',
+            marker
+        ).content;
+        const { content, replaced } = upsertChangelogSection(
+            first,
+            '# [0.24.0](url) (2026-08-02)\n\n- v2 entry',
+            '0.24.0',
+            marker
+        );
+
+        assert.equal(replaced, true);
+        assert.equal(content.match(/^# \[0\.24\.0\]/gm).length, 1);
+        assert.match(content, /v2 entry/);
+        assert.doesNotMatch(content, /v1 entry/);
+        assert.match(content, /- v2 entry\n\n# \[0\.12\.0\]/);
+    });
+
+    it('keeps other versions untouched when replacing', () => {
+        const first = upsertChangelogSection(
+            base,
+            '# [0.24.0](url) (2026-08-01)\n\n- v1',
+            '0.24.0',
+            marker
+        ).content;
+        const { content } = upsertChangelogSection(
+            first,
+            '# [0.24.1](url) (2026-08-09)\n\n- patch',
+            '0.24.1',
+            marker
+        );
+
+        assert.match(content, /0\.24\.1.*\n\n- patch\n\n# \[0\.24\.0\]/);
+        assert.match(content, /- v1\n\n# \[0\.12\.0\]/);
+    });
+
+    it('throws when the marker is missing', () => {
+        assert.throws(
+            () => upsertChangelogSection('# Changelog', '# s', '0.24.0', marker),
+            /missing the/
+        );
     });
 });
 

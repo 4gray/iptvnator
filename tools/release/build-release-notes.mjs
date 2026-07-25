@@ -24,6 +24,7 @@ import {
     renderBlogScaffold,
     renderChangelogSection,
     renderGithubBody,
+    upsertChangelogSection,
 } from './release-notes-render.mjs';
 
 const workspaceRoot = path.resolve(
@@ -187,21 +188,19 @@ function resolveVersion(options) {
     return version;
 }
 
-function writeChangelog(section) {
-    const current = readFileSync(CHANGELOG_PATH, 'utf8');
-
-    if (!current.includes(CHANGELOG_MARKER)) {
-        throw new Error(
-            `CHANGELOG.md is missing the \`${CHANGELOG_MARKER}\` marker that new sections are inserted below`
-        );
-    }
-
-    const updated = current.replace(
-        CHANGELOG_MARKER,
-        `${CHANGELOG_MARKER}\n\n${section.trim()}`
+function writeChangelog(section, version) {
+    const { content, replaced } = upsertChangelogSection(
+        readFileSync(CHANGELOG_PATH, 'utf8'),
+        section,
+        version,
+        CHANGELOG_MARKER
     );
 
-    writeFileSync(CHANGELOG_PATH, updated, 'utf8');
+    if (replaced) {
+        console.error(`Replacing existing CHANGELOG.md section for ${version}.`);
+    }
+
+    writeFileSync(CHANGELOG_PATH, content, 'utf8');
 
     return CHANGELOG_PATH;
 }
@@ -275,7 +274,7 @@ function main() {
                 previousVersion: options.previous ?? detectPreviousVersion(),
                 links,
             });
-            const target = writeChangelog(section);
+            const target = writeChangelog(section, version);
             console.log(`Updated ${path.relative(workspaceRoot, target)}`);
         }
 

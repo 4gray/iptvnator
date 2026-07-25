@@ -4,6 +4,7 @@
  * website blog scaffold.
  */
 
+import { extractSection } from './extract-changelog-section.mjs';
 import { groupNotes, REPO_URL } from './release-notes.mjs';
 
 const MONTHS = [
@@ -161,6 +162,63 @@ export function renderChangelogSection(
     }
 
     return `${blocks.join('\n\n')}\n`;
+}
+
+/**
+ * Inserts a version section below the marker, replacing any existing section
+ * for the same version — rerunning `--format changelog` after correcting a
+ * note must not prepend a duplicate.
+ *
+ * @param {string} changelog full CHANGELOG.md content
+ * @param {string} section rendered section (from renderChangelogSection)
+ * @param {string} version bare semver the section describes
+ * @param {string} marker insertion marker line
+ * @returns {{ content: string, replaced: boolean }}
+ */
+export function upsertChangelogSection(changelog, section, version, marker) {
+    if (!changelog.includes(marker)) {
+        throw new Error(
+            `changelog is missing the \`${marker}\` marker that new sections are inserted below`
+        );
+    }
+
+    let current = changelog;
+    const replaced = extractSection(current, version) !== null;
+
+    if (replaced) {
+        const lines = current.split('\n');
+        const headingIndex = lines.findIndex(
+            (line) =>
+                line.startsWith(`# [${version}]`) ||
+                line.startsWith(`# ${version} `)
+        );
+        let end = lines.length;
+
+        for (let index = headingIndex + 1; index < lines.length; index += 1) {
+            if (/^#\s/.test(lines[index])) {
+                end = index;
+                break;
+            }
+        }
+
+        current = [...lines.slice(0, headingIndex), ...lines.slice(end)].join(
+            '\n'
+        );
+    }
+
+    // Rebuild around the marker instead of string-replacing into it, so the
+    // blank-line count on both sides of the section stays exact regardless of
+    // whether a removal just happened.
+    const markerIndex = current.indexOf(marker);
+    const before = current.slice(0, markerIndex);
+    const after = current
+        .slice(markerIndex + marker.length)
+        .replace(/^\n+/, '');
+
+    return {
+        content: `${before}${marker}\n\n${section.trim()}\n\n${after}`,
+        replaced,
+    };
 }
 
 /**
