@@ -684,28 +684,76 @@ export class PlaylistsService {
         });
     }
 
+    /**
+     * Applies an atomic favorites update: the current favorites are read
+     * inside the per-playlist write queue, so overlapping calls cannot work
+     * from stale snapshots. Callers should pass a pure transform instead of
+     * precomputing the next favorites array from an earlier read.
+     */
+    transformPlaylistFavorites(
+        playlistId: string,
+        transform: (
+            currentFavorites: NonNullable<Playlist['favorites']>
+        ) => NonNullable<Playlist['favorites']>
+    ): Observable<Playlist> {
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
+        }
+
+        return this.serializePlaylistWrite(playlistId, async () => {
+            const playlist = await firstValueFrom(
+                this.getPlaylistById(playlistId)
+            );
+            if (!playlist) {
+                throw new Error(`Playlist not found: ${playlistId}`);
+            }
+
+            const currentFavorites = Array.isArray(playlist.favorites)
+                ? playlist.favorites
+                : [];
+            const nextPlaylist: Playlist = {
+                ...playlist,
+                favorites: transform(currentFavorites),
+            };
+
+            await this.persistPlaylistMutation(nextPlaylist);
+            return nextPlaylist;
+        });
+    }
+
     updateManyPlaylists(playlists: Playlist[]) {
         if (playlists.length === 0) {
             return of([]);
         }
 
-        if (this.isElectronStorageAvailable) {
-            const updatedPlaylists = playlists.map((playlist) => ({
-                ...playlist,
-                updateDate: Date.now(),
-                autoRefresh: true,
-            }));
-            return this.upsertManySqlitePlaylists(updatedPlaylists);
-        }
-
+        // Auto-refresh payloads are snapshots taken before the refresh ran.
+        // Re-read the stored row inside the per-playlist queue and keep the
+        // user-owned fields (favorites, recently viewed, position) so a
+        // refresh write cannot clobber a concurrent collection mutation.
         return combineLatest(
-            playlists.map((playlist) => {
-                return this.dbService.update(DbStores.Playlists, {
-                    ...playlist,
-                    updateDate: Date.now(),
-                    autoRefresh: true,
-                });
-            })
+            playlists.map((playlist) =>
+                this.serializePlaylistWrite(playlist._id, async () => {
+                    const current = await firstValueFrom(
+                        this.getPlaylistById(playlist._id)
+                    );
+                    const nextPlaylist: Playlist = {
+                        ...current,
+                        ...playlist,
+                        ...(current
+                            ? {
+                                  favorites: current.favorites,
+                                  recentlyViewed: current.recentlyViewed,
+                                  position: current.position,
+                              }
+                            : {}),
+                        updateDate: Date.now(),
+                        autoRefresh: true,
+                    };
+
+                    await this.persistPlaylistMutation(nextPlaylist);
+                    return nextPlaylist;
+                })
+            )
         );
     }
 
@@ -845,46 +893,25 @@ export class PlaylistsService {
             return of([]);
         }
 
-        if (this.isElectronStorageAvailable) {
-            return this.runOnSqlite(async () => {
-                const electron = this.electronApi;
-                const playlists = electron
-                    ? ((await electron.dbGetAppPlaylists()) as Playlist[])
-                    : [];
-                const positionsById = new Map(
-                    positionUpdates.map((item) => [
-                        item.id,
-                        item.changes.position,
-                    ])
-                );
-
-                const updatedPlaylists = playlists
-                    .filter((playlist) => positionsById.has(playlist._id))
-                    .map((playlist) => ({
-                        ...playlist,
-                        position: positionsById.get(playlist._id),
-                    }));
-
-                if (electron) {
-                    await electron.dbUpsertAppPlaylists(updatedPlaylists);
-                }
-                return updatedPlaylists;
-            });
-        }
-
         return combineLatest(
-            positionUpdates.map((item) => {
-                return this.dbService
-                    .getByID<Playlist>(DbStores.Playlists, item.id)
-                    .pipe(
-                        switchMap((playlist: Playlist) =>
-                            this.dbService.update(DbStores.Playlists, {
-                                ...playlist,
-                                position: item.changes.position,
-                            })
-                        )
+            positionUpdates.map((item) =>
+                this.serializePlaylistWrite(item.id, async () => {
+                    const playlist = await firstValueFrom(
+                        this.getPlaylistById(item.id)
                     );
-            })
+                    if (!playlist) {
+                        return null;
+                    }
+
+                    const nextPlaylist: Playlist = {
+                        ...playlist,
+                        position: item.changes.position,
+                    };
+
+                    await this.persistPlaylistMutation(nextPlaylist);
+                    return nextPlaylist;
+                })
+            )
         );
     }
 

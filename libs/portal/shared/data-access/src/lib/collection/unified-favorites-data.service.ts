@@ -82,17 +82,13 @@ export class UnifiedFavoritesDataService {
     async removeFavorite(item: UnifiedCollectionItem): Promise<void> {
         switch (item.sourceType) {
             case 'm3u': {
-                const playlist = await firstValueFrom(
-                    this.playlistsService.getPlaylistById(item.playlistId)
+                await this.transformM3uFavorites(item.playlistId, (current) =>
+                    current.filter(
+                        (favoriteId) =>
+                            favoriteId !== item.streamUrl &&
+                            favoriteId !== item.channelId
+                    )
                 );
-                const filtered = (
-                    (playlist.favorites as string[]) ?? []
-                ).filter(
-                    (favoriteId) =>
-                        favoriteId !== item.streamUrl &&
-                        favoriteId !== item.channelId
-                );
-                await this.setM3uFavorites(item.playlistId, filtered);
                 break;
             }
             case 'xtream': {
@@ -132,23 +128,9 @@ export class UnifiedFavoritesDataService {
             return;
         }
 
-        const playlist = (await firstValueFrom(
-            this.playlistsService.getPlaylistById(item.playlistId)
-        )) as Playlist | undefined;
-        const currentFavorites = Array.isArray(playlist?.favorites)
-            ? playlist.favorites.filter(
-                  (favorite): favorite is string => typeof favorite === 'string'
-              )
-            : [];
-
-        if (currentFavorites.includes(favoriteId)) {
-            return;
-        }
-
-        await this.setM3uFavorites(item.playlistId, [
-            ...currentFavorites,
-            favoriteId,
-        ]);
+        await this.transformM3uFavorites(item.playlistId, (current) =>
+            current.includes(favoriteId) ? current : [...current, favoriteId]
+        );
     }
 
     private async addXtreamFavorite(
@@ -249,12 +231,14 @@ export class UnifiedFavoritesDataService {
             options.playlistId &&
             options.portalType === 'm3u'
         ) {
-            await this.setM3uFavorites(
-                options.playlistId,
-                items
-                    .map((item) => item.streamUrl ?? item.channelId ?? '')
-                    .filter((value) => value.length > 0)
-            );
+            const orderedIds = items
+                .map((item) => item.streamUrl ?? item.channelId ?? '')
+                .filter((value) => value.length > 0);
+            const orderedIdSet = new Set(orderedIds);
+            await this.transformM3uFavorites(options.playlistId, (current) => [
+                ...orderedIds,
+                ...current.filter((favorite) => !orderedIdSet.has(favorite)),
+            ]);
             return;
         }
 
@@ -263,32 +247,43 @@ export class UnifiedFavoritesDataService {
             options.playlistId &&
             options.portalType === 'stalker'
         ) {
-            const playlist = (await firstValueFrom(
-                this.playlistsService.getPlaylistById(options.playlistId)
-            )) as Playlist | undefined;
-            const currentFavorites = Array.isArray(playlist?.favorites)
-                ? playlist.favorites.filter(isStalkerItem)
-                : [];
-            const favoritesById = new Map(
-                currentFavorites.map((favorite) => [
-                    this.getStalkerFavoriteId(favorite),
-                    favorite,
-                ])
-            );
-            const reorderedFavorites = items
-                .map(
-                    (item) =>
-                        favoritesById.get(this.getStalkerFavoriteId(item)) ??
-                        null
-                )
-                .filter(
-                    (favorite): favorite is StalkerPortalItem =>
-                        favorite !== null
-                );
             await firstValueFrom(
-                this.playlistsService.setPortalFavorites(
+                this.playlistsService.transformPlaylistFavorites(
                     options.playlistId,
-                    reorderedFavorites
+                    (current) => {
+                        const currentFavorites = current.filter(isStalkerItem);
+                        const favoritesById = new Map(
+                            currentFavorites.map((favorite) => [
+                                this.getStalkerFavoriteId(favorite),
+                                favorite,
+                            ])
+                        );
+                        const reorderedFavorites = items
+                            .map(
+                                (item) =>
+                                    favoritesById.get(
+                                        this.getStalkerFavoriteId(item)
+                                    ) ?? null
+                            )
+                            .filter(
+                                (favorite): favorite is StalkerPortalItem =>
+                                    favorite !== null
+                            );
+                        const reorderedIds = new Set(
+                            reorderedFavorites.map((favorite) =>
+                                this.getStalkerFavoriteId(favorite)
+                            )
+                        );
+                        return [
+                            ...reorderedFavorites,
+                            ...currentFavorites.filter(
+                                (favorite) =>
+                                    !reorderedIds.has(
+                                        this.getStalkerFavoriteId(favorite)
+                                    )
+                            ),
+                        ];
+                    }
                 )
             );
             return;
@@ -334,9 +329,6 @@ export class UnifiedFavoritesDataService {
         await Promise.all(
             Array.from(groupedItems.entries()).map(
                 async ([playlistId, playlistItems]) => {
-                    const playlist = (await firstValueFrom(
-                        this.playlistsService.getPlaylistById(playlistId)
-                    )) as Playlist | undefined;
                     const targetIds = new Set<string>();
                     playlistItems.forEach((item) => {
                         [item.streamUrl, item.channelId].forEach((value) => {
@@ -346,17 +338,12 @@ export class UnifiedFavoritesDataService {
                             }
                         });
                     });
-                    const currentFavorites = Array.isArray(playlist?.favorites)
-                        ? playlist.favorites.filter(
-                              (favorite): favorite is string =>
-                                  typeof favorite === 'string'
-                          )
-                        : [];
-                    const nextFavorites = currentFavorites.filter(
-                        (favorite) => !targetIds.has(favorite.trim())
-                    );
 
-                    await this.setM3uFavorites(playlistId, nextFavorites);
+                    await this.transformM3uFavorites(playlistId, (current) =>
+                        current.filter(
+                            (favorite) => !targetIds.has(favorite.trim())
+                        )
+                    );
                 }
             )
         );
@@ -409,26 +396,26 @@ export class UnifiedFavoritesDataService {
         await Promise.all(
             Array.from(groupedItems.entries()).map(
                 async ([playlistId, playlistItems]) => {
-                    const playlist = (await firstValueFrom(
-                        this.playlistsService.getPlaylistById(playlistId)
-                    )) as Playlist | undefined;
                     const targetIds = new Set(
                         playlistItems.map((item) =>
                             this.getStalkerFavoriteId(item)
                         )
                     );
-                    const currentFavorites = Array.isArray(playlist?.favorites)
-                        ? playlist.favorites.filter(isStalkerItem)
-                        : [];
-                    const nextFavorites = currentFavorites.filter(
-                        (favorite) =>
-                            !targetIds.has(this.getStalkerFavoriteId(favorite))
-                    );
 
                     await firstValueFrom(
-                        this.playlistsService.setPortalFavorites(
+                        this.playlistsService.transformPlaylistFavorites(
                             playlistId,
-                            nextFavorites
+                            (current) =>
+                                current
+                                    .filter(isStalkerItem)
+                                    .filter(
+                                        (favorite) =>
+                                            !targetIds.has(
+                                                this.getStalkerFavoriteId(
+                                                    favorite
+                                                )
+                                            )
+                                    )
                         )
                     );
                 }
@@ -758,18 +745,27 @@ export class UnifiedFavoritesDataService {
         }
     }
 
-    private async setM3uFavorites(
+    private async transformM3uFavorites(
         playlistId: string,
-        favorites: string[]
+        transform: (currentFavorites: string[]) => string[]
     ): Promise<void> {
-        await firstValueFrom(
-            this.playlistsService.setFavorites(playlistId, favorites)
+        const updatedPlaylist = await firstValueFrom(
+            this.playlistsService.transformPlaylistFavorites(
+                playlistId,
+                (current) =>
+                    transform(
+                        current.filter(
+                            (favorite): favorite is string =>
+                                typeof favorite === 'string'
+                        )
+                    )
+            )
         );
         this.store.dispatch(
             PlaylistActions.updatePlaylistMeta({
                 playlist: {
                     _id: playlistId,
-                    favorites,
+                    favorites: updatedPlaylist.favorites,
                 } as PlaylistMeta,
             })
         );
