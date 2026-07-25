@@ -534,7 +534,8 @@ export class PlaylistsService {
             _id: playlistId,
             count:
                 updatedPlaylist.playlist?.items?.length ??
-                currentPlaylist?.count,
+                currentPlaylist?.count ??
+                updatedPlaylist.count,
             updateDate: Date.now(),
             updateState: PlaylistUpdateState.UPDATED,
             ...(currentPlaylist
@@ -760,14 +761,14 @@ export class PlaylistsService {
                     const current = await firstValueFrom(
                         this.getPlaylistById(playlist._id)
                     );
-                    const nextPlaylist: Playlist = {
-                        ...this.mergeRefreshedPlaylist(
-                            current,
-                            playlist,
-                            playlist._id
-                        ),
-                        autoRefresh: true,
-                    };
+                    // The merge takes autoRefresh from the current row first,
+                    // so disabling auto-refresh while a refresh is in flight
+                    // is not reverted by the completing batch write.
+                    const nextPlaylist = this.mergeRefreshedPlaylist(
+                        current,
+                        playlist,
+                        playlist._id
+                    );
 
                     await this.persistPlaylistMutation(nextPlaylist);
                     return nextPlaylist;

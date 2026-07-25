@@ -480,6 +480,10 @@ describe('PlaylistsService', () => {
 
     it('updates many browser playlists with refresh metadata', async () => {
         jest.spyOn(Date, 'now').mockReturnValue(1770000000000);
+        // Auto-refresh snapshots always come from playlists that had
+        // autoRefresh enabled; the batch write preserves that flag from the
+        // current row (or the snapshot when the row is missing) instead of
+        // force-enabling it.
         const playlists = [
             {
                 _id: 'playlist-a',
@@ -487,7 +491,7 @@ describe('PlaylistsService', () => {
                 count: 1,
                 importDate: '2026-04-01T00:00:00.000Z',
                 lastUsage: '2026-04-01T00:00:00.000Z',
-                autoRefresh: false,
+                autoRefresh: true,
             },
             {
                 _id: 'playlist-b',
@@ -495,7 +499,7 @@ describe('PlaylistsService', () => {
                 count: 2,
                 importDate: '2026-04-01T00:00:00.000Z',
                 lastUsage: '2026-04-01T00:00:00.000Z',
-                autoRefresh: false,
+                autoRefresh: true,
             },
         ] as Playlist[];
         const dbService = {
@@ -1481,14 +1485,16 @@ describe('PlaylistsService', () => {
         });
 
         it('keeps a queued favorite add when an auto-refresh batch write overlaps', async () => {
-            const { store, electron } = createStatefulElectronStore(
-                createBasePlaylist('portal-refresh-race')
-            );
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('portal-refresh-race'),
+                autoRefresh: true,
+            } as Playlist);
             testWindow.electron = electron;
 
             const service = createService();
             const staleRefreshSnapshot = {
                 ...createBasePlaylist('portal-refresh-race'),
+                autoRefresh: true,
                 title: 'Refreshed Title',
                 count: 42,
                 recentlyViewed: [],
@@ -1512,6 +1518,36 @@ describe('PlaylistsService', () => {
                 expect.objectContaining({ stream_id: 1 }),
                 expect.objectContaining({ stream_id: 2 }),
             ]);
+        });
+
+        it('does not re-enable auto-refresh disabled while a batch refresh is in flight', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('portal-autorefresh-race'),
+                autoRefresh: true,
+            } as Playlist);
+            testWindow.electron = electron;
+
+            const service = createService();
+            const staleRefreshSnapshot = {
+                ...createBasePlaylist('portal-autorefresh-race'),
+                autoRefresh: true,
+                title: 'Refreshed Title',
+            } as Playlist;
+
+            await Promise.all([
+                firstValueFrom(
+                    service.updatePlaylistMeta({
+                        _id: 'portal-autorefresh-race',
+                        autoRefresh: false,
+                    } as PlaylistMeta)
+                ),
+                firstValueFrom(
+                    service.updateManyPlaylists([staleRefreshSnapshot])
+                ),
+            ]);
+
+            expect(store.current.autoRefresh).toBe(false);
+            expect(store.current.title).toBe('Refreshed Title');
         });
 
         it('keeps queued metadata changes when an auto-refresh batch write overlaps', async () => {
