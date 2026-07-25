@@ -20,6 +20,7 @@ export * from './lib/language.enum';
 export * from './lib/m3u-favorite-channel.interface';
 export * from './lib/parsed-playlist.interface';
 export * from './lib/playback-position.interface';
+export * from './lib/playlist-auto-update.interface';
 export * from './lib/playlist-backup.interface';
 export * from './lib/playlist-meta.type';
 export * from './lib/playlist-recently-viewed.interface';

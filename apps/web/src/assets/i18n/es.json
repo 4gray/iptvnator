@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "No se pudo actualizar la lista. El archivo local ya no está disponible. Verifica la ruta del archivo o vuelve a importar la lista.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "No se pudo actualizar la lista. La aplicación ya no puede acceder al archivo local.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "¡Listo! Las listas de reproducción se actualizaron correctamente",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Auto-actualización incompleta: se actualizaron {{updated}} de {{total}} listas de reproducción, {{failed}} fallaron.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Auto-actualización incompleta: se actualizaron {{updated}} de {{total}} listas de reproducción, {{failed}} fallaron, {{skipped}} omitidas (sin URL ni ruta de archivo).",
+            "AUTO_REFRESH_UPDATE_FAILED": "La auto-actualización de listas de reproducción falló. Ninguna de las {{total}} listas se pudo actualizar.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Auto-actualización de listas de reproducción: se actualizaron {{updated}} de {{total}}, {{skipped}} omitidas (sin URL ni ruta de archivo).",
             "AUTO_REFRESH_ENABLED": "Auto-actualización activada"
         },
         "ADD_PLAYLIST": {

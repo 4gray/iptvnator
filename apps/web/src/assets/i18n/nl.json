@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Vernieuwen van afspeellijst mislukt. Het lokale bestand is niet meer beschikbaar. Controleer het bestandspad of importeer de afspeellijst opnieuw.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Vernieuwen van afspeellijst mislukt. De app heeft geen toegang meer tot het lokale bestand.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Gelukt! De afspeellijsten zijn succesvol bijgewerkt",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Automatisch vernieuwen onvolledig: {{updated}} van {{total}} afspeellijsten bijgewerkt, {{failed}} mislukt.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Automatisch vernieuwen onvolledig: {{updated}} van {{total}} afspeellijsten bijgewerkt, {{failed}} mislukt, {{skipped}} overgeslagen (geen URL of bestandspad).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Automatisch vernieuwen van afspeellijsten mislukt. Geen van de {{total}} afspeellijsten kon worden bijgewerkt.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Automatisch vernieuwen van afspeellijsten: {{updated}} van {{total}} bijgewerkt, {{skipped}} overgeslagen (geen URL of bestandspad).",
             "AUTO_REFRESH_ENABLED": "Automatisch vernieuwen ingeschakeld"
         },
         "ADD_PLAYLIST": {

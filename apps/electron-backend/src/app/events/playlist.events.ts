@@ -16,6 +16,7 @@ import {
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
+    summarizeAutoUpdateOutcomes,
 } from '@iptvnator/shared/interfaces';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 import type {
@@ -152,14 +153,15 @@ ipcMain.handle(
     ) => {
         console.log(`Auto-updating ${playlists.length} playlist(s)...`);
 
-        const updatedPlaylists = await autoUpdatePlaylists(playlists, {
+        const result = await autoUpdatePlaylists(playlists, {
             trustedInsecureTlsHosts: options?.trustedInsecureTlsHosts,
         });
+        const summary = summarizeAutoUpdateOutcomes(result.outcomes);
 
         console.log(
-            `Auto-update completed: ${updatedPlaylists.length} updated`
+            `Auto-update completed: ${summary.updated} updated, ${summary.failed} failed, ${summary.skipped} skipped`
         );
-        return updatedPlaylists;
+        return result;
     }
 );
 

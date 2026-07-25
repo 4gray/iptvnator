@@ -1,4 +1,5 @@
 import type {
+    AutoUpdatePlaylistsResult,
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
@@ -309,12 +310,12 @@ describe('playlist IPC events', () => {
                       })
         );
 
-        const result = await getHandler(AUTO_UPDATE_PLAYLISTS)(
+        const result = (await getHandler(AUTO_UPDATE_PLAYLISTS)(
             createIpcEvent(),
             sourcePlaylists
-        );
+        )) as AutoUpdatePlaylistsResult;
 
-        expect(result).toEqual([
+        expect(result.playlists).toEqual([
             expect.objectContaining({
                 _id: 'url-playlist',
                 autoRefresh: true,
@@ -328,6 +329,23 @@ describe('playlist IPC events', () => {
                 favorites: [],
                 title: 'Updated file playlist',
             }),
+        ]);
+        expect(result.outcomes).toEqual([
+            {
+                playlistId: 'url-playlist',
+                status: 'updated',
+                title: 'URL playlist',
+            },
+            {
+                playlistId: 'file-playlist',
+                status: 'updated',
+                title: 'File playlist',
+            },
+            {
+                playlistId: 'missing-source',
+                status: 'skipped',
+                title: 'Missing source',
+            },
         ]);
         expect(mockAxiosGet).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -345,6 +363,61 @@ describe('playlist IPC events', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
             'Skipping playlist "Missing source": no URL or file path found'
         );
+    });
+
+    it('reports failed playlists as failed outcomes instead of dropping them silently', async () => {
+        const sourcePlaylists: Playlist[] = [
+            createPlaylist({
+                _id: 'unreachable-playlist',
+                filePath: undefined,
+                title: 'Unreachable playlist',
+                url: 'https://unreachable.test/list.m3u',
+            }),
+            createPlaylist({
+                _id: 'file-playlist',
+                filePath: '/playlists/local.m3u',
+                importDate: '',
+                title: 'File playlist',
+                url: undefined,
+            }),
+        ];
+
+        mockAxiosGet.mockRejectedValue(
+            new Error('timeout of 30000ms exceeded')
+        );
+        mockReadFile.mockResolvedValue('#EXTM3U file');
+        mockParse.mockReturnValue({ items: [{ name: 'Updated' }] });
+        mockCreatePlaylistObject.mockReturnValue(
+            createPlaylist({
+                _id: 'new-file-playlist',
+                filePath: '/playlists/local.m3u',
+                title: 'Updated file playlist',
+            })
+        );
+
+        const result = (await getHandler(AUTO_UPDATE_PLAYLISTS)(
+            createIpcEvent(),
+            sourcePlaylists
+        )) as AutoUpdatePlaylistsResult;
+
+        expect(result.playlists).toEqual([
+            expect.objectContaining({
+                _id: 'file-playlist',
+                title: 'Updated file playlist',
+            }),
+        ]);
+        expect(result.outcomes).toEqual([
+            {
+                playlistId: 'unreachable-playlist',
+                status: 'failed',
+                title: 'Unreachable playlist',
+            },
+            {
+                playlistId: 'file-playlist',
+                status: 'updated',
+                title: 'File playlist',
+            },
+        ]);
     });
 
     it('forwards playlist refresh worker events, resolves successful responses, and cleans up the worker', async () => {

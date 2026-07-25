@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "재생목록 새로 고침에 실패했습니다. 로컬 파일을 더 이상 사용할 수 없습니다. 파일 경로를 확인하거나 재생목록을 다시 가져오세요.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "재생목록 새로 고침에 실패했습니다. 앱이 더 이상 로컬 파일에 접근할 수 없습니다.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "성공! 재생목록이 성공적으로 업데이트되었습니다",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "재생목록 자동 새로 고침이 완료되지 않았습니다. {{total}}개 중 {{updated}}개를 업데이트했고 {{failed}}개가 실패했습니다.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "재생목록 자동 새로 고침이 완료되지 않았습니다. {{total}}개 중 {{updated}}개를 업데이트했고 {{failed}}개가 실패했으며 {{skipped}}개를 건너뛰었습니다(URL 또는 파일 경로 없음).",
+            "AUTO_REFRESH_UPDATE_FAILED": "재생목록 자동 새로 고침에 실패했습니다. {{total}}개의 재생목록을 모두 업데이트하지 못했습니다.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "재생목록 자동 새로 고침: {{total}}개 중 {{updated}}개를 업데이트하고 {{skipped}}개를 건너뛰었습니다(URL 또는 파일 경로 없음).",
             "AUTO_REFRESH_ENABLED": "자동 새로 고침 활성화됨"
         },
         "ADD_PLAYLIST": {

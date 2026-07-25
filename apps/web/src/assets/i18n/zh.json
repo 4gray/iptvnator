@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "播放列表刷新失败。本地文件已不可用。请检查文件路径或重新导入播放列表。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "播放列表刷新失败。应用程序无法再访问该本地文件。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放列表已成功更新",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败。",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
+            "AUTO_REFRESH_UPDATE_FAILED": "播放列表自动刷新失败。{{total}} 个播放列表均未更新。",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "播放列表自动刷新：{{total}} 个中已更新 {{updated}} 个，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
             "AUTO_REFRESH_ENABLED": "已启用自动刷新"
         },
         "ADD_PLAYLIST": {

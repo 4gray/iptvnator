@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "プレイリストの更新に失敗しました。ローカルファイルが利用できなくなっています。ファイルパスを確認するか、プレイリストを再インポートしてください。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "プレイリストの更新に失敗しました。アプリがローカルファイルにアクセスできなくなりました。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "プレイリストの自動更新が完了しませんでした：{{total}} 件中 {{updated}} 件を更新し、{{failed}} 件が失敗しました。",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "プレイリストの自動更新が完了しませんでした：{{total}} 件中 {{updated}} 件を更新し、{{failed}} 件が失敗、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
+            "AUTO_REFRESH_UPDATE_FAILED": "プレイリストの自動更新に失敗しました。{{total}} 件のプレイリストをいずれも更新できませんでした。",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "プレイリストの自動更新：{{total}} 件中 {{updated}} 件を更新し、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
             "AUTO_REFRESH_ENABLED": "自動更新が有効です"
         },
         "ADD_PLAYLIST": {

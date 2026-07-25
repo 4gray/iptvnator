@@ -14,6 +14,7 @@ import {
 } from './global-search-result.interface';
 import { M3uFavoriteChannel } from './m3u-favorite-channel.interface';
 import { PlaybackPositionData } from './playback-position.interface';
+import { AutoUpdatePlaylistsResult } from './playlist-auto-update.interface';
 import {
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
@@ -594,7 +595,7 @@ export interface ElectronBridgeApi {
     autoUpdatePlaylists: (
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
-    ) => Promise<Playlist[]>;
+    ) => Promise<AutoUpdatePlaylistsResult>;
     fetchEpg: (
         urls: string[],
         options?: ElectronBridgeTrustOptions

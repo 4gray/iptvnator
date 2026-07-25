@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Не ўдалося абнавіць плэйліст. Лакальны файл больш недаступны. Праверце шлях да файла або паўторна імпартуйце плэйліст.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Не ўдалося абнавіць плэйліст. Праграма больш не мае доступу да лакальнага файла.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Гатова! Плэйлісты былі паспяхова абноўлены",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Аўтаабнаўленне не завершана: абноўлена {{updated}} з {{total}} плэйлістоў, не ўдалося — {{failed}}.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Аўтаабнаўленне не завершана: абноўлена {{updated}} з {{total}} плэйлістоў, не ўдалося — {{failed}}, прапушчана {{skipped}} (няма URL або шляху да файла).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Аўтаабнаўленне плэйлістоў не ўдалося. Ніводзін з {{total}} плэйлістоў не быў абноўлены.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Аўтаабнаўленне плэйлістоў: абноўлена {{updated}} з {{total}}, прапушчана {{skipped}} (няма URL або шляху да файла).",
             "AUTO_REFRESH_ENABLED": "Аўтаабнаўленне ўключана"
         },
         "ADD_PLAYLIST": {

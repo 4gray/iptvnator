@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "فشل تحديث قائمة التشغيل. الملف المحلي لم يعد متاحًا. تحقق من مسار الملف أو أعد استيراد قائمة التشغيل.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "فشل تحديث قائمة التشغيل. لم يعد بإمكان التطبيق الوصول إلى الملف المحلي.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! تم تحديث قوائم التشغيل بنجاح",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
+            "AUTO_REFRESH_UPDATE_FAILED": "فشل التحديث التلقائي لقوائم التشغيل. لم يتم تحديث أي من قوائم التشغيل الـ {{total}}.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "التحديث التلقائي لقوائم التشغيل: تم تحديث {{updated}} من {{total}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
             "AUTO_REFRESH_ENABLED": "تم تفعيل التحديث التلقائي"
         },
         "ADD_PLAYLIST": {
