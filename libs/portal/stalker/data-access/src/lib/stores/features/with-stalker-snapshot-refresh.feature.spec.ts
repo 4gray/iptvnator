@@ -1,9 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { Store } from '@ngrx/store';
-import { of, throwError } from 'rxjs';
-import { PlaylistActions } from '@iptvnator/m3u-state';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import { DataService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerVodSource } from '../../models';
 import { StalkerSessionService } from '../../stalker-session.service';
@@ -46,8 +43,6 @@ const TestSnapshotRefreshStore = signalStore(
 describe('withStalkerSnapshotRefresh', () => {
     let store: InstanceType<typeof TestSnapshotRefreshStore>;
     let dataService: { sendIpcEvent: jest.Mock };
-    let playlistService: { updatePortalCollectionSnapshots: jest.Mock };
-    let ngrxStore: { dispatch: jest.Mock };
 
     const mockPortalRows = (rows: unknown[]) => {
         dataService.sendIpcEvent.mockResolvedValue({ js: { data: rows } });
@@ -55,30 +50,19 @@ describe('withStalkerSnapshotRefresh', () => {
 
     beforeEach(() => {
         dataService = { sendIpcEvent: jest.fn() };
-        playlistService = {
-            updatePortalCollectionSnapshots: jest.fn(() =>
-                of({
-                    favorites: [{ id: '20001', series: [1, 2] }],
-                    recentlyViewed: [],
-                })
-            ),
-        };
-        ngrxStore = { dispatch: jest.fn() };
 
         TestBed.configureTestingModule({
             providers: [
                 TestSnapshotRefreshStore,
                 { provide: DataService, useValue: dataService },
                 { provide: StalkerSessionService, useValue: {} },
-                { provide: PlaylistsService, useValue: playlistService },
-                { provide: Store, useValue: ngrxStore },
             ],
         });
 
         store = TestBed.inject(TestSnapshotRefreshStore);
     });
 
-    it('patches the selection and persists snapshots when new episodes appeared', async () => {
+    it('patches the selection when new episodes appeared', async () => {
         mockPortalRows([
             { id: '20001', cmd: '/media/file_20001.mpg', series: [1, 2] },
         ]);
@@ -99,21 +83,6 @@ describe('withStalkerSnapshotRefresh', () => {
             })
         );
         expect(store.selectedItem()?.series).toEqual([1, 2]);
-        expect(
-            playlistService.updatePortalCollectionSnapshots
-        ).toHaveBeenCalledWith('portal-1', '20001', {
-            series: [1, 2],
-            cmd: '/media/file_20001.mpg',
-        });
-        expect(ngrxStore.dispatch).toHaveBeenCalledWith(
-            PlaylistActions.updatePlaylistMeta({
-                playlist: {
-                    _id: 'portal-1',
-                    favorites: [{ id: '20001', series: [1, 2] }],
-                    recentlyViewed: [],
-                } as PlaylistMeta,
-            })
-        );
     });
 
     it('updates a stale playback cmd even when the episode list is unchanged', async () => {
@@ -137,10 +106,7 @@ describe('withStalkerSnapshotRefresh', () => {
             false
         );
 
-        expect(
-            playlistService.updatePortalCollectionSnapshots
-        ).not.toHaveBeenCalled();
-        expect(ngrxStore.dispatch).not.toHaveBeenCalled();
+        expect(store.selectedItem()?.series).toEqual([1]);
     });
 
     it('retries with the wildcard category when the snapshot category misses', async () => {
@@ -260,9 +226,6 @@ describe('withStalkerSnapshotRefresh', () => {
 
         expect(store.selectedItem()?.series).toEqual([1]);
         expect(store.selectedItem()?.cmd).toBe('/media/file_20001.mpg');
-        expect(
-            playlistService.updatePortalCollectionSnapshots
-        ).not.toHaveBeenCalled();
     });
 
     it('never patches a selection that changed while the request was in flight', async () => {
@@ -291,9 +254,6 @@ describe('withStalkerSnapshotRefresh', () => {
 
         expect(store.selectedItem()?.id).toBe('99999');
         expect(store.selectedItem()?.series).toEqual([1]);
-        expect(
-            playlistService.updatePortalCollectionSnapshots
-        ).not.toHaveBeenCalled();
     });
 
     it('skips selections without an embedded episode list', async () => {
@@ -320,19 +280,4 @@ describe('withStalkerSnapshotRefresh', () => {
         expect(store.selectedItem()?.series).toEqual([1]);
     });
 
-    it('keeps the patched selection when snapshot persistence fails', async () => {
-        mockPortalRows([
-            { id: '20001', cmd: '/media/file_20001.mpg', series: [1, 2] },
-        ]);
-        playlistService.updatePortalCollectionSnapshots.mockReturnValue(
-            throwError(() => new Error('db write failed'))
-        );
-
-        await expect(store.refreshEmbeddedSeriesSelection()).resolves.toBe(
-            true
-        );
-
-        expect(store.selectedItem()?.series).toEqual([1, 2]);
-        expect(ngrxStore.dispatch).not.toHaveBeenCalled();
-    });
 });

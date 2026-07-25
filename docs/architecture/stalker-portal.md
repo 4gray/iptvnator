@@ -375,12 +375,16 @@ snapshot-first + background re-fetch contract:
 - The stored snapshot renders immediately; the store method
   `refreshEmbeddedSeriesSelection()` then re-fetches the item via a portal
   title search (`get_ordered_list&type=vod&search=<title>`, item matched by
-  id; wildcard-category retry) in the background.
-- When the episode list or `cmd` changed, the selection is patched in place
-  (staleness-guarded against navigation) and the stored favorite/recent
-  snapshots are rewritten through
-  `PlaylistsService.updatePortalCollectionSnapshots(...)`, so the dashboard
-  and the next open see fresh data too.
+  id, paginated up to 5 pages, wildcard-category retry) in the background.
+- When the episode list or `cmd` changed, the selection is patched in place.
+  The guard requires both the item id **and** the active playlist id to be
+  unchanged, because Stalker ids are only unique per portal.
+- Only the in-memory selection is patched — the stored snapshot row is
+  deliberately left alone. Every entry path into the detail view runs this
+  refresh, so a stale stored episode list is never rendered for longer than
+  one background request, and writing it back would add an uncontrolled
+  background writer to the whole-playlist read-modify-write that every
+  favorite/recent mutation performs (lost-update risk).
 - Triggers: `stalker-collection-detail.component.ts` (favorites/recent tabs,
   global collections, dashboard handoffs) and the optional catalog-facade hook
   `refreshSnapshotSelection()` for snapshot-injected browse detail

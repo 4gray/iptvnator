@@ -5,10 +5,8 @@ import {
     type,
     withMethods,
 } from '@ngrx/signals';
-import { Store } from '@ngrx/store';
-import { firstValueFrom } from 'rxjs';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import { DataService } from '@iptvnator/services';
 import {
     PlaylistMeta,
     StalkerPortalActions,
@@ -17,11 +15,7 @@ import { StalkerVodSource } from '../../models';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
 import { StalkerPortalStoreContract } from '../stalker-store.contracts';
-import {
-    dispatchStalkerPlaylistMetaUpdate,
-    executeStalkerRequest,
-    StalkerRequestDeps,
-} from '../utils';
+import { executeStalkerRequest, StalkerRequestDeps } from '../utils';
 
 interface StalkerOrderedListResponse {
     js?: {
@@ -39,9 +33,9 @@ const MAX_SEARCH_PAGES = 5;
  * Favorites/recently-viewed rows store embedded-series ("vclub") items as
  * full JSON snapshots, so their episode list (`series[]`) and playback
  * `cmd` freeze at the moment the snapshot was written. This feature
- * re-fetches the item from the portal in the background and patches both
- * the live selection and the stored snapshots, so newly released episodes
- * appear when a series is opened from favorites, recents, or the dashboard.
+ * re-fetches the item from the portal in the background and patches the
+ * live selection, so newly released episodes appear when a series is
+ * opened from favorites, recents, or the dashboard.
  */
 export function withStalkerSnapshotRefresh() {
     const logger = createLogger('withStalkerSnapshotRefresh');
@@ -56,9 +50,7 @@ export function withStalkerSnapshotRefresh() {
             (
                 store,
                 dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService),
-                playlistService = inject(PlaylistsService),
-                ngrxStore = inject(Store)
+                stalkerSession = inject(StalkerSessionService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerPortalStoreContract;
@@ -120,10 +112,9 @@ export function withStalkerSnapshotRefresh() {
                 return {
                     /**
                      * Re-fetches the currently selected embedded-series item
-                     * via a portal title search and, when the episode list or
-                     * cmd changed, patches the selection and rewrites the
-                     * stored favorite/recently-viewed snapshots. Safe to fire
-                     * and forget; resolves to true when anything was updated.
+                     * via a portal title search and patches the selection
+                     * when the episode list or cmd changed. Safe to fire and
+                     * forget; resolves to true when the selection changed.
                      */
                     async refreshEmbeddedSeriesSelection(): Promise<boolean> {
                         const playlist = storeContext.currentPlaylist();
@@ -203,6 +194,14 @@ export function withStalkerSnapshotRefresh() {
                             return false;
                         }
 
+                        // Only the in-memory selection is patched. The stored
+                        // snapshot is deliberately left untouched: every entry
+                        // path into the detail view runs this refresh, so a
+                        // stale stored episode list is never rendered for
+                        // longer than one background request, and writing it
+                        // back would add an uncontrolled background writer to
+                        // the whole-playlist read-modify-write used by every
+                        // favorite/recent mutation.
                         patchState(store, {
                             selectedItem: {
                                 ...current,
@@ -210,29 +209,6 @@ export function withStalkerSnapshotRefresh() {
                                 cmd: nextCmd,
                             },
                         });
-
-                        try {
-                            const updated = await firstValueFrom(
-                                playlistService.updatePortalCollectionSnapshots(
-                                    playlist._id,
-                                    snapshotId,
-                                    { series: fresh.series, cmd: nextCmd }
-                                )
-                            );
-                            dispatchStalkerPlaylistMetaUpdate(
-                                ngrxStore,
-                                playlist._id,
-                                {
-                                    favorites: updated?.favorites,
-                                    recentlyViewed: updated?.recentlyViewed,
-                                }
-                            );
-                        } catch (error) {
-                            logger.warn(
-                                'Failed to persist refreshed embedded-series snapshot',
-                                error
-                            );
-                        }
 
                         return true;
                     },
