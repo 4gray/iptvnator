@@ -31,11 +31,12 @@ import {
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
-    TmdbEnrichedCastMember,
-    XtreamSerieInfo,
-    XtreamSerieEpisode,
-    XtreamSerieDetails,
     normalizeTitleKeys,
+    seriesStatusLabelKey,
+    TmdbEnrichedCastMember,
+    XtreamSerieDetails,
+    XtreamSerieEpisode,
+    XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import {
     CrossPortalSimilarItem,
@@ -84,6 +85,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
+
+    /** Maps the status token to its translated label key */
+    readonly seriesStatusLabelKey = seriesStatusLabelKey;
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playback = inject(SerialDetailsPlaybackService);
     private readonly snackBar = inject(MatSnackBar);

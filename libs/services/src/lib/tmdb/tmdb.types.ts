@@ -115,6 +115,8 @@ export interface TmdbTvDetails extends TmdbDetailsBase {
     name?: string;
     original_name?: string;
     first_air_date?: string;
+    /** English production status ("Ended", "Returning Series", ...) */
+    status?: string;
     /** Series-wide cast; `credits` alone covers only the latest season */
     aggregate_credits?: TmdbAggregateCredits;
     episode_run_time?: number[];

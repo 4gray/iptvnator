@@ -1,15 +1,45 @@
 name: Build and Make Electron App
 
+# Docs-only changes never affect the packaged app, so they skip the build
+# matrix. apps/website/** is intentionally NOT ignored: the Linux build job
+# builds the website to verify AppStream screenshot assets. Tag pushes are
+# unaffected — GitHub does not evaluate paths filters for tags, so v* release
+# builds always run.
+#
+# Known accepted edge case: if a PR built a test-pr-<n> draft and later
+# reverts its code changes so the remaining diff is docs-only, new pushes
+# skip this workflow and the draft keeps assets from the older commit. The
+# draft's title/body name the exact commit they were built from, and
+# cleanup-pr-draft.yml deletes the draft when the PR closes, so the stale
+# window is visible and bounded; refreshing drafts on skipped runs is not
+# worth a separate workflow.
 on:
     push:
         branches:
             - master
         tags:
             - 'v*.*.*'
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
     pull_request:
         branches:
             - master
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
     workflow_dispatch:
+
+# Build jobs only read the repo; the create-release job raises itself to
+# contents: write at the job level to manage the rolling draft release.
+permissions:
+    contents: read
 
 jobs:
     linux-embedded-mpv-runtime:
@@ -1389,7 +1419,7 @@ jobs:
 
             - name: Get version from package.json
               id: package-version
-              run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+              run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
             # Test drafts (PR/master) get a self-describing title plus a context
             # header linking the PR, real head commit, and workflow run. A stable

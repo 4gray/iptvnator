@@ -2,7 +2,9 @@ import { XtreamSerieInfo, XtreamVodInfo } from '@iptvnator/shared/interfaces';
 import { mergeSerieInfoWithTmdb, mergeVodInfoWithTmdb } from './tmdb-merge';
 import { TmdbMovieDetails, TmdbTvDetails } from './tmdb.types';
 
-function providerVodInfo(overrides: Partial<XtreamVodInfo> = {}): XtreamVodInfo {
+function providerVodInfo(
+    overrides: Partial<XtreamVodInfo> = {}
+): XtreamVodInfo {
     return {
         kinopoisk_url: '',
         tmdb_id: '',
@@ -183,9 +185,7 @@ describe('mergeVodInfoWithTmdb', () => {
         expect(merged.rating).toBe(7);
         expect(merged.movie_image).toBe('http://provider/poster.jpg');
         expect(merged.tmdb_cast).toBeUndefined();
-        expect(merged.backdrop_path).toEqual([
-            'http://provider/backdrop.jpg',
-        ]);
+        expect(merged.backdrop_path).toEqual(['http://provider/backdrop.jpg']);
     });
 
     it('ignores TMDB rating without votes', () => {
@@ -349,7 +349,12 @@ describe('series cast (aggregate + latest season)', () => {
                 // Still around in the newest season
                 { id: 1, name: 'Karl Urban', order: 0, character: 'Butcher' },
                 // Joined only in the newest season
-                { id: 3, name: 'Newcomer Person', order: 1, character: 'Rookie' },
+                {
+                    id: 3,
+                    name: 'Newcomer Person',
+                    order: 1,
+                    character: 'Rookie',
+                },
             ],
         },
     };
@@ -441,5 +446,54 @@ describe('series cast (aggregate + latest season)', () => {
             },
         });
         expect(merged.cast).toBe('Top Billed, Second Billed');
+    });
+});
+
+describe('series status', () => {
+    const info: XtreamSerieInfo = {
+        name: 'The Boys',
+        cover: '',
+        plot: '',
+        cast: '',
+        director: '',
+        genre: '',
+        releaseDate: '',
+        last_modified: '',
+        rating: '',
+        rating_5based: 0,
+        backdrop_path: [],
+        youtube_trailer: '',
+        episode_run_time: '',
+        category_id: '1',
+    };
+    const base: TmdbTvDetails = { id: 76479, name: 'The Boys' };
+
+    it('maps TMDB status strings to stable tokens', () => {
+        expect(
+            mergeSerieInfoWithTmdb(info, {
+                ...base,
+                status: 'Returning Series',
+            }).tmdb_status
+        ).toBe('returning');
+        expect(
+            mergeSerieInfoWithTmdb(info, { ...base, status: 'Ended' })
+                .tmdb_status
+        ).toBe('ended');
+    });
+
+    it('is case-insensitive and accepts the British spelling', () => {
+        expect(
+            mergeSerieInfoWithTmdb(info, { ...base, status: 'cancelled' })
+                .tmdb_status
+        ).toBe('canceled');
+    });
+
+    it('omits the field for unknown or missing statuses', () => {
+        // Never surface a raw English string TMDB might add later
+        expect(
+            mergeSerieInfoWithTmdb(info, { ...base, status: 'Something New' })
+                .tmdb_status
+        ).toBeUndefined();
+        expect(mergeSerieInfoWithTmdb(info, base).tmdb_status).toBeUndefined();
     });
 });

@@ -92,6 +92,9 @@ pulling the lazy-loaded workspace shell feature bundle into the initial chunk.
 ## CI Enforcement
 
 The `Lint` job in `.github/workflows/ci.yml` runs
-`pnpm nx run-many --target=lint --all` on every PR, so
+`pnpm nx affected --target=lint` on PRs and
+`pnpm nx run-many --target=lint --all` on master pushes, so
 `@nx/enforce-module-boundaries` violations, legacy bare-alias imports, and
-`max-lines` violations fail CI. Run `pnpm run lint` locally before pushing.
+`max-lines` violations fail CI. Root config or lockfile changes mark every
+project affected, so the boundary rules cannot be dodged on PRs. Run
+`pnpm run lint` locally before pushing.
