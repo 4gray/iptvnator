@@ -10,6 +10,11 @@
     >
         <!-- Tags: Year, Genre, Rating -->
         <ng-template appDetailTags>
+            @if (serial.info.tmdb_status; as status) {
+                <span class="details__tag details__tag--status">{{
+                    seriesStatusLabelKey(status) | translate
+                }}</span>
+            }
             @if (serial.info.releasedate) {
                 <span class="details__tag">{{ serial.info.releasedate }}</span>
             }

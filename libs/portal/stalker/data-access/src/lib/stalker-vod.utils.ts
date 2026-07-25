@@ -161,6 +161,7 @@ export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
         ...(info.tmdb_directors
             ? { tmdb_directors: info.tmdb_directors }
             : {}),
+        ...(info.tmdb_status ? { tmdb_status: info.tmdb_status } : {}),
         ...(info.tmdb_backdrop ? { tmdb_backdrop: info.tmdb_backdrop } : {}),
         ...(info.tmdb_trailer ? { tmdb_trailer: info.tmdb_trailer } : {}),
         ...(info.tmdb_recommendations

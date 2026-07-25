@@ -303,3 +303,52 @@ describe('mergeSerieInfoWithTmdb', () => {
         expect(merged.cover).toBe('http://provider/cover.jpg');
     });
 });
+
+describe('series status', () => {
+    const info: XtreamSerieInfo = {
+        name: 'The Boys',
+        cover: '',
+        plot: '',
+        cast: '',
+        director: '',
+        genre: '',
+        releaseDate: '',
+        last_modified: '',
+        rating: '',
+        rating_5based: 0,
+        backdrop_path: [],
+        youtube_trailer: '',
+        episode_run_time: '',
+        category_id: '1',
+    };
+    const base: TmdbTvDetails = { id: 76479, name: 'The Boys' };
+
+    it('maps TMDB status strings to stable tokens', () => {
+        expect(
+            mergeSerieInfoWithTmdb(info, {
+                ...base,
+                status: 'Returning Series',
+            }).tmdb_status
+        ).toBe('returning');
+        expect(
+            mergeSerieInfoWithTmdb(info, { ...base, status: 'Ended' })
+                .tmdb_status
+        ).toBe('ended');
+    });
+
+    it('is case-insensitive and accepts the British spelling', () => {
+        expect(
+            mergeSerieInfoWithTmdb(info, { ...base, status: 'cancelled' })
+                .tmdb_status
+        ).toBe('canceled');
+    });
+
+    it('omits the field for unknown or missing statuses', () => {
+        // Never surface a raw English string TMDB might add later
+        expect(
+            mergeSerieInfoWithTmdb(info, { ...base, status: 'Something New' })
+                .tmdb_status
+        ).toBeUndefined();
+        expect(mergeSerieInfoWithTmdb(info, base).tmdb_status).toBeUndefined();
+    });
+});

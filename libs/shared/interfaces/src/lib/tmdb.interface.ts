@@ -33,6 +33,51 @@ export const DEFAULT_TMDB_SETTINGS: TmdbSettings = {
  * Cast member attached to provider detail objects after TMDB enrichment.
  * Rendered as avatar chips in the VOD/series detail views.
  */
+/**
+ * Production status of a series, as a stable token. TMDB returns this
+ * field as an ENGLISH string regardless of the request language, so the
+ * raw value must never reach the UI — it is normalized here and rendered
+ * through translated labels.
+ */
+export type TmdbSeriesStatus =
+    | 'returning'
+    | 'planned'
+    | 'in-production'
+    | 'ended'
+    | 'canceled'
+    | 'pilot';
+
+const SERIES_STATUS_TOKENS: Record<string, TmdbSeriesStatus> = {
+    'returning series': 'returning',
+    planned: 'planned',
+    'in production': 'in-production',
+    ended: 'ended',
+    canceled: 'canceled',
+    cancelled: 'canceled',
+    pilot: 'pilot',
+};
+
+/** `null` for unknown values — an unmapped status is simply not shown */
+export function normalizeSeriesStatus(
+    status: string | null | undefined
+): TmdbSeriesStatus | null {
+    const key = status?.trim().toLowerCase();
+    return (key && SERIES_STATUS_TOKENS[key]) || null;
+}
+
+const SERIES_STATUS_LABEL_KEYS: Record<TmdbSeriesStatus, string> = {
+    returning: 'XTREAM.SERIES_STATUS_RETURNING',
+    planned: 'XTREAM.SERIES_STATUS_PLANNED',
+    'in-production': 'XTREAM.SERIES_STATUS_IN_PRODUCTION',
+    ended: 'XTREAM.SERIES_STATUS_ENDED',
+    canceled: 'XTREAM.SERIES_STATUS_CANCELED',
+    pilot: 'XTREAM.SERIES_STATUS_PILOT',
+};
+
+export function seriesStatusLabelKey(status: TmdbSeriesStatus): string {
+    return SERIES_STATUS_LABEL_KEYS[status];
+}
+
 export interface TmdbEnrichedCastMember {
     name: string;
     character?: string;
