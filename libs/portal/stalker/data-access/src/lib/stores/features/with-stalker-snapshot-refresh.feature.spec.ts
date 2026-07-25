@@ -191,6 +191,80 @@ describe('withStalkerSnapshotRefresh', () => {
         );
     });
 
+    it('finds the item on a later search page when page 1 is full of other matches', async () => {
+        const filler = Array.from({ length: 14 }, (_, i) => ({
+            id: `9${i}`,
+            series: [1],
+        }));
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({
+                js: {
+                    data: filler,
+                    total_items: 15,
+                    max_page_items: 14,
+                    total_pages: 2,
+                },
+            })
+            .mockResolvedValueOnce({
+                js: {
+                    data: [
+                        {
+                            id: '20001',
+                            cmd: '/media/file_20001.mpg',
+                            series: [1, 2],
+                        },
+                    ],
+                    total_items: 15,
+                    max_page_items: 14,
+                    total_pages: 2,
+                },
+            });
+
+        await expect(store.refreshEmbeddedSeriesSelection()).resolves.toBe(
+            true
+        );
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+        expect(dataService.sendIpcEvent).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                params: expect.objectContaining({ p: 2 }),
+            })
+        );
+        expect(store.selectedItem()?.series).toEqual([1, 2]);
+    });
+
+    it('never patches after the active portal changed while the request was in flight', async () => {
+        dataService.sendIpcEvent.mockImplementation(async () => {
+            // Same item id, but the user switched to another portal
+            store.setCurrentPlaylist({
+                ...PLAYLIST,
+                _id: 'portal-2',
+            } as PlaylistMeta);
+            return {
+                js: {
+                    data: [
+                        {
+                            id: '20001',
+                            cmd: '/media/other_portal.mpg',
+                            series: [1, 2, 3, 4],
+                        },
+                    ],
+                },
+            };
+        });
+
+        await expect(store.refreshEmbeddedSeriesSelection()).resolves.toBe(
+            false
+        );
+
+        expect(store.selectedItem()?.series).toEqual([1]);
+        expect(store.selectedItem()?.cmd).toBe('/media/file_20001.mpg');
+        expect(
+            playlistService.updatePortalCollectionSnapshots
+        ).not.toHaveBeenCalled();
+    });
+
     it('never patches a selection that changed while the request was in flight', async () => {
         dataService.sendIpcEvent.mockImplementation(async () => {
             store.setSelectedItem({

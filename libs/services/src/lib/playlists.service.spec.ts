@@ -692,6 +692,13 @@ describe('PlaylistsService', () => {
                     added_at: '2026-04-01T10:00:00.000Z',
                 },
                 { id: '555', title: 'Other Movie', series: [1] },
+                {
+                    stream_id: '20001',
+                    title: 'Live Channel With Same Id',
+                    stream_type: 'live',
+                    cmd: 'ffrt http://live/20001',
+                },
+                { id: '20001', title: 'Movie With Same Id, no episodes' },
             ],
             recentlyViewed: [
                 {
@@ -734,6 +741,17 @@ describe('PlaylistsService', () => {
                         added_at: '2026-04-01T10:00:00.000Z',
                     }),
                     expect.objectContaining({ id: '555', series: [1] }),
+                    // Same portal-local id, but a live channel — untouched
+                    expect.objectContaining({
+                        stream_id: '20001',
+                        stream_type: 'live',
+                        cmd: 'ffrt http://live/20001',
+                    }),
+                    // Same id without an embedded series list — untouched
+                    expect.objectContaining({
+                        id: '20001',
+                        title: 'Movie With Same Id, no episodes',
+                    }),
                 ],
                 recentlyViewed: [
                     expect.objectContaining({
@@ -745,6 +763,46 @@ describe('PlaylistsService', () => {
                 ],
             })
         );
+    });
+
+    it('skips the snapshot write entirely when no eligible row changed', async () => {
+        const playlist = {
+            _id: 'portal-snapshot-noop',
+            title: 'Portal Snapshot Noop',
+            count: 0,
+            importDate: '2026-04-01T00:00:00.000Z',
+            lastUsage: '2026-04-01T00:00:00.000Z',
+            autoRefresh: false,
+            favorites: [
+                {
+                    id: '20001',
+                    title: 'Embedded Series',
+                    cmd: '/media/file_20001.mpg',
+                    series: [1, 2],
+                },
+            ],
+            recentlyViewed: [],
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(playlist)),
+            update: jest.fn((_storeName: string, updated: Playlist) =>
+                of(updated)
+            ),
+        };
+        testWindow.electron = undefined;
+
+        const service = createService(dbService);
+
+        await firstValueFrom(
+            service.updatePortalCollectionSnapshots(
+                'portal-snapshot-noop',
+                '20001',
+                { series: [1, 2], cmd: '/media/file_20001.mpg' }
+            )
+        );
+
+        expect(dbService.update).not.toHaveBeenCalled();
     });
 
     it('updates browser playlist positions through individual reads and writes', async () => {

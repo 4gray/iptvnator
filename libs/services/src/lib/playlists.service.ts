@@ -806,10 +806,16 @@ export class PlaylistsService {
 
     /**
      * Patches the stored favorite and recently-viewed snapshots of one
-     * portal item (matched by id/stream_id/movie_id/series_id) in place,
-     * preserving row order and bookkeeping fields such as added_at. Used
-     * to refresh stale embedded-series snapshots after a background portal
-     * re-fetch.
+     * embedded-series portal item in place, preserving row order and
+     * bookkeeping fields such as added_at. Used to refresh stale
+     * embedded-series snapshots after a background portal re-fetch.
+     *
+     * Stalker IDs are only unique per catalog, so a bare ID match could
+     * also hit an unrelated live channel or movie row that happens to
+     * share the number — only rows that already carry an embedded
+     * `series` list (and are not live) are eligible. When no eligible row
+     * actually changes, nothing is written, so a concurrent collection
+     * mutation is never overwritten by a no-op refresh.
      */
     updatePortalCollectionSnapshots(
         portalId: string,
@@ -825,7 +831,16 @@ export class PlaylistsService {
             if (!row || typeof row !== 'object') {
                 return false;
             }
-            const candidate = row as PortalFavoriteItem;
+            const candidate = row as PortalFavoriteItem & {
+                series?: unknown[];
+            };
+            if (
+                candidate.stream_type === 'live' ||
+                !Array.isArray(candidate.series) ||
+                candidate.series.length === 0
+            ) {
+                return false;
+            }
             return [
                 candidate.id,
                 candidate.stream_id,
@@ -838,8 +853,18 @@ export class PlaylistsService {
                     String(value) === expectedId
             );
         };
-        const patchRow = <T>(row: T): T =>
-            matchesSnapshot(row) ? { ...(row as object), ...patch } as T : row;
+        let changed = false;
+        const patchRow = <T>(row: T): T => {
+            if (!matchesSnapshot(row)) {
+                return row;
+            }
+            const patched = { ...(row as object), ...patch } as T;
+            if (JSON.stringify(patched) !== JSON.stringify(row)) {
+                changed = true;
+                return patched;
+            }
+            return row;
+        };
 
         return this.getPlaylistById(portalId).pipe(
             switchMap((portal) => {
@@ -850,6 +875,10 @@ export class PlaylistsService {
                         patchRow
                     ),
                 };
+
+                if (!changed) {
+                    return of(portal);
+                }
 
                 if (this.isElectronStorageAvailable) {
                     return this.upsertSqlitePlaylist(nextPlaylist);
