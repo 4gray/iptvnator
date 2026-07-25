@@ -25,6 +25,14 @@ import {
 
 const MAX_CAST_NAMES = 10;
 
+/**
+ * Slots held back for people who appear only in the newest season. On a
+ * long-running show the whole-run cast alone fills the display limit, so
+ * without a reservation the arrivals this union exists to preserve would
+ * be sliced straight back off.
+ */
+const RESERVED_NEW_SEASON_SLOTS = 3;
+
 const byBillingOrder = (a: { order?: number }, b: { order?: number }) =>
     (a.order ?? 0) - (b.order ?? 0);
 
@@ -82,7 +90,17 @@ function unifiedTvCast(details: TmdbTvDetails): TmdbCastMember[] {
         )
         .sort(byBillingOrder);
 
-    return [...aggregate, ...arrivals];
+    if (arrivals.length === 0) {
+        return aggregate;
+    }
+
+    // Reserve room for the top-billed arrivals rather than appending them
+    // where the cap will discard them.
+    const reserved = Math.min(arrivals.length, RESERVED_NEW_SEASON_SLOTS);
+    return [
+        ...aggregate.slice(0, Math.max(0, MAX_CAST_NAMES - reserved)),
+        ...arrivals.slice(0, reserved),
+    ];
 }
 
 function castNames(cast: TmdbCastMember[]): string {

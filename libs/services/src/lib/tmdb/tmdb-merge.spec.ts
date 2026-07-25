@@ -382,6 +382,52 @@ describe('series cast (aggregate + latest season)', () => {
         ).toHaveLength(1);
     });
 
+    it('keeps newest-season arrivals when the aggregate already fills the cap', () => {
+        // The case the union exists for: a long-running show whose
+        // whole-run cast alone exceeds the display limit
+        const bigAggregate = Array.from({ length: 12 }, (_, i) => ({
+            id: 100 + i,
+            name: `Regular ${i}`,
+            order: i,
+            roles: [{ character: `Role ${i}` }],
+        }));
+        const merged = mergeSerieInfoWithTmdb(info, {
+            id: 76479,
+            name: 'The Boys',
+            aggregate_credits: { cast: bigAggregate },
+            credits: {
+                cast: [
+                    { id: 900, name: 'Brand New Lead', order: 0 },
+                    { id: 901, name: 'Brand New Sidekick', order: 1 },
+                ],
+            },
+        });
+
+        const names = merged.tmdb_cast?.map((member) => member.name) ?? [];
+        expect(names).toHaveLength(10);
+        expect(names).toContain('Brand New Lead');
+        expect(names).toContain('Brand New Sidekick');
+        // Top billing survives; the reservation eats into the tail only
+        expect(names[0]).toBe('Regular 0');
+    });
+
+    it('gives every slot to the aggregate when nobody is new', () => {
+        const bigAggregate = Array.from({ length: 12 }, (_, i) => ({
+            id: 100 + i,
+            name: `Regular ${i}`,
+            order: i,
+        }));
+        const merged = mergeSerieInfoWithTmdb(info, {
+            id: 76479,
+            name: 'The Boys',
+            aggregate_credits: { cast: bigAggregate },
+            credits: { cast: [{ id: 100, name: 'Regular 0', order: 0 }] },
+        });
+
+        expect(merged.tmdb_cast).toHaveLength(10);
+        expect(merged.tmdb_cast?.[9].name).toBe('Regular 9');
+    });
+
     it('falls back to plain credits when no aggregate is present', () => {
         // Cache rows written before aggregate_credits was requested
         const merged = mergeSerieInfoWithTmdb(info, {
