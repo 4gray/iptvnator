@@ -285,12 +285,22 @@ person cache rows are unaffected.
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):
 
-- Worker ops: `DB_GET_TMDB_METADATA`, `DB_SET_TMDB_METADATA`
+- Worker ops: `DB_GET_TMDB_METADATA`, `DB_SET_TMDB_METADATA`, plus the two
+  maintenance ops behind the settings cache panel,
+  `DB_GET_TMDB_CACHE_STATS` and `DB_CLEAR_TMDB_METADATA`
   (`database-worker.types.ts`, `database.worker.ts`,
   `operations/tmdb.operations.ts`)
 - IPC registration: `events/database/tmdb.events.ts`
-- Preload bridge: `dbGetTmdbMetadata` / `dbSetTmdbMetadata` on
-  `window.electron` (typed in `ElectronBridgeApi`)
+- Preload bridge: `dbGetTmdbMetadata` / `dbSetTmdbMetadata` /
+  `dbGetTmdbCacheStats` / `dbClearTmdbMetadata` on `window.electron` (typed
+  in `ElectronBridgeApi`)
+
+`TmdbCacheService` treats the maintenance pair as optional on the bridge: an
+Electron shell that predates them reports `null` (unsupported) rather than
+falling back to the renderer map, which is always empty in Electron and
+would claim the SQLite cache is empty. A `clear()` first awaits the writes
+already in flight so they land and are deleted with everything else; writes
+issued after the clear are deliberately kept.
 
 The PWA uses a session-scoped in-memory map (acceptable for phase 1; TMDB
 supports CORS so the PWA calls the API directly).
@@ -299,7 +309,12 @@ supports CORS so the PWA calls the API directly).
 
 `Settings.tmdb?: { enabled: boolean; apiKey?: string }`
 (`libs/shared/interfaces/src/lib/tmdb.interface.ts`). The settings page has
-a "Metadata (TMDB)" section (enable toggle + optional API key override).
+a "Metadata (TMDB)" section: enable toggle, optional API key override with a
+"check key" button (validates against `/configuration`), and a cache panel
+showing the stored row count plus payload size with a button that drops the
+lot. Sizing is a full table scan, so it runs only once that section is the
+active one, and a failed read or clear says so instead of showing an empty
+cache.
 
 The embedded default key lives in `DEFAULT_TMDB_API_KEY`
 (`libs/services/src/lib/tmdb/tmdb-config.ts`) and is an **empty placeholder

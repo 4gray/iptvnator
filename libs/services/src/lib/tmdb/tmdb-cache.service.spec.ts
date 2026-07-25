@@ -87,3 +87,84 @@ describe('TmdbCacheService (in-memory LRU)', () => {
         });
     });
 });
+
+describe('TmdbCacheService (Electron bridge)', () => {
+    const entry = (lookupKey: string): TmdbCacheEntry => ({
+        mediaType: 'movie',
+        lookupKey,
+        language: 'en-US',
+        tmdbId: 1,
+        payload: '{}',
+    });
+
+    interface ElectronStub {
+        dbGetTmdbMetadata: jest.Mock;
+        dbSetTmdbMetadata: jest.Mock;
+        dbGetTmdbCacheStats?: jest.Mock;
+        dbClearTmdbMetadata?: jest.Mock;
+    }
+
+    let electron: ElectronStub;
+
+    /** Resolves the next dbSetTmdbMetadata call on demand */
+    let releaseWrite: () => void;
+
+    beforeEach(() => {
+        releaseWrite = () => undefined;
+        electron = {
+            dbGetTmdbMetadata: jest.fn().mockResolvedValue(null),
+            dbSetTmdbMetadata: jest.fn(
+                () =>
+                    new Promise<void>((resolve) => {
+                        releaseWrite = resolve;
+                    })
+            ),
+            dbGetTmdbCacheStats: jest
+                .fn()
+                .mockResolvedValue({ entries: 3, bytes: 90 }),
+            dbClearTmdbMetadata: jest.fn().mockResolvedValue({ deleted: 3 }),
+        };
+        (window as unknown as { electron: unknown }).electron = electron;
+    });
+
+    afterEach(() => {
+        delete (window as unknown as { electron?: unknown }).electron;
+    });
+
+    it('waits for an in-flight write instead of re-clearing after it', async () => {
+        const service = new TmdbCacheService();
+        const pending = service.set(entry('id:late'));
+
+        const cleared = service.clear();
+        // The clear must not reach SQLite before the write it has to remove
+        await Promise.resolve();
+        expect(electron.dbClearTmdbMetadata).not.toHaveBeenCalled();
+
+        releaseWrite();
+        await pending;
+        await expect(cleared).resolves.toBe(3);
+        expect(electron.dbClearTmdbMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps rows written after the clear', async () => {
+        const service = new TmdbCacheService();
+        await service.clear();
+
+        const pending = service.set(entry('id:fresh'));
+        releaseWrite();
+        await pending;
+
+        // A second clear here would delete data the user never asked to lose
+        expect(electron.dbClearTmdbMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports an unsupported shell instead of the empty renderer map', async () => {
+        // Newer renderer, older preload: rows are in SQLite but out of reach
+        delete electron.dbGetTmdbCacheStats;
+        delete electron.dbClearTmdbMetadata;
+        const service = new TmdbCacheService();
+
+        await expect(service.getStats()).resolves.toBeNull();
+        await expect(service.clear()).resolves.toBeNull();
+    });
+});

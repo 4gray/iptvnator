@@ -23,11 +23,12 @@ export class TmdbCacheService {
     private readonly memoryCache = new Map<string, TmdbCacheEntry>();
 
     /**
-     * Bumped by {@link clear}. A write that was already in flight when the
-     * user cleared belongs to the generation it started in, and applying it
-     * afterwards would silently resurrect exactly the data they removed.
+     * Electron writes that have not landed yet. {@link clear} waits for
+     * them, so a write already in flight cannot outlive the clear that
+     * followed it — and, unlike re-clearing after the late write lands,
+     * waiting cannot take rows written *after* the user cleared with it.
      */
-    private generation = 0;
+    private readonly pendingWrites = new Set<Promise<unknown>>();
 
     private get bridge() {
         // typeof checks guard against version skew: an older Electron shell
@@ -74,24 +75,20 @@ export class TmdbCacheService {
             ...entry,
             fetchedAt: new Date().toISOString(),
         };
-        const startedIn = this.generation;
 
         const bridge = this.bridge;
         if (bridge) {
+            const write = bridge
+                .dbSetTmdbMetadata(stamped)
+                .catch((error: unknown) => {
+                    console.warn('TMDB cache write failed:', error);
+                });
+            this.pendingWrites.add(write);
             try {
-                // Re-check after the await: a clear may have landed while
-                // this write was in flight
-                await bridge.dbSetTmdbMetadata(stamped);
-                if (startedIn !== this.generation) {
-                    await bridge.dbClearTmdbMetadata?.();
-                }
-            } catch (error) {
-                console.warn('TMDB cache write failed:', error);
+                await write;
+            } finally {
+                this.pendingWrites.delete(write);
             }
-            return;
-        }
-
-        if (startedIn !== this.generation) {
             return;
         }
 
@@ -134,7 +131,14 @@ export class TmdbCacheService {
      */
     async getStats(): Promise<TmdbCacheStats | null> {
         const bridge = this.bridge;
-        if (bridge?.dbGetTmdbCacheStats) {
+        if (bridge) {
+            if (!bridge.dbGetTmdbCacheStats) {
+                // Version skew: this shell persists to SQLite but predates
+                // the maintenance ops. The renderer map is empty in
+                // Electron, so falling back to it would report a cache that
+                // is anything but empty as having nothing in it.
+                return null;
+            }
             try {
                 return await bridge.dbGetTmdbCacheStats();
             } catch (error) {
@@ -162,22 +166,32 @@ export class TmdbCacheService {
      */
     async clear(): Promise<number | null> {
         const bridge = this.bridge;
-        this.generation++;
         const clearedFromMemory = this.memoryCache.size;
         this.memoryCache.clear();
 
-        if (bridge?.dbClearTmdbMetadata) {
-            try {
-                const result = await bridge.dbClearTmdbMetadata();
-                return result?.deleted ?? 0;
-            } catch (error) {
-                // `null` so the panel can say it failed and stay actionable
-                console.warn('TMDB cache clear failed:', error);
-                return null;
-            }
+        if (!bridge) {
+            return clearedFromMemory;
         }
 
-        return clearedFromMemory;
-    }
+        if (!bridge.dbClearTmdbMetadata) {
+            // Same version skew as getStats(): the rows are in SQLite and
+            // stay there, so reporting a successful clear would be a lie
+            return null;
+        }
 
+        // Let writes issued before this point land first — the clear below
+        // then takes them too. Rows written afterwards are kept on purpose.
+        if (this.pendingWrites.size > 0) {
+            await Promise.allSettled([...this.pendingWrites]);
+        }
+
+        try {
+            const result = await bridge.dbClearTmdbMetadata();
+            return result?.deleted ?? 0;
+        } catch (error) {
+            // `null` so the panel can say it failed and stay actionable
+            console.warn('TMDB cache clear failed:', error);
+            return null;
+        }
+    }
 }
