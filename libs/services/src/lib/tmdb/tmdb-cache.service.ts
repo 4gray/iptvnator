@@ -78,11 +78,15 @@ export class TmdbCacheService {
 
         const bridge = this.bridge;
         if (bridge) {
-            const write = bridge
-                .dbSetTmdbMetadata(stamped)
-                .catch((error: unknown) => {
+            // The IIFE also converts a synchronous throw from the bridge
+            // into a rejection, so `set` never throws at its caller
+            const write = (async () => {
+                try {
+                    await bridge.dbSetTmdbMetadata(stamped);
+                } catch (error) {
                     console.warn('TMDB cache write failed:', error);
-                });
+                }
+            })();
             this.pendingWrites.add(write);
             try {
                 await write;
