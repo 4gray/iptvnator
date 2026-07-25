@@ -158,6 +158,30 @@ describe('TmdbCacheService (Electron bridge)', () => {
         expect(electron.dbClearTmdbMetadata).toHaveBeenCalledTimes(1);
     });
 
+    it('lands a write that starts during the clear after the delete', async () => {
+        const service = new TmdbCacheService();
+        const order: string[] = [];
+        electron.dbClearTmdbMetadata = jest.fn(async () => {
+            order.push('clear');
+            return { deleted: 3 };
+        });
+
+        const first = service.set(entry('id:before'));
+        const cleared = service.clear();
+
+        // Starts while the clear is waiting on the first write — without
+        // serialization its row would reach SQLite before the delete
+        const second = service.set(entry('id:during'));
+        electron.dbSetTmdbMetadata.mockImplementation(async () => {
+            order.push('write');
+        });
+
+        releaseWrite();
+        await Promise.all([first, cleared, second]);
+
+        expect(order).toEqual(['clear', 'write']);
+    });
+
     it('reports an unsupported shell instead of the empty renderer map', async () => {
         // Newer renderer, older preload: rows are in SQLite but out of reach
         delete electron.dbGetTmdbCacheStats;

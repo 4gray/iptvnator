@@ -299,8 +299,10 @@ Electron IPC path (follows the standard DB worker contract, see
 Electron shell that predates them reports `null` (unsupported) rather than
 falling back to the renderer map, which is always empty in Electron and
 would claim the SQLite cache is empty. A `clear()` first awaits the writes
-already in flight so they land and are deleted with everything else; writes
-issued after the clear are deliberately kept.
+already in flight so they land and are deleted with everything else, and
+holds the clear promise for its duration so a write starting meanwhile
+queues behind the delete instead of racing it. Rows written after the user
+cleared are deliberately kept.
 
 The PWA uses a session-scoped in-memory map (acceptable for phase 1; TMDB
 supports CORS so the PWA calls the API directly).

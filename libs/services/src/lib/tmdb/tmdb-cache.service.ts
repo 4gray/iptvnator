@@ -30,6 +30,9 @@ export class TmdbCacheService {
      */
     private readonly pendingWrites = new Set<Promise<unknown>>();
 
+    /** Set for the duration of {@link clear}; writes queue behind it */
+    private clearInFlight: Promise<unknown> | null = null;
+
     private get bridge() {
         // typeof checks guard against version skew: an older Electron shell
         // may not expose the TMDB cache methods yet
@@ -71,18 +74,20 @@ export class TmdbCacheService {
     }
 
     async set(entry: TmdbCacheEntry): Promise<void> {
-        const stamped: TmdbCacheEntry = {
-            ...entry,
-            fetchedAt: new Date().toISOString(),
-        };
-
         const bridge = this.bridge;
         if (bridge) {
+            // A clear owns the table until it finishes. Dispatching now
+            // would race the delete and lose a row the user never asked to
+            // lose, so this write waits it out and lands after it.
+            while (this.clearInFlight) {
+                await this.clearInFlight;
+            }
+
             // The IIFE also converts a synchronous throw from the bridge
             // into a rejection, so `set` never throws at its caller
             const write = (async () => {
                 try {
-                    await bridge.dbSetTmdbMetadata(stamped);
+                    await bridge.dbSetTmdbMetadata(this.stamp(entry));
                 } catch (error) {
                     console.warn('TMDB cache write failed:', error);
                 }
@@ -102,7 +107,7 @@ export class TmdbCacheService {
             entry.language
         );
         this.memoryCache.delete(key);
-        this.memoryCache.set(key, stamped);
+        this.memoryCache.set(key, this.stamp(entry));
         // delete-then-reinsert above means at most one entry over the cap
         if (this.memoryCache.size > MEMORY_CACHE_MAX_ENTRIES) {
             const oldest = this.memoryCache.keys().next().value;
@@ -110,6 +115,11 @@ export class TmdbCacheService {
                 this.memoryCache.delete(oldest);
             }
         }
+    }
+
+    /** Stamped at write time, not at call time — a write may have waited */
+    private stamp(entry: TmdbCacheEntry): TmdbCacheEntry {
+        return { ...entry, fetchedAt: new Date().toISOString() };
     }
 
     isFresh(entry: TmdbCacheEntry | null, ttlMs: number): boolean {
@@ -177,14 +187,33 @@ export class TmdbCacheService {
             return clearedFromMemory;
         }
 
-        if (!bridge.dbClearTmdbMetadata) {
+        const clearMetadata = bridge.dbClearTmdbMetadata;
+        if (!clearMetadata) {
             // Same version skew as getStats(): the rows are in SQLite and
             // stay there, so reporting a successful clear would be a lie
             return null;
         }
 
-        // Let writes issued before this point land first — the clear below
-        // then takes them too. Rows written afterwards are kept on purpose.
+        // Called through the bridge so the preload keeps its receiver
+        const run = this.runClear(() => clearMetadata.call(bridge));
+        this.clearInFlight = run;
+        try {
+            return await run;
+        } finally {
+            this.clearInFlight = null;
+        }
+    }
+
+    /**
+     * Everything between the writes already in flight and the delete. Held
+     * in `clearInFlight` for its duration, which is what puts writes that
+     * start meanwhile on the far side of the delete rather than under it.
+     */
+    private async runClear(
+        clearMetadata: () => Promise<{ deleted: number } | undefined>
+    ): Promise<number | null> {
+        // Writes issued before the clear land first, so the delete takes
+        // them too.
         if (this.pendingWrites.size > 0) {
             // Not Promise.allSettled: the web target compiles against
             // lib es2018. The writes swallow their own errors anyway.
@@ -199,7 +228,7 @@ export class TmdbCacheService {
         }
 
         try {
-            const result = await bridge.dbClearTmdbMetadata();
+            const result = await clearMetadata();
             return result?.deleted ?? 0;
         } catch (error) {
             // `null` so the panel can say it failed and stay actionable
