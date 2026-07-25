@@ -94,8 +94,11 @@ Wrong metadata is worse than no metadata, so id resolution is conservative:
       than about the id.
 
    A 404 is the one hard verdict: the id is recorded as dead
-   (`badProviderId:<id>` row) and skipped next time. Transient failures
-   (auth, rate limit, 5xx, offline) never disable an id.
+   (`badProviderId:<id>` row), skipped next time, and the title search
+   takes over. Transient failures (auth, rate limit, 5xx, offline) neither
+   disable the id nor trigger a search — that request would hit the same
+   outage, and a title match that did come back would be weaker evidence
+   than the id already in hand.
 2. Otherwise `/search/movie` (or `/search/tv`) runs with the normalized
    title. Normalization strips bracketed tags, quality markers (`4K`,
    `1080p`, `MULTI`, …), leading language prefixes (`EN - `), diacritics,

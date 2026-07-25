@@ -158,6 +158,22 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         expect(rememberBadProviderId).not.toHaveBeenCalled();
     });
 
+    it('does not search after a transient provider-id failure', async () => {
+        // The search would hit the same outage, and a title match that
+        // does come back is weaker evidence than the id we already have
+        getMovieDetails.mockRejectedValue(new TmdbApiError(503, 'Down'));
+        resolveBySearch.mockResolvedValue(603);
+        const service = createService();
+
+        const details = await service.enrichMovie({
+            tmdbId: 603,
+            title: 'The Matrix',
+        });
+
+        expect(details).toBeNull();
+        expect(resolveBySearch).not.toHaveBeenCalled();
+    });
+
     it('does not blame the id for a network error', async () => {
         getMovieDetails.mockRejectedValue(new Error('offline'));
         resolveBySearch.mockResolvedValue(null);

@@ -152,20 +152,27 @@ export class TmdbEnrichmentService {
         try {
             details = await this.getDetails(mediaType, providerId);
         } catch (error) {
-            console.warn(
-                `TMDB ${mediaType} details for provider id ${providerId} failed, falling back to search:`,
-                error
-            );
             // Only a 404 proves the id is dead. Auth, rate-limit, 5xx and
             // offline failures are transient — remembering those would
             // disable a perfectly good id until the marker expires.
             if (isTmdbNotFound(error)) {
+                console.warn(
+                    `TMDB ${mediaType} provider id ${providerId} does not exist, falling back to search:`,
+                    error
+                );
                 await this.idResolver.rememberBadProviderId(
                     mediaType,
                     providerId
                 );
+                return null;
             }
-            return null;
+
+            // Rethrow instead: `enrich` reads a null here as "try the
+            // search", and searching during an outage or a rate limit just
+            // adds a request that will fail too — or, worse, succeeds and
+            // swaps a strong id for a title match. The id stays good for
+            // the next attempt.
+            throw error;
         }
 
         if (!details || assessProviderId(details, query, mediaType) !== 'contradicted') {
