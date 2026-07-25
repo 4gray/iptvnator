@@ -123,7 +123,12 @@ Consumer directories sampled:
 
 ## Invariants to Preserve During Refactor
 
-- Selection IDs (`selectedVodId`, `selectedSerialId`, `selectedItvId`) are synchronized in `setSelectedItem`.
+- Selection IDs (`selectedVodId`, `selectedItvId`) are synchronized in `setSelectedItem`.
+- `selectedSerialId` is set only for a regular-series selection — content type
+  `series` and an item without embedded `series[]` episodes or the Ministra
+  `is_series` flag. Every other selection clears it, because
+  `serialSeasonsResource` fires a `get_ordered_list&type=series` portal request
+  on each change and the other shapes resolve their episodes elsewhere.
 - `setSelectedCategory(...)` resets `page` to `0`.
 - `getPaginatedContent()` and `getCategoryResource()` always return arrays,
   even when the underlying request fails.
