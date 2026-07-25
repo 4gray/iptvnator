@@ -75,8 +75,15 @@ also show a production-status chip (`tmdb_status`): TMDB returns `status`
 as an ENGLISH string regardless of the request language, so it is
 normalized to a token (`normalizeSeriesStatus`) and rendered through
 translated labels (`seriesStatusLabelKey`) — the raw value never reaches
-the UI. Unknown values are dropped rather than displayed. A "check key" button
-in the settings section validates the API key against `/configuration`.
+the UI. Unknown values are dropped rather than displayed. A "check key"
+button in the settings section validates the API key against
+`/configuration`, and a cache panel beside it shows the stored row count
+plus payload size and can drop the lot (`DB_GET_TMDB_CACHE_STATS` /
+`DB_CLEAR_TMDB_METADATA`, in-memory map in the PWA). Sizing is a full
+scan, so it only runs once the TMDB section is the active one. Clearing
+costs nothing but the next few requests — enrichment refetches on demand
+— and it is also the escape hatch when a lookup-key version bump orphans
+rows, since a bump makes them unreachable rather than deleting them.
 
 ## Match Confidence
 
@@ -303,12 +310,31 @@ person cache rows are unaffected.
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):
 
-- Worker ops: `DB_GET_TMDB_METADATA`, `DB_SET_TMDB_METADATA`
+- Worker ops: `DB_GET_TMDB_METADATA`, `DB_SET_TMDB_METADATA`, plus the two
+  maintenance ops behind the settings cache panel,
+  `DB_GET_TMDB_CACHE_STATS` and `DB_CLEAR_TMDB_METADATA`
   (`database-worker.types.ts`, `database.worker.ts`,
   `operations/tmdb.operations.ts`)
 - IPC registration: `events/database/tmdb.events.ts`
-- Preload bridge: `dbGetTmdbMetadata` / `dbSetTmdbMetadata` on
-  `window.electron` (typed in `ElectronBridgeApi`)
+- Preload bridge: `dbGetTmdbMetadata` / `dbSetTmdbMetadata` /
+  `dbGetTmdbCacheStats` / `dbClearTmdbMetadata` on `window.electron` (typed
+  in `ElectronBridgeApi`)
+
+`TmdbCacheService` treats the maintenance pair as optional on the bridge: an
+Electron shell that predates them reports `null` (unsupported) rather than
+falling back to the renderer map, which is always empty in Electron and
+would claim the SQLite cache is empty. A `clear()` first awaits the writes
+already in flight so they land and are deleted with everything else, and
+holds the clear promise for its duration so a write starting meanwhile
+queues behind the delete instead of racing it. Rows written after the user
+cleared are deliberately kept.
+
+The panel's full path — settings button, preload bridge, DB worker, real
+SQLite — is covered by `@settings @electron @persistence sizes and clears
+the TMDB metadata cache` in `apps/electron-backend-e2e/src/settings.e2e.ts`.
+It seeds a row through `dbSetTmdbMetadata` rather than through enrichment,
+which needs an API key that builds outside the release pipeline do not
+carry.
 
 The PWA uses a session-scoped in-memory map (acceptable for phase 1; TMDB
 supports CORS so the PWA calls the API directly).
@@ -317,7 +343,12 @@ supports CORS so the PWA calls the API directly).
 
 `Settings.tmdb?: { enabled: boolean; apiKey?: string }`
 (`libs/shared/interfaces/src/lib/tmdb.interface.ts`). The settings page has
-a "Metadata (TMDB)" section (enable toggle + optional API key override).
+a "Metadata (TMDB)" section: enable toggle, optional API key override with a
+"check key" button (validates against `/configuration`), and a cache panel
+showing the stored row count plus payload size with a button that drops the
+lot. Sizing is a full table scan, so it runs only once that section is the
+active one, and a failed read or clear says so instead of showing an empty
+cache.
 
 The embedded default key lives in `DEFAULT_TMDB_API_KEY`
 (`libs/services/src/lib/tmdb/tmdb-config.ts`) and is an **empty placeholder

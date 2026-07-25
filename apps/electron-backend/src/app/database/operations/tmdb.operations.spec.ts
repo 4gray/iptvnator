@@ -1,6 +1,11 @@
 import type { TmdbCacheEntry } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
-import { getTmdbMetadata, setTmdbMetadata } from './tmdb.operations';
+import {
+    clearTmdbMetadata,
+    getTmdbCacheStats,
+    getTmdbMetadata,
+    setTmdbMetadata,
+} from './tmdb.operations';
 
 function createSelectMock(rows: unknown[]) {
     const limit = jest.fn().mockResolvedValue(rows);
@@ -103,5 +108,51 @@ describe('tmdb.operations', () => {
         expect(values).toHaveBeenCalledWith(
             expect.objectContaining({ tmdbId: null, payload: null })
         );
+    });
+});
+
+describe('tmdb cache maintenance', () => {
+    function createStatsDb(rows: unknown[]) {
+        const all = jest.fn().mockResolvedValue(rows);
+        const run = jest.fn().mockResolvedValue(undefined);
+        return { db: { all, run } as unknown as AppDatabase, all, run };
+    }
+
+    it('reports entry count and payload bytes', async () => {
+        const { db } = createStatsDb([{ entries: 42, bytes: 123456 }]);
+
+        await expect(getTmdbCacheStats(db)).resolves.toEqual({
+            entries: 42,
+            bytes: 123456,
+        });
+    });
+
+    it('reports zeroes for an empty table', async () => {
+        // COALESCE keeps SUM(NULL) from surfacing as NaN
+        const { db } = createStatsDb([{ entries: 0, bytes: 0 }]);
+
+        await expect(getTmdbCacheStats(db)).resolves.toEqual({
+            entries: 0,
+            bytes: 0,
+        });
+    });
+
+    it('survives a driver returning no stats row at all', async () => {
+        const { db } = createStatsDb([]);
+
+        await expect(getTmdbCacheStats(db)).resolves.toEqual({
+            entries: 0,
+            bytes: 0,
+        });
+    });
+
+    it('deletes every row and reports how many there were', async () => {
+        const { db, run } = createStatsDb([{ entries: 7, bytes: 900 }]);
+
+        await expect(clearTmdbMetadata(db)).resolves.toEqual({
+            success: true,
+            deleted: 7,
+        });
+        expect(run).toHaveBeenCalledTimes(1);
     });
 });

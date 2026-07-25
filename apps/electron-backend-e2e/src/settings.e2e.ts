@@ -604,6 +604,57 @@ test.describe('Electron Settings', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('@settings @electron @persistence sizes and clears the TMDB metadata cache', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            // Seeded through the same preload bridge the enrichment service
+            // uses, so this exercises real IPC -> DB worker -> SQLite.
+            // Enrichment itself cannot run here: it needs a TMDB API key,
+            // which builds outside the release pipeline do not carry.
+            await app.mainWindow.evaluate(async () => {
+                await window.electron.dbSetTmdbMetadata({
+                    mediaType: 'movie',
+                    lookupKey: 'id:603|v2',
+                    language: 'en-US',
+                    tmdbId: 603,
+                    payload: JSON.stringify({ id: 603, title: 'The Matrix' }),
+                    fetchedAt: new Date().toISOString(),
+                });
+            });
+
+            await openSettings(app.mainWindow);
+            await app.mainWindow.getByTestId('settings-section-tmdb').click();
+
+            // Sizing is deferred until this section is the active one
+            await expect(
+                app.mainWindow.getByTestId('tmdb-cache-size')
+            ).toHaveText(/\b1 entries/);
+
+            const clearButton =
+                app.mainWindow.getByTestId('tmdb-clear-cache');
+            await expect(clearButton).toBeEnabled();
+            await clearButton.click();
+
+            // Re-read reports an empty cache, so there is nothing to clear
+            await expect(clearButton).toBeDisabled();
+            await expect(
+                app.mainWindow.getByTestId('tmdb-cache-size')
+            ).toHaveText(/\b0 entries/);
+
+            // ...and the row is gone from the database, not just the panel
+            const remaining = await app.mainWindow.evaluate(() =>
+                window.electron.dbGetTmdbMetadata('movie', 'id:603|v2', 'en-US')
+            );
+            expect(remaining).toBeNull();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
 });
 
 async function selectSettingsOption(

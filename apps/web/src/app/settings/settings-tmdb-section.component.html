@@ -99,6 +99,47 @@
             </div>
         }
 
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.TMDB_CACHE' | translate }}</h4>
+                <p>
+                    {{ 'SETTINGS.TMDB_CACHE_DESCRIPTION' | translate }}
+                </p>
+                <p class="tmdb-cache__size" data-test-id="tmdb-cache-size">
+                    @if (cacheError()) {
+                        <span class="tmdb-cache__error">
+                            {{ 'SETTINGS.TMDB_CACHE_ERROR' | translate }}
+                        </span>
+                    } @else if (cacheStats(); as stats) {
+                        {{
+                            'SETTINGS.TMDB_CACHE_SIZE'
+                                | translate
+                                    : {
+                                          entries: stats.entries,
+                                          size: formatBytes(stats.bytes),
+                                      }
+                        }}
+                    }
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <button
+                    mat-stroked-button
+                    type="button"
+                    [disabled]="isClearing() || cacheStats()?.entries === 0"
+                    (click)="clearCache()"
+                    data-test-id="tmdb-clear-cache"
+                >
+                    @if (isClearing()) {
+                        <mat-spinner diameter="16" />
+                    } @else {
+                        <mat-icon>delete_sweep</mat-icon>
+                    }
+                    {{ 'SETTINGS.TMDB_CACHE_CLEAR' | translate }}
+                </button>
+            </div>
+        </div>
+
         <div class="setting-item setting-item--full-control">
             <div class="setting-item__meta">
                 <img
