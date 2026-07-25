@@ -8,6 +8,7 @@ import {
     withStalkerRecent,
     withStalkerSelection,
     withStalkerSeries,
+    withStalkerSnapshotRefresh,
 } from './stores/features';
 
 /**
@@ -18,6 +19,7 @@ export const StalkerStore = signalStore(
     { providedIn: 'root' },
     withStalkerPortal(),
     withStalkerSelection(),
+    withStalkerSnapshotRefresh(),
     withStalkerContent(),
     withStalkerSeries(),
     withStalkerPlayer(),

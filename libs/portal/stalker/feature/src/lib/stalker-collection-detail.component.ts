@@ -326,6 +326,14 @@ export class StalkerCollectionDetailComponent {
         this.stalkerStore.setSelectedItem(itemDetails);
         this.itemDetails.set(itemDetails);
 
+        if (detailMode.hasEmbeddedSeries) {
+            // Embedded-series snapshots freeze the episode list at
+            // favorite/recent time; re-fetch in the background so new
+            // episodes appear. The store patch flows back into
+            // itemDetails via the selected-item sync effect above.
+            void this.stalkerStore.refreshEmbeddedSeriesSelection();
+        }
+
         if (
             detailMode.selectedContentType === 'vod' &&
             !detailMode.hasEmbeddedSeries &&

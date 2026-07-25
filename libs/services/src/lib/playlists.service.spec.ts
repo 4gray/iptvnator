@@ -674,6 +674,79 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it('patches matching favorite and recently-viewed snapshots in one write', async () => {
+        const playlist = {
+            _id: 'portal-snapshot',
+            title: 'Portal Snapshot',
+            count: 0,
+            importDate: '2026-04-01T00:00:00.000Z',
+            lastUsage: '2026-04-01T00:00:00.000Z',
+            autoRefresh: false,
+            favorites: [
+                'm3u-channel-id',
+                {
+                    id: '20001',
+                    title: 'Embedded Series',
+                    cmd: '/media/file_20001.mpg',
+                    series: [1],
+                    added_at: '2026-04-01T10:00:00.000Z',
+                },
+                { id: '555', title: 'Other Movie', series: [1] },
+            ],
+            recentlyViewed: [
+                {
+                    stream_id: '20001',
+                    title: 'Embedded Series',
+                    series: [1],
+                    added_at: '2026-04-02T10:00:00.000Z',
+                },
+            ],
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(playlist)),
+            update: jest.fn((_storeName: string, updated: Playlist) =>
+                of(updated)
+            ),
+        };
+        testWindow.electron = undefined;
+
+        const service = createService(dbService);
+
+        await firstValueFrom(
+            service.updatePortalCollectionSnapshots(
+                'portal-snapshot',
+                '20001',
+                { series: [1, 2], cmd: '/media/file_20001_v2.mpg' }
+            )
+        );
+
+        expect(dbService.update).toHaveBeenCalledTimes(1);
+        expect(dbService.update).toHaveBeenCalledWith(
+            DbStores.Playlists,
+            expect.objectContaining({
+                favorites: [
+                    'm3u-channel-id',
+                    expect.objectContaining({
+                        id: '20001',
+                        series: [1, 2],
+                        cmd: '/media/file_20001_v2.mpg',
+                        added_at: '2026-04-01T10:00:00.000Z',
+                    }),
+                    expect.objectContaining({ id: '555', series: [1] }),
+                ],
+                recentlyViewed: [
+                    expect.objectContaining({
+                        stream_id: '20001',
+                        series: [1, 2],
+                        cmd: '/media/file_20001_v2.mpg',
+                        added_at: '2026-04-02T10:00:00.000Z',
+                    }),
+                ],
+            })
+        );
+    });
+
     it('updates browser playlist positions through individual reads and writes', async () => {
         const playlistsById = new Map<string, Playlist>([
             [

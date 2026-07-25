@@ -71,6 +71,7 @@ describe('StalkerCollectionDetailComponent', () => {
         setSelectedContentType: jest.Mock;
         setSelectedCategory: jest.Mock;
         setSelectedItem: jest.Mock;
+        refreshEmbeddedSeriesSelection: jest.Mock;
         addToFavorites: jest.Mock;
         removeFromFavorites: jest.Mock;
         createLinkToPlayVod: jest.Mock;
@@ -121,6 +122,7 @@ describe('StalkerCollectionDetailComponent', () => {
             setSelectedItem: jest.fn((value: unknown) => {
                 selectedItem.set(value);
             }),
+            refreshEmbeddedSeriesSelection: jest.fn(async () => false),
             addToFavorites: jest.fn(),
             removeFromFavorites: jest.fn(),
             createLinkToPlayVod: jest.fn(),
@@ -308,6 +310,42 @@ describe('StalkerCollectionDetailComponent', () => {
                 vodDetailsItem: null,
             })
         );
+        expect(
+            fixture.componentInstance.inlineDetail().seriesItem?.series
+        ).toEqual([1, 2]);
+        // The snapshot renders immediately, but a background portal
+        // re-fetch must be triggered so new episodes can appear.
+        expect(
+            stalkerStore.refreshEmbeddedSeriesSelection
+        ).toHaveBeenCalled();
+    });
+
+    it('shows newly released episodes when the background snapshot refresh patches the selection', async () => {
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'series',
+                categoryId: 'series',
+                stalkerItem: {
+                    id: '20001',
+                    title: 'Embedded Series',
+                    category_id: 'series',
+                    cmd: '/media/file_20001.mpg',
+                    series: [1],
+                },
+            })
+        );
+
+        await settleDetail(fixture);
+        expect(
+            fixture.componentInstance.inlineDetail().seriesItem?.series
+        ).toEqual([1]);
+
+        // Simulate the store-side refresh completing with a fresh portal row.
+        const current = selectedItem() as Record<string, unknown>;
+        selectedItem.set({ ...current, series: [1, 2] });
+        await settleDetail(fixture);
+
         expect(
             fixture.componentInstance.inlineDetail().seriesItem?.series
         ).toEqual([1, 2]);

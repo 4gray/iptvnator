@@ -62,6 +62,13 @@ export interface PortalCatalogFacade<
     setContentSortMode(mode: PortalCatalogSortMode): void;
     setMinRating?(value: number | null): void;
     selectItem(item: TItem): string[] | null;
+    /**
+     * Optional: re-fetches a selection that was injected from a stored
+     * snapshot (navigation state, favorites) so stale embedded data —
+     * e.g. a Stalker embedded-series episode list — is refreshed in the
+     * background. No-op for providers whose selections are always fresh.
+     */
+    refreshSnapshotSelection?(): void;
     getItemProgress(item: TItem): PortalCatalogItemProgress;
 }
 

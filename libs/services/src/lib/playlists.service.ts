@@ -804,6 +804,64 @@ export class PlaylistsService {
         );
     }
 
+    /**
+     * Patches the stored favorite and recently-viewed snapshots of one
+     * portal item (matched by id/stream_id/movie_id/series_id) in place,
+     * preserving row order and bookkeeping fields such as added_at. Used
+     * to refresh stale embedded-series snapshots after a background portal
+     * re-fetch.
+     */
+    updatePortalCollectionSnapshots(
+        portalId: string,
+        itemId: string | number,
+        patch: Partial<StalkerPortalItem>
+    ): Observable<Playlist> {
+        if (!portalId) {
+            throw new Error('Portal ID is required');
+        }
+
+        const expectedId = String(itemId);
+        const matchesSnapshot = (row: unknown): boolean => {
+            if (!row || typeof row !== 'object') {
+                return false;
+            }
+            const candidate = row as PortalFavoriteItem;
+            return [
+                candidate.id,
+                candidate.stream_id,
+                candidate.movie_id,
+                candidate.series_id,
+            ].some(
+                (value) =>
+                    value !== undefined &&
+                    value !== null &&
+                    String(value) === expectedId
+            );
+        };
+        const patchRow = <T>(row: T): T =>
+            matchesSnapshot(row) ? { ...(row as object), ...patch } as T : row;
+
+        return this.getPlaylistById(portalId).pipe(
+            switchMap((portal) => {
+                const nextPlaylist: Playlist = {
+                    ...portal,
+                    favorites: (portal.favorites ?? []).map(patchRow),
+                    recentlyViewed: (portal.recentlyViewed ?? []).map(
+                        patchRow
+                    ),
+                };
+
+                if (this.isElectronStorageAvailable) {
+                    return this.upsertSqlitePlaylist(nextPlaylist);
+                }
+
+                return this.dbService
+                    .update(DbStores.Playlists, nextPlaylist)
+                    .pipe(map(() => nextPlaylist));
+            })
+        );
+    }
+
     removeFromPortalFavorites(portalId: string, favoriteId: number | string) {
         if (!portalId) {
             throw new Error('Portal ID is required');
