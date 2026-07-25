@@ -431,6 +431,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
 
     /**
+     * Seasons this view already asked the portal for on the rail's behalf.
+     * A failed or genuinely empty season leaves `episodes` empty with
+     * `isLoading` back to false, so without this guard the effect below would
+     * re-request it on every emission for as long as playback continues.
+     */
+    private readonly prefetchedSpilloverSeasonIds = new Set<string>();
+
+    /**
      * Ministra VOD-series seasons hold no episodes until their tab is opened,
      * so the rail's next-season spillover would silently stop at the end of
      * the playing season. While an episode plays inline, fetch the following
@@ -451,6 +459,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (!nextSeason || nextSeason.isLoading || nextSeason.episodes.length) {
             return;
         }
+
+        const prefetchKey = `${nextSeason.video_id}:${nextSeason.id}`;
+        if (this.prefetchedSpilloverSeasonIds.has(prefetchKey)) {
+            return;
+        }
+        this.prefetchedSpilloverSeasonIds.add(prefetchKey);
 
         untracked(() => void this.loadEpisodesForSeason(nextSeason));
     });

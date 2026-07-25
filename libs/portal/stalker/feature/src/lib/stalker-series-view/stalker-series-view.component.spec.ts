@@ -769,6 +769,84 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
     });
 
+    it('does not re-request a spillover season that came back empty', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+        ]);
+        isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    { id: 'episode-1', series_number: 1, name: 'Pilot' },
+                    { id: 'episode-2', series_number: 2, name: 'Second' },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockClear();
+        // Failed or genuinely empty season: isLoading returns to false while
+        // episodes stays empty — the retry trap.
+        fetchVodSeriesEpisodes.mockResolvedValue([]);
+
+        const seasonOne = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(seasonOne[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
+
+        // Further playback activity in the same season must not retrigger it.
+        fixture.componentInstance.onEpisodeClicked(seasonOne[1]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
+    });
+
     it('loads the next unloaded VOD-series season after the loaded season is watched', async () => {
         selectedContentType.set('vod');
         selectedItem.set({
