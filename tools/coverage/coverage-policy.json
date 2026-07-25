@@ -3,7 +3,45 @@
     "reporting": {
         "mergedCoverageDir": "coverage/merged",
         "e2eSummaryDir": "coverage/e2e",
-        "unitCodecovFlag": "unit"
+        "unitCodecovFlag": "unit",
+        "coverageRatchet": {
+            "merged": {
+                "statements": 69.52,
+                "branches": 59.05,
+                "functions": 67.43,
+                "lines": 69.82
+            },
+            "criticalFiles": [
+                {
+                    "path": "apps/electron-backend/src/app/server/http-server.ts",
+                    "statements": {
+                        "minimumCovered": 83,
+                        "minimumPercent": 90.21
+                    }
+                },
+                {
+                    "path": "apps/electron-backend/src/app/events/remote-control.events.ts",
+                    "statements": {
+                        "minimumCovered": 112,
+                        "minimumPercent": 96.55
+                    }
+                },
+                {
+                    "path": "apps/electron-backend/src/app/events/settings.events.ts",
+                    "statements": {
+                        "minimumCovered": 26,
+                        "minimumPercent": 96.29
+                    }
+                },
+                {
+                    "path": "apps/electron-backend/src/app/events/database/downloads.events.ts",
+                    "statements": {
+                        "minimumCovered": 86,
+                        "minimumPercent": 58.5
+                    }
+                }
+            ]
+        }
     },
     "unitCoverage": {
         "description": "Tier A projects collect and trend source coverage. Tier B projects are validated without percentage coverage. Tier C projects are excluded from the source coverage baseline.",

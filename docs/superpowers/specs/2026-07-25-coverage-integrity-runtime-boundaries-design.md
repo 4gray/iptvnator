@@ -4,8 +4,9 @@
 
 Approved in the delegated coverage-audit task on 2026-07-25.
 
-The implementation branch starts from fresh `origin/master` commit
-`4e5132cb` (`ci(release): gate PRs on an authored release note (#1257)`).
+Before recording the final ratchets, the implementation branch was rebased
+onto fresh `origin/master` commit
+`a5bb8dc25ca1284320d93f14e17de58687984602`.
 
 ## Goal
 
@@ -18,31 +19,34 @@ percentage by testing type-only modules, re-export shims, or low-risk code.
 
 ## Fresh Baseline
 
-`pnpm run coverage:ci` on `4e5132cb` completed successfully and reported:
+An uncached `pnpm run coverage:ci` on
+`a5bb8dc25ca1284320d93f14e17de58687984602` completed successfully and reported:
 
 | Metric     | Covered / total | Percent |
 | ---------- | --------------: | ------: |
-| Statements | 24,684 / 35,843 |  68.86% |
-| Branches   | 17,290 / 29,471 |  58.66% |
-| Functions  |   5,728 / 8,524 |  67.19% |
-| Lines      | 24,051 / 34,754 |  69.20% |
+| Statements | 24,974 / 36,062 |  69.25% |
+| Branches   | 17,461 / 29,637 |  58.91% |
+| Functions  |   5,784 / 8,577 |  67.43% |
+| Lines      | 24,315 / 34,959 |  69.55% |
 
 The successful command nevertheless printed `Failed to collect coverage` for
 `libs/m3u-state/src/lib/effects.ts`. TypeScript could not resolve
 `@angular/material/snack-bar`, inferred the injected snack bar as `unknown`,
 and did not see the shared `window.electron` declaration under the project's
-spec compiler configuration. The file was absent from both the project report
-and `coverage/merged/coverage-final.json`.
+spec compiler configuration (`TS2307` once, `TS2571` twice, and `TS2551`
+once). The file was absent from both the project report and
+`coverage/merged/coverage-final.json`.
 
-All 30 Tier A projects produced a `coverage-final.json`, so the current merge
-included 30 reports and still missed an executable file. This demonstrates
+All 30 Tier A projects produced a `coverage-final.json`, so 31 report files
+including the merged report existed. The current merge included all 30 project
+reports and 709 files while still missing an executable file. This demonstrates
 that project-level report existence is necessary but not sufficient.
 
 The audit file status on the same baseline is:
 
 | File                                                                                    | Statement coverage |
 | --------------------------------------------------------------------------------------- | -----------------: |
-| `apps/electron-backend/src/app/workers/database.worker.ts`                              |       0 / 205 (0%) |
+| `apps/electron-backend/src/app/workers/database.worker.ts`                              |       0 / 207 (0%) |
 | `apps/electron-backend/src/app/events/remote-control.events.ts`                         |       0 / 115 (0%) |
 | `apps/electron-backend/src/app/server/http-server.ts`                                   |        0 / 73 (0%) |
 | `apps/electron-backend/src/app/events/database/downloads.events.ts`                     |  69 / 147 (46.93%) |
@@ -332,6 +336,57 @@ They must not depend on a previously generated workspace `coverage/` tree.
   included.
 - Deferred database worker, dashboard, and Stalker search coverage is listed
   in the draft PR.
+
+## Implementation Outcome
+
+The fresh uncached implementation run merged all 30 required Tier A reports
+into the 31st `coverage-final.json` and included 710 files, with no
+collection-failure marker or missing runtime-owning source. The achieved
+ratchets are:
+
+| Metric     | Covered / total | Percent |
+| ---------- | --------------: | ------: |
+| Statements | 25,196 / 36,241 |  69.52% |
+| Branches   | 17,569 / 29,748 |  59.05% |
+| Functions  |   5,823 / 8,635 |  67.43% |
+| Lines      | 24,535 / 35,136 |  69.82% |
+
+The selected Electron boundary statement coverage changed as follows:
+
+| File                       |          Baseline |              After |
+| -------------------------- | ----------------: | -----------------: |
+| `http-server.ts`           |       0 / 73 (0%) |   83 / 92 (90.21%) |
+| `remote-control.events.ts` |      0 / 115 (0%) | 112 / 116 (96.55%) |
+| `settings.events.ts`       |  16 / 27 (59.25%) |   26 / 27 (96.29%) |
+| `downloads.events.ts`      | 69 / 147 (46.93%) |  86 / 147 (58.50%) |
+
+The integrity correction makes the denominator honest:
+`libs/m3u-state/src/lib/effects.ts` is now present at 0 / 159 statements
+instead of silently disappearing. The aggregate improvement therefore holds
+even after surfacing those 159 previously unreported uncovered statements.
+
+Two production seams were sufficient for isolated contract tests:
+`HttpServer` accepts an optional server factory and static distribution path,
+and `RemoteControlEvents` is a named export while the production singleton is
+unchanged. Real loopback HTTP tests also exposed a Windows
+double-leading-slash traversal escape in the prior static-path normalization.
+A direct failing regression preceded the narrow fix: production now uses the
+pure, platform-testable `resolveStaticFilePath` resolver to decode once, reject
+malformed or NUL paths, strip leading separators, resolve against the static
+root, and enforce containment. This is a tested behavior and security fix, not
+a behavior-preserving refactor.
+
+The release decision follows that observable fix:
+`.changes/electron-remote-static-paths.md` records it as an Electron bug fix,
+so the draft PR must not carry `no-release-note`. The canonical coverage
+workflow is documented in `docs/architecture/validation-map.md`; `AGENTS.md`
+and `CLAUDE.md` do not describe the changed coverage contract or HTTP path
+logic and require no update.
+
+The deferred production files remain uncovered in this change:
+`database.worker.ts` at 0 / 207, `workspace-dashboard-rails.component.ts` at
+0 / 206, and `stalker-search.component.ts` at 0 / 166. They retain the
+separate follow-up scopes described above.
 
 ## Validation Ladder
 

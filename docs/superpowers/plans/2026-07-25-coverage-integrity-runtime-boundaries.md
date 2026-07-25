@@ -4,9 +4,15 @@
 
 **Goal:** Make Tier A coverage fail closed and add meaningful regression coverage for the HTTP server, remote control, settings, and download-file Electron boundaries.
 
-**Architecture:** A shared pure Node module classifies runtime-owning TypeScript, validates per-project Istanbul reports, scans child output for collection failures, and evaluates aggregate/per-file ratchets. Existing Electron modules keep their public behavior; tests use real loopback/filesystem behavior where practical and mock only process, persistence, or native-shell boundaries.
+**Architecture:** A shared pure Node module classifies runtime-owning TypeScript, validates per-project Istanbul reports, scans child output for collection failures, and evaluates aggregate/per-file ratchets. Existing Electron contracts stay unchanged except for the TDD-backed rejection of a discovered static-path traversal escape; tests use real loopback/filesystem behavior where practical and mock only process, persistence, or native-shell boundaries.
 
 **Tech Stack:** Node.js ESM and `node:test`, TypeScript compiler API, Istanbul coverage maps, Jest/ts-jest, Electron main-process IPC, Node HTTP streams, Angular Jest configuration, Nx, Playwright.
+
+**Execution note (2026-07-26):** The branch was rebased onto
+`origin/master` commit `a5bb8dc25ca1284320d93f14e17de58687984602`
+before the final ratchet run. A real-loopback HTTP regression exposed a Windows
+double-leading-slash traversal escape; the implementation adds a tested pure
+resolver and a user-facing Electron fix note.
 
 ---
 
@@ -37,7 +43,8 @@ Modify:
 - `libs/m3u-state/tsconfig.spec.json` — use bundler resolution and include the
   shared Electron window declaration so `effects.ts` instruments.
 - `apps/electron-backend/src/app/server/http-server.ts` — optional static-root
-  and server-factory seam; accept port `0` for loopback tests.
+  and server-factory seam, port `0` support for loopback tests, and a tested
+  static-root containment resolver.
 - `apps/electron-backend/src/app/events/remote-control.events.ts` — export the
   class for isolated instances while preserving the default singleton.
 - `apps/electron-backend/src/app/events/settings.events.spec.ts` — persistence,
@@ -1615,6 +1622,10 @@ Expected: the provisional policy remains the only unstaged source change.
   `docs/architecture/validation-map.md`
 - Modify:
   `docs/superpowers/specs/2026-07-25-coverage-integrity-runtime-boundaries-design.md`
+- Modify:
+  `docs/superpowers/plans/2026-07-25-coverage-integrity-runtime-boundaries.md`
+- Create:
+  `.changes/electron-remote-static-paths.md`
 
 - [ ] **Step 1: Generate a complete fresh candidate report**
 
@@ -1728,19 +1739,32 @@ Also include `pnpm run coverage:tools:test` in the local coverage command block.
 
 - [ ] **Step 5: Confirm documentation and release-note decisions**
 
+Because the real-loopback regression exposed and fixed an observable Windows
+static-path traversal escape, add `.changes/electron-remote-static-paths.md`:
+
+```markdown
+---
+type: fix
+area: electron
+---
+
+The desktop remote-control server now blocks crafted static paths from escaping
+bundled web files on Windows.
+```
+
 Run:
 
 ```bash
 pnpm exec prettier --check \
   docs/architecture/validation-map.md \
-  docs/superpowers/specs/2026-07-25-coverage-integrity-runtime-boundaries-design.md
+  docs/superpowers/specs/2026-07-25-coverage-integrity-runtime-boundaries-design.md \
+  docs/superpowers/plans/2026-07-25-coverage-integrity-runtime-boundaries.md \
+  .changes/electron-remote-static-paths.md
 pnpm run release:notes:validate
 ```
 
-Expected: both pass. Do not add `.changes/*.md`: this PR changes tests, CI
-integrity, and behavior-preserving testability seams, not user-visible
-behavior. Because it touches runtime `.ts`, apply `no-release-note` to the PR
-in Task 10.
+Expected: both pass. The release note records the narrow user-visible security
+fix; do not apply `no-release-note` in Task 10.
 
 - [ ] **Step 6: Commit ratchets and docs**
 
@@ -1750,12 +1774,14 @@ Run:
 git add \
   tools/coverage/coverage-policy.json \
   docs/architecture/validation-map.md \
-  docs/superpowers/specs/2026-07-25-coverage-integrity-runtime-boundaries-design.md
+  docs/superpowers/specs/2026-07-25-coverage-integrity-runtime-boundaries-design.md \
+  docs/superpowers/plans/2026-07-25-coverage-integrity-runtime-boundaries.md \
+  .changes/electron-remote-static-paths.md
 git commit -m "ci(coverage): ratchet runtime boundaries"
 ```
 
-Expected: the provisional policy is replaced by achieved values and the
-worktree becomes clean.
+Expected: the provisional policy is replaced by achieved values, the security
+fix has a valid release note, and the worktree becomes clean.
 
 ### Task 9: Run Fresh Validation And Audit The Final Diff
 
@@ -1921,7 +1947,7 @@ The body must contain:
 - runner, merge, health, and ratchet behavior;
 - exact validation commands/results;
 - docs update;
-- no release note because behavior is unchanged; and
+- the Electron fix release note for Windows static-path containment; and
 - deferred `database.worker.ts`, dashboard rails, and Stalker search.
 
 Use:
@@ -1938,17 +1964,17 @@ gh pr create \
 Provide the fully populated body on standard input; do not leave metric or
 validation placeholders.
 
-- [ ] **Step 5: Apply the internal-only release-note label**
+- [ ] **Step 5: Verify release-note metadata**
 
 Run:
 
 ```bash
-gh pr edit --add-label no-release-note
-gh pr view --json url,isDraft,headRefName,baseRefName,labels,commits,statusCheckRollup
+gh pr view --json url,isDraft,headRefName,baseRefName,labels,files,commits,statusCheckRollup
 ```
 
-Expected: the PR is draft, head/base are correct, `no-release-note` is present,
-and the command prints the PR URL.
+Expected: the PR is draft, head/base are correct,
+`.changes/electron-remote-static-paths.md` is included, `no-release-note` is
+absent, and the command prints the PR URL.
 
 - [ ] **Step 6: Return the exact handoff**
 
@@ -1960,5 +1986,6 @@ Return:
 - aggregate and selected-file before/after metrics;
 - exact command results and any explicit environment-only skip;
 - docs updated (`docs/architecture/validation-map.md`);
-- release note skipped with `no-release-note`;
+- release note added (`.changes/electron-remote-static-paths.md`) with no
+  `no-release-note` label;
 - deferred zero-coverage follow-ups.
