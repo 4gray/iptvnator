@@ -85,8 +85,29 @@ in the settings section validates the API key against `/configuration`.
 Wrong metadata is worse than no metadata, so id resolution is conservative:
 
 1. If the provider returns a usable `tmdb_id` (Xtream VOD info often does),
-   it is trusted fully and no search runs. Series have no show-level
-   `tmdb_id`, so they always go through search.
+   its details are fetched directly and normally used as-is. Series have no
+   show-level `tmdb_id`, so they always go through search. The id is a
+   strong hint rather than gospel — panels ship dead and stale ones — so
+   the payload it returns is weighed against the provider item
+   (`assessProviderId`):
+    - a matching title **or** a compatible release year (±1; for series,
+      any earlier premiere) → **corroborated**, use it;
+    - both years known and incompatible → **contradicted**, the stale-id
+      signature ("Blade Runner 2049" carrying the 1982 film's id): the
+      title search may take over, and does so only if it finds a confident
+      match of its own;
+    - title differs with no year to arbitrate → **inconclusive**, keep the
+      details. TMDB returns titles in the request language and
+      normalization strips stylized prefixes ("IT - Chapter Two" →
+      "chapter two"), so a name mismatch alone says more about our inputs
+      than about the id.
+
+   A 404 is the one hard verdict: the id is recorded as dead
+   (`badProviderId:<id>` row), skipped next time, and the title search
+   takes over. Transient failures (auth, rate limit, 5xx, offline) neither
+   disable the id nor trigger a search — that request would hit the same
+   outage, and a title match that did come back would be weaker evidence
+   than the id already in hand.
 2. Otherwise `/search/movie` (or `/search/tv`) runs with the normalized
    title. Normalization strips bracketed tags, quality markers (`4K`,
    `1080p`, `MULTI`, …), leading language prefixes (`EN - `), diacritics,
@@ -261,14 +282,18 @@ Filmography has two scopes:
 
 ## Cache
 
-Single table with two row kinds discriminated by `lookup_key` prefix:
+Single table with several row kinds discriminated by the `lookup_key`
+prefix:
 
 ```
 tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>|v2'               -- details payload row
+              'id:<tmdbId>|season:<n>'       -- season payload row
               'title:<normalized>|year:<y>|v2' -- search resolution row
               'person:<personId>'            -- person payload row
+              'trending:week'                -- trending list row
+              'badProviderId:<tmdbId>'       -- id confirmed 404 by TMDB
   language    TEXT,       -- TMDB language code
   tmdb_id     INTEGER,    -- NULL on a search row = negative cache
   payload     TEXT,       -- raw JSON details, NULL for search rows
@@ -357,3 +382,18 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   heroes additionally show the tracked "S{n}·E{n}" badge from the playback
   position (no TMDB involved); the watch-progress bar is limited to
   movie/series heroes.
+
+### `badProviderId:` rows
+
+Providers ship `tmdb_id` values that do not exist. A failed details fetch
+caches nothing, so without a marker the same 404 is re-issued on every
+detail open, forever. These rows record that verdict: `tmdb_id` NULL,
+language `any` (a dead id is dead in every language), read with the
+negative-match TTL.
+
+Only a **confirmed 404** is recorded. Transient failures (401, 429, 5xx,
+offline) leave no marker — they say nothing about the id. Neither does a
+title mismatch: that id exists and may be correct for a *different* item,
+and since the row is keyed by id alone and shared across playlists,
+recording per-item mismatches here would deny the direct lookup to every
+other item that legitimately uses the same id.

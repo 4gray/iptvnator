@@ -65,6 +65,7 @@
         "release:notes:github": "node tools/release/build-release-notes.mjs --format github",
         "release:notes:changelog": "node tools/release/build-release-notes.mjs --format changelog",
         "release:notes:blog": "node tools/release/build-release-notes.mjs --format blog",
+        "release:screenshots": "tsx tools/release/capture-release-screenshots.ts",
         "lint": "nx run-many --target=lint --all",
         "build": "nx build electron-backend"
     },
