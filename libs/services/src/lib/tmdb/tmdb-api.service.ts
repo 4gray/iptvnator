@@ -71,7 +71,14 @@ export class TmdbApiService {
     ): Promise<TmdbTvDetails> {
         return this.request<TmdbTvDetails>(
             `/tv/${tmdbId}`,
-            { language, append_to_response: 'credits,videos,recommendations' },
+            {
+                language,
+                // aggregate_credits spans the whole run; plain `credits` on
+                // a TV id is documented as the LATEST SEASON only, so both
+                // are needed to reconstruct the real cast (see tmdb-merge)
+                append_to_response:
+                    'credits,aggregate_credits,videos,recommendations',
+            },
             apiKey
         );
     }

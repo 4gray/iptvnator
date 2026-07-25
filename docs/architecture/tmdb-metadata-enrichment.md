@@ -114,7 +114,14 @@ are still fetched in the app language afterwards.
 
 Details are fetched with
 `/movie/{id}?append_to_response=credits,videos,recommendations` (`/tv/{id}`
-for series). Credits provide cast/director; videos supply the best YouTube
+for series). Credits provide cast/director — for series the request also
+appends `aggregate_credits`, because TMDB documents a TV id's `credits` as
+the **latest season's** credits while `aggregate_credits` covers the run
+but omits that newest season; `unifiedTvCast` unions them (whole-run
+billing order first, newest-season arrivals appended) so long-running
+shows neither lose departed regulars nor miss new ones. Payloads cached
+before this landed have no `aggregate_credits` and fall back to the old
+behaviour until they are refetched; videos supply the best YouTube
 trailer (official trailer > trailer > teaser, merged into
 `youtube_trailer` / `tmdb_trailer`); recommendations power the "Similar"
 rail. In Xtream detail views the rail shows only recommendations that

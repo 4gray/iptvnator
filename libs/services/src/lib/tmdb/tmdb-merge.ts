@@ -9,6 +9,7 @@ import {
 import { tmdbBackdropUrl, tmdbPosterUrl, tmdbProfileUrl } from './tmdb-config';
 import { extractYear } from './tmdb-matcher';
 import {
+    TmdbCastMember,
     TmdbCredits,
     TmdbDetails,
     TmdbMovieDetails,
@@ -24,24 +25,73 @@ import {
 
 const MAX_CAST_NAMES = 10;
 
-function topCast(credits: TmdbCredits | undefined) {
-    return [...(credits?.cast ?? [])]
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+const byBillingOrder = (a: { order?: number }, b: { order?: number }) =>
+    (a.order ?? 0) - (b.order ?? 0);
+
+function limitCast(cast: TmdbCastMember[]): TmdbCastMember[] {
+    return cast
         .slice(0, MAX_CAST_NAMES)
         .filter((member) => Boolean(member.name));
 }
 
-function castNames(credits: TmdbCredits | undefined): string {
-    return topCast(credits)
-        .map((member) => member.name)
-        .join(', ');
+function topCast(credits: TmdbCredits | undefined): TmdbCastMember[] {
+    return limitCast([...(credits?.cast ?? [])].sort(byBillingOrder));
+}
+
+/**
+ * The cast of a SERIES, reconstructed from the two shapes TMDB offers.
+ *
+ * `/tv/{id}` `credits` is documented as the credits of the LATEST SEASON,
+ * while `aggregate_credits` spans the whole run but — again per TMDB —
+ * omits that newest season. Using either alone misreports long-running
+ * shows: `credits` drops everyone who left, `aggregate_credits` drops
+ * everyone who just joined. Union them.
+ */
+function unifiedTvCast(details: TmdbTvDetails): TmdbCastMember[] {
+    const aggregate: TmdbCastMember[] = (details.aggregate_credits?.cast ?? [])
+        .filter((member) => Boolean(member.name))
+        .sort(byBillingOrder)
+        .map((member) => ({
+            id: member.id,
+            name: member.name,
+            character: member.roles?.find((role) => role.character?.trim())
+                ?.character,
+            order: member.order,
+            profile_path: member.profile_path,
+        }));
+
+    // Cache rows written before aggregate_credits was requested, and shows
+    // TMDB has no aggregate for, still work — they just keep the old cast.
+    if (aggregate.length === 0) {
+        return [...(details.credits?.cast ?? [])].sort(byBillingOrder);
+    }
+
+    const known = new Set(
+        aggregate
+            .map((member) => member.id)
+            .filter((id): id is number => id !== undefined)
+    );
+
+    // Newest-season arrivals go last on purpose: their `order` is scoped to
+    // that season and would otherwise outrank show-level billing.
+    const arrivals = [...(details.credits?.cast ?? [])]
+        .filter(
+            (member) =>
+                Boolean(member.name) &&
+                (member.id === undefined || !known.has(member.id))
+        )
+        .sort(byBillingOrder);
+
+    return [...aggregate, ...arrivals];
+}
+
+function castNames(cast: TmdbCastMember[]): string {
+    return cast.map((member) => member.name).join(', ');
 }
 
 /** Cast with profile photos for the avatar chips in detail views */
-function enrichedCast(
-    credits: TmdbCredits | undefined
-): TmdbEnrichedCastMember[] {
-    return topCast(credits).map((member) => ({
+function enrichedCast(cast: TmdbCastMember[]): TmdbEnrichedCastMember[] {
+    return cast.map((member) => ({
         name: member.name,
         ...(member.character ? { character: member.character } : {}),
         profileUrl: tmdbProfileUrl(member.profile_path),
@@ -169,11 +219,12 @@ export function mergeVodInfoWithTmdb(
     info: XtreamVodInfo,
     details: TmdbMovieDetails
 ): XtreamVodInfo {
-    const tmdbCast = enrichedCast(details.credits);
+    const movieCast = topCast(details.credits);
+    const tmdbCast = enrichedCast(movieCast);
     const tmdbDirectors = enrichedDirectors(details.credits);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
-    const cast = castNames(details.credits);
+    const cast = castNames(movieCast);
     const director = directorNames(details.credits);
     const genre = genreNames(details);
     const rating = tmdbRating(details);
@@ -216,11 +267,12 @@ export function mergeSerieInfoWithTmdb(
     info: XtreamSerieInfo,
     details: TmdbTvDetails
 ): XtreamSerieInfo {
-    const tmdbCast = enrichedCast(details.credits);
+    const seriesCast = limitCast(unifiedTvCast(details));
+    const tmdbCast = enrichedCast(seriesCast);
     const tmdbDirectors = enrichedCreators(details);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
-    const cast = castNames(details.credits);
+    const cast = castNames(seriesCast);
     const creators = creatorNames(details);
     const genre = genreNames(details);
     const rating = tmdbRating(details);
@@ -259,14 +311,18 @@ export function mergeStalkerInfoWithTmdb(
     details: TmdbMovieDetails | TmdbTvDetails,
     mediaType: TmdbMediaType
 ): StalkerVodInfo {
-    const tmdbCast = enrichedCast(details.credits);
+    const selectedCast =
+        mediaType === 'movie'
+            ? topCast(details.credits)
+            : limitCast(unifiedTvCast(details as TmdbTvDetails));
+    const tmdbCast = enrichedCast(selectedCast);
     const tmdbDirectors =
         mediaType === 'movie'
             ? enrichedDirectors(details.credits)
             : enrichedCreators(details as TmdbTvDetails);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
-    const cast = castNames(details.credits);
+    const cast = castNames(selectedCast);
     const director =
         mediaType === 'movie'
             ? directorNames(details.credits)
