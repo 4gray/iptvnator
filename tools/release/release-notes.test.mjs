@@ -422,6 +422,15 @@ describe('extractSection', () => {
     it('returns null when the version is absent', () => {
         assert.equal(extractSection(changelog, '9.9.9'), null);
     });
+
+    it('treats regex metacharacters in the version as literals', () => {
+        // `.` must not act as a wildcard: 0x24y0 would match an unescaped 0.24.0
+        assert.equal(extractSection('# 0x24y0 (2026-08-01)\n\n- e', '0.24.0'), null);
+        // Injected pattern syntax must not throw or widen the match.
+        assert.equal(extractSection(changelog, '0.24.0|0.12.0'), null);
+        assert.equal(extractSection(changelog, '.*'), null);
+        assert.equal(extractSection(changelog, '0.24\\.0'), null);
+    });
 });
 
 describe('helpers', () => {

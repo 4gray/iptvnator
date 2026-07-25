@@ -31,11 +31,15 @@ const workspaceRoot = path.resolve(
  */
 export function extractSection(changelog, version) {
     const lines = changelog.replace(/\r\n/g, '\n').split('\n');
+    // The CLI validates its argument, but this function is exported on its
+    // own — escape every regex metacharacter rather than only dots so no
+    // caller can inject pattern syntax.
+    const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // Matches both heading shapes used in this file:
     //   # [0.24.0](compare-url) (2026-08-01)
     //   # 0.24.0 (2026-08-01)
     const headingPattern = new RegExp(
-        `^#\\s+\\[?${version.replace(/\./g, '\\.')}\\]?\\s*[( ]`
+        `^#\\s+\\[?${escapedVersion}\\]?\\s*[( ]`
     );
     const start = lines.findIndex((line) => headingPattern.test(line));
 
