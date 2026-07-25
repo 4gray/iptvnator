@@ -304,6 +304,13 @@ holds the clear promise for its duration so a write starting meanwhile
 queues behind the delete instead of racing it. Rows written after the user
 cleared are deliberately kept.
 
+The panel's full path — settings button, preload bridge, DB worker, real
+SQLite — is covered by `@settings @electron @persistence sizes and clears
+the TMDB metadata cache` in `apps/electron-backend-e2e/src/settings.e2e.ts`.
+It seeds a row through `dbSetTmdbMetadata` rather than through enrichment,
+which needs an API key that builds outside the release pipeline do not
+carry.
+
 The PWA uses a session-scoped in-memory map (acceptable for phase 1; TMDB
 supports CORS so the PWA calls the API directly).
 
