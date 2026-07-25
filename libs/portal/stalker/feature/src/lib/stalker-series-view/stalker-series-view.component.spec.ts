@@ -685,6 +685,90 @@ describe('StalkerSeriesViewComponent', () => {
         );
     });
 
+    it('prefetches the next unopened season so the Up Next rail can spill over', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+        ]);
+        isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Season 1 loaded, season 2 still empty — the state a user is in
+        // right after opening the series and starting the first episode.
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    { id: 'episode-1', series_number: 1, name: 'Pilot' },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockClear();
+        fetchVodSeriesEpisodes.mockResolvedValue([
+            { id: 'episode-3', series_number: 1, name: 'Next Season' },
+        ]);
+
+        const firstEpisode = fixture.componentInstance.mappedSeasons()['1'][0];
+        fixture.componentInstance.onEpisodeClicked(firstEpisode);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
+            '50001',
+            'season-2'
+        );
+
+        const inlinePlayer = fixture.debugElement.query(
+            By.directive(StubPortalInlinePlayerComponent)
+        ).componentInstance as StubPortalInlinePlayerComponent;
+        const railItems = inlinePlayer.upNextEpisodes() as Array<{
+            label: string;
+        }>;
+        expect(railItems.map((item) => item.label)).toEqual([
+            'S01E01',
+            'S02E01',
+        ]);
+    });
+
     it('loads the next unloaded VOD-series season after the loaded season is watched', async () => {
         selectedContentType.set('vod');
         selectedItem.set({

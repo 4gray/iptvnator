@@ -164,10 +164,20 @@ seasons, with per-episode watch-progress bars from playback positions.
   routed into the host's existing episode-play flow — the same path the
   season container uses.
 - Width gating: a ResizeObserver on `.player-shell__viewport` feeds the
-  component's `stageSize`; the rail docks in only when the stage's leftover
-  width beside the largest 16:9 box fitting its height is ≥ 320px
-  (`UP_NEXT_RAIL_MIN_WIDTH`). On near-16:9 or taller windows the rail
+  component's `stageSize` with the stage's **border-box** size, and the gate
+  computes the width the rail would actually receive — stage minus the docked
+  layout's padding, minus the 16:9 player sized to the remaining height, minus
+  the flex gap (`RAIL_STAGE_PADDING` / `RAIL_STAGE_GAP`, kept in sync with the
+  stylesheet). The rail docks in only when that is ≥ 320px
+  (`UP_NEXT_RAIL_MIN_WIDTH`). Measuring the border box matters: the docked
+  modifier adds padding to the same element being observed, so a content-box
+  measurement would change the input the moment the rail appears and could
+  oscillate around the threshold. On near-16:9 or taller windows the rail
   auto-hides and the centered theater/ambient behavior above remains.
+- Lazy Stalker seasons: Ministra VOD-series seasons carry no episodes until
+  their tab is opened, so `StalkerSeriesViewComponent` prefetches the season
+  after the playing one while inline playback is active — otherwise the rail's
+  next-season spillover would silently stop at the current season's end.
 - Gating mirrors ambient mode: the `playerUpNextRail` setting (Settings →
   Playback, **default on**, shown only for the built-in web players) plus a
   runtime web-engine check; the rail also requires

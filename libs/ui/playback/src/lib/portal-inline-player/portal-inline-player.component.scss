@@ -91,6 +91,9 @@
     // transfer through `aspect-ratio` into a max-width and re-clamp the stage
     // to 16:9 — recreating the app-surface gap on wide-short windows.
     width: 100%;
+    // There is no global border-box reset, so the rail modifier's padding
+    // would otherwise widen the stage past its container and get clipped.
+    box-sizing: border-box;
     min-height: 320px;
     max-height: min(70vh, 720px);
     aspect-ratio: 16 / 9;

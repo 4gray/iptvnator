@@ -32,11 +32,11 @@ import type {
 import { UpNextRailComponent } from './up-next-rail.component';
 import type { UpNextRailItem } from './up-next-rail.util';
 
-/**
- * Minimum leftover stage width (px) beyond the 16:9 player box before the
- * "Up Next" rail docks in; includes the flex gap between player and rail.
- */
+/** Narrowest useful "Up Next" rail; below this the stage stays centered. */
 const UP_NEXT_RAIL_MIN_WIDTH = 320;
+/** Keep in sync with `.player-shell__viewport--with-rail` in the stylesheet. */
+const RAIL_STAGE_PADDING = 12;
+const RAIL_STAGE_GAP = 18;
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -147,17 +147,30 @@ export class PortalInlinePlayerComponent {
     private readonly stageViewport = viewChild<ElementRef<HTMLElement>>(
         'stageViewport'
     );
-    /** Rendered size of the theater stage; written by a ResizeObserver. */
+    /**
+     * Border-box size of the theater stage, written by a ResizeObserver.
+     * Measuring the border box (not the content box) keeps the value stable
+     * when the rail modifier toggles the stage's own padding, so the gate
+     * below cannot oscillate around its threshold.
+     */
     readonly stageSize = signal<{ width: number; height: number } | null>(
         null
     );
-    /** Leftover stage width beside the largest 16:9 box fitting its height. */
-    private readonly stageLeftoverWidth = computed<number>(() => {
+    /**
+     * Width the rail would actually get: the stage minus its docked-mode
+     * padding, the 16:9 player sized to the remaining height, and the flex
+     * gap. Computed for the docked layout even while centered, so the gate
+     * answers "would the rail fit?" rather than "is there slack right now?".
+     */
+    private readonly upNextRailAvailableWidth = computed<number>(() => {
         const size = this.stageSize();
         if (!size || size.height <= 0) {
             return 0;
         }
-        return size.width - (size.height * 16) / 9;
+
+        const innerWidth = size.width - RAIL_STAGE_PADDING * 2;
+        const innerHeight = size.height - RAIL_STAGE_PADDING * 2;
+        return innerWidth - (innerHeight * 16) / 9 - RAIL_STAGE_GAP;
     });
     /**
      * The rail docks in only for inline series playback on web engines, when
@@ -172,7 +185,7 @@ export class PortalInlinePlayerComponent {
             !!this.upNextEpisodes()?.length &&
             !playback?.isLive &&
             playback?.contentInfo?.contentType === 'episode' &&
-            this.stageLeftoverWidth() >= UP_NEXT_RAIL_MIN_WIDTH
+            this.upNextRailAvailableWidth() >= UP_NEXT_RAIL_MIN_WIDTH
         );
     });
     readonly upNextRailItems = computed<UpNextRailItem[]>(
@@ -202,13 +215,25 @@ export class PortalInlinePlayerComponent {
             }
 
             const observer = new ResizeObserver((entries) => {
-                const rect = entries[0]?.contentRect;
-                if (rect) {
-                    this.stageSize.set({
-                        width: rect.width,
-                        height: rect.height,
-                    });
+                const entry = entries[0];
+                if (!entry) {
+                    return;
                 }
+
+                // `borderBoxSize` is the padding-independent measurement; the
+                // `contentRect` fallback covers engines that omit it.
+                const borderBox = entry.borderBoxSize?.[0];
+                this.stageSize.set(
+                    borderBox
+                        ? {
+                              width: borderBox.inlineSize,
+                              height: borderBox.blockSize,
+                          }
+                        : {
+                              width: entry.contentRect.width,
+                              height: entry.contentRect.height,
+                          }
+                );
             });
             observer.observe(element);
             onCleanup(() => observer.disconnect());

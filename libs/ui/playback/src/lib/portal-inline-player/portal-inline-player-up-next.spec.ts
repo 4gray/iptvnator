@@ -132,6 +132,36 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         ).toBe(2);
     });
 
+    it('gates on the width the rail actually gets, after padding and gap', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        // At 500px tall the docked layout spends 24px padding + 18px gap, so
+        // the rail clears 320px only above a ~1208px stage.
+        renderWithStage(1180, 500);
+        expect(component.upNextRailVisible()).toBe(false);
+        expect(railEl()).toBeNull();
+
+        renderWithStage(1230, 500);
+        expect(component.upNextRailVisible()).toBe(true);
+        expect(railEl()).toBeTruthy();
+    });
+
+    it('stays docked once shown — the modifier padding cannot flip the gate', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        renderWithStage(1600, 500);
+        expect(component.upNextRailVisible()).toBe(true);
+
+        // Border-box measurement: the observer reports the same size after
+        // the rail modifier adds its padding, so visibility does not oscillate.
+        component.stageSize.set({ width: 1600, height: 500 });
+        fixture.detectChanges();
+
+        expect(component.upNextRailVisible()).toBe(true);
+    });
+
     it('keeps the centered theater layout when the stage is near 16:9', async () => {
         await setup(true);
         fixture.componentRef.setInput('playback', seriesPlayback);

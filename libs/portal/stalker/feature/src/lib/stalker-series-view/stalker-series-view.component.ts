@@ -431,6 +431,31 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
 
     /**
+     * Ministra VOD-series seasons hold no episodes until their tab is opened,
+     * so the rail's next-season spillover would silently stop at the end of
+     * the playing season. While an episode plays inline, fetch the following
+     * season's episodes once so the spillover is actually there.
+     */
+    private readonly prefetchRailSpilloverSeason = effect(() => {
+        const seasonKey = this.inlineEpisodeState()?.seasonKey;
+        const seasons = this.vodSeriesSeasons();
+        if (!this.isVodSeries() || !seasonKey) {
+            return;
+        }
+
+        const currentIndex = seasons.findIndex(
+            (season) => getVodSeriesSeasonKey(season) === seasonKey
+        );
+        const nextSeason =
+            currentIndex >= 0 ? seasons[currentIndex + 1] : undefined;
+        if (!nextSeason || nextSeason.isLoading || nextSeason.episodes.length) {
+            return;
+        }
+
+        untracked(() => void this.loadEpisodesForSeason(nextSeason));
+    });
+
+    /**
      * Handles season selection from the container.
      * For VOD Series, triggers lazy loading of episodes.
      */
