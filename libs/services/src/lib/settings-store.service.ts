@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
     webPlayerSharedControls: false,
     playerAmbientMode: false,
+    playerUpNextRail: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
@@ -192,6 +193,9 @@ export const SettingsStore = signalStore(
                     playerAmbientMode:
                         store.playerAmbientMode?.() ??
                         DEFAULT_SETTINGS.playerAmbientMode,
+                    playerUpNextRail:
+                        store.playerUpNextRail?.() ??
+                        DEFAULT_SETTINGS.playerUpNextRail,
                     streamFormat: store.streamFormat(),
                     openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
                     language: store.language(),

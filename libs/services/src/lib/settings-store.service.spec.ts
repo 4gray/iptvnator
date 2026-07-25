@@ -163,6 +163,24 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().playerAmbientMode).toBe(true);
     });
 
+    it('defaults the up next rail to true when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerUpNextRail).toBe(true);
+    });
+
+    it('restores a persisted false up next rail preference', async () => {
+        storedSettings = { playerUpNextRail: false };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().playerUpNextRail).toBe(false);
+    });
+
     it('restores a persisted true strip country prefix preference', async () => {
         storedSettings = {
             stripCountryPrefix: true,

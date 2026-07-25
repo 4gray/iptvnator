@@ -167,6 +167,7 @@
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="item.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
+                [upNextEpisodes]="upNextEpisodes()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (backClicked)="goBack()"
@@ -174,6 +175,7 @@
                 (playbackEnded)="handleInlinePlaybackEnded()"
                 (previousEpisodeRequested)="playPreviousEpisode()"
                 (nextEpisodeRequested)="playNextEpisode()"
+                (upNextEpisodeSelected)="playUpNextEpisode($event)"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "

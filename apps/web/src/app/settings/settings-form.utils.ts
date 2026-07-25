@@ -33,6 +33,7 @@ export function createSettingsForm(
         player: [VideoPlayer.VideoJs],
         webPlayerSharedControls: false,
         playerAmbientMode: false,
+        playerUpNextRail: true,
         ...(supportsEpg
             ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
             : {}),
@@ -119,6 +120,7 @@ export function createSettingsFromFormValue(
         player: value.player ?? VideoPlayer.VideoJs,
         webPlayerSharedControls: value.webPlayerSharedControls ?? false,
         playerAmbientMode: value.playerAmbientMode ?? false,
+        playerUpNextRail: value.playerUpNextRail ?? true,
         streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
         language: value.language ?? Language.ENGLISH,
