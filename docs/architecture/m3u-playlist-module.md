@@ -685,11 +685,13 @@ player in settings.
 
 **DRM data flow** (M3U module only; Xtream/Stalker have no DRM concept):
 
-1. The playlist parser fork does not understand `#KODIPROP:` lines, but keeps
-   every unknown line between `#EXTINF` and the stream URL in `item.raw` (the
-   dominant Kodi/TiviMate layout; `#KODIPROP` lines *before* `#EXTINF` are
-   dropped by the parser — fixing that requires a parser-fork patch and is
-   deferred).
+1. The playlist parser fork does not interpret `#KODIPROP:` lines, but
+   preserves them in `item.raw` for **both** layouts: unknown lines between
+   `#EXTINF` and the stream URL are kept as before, and since parser pin
+   `v0.15.2-iptvnator.2` `#KODIPROP` lines placed *before* the `#EXTINF` are
+   buffered and attached to the **next** entry's `raw` in file order (Kodi
+   semantics, case-insensitive prefix). Other stray `#` lines outside an open
+   item are still dropped, matching upstream.
 2. `extractDrmFromRaw()` (`libs/shared/m3u-utils/src/lib/kodiprop.utils.ts`)
    post-processes `raw` inside `createPlaylistObject()` — the single funnel
    for all four import paths (Electron URL/file import, refresh worker,
