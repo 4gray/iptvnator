@@ -430,7 +430,7 @@ State management via NgRx (`libs/m3u-state/`):
 - `PlaylistActions`: loadPlaylists, addPlaylist, removePlaylist, parsePlaylist
 - `ChannelActions`: setChannels, setActiveChannel, setAdjacentChannelAsActive
 - `EpgActions`: setActiveEpgProgram, setCurrentEpgProgram, setEpgAvailableFlag
-- `FavoritesActions`: updateFavorites, setFavorites
+- `FavoritesActions`: updateFavorites, setFavorites, hydrateFavorites
 
 See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 

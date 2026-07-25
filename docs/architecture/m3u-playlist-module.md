@@ -152,7 +152,7 @@ used by the groups view to remember which group titles the user has hidden.
 | **PlaylistActions**  | `loadPlaylists`, `addPlaylist`, `removePlaylist`, `parsePlaylist`, `setActivePlaylist` | Playlist CRUD                  |
 | **ChannelActions**   | `setChannels`, `setActiveChannel`, `setAdjacentChannelAsActive`                        | Channel selection & navigation |
 | **EpgActions**       | `setActiveEpgProgram`, `setCurrentEpgProgram`, `setEpgAvailableFlag`                   | EPG state                      |
-| **FavoritesActions** | `updateFavorites`, `setFavorites`                                                      | Favorites management           |
+| **FavoritesActions** | `updateFavorites`, `setFavorites`, `hydrateFavorites`                                  | Favorites management           |
 | **FilterActions**    | `setSelectedFilters`                                                                   | Playlist type filtering        |
 
 ### Key Selectors
@@ -250,6 +250,10 @@ channel-list-container/
 
 - `M3uWorkspaceRouteSession` owns route-driven channel loading for the player/sidebar routes: `all` and `groups`.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
+- The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
+  after that persisted read. Hydration must not use the persistence-bearing
+  `setFavorites` action: doing so reads and rewrites the complete M3U payload
+  again just to store favorites that already came from SQLite.
 - `ChannelListContainerComponent` now renders a dedicated skeleton state while `channelsLoading` is true.
 - `ChannelListContainerComponent` no longer clears `channels` on destroy; route/session code is the single owner of shared list lifecycle during navigation.
 - The dedicated `/workspace/playlists/:id/favorites` and `/workspace/playlists/:id/recent` collection routes do not drive the shared sidebar channel list; they default to the `playlist` scope so rail links always open the current playlist view, not the last persisted global scope.
@@ -897,4 +901,6 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 
 1. Dispatch `FavoritesActions.updateFavorites` for toggle
 2. Dispatch `FavoritesActions.setFavorites` for reordering
-3. Effects automatically persist to database
+3. Dispatch `FavoritesActions.hydrateFavorites` only when copying values that
+   were already read from persistence into NgRx
+4. Effects persist the two user-mutation actions; hydration is reducer-only
