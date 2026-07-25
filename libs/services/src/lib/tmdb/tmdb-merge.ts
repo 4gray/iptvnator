@@ -1,16 +1,25 @@
 import {
     normalizeSeriesStatus,
     StalkerVodInfo,
-    TmdbEnrichedCastMember,
     TmdbMediaType,
     TmdbRecommendation,
     XtreamSerieInfo,
     XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
-import { tmdbBackdropUrl, tmdbPosterUrl, tmdbProfileUrl } from './tmdb-config';
+import { tmdbBackdropUrl, tmdbPosterUrl } from './tmdb-config';
+import {
+    castNames,
+    creatorNames,
+    directorNames,
+    enrichedCast,
+    enrichedCreators,
+    enrichedDirectors,
+    limitCast,
+    topCast,
+    unifiedTvCast,
+} from './tmdb-credits';
 import { extractYear } from './tmdb-matcher';
 import {
-    TmdbCredits,
     TmdbDetails,
     TmdbMovieDetails,
     TmdbTvDetails,
@@ -21,89 +30,8 @@ import {
  * The provider stays authoritative for stream-related data; TMDB wins for
  * editorial fields (plot, cast, director, genres, rating, artwork) when it
  * has a value, otherwise the provider value is kept. Nothing is mutated.
+ * People (cast, directors, creators) are extracted in `tmdb-credits.ts`.
  */
-
-const MAX_CAST_NAMES = 10;
-
-function topCast(credits: TmdbCredits | undefined) {
-    return [...(credits?.cast ?? [])]
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .slice(0, MAX_CAST_NAMES)
-        .filter((member) => Boolean(member.name));
-}
-
-function castNames(credits: TmdbCredits | undefined): string {
-    return topCast(credits)
-        .map((member) => member.name)
-        .join(', ');
-}
-
-/** Cast with profile photos for the avatar chips in detail views */
-function enrichedCast(
-    credits: TmdbCredits | undefined
-): TmdbEnrichedCastMember[] {
-    return topCast(credits).map((member) => ({
-        name: member.name,
-        ...(member.character ? { character: member.character } : {}),
-        profileUrl: tmdbProfileUrl(member.profile_path),
-        ...(member.id ? { tmdbPersonId: member.id } : {}),
-    }));
-}
-
-function directorNames(credits: TmdbCredits | undefined): string {
-    return (credits?.crew ?? [])
-        .filter((member) => member.job === 'Director')
-        .map((member) => member.name)
-        .filter(Boolean)
-        .join(', ');
-}
-
-function creatorNames(details: TmdbTvDetails): string {
-    return (details.created_by ?? [])
-        .map((creator) => creator.name)
-        .filter(Boolean)
-        .join(', ');
-}
-
-/**
- * Directors (movies) as clickable person chips — same shape as the cast
- * chips, so a director opens the same person page as an actor. Deduped by
- * TMDB id to collapse the duplicate crew rows TMDB sometimes returns.
- */
-function enrichedDirectors(
-    credits: TmdbCredits | undefined
-): TmdbEnrichedCastMember[] {
-    const seen = new Set<number>();
-    const directors: TmdbEnrichedCastMember[] = [];
-    for (const member of credits?.crew ?? []) {
-        if (member.job !== 'Director' || !member.name) {
-            continue;
-        }
-        if (member.id !== undefined) {
-            if (seen.has(member.id)) {
-                continue;
-            }
-            seen.add(member.id);
-        }
-        directors.push({
-            name: member.name,
-            profileUrl: tmdbProfileUrl(member.profile_path),
-            ...(member.id ? { tmdbPersonId: member.id } : {}),
-        });
-    }
-    return directors;
-}
-
-/** Series creators as clickable person chips (TV shows have no director) */
-function enrichedCreators(details: TmdbTvDetails): TmdbEnrichedCastMember[] {
-    return (details.created_by ?? [])
-        .filter((creator) => Boolean(creator.name))
-        .map((creator) => ({
-            name: creator.name,
-            profileUrl: tmdbProfileUrl(creator.profile_path),
-            ...(creator.id ? { tmdbPersonId: creator.id } : {}),
-        }));
-}
 
 const MAX_RECOMMENDATIONS = 12;
 
@@ -170,11 +98,12 @@ export function mergeVodInfoWithTmdb(
     info: XtreamVodInfo,
     details: TmdbMovieDetails
 ): XtreamVodInfo {
-    const tmdbCast = enrichedCast(details.credits);
+    const movieCast = topCast(details.credits);
+    const tmdbCast = enrichedCast(movieCast);
     const tmdbDirectors = enrichedDirectors(details.credits);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
-    const cast = castNames(details.credits);
+    const cast = castNames(movieCast);
     const director = directorNames(details.credits);
     const genre = genreNames(details);
     const rating = tmdbRating(details);
@@ -217,12 +146,13 @@ export function mergeSerieInfoWithTmdb(
     info: XtreamSerieInfo,
     details: TmdbTvDetails
 ): XtreamSerieInfo {
-    const tmdbCast = enrichedCast(details.credits);
+    const seriesCast = limitCast(unifiedTvCast(details));
+    const tmdbCast = enrichedCast(seriesCast);
     const tmdbDirectors = enrichedCreators(details);
     const status = normalizeSeriesStatus(details.status);
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
-    const cast = castNames(details.credits);
+    const cast = castNames(seriesCast);
     const creators = creatorNames(details);
     const genre = genreNames(details);
     const rating = tmdbRating(details);
@@ -262,7 +192,11 @@ export function mergeStalkerInfoWithTmdb(
     details: TmdbMovieDetails | TmdbTvDetails,
     mediaType: TmdbMediaType
 ): StalkerVodInfo {
-    const tmdbCast = enrichedCast(details.credits);
+    const selectedCast =
+        mediaType === 'movie'
+            ? topCast(details.credits)
+            : limitCast(unifiedTvCast(details as TmdbTvDetails));
+    const tmdbCast = enrichedCast(selectedCast);
     const tmdbDirectors =
         mediaType === 'movie'
             ? enrichedDirectors(details.credits)
@@ -273,7 +207,7 @@ export function mergeStalkerInfoWithTmdb(
             : null;
     const trailer = pickTrailerKey(details);
     const recommendations = recommendationList(details);
-    const cast = castNames(details.credits);
+    const cast = castNames(selectedCast);
     const director =
         mediaType === 'movie'
             ? directorNames(details.credits)

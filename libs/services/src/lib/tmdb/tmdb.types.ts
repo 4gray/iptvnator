@@ -57,6 +57,23 @@ export interface TmdbCredits {
     crew?: TmdbCrewMember[];
 }
 
+/**
+ * `/tv/{id}/aggregate_credits` groups a person's work across the whole
+ * run, so a character lives in `roles[]` rather than on the member.
+ */
+export interface TmdbAggregateCastMember {
+    id?: number;
+    name: string;
+    order?: number;
+    profile_path?: string | null;
+    total_episode_count?: number;
+    roles?: { character?: string; episode_count?: number }[];
+}
+
+export interface TmdbAggregateCredits {
+    cast?: TmdbAggregateCastMember[];
+}
+
 export interface TmdbGenre {
     id: number;
     name: string;
@@ -100,6 +117,8 @@ export interface TmdbTvDetails extends TmdbDetailsBase {
     first_air_date?: string;
     /** English production status ("Ended", "Returning Series", ...) */
     status?: string;
+    /** Series-wide cast; `credits` alone covers only the latest season */
+    aggregate_credits?: TmdbAggregateCredits;
     episode_run_time?: number[];
     created_by?: {
         id?: number;
