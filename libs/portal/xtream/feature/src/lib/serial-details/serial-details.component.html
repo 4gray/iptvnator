@@ -11,6 +11,11 @@
         (closePlayerRequested)="closeInlinePlayer()"
     >
         <ng-template appDetailTags>
+            @if (info.tmdb_status; as status) {
+                <span class="details__tag details__tag--status">{{
+                    seriesStatusLabelKey(status) | translate
+                }}</span>
+            }
             @if (info.releaseDate) {
                 <span class="details__tag">{{
                     info.releaseDate | slice: 0 : 4

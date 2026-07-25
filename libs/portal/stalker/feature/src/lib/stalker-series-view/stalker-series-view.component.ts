@@ -23,11 +23,12 @@ import {
     SeasonContainerPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import {
+    pickSeasonMarkedTitle,
     PlaybackPositionData,
     ResolvedPortalPlayback,
+    seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
-    pickSeasonMarkedTitle,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import { SafePipe } from '@iptvnator/pipes';
@@ -134,6 +135,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     private readonly tmdbSeasons = inject(StalkerSeriesTmdbSeasonsService);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
+
+    /** Maps the status token to its translated label key */
+    readonly seriesStatusLabelKey = seriesStatusLabelKey;
 
     /**
      * TMDB recommendations found in the user's Xtream portals (batched DB
