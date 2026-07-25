@@ -7,8 +7,25 @@ import {
     readdirSync,
     statSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
+
+import {
+    evaluateCoverageRatchets,
+    validateProjectCoverage,
+    validateRequiredProjectReports,
+} from './coverage-integrity.mjs';
+
+const require = createRequire(import.meta.url);
+const { createCoverageMap } = require('istanbul-lib-coverage');
+const COVERAGE_METRICS = [
+    'statements',
+    'branches',
+    'functions',
+    'lines',
+];
+const COVERAGE_SUMMARY_FIELDS = ['covered', 'total', 'pct'];
 
 const workspaceRoot = process.cwd();
 const args = new Set(process.argv.slice(2));
@@ -37,6 +54,15 @@ function projectJsonPath(project) {
     return path.join(workspaceRoot, project.root, 'project.json');
 }
 
+function projectCoveragePath(project) {
+    return path.join(
+        workspaceRoot,
+        'coverage',
+        project.root,
+        'coverage-final.json'
+    );
+}
+
 function verifyTierAProjects() {
     for (const project of policy.unitCoverage.tierA) {
         const filePath = projectJsonPath(project);
@@ -58,14 +84,63 @@ function verifyTierAProjects() {
     }
 }
 
+function verifyProjectCoverageReports() {
+    if (requireReport) {
+        const validation = validateRequiredProjectReports({
+            projects: policy.unitCoverage.tierA,
+            workspaceRoot,
+        });
+        errors.push(...validation.errors);
+        return;
+    }
+
+    for (const project of policy.unitCoverage.tierA) {
+        if (!existsSync(projectCoveragePath(project))) {
+            continue;
+        }
+
+        const validation = validateProjectCoverage({
+            project,
+            workspaceRoot,
+        });
+        errors.push(...validation.errors);
+    }
+}
+
+function reportCoverageSummaryMismatches(reportedSummary, computedSummary) {
+    for (const metric of COVERAGE_METRICS) {
+        const reported = reportedSummary[metric];
+        const computed = computedSummary[metric];
+        if (
+            COVERAGE_SUMMARY_FIELDS.every(
+                (field) => reported?.[field] === computed?.[field]
+            )
+        ) {
+            continue;
+        }
+
+        errors.push(
+            `Merged coverage summary mismatch for ${metric}: coverage-summary.json reports covered ${reported?.covered}, total ${reported?.total}, pct ${reported?.pct}; coverage-final.json computes covered ${computed?.covered}, total ${computed?.total}, pct ${computed?.pct}.`
+        );
+    }
+}
+
 function verifyCoverageReport() {
     const summaryPath = path.join(
         workspaceRoot,
         policy.reporting.mergedCoverageDir,
         'coverage-summary.json'
     );
+    const ratchet = policy.reporting.coverageRatchet;
+    const coveragePath = path.join(
+        workspaceRoot,
+        policy.reporting.mergedCoverageDir,
+        'coverage-final.json'
+    );
+    const summaryExists = existsSync(summaryPath);
+    const coverageExists = existsSync(coveragePath);
 
-    if (!existsSync(summaryPath)) {
+    if (!summaryExists && !coverageExists) {
         const message = `Merged coverage summary not found at ${path.relative(workspaceRoot, summaryPath)}.`;
         if (requireReport) {
             errors.push(message);
@@ -75,25 +150,83 @@ function verifyCoverageReport() {
         return;
     }
 
-    const summary = readJson(summaryPath).total;
-    console.log(
-        `Merged coverage: statements ${summary.statements.pct}%, branches ${summary.branches.pct}%, functions ${summary.functions.pct}%, lines ${summary.lines.pct}%.`
-    );
+    if (summaryExists !== coverageExists) {
+        const existingPath = summaryExists ? summaryPath : coveragePath;
+        const missingPath = summaryExists ? coveragePath : summaryPath;
+        errors.push(
+            `Merged coverage artifacts are incomplete: found ${path.relative(workspaceRoot, existingPath)} but ${path.relative(workspaceRoot, missingPath)} is missing.`
+        );
+        return;
+    }
 
-    if (requireReport) {
-        for (const project of policy.unitCoverage.tierA) {
-            const projectCoveragePath = path.join(
+    let summaryDocument;
+    try {
+        summaryDocument = readJson(summaryPath);
+    } catch (error) {
+        errors.push(
+            `Merged coverage summary ${path.relative(workspaceRoot, summaryPath)} contains invalid JSON: ${error.message}`
+        );
+        return;
+    }
+
+    const summary = summaryDocument?.total;
+    if (
+        !summary ||
+        COVERAGE_METRICS.some(
+            (metric) =>
+                !summary[metric] ||
+                !Number.isFinite(summary[metric].pct)
+        )
+    ) {
+        errors.push(
+            `Merged coverage summary ${path.relative(workspaceRoot, summaryPath)} does not contain usable total coverage metrics.`
+        );
+        return;
+    }
+
+    let coverageData;
+    try {
+        coverageData = readJson(coveragePath);
+    } catch (error) {
+        errors.push(
+            `Merged coverage report ${path.relative(workspaceRoot, coveragePath)} contains invalid JSON: ${error.message}`
+        );
+        return;
+    }
+
+    let computedSummary;
+    try {
+        const coverageMap = createCoverageMap(coverageData);
+        computedSummary = coverageMap.getCoverageSummary().toJSON();
+    } catch (error) {
+        errors.push(
+            `Merged coverage report ${path.relative(workspaceRoot, coveragePath)} is not valid Istanbul coverage: ${error.message}`
+        );
+        return;
+    }
+
+    console.log(
+        `Merged coverage: statements ${computedSummary.statements.pct}%, branches ${computedSummary.branches.pct}%, functions ${computedSummary.functions.pct}%, lines ${computedSummary.lines.pct}%.`
+    );
+    reportCoverageSummaryMismatches(summary, computedSummary);
+
+    if (ratchet === undefined) {
+        return;
+    }
+
+    try {
+        errors.push(
+            ...evaluateCoverageRatchets({
+                coverageData,
+                mergedSummary: computedSummary,
+                ratchet,
                 workspaceRoot,
-                'coverage',
-                project.root,
-                'coverage-final.json'
-            );
-            if (!existsSync(projectCoveragePath)) {
-                errors.push(
-                    `Tier A project ${project.name} did not produce ${path.relative(workspaceRoot, projectCoveragePath)}.`
-                );
-            }
-        }
+            })
+        );
+    } catch (error) {
+        errors.push(
+            `Merged coverage report ${path.relative(workspaceRoot, coveragePath)} is not valid Istanbul coverage: ${error.message}`
+        );
     }
 }
 
@@ -216,6 +349,7 @@ function reportChangedCriticalFiles() {
 }
 
 verifyTierAProjects();
+verifyProjectCoverageReports();
 verifyCoverageReport();
 scanE2ETags();
 reportChangedCriticalFiles();
