@@ -183,6 +183,21 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         expect(rememberBadProviderId).not.toHaveBeenCalled();
     });
 
+    it('keeps the provider payload when the competing search throws', async () => {
+        // Same reasoning as above, but the search never returns a verdict:
+        // TMDB is offline or rate-limiting. Details in hand beat nothing.
+        getMovieDetails.mockResolvedValue(unrelated);
+        resolveBySearch.mockRejectedValue(new TmdbApiError(503, 'Down'));
+        const service = createService();
+
+        const details = await service.enrichMovie({
+            tmdbId: 999,
+            title: 'Ирония судьбы',
+        });
+
+        expect(details?.id).toBe(999);
+    });
+
     it('skips a provider id already known to be bad', async () => {
         isKnownBadProviderId.mockResolvedValue(true);
         resolveBySearch.mockResolvedValue(603);

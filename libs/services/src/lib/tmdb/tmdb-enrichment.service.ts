@@ -182,10 +182,11 @@ export class TmdbEnrichmentService {
         // deny the direct lookup to every other item that legitimately uses
         // the same id. The search verdict is cached anyway, so the repeat
         // cost is one details fetch.
-        const searchedId = await this.idResolver.resolveBySearch(
-            mediaType,
-            query
-        );
+        // The search is best-effort here: offline, rate-limited or 5xx must
+        // fall back to the details we already have, not discard them.
+        const searchedId = await this.idResolver
+            .resolveBySearch(mediaType, query)
+            .catch(() => null);
         if (searchedId === null || searchedId === providerId) {
             return details;
         }
