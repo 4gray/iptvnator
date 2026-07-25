@@ -106,4 +106,30 @@ describe('iptv-playlist-parser contract (4gray fork)', () => {
             'https://epg.example/guide.xml'
         );
     });
+
+    it('preserves #KODIPROP lines placed before #EXTINF in item raw', () => {
+        // Kodi property lines apply to the NEXT entry; the DASH/ClearKey
+        // support extracts license config from item.raw (#1225).
+        const result = parse(
+            [
+                '#EXTM3U',
+                '#KODIPROP:inputstream.adaptive.license_type=clearkey',
+                '#KODIPROP:inputstream.adaptive.license_key=kid123:key456',
+                '#EXTINF:-1,Encrypted',
+                'http://example.com/enc.mpd',
+                '#EXTINF:-1,Plain',
+                'http://example.com/plain.m3u8',
+                '',
+            ].join('\n')
+        );
+
+        expect(result.items.length).toBe(2);
+        expect(result.items[0].raw).toContain(
+            '#KODIPROP:inputstream.adaptive.license_type=clearkey'
+        );
+        expect(result.items[0].raw).toContain(
+            '#KODIPROP:inputstream.adaptive.license_key=kid123:key456'
+        );
+        expect(result.items[1].raw).not.toContain('#KODIPROP');
+    });
 });
