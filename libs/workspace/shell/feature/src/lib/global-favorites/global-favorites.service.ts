@@ -86,17 +86,11 @@ export class GlobalFavoritesService {
     async removeFavorite(channel: UnifiedFavoriteChannel): Promise<void> {
         switch (channel.sourceType) {
             case 'm3u': {
-                const playlist = await firstValueFrom(
-                    this.playlistsService.getPlaylistById(channel.playlistId)
-                );
-                const currentFavs = (playlist.favorites as string[]) ?? [];
-                const filtered = currentFavs.filter(
-                    (f) => f !== channel.streamUrl
-                );
                 await firstValueFrom(
-                    this.playlistsService.setFavorites(
+                    this.playlistsService.transformPlaylistFavorites(
                         channel.playlistId,
-                        filtered
+                        (current) =>
+                            current.filter((f) => f !== channel.streamUrl)
                     )
                 );
                 break;
@@ -134,9 +128,7 @@ export class GlobalFavoritesService {
         // Persist xtream positions to DB
         const xtreamUpdates = channels
             .filter(
-                (
-                    ch
-                ): ch is UnifiedFavoriteChannel & { contentId: number } =>
+                (ch): ch is UnifiedFavoriteChannel & { contentId: number } =>
                     ch.sourceType === 'xtream' && ch.contentId != null
             )
             .map((ch, index) => ({

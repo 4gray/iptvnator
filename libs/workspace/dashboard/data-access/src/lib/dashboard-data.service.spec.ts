@@ -148,7 +148,7 @@ describe('DashboardDataService', () => {
     const playlistsServiceMock = {
         getM3uFavoriteChannels: jest.fn().mockReturnValue(of(null)),
         getPlaylistById: jest.fn().mockReturnValue(of(playlistMock)),
-        setFavorites: jest.fn().mockReturnValue(of(undefined)),
+        transformPlaylistFavorites: jest.fn().mockReturnValue(of(playlistMock)),
         removeFromM3uRecentlyViewed: jest.fn().mockReturnValue(
             of({
                 ...playlistMock,
@@ -193,8 +193,10 @@ describe('DashboardDataService', () => {
         playlistsServiceMock.getM3uFavoriteChannels.mockReturnValue(of(null));
         playlistsServiceMock.getPlaylistById.mockClear();
         playlistsServiceMock.getPlaylistById.mockReturnValue(of(playlistMock));
-        playlistsServiceMock.setFavorites.mockClear();
-        playlistsServiceMock.setFavorites.mockReturnValue(of(undefined));
+        playlistsServiceMock.transformPlaylistFavorites.mockClear();
+        playlistsServiceMock.transformPlaylistFavorites.mockReturnValue(
+            of(playlistMock)
+        );
         playlistsServiceMock.removeFromM3uRecentlyViewed.mockClear();
         playlistsServiceMock.removeFromM3uRecentlyViewed.mockReturnValue(
             of({
@@ -751,10 +753,14 @@ describe('DashboardDataService', () => {
 
         await service.removeGlobalFavorite(m3uItem!);
 
-        expect(playlistsServiceMock.setFavorites).toHaveBeenCalledWith(
-            'm3u-1',
-            ['https://example.com/stream-2.m3u8']
-        );
+        expect(
+            playlistsServiceMock.transformPlaylistFavorites
+        ).toHaveBeenCalledWith('m3u-1', expect.any(Function));
+        const [, transform] =
+            playlistsServiceMock.transformPlaylistFavorites.mock.calls[0];
+        expect(
+            transform(['channel-1', 'https://example.com/stream-2.m3u8'])
+        ).toEqual(['https://example.com/stream-2.m3u8']);
     });
 
     it('removes PWA Xtream favorites through the active data source', async () => {
@@ -1288,9 +1294,7 @@ describe('DashboardDataService', () => {
 
         // Crucially, the movie favorite is excluded — the rail source must
         // never leak VOD posters into the channel layout.
-        expect(liveOnly.map((it) => it.title)).not.toContain(
-            'Favorite Movie'
-        );
+        expect(liveOnly.map((it) => it.title)).not.toContain('Favorite Movie');
         expect(
             service.globalFavoriteLiveItems().every((it) => it.type === 'live')
         ).toBe(true);

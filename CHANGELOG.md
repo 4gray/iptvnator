@@ -1,3 +1,16 @@
+# Changelog
+
+Releases **0.13.0 – 0.23.0** were published as
+[GitHub releases](https://github.com/4gray/iptvnator/releases) and
+[website posts](https://4gray.github.io/iptvnator/blog/) rather than collected
+here. This file resumes from the next release onwards; the entries below are
+kept as they were written.
+
+New sections are generated from `.changes/*.md` and inserted directly below
+this marker — see `.changes/README.md`.
+
+<!-- next-release -->
+
 # [0.12.0](https://github.com/4gray/iptvnator/compare/v0.11.1...v0.12.0) (2023-03-11)
 
 

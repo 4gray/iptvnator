@@ -35,6 +35,9 @@ const DEFAULT_MAC = '00:1A:79:00:00:01';
 /** Minimal scenario MAC — 2 categories, 5 items (edge case testing) */
 const MINIMAL_MAC = '00:1A:79:00:00:03';
 
+/** Embedded-series MAC — 50% of VOD items carry an embedded series[] array */
+const EMBEDDED_SERIES_MAC = '00:1A:79:00:00:05';
+
 /** Legacy pagination MAC — portal without get_all_channels support */
 const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
 
@@ -563,6 +566,115 @@ test('@stalker mock server returns radio categories and stations', async ({
             radio: true,
         })
     );
+});
+
+test('@stalker favorites — embedded-series favorite refreshes newly released episodes', async ({
+    page,
+    request,
+}) => {
+    // Find an embedded-series VOD item in the mock catalog first
+    const listResponse = await request.get(
+        `${MOCK_SERVER}/stalker?action=get_ordered_list&type=vod&category=2001&p=1&macAddress=${EMBEDDED_SERIES_MAC}&JsHttpRequest=1-xml`
+    );
+    const listBody = await listResponse.json();
+    const embeddedItem = listBody.payload.js.data.find(
+        (item: { series?: unknown[] }) =>
+            Array.isArray(item.series) && item.series.length > 0
+    );
+    expect(embeddedItem).toBeDefined();
+    const episodeCount: number = embeddedItem.series.length;
+
+    await addStalkerPortal(page, {
+        name: 'Embedded Series Portal',
+        mac: EMBEDDED_SERIES_MAC,
+    });
+
+    // Open the embedded-series item from its category and favorite it —
+    // this persists a snapshot with the current episode list
+    const categories = page.locator('.category-item');
+    await expect(categories.first()).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+    const card = page.getByText(embeddedItem.name).first();
+    await expect(card).toBeVisible({ timeout: 10_000 });
+    await card.click();
+
+    await expect(
+        page.getByRole('heading', {
+            name: `${episodeCount}. Episode ${episodeCount}`,
+            exact: true,
+        })
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Add to favorites' }).click();
+    // Wait for the async favorite persistence before navigating away
+    await expect(
+        page.getByRole('button', { name: 'Remove from favorites' })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // From now on the portal has "released" one more episode: extend
+    // series[] in every search response (the background snapshot refresh
+    // re-fetches the item via a title search)
+    await page.route('**/localhost:3000/stalker**', async (route) => {
+        const originalUrl = new URL(route.request().url());
+        if (!originalUrl.searchParams.get('search')) {
+            await route.fallback();
+            return;
+        }
+
+        const mockUrl = new URL(BACKEND_PROXY);
+        const targetId = originalUrl.searchParams.get('targetId');
+        const providerUrl = targetId
+            ? Buffer.from(targetId, 'base64url').toString()
+            : originalUrl.searchParams.get('url');
+        if (providerUrl) {
+            mockUrl.searchParams.set('url', providerUrl);
+        }
+        originalUrl.searchParams.forEach((value, key) => {
+            if (key === 'targetId') {
+                return;
+            }
+            mockUrl.searchParams.set(key, value);
+        });
+
+        const response = await route.fetch({ url: mockUrl.toString() });
+        const body = await response.json();
+        const rows: { series?: string[] }[] =
+            body?.payload?.js?.data ?? body?.js?.data ?? [];
+        for (const row of rows) {
+            if (Array.isArray(row.series) && row.series.length > 0) {
+                row.series = [
+                    ...row.series,
+                    String(row.series.length + 1),
+                ];
+            }
+        }
+        await route.fulfill({ response, body: JSON.stringify(body) });
+    });
+
+    // Open the item from the Favorites view: the stored snapshot renders
+    // first, then the background refresh patches in the new episode
+    const favoritesUrl = new URL(page.url());
+    favoritesUrl.pathname = favoritesUrl.pathname.replace(
+        /\/vod.*$/,
+        '/favorites'
+    );
+    favoritesUrl.search = '';
+    await page.goto(favoritesUrl.toString());
+
+    const favoriteCard = page.getByText(embeddedItem.name).first();
+    await expect(favoriteCard).toBeVisible({ timeout: 10_000 });
+    await favoriteCard.click();
+
+    // Snapshot episodes are visible immediately…
+    await expect(
+        page.getByRole('heading', { name: '1. Episode 1', exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+    // …and the newly released episode appears after the background refresh
+    await expect(
+        page.getByRole('heading', {
+            name: `${episodeCount + 1}. Episode ${episodeCount + 1}`,
+            exact: true,
+        })
+    ).toBeVisible({ timeout: 10_000 });
 });
 
 test('@stalker series — seasons load for a series item', async ({
