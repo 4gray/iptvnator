@@ -1450,7 +1450,15 @@ jobs:
                   if [ "${IS_TAG_BUILD}" = "true" ]; then
                       NAME="Release v${VERSION}"
                       TAG="${GITHUB_REF_NAME}"
-                      BODY=""
+                      # Authored release notes: the release flow writes this
+                      # CHANGELOG section from .changes/*.md before tagging
+                      # (see .changes/README.md), so at tag time the changelog
+                      # is the authored source of truth. The extractor exits
+                      # non-zero when the section is missing, failing the
+                      # release rather than silently shipping PR-title-only
+                      # notes. generate_release_notes stays on below, so the
+                      # GitHub commit list still renders under this body.
+                      BODY="$(node tools/release/extract-changelog-section.mjs "${VERSION}")"
                   elif [ "${EVENT_NAME}" = "pull_request" ]; then
                       NAME="v${VERSION} — PR #${PR_NUMBER} @ ${SHORT_SHA} [test]"
                       TAG="test-pr-${PR_NUMBER}"

@@ -271,6 +271,14 @@ Stalker has multiple real-world data shapes. The current implementation supports
 
 - Seasons come from API resource (`serialSeasonsResource`).
 - Episodes are derived from season payload.
+- This is the only mode that sets `selectedSerialId`, which is what drives
+  `serialSeasonsResource`. It is set purely from `selectedContentType ===
+'series'` — the `series` detail branch renders `<app-stalker-series-view />`
+  with no `vodWithSeries` input, so the API resource is its only episode
+  source and the fetch must never be gated on item shape.
+- Modes 2 and 3 below are always opened under the `vod` content type, which
+  leaves the id unset — otherwise every VOD detail open would fire a
+  `get_ordered_list&type=series` request whose result is discarded.
 
 2. VOD with Embedded `series[]`:
 
@@ -361,6 +369,36 @@ Navigation rule to preserve:
   run, and embedded `series[]` favorites render through the embedded VOD-series
   branch.
 - See [Portal Detail Navigation](./portal-detail-navigation.md).
+
+### Embedded-series snapshot refresh
+
+Favorites and recently-viewed rows store the whole Stalker item as a JSON
+snapshot, so an embedded `series[]` episode list (and its playback `cmd`)
+freezes at the moment the row was written — newly released episodes would
+never appear when the item is reopened from favorites, recents, or the
+dashboard rails. `withStalkerSnapshotRefresh()`
+(`stores/features/with-stalker-snapshot-refresh.feature.ts`) fixes this with a
+snapshot-first + background re-fetch contract:
+
+- The stored snapshot renders immediately; the store method
+  `refreshEmbeddedSeriesSelection()` then re-fetches the item via a portal
+  title search (`get_ordered_list&type=vod&search=<title>`, item matched by
+  id, paginated up to 5 pages, wildcard-category retry) in the background.
+- When the episode list or `cmd` changed, the selection is patched in place.
+  The guard requires both the item id **and** the active playlist id to be
+  unchanged, because Stalker ids are only unique per portal.
+- Only the in-memory selection is patched — the stored snapshot row is
+  deliberately left alone. Every entry path into the detail view runs this
+  refresh, so a stale stored episode list is never rendered for longer than
+  one background request, and writing it back would add an uncontrolled
+  background writer to the whole-playlist read-modify-write that every
+  favorite/recent mutation performs (lost-update risk).
+- Triggers: `stalker-collection-detail.component.ts` (favorites/recent tabs,
+  global collections, dashboard handoffs) and the optional catalog-facade hook
+  `refreshSnapshotSelection()` for snapshot-injected browse detail
+  (`openStalkerItem` navigation state).
+- Regular `type=series` and Ministra `is_series` favorites are unaffected —
+  their seasons/episodes are always fetched fresh on open.
 
 ## Backup and Restore
 

@@ -234,6 +234,12 @@
                 "reason": "Node package identity checks validate generated packaging metadata."
             },
             {
+                "name": "release-tools",
+                "root": "tools/release",
+                "validationCommand": "pnpm nx test release-tools",
+                "reason": "Node tests validate release-note parsing, rendering and gate policy; the scripts are release tooling, not shipped source."
+            },
+            {
                 "name": "remote-control-web",
                 "root": "apps/remote-control-web",
                 "validationCommand": "pnpm nx build remote-control-web",

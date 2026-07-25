@@ -102,9 +102,18 @@ export function withStalkerSelection() {
                     selectedIdRaw !== undefined
                         ? normalizeStalkerEntityId(selectedIdRaw)
                         : undefined;
+                // serialSeasonsResource fetches regular-series seasons
+                // (get_ordered_list&type=series) on every selectedSerialId
+                // change, and it is the only episode source for a `series`
+                // selection. Every other content type resolves episodes
+                // elsewhere — embedded series[] and Ministra is_series items
+                // are always opened as `vod` — so carrying the id there only
+                // fires a portal request whose result is discarded.
+                const contentType = store.selectedContentType();
                 patchState(store, {
                     selectedVodId: selectedId,
-                    selectedSerialId: selectedId,
+                    selectedSerialId:
+                        contentType === 'series' ? selectedId : undefined,
                     selectedItvId: selectedId,
                     selectedItem,
                 });
@@ -112,7 +121,6 @@ export function withStalkerSelection() {
                 // Async, best-effort TMDB enrichment for VOD/series detail
                 // selections. Applies via patchState (not setSelectedItem)
                 // so the hook cannot recurse; live/radio items are skipped.
-                const contentType = store.selectedContentType();
                 if (
                     selectedItem &&
                     (contentType === 'vod' || contentType === 'series')
