@@ -2,20 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { TmdbMediaType } from '@iptvnator/shared/interfaces';
 import { TmdbApiService } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
-import {
-    TMDB_DETAILS_CACHE_TTL_MS,
-    TMDB_MATCH_CACHE_TTL_MS,
-    TMDB_NEGATIVE_MATCH_CACHE_TTL_MS,
-    tmdbSearchLanguageForTitle,
-} from './tmdb-config';
+import { TMDB_DETAILS_CACHE_TTL_MS } from './tmdb-config';
 import {
     buildDetailsLookupKey,
-    buildSearchLookupKey,
-    buildSearchTitleVariants,
-    extractYear,
+    detailsMatchProviderTitle,
     parseProviderTmdbId,
-    pickConfidentMatch,
 } from './tmdb-matcher';
+import { TmdbIdResolverService } from './tmdb-id-resolver.service';
 import {
     detailsFallbackLanguage,
     fillDetailsFromFallback,
@@ -53,6 +46,7 @@ export class TmdbEnrichmentService {
     private readonly person = inject(TmdbPersonService);
     private readonly season = inject(TmdbSeasonService);
     private readonly trending = inject(TmdbTrendingService);
+    private readonly idResolver = inject(TmdbIdResolverService);
 
     isEnabled(): boolean {
         return this.runtime.isEnabled();
@@ -107,15 +101,31 @@ export class TmdbEnrichmentService {
         }
 
         try {
-            const tmdbId =
-                parseProviderTmdbId(query.tmdbId) ??
-                (await this.resolveIdBySearch(mediaType, query));
-
-            if (tmdbId === null) {
-                return null;
+            const providerId = parseProviderTmdbId(query.tmdbId);
+            if (
+                providerId !== null &&
+                !(await this.idResolver.isKnownBadProviderId(
+                    mediaType,
+                    providerId
+                ))
+            ) {
+                const details = await this.detailsForProviderId(
+                    mediaType,
+                    providerId,
+                    query
+                );
+                if (details) {
+                    return details;
+                }
             }
 
-            return await this.getDetails(mediaType, tmdbId);
+            const searchedId = await this.idResolver.resolveBySearch(
+                mediaType,
+                query
+            );
+            return searchedId === null
+                ? null
+                : await this.getDetails(mediaType, searchedId);
         } catch (error) {
             console.warn(`TMDB ${mediaType} enrichment failed:`, error);
             return null;
@@ -123,88 +133,57 @@ export class TmdbEnrichmentService {
     }
 
     /**
-     * Resolve a title/year to a TMDB id via /search with the confidence
-     * gate. Both hits and misses are cached; misses use a shorter TTL.
+     * Details for a provider-supplied `tmdb_id`, or `null` when the id is
+     * unusable and the caller should fall back to the title search.
+     *
+     * Providers ship broken ids. A dead one used to short-circuit the
+     * search and leave the item permanently unenriched; a stale-but-valid
+     * one silently rendered another title's plot and cast. Both cases now
+     * defer to the (confidence-gated) search — but only when the search
+     * actually produces something, so a legitimately localized title that
+     * merely fails the name check never costs the user their metadata.
      */
-    private async resolveIdBySearch(
+    private async detailsForProviderId(
         mediaType: TmdbMediaType,
+        providerId: number,
         query: TmdbEnrichmentQuery
-    ): Promise<number | null> {
-        // Try the original title, the display title, then language-prefix-
-        // stripped fallbacks; the first confident match wins.
-        const variants = buildSearchTitleVariants(
-            query.title,
-            query.originalTitle
-        );
-        if (variants.length === 0) {
+    ): Promise<TmdbDetails | null> {
+        let details: TmdbDetails | null;
+        try {
+            details = await this.getDetails(mediaType, providerId);
+        } catch (error) {
+            console.warn(
+                `TMDB ${mediaType} details for provider id ${providerId} failed, falling back to search:`,
+                error
+            );
+            await this.idResolver.rememberBadProviderId(mediaType, providerId);
             return null;
         }
 
-        const year = query.year ?? extractYear(null, query.title);
-        const cacheLanguage = tmdbSearchLanguageForTitle(
-            variants[0],
-            this.runtime.appLanguage()
-        );
-        const lookupKey = buildSearchLookupKey(variants[0], year);
-
-        const cached = await this.cache.get(
-            mediaType,
-            lookupKey,
-            cacheLanguage
-        );
-        const ttl =
-            cached?.tmdbId !== null && cached?.tmdbId !== undefined
-                ? TMDB_MATCH_CACHE_TTL_MS
-                : TMDB_NEGATIVE_MATCH_CACHE_TTL_MS;
-        if (this.cache.isFresh(cached, ttl)) {
-            return cached?.tmdbId ?? null;
+        if (!details || detailsMatchProviderTitle(details, query)) {
+            return details;
         }
 
-        let match = null;
-        for (const variant of variants) {
-            // Cyrillic (and other non-app-script) titles search in their
-            // own language so TMDB returns comparable titles — see
-            // tmdbSearchLanguageForTitle. Search by title only: TMDB's
-            // year params filter strictly; the ±1/season tolerance lives
-            // in pickConfidentMatch instead.
-            const language = tmdbSearchLanguageForTitle(
-                variant,
-                this.runtime.appLanguage()
-            );
-            const results =
-                mediaType === 'movie'
-                    ? await this.api.searchMovie(
-                          variant,
-                          null,
-                          language,
-                          this.runtime.apiKey()
-                      )
-                    : await this.api.searchTv(
-                          variant,
-                          null,
-                          language,
-                          this.runtime.apiKey()
-                      );
-
-            match = pickConfidentMatch(
-                results,
-                { title: variant, year },
-                mediaType
-            );
-            if (match) {
-                break;
-            }
+        // The id resolves, but to something that does not look like our
+        // item. Let the search try to beat it; keep these details if it
+        // cannot, since a title mismatch alone is not proof of a bad id.
+        const searchedId = await this.idResolver.resolveBySearch(
+            mediaType,
+            query
+        );
+        if (searchedId === null || searchedId === providerId) {
+            return details;
         }
 
-        await this.cache.set({
-            mediaType,
-            lookupKey,
-            language: cacheLanguage,
-            tmdbId: match?.id ?? null,
-            payload: null,
-        });
+        const searched = await this.getDetails(mediaType, searchedId).catch(
+            () => null
+        );
+        if (!searched) {
+            return details;
+        }
 
-        return match?.id ?? null;
+        await this.idResolver.rememberBadProviderId(mediaType, providerId);
+        return searched;
     }
 
     private async getDetails(

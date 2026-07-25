@@ -82,12 +82,55 @@ export function buildDetailsLookupKey(tmdbId: number): string {
     return `id:${tmdbId}|v2`;
 }
 
+/** Negative-cache key for a provider tmdb_id we have proven wrong */
+export function buildBadProviderIdLookupKey(tmdbId: number): string {
+    return `badProviderId:${tmdbId}`;
+}
+
 /** Provider tmdb_id fields arrive as number, numeric string, or garbage */
 export function parseProviderTmdbId(
     tmdbId: number | string | null | undefined
 ): number | null {
     const parsed = Number(tmdbId);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * Does a details payload plausibly describe the item we asked about?
+ *
+ * Providers ship stale `tmdb_id` values that resolve to a real — but
+ * different — title, and nothing downstream would notice. This is a
+ * SUSPICION signal, not a verdict: TMDB returns titles in the request
+ * language, so a Russian provider title legitimately fails to match an
+ * `en-US` payload. Callers must treat `false` as "prefer a confident
+ * search result if one exists", never as "discard these details".
+ */
+export function detailsMatchProviderTitle(
+    details: {
+        title?: string;
+        original_title?: string;
+        name?: string;
+        original_name?: string;
+    },
+    query: { title?: string | null; originalTitle?: string | null }
+): boolean {
+    const variants = new Set(
+        buildSearchTitleVariants(query.title, query.originalTitle)
+    );
+    if (variants.size === 0) {
+        // Nothing to compare against — never call that a mismatch
+        return true;
+    }
+
+    return [
+        details.title,
+        details.original_title,
+        details.name,
+        details.original_name,
+    ].some((title) => {
+        const normalized = normalizeTitle(title);
+        return normalized !== '' && variants.has(normalized);
+    });
 }
 
 function resultTitles(result: TmdbSearchResult, mediaType: TmdbMediaType) {
