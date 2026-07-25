@@ -1514,6 +1514,41 @@ describe('PlaylistsService', () => {
             ]);
         });
 
+        it('keeps queued metadata changes when an auto-refresh batch write overlaps', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('portal-meta-race'),
+                hiddenGroupTitles: ['News'],
+                manualEpgUrls: ['https://example.com/manual.xml'],
+            } as Playlist);
+            testWindow.electron = electron;
+
+            const service = createService();
+            const staleRefreshSnapshot = {
+                ...createBasePlaylist('portal-meta-race'),
+                title: 'Refreshed Title',
+                playlist: { items: [{ id: 'channel-1' }] },
+            } as Playlist;
+
+            await Promise.all([
+                firstValueFrom(
+                    service.updatePlaylistMeta({
+                        _id: 'portal-meta-race',
+                        hiddenGroupTitles: ['News', 'Movies'],
+                    } as PlaylistMeta)
+                ),
+                firstValueFrom(
+                    service.updateManyPlaylists([staleRefreshSnapshot])
+                ),
+            ]);
+
+            expect(store.current.hiddenGroupTitles).toEqual(['News', 'Movies']);
+            expect(store.current.manualEpgUrls).toEqual([
+                'https://example.com/manual.xml',
+            ]);
+            expect(store.current.title).toBe('Refreshed Title');
+            expect(store.current.count).toBe(1);
+        });
+
         it('keeps a queued favorite add when a position update overlaps', async () => {
             const { store, electron } = createStatefulElectronStore(
                 createBasePlaylist('portal-position-race')

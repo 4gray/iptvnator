@@ -504,41 +504,65 @@ export class PlaylistsService {
         }
     }
 
+    /**
+     * Canonical refresh merge shared by the single-playlist update flow and
+     * the auto-refresh batch. The refreshed payload only contributes
+     * refresh-owned data (parsed content, count, EPG detection); user-owned
+     * state on the freshly read row — favorites, recently viewed, ordering,
+     * hidden groups, curated EPG sources — must survive the refresh write.
+     */
+    private mergeRefreshedPlaylist(
+        currentPlaylist: Playlist | undefined,
+        updatedPlaylist: Playlist,
+        playlistId: string
+    ): Playlist {
+        const epgSourceState = resolvePlaylistEpgSourceState({
+            detectedEpgUrls:
+                updatedPlaylist.detectedEpgUrls ??
+                currentPlaylist?.detectedEpgUrls,
+            enabledEpgUrls: updatedPlaylist.epgUrls ?? currentPlaylist?.epgUrls,
+            manualEpgUrls:
+                updatedPlaylist.manualEpgUrls ?? currentPlaylist?.manualEpgUrls,
+            disabledEpgUrls:
+                updatedPlaylist.disabledEpgUrls ??
+                currentPlaylist?.disabledEpgUrls,
+        });
+
+        return {
+            ...currentPlaylist,
+            ...updatedPlaylist,
+            _id: playlistId,
+            count:
+                updatedPlaylist.playlist?.items?.length ??
+                currentPlaylist?.count,
+            updateDate: Date.now(),
+            updateState: PlaylistUpdateState.UPDATED,
+            ...(currentPlaylist
+                ? {
+                      favorites: currentPlaylist.favorites,
+                      recentlyViewed: currentPlaylist.recentlyViewed,
+                      position: currentPlaylist.position,
+                  }
+                : {}),
+            epgUrls: epgSourceState.epgUrls,
+            detectedEpgUrls: epgSourceState.detectedEpgUrls,
+            manualEpgUrls: epgSourceState.manualEpgUrls,
+            disabledEpgUrls: epgSourceState.disabledEpgUrls,
+            autoRefresh:
+                currentPlaylist?.autoRefresh ?? updatedPlaylist.autoRefresh,
+        };
+    }
+
     updatePlaylist(playlistId: string, updatedPlaylist: Playlist) {
         return this.serializePlaylistWrite(playlistId, async () => {
             const currentPlaylist = await firstValueFrom(
                 this.getPlaylistById(playlistId)
             );
-            const epgSourceState = resolvePlaylistEpgSourceState({
-                detectedEpgUrls:
-                    updatedPlaylist.detectedEpgUrls ??
-                    currentPlaylist.detectedEpgUrls,
-                enabledEpgUrls:
-                    updatedPlaylist.epgUrls ?? currentPlaylist.epgUrls,
-                manualEpgUrls:
-                    updatedPlaylist.manualEpgUrls ??
-                    currentPlaylist.manualEpgUrls,
-                disabledEpgUrls:
-                    updatedPlaylist.disabledEpgUrls ??
-                    currentPlaylist.disabledEpgUrls,
-            });
-            const mergedPlaylist: Playlist = {
-                ...currentPlaylist,
-                ...updatedPlaylist,
-                _id: playlistId,
-                count:
-                    updatedPlaylist.playlist?.items?.length ??
-                    currentPlaylist.count,
-                updateDate: Date.now(),
-                updateState: PlaylistUpdateState.UPDATED,
-                favorites: currentPlaylist.favorites,
-                epgUrls: epgSourceState.epgUrls,
-                detectedEpgUrls: epgSourceState.detectedEpgUrls,
-                manualEpgUrls: epgSourceState.manualEpgUrls,
-                disabledEpgUrls: epgSourceState.disabledEpgUrls,
-                autoRefresh:
-                    currentPlaylist.autoRefresh ?? updatedPlaylist.autoRefresh,
-            };
+            const mergedPlaylist = this.mergeRefreshedPlaylist(
+                currentPlaylist,
+                updatedPlaylist,
+                playlistId
+            );
 
             return this.persistPlaylistMutation(mergedPlaylist);
         });
@@ -726,10 +750,10 @@ export class PlaylistsService {
             return of([]);
         }
 
-        // Auto-refresh payloads are snapshots taken before the refresh ran.
-        // Re-read the stored row inside the per-playlist queue and keep the
-        // user-owned fields (favorites, recently viewed, position) so a
-        // refresh write cannot clobber a concurrent collection mutation.
+        // Auto-refresh payloads are snapshots taken before the refresh ran,
+        // so each row goes through the same per-playlist queue and canonical
+        // refresh merge as the single-playlist update flow: a batch write
+        // cannot clobber a concurrent collection or metadata mutation.
         return combineLatest(
             playlists.map((playlist) =>
                 this.serializePlaylistWrite(playlist._id, async () => {
@@ -737,16 +761,11 @@ export class PlaylistsService {
                         this.getPlaylistById(playlist._id)
                     );
                     const nextPlaylist: Playlist = {
-                        ...current,
-                        ...playlist,
-                        ...(current
-                            ? {
-                                  favorites: current.favorites,
-                                  recentlyViewed: current.recentlyViewed,
-                                  position: current.position,
-                              }
-                            : {}),
-                        updateDate: Date.now(),
+                        ...this.mergeRefreshedPlaylist(
+                            current,
+                            playlist,
+                            playlist._id
+                        ),
                         autoRefresh: true,
                     };
 
