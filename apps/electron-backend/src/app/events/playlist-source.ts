@@ -18,6 +18,14 @@ export interface PlaylistFetchOptions {
     trustedInsecureTlsHosts?: readonly string[];
 }
 
+/**
+ * Idle timeout for every playlist download hop. Without it a host that accepts
+ * the connection and then goes silent keeps the request pending forever, which
+ * stalled the unattended startup auto-update indefinitely (issue #931).
+ * Mirrored by the playlist refresh worker.
+ */
+export const PLAYLIST_FETCH_TIMEOUT_MS = 30000;
+
 export async function fetchPlaylistFromUrl(
     url: string,
     title?: string,
@@ -32,6 +40,7 @@ export async function fetchPlaylistFromUrl(
                     trustedInsecureTlsHosts: options.trustedInsecureTlsHosts,
                 }),
                 method: 'GET',
+                timeout: PLAYLIST_FETCH_TIMEOUT_MS,
             },
             { allowPrivateNetworks: true }
         );

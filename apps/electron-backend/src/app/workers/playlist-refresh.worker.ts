@@ -21,6 +21,7 @@ import {
     isInvalidTlsCertificateError,
 } from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import { PLAYLIST_FETCH_TIMEOUT_MS } from '../events/playlist-source';
 
 type ActiveRefreshState = {
     cancelled: boolean;
@@ -97,7 +98,7 @@ async function fetchPlaylistFromUrl(
                 }),
                 method: 'GET',
                 signal: controller.signal,
-                timeout: 30000,
+                timeout: PLAYLIST_FETCH_TIMEOUT_MS,
             },
             { allowPrivateNetworks: true }
         );
