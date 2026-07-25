@@ -86,6 +86,35 @@ dead source must never stall startup (issue #931):
   so refresh logging goes through `redactSensitiveData()` from
   `@iptvnator/shared/logging`.
 
+### Reporting The Auto-Update Result
+
+Because auto-update isolates failures, it must also report them — otherwise a
+dropped playlist is indistinguishable from a successful refresh. `autoUpdatePlaylists()`
+returns `AutoUpdatePlaylistsResult`
+(`libs/shared/interfaces/src/lib/playlist-auto-update.interface.ts`): the refreshed
+`playlists` plus one `outcome` per requested playlist, in request order.
+
+| Outcome status | Meaning                                                                         |
+| -------------- | ------------------------------------------------------------------------------- |
+| `updated`      | Source fetched/read and parsed; playlist is in `playlists`                      |
+| `failed`       | Source unreachable, unreadable or unparsable                                    |
+| `skipped`      | Playlist has neither a URL nor a file path, so there is nothing to refresh from |
+
+`ElectronService` dispatches `updateManyPlaylists` with the refreshed playlists only,
+logs the titles of unresolved playlists, then derives the snackbar from those outcomes
+(`apps/web/src/app/services/auto-update-playlists-feedback.ts`):
+`AUTO_REFRESH_UPDATE_SUCCESS` when everything updated,
+`AUTO_REFRESH_UPDATE_PARTIAL` / `AUTO_REFRESH_UPDATE_FAILED` (error styling,
+dismissable) when some or all playlists failed, and `AUTO_REFRESH_UPDATE_SKIPPED` when
+the only unrefreshed playlists lacked a source. A batch that both failed and skipped
+uses `AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED`, because the plain partial message names
+only `updated`/`total`/`failed` and would leave the skipped playlists as an unexplained
+remainder. Every count the user sees must reconcile with `total`, and success is never
+reported unconditionally — a silently dropped playlist used to look like a successful
+refresh.
+`playlist-auto-refresh.e2e.ts` guards this by restarting the app against a killed
+playlist server.
+
 ## State Management (libs/m3u-state/)
 
 ### State Structure

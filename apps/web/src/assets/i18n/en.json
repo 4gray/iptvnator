@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Playlist refresh failed. The local file is no longer available. Check the file path or re-import the playlist.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Playlist refresh failed. The app can no longer access the local file.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Success! The playlists were successfully updated",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Playlist auto-refresh incomplete: {{updated}} of {{total}} playlists updated, {{failed}} failed.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Playlist auto-refresh incomplete: {{updated}} of {{total}} playlists updated, {{failed}} failed, {{skipped}} skipped (no URL or file path).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Playlist auto-refresh failed. None of the {{total}} playlists could be updated.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Playlist auto-refresh: {{updated}} of {{total}} playlists updated, {{skipped}} skipped (no URL or file path).",
             "AUTO_REFRESH_ENABLED": "Auto-refresh enabled"
         },
         "ADD_PLAYLIST": {

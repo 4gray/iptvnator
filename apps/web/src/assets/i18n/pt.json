@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Falha ao atualizar a playlist. O arquivo local não está mais disponível. Verifique o caminho do arquivo ou reimporte a playlist.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Falha ao atualizar a playlist. O aplicativo não consegue mais acessar o arquivo local.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Sucesso! As playlists foram atualizadas com sucesso",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Atualização automática incompleta: {{updated}} de {{total}} playlists atualizadas, {{failed}} falharam.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Atualização automática incompleta: {{updated}} de {{total}} playlists atualizadas, {{failed}} falharam, {{skipped}} ignoradas (sem URL ou caminho de arquivo).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Falha na atualização automática das playlists. Nenhuma das {{total}} playlists pôde ser atualizada.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Atualização automática de playlists: {{updated}} de {{total}} atualizadas, {{skipped}} ignoradas (sem URL ou caminho de arquivo).",
             "AUTO_REFRESH_ENABLED": "Atualização automática ativada"
         },
         "ADD_PLAYLIST": {

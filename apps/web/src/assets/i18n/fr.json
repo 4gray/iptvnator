@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Échec de l'actualisation de la liste de lecture. Le fichier local n'est plus disponible. Vérifiez le chemin du fichier ou réimportez la liste de lecture.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Échec de l'actualisation de la liste de lecture. L'application ne peut plus accéder au fichier local.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Succès ! Les listes de lecture ont été mises à jour avec succès",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Échec de l'actualisation automatique. Aucune des {{total}} listes de lecture n'a pu être mise à jour.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Actualisation automatique des listes de lecture : {{updated}} sur {{total}} mises à jour, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
             "AUTO_REFRESH_ENABLED": "Actualisation automatique activée"
         },
         "ADD_PLAYLIST": {

@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Odświeżanie listy odtwarzania nie powiodło się. Plik lokalny jest niedostępny. Sprawdź ścieżkę pliku lub zaimportuj listę ponownie.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Odświeżanie listy odtwarzania nie powiodło się. Aplikacja nie ma już dostępu do pliku lokalnego.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Sukces! Listy odtwarzania zostały pomyślnie zaktualizowane",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Automatyczne odświeżanie niekompletne: zaktualizowano {{updated}} z {{total}} list odtwarzania, {{failed}} nie powiodło się.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Automatyczne odświeżanie niekompletne: zaktualizowano {{updated}} z {{total}} list odtwarzania, {{failed}} nie powiodło się, pominięto {{skipped}} (brak adresu URL lub ścieżki pliku).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Automatyczne odświeżanie list odtwarzania nie powiodło się. Nie zaktualizowano żadnej z {{total}} list.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Automatyczne odświeżanie list odtwarzania: zaktualizowano {{updated}} z {{total}}, pominięto {{skipped}} (brak adresu URL lub ścieżki pliku).",
             "AUTO_REFRESH_ENABLED": "Automatyczne odświeżanie włączone"
         },
         "ADD_PLAYLIST": {

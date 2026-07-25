@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Oynatma listesi yenileme başarısız oldu. Yerel dosya artık kullanılabilir değil. Dosya yolunu kontrol edin veya oynatma listesini yeniden içe aktarın.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Oynatma listesi yenileme başarısız oldu. Uygulama artık yerel dosyaya erişemiyor.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Başarılı! Oynatma listeleri başarıyla güncellendi",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Otomatik yenileme tamamlanmadı: {{total}} oynatma listesinden {{updated}} tanesi güncellendi, {{failed}} tanesi başarısız oldu.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Otomatik yenileme tamamlanmadı: {{total}} oynatma listesinden {{updated}} tanesi güncellendi, {{failed}} tanesi başarısız oldu, {{skipped}} tanesi atlandı (URL veya dosya yolu yok).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Oynatma listelerinin otomatik yenilenmesi başarısız oldu. {{total}} oynatma listesinin hiçbiri güncellenemedi.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Oynatma listesi otomatik yenileme: {{total}} listeden {{updated}} tanesi güncellendi, {{skipped}} tanesi atlandı (URL veya dosya yolu yok).",
             "AUTO_REFRESH_ENABLED": "Otomatik yenileme etkin"
         },
         "ADD_PLAYLIST": {

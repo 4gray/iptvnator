@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Aktualisierung der Playlist fehlgeschlagen. Die lokale Datei ist nicht mehr verfügbar. Überprüfen Sie den Dateipfad oder importieren Sie die Playlist erneut.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Aktualisierung der Playlist fehlgeschlagen. Die App kann nicht mehr auf die lokale Datei zugreifen.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Erfolg! Die Playlists wurden erfolgreich aktualisiert",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Auto-Refresh unvollständig: {{updated}} von {{total}} Playlists aktualisiert, {{failed}} fehlgeschlagen.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Auto-Refresh unvollständig: {{updated}} von {{total}} Playlists aktualisiert, {{failed}} fehlgeschlagen, {{skipped}} übersprungen (keine URL und kein Dateipfad).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Auto-Refresh der Playlists fehlgeschlagen. Keine der {{total}} Playlists konnte aktualisiert werden.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Auto-Refresh der Playlists: {{updated}} von {{total}} aktualisiert, {{skipped}} übersprungen (keine URL und kein Dateipfad).",
             "AUTO_REFRESH_ENABLED": "Auto-Refresh aktiviert"
         },
         "ADD_PLAYLIST": {

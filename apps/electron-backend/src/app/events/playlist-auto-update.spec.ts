@@ -97,9 +97,14 @@ describe('autoUpdatePlaylists', () => {
 
         unresponsive.resolve(createPlaylist({ title: 'Slow but refreshed' }));
 
-        await expect(updatePromise).resolves.toEqual([
+        const result = await updatePromise;
+        expect(result.playlists).toEqual([
             expect.objectContaining({ _id: 'unresponsive' }),
             expect.objectContaining({ _id: 'reachable' }),
+        ]);
+        expect(result.outcomes.map((outcome) => outcome.status)).toEqual([
+            'updated',
+            'updated',
         ]);
     });
 
@@ -115,7 +120,15 @@ describe('autoUpdatePlaylists', () => {
             createUrlPlaylist('reachable', 'https://reachable.test/list.m3u'),
         ]);
 
-        expect(result).toEqual([expect.objectContaining({ _id: 'reachable' })]);
+        expect(result.playlists).toEqual([
+            expect.objectContaining({ _id: 'reachable' }),
+        ]);
+        // The dropped playlist must still be reported, otherwise the renderer
+        // cannot tell a partial run from a complete one.
+        expect(result.outcomes).toEqual([
+            { playlistId: 'broken', status: 'failed', title: 'broken' },
+            { playlistId: 'reachable', status: 'updated', title: 'reachable' },
+        ]);
         expect(consoleErrorSpy).toHaveBeenCalledWith(
             'Failed to update playlist "broken":',
             expect.objectContaining({
@@ -154,9 +167,9 @@ describe('autoUpdatePlaylists', () => {
             pendingFetch.resolve(createPlaylist());
         }
 
-        await expect(updatePromise).resolves.toHaveLength(
-            pendingFetches.length
-        );
+        const result = await updatePromise;
+        expect(result.playlists).toHaveLength(pendingFetches.length);
+        expect(result.outcomes).toHaveLength(pendingFetches.length);
     });
 
     it('preserves user-owned fields and refreshes file-based playlists', async () => {
@@ -186,7 +199,7 @@ describe('autoUpdatePlaylists', () => {
             '/playlists/local.m3u',
             'File playlist'
         );
-        expect(result).toEqual([
+        expect(result.playlists).toEqual([
             expect.objectContaining({
                 _id: 'file-playlist',
                 autoRefresh: true,
@@ -194,6 +207,13 @@ describe('autoUpdatePlaylists', () => {
                 title: 'Refreshed from file',
                 userAgent: 'PlaylistAgent/1.0',
             }),
+        ]);
+        expect(result.outcomes).toEqual([
+            {
+                playlistId: 'file-playlist',
+                status: 'updated',
+                title: 'File playlist',
+            },
         ]);
     });
 
@@ -216,7 +236,13 @@ describe('autoUpdatePlaylists', () => {
             { trustedInsecureTlsHosts: ['self-signed.test'] }
         );
 
-        expect(result).toHaveLength(1);
+        expect(result.playlists).toHaveLength(1);
+        // A playlist with no source was never refreshable, so it is reported as
+        // skipped rather than failed.
+        expect(result.outcomes).toEqual([
+            { playlistId: 'no-source', status: 'skipped', title: 'No source' },
+            { playlistId: 'reachable', status: 'updated', title: 'reachable' },
+        ]);
         expect(consoleWarnSpy).toHaveBeenCalledWith(
             'Skipping playlist "No source": no URL or file path found'
         );

@@ -7,6 +7,7 @@ import { DialogService } from '@iptvnator/ui/components';
 import { DataService, SettingsStore } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
+    AutoUpdatePlaylistsResult,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
     normalizeHost,
@@ -20,6 +21,7 @@ import {
     XtreamCodeActions,
 } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../../environments/environment';
+import { buildAutoUpdatePlaylistsFeedback } from './auto-update-playlists-feedback';
 import {
     createLogger,
     createPortalDebugRequestContext,
@@ -220,27 +222,48 @@ export class ElectronService extends DataService {
 
         if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
-            const playlists = await window.electron.autoUpdatePlaylists(
+            const result = await window.electron.autoUpdatePlaylists(
                 data,
                 this.settingsStore.getTrustOptions()
             );
             this.store.dispatch(
                 PlaylistActions.updateManyPlaylists({
-                    playlists,
+                    playlists: result.playlists,
                 })
             );
-            this.snackBar.open(
-                this.translateService.instant(
-                    'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_SUCCESS'
-                ),
-                undefined,
-                { duration: 2000 }
-            );
-            return playlists as T;
+            this.reportAutoUpdatePlaylistsResult(result);
+            return result as T;
         }
 
         this.logger.debug('Unknown IPC event type:', type);
         return undefined as T;
+    }
+
+    private reportAutoUpdatePlaylistsResult(
+        result: AutoUpdatePlaylistsResult
+    ): void {
+        const unresolved = result.outcomes.filter(
+            (outcome) => outcome.status !== 'updated'
+        );
+        if (unresolved.length > 0) {
+            this.logger.warn(
+                'Playlist auto-refresh did not update every playlist:',
+                unresolved
+                    .map((outcome) => `${outcome.title} (${outcome.status})`)
+                    .join(', ')
+            );
+        }
+
+        const feedback = buildAutoUpdatePlaylistsFeedback(result);
+        this.snackBar.open(
+            this.translateService.instant(feedback.messageKey, feedback.params),
+            feedback.isError
+                ? this.translateService.instant('CLOSE')
+                : undefined,
+            feedback.isError
+                ? { duration: 6000, panelClass: ['error-snackbar'] }
+                : { duration: 2000 }
+        );
     }
 
     private async fetchStalkerData(payload: {

@@ -1,4 +1,8 @@
-import type { Playlist } from '@iptvnator/shared/interfaces';
+import type {
+    AutoUpdatePlaylistStatus,
+    AutoUpdatePlaylistsResult,
+    Playlist,
+} from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
     fetchPlaylistFromFile,
@@ -57,12 +61,19 @@ async function refreshPlaylist(
  * Refreshes the given playlists with bounded concurrency, isolating every
  * failure so one broken source never withholds the playlists that did update.
  * The returned playlists keep the order of the requested ones.
+ *
+ * Because failures are isolated, they are also reported: every requested
+ * playlist gets an outcome, so the renderer can tell the user what actually
+ * happened instead of assuming the whole run succeeded.
  */
 export async function autoUpdatePlaylists(
     playlists: readonly Playlist[],
     options: PlaylistFetchOptions = {}
-): Promise<Playlist[]> {
+): Promise<AutoUpdatePlaylistsResult> {
     const results: (Playlist | null)[] = new Array(playlists.length).fill(null);
+    const statuses: (AutoUpdatePlaylistStatus | undefined)[] = new Array(
+        playlists.length
+    );
     let nextIndex = 0;
 
     const refreshNextPlaylist = async (): Promise<void> => {
@@ -74,12 +85,15 @@ export async function autoUpdatePlaylists(
             const playlist = playlists[index];
 
             try {
-                results[index] = await refreshPlaylist(playlist, options);
+                const refreshed = await refreshPlaylist(playlist, options);
+                results[index] = refreshed;
+                statuses[index] = refreshed ? 'updated' : 'skipped';
             } catch (error) {
                 console.error(
                     `Failed to update playlist "${playlist.title}":`,
                     error
                 );
+                statuses[index] = 'failed';
             }
         }
     };
@@ -91,7 +105,16 @@ export async function autoUpdatePlaylists(
         )
     );
 
-    return results.filter(
-        (playlist): playlist is Playlist => playlist !== null
-    );
+    return {
+        playlists: results.filter(
+            (playlist): playlist is Playlist => playlist !== null
+        ),
+        outcomes: playlists.map((playlist, index) => ({
+            playlistId: playlist._id,
+            title: playlist.title,
+            // Every index is visited above; an unresolved slot could only mean
+            // the refresh never completed, which is a failure, not a success.
+            status: statuses[index] ?? 'failed',
+        })),
+    };
 }
