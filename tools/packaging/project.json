@@ -59,6 +59,9 @@
         "lint": {
             "inputs": [
                 "default",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
                 "{workspaceRoot}/.github/workflows/publish-snap.yaml",
                 "{workspaceRoot}/tools/packaging/prepare-linux-runtime-source-snapshot.cjs",
