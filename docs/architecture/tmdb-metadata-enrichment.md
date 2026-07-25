@@ -6,6 +6,8 @@ service layer, the SQLite cache, and the Xtream detail-view integration.
 
 Related:
 
+- [TMDB Capability Roadmap](./tmdb-roadmap.md) — follow-up backlog: unused
+  API surface, known defects, and what we deliberately will not build
 - [SQLite DB Worker](./sqlite-db-worker.md)
 - [Nx Workspace Boundaries](./nx-workspace-boundaries.md)
 
