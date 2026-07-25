@@ -133,7 +133,7 @@ jobs:
 
             - name: Upload unit coverage to Codecov
               if: always()
-              uses: codecov/codecov-action@v6
+              uses: codecov/codecov-action@v7
               with:
                   files: ./coverage/merged/lcov.info,./coverage/merged/cobertura-coverage.xml
                   flags: unit
