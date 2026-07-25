@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "Pobrane metadane są zapisywane lokalnie, dzięki czemu strony szczegółów otwierają się natychmiast. Po wyczyszczeniu aplikacja pobierze świeże dane.",
         "TMDB_CACHE_SIZE": "{{entries}} wpisów · {{size}}",
         "TMDB_CACHE_CLEAR": "Wyczyść pamięć",
+        "TMDB_CACHE_ERROR": "Nie udało się odczytać pamięci — spróbuj ponownie",
         "TMDB_CREDITS": "Metadane",
         "TMDB_ATTRIBUTION": "Ten produkt korzysta z API TMDB, ale nie jest wspierany ani certyfikowany przez TMDB.",
         "APP_PREFERENCES": "Preferencje aplikacji",

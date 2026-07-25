@@ -106,7 +106,11 @@
                     {{ 'SETTINGS.TMDB_CACHE_DESCRIPTION' | translate }}
                 </p>
                 <p class="tmdb-cache__size" data-test-id="tmdb-cache-size">
-                    @if (cacheStats(); as stats) {
+                    @if (cacheError()) {
+                        <span class="tmdb-cache__error">
+                            {{ 'SETTINGS.TMDB_CACHE_ERROR' | translate }}
+                        </span>
+                    } @else if (cacheStats(); as stats) {
                         {{
                             'SETTINGS.TMDB_CACHE_SIZE'
                                 | translate

@@ -50,4 +50,40 @@ describe('TmdbCacheService (in-memory LRU)', () => {
         const cached = await service.get('movie', 'id:same', 'en-US');
         expect(cached?.lookupKey).toBe('id:same');
     });
+
+    describe('stats and clearing (PWA path)', () => {
+        it('counts entries and ENCODED payload bytes', async () => {
+            // String.length would report 3 for a 6-byte Cyrillic payload
+            await service.set({ ...entry('id:1'), payload: '"да"' });
+
+            const stats = await service.getStats();
+            expect(stats?.entries).toBe(1);
+            expect(stats?.bytes).toBe(
+                new TextEncoder().encode('"да"').length
+            );
+        });
+
+        it('clears the map and reports how many entries went', async () => {
+            await service.set(entry('id:1'));
+            await service.set(entry('id:2'));
+
+            await expect(service.clear()).resolves.toBe(2);
+            await expect(service.getStats()).resolves.toEqual({
+                entries: 0,
+                bytes: 0,
+            });
+        });
+
+        it('drops a write that was in flight when the cache was cleared', async () => {
+            // Otherwise the late write silently restores exactly the data
+            // the user just asked to remove
+            const pending = service.set(entry('id:late'));
+            await service.clear();
+            await pending;
+
+            await expect(
+                service.get('movie', 'id:late', 'en-US')
+            ).resolves.toBeNull();
+        });
+    });
 });

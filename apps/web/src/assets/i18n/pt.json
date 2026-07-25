@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "Os metadados transferidos são guardados localmente para que as páginas de detalhes abram de imediato. Ao limpar, a app irá obter dados novos na próxima visita.",
         "TMDB_CACHE_SIZE": "{{entries}} entradas · {{size}}",
         "TMDB_CACHE_CLEAR": "Limpar cache",
+        "TMDB_CACHE_ERROR": "Não foi possível ler a cache — tente novamente",
         "TMDB_CREDITS": "Metadados",
         "TMDB_ATTRIBUTION": "Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB.",
         "APP_PREFERENCES": "Preferências do aplicativo",

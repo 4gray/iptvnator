@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "I metadati scaricati vengono salvati localmente perché le pagine dei dettagli si aprano subito. Svuotandola, l'app scaricherà dati aggiornati alla prossima visita.",
         "TMDB_CACHE_SIZE": "{{entries}} voci · {{size}}",
         "TMDB_CACHE_CLEAR": "Svuota cache",
+        "TMDB_CACHE_ERROR": "Impossibile leggere la cache — riprova",
         "TMDB_CREDITS": "Metadati",
         "TMDB_ATTRIBUTION": "Questo prodotto utilizza l'API di TMDB ma non è approvato né certificato da TMDB.",
         "APP_PREFERENCES": "Preferenze app",

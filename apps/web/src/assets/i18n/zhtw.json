@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "已下載的中繼資料儲存在本機，詳細頁面可立即開啟。清除後應用程式會在下次瀏覽時重新取得。",
         "TMDB_CACHE_SIZE": "{{entries}} 筆 · {{size}}",
         "TMDB_CACHE_CLEAR": "清除快取",
+        "TMDB_CACHE_ERROR": "無法讀取快取 — 請重試",
         "TMDB_CREDITS": "中繼資料",
         "TMDB_ATTRIBUTION": "本產品使用 TMDB API，但未經 TMDB 認可或認證。",
         "APP_PREFERENCES": "應用程式偏好設定",

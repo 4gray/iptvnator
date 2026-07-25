@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "İndirilen meta veriler yerel olarak saklanır, böylece detay sayfaları anında açılır. Temizlediğinizde uygulama bir sonraki ziyarette yeni veri indirir.",
         "TMDB_CACHE_SIZE": "{{entries}} kayıt · {{size}}",
         "TMDB_CACHE_CLEAR": "Önbelleği temizle",
+        "TMDB_CACHE_ERROR": "Önbellek okunamadı — tekrar deneyin",
         "TMDB_CREDITS": "Meta veri",
         "TMDB_ATTRIBUTION": "Bu ürün TMDB API'sini kullanır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.",
         "APP_PREFERENCES": "Uygulama tercihleri",

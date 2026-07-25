@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "A letöltött metaadatok helyben tárolódnak, így a részletek azonnal megnyílnak. Ürítés után az alkalmazás friss adatokat tölt le.",
         "TMDB_CACHE_SIZE": "{{entries}} bejegyzés · {{size}}",
         "TMDB_CACHE_CLEAR": "Gyorsítótár ürítése",
+        "TMDB_CACHE_ERROR": "A gyorsítótár nem olvasható — próbálja újra",
         "TMDB_CREDITS": "Metaadatok",
         "TMDB_ATTRIBUTION": "Ez a termék a TMDB API-ját használja, de a TMDB nem hagyta jóvá és nem tanúsította.",
         "APP_PREFERENCES": "Az alkalmazás beállításai",

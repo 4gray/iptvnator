@@ -22,6 +22,13 @@ const MEMORY_CACHE_MAX_ENTRIES = 300;
 export class TmdbCacheService {
     private readonly memoryCache = new Map<string, TmdbCacheEntry>();
 
+    /**
+     * Bumped by {@link clear}. A write that was already in flight when the
+     * user cleared belongs to the generation it started in, and applying it
+     * afterwards would silently resurrect exactly the data they removed.
+     */
+    private generation = 0;
+
     private get bridge() {
         // typeof checks guard against version skew: an older Electron shell
         // may not expose the TMDB cache methods yet
@@ -67,14 +74,24 @@ export class TmdbCacheService {
             ...entry,
             fetchedAt: new Date().toISOString(),
         };
+        const startedIn = this.generation;
 
         const bridge = this.bridge;
         if (bridge) {
             try {
+                // Re-check after the await: a clear may have landed while
+                // this write was in flight
                 await bridge.dbSetTmdbMetadata(stamped);
+                if (startedIn !== this.generation) {
+                    await bridge.dbClearTmdbMetadata?.();
+                }
             } catch (error) {
                 console.warn('TMDB cache write failed:', error);
             }
+            return;
+        }
+
+        if (startedIn !== this.generation) {
             return;
         }
 
@@ -115,20 +132,26 @@ export class TmdbCacheService {
      * Cache size for the settings panel. In the PWA the cache is the
      * session-scoped map, so the numbers describe that instead.
      */
-    async getStats(): Promise<TmdbCacheStats> {
+    async getStats(): Promise<TmdbCacheStats | null> {
         const bridge = this.bridge;
         if (bridge?.dbGetTmdbCacheStats) {
             try {
                 return await bridge.dbGetTmdbCacheStats();
             } catch (error) {
+                // `null`, not zeros: reporting a failed read as an empty
+                // cache would hide real rows and disable the Clear button
                 console.warn('TMDB cache stats failed:', error);
-                return { entries: 0, bytes: 0 };
+                return null;
             }
         }
 
+        // TextEncoder measures encoded bytes; String.length counts UTF-16
+        // code units, which understates non-ASCII payloads and would
+        // disagree with the SQLite BLOB byte count.
+        const encoder = new TextEncoder();
         let bytes = 0;
         for (const entry of this.memoryCache.values()) {
-            bytes += entry.payload?.length ?? 0;
+            bytes += entry.payload ? encoder.encode(entry.payload).length : 0;
         }
         return { entries: this.memoryCache.size, bytes };
     }
@@ -137,8 +160,10 @@ export class TmdbCacheService {
      * Drops everything. Enrichment refetches on demand, so this only
      * costs the next few requests.
      */
-    async clear(): Promise<number> {
+    async clear(): Promise<number | null> {
         const bridge = this.bridge;
+        this.generation++;
+        const clearedFromMemory = this.memoryCache.size;
         this.memoryCache.clear();
 
         if (bridge?.dbClearTmdbMetadata) {
@@ -146,12 +171,13 @@ export class TmdbCacheService {
                 const result = await bridge.dbClearTmdbMetadata();
                 return result?.deleted ?? 0;
             } catch (error) {
+                // `null` so the panel can say it failed and stay actionable
                 console.warn('TMDB cache clear failed:', error);
-                return 0;
+                return null;
             }
         }
 
-        return 0;
+        return clearedFromMemory;
     }
 
 }

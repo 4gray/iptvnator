@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "已下载的元数据保存在本地，详情页可立即打开。清除后应用会在下次访问时重新获取。",
         "TMDB_CACHE_SIZE": "{{entries}} 条 · {{size}}",
         "TMDB_CACHE_CLEAR": "清除缓存",
+        "TMDB_CACHE_ERROR": "无法读取缓存 — 请重试",
         "TMDB_CREDITS": "元数据",
         "TMDB_ATTRIBUTION": "本产品使用 TMDB API，但未获得 TMDB 的认可或认证。",
         "APP_PREFERENCES": "应用偏好",

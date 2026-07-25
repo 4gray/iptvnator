@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "Heruntergeladene Metadaten werden lokal gespeichert, damit Detailseiten sofort öffnen. Nach dem Leeren lädt die App beim nächsten Besuch frische Daten.",
         "TMDB_CACHE_SIZE": "{{entries}} Einträge · {{size}}",
         "TMDB_CACHE_CLEAR": "Cache leeren",
+        "TMDB_CACHE_ERROR": "Cache konnte nicht gelesen werden — erneut versuchen",
         "TMDB_CREDITS": "Metadaten",
         "TMDB_ATTRIBUTION": "Dieses Produkt verwendet die TMDB API, wird jedoch nicht von TMDB unterstützt oder zertifiziert.",
         "APP_PREFERENCES": "App-Einstellungen",

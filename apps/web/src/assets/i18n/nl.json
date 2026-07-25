@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "Gedownloade metadata wordt lokaal opgeslagen zodat detailpagina's direct openen. Na het wissen haalt de app bij het volgende bezoek verse gegevens op.",
         "TMDB_CACHE_SIZE": "{{entries}} items · {{size}}",
         "TMDB_CACHE_CLEAR": "Cache wissen",
+        "TMDB_CACHE_ERROR": "Cache kon niet worden gelezen — probeer opnieuw",
         "TMDB_CREDITS": "Metadata",
         "TMDB_ATTRIBUTION": "Dit product maakt gebruik van de TMDB API, maar wordt niet onderschreven of gecertificeerd door TMDB.",
         "APP_PREFERENCES": "App-voorkeuren",

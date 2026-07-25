@@ -255,6 +255,7 @@
         "TMDB_CACHE_DESCRIPTION": "Downloaded metadata is stored locally so detail pages open instantly. Clearing it makes the app fetch fresh data on the next visit.",
         "TMDB_CACHE_SIZE": "{{entries}} entries · {{size}}",
         "TMDB_CACHE_CLEAR": "Clear cache",
+        "TMDB_CACHE_ERROR": "Could not read the cache — try again",
         "TMDB_CREDITS": "Metadata",
         "TMDB_ATTRIBUTION": "This product uses the TMDB API but is not endorsed or certified by TMDB.",
         "APP_PREFERENCES": "App preferences",

@@ -72,6 +72,10 @@ type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
             .tmdb-cache__size {
                 font-variant-numeric: tabular-nums;
             }
+
+            .tmdb-cache__error {
+                color: #f44336;
+            }
         `,
     ],
 })
@@ -84,6 +88,7 @@ export class SettingsTmdbSectionComponent {
 
     readonly keyTestState = signal<TmdbKeyTestState>('idle');
     readonly cacheStats = signal<TmdbCacheStats | null>(null);
+    readonly cacheError = signal(false);
     readonly isClearing = signal(false);
 
     constructor() {
@@ -94,7 +99,7 @@ export class SettingsTmdbSectionComponent {
                 return;
             }
             untracked(() => {
-                if (this.cacheStats() === null) {
+                if (this.cacheStats() === null && !this.cacheError()) {
                     void this.refreshCacheStats();
                 }
             });
@@ -122,7 +127,13 @@ export class SettingsTmdbSectionComponent {
         }
         this.isClearing.set(true);
         try {
-            await this.tmdbCache.clear();
+            const deleted = await this.tmdbCache.clear();
+            if (deleted === null) {
+                // Do not claim an empty cache we failed to empty
+                this.cacheError.set(true);
+                this.cacheStats.set(null);
+                return;
+            }
             await this.refreshCacheStats();
         } finally {
             this.isClearing.set(false);
@@ -145,7 +156,9 @@ export class SettingsTmdbSectionComponent {
     }
 
     private async refreshCacheStats(): Promise<void> {
-        this.cacheStats.set(await this.tmdbCache.getStats());
+        const stats = await this.tmdbCache.getStats();
+        this.cacheError.set(stats === null);
+        this.cacheStats.set(stats);
     }
 
 }
