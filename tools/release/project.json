@@ -10,6 +10,7 @@
             "inputs": [
                 "{workspaceRoot}/tools/release/release-notes.mjs",
                 "{workspaceRoot}/tools/release/release-notes-render.mjs",
+                "{workspaceRoot}/tools/release/extract-changelog-section.mjs",
                 "{workspaceRoot}/tools/release/release-notes.test.mjs"
             ],
             "options": {

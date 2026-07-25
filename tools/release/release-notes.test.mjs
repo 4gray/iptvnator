@@ -17,6 +17,7 @@ import {
     renderChangelogSection,
     renderGithubBody,
 } from './release-notes-render.mjs';
+import { extractSection } from './extract-changelog-section.mjs';
 
 const tempDirs = [];
 
@@ -363,6 +364,63 @@ describe('renderBlogScaffold', () => {
 
         assert.match(content, /import ReleaseMeta from/);
         assert.match(content, /import BlogImageSlider from/);
+    });
+});
+
+describe('extractSection', () => {
+    const changelog = [
+        '# Changelog',
+        '',
+        'Intro paragraph with a pointer.',
+        '',
+        '<!-- next-release -->',
+        '',
+        '# [0.24.0](https://github.com/4gray/iptvnator/compare/v0.23.0...v0.24.0) (2026-08-01)',
+        '',
+        '### Features',
+        '',
+        '- **playback** — Up Next rail.',
+        '',
+        '<details>',
+        '<summary>Internal changes</summary>',
+        '',
+        '- **deps** — parser bump.',
+        '',
+        '</details>',
+        '',
+        '# [0.12.0](https://github.com/4gray/iptvnator/compare/v0.11.1...v0.12.0) (2023-03-11)',
+        '',
+        '### Bug Fixes',
+        '',
+        '- old entry',
+    ].join('\n');
+
+    it('returns the section body without its own heading', () => {
+        const section = extractSection(changelog, '0.24.0');
+
+        assert.match(section, /^### Features/);
+        assert.match(section, /Up Next rail/);
+        assert.match(section, /<\/details>$/);
+    });
+
+    it('stops at the next release heading', () => {
+        const section = extractSection(changelog, '0.24.0');
+
+        assert.doesNotMatch(section, /0\.12\.0|old entry/);
+    });
+
+    it('matches the plain heading shape without a compare link', () => {
+        const plain = '# 0.24.0 (2026-08-01)\n\n### Fixes\n\n- entry';
+
+        assert.match(extractSection(plain, '0.24.0'), /^### Fixes/);
+    });
+
+    it('does not match a different patch of the same minor', () => {
+        assert.equal(extractSection(changelog, '0.24.1'), null);
+    });
+
+    it('returns null when the version is absent', () => {
+        assert.equal(extractSection(changelog, '9.9.9'), null);
     });
 });
 

@@ -73,6 +73,13 @@ generate. `--version 0.24.0` overrides it for a dry run before the bump.
 
 Only `--consume` deletes anything; every other mode is a safe dry run.
 
+The release sequence is: bump the version → `release:notes:changelog` →
+`release:notes:blog` → `--consume` → commit → tag → push. The tag build then
+extracts the new `CHANGELOG.md` section into the GitHub release body
+(`tools/release/extract-changelog-section.mjs`) and **fails the release** if
+the section is missing — a tag cut without the changelog step cannot silently
+ship PR-title-only notes.
+
 The website publishes **one post per minor version** (`v0-18` … `v0-22`), and
 release screenshots live under the matching `blog/v0-24/` directory. A patch
 release therefore edits the existing post rather than generating a new one, so
