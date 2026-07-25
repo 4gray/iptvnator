@@ -96,14 +96,70 @@ export function parseProviderTmdbId(
 }
 
 /**
- * Does a details payload plausibly describe the item we asked about?
+ * What the payload behind a provider `tmdb_id` says about that id.
  *
- * Providers ship stale `tmdb_id` values that resolve to a real — but
- * different — title, and nothing downstream would notice. This is a
- * SUSPICION signal, not a verdict: TMDB returns titles in the request
- * language, so a Russian provider title legitimately fails to match an
- * `en-US` payload. Callers must treat `false` as "prefer a confident
- * search result if one exists", never as "discard these details".
+ * - `corroborated`: title or release year agrees; use the details.
+ * - `contradicted`: both years are known and they disagree — the classic
+ *   stale id ("Blade Runner 2049" carrying the 1982 film's id). Only this
+ *   verdict is strong enough to let the title search take over.
+ * - `inconclusive`: the title differs and there is no year to arbitrate
+ *   with. Keep the details: TMDB returns titles in the REQUEST language,
+ *   and normalization strips stylized prefixes ("IT - Chapter Two"), so a
+ *   name mismatch alone says more about our own inputs than about the id.
+ */
+export type ProviderIdVerdict =
+    | 'corroborated'
+    | 'contradicted'
+    | 'inconclusive';
+
+/** The same tolerance the search gate uses, applied in reverse */
+function yearsAgree(
+    providerYear: number,
+    detailsYear: number,
+    mediaType: TmdbMediaType
+): boolean {
+    if (Math.abs(detailsYear - providerYear) <= 1) {
+        return true;
+    }
+    // Series: portals report the current season's year while TMDB reports
+    // the premiere, so a show that started earlier still agrees.
+    return mediaType === 'tv' && detailsYear < providerYear;
+}
+
+export function assessProviderId(
+    details: {
+        title?: string;
+        original_title?: string;
+        release_date?: string;
+        name?: string;
+        original_name?: string;
+        first_air_date?: string;
+    },
+    query: { title?: string | null; originalTitle?: string | null; year?: number | null },
+    mediaType: TmdbMediaType
+): ProviderIdVerdict {
+    // Same effective year the search would use, so the two agree on what
+    // "the provider's year" means
+    const providerYear = query.year ?? extractYear(null, query.title);
+    const detailsYear = extractYear(
+        mediaType === 'movie' ? details.release_date : details.first_air_date
+    );
+
+    if (providerYear !== null && detailsYear !== null) {
+        return yearsAgree(providerYear, detailsYear, mediaType)
+            ? 'corroborated'
+            : 'contradicted';
+    }
+
+    return detailsMatchProviderTitle(details, query)
+        ? 'corroborated'
+        : 'inconclusive';
+}
+
+/**
+ * Does a details payload plausibly describe the item we asked about?
+ * Title-only signal — see {@link assessProviderId} for the verdict callers
+ * should act on.
  */
 export function detailsMatchProviderTitle(
     details: {

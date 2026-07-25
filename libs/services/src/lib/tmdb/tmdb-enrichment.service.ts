@@ -4,8 +4,8 @@ import { TmdbApiService, isTmdbNotFound } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
 import { TMDB_DETAILS_CACHE_TTL_MS } from './tmdb-config';
 import {
+    assessProviderId,
     buildDetailsLookupKey,
-    detailsMatchProviderTitle,
     parseProviderTmdbId,
 } from './tmdb-matcher';
 import { TmdbIdResolverService } from './tmdb-id-resolver.service';
@@ -139,9 +139,9 @@ export class TmdbEnrichmentService {
      * Providers ship broken ids. A dead one used to short-circuit the
      * search and leave the item permanently unenriched; a stale-but-valid
      * one silently rendered another title's plot and cast. Both cases now
-     * defer to the (confidence-gated) search — but only when the search
-     * actually produces something, so a legitimately localized title that
-     * merely fails the name check never costs the user their metadata.
+     * defer to the (confidence-gated) search — but only on evidence the id
+     * is wrong, and only when the search actually produces something, so a
+     * localized or stylized title never costs the user their metadata.
      */
     private async detailsForProviderId(
         mediaType: TmdbMediaType,
@@ -168,13 +168,13 @@ export class TmdbEnrichmentService {
             return null;
         }
 
-        if (!details || detailsMatchProviderTitle(details, query)) {
+        if (!details || assessProviderId(details, query, mediaType) !== 'contradicted') {
             return details;
         }
 
-        // The id resolves, but to something that does not look like our
-        // item. Let the search try to beat it; keep these details if it
-        // cannot, since a title mismatch alone is not proof of a bad id.
+        // The id resolves to a title whose release year contradicts the
+        // provider's — the stale-id signature. Let the search try to beat
+        // it; keep these details if it cannot.
         //
         // Deliberately NOT remembered: the id exists and may be correct for
         // a DIFFERENT item. The bad-id cache is keyed by id alone and shared
@@ -182,8 +182,12 @@ export class TmdbEnrichmentService {
         // deny the direct lookup to every other item that legitimately uses
         // the same id. The search verdict is cached anyway, so the repeat
         // cost is one details fetch.
+        //
         // The search is best-effort here: offline, rate-limited or 5xx must
-        // fall back to the details we already have, not discard them.
+        // fall back to the details we already have, not discard them. Its
+        // own gate needs a year, which this branch guarantees we have, so a
+        // result that comes back is corroborated rather than merely named
+        // alike.
         const searchedId = await this.idResolver
             .resolveBySearch(mediaType, query)
             .catch(() => null);

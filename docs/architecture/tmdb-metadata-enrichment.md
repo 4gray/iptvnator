@@ -76,8 +76,26 @@ in the settings section validates the API key against `/configuration`.
 Wrong metadata is worse than no metadata, so id resolution is conservative:
 
 1. If the provider returns a usable `tmdb_id` (Xtream VOD info often does),
-   it is trusted fully and no search runs. Series have no show-level
-   `tmdb_id`, so they always go through search.
+   its details are fetched directly and normally used as-is. Series have no
+   show-level `tmdb_id`, so they always go through search. The id is a
+   strong hint rather than gospel — panels ship dead and stale ones — so
+   the payload it returns is weighed against the provider item
+   (`assessProviderId`):
+    - a matching title **or** a compatible release year (±1; for series,
+      any earlier premiere) → **corroborated**, use it;
+    - both years known and incompatible → **contradicted**, the stale-id
+      signature ("Blade Runner 2049" carrying the 1982 film's id): the
+      title search may take over, and does so only if it finds a confident
+      match of its own;
+    - title differs with no year to arbitrate → **inconclusive**, keep the
+      details. TMDB returns titles in the request language and
+      normalization strips stylized prefixes ("IT - Chapter Two" →
+      "chapter two"), so a name mismatch alone says more about our inputs
+      than about the id.
+
+   A 404 is the one hard verdict: the id is recorded as dead
+   (`badProviderId:<id>` row) and skipped next time. Transient failures
+   (auth, rate limit, 5xx, offline) never disable an id.
 2. Otherwise `/search/movie` (or `/search/tv`) runs with the normalized
    title. Normalization strips bracketed tags, quality markers (`4K`,
    `1080p`, `MULTI`, …), leading language prefixes (`EN - `), diacritics,

@@ -27,6 +27,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         id: 999,
         title: 'Completely Different Film',
         original_title: 'Completely Different Film',
+        release_date: '1979-12-14',
         overview: 'Other plot',
         videos: { results: [{ key: 'x', site: 'YouTube', type: 'Trailer' }] },
     };
@@ -124,7 +125,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
     });
 
     it('prefers a confident search match over a stale provider id', async () => {
-        // The id resolves, but to a film that is not ours
+        // The id resolves, but to a 1979 film while our item is from 1999
         getMovieDetails
             .mockResolvedValueOnce(unrelated)
             .mockResolvedValueOnce(matrix);
@@ -134,6 +135,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         const details = await service.enrichMovie({
             tmdbId: 999,
             title: 'The Matrix',
+            year: 1999,
         });
 
         expect(details?.id).toBe(603);
@@ -177,10 +179,60 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         const details = await service.enrichMovie({
             tmdbId: 999,
             title: 'Ирония судьбы',
+            year: 1979,
         });
 
         expect(details?.id).toBe(999);
         expect(rememberBadProviderId).not.toHaveBeenCalled();
+    });
+
+    it('never lets a name mismatch alone unseat a working provider id', async () => {
+        // "IT - Chapter Two" normalizes to "chapter two" (the ALL-CAPS "IT"
+        // reads as a language tag), so the correct payload fails the name
+        // check. With no year to arbitrate, a search for "chapter two"
+        // would confidently return the 1979 film of that name.
+        getMovieDetails.mockResolvedValue({
+            id: 474350,
+            title: 'It Chapter Two',
+            original_title: 'It Chapter Two',
+            overview: 'Plot',
+        });
+        resolveBySearch.mockResolvedValue(30619);
+        const service = createService();
+
+        const details = await service.enrichMovie({
+            tmdbId: 474350,
+            title: 'IT - Chapter Two',
+        });
+
+        expect(details?.id).toBe(474350);
+        expect(resolveBySearch).not.toHaveBeenCalled();
+    });
+
+    it('catches a stale id that shares the title but not the year', async () => {
+        // The scraper case: "Blade Runner 2049" carrying the 1982 film's id.
+        // Both titles normalize to "blade runner", so only the year sees it.
+        getMovieDetails
+            .mockResolvedValueOnce({
+                id: 78,
+                title: 'Blade Runner',
+                release_date: '1982-06-25',
+            })
+            .mockResolvedValueOnce({
+                id: 335984,
+                title: 'Blade Runner 2049',
+                release_date: '2017-10-04',
+            });
+        resolveBySearch.mockResolvedValue(335984);
+        const service = createService();
+
+        const details = await service.enrichMovie({
+            tmdbId: 78,
+            title: 'Blade Runner 2049',
+            year: 2017,
+        });
+
+        expect(details?.id).toBe(335984);
     });
 
     it('keeps the provider payload when the competing search throws', async () => {
@@ -193,6 +245,7 @@ describe('TmdbEnrichmentService — provider tmdb_id handling', () => {
         const details = await service.enrichMovie({
             tmdbId: 999,
             title: 'Ирония судьбы',
+            year: 1999,
         });
 
         expect(details?.id).toBe(999);
