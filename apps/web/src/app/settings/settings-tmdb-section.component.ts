@@ -99,7 +99,10 @@ export class SettingsTmdbSectionComponent {
                 return;
             }
             untracked(() => {
-                if (this.cacheStats() === null && !this.cacheError()) {
+                // A failed read leaves both signals in their "unknown"
+                // state, so reopening the section retries rather than
+                // showing the error until the page is rebuilt.
+                if (this.cacheStats() === null) {
                     void this.refreshCacheStats();
                 }
             });

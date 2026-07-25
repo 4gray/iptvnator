@@ -124,4 +124,20 @@ describe('SettingsTmdbSectionComponent', () => {
             CACHE_ERROR_LABEL
         );
     });
+
+    it('retries the size read next time the section is opened', async () => {
+        getStats.mockResolvedValueOnce(null);
+        await activate();
+        expect(queryByTestId('tmdb-cache-size')?.textContent).toContain(
+            CACHE_ERROR_LABEL
+        );
+
+        await activate('general');
+        await activate();
+
+        // Otherwise a single transient failure sticks for the life of the
+        // page, and only the destructive Clear button can shift it
+        expect(getStats).toHaveBeenCalledTimes(2);
+        expect(queryByTestId('tmdb-cache-size')?.textContent).toContain('42');
+    });
 });
