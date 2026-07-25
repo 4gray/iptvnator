@@ -121,7 +121,7 @@ jobs:
                   printf 'receipt-sha256=%s\n' "${RECEIPT_SHA256}" >> "${GITHUB_OUTPUT}"
 
             - name: Transfer verified release assets
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: verified-snap-release-assets
                   path: /var/lib/iptvnator-snap-release/assets

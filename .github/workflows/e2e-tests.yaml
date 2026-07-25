@@ -87,7 +87,7 @@ jobs:
 
             - name: Upload Electron Test Results
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: playwright-report-electron-${{ matrix.os }}
                   path: |
@@ -131,7 +131,7 @@ jobs:
 
             - name: Upload Web Test Results
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: playwright-report-web-ubuntu
                   path: |

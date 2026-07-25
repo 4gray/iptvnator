@@ -322,7 +322,7 @@ jobs:
                   test -s "${RUNTIME_ROOT}/source-archive-binding.json"
 
             - name: Upload staged Linux runtime
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: linux-embedded-mpv-runtime
                   path: vendor/embedded-mpv/linux-x64
@@ -330,7 +330,7 @@ jobs:
                   retention-days: 7
 
             - name: Upload Linux runtime source compliance
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: linux-frame-copy-runtime-sources
                   path: dist/compliance/linux-frame-copy-runtime-sources.tar.xz
@@ -1187,7 +1187,7 @@ jobs:
 
             - name: Upload artifacts (macOS)
               if: matrix.os == 'macos'
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: macos-${{ matrix.arch }}-artifacts
                   path: |
@@ -1199,7 +1199,7 @@ jobs:
 
             - name: Upload system-runtime Linux artifacts
               if: matrix.os == 'linux' && matrix.linux_profile == 'system'
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: linux-system-artifacts
                   path: |
@@ -1211,7 +1211,7 @@ jobs:
 
             - name: Upload portable-runtime Linux artifacts
               if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: linux-portable-artifacts
                   path: |
@@ -1223,7 +1223,7 @@ jobs:
 
             - name: Upload Flatpak-runtime Linux artifacts
               if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: linux-flatpak-artifacts
                   path: |
@@ -1232,7 +1232,7 @@ jobs:
 
             - name: Upload artifacts (Windows)
               if: matrix.os == 'windows'
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: windows-artifacts
                   path: |
