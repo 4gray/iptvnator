@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { TmdbMediaType } from '@iptvnator/shared/interfaces';
 import { TmdbApiService } from './tmdb-api.service';
+import { trimDetailsForCache } from './tmdb-cache-payload';
 import { TmdbCacheService } from './tmdb-cache.service';
 import {
     TMDB_DETAILS_CACHE_TTL_MS,
@@ -282,7 +283,9 @@ export class TmdbEnrichmentService {
             lookupKey,
             language,
             tmdbId,
-            payload: JSON.stringify(details),
+            payload: JSON.stringify(
+                details === null ? null : trimDetailsForCache(details)
+            ),
         });
 
         return details;

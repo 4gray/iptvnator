@@ -131,6 +131,55 @@ describe('series cast (aggregate + latest season)', () => {
         expect(merged.tmdb_cast?.[9].name).toBe('Regular 9');
     });
 
+    it('does not shrink the list when the whole-run cast is short', () => {
+        // The reservation is a floor for arrivals, not a ceiling: with four
+        // regulars and five newcomers all nine fit under the cap
+        const merged = mergeSerieInfoWithTmdb(info, {
+            id: 76479,
+            name: 'The Boys',
+            aggregate_credits: {
+                cast: Array.from({ length: 4 }, (_, i) => ({
+                    id: 100 + i,
+                    name: `Regular ${i}`,
+                    order: i,
+                })),
+            },
+            credits: {
+                cast: Array.from({ length: 5 }, (_, i) => ({
+                    id: 200 + i,
+                    name: `Newcomer ${i}`,
+                    order: i,
+                })),
+            },
+        });
+
+        expect(merged.tmdb_cast).toHaveLength(9);
+        expect(merged.cast).toContain('Newcomer 4');
+    });
+
+    it('takes the role the actor played the most episodes of', () => {
+        // A one-episode cameo sits in roles[] next to the lead part
+        const merged = mergeSerieInfoWithTmdb(info, {
+            id: 76479,
+            name: 'The Boys',
+            aggregate_credits: {
+                cast: [
+                    {
+                        id: 1,
+                        name: 'Karl Urban',
+                        order: 0,
+                        roles: [
+                            { character: 'Cameo Guy', episode_count: 1 },
+                            { character: 'Billy Butcher', episode_count: 32 },
+                        ],
+                    },
+                ],
+            },
+        });
+
+        expect(merged.tmdb_cast?.[0].character).toBe('Billy Butcher');
+    });
+
     it('falls back to plain credits when no aggregate is present', () => {
         // Cache rows written before aggregate_credits was requested
         const merged = mergeSerieInfoWithTmdb(info, {
