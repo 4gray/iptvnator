@@ -7,7 +7,10 @@ import {
 } from '@ngrx/signals';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { StalkerVodSource } from '../../models';
-import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
+import {
+    isStalkerSeriesItem,
+    normalizeStalkerEntityId,
+} from '../../stalker-vod.utils';
 import {
     enrichStalkerSelectionWithTmdb,
     stalkerSelectionMediaType,
@@ -102,9 +105,21 @@ export function withStalkerSelection() {
                     selectedIdRaw !== undefined
                         ? normalizeStalkerEntityId(selectedIdRaw)
                         : undefined;
+                // serialSeasonsResource fetches regular-series seasons
+                // (get_ordered_list&type=series) whenever selectedSerialId
+                // changes. Items with embedded series[] episodes or the
+                // Ministra is_series flag resolve their episodes elsewhere,
+                // so only a plain type=series selection may carry the id —
+                // anything else would fire a wasted portal request on every
+                // detail open.
+                const contentType = store.selectedContentType();
+                const isRegularSeries =
+                    contentType === 'series' &&
+                    !!selectedItem &&
+                    !isStalkerSeriesItem(selectedItem);
                 patchState(store, {
                     selectedVodId: selectedId,
-                    selectedSerialId: selectedId,
+                    selectedSerialId: isRegularSeries ? selectedId : undefined,
                     selectedItvId: selectedId,
                     selectedItem,
                 });
@@ -112,7 +127,6 @@ export function withStalkerSelection() {
                 // Async, best-effort TMDB enrichment for VOD/series detail
                 // selections. Applies via patchState (not setSelectedItem)
                 // so the hook cannot recurse; live/radio items are skipped.
-                const contentType = store.selectedContentType();
                 if (
                     selectedItem &&
                     (contentType === 'vod' || contentType === 'series')
