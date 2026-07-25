@@ -49,6 +49,7 @@ const TMDB_LANGUAGE_MAP: Record<Language, string> = {
     [Language.POLISH]: 'pl-PL',
     [Language.PORTUGUESE]: 'pt-PT',
     [Language.GREEK]: 'el-GR',
+    [Language.HUNGARIAN]: 'hu-HU',
 };
 
 export function toTmdbLanguage(

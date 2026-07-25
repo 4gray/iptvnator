@@ -835,7 +835,7 @@ engine` (restart required) or
 
 **Internationalization**:
 
-- Uses `@ngx-translate` with 18 language files in `apps/web/src/assets/i18n/`
+- Uses `@ngx-translate` with 19 language files in `apps/web/src/assets/i18n/`
 
 ## Development Notes
 
