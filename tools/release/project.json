@@ -11,10 +11,12 @@
                 "{workspaceRoot}/tools/release/release-notes.mjs",
                 "{workspaceRoot}/tools/release/release-notes-render.mjs",
                 "{workspaceRoot}/tools/release/extract-changelog-section.mjs",
-                "{workspaceRoot}/tools/release/release-notes.test.mjs"
+                "{workspaceRoot}/tools/release/check-release-note-gate.mjs",
+                "{workspaceRoot}/tools/release/release-notes.test.mjs",
+                "{workspaceRoot}/tools/release/release-note-gate.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/release/release-notes.test.mjs",
+                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },
