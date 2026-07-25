@@ -3,10 +3,61 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
 
+type HttpServerFactory = (requestListener: http.RequestListener) => http.Server;
+
+interface HttpServerOptions {
+    createServer?: HttpServerFactory;
+    distPath?: string;
+}
+
+/**
+ * Resolve an HTTP request target within the configured static root.
+ * The path implementation is injectable so platform-specific semantics remain testable.
+ */
+export function resolveStaticFilePath(
+    staticRoot: string,
+    requestTarget: string,
+    pathImplementation: path.PlatformPath = path
+): string | null {
+    const separatorIndex = requestTarget.search(/[?#]/);
+    const encodedPathname =
+        separatorIndex === -1
+            ? requestTarget
+            : requestTarget.slice(0, separatorIndex);
+
+    let pathname: string;
+    try {
+        pathname = decodeURIComponent(encodedPathname);
+    } catch {
+        return null;
+    }
+
+    if (pathname.includes('\0')) {
+        return null;
+    }
+
+    const relativeCandidate = pathname.replace(/^[/\\]+/, '') || 'index.html';
+    const resolvedRoot = pathImplementation.resolve(staticRoot);
+    const candidate = pathImplementation.resolve(
+        resolvedRoot,
+        relativeCandidate
+    );
+
+    if (
+        candidate === resolvedRoot ||
+        candidate.startsWith(`${resolvedRoot}${pathImplementation.sep}`)
+    ) {
+        return candidate;
+    }
+
+    return null;
+}
+
 /**
  * HTTP server for serving the remote control web app and providing REST API endpoints
  */
 export class HttpServer {
+    private readonly createServer: HttpServerFactory;
     private server: http.Server | null = null;
     private port = 8765;
     private isEnabled = false;
@@ -15,6 +66,11 @@ export class HttpServer {
         string,
         (req: http.IncomingMessage, res: http.ServerResponse) => void
     > = new Map();
+
+    constructor(options: HttpServerOptions = {}) {
+        this.createServer = options.createServer ?? http.createServer;
+        this.distPath = options.distPath ?? null;
+    }
 
     /**
      * Get the path to the remote-control-web static files.
@@ -43,11 +99,7 @@ export class HttpServer {
         } else {
             // Production mode - files are bundled with the app
             // electron-builder copies remote-control-web/**/* directly to app root
-            this.distPath = path.join(
-                appPath,
-                'remote-control-web',
-                'browser'
-            );
+            this.distPath = path.join(appPath, 'remote-control-web', 'browser');
         }
 
         console.log('[HTTP Server] Serving from:', this.distPath);
@@ -58,7 +110,7 @@ export class HttpServer {
      * Start the HTTP server
      */
     start(port?: number): void {
-        if (port) {
+        if (port !== undefined) {
             this.port = port;
         }
 
@@ -67,7 +119,7 @@ export class HttpServer {
             return;
         }
 
-        this.server = http.createServer((req, res) => {
+        this.server = this.createServer((req, res) => {
             this.handleRequest(req, res);
         });
 
@@ -153,18 +205,21 @@ export class HttpServer {
      * Serve static files
      */
     private serveStaticFile(url: string, res: http.ServerResponse): void {
-        // Default to index.html for root path
-        let filePath = url === '/' ? '/index.html' : url;
-
-        // Security: prevent directory traversal
-        filePath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '');
-
-        const fullPath = path.join(this.getDistPath(), filePath);
+        const distPath = this.getDistPath();
+        const fullPath = resolveStaticFilePath(distPath, url);
+        if (!fullPath) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('404 Not Found');
+            return;
+        }
 
         fs.readFile(fullPath, (err, data) => {
             if (err) {
                 // If file not found, try serving index.html (for Angular routing)
-                if (err.code === 'ENOENT' && filePath !== '/index.html') {
+                if (
+                    err.code === 'ENOENT' &&
+                    fullPath !== path.resolve(distPath, 'index.html')
+                ) {
                     this.serveStaticFile('/', res);
                     return;
                 }
