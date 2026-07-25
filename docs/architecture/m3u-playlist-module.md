@@ -55,6 +55,37 @@ There is intentionally **no URL validation** (upstream removed it in 0.15.0): an
 
 The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
 
+## Playlist Refresh And Startup Auto-Update (Electron)
+
+Two paths re-download an M3U playlist from its original source:
+
+- **Explicit refresh** — `PLAYLIST_REFRESH` runs in `playlist-refresh.worker.ts`, reports
+  progress through `PLAYLIST_REFRESH_EVENT`, and is cancellable via
+  `PLAYLIST_CANCEL_REFRESH`.
+- **Startup auto-update** — after `loadPlaylistsSuccess`, `AppComponent` sends
+  `AUTO_UPDATE_PLAYLISTS` for every playlist with `autoRefresh === true`. The main
+  process fulfils it in `playlist-auto-update.ts` on top of `playlist-source.ts`.
+
+Both share one download contract, because this path is unattended and a hostile or
+dead source must never stall startup (issue #931):
+
+- Every HTTP hop uses the idle timeout `PLAYLIST_FETCH_TIMEOUT_MS` (30s, exported by
+  `playlist-source.ts`). Without it a host that accepts the connection and then goes
+  silent keeps the request pending forever. Redirects are followed one hop at a time,
+  so each hop is bounded separately.
+- Auto-update refreshes at most `AUTO_UPDATE_CONCURRENCY` (3) playlists at a time.
+  Sequential refreshes let one slow host delay every remaining playlist; an unbounded
+  fan-out would download and parse arbitrarily many large M3U files in the main
+  process at once.
+- Each playlist's failure is isolated and logged; the successful ones are still
+  returned, in the order they were requested. Playlists with neither a URL nor a file
+  path are skipped with a warning.
+- `preserveAutoUpdatedPlaylistFields()` re-applies the user-owned fields (`_id`,
+  `autoRefresh`, `favorites`, `userAgent`) onto the freshly parsed playlist.
+- Playlist URLs frequently carry Xtream-style `username`/`password` query parameters,
+  so refresh logging goes through `redactSensitiveData()` from
+  `@iptvnator/shared/logging`.
+
 ## State Management (libs/m3u-state/)
 
 ### State Structure
@@ -283,7 +314,7 @@ per-tab EPG logic:
 
 The programme guide under the player renders in one of **two interchangeable
 views**, chosen by the **`epgViewMode`** setting (`'timeline'` default, or
-`'list'`; Settings → EPG → *Guide view*):
+`'list'`; Settings → EPG → _Guide view_):
 
 - **Timeline** — a horizontal **ribbon** (`app-epg-timeline`,
   `libs/ui/epg/src/lib/epg-timeline/`).
@@ -679,7 +710,7 @@ class EpgService {
 
 ### DASH + ClearKey Playback
 
-MPEG-DASH (`.mpd`) channels play through a Shaka Player *source engine* inside
+MPEG-DASH (`.mpd`) channels play through a Shaka Player _source engine_ inside
 the existing built-in players — exactly like hls.js/mpegts.js. There is no new
 player in settings.
 
@@ -687,7 +718,7 @@ player in settings.
 
 1. The playlist parser fork does not understand `#KODIPROP:` lines, but keeps
    every unknown line between `#EXTINF` and the stream URL in `item.raw` (the
-   dominant Kodi/TiviMate layout; `#KODIPROP` lines *before* `#EXTINF` are
+   dominant Kodi/TiviMate layout; `#KODIPROP` lines _before_ `#EXTINF` are
    dropped by the parser — fixing that requires a parser-fork patch and is
    deferred).
 2. `extractDrmFromRaw()` (`libs/shared/m3u-utils/src/lib/kodiprop.utils.ts`)

@@ -22,11 +22,11 @@ import type {
     PlaylistRefreshWorkerMessage,
     PlaylistRefreshWorkerResponseMessage,
 } from '../workers/playlist-refresh.worker.types';
+import { autoUpdatePlaylists } from './playlist-auto-update';
 import {
     derivePlaylistTitleFromFilePath,
     fetchPlaylistFromFile,
     fetchPlaylistFromUrl,
-    preserveAutoUpdatedPlaylistFields,
 } from './playlist-source';
 import { PlaylistWriteAuthorizer } from './playlist-write-authorization';
 
@@ -152,56 +152,9 @@ ipcMain.handle(
     ) => {
         console.log(`Auto-updating ${playlists.length} playlist(s)...`);
 
-        const updatedPlaylists: Playlist[] = [];
-
-        for (const playlist of playlists) {
-            try {
-                let playlistObject;
-
-                if (playlist.importDate && playlist.url) {
-                    // Update from URL
-                    console.log(
-                        `Updating playlist "${playlist.title}" from URL: ${playlist.url}`
-                    );
-                    playlistObject = await fetchPlaylistFromUrl(
-                        playlist.url,
-                        playlist.title,
-                        {
-                            trustedInsecureTlsHosts:
-                                options?.trustedInsecureTlsHosts,
-                        }
-                    );
-                } else if (playlist.filePath) {
-                    // Update from file path
-                    console.log(
-                        `Updating playlist "${playlist.title}" from file: ${playlist.filePath}`
-                    );
-                    playlistObject = await fetchPlaylistFromFile(
-                        playlist.filePath,
-                        playlist.title
-                    );
-                } else {
-                    console.warn(
-                        `Skipping playlist "${playlist.title}": no URL or file path found`
-                    );
-                    continue;
-                }
-
-                updatedPlaylists.push(
-                    preserveAutoUpdatedPlaylistFields(playlistObject, playlist)
-                );
-
-                console.log(
-                    `Successfully updated playlist "${playlist.title}"`
-                );
-            } catch (error) {
-                console.error(
-                    `Failed to update playlist "${playlist.title}":`,
-                    error
-                );
-                // Continue with other playlists even if one fails
-            }
-        }
+        const updatedPlaylists = await autoUpdatePlaylists(playlists, {
+            trustedInsecureTlsHosts: options?.trustedInsecureTlsHosts,
+        });
 
         console.log(
             `Auto-update completed: ${updatedPlaylists.length} updated`

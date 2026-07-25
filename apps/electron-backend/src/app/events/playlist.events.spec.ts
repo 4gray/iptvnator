@@ -195,6 +195,7 @@ describe('playlist IPC events', () => {
                 httpsAgent: expect.any(Object),
                 maxRedirects: 0,
                 method: 'GET',
+                timeout: 30000,
                 url: 'https://example.test/remote.m3u',
             })
         );
@@ -288,24 +289,25 @@ describe('playlist IPC events', () => {
         mockReadFile.mockResolvedValue('#EXTM3U file');
         mockParse.mockReturnValue(parsedPlaylist);
         mockGetFilenameFromUrl.mockReturnValue('list.m3u');
-        mockCreatePlaylistObject
-            .mockReturnValueOnce(
-                createPlaylist({
-                    _id: 'new-url-playlist',
-                    autoRefresh: false,
-                    favorites: [],
-                    title: 'Updated URL playlist',
-                    url: 'https://example.test/list.m3u',
-                })
-            )
-            .mockReturnValueOnce(
-                createPlaylist({
-                    _id: 'new-file-playlist',
-                    autoRefresh: true,
-                    filePath: '/playlists/local.m3u',
-                    title: 'Updated file playlist',
-                })
-            );
+        // Auto-update refreshes playlists concurrently, so the fixtures are
+        // keyed by source type instead of by call order.
+        mockCreatePlaylistObject.mockImplementation(
+            (_title, _parsed, _source, type) =>
+                type === 'URL'
+                    ? createPlaylist({
+                          _id: 'new-url-playlist',
+                          autoRefresh: false,
+                          favorites: [],
+                          title: 'Updated URL playlist',
+                          url: 'https://example.test/list.m3u',
+                      })
+                    : createPlaylist({
+                          _id: 'new-file-playlist',
+                          autoRefresh: true,
+                          filePath: '/playlists/local.m3u',
+                          title: 'Updated file playlist',
+                      })
+        );
 
         const result = await getHandler(AUTO_UPDATE_PLAYLISTS)(
             createIpcEvent(),
@@ -332,6 +334,7 @@ describe('playlist IPC events', () => {
                 httpsAgent: expect.any(Object),
                 maxRedirects: 0,
                 method: 'GET',
+                timeout: 30000,
                 url: 'https://example.test/list.m3u',
             })
         );
