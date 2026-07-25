@@ -7,10 +7,7 @@ import {
 } from '@ngrx/signals';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { StalkerVodSource } from '../../models';
-import {
-    isStalkerSeriesItem,
-    normalizeStalkerEntityId,
-} from '../../stalker-vod.utils';
+import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
 import {
     enrichStalkerSelectionWithTmdb,
     stalkerSelectionMediaType,
@@ -106,20 +103,17 @@ export function withStalkerSelection() {
                         ? normalizeStalkerEntityId(selectedIdRaw)
                         : undefined;
                 // serialSeasonsResource fetches regular-series seasons
-                // (get_ordered_list&type=series) whenever selectedSerialId
-                // changes. Items with embedded series[] episodes or the
-                // Ministra is_series flag resolve their episodes elsewhere,
-                // so only a plain type=series selection may carry the id —
-                // anything else would fire a wasted portal request on every
-                // detail open.
+                // (get_ordered_list&type=series) on every selectedSerialId
+                // change, and it is the only episode source for a `series`
+                // selection. Every other content type resolves episodes
+                // elsewhere — embedded series[] and Ministra is_series items
+                // are always opened as `vod` — so carrying the id there only
+                // fires a portal request whose result is discarded.
                 const contentType = store.selectedContentType();
-                const isRegularSeries =
-                    contentType === 'series' &&
-                    !!selectedItem &&
-                    !isStalkerSeriesItem(selectedItem);
                 patchState(store, {
                     selectedVodId: selectedId,
-                    selectedSerialId: isRegularSeries ? selectedId : undefined,
+                    selectedSerialId:
+                        contentType === 'series' ? selectedId : undefined,
                     selectedItvId: selectedId,
                     selectedItem,
                 });

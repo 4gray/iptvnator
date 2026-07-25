@@ -271,10 +271,14 @@ Stalker has multiple real-world data shapes. The current implementation supports
 
 - Seasons come from API resource (`serialSeasonsResource`).
 - Episodes are derived from season payload.
-- This is the only shape that sets `selectedSerialId`, which is what drives
-  `serialSeasonsResource`. Modes 2 and 3 below carry their episodes elsewhere,
-  so selecting them must leave the id unset — otherwise every detail open
-  fires a `get_ordered_list&type=series` request whose result is discarded.
+- This is the only mode that sets `selectedSerialId`, which is what drives
+  `serialSeasonsResource`. It is set purely from `selectedContentType ===
+'series'` — the `series` detail branch renders `<app-stalker-series-view />`
+  with no `vodWithSeries` input, so the API resource is its only episode
+  source and the fetch must never be gated on item shape.
+- Modes 2 and 3 below are always opened under the `vod` content type, which
+  leaves the id unset — otherwise every VOD detail open would fire a
+  `get_ordered_list&type=series` request whose result is discarded.
 
 2. VOD with Embedded `series[]`:
 

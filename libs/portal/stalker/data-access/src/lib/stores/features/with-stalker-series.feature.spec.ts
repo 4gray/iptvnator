@@ -145,7 +145,10 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
     });
 
     it('does not fire a series request for an item with embedded series episodes', async () => {
-        store.setSelectedContentType('series');
+        // vclub items carry their episodes inline and are always opened
+        // under the VOD content type, where the seasons API is not the
+        // episode source.
+        store.setSelectedContentType('vod');
         store.setSelectedItem({
             id: '9',
             name: 'Embedded series',
@@ -156,6 +159,32 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         await flushResources();
 
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('still fetches seasons for a series selection carrying is_series', async () => {
+        // Regression guard: under the `series` content type the detail view
+        // renders <app-stalker-series-view /> without a vodWithSeries input,
+        // so serialSeasonsResource is the only episode source. Gating the
+        // fetch on item shape would render an empty episode list.
+        store.setSelectedContentType('series');
+        store.setSelectedItem({
+            id: '42',
+            name: 'Series flagged is_series',
+            is_series: '1',
+        });
+
+        await waitForCondition(
+            () => seriesRequestCalls(dataService.sendIpcEvent).length > 0
+        );
+
+        expect(
+            seriesRequestCalls(dataService.sendIpcEvent)[0][1]
+        ).toMatchObject({
+            params: expect.objectContaining({
+                type: 'series',
+                movie_id: '42',
+            }),
+        });
     });
 
     it('does not fire a series request for a Ministra VOD-series item', async () => {
