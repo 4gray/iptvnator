@@ -3,35 +3,44 @@ import { TmdbDetails, TmdbTvDetails } from './tmdb.types';
 /**
  * Trims a details payload before it is cached.
  *
- * `aggregate_credits` spans a show's whole run: for a long-running series
- * that is hundreds of cast entries — each with its own `roles[]` — plus a
- * crew list that can run into the thousands. The merge reads only the
- * top-billed cast, so caching the rest verbatim grows `tmdb_metadata` (and
- * the PWA's in-memory map) by orders of magnitude for data nothing reads.
+ * `aggregate_credits` spans a show's whole run: a crew list that can reach
+ * into the thousands, plus every cast member carrying one `roles[]` entry
+ * per character they ever played. Caching that verbatim grows
+ * `tmdb_metadata` (and the PWA's in-memory map) by orders of magnitude for
+ * data nothing reads.
  *
- * The cast kept here is the billing-order prefix, so every consumer that
- * takes a top-N by `order` sees exactly what it would have seen from the
- * full payload. Everything else is passed through untouched — payloads
- * still hold whatever a later phase might want without a refetch.
+ * What goes is chosen so that a merge over the trimmed payload produces
+ * exactly what a merge over the full one would:
+ *
+ * - the whole cast stays, ids included. It is the only record of who was
+ *   in the show before the newest season, so dropping the tail would make
+ *   a returning actor read as a new arrival on the cached path — the
+ *   displayed cast would then differ between the first render and every
+ *   later one.
+ * - `roles[]` keeps only the character with the most episodes, which is
+ *   the one the merge picks anyway.
+ * - `crew` goes entirely: series credits come from `created_by`, so
+ *   nothing reads it.
+ *
+ * Everything else is passed through untouched — payloads still hold
+ * whatever a later phase might want without a refetch.
  */
-
-/**
- * Comfortably above the merge's own ceiling (10 names + 3 reserved slots
- * for newest-season arrivals), so trimming can never change the result.
- */
-const CACHED_AGGREGATE_CAST_LIMIT = 40;
-
 export function trimDetailsForCache(details: TmdbDetails): TmdbDetails {
     const aggregate = (details as TmdbTvDetails).aggregate_credits;
     if (!aggregate) {
         return details;
     }
 
-    const cast = [...(aggregate.cast ?? [])]
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .slice(0, CACHED_AGGREGATE_CAST_LIMIT);
+    const cast = (aggregate.cast ?? []).map((member) => {
+        const roles = member.roles ?? [];
+        if (roles.length <= 1) {
+            return member;
+        }
+        const main = roles.reduce((best, role) =>
+            (role.episode_count ?? 0) > (best.episode_count ?? 0) ? role : best
+        );
+        return { ...member, roles: [main] };
+    });
 
-    // `crew` is dropped rather than trimmed: series credits come from
-    // `created_by`, so nothing reads the aggregate crew at all.
     return { ...details, aggregate_credits: { cast } } as TmdbDetails;
 }
