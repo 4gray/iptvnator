@@ -12,11 +12,14 @@
                 "{workspaceRoot}/tools/release/release-notes-render.mjs",
                 "{workspaceRoot}/tools/release/extract-changelog-section.mjs",
                 "{workspaceRoot}/tools/release/check-release-note-gate.mjs",
+                "{workspaceRoot}/tools/release/screenshot-guards.mjs",
+                "{workspaceRoot}/tools/release/screenshots.manifest.json",
                 "{workspaceRoot}/tools/release/release-notes.test.mjs",
-                "{workspaceRoot}/tools/release/release-note-gate.test.mjs"
+                "{workspaceRoot}/tools/release/release-note-gate.test.mjs",
+                "{workspaceRoot}/tools/release/screenshot-guards.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs",
+                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/screenshot-guards.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },
@@ -27,8 +30,12 @@
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 "{workspaceRoot}/tools/eslint/**/*"
             ],
-            "command": "eslint \"tools/release/*.mjs\""
+            "command": "eslint \"tools/release/*.mjs\" \"tools/release/capture-release-screenshots.ts\" \"tools/release/capture-app-driver.ts\" \"tools/release/capture-navigation.ts\" \"tools/release/capture-network-gate.ts\" \"tools/release/capture-tmdb-check.ts\""
         }
     },
-    "tags": ["scope:tools", "domain:release", "type:tool"]
+    "tags": [
+        "scope:tools",
+        "domain:release",
+        "type:tool"
+    ]
 }

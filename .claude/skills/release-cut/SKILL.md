@@ -42,11 +42,21 @@ is not optional.
     for a patch release, edit the existing post (the scaffold refuses to
     overwrite without `--force`).
 
-5. **Screenshots** — only from the release capture script against the mock
-   servers (`tools/release/`), never from a real playlist or account: real
-   streams, logos, and TMDB artwork are copyrighted, and credentials must
-   never reach a published image. Output goes to
-   `apps/website/public/blog/v0-XX/screenshots/`.
+5. **Screenshots** — only from the fail-closed capture script against the
+   mock servers, never from a real playlist or account: real streams, logos,
+   and TMDB artwork are copyrighted, and credentials must never reach a
+   published image.
+
+    ```bash
+    pnpm nx run electron-backend:build-e2e   # once
+    pnpm run release:screenshots             # all manifest shots, dark+light
+    ```
+
+    Output goes to `apps/website/public/blog/v0-XX/screenshots/`. New feature
+    to showcase = new entry in `tools/release/screenshots.manifest.json`
+    (slug must match the note's `screenshot:` field). The run aborts and
+    deletes its frames on any guard violation (real-DB touch, external
+    request, credential-shaped text in frame, TMDB active).
 
 6. **Consume the notes** (the only destructive step):
 

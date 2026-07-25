@@ -30,7 +30,7 @@ of the current season, watch progress, and click-to-play inline.
 | `type`       | yes      | `breaking`, `feature`, `fix`, `perf`, or `internal`          |
 | `area`       | yes      | lowercase slug, same as the conventional-commit scope        |
 | `issues`     | no       | issue numbers this closes — `[1187]` or `1187`               |
-| `screenshot` | no       | slug from the release screenshot manifest                    |
+| `screenshot` | no       | slug from `tools/release/screenshots.manifest.json`          |
 
 There is **no version field**. The release version is chosen deliberately at
 release time, not derived from these files.
@@ -84,3 +84,26 @@ The website publishes **one post per minor version** (`v0-18` … `v0-22`), and
 release screenshots live under the matching `blog/v0-24/` directory. A patch
 release therefore edits the existing post rather than generating a new one, so
 `--format blog` refuses to overwrite unless you pass `--force`.
+
+## Screenshots
+
+`pnpm run release:screenshots` captures every manifest shot in dark and light
+against the built app plus the Xtream mock server — never a real account.
+The run is fail-closed: it proves the real `~/.iptvnator/databases` directory
+(including the SQLite WAL sidecars, checked after Electron exits) was not
+touched, launches the app with an allowlisted environment, records and blocks
+all non-localhost traffic, scans every frame for external resources and
+credential-shaped text, and asserts TMDB enrichment stays disabled. Frames are
+staged outside the repository and published only once every shot and every
+guard has passed.
+
+Adding a shot for a new feature = one entry in
+`tools/release/screenshots.manifest.json` (plus, if navigation is new, one
+named action in `tools/release/capture-navigation.ts`).
+
+```bash
+pnpm nx run electron-backend:build-e2e   # once, before capturing
+pnpm run release:screenshots             # all shots, both themes
+pnpm run release:screenshots -- --only dashboard --theme dark
+pnpm run release:screenshots -- --release v0-24
+```
