@@ -19,6 +19,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { loadNotes } from './release-notes.mjs';
+import { manifestSlugs } from './screenshot-guards.mjs';
 import {
     releaseSlug,
     renderBlogScaffold,
@@ -231,6 +232,25 @@ function main() {
     const options = parseArgs(process.argv.slice(2));
     const notesDir = path.resolve(workspaceRoot, options.dir);
     const { notes, errors } = loadNotes(notesDir);
+
+    // `screenshot:` slugs must exist in the capture manifest, otherwise the
+    // blog scaffold would reference images the capture run never produces.
+    const slugs = manifestSlugs(
+        JSON.parse(
+            readFileSync(
+                path.join(workspaceRoot, 'tools/release/screenshots.manifest.json'),
+                'utf8'
+            )
+        )
+    );
+
+    for (const note of notes) {
+        if (note.screenshot && !slugs.has(note.screenshot)) {
+            errors.push(
+                `${path.basename(note.sourcePath)}: \`screenshot: ${note.screenshot}\` is not a slug in tools/release/screenshots.manifest.json`
+            );
+        }
+    }
 
     if (errors.length > 0) {
         console.error('Invalid release notes:\n');
