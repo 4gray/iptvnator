@@ -2,12 +2,14 @@
  * Regression coverage for the WINDOW:STATE_CHANGED pushes that drive the
  * renderer-drawn window controls on Windows/Linux.
  *
- * The handlers must derive the flag their event names from the event itself
- * instead of re-reading it from the window: on Windows, isFullScreen() can
- * still report true while 'leave-full-screen' fires for HTML-element
- * fullscreen (video player) exits. Polling at event time pushed a stale
- * `isFullScreen: true` on exit, and since no later event corrected it the
- * custom window controls stayed hidden forever.
+ * The handlers must never re-read window state at event time: on Windows,
+ * isFullScreen() can still report true while 'leave-full-screen' fires for
+ * HTML-element fullscreen (video player) exits, and isMaximized() reports
+ * false while the window is fullscreen. Polling pushed a stale
+ * `isFullScreen: true` on exit — leaving the custom window controls hidden
+ * forever — and cleared the companion `isMaximized`, sticking the
+ * maximize/restore glyph on the wrong icon. Instead the state is seeded once
+ * at attach time and each event patches only the flag it names.
  */
 
 jest.mock('electron', () => ({
@@ -175,6 +177,57 @@ describe('window state change pushes', () => {
             WINDOW_STATE_CHANGED,
             { isMaximized: false, isFullScreen: false }
         );
+    });
+
+    it('keeps the maximized flag across a fullscreen round-trip while the window misreports it', () => {
+        const win = createMockStateWindow();
+        win.isMaximized.mockReturnValue(true);
+        attachWindowStateEvents(win);
+        // Windows reports a fullscreen window as not maximized, so polling
+        // the companion flag here would clear it and leave the glyph on
+        // "maximize" after the controls come back.
+        win.isMaximized.mockReturnValue(false);
+
+        fireWindowEvent(win, 'enter-html-full-screen');
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: true, isFullScreen: true }
+        );
+
+        fireWindowEvent(win, 'leave-html-full-screen');
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: true, isFullScreen: false }
+        );
+    });
+
+    it('keeps the fullscreen flag when a maximize event arrives mid-transition', () => {
+        const win = createMockStateWindow();
+        win.isFullScreen.mockReturnValue(true);
+        attachWindowStateEvents(win);
+        win.isFullScreen.mockReturnValue(false);
+
+        fireWindowEvent(win, 'maximize');
+
+        expect(win.webContents.send).toHaveBeenLastCalledWith(
+            WINDOW_STATE_CHANGED,
+            { isMaximized: true, isFullScreen: true }
+        );
+    });
+
+    it('sends an independent payload per push', () => {
+        const win = createMockStateWindow();
+        attachWindowStateEvents(win);
+
+        fireWindowEvent(win, 'enter-full-screen');
+        const firstPayload = win.webContents.send.mock.calls[0][1];
+        fireWindowEvent(win, 'leave-full-screen');
+
+        // The renderer must not see the earlier push mutate under it.
+        expect(firstPayload).toEqual({
+            isMaximized: false,
+            isFullScreen: true,
+        });
     });
 
     it('skips pushes for destroyed windows', () => {

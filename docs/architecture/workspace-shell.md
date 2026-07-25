@@ -261,13 +261,19 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    fullscreen) — so the maximize/restore glyph stays correct for
    externally triggered changes (double-click on a drag region, OS
    snap, F11). The controls hide themselves while the window is
-   fullscreen. Each push derives the flag its event names from the
-   event itself instead of re-reading it from the window: on Windows,
-   `isFullScreen()` can still report the old value while
-   `leave-full-screen` fires for an HTML fullscreen exit, and a stale
-   `isFullScreen: true` push has no later event to correct it, which
-   left the controls hidden forever (regression covered by
-   `app-window-state.spec.ts` and `window-controls.e2e.ts`).
+   fullscreen.
+
+   Window state is **never re-read at event time**. `attachWindowStateEvents`
+   seeds `{ isMaximized, isFullScreen }` once at window creation and each
+   event patches only the flag it names; every push carries a copy of that
+   tracked state. On Windows both getters can still report the
+   pre-transition value while the matching event fires — `isFullScreen()`
+   stays `true` during an HTML fullscreen exit, and `isMaximized()` reads
+   `false` while the window is fullscreen. Because the renderer replaces
+   both flags on every push and no later event corrects a stale one,
+   polling left the controls hidden forever after leaving fullscreen and
+   stuck the maximize/restore glyph on the wrong icon. Regression coverage:
+   `app-window-state.spec.ts` and `window-controls.e2e.ts`.
 
 Layout integration:
 
