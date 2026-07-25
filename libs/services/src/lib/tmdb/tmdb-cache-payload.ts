@@ -1,3 +1,4 @@
+import { pickAggregateRole } from './tmdb-credits';
 import { TmdbDetails, TmdbTvDetails } from './tmdb.types';
 
 /**
@@ -17,8 +18,9 @@ import { TmdbDetails, TmdbTvDetails } from './tmdb.types';
  *   a returning actor read as a new arrival on the cached path — the
  *   displayed cast would then differ between the first render and every
  *   later one.
- * - `roles[]` keeps only the character with the most episodes, which is
- *   the one the merge picks anyway.
+ * - `roles[]` keeps only the entry the merge itself would pick — the
+ *   named character with the most episodes, chosen by the very same
+ *   function, so the two can never drift apart.
  * - `crew` goes entirely: series credits come from `created_by`, so
  *   nothing reads it.
  *
@@ -36,10 +38,9 @@ export function trimDetailsForCache(details: TmdbDetails): TmdbDetails {
         if (roles.length <= 1) {
             return member;
         }
-        const main = roles.reduce((best, role) =>
-            (role.episode_count ?? 0) > (best.episode_count ?? 0) ? role : best
-        );
-        return { ...member, roles: [main] };
+        // The merge's own choice, not a second one that could differ
+        const main = pickAggregateRole(member);
+        return { ...member, roles: main ? [main] : [] };
     });
 
     return { ...details, aggregate_credits: { cast } } as TmdbDetails;

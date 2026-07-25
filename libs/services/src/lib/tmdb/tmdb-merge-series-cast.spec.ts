@@ -180,6 +180,45 @@ describe('series cast (aggregate + latest season)', () => {
         expect(merged.tmdb_cast?.[0].character).toBe('Billy Butcher');
     });
 
+    it('always fills the cap when there are enough people to fill it', () => {
+        // The reservation decides WHO makes the cut, never how many: the
+        // list is the display limit or everyone available, whichever is
+        // smaller. The earlier defect broke exactly this.
+        const cast = (n: number, offset: number, label: string) =>
+            Array.from({ length: n }, (_, i) => ({
+                id: offset + i,
+                name: `${label} ${i}`,
+                order: i,
+            }));
+
+        for (const [regulars, newcomers] of [
+            [0, 4],
+            [2, 1],
+            [4, 5],
+            [7, 5],
+            [9, 4],
+            [12, 2],
+            [12, 0],
+        ]) {
+            const merged = mergeSerieInfoWithTmdb(info, {
+                id: 76479,
+                name: 'The Boys',
+                aggregate_credits: { cast: cast(regulars, 100, 'Regular') },
+                credits: { cast: cast(newcomers, 900, 'Newcomer') },
+            });
+
+            expect({
+                regulars,
+                newcomers,
+                shown: merged.tmdb_cast?.length ?? 0,
+            }).toEqual({
+                regulars,
+                newcomers,
+                shown: Math.min(10, regulars + newcomers),
+            });
+        }
+    });
+
     it('falls back to plain credits when no aggregate is present', () => {
         // Cache rows written before aggregate_credits was requested
         const merged = mergeSerieInfoWithTmdb(info, {

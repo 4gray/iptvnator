@@ -57,6 +57,33 @@ describe('trimDetailsForCache', () => {
         ]);
     });
 
+    it('keeps the named role even when a blank one has more episodes', () => {
+        // TMDB uses unnamed roles for uncredited appearances; the merge
+        // skips them, so the trim must not cache one in their place
+        const details: TmdbTvDetails = {
+            id: 76479,
+            aggregate_credits: {
+                cast: [
+                    {
+                        id: 1,
+                        name: 'Karl Urban',
+                        order: 0,
+                        roles: [
+                            { character: '', episode_count: 40 },
+                            { character: 'Billy Butcher', episode_count: 32 },
+                        ],
+                    },
+                ],
+            },
+        };
+
+        const trimmed = trimDetailsForCache(details) as TmdbTvDetails;
+
+        expect(trimmed.aggregate_credits?.cast?.[0].roles).toEqual([
+            { character: 'Billy Butcher', episode_count: 32 },
+        ]);
+    });
+
     it('drops the aggregate crew nothing reads', () => {
         const details = {
             id: 76479,
