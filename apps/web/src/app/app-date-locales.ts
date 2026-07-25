@@ -6,6 +6,7 @@ import localeDe from '@angular/common/locales/de';
 import localeEl from '@angular/common/locales/el';
 import localeEs from '@angular/common/locales/es';
 import localeFr from '@angular/common/locales/fr';
+import localeHu from '@angular/common/locales/hu';
 import localeIt from '@angular/common/locales/it';
 import localeJa from '@angular/common/locales/ja';
 import localeKo from '@angular/common/locales/ko';
@@ -31,6 +32,7 @@ export function registerAppDateLocales(): void {
     registerLocaleData(localeEl, 'el');
     registerLocaleData(localeEs, 'es');
     registerLocaleData(localeFr, 'fr');
+    registerLocaleData(localeHu, 'hu');
     registerLocaleData(localeIt, 'it');
     registerLocaleData(localeJa, 'ja');
     registerLocaleData(localeKo, 'ko');

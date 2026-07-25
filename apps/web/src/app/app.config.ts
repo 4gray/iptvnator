@@ -67,6 +67,7 @@ const SUPPORTED_LANGS = new Set([
     'en',
     'es',
     'fr',
+    'hu',
     'it',
     'ja',
     'ko',
