@@ -130,6 +130,5 @@ export const maxLinesBaseline = [
     'libs/workspace/shell/feature/src/lib/workspace-shell/services/helpers/workspace-shell-command-builders.ts',
     'libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.spec.ts',
     'libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.spec.ts',
-    'tools/release/capture-v020-screenshots.ts',
     'tools/release/generate-marketing-artwork.ts',
 ];
