@@ -7,6 +7,20 @@ const mockBroadcastDownloadUpdate = jest.fn();
 const mockRemovePartialDownloadFile = jest.fn();
 const mockPauseDownload = jest.fn();
 const mockResumeDownloadRequest = jest.fn();
+const mockExistsSync = jest.fn();
+const mockOpenPath = jest.fn();
+const mockShowItemInFolder = jest.fn();
+const mockEq = jest.fn();
+let downloadsFilePathColumn: unknown;
+
+const MANAGED_PATH_STATE = {
+    ERROR: 'error',
+    MANAGED: 'managed',
+    UNMANAGED: 'unmanaged',
+} as const;
+
+type ManagedPathState =
+    (typeof MANAGED_PATH_STATE)[keyof typeof MANAGED_PATH_STATE];
 
 function getHandler(channel: string): IpcHandler {
     const handler = mockRegisteredHandlers.get(channel);
@@ -34,7 +48,24 @@ describe('downloads events', () => {
         mockRemovePartialDownloadFile.mockReset();
         mockPauseDownload.mockReset();
         mockResumeDownloadRequest.mockReset();
+        mockExistsSync.mockReset();
+        mockOpenPath.mockReset().mockResolvedValue('');
+        mockShowItemInFolder.mockReset();
+        mockEq.mockReset();
 
+        jest.doMock('node:fs', () => ({
+            ...jest.requireActual<typeof import('node:fs')>('node:fs'),
+            existsSync: mockExistsSync,
+        }));
+        jest.doMock('drizzle-orm', () => {
+            const actual =
+                jest.requireActual<typeof import('drizzle-orm')>('drizzle-orm');
+            mockEq.mockImplementation(actual.eq);
+            return {
+                ...actual,
+                eq: mockEq,
+            };
+        });
         jest.doMock('electron', () => ({
             app: {
                 getPath: jest.fn((name: string) =>
@@ -50,8 +81,8 @@ describe('downloads events', () => {
                 }),
             },
             shell: {
-                openPath: jest.fn(),
-                showItemInFolder: jest.fn(),
+                openPath: mockOpenPath,
+                showItemInFolder: mockShowItemInFolder,
             },
         }));
         jest.doMock('../../database/connection', () => ({
@@ -77,7 +108,44 @@ describe('downloads events', () => {
         }));
 
         await import('./downloads.events');
+        const schema = await import('../../database/schema');
+        downloadsFilePathColumn = schema.downloads.filePath;
     });
+
+    function mockManagedPath(state: ManagedPathState) {
+        const limit = jest.fn(() => {
+            if (state === MANAGED_PATH_STATE.ERROR) {
+                return Promise.reject(new Error('database unavailable'));
+            }
+            return Promise.resolve(
+                state === MANAGED_PATH_STATE.MANAGED ? [{ id: 42 }] : []
+            );
+        });
+        const where = jest.fn((_predicate: unknown) => ({ limit }));
+        const from = jest.fn(() => ({ where }));
+        const select = jest.fn(() => ({ from }));
+        const db = { select };
+        mockGetDatabase.mockResolvedValue(db);
+        return { from, limit, select, where };
+    }
+
+    function expectManagedPathLookup(
+        lookup: ReturnType<typeof mockManagedPath>,
+        filePath: string
+    ) {
+        expect(mockGetDatabase).toHaveBeenCalledTimes(1);
+        expect(lookup.select).toHaveBeenCalledTimes(1);
+        expect(lookup.from).toHaveBeenCalledTimes(1);
+        expect(lookup.where).toHaveBeenCalledTimes(1);
+        expect(mockEq).toHaveBeenCalledTimes(1);
+        expect(mockEq.mock.calls[0][0] === downloadsFilePathColumn).toBe(true);
+        expect(mockEq.mock.calls[0][1]).toBe(filePath);
+        expect(
+            lookup.where.mock.calls[0][0] === mockEq.mock.results[0].value
+        ).toBe(true);
+        expect(lookup.limit).toHaveBeenCalledTimes(1);
+        expect(lookup.limit).toHaveBeenCalledWith(1);
+    }
 
     function mockDownloadRow(row: { filePath: string | null; status: string }) {
         const deleteWhere = jest.fn().mockResolvedValue(undefined);
@@ -101,7 +169,9 @@ describe('downloads events', () => {
         const deleteWhere = jest.fn().mockResolvedValue(undefined);
         const selectWhere = jest
             .fn()
-            .mockResolvedValue(rows.map((row, index) => ({ id: index + 1, ...row })));
+            .mockResolvedValue(
+                rows.map((row, index) => ({ id: index + 1, ...row }))
+            );
         const db = {
             delete: jest.fn(() => ({ where: deleteWhere })),
             select: jest.fn(() => ({
@@ -117,9 +187,11 @@ describe('downloads events', () => {
     it('removes queued resumed partial files before deleting the row', async () => {
         const { deleteWhere } = mockDownloadRow(createDownloadRow('queued'));
 
-        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual({
-            success: true,
-        });
+        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual(
+            {
+                success: true,
+            }
+        );
 
         expect(mockRemoveDownloadFromRuntime).toHaveBeenCalledWith(42);
         expect(mockRemovePartialDownloadFile).toHaveBeenCalledWith(
@@ -127,7 +199,9 @@ describe('downloads events', () => {
         );
         expect(
             mockRemovePartialDownloadFile.mock.invocationCallOrder[0]
-        ).toBeLessThan(mockRemoveDownloadFromRuntime.mock.invocationCallOrder[0]);
+        ).toBeLessThan(
+            mockRemoveDownloadFromRuntime.mock.invocationCallOrder[0]
+        );
         expect(
             mockRemovePartialDownloadFile.mock.invocationCallOrder[0]
         ).toBeLessThan(deleteWhere.mock.invocationCallOrder[0]);
@@ -137,9 +211,11 @@ describe('downloads events', () => {
     it('removes completed partial files before deleting the row', async () => {
         const { deleteWhere } = mockDownloadRow(createDownloadRow('completed'));
 
-        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual({
-            success: true,
-        });
+        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual(
+            {
+                success: true,
+            }
+        );
 
         expect(mockRemovePartialDownloadFile).toHaveBeenCalledWith(
             '/downloads/resume.mp4'
@@ -327,5 +403,128 @@ describe('downloads events', () => {
             '/downloads',
             expect.anything()
         );
+    });
+
+    describe.each([
+        {
+            channel: 'DOWNLOADS_REVEAL_FILE',
+            filePath: '/downloads/reveal-boundary.mp4',
+            operation: 'reveal',
+        },
+        {
+            channel: 'DOWNLOADS_PLAY_FILE',
+            filePath: '/downloads/play-boundary.mp4',
+            operation: 'play',
+        },
+    ])('$operation managed-path boundary', ({ channel, filePath }) => {
+        it('rejects an unmanaged database path before accessing the filesystem', async () => {
+            const lookup = mockManagedPath(MANAGED_PATH_STATE.UNMANAGED);
+            mockExistsSync.mockReturnValue(true);
+
+            await expect(getHandler(channel)(null, filePath)).resolves.toEqual({
+                error: 'File not found',
+                success: false,
+            });
+
+            expectManagedPathLookup(lookup, filePath);
+            expect(mockExistsSync).not.toHaveBeenCalled();
+            expect(mockOpenPath).not.toHaveBeenCalled();
+            expect(mockShowItemInFolder).not.toHaveBeenCalled();
+        });
+
+        it('rejects a managed database path that is missing from disk', async () => {
+            const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
+            mockExistsSync.mockReturnValue(false);
+
+            await expect(getHandler(channel)(null, filePath)).resolves.toEqual({
+                error: 'File not found',
+                success: false,
+            });
+
+            expectManagedPathLookup(lookup, filePath);
+            expect(mockExistsSync).toHaveBeenCalledTimes(1);
+            expect(mockExistsSync).toHaveBeenCalledWith(filePath);
+            expect(mockOpenPath).not.toHaveBeenCalled();
+            expect(mockShowItemInFolder).not.toHaveBeenCalled();
+        });
+
+        it('fails closed when the managed-path database query rejects', async () => {
+            const lookup = mockManagedPath(MANAGED_PATH_STATE.ERROR);
+            mockExistsSync.mockReturnValue(true);
+            const consoleError = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+
+            try {
+                await expect(
+                    getHandler(channel)(null, filePath)
+                ).resolves.toEqual({
+                    error: 'File not found',
+                    success: false,
+                });
+                expect(consoleError).toHaveBeenCalledTimes(1);
+                expect(consoleError).toHaveBeenCalledWith(
+                    'Error verifying managed download path:',
+                    expect.objectContaining({
+                        message: 'database unavailable',
+                    })
+                );
+            } finally {
+                consoleError.mockRestore();
+            }
+
+            expectManagedPathLookup(lookup, filePath);
+            expect(mockExistsSync).not.toHaveBeenCalled();
+            expect(mockOpenPath).not.toHaveBeenCalled();
+            expect(mockShowItemInFolder).not.toHaveBeenCalled();
+        });
+    });
+
+    it('reveals a managed file that exists on disk', async () => {
+        const filePath = '/downloads/reveal-success.mp4';
+        const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
+        mockExistsSync.mockReturnValue(true);
+
+        await expect(
+            getHandler('DOWNLOADS_REVEAL_FILE')(null, filePath)
+        ).resolves.toEqual({ success: true });
+
+        expectManagedPathLookup(lookup, filePath);
+        expect(mockExistsSync).toHaveBeenCalledTimes(1);
+        expect(mockExistsSync).toHaveBeenCalledWith(filePath);
+        expect(mockShowItemInFolder).toHaveBeenCalledTimes(1);
+        expect(mockShowItemInFolder).toHaveBeenCalledWith(filePath);
+        expect(mockOpenPath).not.toHaveBeenCalled();
+    });
+
+    it('waits for the native shell before reporting a managed file as played', async () => {
+        const filePath = '/downloads/play-success.mp4';
+        const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
+        mockExistsSync.mockReturnValue(true);
+        let resolveOpenPath!: (value: string) => void;
+        const openPathResult = new Promise<string>((resolve) => {
+            resolveOpenPath = resolve;
+        });
+        mockOpenPath.mockReturnValue(openPathResult);
+
+        let responseSettled = false;
+        const response = getHandler('DOWNLOADS_PLAY_FILE')(null, filePath).then(
+            (result) => {
+                responseSettled = true;
+                return result;
+            }
+        );
+        await new Promise<void>((resolve) => setImmediate(resolve));
+
+        expectManagedPathLookup(lookup, filePath);
+        expect(mockExistsSync).toHaveBeenCalledTimes(1);
+        expect(mockExistsSync).toHaveBeenCalledWith(filePath);
+        expect(mockOpenPath).toHaveBeenCalledTimes(1);
+        expect(mockOpenPath).toHaveBeenCalledWith(filePath);
+        expect(mockShowItemInFolder).not.toHaveBeenCalled();
+        expect(responseSettled).toBe(false);
+
+        resolveOpenPath('');
+        await expect(response).resolves.toEqual({ success: true });
     });
 });
