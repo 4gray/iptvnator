@@ -64,11 +64,15 @@ function aggregateCharacter(member: {
 /**
  * The cast of a SERIES, reconstructed from the two shapes TMDB offers.
  *
- * `/tv/{id}` `credits` is documented as the credits of the LATEST SEASON,
- * while `aggregate_credits` spans the whole run but — again per TMDB —
- * omits that newest season. Using either alone misreports long-running
- * shows: `credits` drops everyone who left, `aggregate_credits` drops
- * everyone who just joined. Union them.
+ * `/tv/{id}` `credits` is documented as the credits of the LATEST SEASON.
+ * TMDB describes `aggregate_credits` in one self-contradicting sentence —
+ * "it does not return the newest season. Instead, it is a view of all the
+ * entire cast & crew for all episodes belonging to a TV show" — so it is
+ * either the whole run minus the newest season, or the whole run. This
+ * union does not care which: whoever `credits` has and `aggregate_credits`
+ * does not is missing from the whole-run view and is appended, and under
+ * the second reading that set is simply empty. Either way, long-running
+ * shows neither lose departed regulars nor miss new arrivals.
  */
 export function unifiedTvCast(details: TmdbTvDetails): TmdbCastMember[] {
     const aggregate: TmdbCastMember[] = (details.aggregate_credits?.cast ?? [])

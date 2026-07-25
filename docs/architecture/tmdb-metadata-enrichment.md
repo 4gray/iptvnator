@@ -125,10 +125,15 @@ Details are fetched with
 `/movie/{id}?append_to_response=credits,videos,recommendations` (`/tv/{id}`
 for series). Credits provide cast/director — for series the request also
 appends `aggregate_credits`, because TMDB documents a TV id's `credits` as
-the **latest season's** credits while `aggregate_credits` covers the run
-but omits that newest season; `unifiedTvCast` unions them (whole-run
-billing order first, newest-season arrivals appended) so long-running
-shows neither lose departed regulars nor miss new ones. Payloads cached
+the **latest season's** credits. What `aggregate_credits` covers is
+described in one self-contradicting sentence — "it does not return the
+newest season. Instead, it is a view of all the entire cast & crew for all
+episodes belonging to a TV show" — so it is either the whole run minus the
+newest season or the whole run. `unifiedTvCast` is written not to care:
+it unions the two by set difference (whole-run billing order first, then
+anyone `credits` has that the aggregate lacks), which under the second
+reading appends nothing. Either way, long-running shows neither lose
+departed regulars nor miss new ones. Payloads cached
 before this landed have no `aggregate_credits` and fall back to the old
 behaviour until they are refetched; videos supply the best YouTube
 trailer (official trailer > trailer > teaser, merged into
