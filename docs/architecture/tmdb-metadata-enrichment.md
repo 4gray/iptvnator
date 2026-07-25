@@ -69,7 +69,14 @@ avatar chips in the detail views, and so do directors/creators
 (`tmdb_directors`: movie directors from `credits.crew` with
 `job === 'Director'`, series creators from `created_by`) — both chip kinds
 carry `tmdbPersonId` and open the same person page. A "check key" button
-in the settings section validates the API key against `/configuration`.
+in the settings section validates the API key against `/configuration`,
+and a cache panel beside it shows the stored row count plus payload size
+and can drop the lot (`DB_GET_TMDB_CACHE_STATS` / `DB_CLEAR_TMDB_METADATA`,
+in-memory map in the PWA). Sizing is a full scan, so it only runs once the
+TMDB section is the active one. Clearing costs nothing but the next few
+requests — enrichment refetches on demand — and it is also the escape
+hatch when a lookup-key version bump orphans rows, since a bump makes
+them unreachable rather than deleting them.
 
 ## Match Confidence
 

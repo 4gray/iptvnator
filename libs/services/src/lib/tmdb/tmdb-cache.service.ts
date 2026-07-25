@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
-import { TmdbCacheEntry, TmdbCacheMediaType } from '@iptvnator/shared/interfaces';
+import {
+    TmdbCacheEntry,
+    TmdbCacheMediaType,
+    TmdbCacheStats,
+} from '@iptvnator/shared/interfaces';
 
 /** PWA in-memory cache ceiling — details payloads are a few KB each */
 const MEMORY_CACHE_MAX_ENTRIES = 300;
@@ -106,4 +110,48 @@ export class TmdbCacheService {
     ): string {
         return `${mediaType}:${language}:${lookupKey}`;
     }
+
+    /**
+     * Cache size for the settings panel. In the PWA the cache is the
+     * session-scoped map, so the numbers describe that instead.
+     */
+    async getStats(): Promise<TmdbCacheStats> {
+        const bridge = this.bridge;
+        if (bridge?.dbGetTmdbCacheStats) {
+            try {
+                return await bridge.dbGetTmdbCacheStats();
+            } catch (error) {
+                console.warn('TMDB cache stats failed:', error);
+                return { entries: 0, bytes: 0 };
+            }
+        }
+
+        let bytes = 0;
+        for (const entry of this.memoryCache.values()) {
+            bytes += entry.payload?.length ?? 0;
+        }
+        return { entries: this.memoryCache.size, bytes };
+    }
+
+    /**
+     * Drops everything. Enrichment refetches on demand, so this only
+     * costs the next few requests.
+     */
+    async clear(): Promise<number> {
+        const bridge = this.bridge;
+        this.memoryCache.clear();
+
+        if (bridge?.dbClearTmdbMetadata) {
+            try {
+                const result = await bridge.dbClearTmdbMetadata();
+                return result?.deleted ?? 0;
+            } catch (error) {
+                console.warn('TMDB cache clear failed:', error);
+                return 0;
+            }
+        }
+
+        return 0;
+    }
+
 }

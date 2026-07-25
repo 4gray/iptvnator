@@ -1,6 +1,10 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
-import type { TmdbCacheEntry, TmdbCacheMediaType } from '@iptvnator/shared/interfaces';
+import type {
+    TmdbCacheEntry,
+    TmdbCacheMediaType,
+    TmdbCacheStats,
+} from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 
 export async function getTmdbMetadata(
@@ -66,4 +70,38 @@ export async function setTmdbMetadata(
         });
 
     return { success: true };
+}
+
+/**
+ * Row count and payload size for the settings panel. `LENGTH()` on TEXT
+ * counts CHARACTERS, so the cast to BLOB is what makes this bytes.
+ * Negative-match rows have a NULL payload; SUM skips them.
+ */
+export async function getTmdbCacheStats(
+    db: AppDatabase
+): Promise<TmdbCacheStats> {
+    const rows = (await db.all(sql`
+        SELECT
+            COUNT(*) AS entries,
+            COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) AS bytes
+        FROM tmdb_metadata
+    `)) as { entries: number; bytes: number }[];
+
+    return {
+        entries: Number(rows[0]?.entries ?? 0),
+        bytes: Number(rows[0]?.bytes ?? 0),
+    };
+}
+
+/**
+ * Drops the whole cache. Enrichment simply refetches on demand, so this
+ * is always safe. Also the escape hatch when a lookup-key version bump
+ * orphans rows: a bump makes them unreachable, not deleted.
+ */
+export async function clearTmdbMetadata(
+    db: AppDatabase
+): Promise<{ success: boolean; deleted: number }> {
+    const { entries } = await getTmdbCacheStats(db);
+    await db.run(sql`DELETE FROM tmdb_metadata`);
+    return { success: true, deleted: entries };
 }

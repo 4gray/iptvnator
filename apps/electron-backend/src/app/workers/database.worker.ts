@@ -79,6 +79,8 @@ import {
 } from '../database/operations/recently-viewed.operations';
 import { matchTitles } from '../database/operations/title-match.operations';
 import {
+    clearTmdbMetadata,
+    getTmdbCacheStats,
     getTmdbMetadata,
     setTmdbMetadata,
 } from '../database/operations/tmdb.operations';
@@ -613,6 +615,12 @@ async function executeRequest(message: DbWorkerRequestMessage) {
             };
             return setTmdbMetadata(db, payload.entry);
         }
+
+        case 'DB_GET_TMDB_CACHE_STATS':
+            return getTmdbCacheStats(db);
+
+        case 'DB_CLEAR_TMDB_METADATA':
+            return clearTmdbMetadata(db);
 
         case 'DB_MATCH_TITLES': {
             const payload = message.payload as { titles: string[] };
