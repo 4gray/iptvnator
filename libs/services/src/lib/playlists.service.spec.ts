@@ -55,6 +55,7 @@ describe('PlaylistsService', () => {
             },
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
+            playlistWriteQueues: new Map(),
             playlistDeleteCleanups: [],
         });
 
@@ -274,7 +275,9 @@ describe('PlaylistsService', () => {
         await expect(
             firstValueFrom(service.getM3uFavoriteChannels('playlist-1'))
         ).resolves.toBeNull();
-        expect(electron.dbGetAppPlaylistFavoriteChannels).not.toHaveBeenCalled();
+        expect(
+            electron.dbGetAppPlaylistFavoriteChannels
+        ).not.toHaveBeenCalled();
         expect(electron.dbGetAppPlaylist).not.toHaveBeenCalled();
         expect(electron.dbGetAppPlaylists).not.toHaveBeenCalled();
     });
@@ -477,6 +480,10 @@ describe('PlaylistsService', () => {
 
     it('updates many browser playlists with refresh metadata', async () => {
         jest.spyOn(Date, 'now').mockReturnValue(1770000000000);
+        // Auto-refresh snapshots always come from playlists that had
+        // autoRefresh enabled; the batch write preserves that flag from the
+        // current row (or the snapshot when the row is missing) instead of
+        // force-enabling it.
         const playlists = [
             {
                 _id: 'playlist-a',
@@ -484,7 +491,7 @@ describe('PlaylistsService', () => {
                 count: 1,
                 importDate: '2026-04-01T00:00:00.000Z',
                 lastUsage: '2026-04-01T00:00:00.000Z',
-                autoRefresh: false,
+                autoRefresh: true,
             },
             {
                 _id: 'playlist-b',
@@ -492,7 +499,7 @@ describe('PlaylistsService', () => {
                 count: 2,
                 importDate: '2026-04-01T00:00:00.000Z',
                 lastUsage: '2026-04-01T00:00:00.000Z',
-                autoRefresh: false,
+                autoRefresh: true,
             },
         ] as Playlist[];
         const dbService = {
@@ -1239,5 +1246,429 @@ describe('PlaylistsService', () => {
                 count: 0,
             })
         );
+    });
+
+    describe('per-playlist write serialization', () => {
+        function createBasePlaylist(id: string): Playlist {
+            return {
+                _id: id,
+                title: 'Race Playlist',
+                count: 0,
+                importDate: '2026-07-01T00:00:00.000Z',
+                lastUsage: '2026-07-01T00:00:00.000Z',
+                autoRefresh: false,
+                favorites: [{ stream_id: 1, title: 'Existing Favorite' }],
+                recentlyViewed: [],
+            } as Playlist;
+        }
+
+        function createStatefulElectronStore(initialPlaylist: Playlist) {
+            const store = { current: initialPlaylist };
+            const electron = {
+                dbGetAppPlaylist: jest.fn(async () => {
+                    // Yield a microtask so overlapping reads interleave the
+                    // same way real async IPC reads do.
+                    await Promise.resolve();
+                    return store.current;
+                }),
+                dbGetAppPlaylists: jest.fn(async () => []),
+                dbGetAppState: jest.fn(async (key: string) =>
+                    key === SQLITE_PLAYLIST_MIGRATION_FLAG ||
+                    key === STALKER_PLAYLIST_METADATA_MIGRATION_FLAG
+                        ? '1'
+                        : null
+                ),
+                dbSetAppState: jest.fn(),
+                dbUpsertAppPlaylist: jest.fn(async (playlist: Playlist) => {
+                    store.current = playlist;
+                }),
+                dbUpsertAppPlaylists: jest.fn(async (playlists: Playlist[]) => {
+                    const target = playlists.find(
+                        (playlist) => playlist._id === store.current._id
+                    );
+                    if (target) {
+                        store.current = target;
+                    }
+                }),
+            };
+            return { store, electron };
+        }
+
+        it('keeps both changes when a favorite add overlaps a recently-viewed add (SQLite)', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-race-cross-field')
+            );
+            testWindow.electron = electron;
+
+            const service = createService();
+
+            await Promise.all([
+                firstValueFrom(
+                    service.addPortalFavorite('portal-race-cross-field', {
+                        stream_id: 2,
+                        title: 'New Favorite',
+                    } as never)
+                ),
+                firstValueFrom(
+                    service.addPlaylistRecentlyViewed(
+                        'portal-race-cross-field',
+                        {
+                            source: 'm3u',
+                            id: 'https://example.com/recent.m3u8',
+                            url: 'https://example.com/recent.m3u8',
+                            title: 'Recent Channel',
+                            category_id: 'live',
+                            added_at: '2026-07-25T10:00:00.000Z',
+                        } as never
+                    )
+                ),
+            ]);
+
+            expect(store.current.favorites).toEqual([
+                expect.objectContaining({ stream_id: 1 }),
+                expect.objectContaining({ stream_id: 2 }),
+            ]);
+            expect(store.current.recentlyViewed).toEqual([
+                expect.objectContaining({
+                    url: 'https://example.com/recent.m3u8',
+                }),
+            ]);
+            expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(2);
+        });
+
+        it('keeps both favorites when two rapid favorite adds overlap (SQLite)', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-race-two-favorites')
+            );
+            testWindow.electron = electron;
+
+            const service = createService();
+
+            await Promise.all([
+                firstValueFrom(
+                    service.addPortalFavorite('portal-race-two-favorites', {
+                        stream_id: 2,
+                        title: 'Second Favorite',
+                    } as never)
+                ),
+                firstValueFrom(
+                    service.addPortalFavorite('portal-race-two-favorites', {
+                        stream_id: 3,
+                        title: 'Third Favorite',
+                    } as never)
+                ),
+            ]);
+
+            expect(store.current.favorites).toEqual([
+                expect.objectContaining({ stream_id: 1 }),
+                expect.objectContaining({ stream_id: 2 }),
+                expect.objectContaining({ stream_id: 3 }),
+            ]);
+            expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(2);
+        });
+
+        it('keeps both changes when mutations overlap in the IndexedDB path', async () => {
+            const store = {
+                current: createBasePlaylist('portal-race-indexeddb'),
+            };
+            const dbService = {
+                getAll: jest.fn(() => of([])),
+                getByID: jest.fn(() => of(store.current)),
+                update: jest.fn((_storeName: string, playlist: Playlist) => {
+                    store.current = playlist;
+                    return of(playlist);
+                }),
+            };
+            testWindow.electron = undefined;
+
+            const service = createService(dbService);
+
+            await Promise.all([
+                firstValueFrom(
+                    service.addPortalFavorite('portal-race-indexeddb', {
+                        stream_id: 2,
+                        title: 'New Favorite',
+                    } as never)
+                ),
+                firstValueFrom(
+                    service.addPlaylistRecentlyViewed('portal-race-indexeddb', {
+                        source: 'm3u',
+                        id: 'https://example.com/recent.m3u8',
+                        url: 'https://example.com/recent.m3u8',
+                        title: 'Recent Channel',
+                        category_id: 'live',
+                        added_at: '2026-07-25T10:00:00.000Z',
+                    } as never)
+                ),
+            ]);
+
+            expect(store.current.favorites).toEqual([
+                expect.objectContaining({ stream_id: 1 }),
+                expect.objectContaining({ stream_id: 2 }),
+            ]);
+            expect(store.current.recentlyViewed).toEqual([
+                expect.objectContaining({
+                    url: 'https://example.com/recent.m3u8',
+                }),
+            ]);
+            expect(dbService.update).toHaveBeenCalledTimes(2);
+        });
+
+        it('continues the per-playlist queue after a failed mutation', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-race-error')
+            );
+            electron.dbGetAppPlaylist.mockRejectedValueOnce(
+                new Error('read failed')
+            );
+            testWindow.electron = electron;
+
+            const service = createService();
+
+            const failing = firstValueFrom(
+                service.addPortalFavorite('portal-race-error', {
+                    stream_id: 2,
+                    title: 'Dropped Favorite',
+                } as never)
+            );
+            const following = firstValueFrom(
+                service.addPortalFavorite('portal-race-error', {
+                    stream_id: 3,
+                    title: 'Surviving Favorite',
+                } as never)
+            );
+
+            await expect(failing).rejects.toThrow('read failed');
+            await following;
+
+            expect(store.current.favorites).toEqual([
+                expect.objectContaining({ stream_id: 1 }),
+                expect.objectContaining({ stream_id: 3 }),
+            ]);
+            expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(1);
+        });
+
+        it('applies overlapping favorites transforms atomically', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-transform-race')
+            );
+            testWindow.electron = electron;
+
+            const service = createService();
+
+            await Promise.all([
+                firstValueFrom(
+                    service.transformPlaylistFavorites(
+                        'portal-transform-race',
+                        (current) => [
+                            ...current,
+                            { stream_id: 2, title: 'Second' } as never,
+                        ]
+                    )
+                ),
+                firstValueFrom(
+                    service.transformPlaylistFavorites(
+                        'portal-transform-race',
+                        (current) => [
+                            ...current,
+                            { stream_id: 3, title: 'Third' } as never,
+                        ]
+                    )
+                ),
+            ]);
+
+            expect(store.current.favorites).toEqual([
+                expect.objectContaining({ stream_id: 1 }),
+                expect.objectContaining({ stream_id: 2 }),
+                expect.objectContaining({ stream_id: 3 }),
+            ]);
+        });
+
+        it('keeps a queued favorite add when an auto-refresh batch write overlaps', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('portal-refresh-race'),
+                autoRefresh: true,
+            } as Playlist);
+            testWindow.electron = electron;
+
+            const service = createService();
+            const staleRefreshSnapshot = {
+                ...createBasePlaylist('portal-refresh-race'),
+                autoRefresh: true,
+                title: 'Refreshed Title',
+                count: 42,
+                recentlyViewed: [],
+            } as Playlist;
+
+            await Promise.all([
+                firstValueFrom(
+                    service.addPortalFavorite('portal-refresh-race', {
+                        stream_id: 2,
+                        title: 'New Favorite',
+                    } as never)
+                ),
+                firstValueFrom(
+                    service.updateManyPlaylists([staleRefreshSnapshot])
+                ),
+            ]);
+
+            expect(store.current.title).toBe('Refreshed Title');
+            expect(store.current.autoRefresh).toBe(true);
+            expect(store.current.favorites).toEqual([
+                expect.objectContaining({ stream_id: 1 }),
+                expect.objectContaining({ stream_id: 2 }),
+            ]);
+        });
+
+        it('does not re-enable auto-refresh disabled while a batch refresh is in flight', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('portal-autorefresh-race'),
+                autoRefresh: true,
+            } as Playlist);
+            testWindow.electron = electron;
+
+            const service = createService();
+            const staleRefreshSnapshot = {
+                ...createBasePlaylist('portal-autorefresh-race'),
+                autoRefresh: true,
+                title: 'Refreshed Title',
+            } as Playlist;
+
+            await Promise.all([
+                firstValueFrom(
+                    service.updatePlaylistMeta({
+                        _id: 'portal-autorefresh-race',
+                        autoRefresh: false,
+                    } as PlaylistMeta)
+                ),
+                firstValueFrom(
+                    service.updateManyPlaylists([staleRefreshSnapshot])
+                ),
+            ]);
+
+            expect(store.current.autoRefresh).toBe(false);
+            expect(store.current.title).toBe('Refreshed Title');
+        });
+
+        it('keeps queued metadata changes when an auto-refresh batch write overlaps', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('portal-meta-race'),
+                hiddenGroupTitles: ['News'],
+                manualEpgUrls: ['https://example.com/manual.xml'],
+            } as Playlist);
+            testWindow.electron = electron;
+
+            const service = createService();
+            const staleRefreshSnapshot = {
+                ...createBasePlaylist('portal-meta-race'),
+                title: 'Refreshed Title',
+                playlist: { items: [{ id: 'channel-1' }] },
+            } as Playlist;
+
+            await Promise.all([
+                firstValueFrom(
+                    service.updatePlaylistMeta({
+                        _id: 'portal-meta-race',
+                        hiddenGroupTitles: ['News', 'Movies'],
+                    } as PlaylistMeta)
+                ),
+                firstValueFrom(
+                    service.updateManyPlaylists([staleRefreshSnapshot])
+                ),
+            ]);
+
+            expect(store.current.hiddenGroupTitles).toEqual(['News', 'Movies']);
+            expect(store.current.manualEpgUrls).toEqual([
+                'https://example.com/manual.xml',
+            ]);
+            expect(store.current.title).toBe('Refreshed Title');
+            expect(store.current.count).toBe(1);
+        });
+
+        it('keeps a queued favorite add when a position update overlaps', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-position-race')
+            );
+            testWindow.electron = electron;
+
+            const service = createService();
+
+            await Promise.all([
+                firstValueFrom(
+                    service.addPortalFavorite('portal-position-race', {
+                        stream_id: 2,
+                        title: 'New Favorite',
+                    } as never)
+                ),
+                firstValueFrom(
+                    service.updatePlaylistPositions([
+                        {
+                            id: 'portal-position-race',
+                            changes: { position: 7 },
+                        },
+                    ])
+                ),
+            ]);
+
+            expect(store.current.position).toBe(7);
+            expect(store.current.favorites).toEqual([
+                expect.objectContaining({ stream_id: 1 }),
+                expect.objectContaining({ stream_id: 2 }),
+            ]);
+        });
+
+        it('does not serialize mutations across different playlists', async () => {
+            const playlists = new Map<string, Playlist>([
+                ['portal-a', createBasePlaylist('portal-a')],
+                ['portal-b', createBasePlaylist('portal-b')],
+            ]);
+            let resolvePortalARead: (() => void) | undefined;
+            const portalARead = new Promise<void>((resolve) => {
+                resolvePortalARead = resolve;
+            });
+            const electron = {
+                dbGetAppPlaylist: jest.fn(async (playlistId: string) => {
+                    if (playlistId === 'portal-a') {
+                        await portalARead;
+                    }
+                    return playlists.get(playlistId);
+                }),
+                dbGetAppPlaylists: jest.fn(async () => []),
+                dbGetAppState: jest.fn(async (key: string) =>
+                    key === SQLITE_PLAYLIST_MIGRATION_FLAG ||
+                    key === STALKER_PLAYLIST_METADATA_MIGRATION_FLAG
+                        ? '1'
+                        : null
+                ),
+                dbSetAppState: jest.fn(),
+                dbUpsertAppPlaylist: jest.fn(async (playlist: Playlist) => {
+                    playlists.set(playlist._id, playlist);
+                }),
+                dbUpsertAppPlaylists: jest.fn(),
+            };
+            testWindow.electron = electron;
+
+            const service = createService();
+
+            const blockedPortalA = firstValueFrom(
+                service.addPortalFavorite('portal-a', {
+                    stream_id: 2,
+                    title: 'Portal A Favorite',
+                } as never)
+            );
+
+            // Portal B completes although portal A's read is still blocked.
+            await firstValueFrom(
+                service.addPortalFavorite('portal-b', {
+                    stream_id: 5,
+                    title: 'Portal B Favorite',
+                } as never)
+            );
+            expect(playlists.get('portal-b')?.favorites).toHaveLength(2);
+
+            resolvePortalARead?.();
+            await blockedPortalA;
+            expect(playlists.get('portal-a')?.favorites).toHaveLength(2);
+        });
     });
 });
