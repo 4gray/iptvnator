@@ -196,7 +196,17 @@ A garbage-but-integer provider id short-circuits the search entirely. `getDetail
 - `tmdb-enrichment.service.ts` — inject the resolver; `enrich()` becomes try-details-then-fall-back-to-search.
 - `tmdb-matcher.ts` (166 lines, room) — reuse `normalizeTitle` + `buildSearchTitleVariants` for the sanity check; add a `badProviderId:{id}` negative-cache key builder.
 
-**Logic:** if `parseProviderTmdbId` yields an id, attempt `getDetails`. On throw **or** on a resolved title whose `normalizeTitle()` matches none of `buildSearchTitleVariants(query.title, query.originalTitle)` → write a negative row under `badProviderId:{id}` and fall through to `resolveIdBySearch`. **The negative cache is not optional** — a failed details fetch currently caches nothing, so every re-open retries the 404 forever; without it you trade one wasted request for two, permanently.
+**Logic:** if `parseProviderTmdbId` yields an id, attempt `getDetails`. On throw **or** on a resolved title whose `normalizeTitle()` matches none of `buildSearchTitleVariants(query.title, query.originalTitle)` → fall through to `resolveIdBySearch`.
+
+> **Correction, as shipped (#1239).** Two refinements to the sketch above.
+> A title mismatch must **not** discard the payload: TMDB returns titles in
+> the *request* language, so a localized provider title legitimately fails
+> the check. It only lets the search compete, and the provider payload is
+> kept when the search finds nothing confident. And the `badProviderId:`
+> row is written **only for a confirmed 404** — never for transient
+> failures (401/429/5xx/offline) and never for mismatches, since that row
+> is keyed by id alone and shared across playlists, so a per-item verdict
+> there would disable the id for every other item that uses it correctly. **The negative cache is not optional** — a failed details fetch currently caches nothing, so every re-open retries the 404 forever; without it you trade one wasted request for two, permanently.
 
 **Regression spec:** (a) a provider `tmdb_id` that 404s still produces enrichment via title search; (b) a provider `tmdb_id` resolving to a mismatched title is rejected; (c) the happy path issues exactly one details request and **no** search.
 
