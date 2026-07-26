@@ -17,30 +17,45 @@ export interface WebVideoSourceTracksConfig {
     /**
      * Notifies the owning controls UI that track state changed. Legacy players
      * have no shared controls to refresh and leave it unset — they use this
-     * class purely to keep the caption preference authoritative.
+     * class purely to apply the caption preference.
      */
     refresh?: () => void;
+    /**
+     * Set by hosts that keep the engine's own caption UI (the preference-off
+     * players). The caption preference then seeds each new source instead of
+     * staying authoritative, so the vendor caption menu keeps working once
+     * playback is running. Shared controls own the caption UI and omit it.
+     */
+    vendorCaptionControls?: boolean;
 }
 
 /**
  * Owns the per-source audio/subtitle track controllers of a web video engine.
  *
  * It is deliberately free of any controls-UI dependency so both the shared
- * controls bridge and the legacy (vendor-chrome) players can enforce the
+ * controls bridge and the legacy (vendor-chrome) players apply the
  * `showCaptions` preference through the exact same code path.
  */
 export class WebVideoSourceTracks {
+    private readonly config: WebVideoSourceTracksConfig;
     private readonly hlsControls: WebVideoHlsControls;
     private readonly shakaControls: WebVideoShakaControls;
     private readonly nativeTextTracks: WebVideoNativeTextTracks;
     private source: WebVideoControlsSource | null = null;
+    private playbackStarted = false;
+    private playingListener: (() => void) | null = null;
     private destroyed = false;
 
     constructor(config: WebVideoSourceTracksConfig) {
+        this.config = config;
         const refresh = () => config.refresh?.();
+        const playbackStarted = config.vendorCaptionControls
+            ? () => this.playbackStarted
+            : undefined;
         this.hlsControls = new WebVideoHlsControls({
             showCaptions: config.showCaptions,
             refresh,
+            playbackStarted,
         });
         this.shakaControls = new WebVideoShakaControls({
             showCaptions: config.showCaptions,
@@ -50,7 +65,15 @@ export class WebVideoSourceTracks {
             video: config.video,
             showCaptions: config.showCaptions,
             refresh,
+            playbackStarted,
         });
+        if (config.vendorCaptionControls) {
+            const listener = () => {
+                this.playbackStarted = true;
+            };
+            this.playingListener = listener;
+            config.video.addEventListener('playing', listener);
+        }
     }
 
     get sourceKind(): WebVideoControlsSource['kind'] | null {
@@ -64,6 +87,8 @@ export class WebVideoSourceTracks {
 
         this.clearActiveSource();
         this.source = source;
+        // A new source starts unsettled so its own defaults are seeded again.
+        this.playbackStarted = false;
         if (source.kind === 'hls') {
             this.hlsControls.bind(source.hls);
         } else if (source.kind === 'shaka') {
@@ -102,6 +127,13 @@ export class WebVideoSourceTracks {
         }
 
         this.clearSource();
+        if (this.playingListener) {
+            this.config.video.removeEventListener(
+                'playing',
+                this.playingListener
+            );
+            this.playingListener = null;
+        }
         this.destroyed = true;
     }
 

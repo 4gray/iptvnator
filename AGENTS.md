@@ -168,6 +168,15 @@ Key files:
   from `SettingsStore` rather than a host input, so the M3U player, the
   Xtream/Stalker live layouts, and the portal detail inline player all inherit
   it (#1155).
+- The modes differ in how long the preference is enforced. Shared controls are
+  authoritative for the session; user intent arrives through `setSubtitleTrack`
+  and wins until the source changes. Vendor chrome is source-default: the
+  preference seeds each new source and is released once the media element
+  reports `playing`, so the engine's own caption menu keeps working. The mode is
+  selected by the optional `playbackStarted` probe the legacy owners pass; in
+  that mode the HLS helper deselects the track (`subtitleTrack = -1`) instead of
+  hiding it, because `subtitleDisplay` would silently override whatever the
+  vendor menu picks.
 - Embedded MPV ignores the web-player preference. Frame-copy always uses shared
   DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
   native-view retains the legacy compositor-safe dock and external MPV/VLC

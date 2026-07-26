@@ -81,6 +81,21 @@ describe('VjsPlayerComponent caption preference without shared controls', () => 
         expect(track.mode).toBe('showing');
     });
 
+    // The Video.js control bar stays visible in this mode, so the preference
+    // must seed the source and then get out of the user's way.
+    it('keeps a caption the user enables after playback started', () => {
+        const track = createTextTrack({ kind: 'captions', mode: 'showing' });
+        harness.tracks.replaceSilently([track]);
+        render(false);
+        expect(track.mode).toBe('disabled');
+
+        harness.emit('playing');
+        track.mode = 'showing';
+        harness.tracks.emit('change');
+
+        expect(track.mode).toBe('showing');
+    });
+
     it('restores the suppressed track when the preference is turned on', () => {
         const track = createTextTrack({ kind: 'captions', mode: 'showing' });
         harness.tracks.replaceSilently([track]);

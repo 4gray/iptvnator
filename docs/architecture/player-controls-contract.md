@@ -338,13 +338,34 @@ in the PWA and does not import a concrete web engine.
 ### Caption preference in both modes
 
 The `Settings.showCaptions` preference is **not** part of the rollout gate. It
-is engine state, not controls UI, so HTML5, Video.js, and ArtPlayer enforce it
+is engine state, not controls UI, so HTML5, Video.js, and ArtPlayer apply it
 whether or not their host snapshot enables `WEB_PLAYER_SHARED_CONTROLS`. Shared
 controls route it through their controls bridge; the preference-off paths use
 the same helpers without an adapter — `WebVideoSourceTracks` for HTML5 and
 ArtPlayer, `VjsLegacyTracks` for Video.js. Both apply the preference when a
 source binds and re-apply it as the engine adds or switches text tracks, which
 a one-shot check at playback start could not do (#1155).
+
+The two modes differ in **how long** the preference stays enforced, because
+they differ in who owns the caption UI:
+
+- **Shared controls: authoritative.** The preference holds for the whole
+  session; user intent arrives through `setSubtitleTrack`, which records an
+  explicit override (including `-1` for off) that wins until the source changes.
+- **Vendor chrome: source-default.** The engine still renders its own caption
+  menu, so the preference only seeds each new source and is released once the
+  media element reports `playing`. Enforcing it for the whole session would
+  make that menu inert.
+
+The mode is selected by passing a `playbackStarted` probe to the track helpers;
+shared controls omit it. `WebVideoSourceTracks` owns the probe for HTML5 and
+ArtPlayer (a `playing` listener on the media element, reset on every
+`setSource`); `VjsLegacyTracks` owns it for Video.js (the player's own `playing`
+event, reset on every `clear`). In source-default mode the HLS helper also
+_deselects_ the track (`subtitleTrack = -1`) instead of hiding it: hls.js
+applies `subtitleDisplay` to whatever the vendor menu picks, so suppressing
+display would silently override the user, and a `-1` assignment additionally
+clears hls.js' own default-track selection so it cannot reselect one later.
 
 `WebPlayerViewComponent` reads the preference from `SettingsStore` rather than
 from a host input, so every host — the M3U player, Xtream and Stalker live

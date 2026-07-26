@@ -82,6 +82,7 @@ export class ArtPlayerSourceSession {
             this.captionTracks = new WebVideoSourceTracks({
                 video: player.video,
                 showCaptions: this.config.showCaptions,
+                vendorCaptionControls: true,
             });
             this.captionTracks.setSource(this.pendingControlsSource);
             return;

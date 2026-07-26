@@ -10,6 +10,7 @@ import { HtmlVideoPlayerComponent } from './html-video-player.component';
 
 /** `.mp4` skips the hls.js/mpegts.js branches and binds the native source. */
 const NATIVE_SOURCE_URL = 'http://test.example/stream.mp4';
+const OTHER_SOURCE_URL = 'http://test.example/next.mp4';
 
 const TEST_CHANNEL: Channel = {
     id: '1234',
@@ -82,6 +83,40 @@ describe('HtmlVideoPlayerComponent caption preference without shared controls', 
         component.playChannel(TEST_CHANNEL);
 
         expect(track.mode).toBe('showing');
+    });
+
+    // The native controls stay visible in this mode, so the preference must
+    // seed the source and then get out of the user's way.
+    it('keeps a caption the user enables after playback started', () => {
+        const track = createTextTrack({ kind: 'captions', mode: 'showing' });
+        const textTracks = stubTextTracks([track]);
+        setPreference(false);
+        component.playChannel(TEST_CHANNEL);
+        expect(track.mode).toBe('hidden');
+
+        component.videoPlayer.nativeElement.dispatchEvent(
+            new Event('playing')
+        );
+        track.mode = 'showing';
+        textTracks.emit('change');
+
+        expect(track.mode).toBe('showing');
+    });
+
+    it('re-seeds the preference for the next channel', () => {
+        const first = createTextTrack({ kind: 'captions', mode: 'showing' });
+        const textTracks = stubTextTracks([first]);
+        setPreference(false);
+        component.playChannel(TEST_CHANNEL);
+        component.videoPlayer.nativeElement.dispatchEvent(
+            new Event('playing')
+        );
+
+        const next = createTextTrack({ kind: 'captions', mode: 'showing' });
+        textTracks.replaceSilently([next]);
+        component.playChannel({ ...TEST_CHANNEL, url: OTHER_SOURCE_URL });
+
+        expect(next.mode).toBe('hidden');
     });
 
     it('restores suppressed captions when the preference is turned on', () => {

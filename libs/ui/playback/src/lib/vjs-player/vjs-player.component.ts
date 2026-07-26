@@ -186,7 +186,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.resetCoordinator.destroy();
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
-        this.legacyTracks?.clear();
+        this.legacyTracks?.destroy();
         this.legacyTracks = null;
         this.mpegTsSession.destroy();
         this.videoSession.destroy();

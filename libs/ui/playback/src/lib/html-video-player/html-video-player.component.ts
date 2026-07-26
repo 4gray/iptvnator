@@ -127,6 +127,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.captionTracks = new WebVideoSourceTracks({
                 video: this.videoPlayer.nativeElement,
                 showCaptions: () => this.showCaptions(),
+                vendorCaptionControls: true,
             });
         }
         if (this.controlsSource) {
