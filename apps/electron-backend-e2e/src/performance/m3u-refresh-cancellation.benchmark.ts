@@ -35,6 +35,7 @@ import {
     createCancellationBenchmarkSummary,
     createCancellationIterationResult,
 } from './m3u-refresh-cancellation-report';
+import { assertPerformanceArtifactCapacity } from './performance-artifact-preflight';
 import {
     installMainCapture,
     readMainCaptureStatus,
@@ -147,10 +148,11 @@ async function runIteration(
     server: SyntheticServer
 ): Promise<CancellationIterationResult> {
     const iterationDirectory = join(config.outputDirectory, definition.runId);
+    await assertPerformanceArtifactCapacity(iterationDirectory);
+    await mkdir(iterationDirectory, { recursive: false });
     const dataDirectory = await mkdtemp(
         join(tmpdir(), 'iptvnator-m3u-performance-')
     );
-    await mkdir(iterationDirectory, { recursive: false });
     let app: LaunchedElectronApp | null = null;
     let rendererConsoleListener: ((message: ConsoleMessage) => void) | null =
         null;
@@ -363,6 +365,7 @@ async function resolveConfiguration(): Promise<BenchmarkConfiguration> {
     }
     const outputDirectory = join(outputRoot, variant);
     await assertMissing(outputDirectory);
+    await assertPerformanceArtifactCapacity(outputDirectory);
     await mkdir(outputDirectory, { recursive: true });
     return Object.freeze({
         electronVersion: electronPackage.version,
