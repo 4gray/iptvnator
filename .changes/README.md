@@ -69,16 +69,15 @@ node tools/release/build-release-notes.mjs --consume
 ```
 
 The release version comes from the root `package.json` — bump it first, then
-generate. `--version 0.24.0` overrides it to preview a release before the bump,
-and is appended straight to the script, with no `--` separator:
+generate. `--version 0.24.0` overrides it to preview a release before the bump:
 
 ```bash
 pnpm run release:notes:github --version 0.24.0
 ```
 
-pnpm passes a bare `--` through to the script instead of swallowing it the way
-npm does, so the reflexive `pnpm run release:notes:github -- --version 0.24.0`
-dies with `unknown argument: --`.
+A bare `--` separator is accepted and ignored, so the npm habit of
+`pnpm run release:notes:github -- --version 0.24.0` works too: pnpm forwards
+that separator to the script rather than consuming it the way npm does.
 
 `--validate` and `--format github` only read and print. `--format changelog`
 and `--format blog` write their target file (rerunning `changelog` for the same

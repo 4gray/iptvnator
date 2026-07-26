@@ -90,6 +90,13 @@ function parseArgs(argv) {
             case '--force':
                 options.force = true;
                 break;
+            // npm needs `--` to forward arguments past the script name; pnpm
+            // hands it to the script verbatim. Ignore it so the habitual
+            // `pnpm run release:notes:github -- --version 0.24.0` works
+            // instead of dying on its own separator. There are no positional
+            // arguments for it to delimit.
+            case '--':
+                break;
             default:
                 throw new Error(`unknown argument: ${arg}`);
         }

@@ -12,14 +12,16 @@
                 "{workspaceRoot}/tools/release/release-notes-render.mjs",
                 "{workspaceRoot}/tools/release/extract-changelog-section.mjs",
                 "{workspaceRoot}/tools/release/check-release-note-gate.mjs",
+                "{workspaceRoot}/tools/release/build-release-notes.mjs",
                 "{workspaceRoot}/tools/release/screenshot-guards.mjs",
                 "{workspaceRoot}/tools/release/screenshots.manifest.json",
                 "{workspaceRoot}/tools/release/release-notes.test.mjs",
                 "{workspaceRoot}/tools/release/release-note-gate.test.mjs",
+                "{workspaceRoot}/tools/release/build-release-notes.test.mjs",
                 "{workspaceRoot}/tools/release/screenshot-guards.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/screenshot-guards.test.mjs",
+                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/build-release-notes.test.mjs tools/release/screenshot-guards.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },
