@@ -1,7 +1,7 @@
 # The Nx builds below emit platform-independent JS/static assets. During
 # multi-arch publish builds, keep that heavy build stage on the native builder
 # platform instead of running Node/Nx through QEMU for linux/arm64.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 
 RUN apk add --no-cache python3 make g++ git
 
@@ -11,7 +11,12 @@ COPY .npmrc ./
 COPY package.json pnpm-lock.yaml ./
 COPY patches ./patches
 
-RUN corepack enable && pnpm install --frozen-lockfile --ignore-scripts
+# Node 25 unbundled Corepack, so `corepack enable` cannot be the way pnpm gets
+# installed here — it would break on the next base-image major. Install the
+# exact pnpm from `packageManager` instead, which stays reproducible.
+RUN PNPM_VERSION="$(node -p 'require("./package.json").packageManager.split("@")[1].split("+")[0]')" \
+    && npm install --global "pnpm@${PNPM_VERSION}" \
+    && pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
 
@@ -23,7 +28,7 @@ RUN node tools/build/inject-build-commit.mjs
 RUN pnpm nx build web --configuration=pwa
 RUN pnpm nx build web-backend
 
-FROM node:22-alpine
+FROM node:24-alpine
 
 RUN apk add --no-cache gettext nginx
 

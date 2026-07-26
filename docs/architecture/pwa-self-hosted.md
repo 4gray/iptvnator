@@ -175,7 +175,10 @@ browser sidecar data.
 The Docker image has two stages:
 
 1. Build stage installs dependencies and runs `web:pwa` plus `web-backend`.
-2. Runtime stage uses `node:22-alpine` with nginx installed. nginx serves
+   pnpm is installed globally at the exact `packageManager` version rather than
+   through Corepack, which Node 25 unbundled, so the base-image major stays
+   free to move.
+2. Runtime stage uses `node:24-alpine` with nginx installed. nginx serves
    `dist/apps/web` and proxies `/api/*` to the local Express backend.
    The entrypoint renders the nginx config from a `${PORT}` template, starts the
    backend, waits for `/health`, and then starts nginx. If either process exits
