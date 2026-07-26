@@ -90,29 +90,29 @@ All responses follow the Stalker `portal.php` envelope:
 
 ```json
 {
-    "js": {
-        "data": [
-            {
-                "id": "20001",
-                "name": "...",
-                "cmd": "ffrt4://vod/20001/index.m3u8",
-                "screenshot_uri": "https://picsum.photos/seed/vod-20001/300/200",
-                "cover": "https://picsum.photos/seed/vod-cover-20001/300/450",
-                "description": "...",
-                "actors": "...",
-                "director": "...",
-                "year": "2019",
-                "rating_imdb": "7.3",
-                "category_id": "2001",
-                "is_series": 0,
-                "has_files": 1
-            }
-        ],
-        "total_items": 40,
-        "max_page_items": 14,
-        "cur_page": 1,
-        "total_pages": 3
-    }
+  "js": {
+    "data": [
+      {
+        "id": "20001",
+        "name": "...",
+        "cmd": "ffrt4://vod/20001/index.m3u8",
+        "screenshot_uri": "https://picsum.photos/seed/vod-20001/300/200",
+        "cover": "https://picsum.photos/seed/vod-cover-20001/300/450",
+        "description": "...",
+        "actors": "...",
+        "director": "...",
+        "year": "2019",
+        "rating_imdb": "7.3",
+        "category_id": "2001",
+        "is_series": 0,
+        "has_files": 1
+      }
+    ],
+    "total_items": 40,
+    "max_page_items": 14,
+    "cur_page": 1,
+    "total_pages": 3
+  }
 }
 ```
 
@@ -144,12 +144,12 @@ marker and an `ffrt4://radio/...` command.
 
 ```json
 {
-    "js": {
-        "cmd": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        "streamer_id": "1",
-        "load": "",
-        "error": ""
-    }
+  "js": {
+    "cmd": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+    "streamer_id": "1",
+    "load": "",
+    "error": ""
+  }
 }
 ```
 
@@ -159,20 +159,20 @@ The stream URL is selected from a pool of 4 real public HLS test streams. The ch
 
 ```json
 {
-    "js": {
-        "data": [
-            {
-                "id": "1",
-                "name": "Channel Name: Program Title",
-                "start": "2026-02-21T10:00:00.000Z",
-                "stop": "2026-02-21T12:00:00.000Z",
-                "start_timestamp": 1740128400,
-                "stop_timestamp": 1740135600,
-                "descr": "...",
-                "category": "News"
-            }
-        ]
-    }
+  "js": {
+    "data": [
+      {
+        "id": "1",
+        "name": "Channel Name: Program Title",
+        "start": "2026-02-21T10:00:00.000Z",
+        "stop": "2026-02-21T12:00:00.000Z",
+        "start_timestamp": 1740128400,
+        "stop_timestamp": 1740135600,
+        "descr": "...",
+        "category": "News"
+      }
+    ]
+  }
 }
 ```
 
@@ -183,22 +183,22 @@ generated schedule, limited by the requested `size`.
 
 ```json
 {
-    "js": {
-        "data": {
-            "10000": [
-                {
-                    "id": "1",
-                    "name": "Channel Name: Program Title",
-                    "start": "2026-02-21T10:00:00.000Z",
-                    "stop": "2026-02-21T12:00:00.000Z",
-                    "start_timestamp": 1740128400,
-                    "stop_timestamp": 1740135600,
-                    "descr": "...",
-                    "category": "News"
-                }
-            ]
+  "js": {
+    "data": {
+      "10000": [
+        {
+          "id": "1",
+          "name": "Channel Name: Program Title",
+          "start": "2026-02-21T10:00:00.000Z",
+          "stop": "2026-02-21T12:00:00.000Z",
+          "start_timestamp": 1740128400,
+          "stop_timestamp": 1740135600,
+          "descr": "...",
+          "category": "News"
         }
+      ]
     }
+  }
 }
 ```
 
@@ -214,18 +214,18 @@ Scenarios are defined in `src/app/scenarios.ts`. Each scenario is a `ScenarioCon
 
 ```typescript
 interface ScenarioConfig {
-    name: string;
-    description: string;
-    seed: number;
-    categoryCount: { itv: number; radio: number; vod: number; series: number };
-    itemsPerCategory: number;
-    seasonsPerSeries: number;
-    episodesPerSeason: number;
-    isSeriesFraction: number; // 0–1: fraction of VOD with is_series=1
-    embeddedSeriesFraction: number; // 0–1: fraction of VOD with embedded series[]
-    supportsGetAllChannels?: boolean; // default true; false mimics legacy portals
-    // without the ITV get_all_channels action
-    marketingFixture?: true; // replace generated VOD with shared posters
+  name: string;
+  description: string;
+  seed: number;
+  categoryCount: { itv: number; radio: number; vod: number; series: number };
+  itemsPerCategory: number;
+  seasonsPerSeries: number;
+  episodesPerSeason: number;
+  isSeriesFraction: number;      // 0–1: fraction of VOD with is_series=1
+  embeddedSeriesFraction: number; // 0–1: fraction of VOD with embedded series[]
+  supportsGetAllChannels?: boolean; // default true; false mimics legacy portals
+                                    // without the ITV get_all_channels action
+  marketingFixture?: true;          // replace generated VOD with shared posters
 }
 ```
 
@@ -264,17 +264,17 @@ Call `POST /reset` to clear all favorites (and regenerated data) between test ru
 
 ```typescript
 webServer: [
-    {
-        command: 'pnpm nx run web:serve',
-        url: 'http://localhost:4200',
-        reuseExistingServer: !process.env['CI'],
-    },
-    {
-        command: 'pnpm nx run stalker-mock-server:serve',
-        url: 'http://localhost:3210/health',
-        reuseExistingServer: !process.env['CI'],
-    },
-];
+  {
+    command: 'pnpm nx run web:serve',
+    url: 'http://localhost:4200',
+    reuseExistingServer: !process.env['CI'],
+  },
+  {
+    command: 'pnpm nx run stalker-mock-server:serve',
+    url: 'http://localhost:3210/health',
+    reuseExistingServer: !process.env['CI'],
+  },
+]
 ```
 
 Playwright waits for both servers to be healthy before starting tests. If either is already running (e.g. in local dev), it reuses the existing instance.
@@ -294,13 +294,13 @@ const MOCK_URL = 'http://localhost:3210/portal.php';
 const MOCK_MAC = '00:1A:79:00:00:01'; // default scenario
 
 test.beforeEach(async ({ request }) => {
-    await request.post('http://localhost:3210/reset');
+  await request.post('http://localhost:3210/reset');
 });
 
 test('browse VOD categories', async ({ page }) => {
-    // Add portal via UI or programmatically via IndexedDB
-    // Navigate to portal
-    // Assert category list matches expected count (8 for default scenario)
+  // Add portal via UI or programmatically via IndexedDB
+  // Navigate to portal
+  // Assert category list matches expected count (8 for default scenario)
 });
 ```
 

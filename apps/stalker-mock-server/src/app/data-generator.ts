@@ -118,12 +118,12 @@ export interface GeneratedPortalData {
     radioCategories: RawCategory[];
     channels: Map<string, RawChannel[]>; // categoryId -> channels
     radio: Map<string, RawRadioStation[]>; // categoryId -> radio stations
-    vod: Map<string, RawVodItem[]>; // categoryId -> items
+    vod: Map<string, RawVodItem[]>;       // categoryId -> items
     /** Preserves the provider-neutral fixture order for the "*" VOD listing. */
     vodOrder?: RawVodItem[];
     series: Map<string, RawSeriesItem[]>; // categoryId -> items
-    seasons: Map<string, RawSeason[]>; // seriesItemId -> seasons
-    epg: Map<string, RawEpgProgram[]>; // channelId -> programs
+    seasons: Map<string, RawSeason[]>;    // seriesItemId -> seasons
+    epg: Map<string, RawEpgProgram[]>;    // channelId -> programs
 }
 
 // ---------------------------------------------------------------------------
@@ -208,9 +208,7 @@ function generateMarketingVodItems(): RawVodItem[] {
 // Generator
 // ---------------------------------------------------------------------------
 
-export function generatePortalData(
-    config: ScenarioConfig
-): GeneratedPortalData {
+export function generatePortalData(config: ScenarioConfig): GeneratedPortalData {
     faker.seed(config.seed);
 
     const data: GeneratedPortalData = {
@@ -240,11 +238,7 @@ export function generatePortalData(
     });
     let channelIndex = 0;
     for (const cat of data.itvCategories) {
-        const channels = generateChannels(
-            cat.id,
-            config.itemsPerCategory,
-            channelIndex
-        );
+        const channels = generateChannels(cat.id, config.itemsPerCategory, channelIndex);
         data.channels.set(cat.id, channels);
         for (const ch of channels) {
             data.epg.set(ch.id, generateEpg(ch.name));
@@ -305,27 +299,13 @@ export function generatePortalData(
     }
 
     // ------ Series categories + items ------
-    data.seriesCategories = generateCategories(
-        'series',
-        config.categoryCount.series
-    );
+    data.seriesCategories = generateCategories('series', config.categoryCount.series);
     let seriesIndex = 0;
     for (const cat of data.seriesCategories) {
-        const items = generateSeriesItems(
-            cat.id,
-            config.itemsPerCategory,
-            seriesIndex
-        );
+        const items = generateSeriesItems(cat.id, config.itemsPerCategory, seriesIndex);
         data.series.set(cat.id, items);
         for (const item of items) {
-            data.seasons.set(
-                item.id,
-                generateSeasons(
-                    item,
-                    config.seasonsPerSeries,
-                    config.episodesPerSeason
-                )
-            );
+            data.seasons.set(item.id, generateSeasons(item, config.seasonsPerSeries, config.episodesPerSeason));
         }
         seriesIndex += config.itemsPerCategory;
     }
@@ -338,95 +318,32 @@ export function generatePortalData(
 // ---------------------------------------------------------------------------
 
 const ITV_GENRE_NAMES = [
-    'News',
-    'Sports',
-    'Movies',
-    'Entertainment',
-    'Kids',
-    'Documentary',
-    'Music',
-    'Comedy',
-    'Drama',
-    'Reality TV',
-    'Lifestyle',
-    'Travel',
-    'Food',
-    'Tech',
-    'Science',
-    'History',
-    'Nature',
-    'Animation',
-    'Gaming',
-    'Shopping',
+    'News', 'Sports', 'Movies', 'Entertainment', 'Kids',
+    'Documentary', 'Music', 'Comedy', 'Drama', 'Reality TV',
+    'Lifestyle', 'Travel', 'Food', 'Tech', 'Science',
+    'History', 'Nature', 'Animation', 'Gaming', 'Shopping',
 ];
 
 const VOD_GENRE_NAMES = [
-    'Action',
-    'Comedy',
-    'Drama',
-    'Horror',
-    'Thriller',
-    'Romance',
-    'Sci-Fi',
-    'Fantasy',
-    'Animation',
-    'Documentary',
-    'Biography',
-    'Crime',
-    'Mystery',
-    'Adventure',
-    'Family',
-    'War',
-    'Western',
-    'Musical',
-    'Sport',
-    'History',
+    'Action', 'Comedy', 'Drama', 'Horror', 'Thriller',
+    'Romance', 'Sci-Fi', 'Fantasy', 'Animation', 'Documentary',
+    'Biography', 'Crime', 'Mystery', 'Adventure', 'Family',
+    'War', 'Western', 'Musical', 'Sport', 'History',
 ];
 
 const SERIES_GENRE_NAMES = [
-    'Drama Series',
-    'Comedy Series',
-    'Crime Series',
-    'Sci-Fi Series',
-    'Reality Shows',
-    'Anime',
-    'Soap Opera',
-    'Mini Series',
-    'Documentary Series',
-    'Kids Shows',
-    'Action Series',
-    'Fantasy Series',
-    'Medical',
-    'Legal',
-    'Political',
-    'Romance Series',
-    'Historical',
-    'Thriller Series',
-    'Horror Series',
-    'Western Series',
+    'Drama Series', 'Comedy Series', 'Crime Series', 'Sci-Fi Series',
+    'Reality Shows', 'Anime', 'Soap Opera', 'Mini Series',
+    'Documentary Series', 'Kids Shows', 'Action Series', 'Fantasy Series',
+    'Medical', 'Legal', 'Political', 'Romance Series', 'Historical',
+    'Thriller Series', 'Horror Series', 'Western Series',
 ];
 
 const RADIO_GENRE_NAMES = [
-    'News Radio',
-    'Talk Radio',
-    'Jazz',
-    'Classical',
-    'Rock',
-    'Pop Hits',
-    'Electronic',
-    'World Music',
-    'Sports Radio',
-    'Public Radio',
-    'Local Stations',
-    'Latin',
-    'Hip Hop',
-    'Ambient',
-    'Oldies',
-    'Country',
-    'Reggae',
-    'Soul',
-    'Dance',
-    'Weather',
+    'News Radio', 'Talk Radio', 'Jazz', 'Classical', 'Rock',
+    'Pop Hits', 'Electronic', 'World Music', 'Sports Radio', 'Public Radio',
+    'Local Stations', 'Latin', 'Hip Hop', 'Ambient', 'Oldies',
+    'Country', 'Reggae', 'Soul', 'Dance', 'Weather',
 ];
 
 function getGenreNames(type: 'itv' | 'vod' | 'series' | 'radio'): string[] {
@@ -460,11 +377,7 @@ function generateCategories(
 // Channel generators
 // ---------------------------------------------------------------------------
 
-function generateChannels(
-    categoryId: string,
-    count: number,
-    startIndex: number
-): RawChannel[] {
+function generateChannels(categoryId: string, count: number, startIndex: number): RawChannel[] {
     return Array.from({ length: count }, (_, i) => {
         const globalIndex = startIndex + i;
         const id = String(10000 + globalIndex);
@@ -523,8 +436,7 @@ function generateVodItems(
         const id = String(20000 + globalIndex);
         const title = faker.music.songName() + ': ' + faker.lorem.words(2);
         const isSeries = i / count < isSeriesFraction;
-        const hasEmbeddedSeries =
-            !isSeries && i / count < isSeriesFraction + embeddedSeriesFraction;
+        const hasEmbeddedSeries = !isSeries && (i / count < isSeriesFraction + embeddedSeriesFraction);
 
         const item: RawVodItem = {
             id,
@@ -535,9 +447,7 @@ function generateVodItems(
             screenshot_uri: coverUrl(`vod-${id}`),
             cover: coverUrl(`vod-cover-${id}`, 300, 450),
             description: faker.lorem.paragraph(),
-            actors: Array.from({ length: 4 }, () =>
-                faker.person.fullName()
-            ).join(', '),
+            actors: Array.from({ length: 4 }, () => faker.person.fullName()).join(', '),
             director: faker.person.fullName(),
             year: String(faker.date.past({ years: 20 }).getFullYear()),
             genre: faker.music.genre(),
@@ -569,11 +479,7 @@ function generateEmbeddedEpisodes(count: number): string[] {
 // Series generators
 // ---------------------------------------------------------------------------
 
-function generateSeriesItems(
-    categoryId: string,
-    count: number,
-    startIndex: number
-): RawSeriesItem[] {
+function generateSeriesItems(categoryId: string, count: number, startIndex: number): RawSeriesItem[] {
     return Array.from({ length: count }, (_, i) => {
         const globalIndex = startIndex + i;
         const id = String(30000 + globalIndex);
@@ -587,9 +493,7 @@ function generateSeriesItems(
             screenshot_uri: coverUrl(`series-${id}`),
             cover: coverUrl(`series-cover-${id}`, 300, 450),
             description: faker.lorem.paragraph(),
-            actors: Array.from({ length: 4 }, () =>
-                faker.person.fullName()
-            ).join(', '),
+            actors: Array.from({ length: 4 }, () => faker.person.fullName()).join(', '),
             director: faker.person.fullName(),
             year: String(faker.date.past({ years: 10 }).getFullYear()),
             genres_str: [faker.music.genre(), faker.music.genre()].join(', '),
