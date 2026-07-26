@@ -3,7 +3,7 @@ import { of } from 'rxjs';
 import { PlaylistActions } from './actions';
 import { persistPlaylistUpdate } from './playlist-update.effect-handler';
 
-describe('PlaylistEffects updatePlaylist', () => {
+describe('persistPlaylistUpdate', () => {
     it('forwards the refresh operation ID to playlist persistence', () => {
         const playlistsService = {
             updatePlaylist: jest.fn(() => of(undefined)),

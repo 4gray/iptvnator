@@ -686,7 +686,10 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgePlaylistRow | null>;
     dbUpsertAppPlaylist: (
         playlist: Playlist,
-        /** Instrumentation-only; never persisted or sent to main/worker IPC. */
+        /**
+         * Instrumentation-only; stripped before the DB invoke.
+         * Never enters the DB worker payload or persisted playlist data.
+         */
         operationId?: string
     ) => Promise<ElectronBridgeResult>;
     dbUpsertAppPlaylists: (
@@ -696,7 +699,10 @@ export interface ElectronBridgeApi {
     dbGetAppPlaylistMetas: () => Promise<Playlist[]>;
     dbGetAppPlaylist: (
         playlistId: string,
-        /** Instrumentation-only; never persisted or sent to main/worker IPC. */
+        /**
+         * Instrumentation-only; stripped before the DB invoke.
+         * Never enters the DB worker payload or persisted playlist data.
+         */
         operationId?: string
     ) => Promise<Playlist | null>;
     dbGetAppPlaylistFavoriteChannels: (

@@ -16,7 +16,10 @@ export const PlaylistActions = createActionGroup({
         'Remove Playlist': props<{ playlistId: string }>(),
         'Update Playlist Meta': props<{ playlist: PlaylistMeta }>(),
         'Update Playlist': props<{
-            /** Instrumentation-only; never persisted or sent to main/worker IPC. */
+            /**
+             * Instrumentation-only; stripped before the DB invoke.
+             * Never enters the DB worker payload or persisted playlist data.
+             */
             operationId?: string;
             playlist: Playlist;
             playlistId: string;

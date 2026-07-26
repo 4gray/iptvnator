@@ -168,12 +168,27 @@ export function completePreloadPerformanceCall(
 ): PreloadPerformanceMarkerMetadata {
     const call = calls.get(event.ipcCallId);
     if (!call) {
+        const invalidSequence =
+            playlistId === null
+                ? undefined
+                : invalidatePreloadPerformanceSequence(
+                      calls,
+                      sequences,
+                      playlistId,
+                      PRELOAD_PERFORMANCE_INVALID_REASON.OUT_OF_ORDER
+                  );
+        closeInvalidPreloadPerformanceSequenceWhenSettled(
+            calls,
+            sequences,
+            playlistId
+        );
         return createPreloadPerformanceMarkerMetadata(
             event,
             playlistId,
-            operationId,
+            invalidSequence?.operationId ?? operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.INVALID,
-            PRELOAD_PERFORMANCE_INVALID_REASON.OUT_OF_ORDER
+            invalidSequence?.invalidReason ??
+                PRELOAD_PERFORMANCE_INVALID_REASON.OUT_OF_ORDER
         );
     }
 
