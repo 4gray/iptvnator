@@ -122,6 +122,27 @@
                     "extractLicenses": false,
                     "sourceMap": true
                 },
+                "electron-performance": {
+                    "baseHref": "./",
+                    "serviceWorker": false,
+                    "optimization": {
+                        "scripts": true,
+                        "styles": {
+                            "minify": true,
+                            "inlineCritical": false,
+                            "removeSpecialComments": true
+                        },
+                        "fonts": true
+                    },
+                    "outputHashing": "all",
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/web/src/environments/environment.ts",
+                            "with": "apps/web/src/environments/environment.prod.ts"
+                        }
+                    ]
+                },
                 "electron-e2e": {
                     "baseHref": "./",
                     "serviceWorker": false,
@@ -136,6 +157,12 @@
             "executor": "nx:run-commands",
             "options": {
                 "command": "pnpm nx run web:build:electron-e2e"
+            }
+        },
+        "build-performance": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run web:build:electron-performance"
             }
         },
         "serve": {
