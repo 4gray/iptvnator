@@ -24,7 +24,7 @@ import { requestWithValidatedRedirects } from '../util/validated-axios';
 import { PLAYLIST_FETCH_TIMEOUT_MS } from '../events/playlist-source';
 import {
     armWorkerPerformanceCapture,
-    finishWorkerPerformanceCapture,
+    executeWithWorkerPerformanceCapture,
     startWorkerPerformanceCapture,
 } from './worker-performance-capture';
 
@@ -83,6 +83,15 @@ function checkpoint(payload: PlaylistRefreshPayload): void {
     const active = activeRefreshes.get(payload.operationId);
     if (active?.cancelled) {
         throw createAbortError(payload.operationId);
+    }
+}
+
+function releaseActiveRefresh(
+    operationId: string,
+    activeRefresh: ActiveRefreshState
+): void {
+    if (activeRefreshes.get(operationId) === activeRefresh) {
+        activeRefreshes.delete(operationId);
     }
 }
 
@@ -159,23 +168,32 @@ async function fetchPlaylistFromFile(
 }
 
 async function executeRefresh(
-    payload: PlaylistRefreshPayload
+    payload: PlaylistRefreshPayload,
+    activeRefresh: ActiveRefreshState
 ): Promise<Playlist> {
-    const controller = new AbortController();
-    activeRefreshes.set(payload.operationId, {
-        cancelled: false,
-        controller,
-    });
-
     try {
         const playlist = payload.url
-            ? await fetchPlaylistFromUrl(payload, controller)
+            ? await fetchPlaylistFromUrl(payload, activeRefresh.controller)
             : await fetchPlaylistFromFile(payload);
 
         checkpoint(payload);
         return playlist;
+    } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            emitEvent(payload, {
+                status: 'cancelled',
+                phase: 'parsing',
+            });
+        } else {
+            emitEvent(payload, {
+                status: 'error',
+                phase: payload.url ? 'fetching' : 'reading-file',
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+        throw error;
     } finally {
-        activeRefreshes.delete(payload.operationId);
+        releaseActiveRefresh(payload.operationId, activeRefresh);
     }
 }
 
@@ -191,39 +209,39 @@ parentPort.on(
             return;
         }
 
-        const performanceCapture = startWorkerPerformanceCapture();
-        await armWorkerPerformanceCapture(performanceCapture);
+        const payload = message.payload;
+        const activeRefresh: ActiveRefreshState = {
+            cancelled: false,
+            controller: new AbortController(),
+        };
+        activeRefreshes.set(payload.operationId, activeRefresh);
+
         try {
-            const result = await executeRefresh(message.payload);
-            const performance =
-                await finishWorkerPerformanceCapture(performanceCapture);
-            postMessage({
-                type: 'response',
-                success: true,
-                result,
-                performance,
-            });
-        } catch (error) {
-            const payload = message.payload;
-            if (error instanceof Error && error.name === 'AbortError') {
-                emitEvent(payload, { status: 'cancelled', phase: 'parsing' });
+            const performanceCapture = startWorkerPerformanceCapture();
+            await armWorkerPerformanceCapture(performanceCapture);
+            const execution = await executeWithWorkerPerformanceCapture(
+                performanceCapture,
+                () => executeRefresh(payload, activeRefresh)
+            );
+
+            if (execution.success) {
+                postMessage({
+                    type: 'response',
+                    success: true,
+                    result: execution.result,
+                    performance: execution.performance,
+                });
             } else {
-                emitEvent(payload, {
-                    status: 'error',
-                    phase: payload.url ? 'fetching' : 'reading-file',
-                    error:
-                        error instanceof Error ? error.message : String(error),
+                const error = execution.error;
+                postMessage({
+                    type: 'response',
+                    success: false,
+                    error: serializeError(error),
+                    performance: execution.performance,
                 });
             }
-
-            const performance =
-                await finishWorkerPerformanceCapture(performanceCapture);
-            postMessage({
-                type: 'response',
-                success: false,
-                error: serializeError(error),
-                performance,
-            });
+        } finally {
+            releaseActiveRefresh(payload.operationId, activeRefresh);
         }
     }
 );

@@ -16,11 +16,11 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { PortalStatus, PortalStatusService } from '@iptvnator/services';
 import {
+    createRandomId,
     extractXtreamCredentialsFromUrl,
     normalizeXtreamServerUrl,
     Playlist,
 } from '@iptvnator/shared/interfaces';
-import { v4 as uuid } from 'uuid';
 
 function xtreamServerUrlValidator(
     control: AbstractControl
@@ -91,7 +91,7 @@ export class XtreamCodeImportComponent {
     URL_REGEX = /^\s*https?:\/\/[^ "]+\s*$/;
 
     form = new FormGroup({
-        _id: new FormControl(uuid()),
+        _id: new FormControl(createRandomId()),
         title: new FormControl('', [Validators.required]),
         password: new FormControl('', [Validators.required]),
         username: new FormControl('', [Validators.required]),
@@ -149,7 +149,7 @@ export class XtreamCodeImportComponent {
 
     clearForm(): void {
         this.form.reset({
-            _id: uuid(),
+            _id: createRandomId(),
             title: '',
             password: '',
             username: '',

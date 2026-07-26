@@ -43,7 +43,6 @@ export const maxLinesBaseline = [
     'apps/web/src/app/services/electron.service.ts',
     'apps/web/src/app/services/pwa.service.ts',
     'apps/web/src/app/settings/settings.component.spec.ts',
-    'apps/web/src/app/settings/settings.component.ts',
     'apps/xtream-mock-server/src/app/generators/marketing.generator.ts',
     'libs/epg/data-access/src/lib/epg.service.spec.ts',
     'libs/epg/data-access/src/lib/epg.service.ts',

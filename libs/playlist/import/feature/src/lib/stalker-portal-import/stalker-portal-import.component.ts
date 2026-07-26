@@ -17,8 +17,7 @@ import {
     StalkerSessionService,
     normalizeStalkerPortalIdentity,
 } from '@iptvnator/portal/stalker/data-access';
-import { Playlist } from '@iptvnator/shared/interfaces';
-import { v4 as uuid } from 'uuid';
+import { createRandomId, Playlist } from '@iptvnator/shared/interfaces';
 
 @Component({
     imports: [
@@ -55,7 +54,7 @@ export class StalkerPortalImportComponent {
     readonly URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
 
     readonly form = new FormGroup({
-        _id: new FormControl(uuid()),
+        _id: new FormControl(createRandomId()),
         title: new FormControl('', [Validators.required]),
         macAddress: new FormControl('', [Validators.required]),
         serialNumber: new FormControl(''),
@@ -82,7 +81,7 @@ export class StalkerPortalImportComponent {
 
     clearForm(): void {
         this.form.reset({
-            _id: uuid(),
+            _id: createRandomId(),
             title: '',
             macAddress: '',
             serialNumber: '',

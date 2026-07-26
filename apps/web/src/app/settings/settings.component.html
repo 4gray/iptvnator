@@ -38,8 +38,8 @@
                 [themeOptions]="themeOptions"
                 [coverSizeOptions]="coverSizeOptions"
                 [startupBehaviorOptions]="startupBehaviorOptions"
-                (selectTheme)="selectTheme($event)"
-                (selectCoverSize)="selectCoverSize($event)"
+                (selectTheme)="form.selectTheme($event)"
+                (selectCoverSize)="form.selectCoverSize($event)"
             />
 
             <app-settings-playback-section
@@ -50,8 +50,8 @@
                 [isDesktop]="isDesktop"
                 [supportsManagedExternalPlayers]="supportsManagedExternalPlayers"
                 [supportsExternalPlayerPathSettings]="supportsExternalPlayerPathSettings"
-                [frameCopyAvailable]="frameCopyAvailable()"
-                [frameCopyActive]="frameCopyActive()"
+                [frameCopyAvailable]="embeddedMpv.frameCopyAvailable()"
+                [frameCopyActive]="embeddedMpv.frameCopyActive()"
                 (selectRecordingFolder)="selectRecordingFolder()"
             />
 
@@ -59,15 +59,15 @@
                 <app-settings-epg-section
                     [form]="settingsForm"
                     [activeSection]="activeSection()"
-                    [epgUrl]="epgUrl"
-                    [isClearingEpgData]="isClearingEpgData()"
+                    [epgUrl]="form.epgUrl"
+                    [isClearingEpgData]="epg.isClearing()"
                     [epgViewModeOptions]="epgViewModeOptions"
-                    (refreshEpg)="refreshEpg($event)"
-                    (removeEpgSource)="removeEpgSource($event)"
-                    (addEpgSource)="addEpgSource()"
-                    (refreshAllEpg)="refreshAllEpg()"
-                    (clearEpgData)="clearEpgData()"
-                    (selectEpgViewMode)="selectEpgViewMode($event)"
+                    (refreshEpg)="epg.refresh($event)"
+                    (removeEpgSource)="form.removeEpgSource($event)"
+                    (addEpgSource)="form.addEpgSource()"
+                    (refreshAllEpg)="epg.refreshAll()"
+                    (clearEpgData)="epg.clear()"
+                    (selectEpgViewMode)="form.selectEpgViewMode($event)"
                 />
             }
 
@@ -80,9 +80,9 @@
                 <app-settings-remote-control-section
                     [form]="settingsForm"
                     [activeSection]="activeSection()"
-                    [localIpAddresses]="localIpAddresses()"
-                    [visibleQrCodeIp]="visibleQrCodeIp()"
-                    (toggleQrCode)="toggleQrCode($event)"
+                    [localIpAddresses]="remoteControl.localIpAddresses()"
+                    [visibleQrCodeIp]="remoteControl.visibleQrCodeIp()"
+                    (toggleQrCode)="remoteControl.toggleQrCode($event)"
                 />
             }
 
@@ -94,33 +94,33 @@
             <app-settings-backup-section
                 [activeSection]="activeSection()"
                 [isPwa]="isPwa"
-                [isRemovingAllPlaylists]="isRemovingAllPlaylists()"
-                [isExportingData]="isExportingData()"
+                [isRemovingAllPlaylists]="playlistReset.isRemovingAllPlaylists()"
+                [isExportingData]="backup.isExportingData()"
                 (importData)="importData()"
                 (exportData)="exportData()"
             />
 
             <app-settings-reset-section
                 [activeSection]="activeSection()"
-                [isRemovingAllPlaylists]="isRemovingAllPlaylists()"
-                [canRemoveAllPlaylists]="canRemoveAllPlaylists()"
-                [playlistDeleteSummary]="playlistDeleteSummary()"
-                [removeAllProgressLabel]="removeAllProgressLabel()"
+                [isRemovingAllPlaylists]="playlistReset.isRemovingAllPlaylists()"
+                [canRemoveAllPlaylists]="playlistReset.canRemoveAll()"
+                [playlistDeleteSummary]="playlistReset.deleteSummary()"
+                [removeAllProgressLabel]="playlistReset.removeAllProgressLabel()"
                 (removeAll)="removeAll()"
             />
 
             <app-settings-about-section
                 [activeSection]="activeSection()"
                 [isDesktop]="isDesktop"
-                [version]="version"
+                [version]="appUpdate.version()"
                 [buildCommit]="buildCommit"
-                [updateMessage]="updateMessage"
-                [appUpdateStatus]="appUpdateStatus()"
-                (checkForAppUpdate)="checkForAppUpdate()"
-                (downloadAppUpdate)="downloadAppUpdate()"
-                (installAppUpdate)="installAppUpdate()"
-                (openManualAppUpdate)="openManualAppUpdate()"
-                (openAppUpdateReleaseNotes)="openAppUpdateReleaseNotes()"
+                [updateMessage]="appUpdate.updateMessage()"
+                [appUpdateStatus]="appUpdate.status()"
+                (checkForAppUpdate)="appUpdate.checkForAppUpdate()"
+                (downloadAppUpdate)="appUpdate.downloadAppUpdate()"
+                (installAppUpdate)="appUpdate.installAppUpdate()"
+                (openManualAppUpdate)="appUpdate.openManualAppUpdate()"
+                (openAppUpdateReleaseNotes)="appUpdate.openReleaseNotes()"
             />
 
             <footer class="action-bar" data-test-id="settings-action-bar">

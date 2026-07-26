@@ -12,14 +12,21 @@
         "e2e": {
             "dependsOn": ["electron-backend:build-e2e"]
         },
+        "test-performance-harness": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "pnpm exec tsx --test src/performance/*.spec.ts"
+            }
+        },
         "benchmark-m3u-refresh-cancellation": {
-            "dependsOn": ["electron-backend:build-e2e"],
+            "dependsOn": ["electron-backend:build-performance"],
             "executor": "nx:run-commands",
             "cache": false,
             "parallelism": false,
             "options": {
                 "cwd": "apps/electron-backend-e2e",
-                "command": "pnpm exec playwright test --config=playwright.performance.config.ts"
+                "command": "pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts"
             }
         },
         "packaged-frame-copy-smoke": {

@@ -166,6 +166,7 @@ async function runIteration(
             ],
             env: {
                 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: '0',
+                IPTVNATOR_PERF_CAPTURE: '1',
                 IPTVNATOR_PERF_WORKER_PROFILING: '1',
                 IPTVNATOR_TRACE_RENDERER_CONSOLE:
                     process.env['IPTVNATOR_TRACE_RENDERER_CONSOLE'] ?? '0',

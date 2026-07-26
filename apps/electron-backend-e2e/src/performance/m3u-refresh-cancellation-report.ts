@@ -9,6 +9,7 @@ import type {
     NumericDistribution,
     PerformanceWorkerKind,
     RendererCaptureMetrics,
+    WorkerRequestPerformanceMetrics,
 } from './m3u-refresh-cancellation-contract';
 import {
     PERFORMANCE_ITERATION_KIND,
@@ -63,15 +64,28 @@ export function createCancellationBenchmarkSummary(
                 return worker ? select(worker) : null;
             })
         );
-    const workerEventLoopDelayMetric = (
+    const workerRequestMetric = (
+        kind: PerformanceWorkerKind,
+        select: (request: WorkerRequestPerformanceMetrics) => number | null
+    ): NumericDistribution =>
+        summarizeNumbers(
+            measured.flatMap((iteration) =>
+                iteration.main.workers
+                    .filter((worker) => worker.kind === kind)
+                    .flatMap((worker) =>
+                        worker.requests.map((request) => select(request))
+                    )
+            )
+        );
+    const workerRequestEventLoopDelayMetric = (
         kind: PerformanceWorkerKind,
         percentile: keyof NonNullable<
-            MainCaptureMetrics['workers'][number]['eventLoopDelay']
+            WorkerRequestPerformanceMetrics['eventLoopDelay']
         >
     ): NumericDistribution =>
-        workerMetric(
+        workerRequestMetric(
             kind,
-            (worker) => worker.eventLoopDelay?.[percentile] ?? null
+            (request) => request.eventLoopDelay?.[percentile] ?? null
         );
 
     return Object.freeze({
@@ -105,22 +119,6 @@ export function createCancellationBenchmarkSummary(
                     (iteration) => iteration.phases.cancelTransportLatencyMs
                 )
             ),
-            databaseWorkerEventLoopDelayMaxMs: workerEventLoopDelayMetric(
-                PERFORMANCE_WORKER_KIND.DATABASE,
-                'maxMs'
-            ),
-            databaseWorkerEventLoopDelayP95Ms: workerEventLoopDelayMetric(
-                PERFORMANCE_WORKER_KIND.DATABASE,
-                'p95Ms'
-            ),
-            databaseWorkerEventLoopDelayP99Ms: workerEventLoopDelayMetric(
-                PERFORMANCE_WORKER_KIND.DATABASE,
-                'p99Ms'
-            ),
-            databaseWorkerEventLoopUtilization: workerMetric(
-                PERFORMANCE_WORKER_KIND.DATABASE,
-                (worker) => worker.eventLoopUtilization
-            ),
             databaseWorkerExternalPeakBytes: workerMetric(
                 PERFORMANCE_WORKER_KIND.DATABASE,
                 (worker) => worker.peakExternalBytes
@@ -132,6 +130,33 @@ export function createCancellationBenchmarkSummary(
             databaseWorkerPostGcHeapBytes: workerMetric(
                 PERFORMANCE_WORKER_KIND.DATABASE,
                 (worker) => worker.postGcHeapUsedBytes
+            ),
+            databaseWorkerRequestEventLoopDelayMaxMs:
+                workerRequestEventLoopDelayMetric(
+                    PERFORMANCE_WORKER_KIND.DATABASE,
+                    'maxMs'
+                ),
+            databaseWorkerRequestEventLoopDelayP95Ms:
+                workerRequestEventLoopDelayMetric(
+                    PERFORMANCE_WORKER_KIND.DATABASE,
+                    'p95Ms'
+                ),
+            databaseWorkerRequestEventLoopDelayP99Ms:
+                workerRequestEventLoopDelayMetric(
+                    PERFORMANCE_WORKER_KIND.DATABASE,
+                    'p99Ms'
+                ),
+            databaseWorkerRequestEventLoopUtilization: workerRequestMetric(
+                PERFORMANCE_WORKER_KIND.DATABASE,
+                (request) => request.eventLoopUtilization
+            ),
+            databaseWorkerRequestThreadCpuSystemMicros: workerRequestMetric(
+                PERFORMANCE_WORKER_KIND.DATABASE,
+                (request) => request.threadCpuSystemMicros
+            ),
+            databaseWorkerRequestThreadCpuUserMicros: workerRequestMetric(
+                PERFORMANCE_WORKER_KIND.DATABASE,
+                (request) => request.threadCpuUserMicros
             ),
             dataFetchMs: summarizeNumbers(
                 measured.map((iteration) => iteration.phases.dataFetchMs)
@@ -185,22 +210,6 @@ export function createCancellationBenchmarkSummary(
                         iteration.phases.persistencePreparationProxyMs
                 )
             ),
-            playlistWorkerEventLoopUtilization: workerMetric(
-                PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
-                (worker) => worker.eventLoopUtilization
-            ),
-            playlistWorkerEventLoopDelayMaxMs: workerEventLoopDelayMetric(
-                PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
-                'maxMs'
-            ),
-            playlistWorkerEventLoopDelayP95Ms: workerEventLoopDelayMetric(
-                PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
-                'p95Ms'
-            ),
-            playlistWorkerEventLoopDelayP99Ms: workerEventLoopDelayMetric(
-                PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
-                'p99Ms'
-            ),
             playlistWorkerExternalPeakBytes: workerMetric(
                 PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
                 (worker) => worker.peakExternalBytes
@@ -212,6 +221,33 @@ export function createCancellationBenchmarkSummary(
             playlistWorkerPostGcHeapBytes: workerMetric(
                 PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
                 (worker) => worker.postGcHeapUsedBytes
+            ),
+            playlistWorkerRequestEventLoopDelayMaxMs:
+                workerRequestEventLoopDelayMetric(
+                    PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
+                    'maxMs'
+                ),
+            playlistWorkerRequestEventLoopDelayP95Ms:
+                workerRequestEventLoopDelayMetric(
+                    PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
+                    'p95Ms'
+                ),
+            playlistWorkerRequestEventLoopDelayP99Ms:
+                workerRequestEventLoopDelayMetric(
+                    PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
+                    'p99Ms'
+                ),
+            playlistWorkerRequestEventLoopUtilization: workerRequestMetric(
+                PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
+                (request) => request.eventLoopUtilization
+            ),
+            playlistWorkerRequestThreadCpuSystemMicros: workerRequestMetric(
+                PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
+                (request) => request.threadCpuSystemMicros
+            ),
+            playlistWorkerRequestThreadCpuUserMicros: workerRequestMetric(
+                PERFORMANCE_WORKER_KIND.PLAYLIST_REFRESH,
+                (request) => request.threadCpuUserMicros
             ),
             rendererFrameGapMs: summarizeNumbers(
                 flattenRenderer(

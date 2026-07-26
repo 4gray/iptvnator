@@ -49,7 +49,7 @@ jobs:
                 os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -87,7 +87,7 @@ jobs:
 
             - name: Upload Electron Test Results
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: playwright-report-electron-${{ matrix.os }}
                   path: |
@@ -103,7 +103,7 @@ jobs:
             NX_SKIP_NX_CACHE: true
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -131,7 +131,7 @@ jobs:
 
             - name: Upload Web Test Results
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: playwright-report-web-ubuntu
                   path: |
