@@ -197,7 +197,7 @@ test('the Electron performance wrapper owns build dependencies before its profil
     assert.ok(target, 'electron-backend must define build-performance');
     assert.equal(target.executor, 'nx:run-commands');
     assert.deepEqual(target.dependsOn, [
-        'electron-backend:build-worker',
+        'electron-backend:build-worker-performance',
         'electron-backend:build-embedded-mpv',
         {
             projects: ['web', 'remote-control-web'],
@@ -208,6 +208,27 @@ test('the Electron performance wrapper owns build dependencies before its profil
         target.options?.['command'],
         'pnpm nx run electron-backend:build:electron-performance --excludeTaskDependencies'
     );
+});
+
+test('the Electron performance wrapper builds optimized source-mapped workers', () => {
+    const target = electronProject.targets['build-worker-performance'];
+    const source = readFileSync(
+        join(workspaceRoot, 'apps/electron-backend/build-worker.js'),
+        'utf8'
+    );
+
+    assert.ok(target, 'electron-backend must define build-worker-performance');
+    assert.equal(target.executor, 'nx:run-commands');
+    assert.equal(
+        target.options?.['command'],
+        'node apps/electron-backend/build-worker.js --performance'
+    );
+    assert.match(
+        source,
+        /const isPerformance = process\.argv\.includes\('--performance'\)/
+    );
+    assert.match(source, /minify: isProduction \|\| isPerformance/);
+    assert.match(source, /sourcemap: isPerformance \|\| !isProduction/);
 });
 
 test('the cancellation benchmark uses the production-equivalent performance build', () => {

@@ -12,6 +12,13 @@
                 "command": "node apps/electron-backend/build-worker.js"
             }
         },
+        "build-worker-performance": {
+            "executor": "nx:run-commands",
+            "outputs": ["{workspaceRoot}/dist/apps/electron-backend/workers"],
+            "options": {
+                "command": "node apps/electron-backend/build-worker.js --performance"
+            }
+        },
         "build-embedded-mpv": {
             "executor": "nx:run-commands",
             "cache": false,
@@ -98,7 +105,7 @@
         },
         "build-performance": {
             "dependsOn": [
-                "electron-backend:build-worker",
+                "electron-backend:build-worker-performance",
                 "electron-backend:build-embedded-mpv",
                 {
                     "projects": ["web", "remote-control-web"],

@@ -121,7 +121,9 @@ before/after claims.
 
 The target reserves and verifies CDP port 9222, freezes renderer long-task,
 frame-gap, and heartbeat probes before forced post-GC heap collection, and
-enables opt-in worker profiling. Each worker response retains a raw
+builds the Electron main process, renderer, and workers with optimized,
+source-mapped performance configurations before enabling opt-in worker
+profiling. Each worker response retains a raw
 request-scoped record containing request/operation identity, received/work/flush
 timestamps, thread CPU, event-loop utilization, event-loop delay, and fixed
 unavailability or invalid reasons. Missing or malformed profiling metadata
