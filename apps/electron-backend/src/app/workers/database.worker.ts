@@ -88,6 +88,11 @@ import {
     deleteXtreamContent,
     restoreXtreamUserData,
 } from '../database/operations/xtream.operations';
+import {
+    armWorkerPerformanceCapture,
+    finishWorkerPerformanceCapture,
+    startWorkerPerformanceCapture,
+} from './worker-performance-capture';
 
 const loggerLabel = '[DB Worker]';
 const batchDelayMs = Number.parseInt(
@@ -778,7 +783,11 @@ async function executeRequest(message: DbWorkerRequestMessage) {
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {
-                updates: { content_id: number; playlist_id: string; position: number }[];
+                updates: {
+                    content_id: number;
+                    playlist_id: string;
+                    position: number;
+                }[];
             };
             return reorderGlobalFavorites(db, payload.updates);
         }
@@ -920,13 +929,18 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
         return;
     }
 
+    const performanceCapture = startWorkerPerformanceCapture();
+    await armWorkerPerformanceCapture(performanceCapture);
     try {
         const result = await executeRequest(message);
+        const performance =
+            await finishWorkerPerformanceCapture(performanceCapture);
         postMessage({
             type: 'response',
             requestId: message.requestId,
             success: true,
             result,
+            performance,
         });
     } catch (error) {
         console.error(
@@ -934,11 +948,14 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             `Error handling ${message.operation}:`,
             error
         );
+        const performance =
+            await finishWorkerPerformanceCapture(performanceCapture);
         postMessage({
             type: 'response',
             requestId: message.requestId,
             success: false,
             error: serializeError(error),
+            performance,
         });
     }
 });
