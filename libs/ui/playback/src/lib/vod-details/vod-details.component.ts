@@ -2,7 +2,10 @@ import { Component, computed, effect, inject, input, output, signal, untracked }
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
-import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_EXTERNAL_PLAYBACK,
+    createExternalPlaybackButtonState,
+} from '@iptvnator/portal/shared/util';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
@@ -198,76 +201,17 @@ export class VodDetailsComponent {
     readonly isDownloading = this.downloadState.isDownloading;
     readonly isPausedDownload = this.downloadState.isPausedDownload;
 
-    readonly matchedExternalPlayback = computed(() => {
-        const session = this.externalPlayback();
-        const item = this.item();
-        if (
-            !session?.contentInfo ||
-            session.status === 'closed' ||
-            session.status === 'error'
-        ) {
-            return null;
-        }
-
-        const contentInfo = session.contentInfo;
-        if (
-            contentInfo.playlistId !== item.playlistId ||
-            contentInfo.contentType !== 'vod' ||
-            contentInfo.contentXtreamId !== getVodNumericId(item)
-        ) {
-            return null;
-        }
-
-        return session;
+    private readonly externalButton = createExternalPlaybackButtonState({
+        session: this.externalPlayback,
+        playlistId: computed(() => this.item().playlistId),
+        contentId: computed(() => getVodNumericId(this.item())),
     });
-
-    readonly externalPrimaryLabel = computed(() => {
-        const session = this.matchedExternalPlayback();
-        if (!session) {
-            return null;
-        }
-
-        const player = session.player.toUpperCase();
-        switch (session.status) {
-            case 'launching':
-                return `Opening in ${player}...`;
-            case 'opened':
-            case 'playing':
-                return `Stop ${player}`;
-            default:
-                return null;
-        }
-    });
-
-    readonly externalPrimaryIcon = computed(() => {
-        const session = this.matchedExternalPlayback();
-        switch (session?.status) {
-            case 'launching':
-                return 'hourglass_top';
-            case 'opened':
-            case 'playing':
-                return 'stop_circle';
-            default:
-                return 'play_arrow';
-        }
-    });
-
-    readonly isExternalLaunchPending = computed(
-        () => this.matchedExternalPlayback()?.status === 'launching'
-    );
-
-    readonly isExternalStopAction = computed(() => {
-        const status = this.matchedExternalPlayback()?.status;
-        return status === 'opened' || status === 'playing';
-    });
-
-    readonly externalPrimaryButtonState = computed(() => {
-        if (this.isExternalLaunchPending()) {
-            return 'launching';
-        }
-
-        return this.isExternalStopAction() ? 'stop' : 'idle';
-    });
+    readonly matchedExternalPlayback = this.externalButton.matchedSession;
+    readonly externalPrimaryLabel = this.externalButton.primaryLabel;
+    readonly externalPrimaryIcon = this.externalButton.primaryIcon;
+    readonly isExternalLaunchPending = this.externalButton.isLaunchPending;
+    readonly isExternalStopAction = this.externalButton.isStopAction;
+    readonly externalPrimaryButtonState = this.externalButton.buttonState;
 
     // ============ Actions ============
 

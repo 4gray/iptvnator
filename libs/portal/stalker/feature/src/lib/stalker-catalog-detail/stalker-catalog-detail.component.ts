@@ -15,13 +15,12 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     createLogger,
+    createInlinePlaybackPositionWriter,
 } from '@iptvnator/portal/shared/util';
 import {
     createPortalFavoritesResource,
     createRefreshTrigger,
     isSelectedStalkerVodFavorite,
-    normalizeStalkerEntityId,
-    normalizeStalkerEntityIdAsNumber,
     StalkerSelectedVodItem,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
@@ -44,15 +43,7 @@ import {
 import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 
-interface DownloadVodData {
-    id?: string | number;
-    has_files?: unknown;
-    info?: {
-        name?: string;
-        movie_image?: string;
-    };
-    title?: string;
-}
+import { startStalkerVodDownload } from './stalker-vod-download';
 
 @Component({
     selector: 'app-stalker-catalog-detail',
@@ -94,7 +85,6 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     private readonly selectedVodPosition = signal<PlaybackPositionData | null>(
         null
     );
-    private lastInlineSaveTime = 0;
     private unsubscribePositionUpdates: (() => void) | null = null;
 
     readonly isSeriesDetail = computed(() => {
@@ -226,37 +216,26 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         }
     }
 
+    private readonly positionWriter = createInlinePlaybackPositionWriter({
+        playback: this.inlinePlayback,
+        save: (playlistId, position) =>
+            void this.playbackPositions.savePlaybackPosition(
+                playlistId,
+                position
+            ),
+        onSaved: (position) => this.selectedVodPosition.set(position),
+    });
+
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
-        const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) {
-            return;
-        }
-
-        const now = Date.now();
-        if (now - this.lastInlineSaveTime <= 15000) {
-            return;
-        }
-
-        this.lastInlineSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
-        this.selectedVodPosition.set(position);
+        this.positionWriter.handleTimeUpdate(event);
     }
 
     closeInlinePlayer(): void {
         this.inlinePlayback.set(null);
-        this.lastInlineSaveTime = 0;
+        this.positionWriter.reset();
     }
 
     showCopyNotification(): void {
@@ -277,60 +256,12 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     }
 
     async onVodDownload(item: VodDetailsItem): Promise<void> {
-        if (item.type !== 'stalker') {
-            return;
-        }
-
-        const playlist = this.catalog.playlist();
-        if (!playlist || !playlist.portalUrl || !playlist.macAddress) {
-            return;
-        }
-
-        let cmdToUse = item.cmd;
-        const itemData = item.data as DownloadVodData;
-        const normalizedItemId = normalizeStalkerEntityId(itemData?.id);
-
-        if (
-            itemData?.has_files !== undefined &&
-            cmdToUse &&
-            !cmdToUse.includes('://') &&
-            cmdToUse.includes('/media/') &&
-            !cmdToUse.includes('/media/file_')
-        ) {
-            const fileId =
-                await this.catalog.fetchMovieFileId(normalizedItemId);
-            if (fileId) {
-                cmdToUse = `/media/file_${fileId}.mpg`;
-            }
-        }
-
-        const url = await this.catalog.fetchLinkToPlay(
-            playlist.portalUrl,
-            playlist.macAddress,
-            cmdToUse
-        );
-        if (!url) {
-            return;
-        }
-
-        const numericId = normalizeStalkerEntityIdAsNumber(itemData?.id) ?? 0;
-
-        await this.downloadsService.startDownload({
-            playlistId: playlist.id,
-            xtreamId: numericId,
-            contentType: 'vod',
-            title: itemData?.info?.name || itemData?.title || 'Unknown',
-            url,
-            posterUrl: itemData?.info?.movie_image,
-            headers: {
-                userAgent: playlist.userAgent,
-                referer: playlist.referer,
-                origin: playlist.origin,
-            },
-            playlistName: playlist.title || 'Stalker Portal',
-            playlistType: 'stalker',
-            portalUrl: playlist.portalUrl,
-            macAddress: playlist.macAddress,
+        await startStalkerVodDownload(item, {
+            playlist: this.catalog.playlist(),
+            downloadsService: this.downloadsService,
+            fetchMovieFileId: (id) => this.catalog.fetchMovieFileId(id),
+            fetchLinkToPlay: (portalUrl, macAddress, cmd) =>
+                this.catalog.fetchLinkToPlay(portalUrl, macAddress, cmd),
         });
     }
 
@@ -370,7 +301,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                 startTime
             );
 
-            this.lastInlineSaveTime = 0;
+            this.positionWriter.reset();
             if (this.portalPlayer.isEmbeddedPlayer()) {
                 this.inlinePlayback.set(playback);
                 return;
