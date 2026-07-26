@@ -1,5 +1,10 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
-import { Channel, EpgProgram, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    Channel,
+    EpgProgram,
+    Playlist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 
 export const PlaylistActions = createActionGroup({
     source: 'Playlists',
@@ -11,6 +16,11 @@ export const PlaylistActions = createActionGroup({
         'Remove Playlist': props<{ playlistId: string }>(),
         'Update Playlist Meta': props<{ playlist: PlaylistMeta }>(),
         'Update Playlist': props<{
+            /**
+             * Instrumentation-only; stripped before the DB invoke.
+             * Never enters the DB worker payload or persisted playlist data.
+             */
+            operationId?: string;
             playlist: Playlist;
             playlistId: string;
             refreshEpg?: boolean;

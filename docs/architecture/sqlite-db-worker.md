@@ -118,6 +118,35 @@ The worker contract lives in
 3. `DbWorkerEventMessage`
 4. `DbOperationEvent`
 
+### Opt-in request performance capture
+
+`IPTVNATOR_PERF_WORKER_PROFILING=1` adds development/test-only performance
+metadata to each database-worker response. It is disabled by default and must
+stay disabled for production launches.
+
+Each enabled request gets a fresh event-loop-delay histogram and records:
+
+- `requestReceivedEpochMs`, `workStartedEpochMs`, `workEndedEpochMs`, and
+  `histogramFlushedEpochMs`
+- worker-thread CPU user/system microseconds from `process.threadCpuUsage()`
+- event-loop utilization across the exact work interval
+- event-loop-delay max/p95/p99 from the request's own histogram
+- fixed invalid or unavailable reasons whenever a metric cannot be attributed
+
+Histogram arming waits until the histogram has a sample; flushing waits for its
+sample count to advance after work ends. Both waits use condition-based timer
+polling. Each wait stops after 50 ms of observed monotonic time or its bounded
+poll count; arming and flushing have separate caps, and timer scheduling may
+overshoot wall-clock time. A timeout or profiling API failure never replaces
+the business response: timestamps and any independently available CPU/ELU
+metrics remain valid, while event-loop delay is `null` with a fixed reason.
+
+The long-lived database worker still executes concurrent requests without a
+profiling queue. If captures overlap, every overlapping response carries
+`invalidReason: "overlapping-database-worker-requests"` and all attributable
+CPU, ELU, and event-loop-delay values are `null`. This avoids assigning shared
+worker activity to one request while preserving normal worker concurrency.
+
 ### Progress event contract
 
 The worker now emits request-scoped events with:

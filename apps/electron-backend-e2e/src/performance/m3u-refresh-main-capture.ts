@@ -1,7 +1,17 @@
 /* eslint-disable max-lines -- The injected main-process protocol must remain self-contained for Playwright serialization. */
 import type { ElectronApplication } from '@playwright/test';
 
+import {
+    DATABASE_REQUEST_IDENTITY_CAPTURE_STATE_KEY,
+    installDatabaseRequestIdentityCapture,
+    type DatabaseRequestIdentity,
+    type DatabaseRequestIdentityCaptureApi,
+} from './database-request-identity-capture';
 import type { MainCaptureMetrics } from './m3u-refresh-cancellation-contract';
+import {
+    selectMainCaptureGeneration,
+    type MainCaptureGenerationTransport,
+} from './worker-request-performance';
 
 const MAIN_CAPTURE_STATE_KEY = '__iptvnatorM3uRefreshMainCapture';
 
@@ -23,7 +33,13 @@ export interface MainCaptureStatus {
 export async function installMainCapture(
     electronApp: ElectronApplication
 ): Promise<void> {
-    await electronApp.evaluate(async ({ app, BrowserWindow }, stateKey) => {
+    await installDatabaseRequestIdentityCapture(electronApp);
+    const captureStateKeys = {
+        databaseRequestIdentityStateKey:
+            DATABASE_REQUEST_IDENTITY_CAPTURE_STATE_KEY,
+        stateKey: MAIN_CAPTURE_STATE_KEY,
+    };
+    await electronApp.evaluate(async ({ app, BrowserWindow }, input) => {
         type JsonRecord = Record<string, unknown>;
         type WorkerTransferable = import('node:worker_threads').Transferable;
         interface CpuProfileHandle {
@@ -41,6 +57,15 @@ export async function installMainCapture(
             active: number;
             idle: number;
             utilization: number;
+        }
+        interface WorkerRequestPerformance {
+            identity: DatabaseRequestIdentity;
+            operation: string | null;
+            performanceCapture: unknown;
+            playlistId: string | null;
+            requestId: string | null;
+            responseEpochMs: number;
+            success: boolean;
         }
         interface InstrumentedWorker {
             cpuUsage?(): Promise<WorkerCpuUsage>;
@@ -62,15 +87,11 @@ export async function installMainCapture(
         }
         interface WorkerRecord {
             cancelPostedEpochMs: number | null;
+            captureGeneration: number | null;
             cpuFirst: WorkerCpuUsage | null;
             cpuLast: WorkerCpuUsage | null;
             elu: number | null;
             eluStart: WorkerElu | null;
-            eventLoopDelay: {
-                maxMs: number;
-                p95Ms: number;
-                p99Ms: number;
-            } | null;
             externalPeak: number;
             finalized: boolean;
             finalizing: Promise<void> | null;
@@ -81,6 +102,7 @@ export async function installMainCapture(
             postGcHeapUsed: number | null;
             profileHandle: Promise<CpuProfileHandle> | null;
             profilePath: string | null;
+            requestPerformance: WorkerRequestPerformance[];
             responseEpochMs: number | null;
             sampleBusy: boolean;
             sampleTimer: NodeJS.Timeout | null;
@@ -99,9 +121,12 @@ export async function installMainCapture(
         }
 
         const target = globalThis as unknown as Record<string, unknown>;
-        if (target[stateKey] !== undefined) {
+        if (target[input.stateKey] !== undefined) {
             return;
         }
+        const databaseRequestIdentityCapture = target[
+            input.databaseRequestIdentityStateKey
+        ] as DatabaseRequestIdentityCaptureApi;
 
         const runtimeProcess = process as typeof process & {
             getBuiltinModule(id: string): unknown;
@@ -132,6 +157,7 @@ export async function installMainCapture(
         const dbRequests = new Map<
             string,
             {
+                identity: DatabaseRequestIdentity;
                 operation: string;
                 playlistId: string | null;
                 record: WorkerRecord;
@@ -140,6 +166,7 @@ export async function installMainCapture(
 
         const state = {
             active: false,
+            captureGeneration: 0,
             cpuStart: null as NodeJS.CpuUsage | null,
             diagnostic: false,
             eventLoopDelay: null as ReturnType<
@@ -200,6 +227,9 @@ export async function installMainCapture(
             const playlistId = value['playlistId'] ?? value['_id'];
             return typeof playlistId === 'string' ? playlistId : null;
         };
+        const isCurrentCaptureRecord = (record: WorkerRecord): boolean =>
+            state.active &&
+            record.captureGeneration === state.captureGeneration;
         const createWorkerRecord = (
             worker: InstrumentedWorker,
             kind: WorkerRecord['kind']
@@ -210,11 +240,11 @@ export async function installMainCapture(
             }
             const record: WorkerRecord = {
                 cancelPostedEpochMs: null,
+                captureGeneration: null,
                 cpuFirst: null,
                 cpuLast: null,
                 elu: null,
                 eluStart: null,
-                eventLoopDelay: null,
                 externalPeak: 0,
                 finalized: false,
                 finalizing: null,
@@ -225,6 +255,7 @@ export async function installMainCapture(
                 postGcHeapUsed: null,
                 profileHandle: null,
                 profilePath: null,
+                requestPerformance: [],
                 responseEpochMs: null,
                 sampleBusy: false,
                 sampleTimer: null,
@@ -238,30 +269,13 @@ export async function installMainCapture(
                     return;
                 }
                 const message = incoming as JsonRecord;
-                const performanceCapture = readWorkerPerformance(message);
-                if (performanceCapture) {
-                    record.eventLoopDelay = record.eventLoopDelay
-                        ? {
-                              maxMs: Math.max(
-                                  record.eventLoopDelay.maxMs,
-                                  performanceCapture.eventLoopDelay.maxMs
-                              ),
-                              p95Ms: Math.max(
-                                  record.eventLoopDelay.p95Ms,
-                                  performanceCapture.eventLoopDelay.p95Ms
-                              ),
-                              p99Ms: Math.max(
-                                  record.eventLoopDelay.p99Ms,
-                                  performanceCapture.eventLoopDelay.p99Ms
-                              ),
-                          }
-                        : performanceCapture.eventLoopDelay;
+                if (!isCurrentCaptureRecord(record)) {
+                    return;
                 }
                 if (record.kind === 'playlist-refresh.worker') {
                     if (message['type'] === 'event') {
                         const event = message['event'] as
-                            | JsonRecord
-                            | undefined;
+                            JsonRecord | undefined;
                         recordTimeline({
                             operationId: record.operationId ?? undefined,
                             playlistId: record.playlistId ?? undefined,
@@ -270,7 +284,20 @@ export async function installMainCapture(
                             )}:${String(event?.['phase'] ?? 'none')}`,
                         });
                     } else if (message['type'] === 'response') {
-                        record.responseEpochMs = nowEpochMs();
+                        const responseEpochMs = nowEpochMs();
+                        record.responseEpochMs = responseEpochMs;
+                        record.requestPerformance.push({
+                            identity: {
+                                operationId: record.operationId,
+                                operationIdUnavailableReason: null,
+                            },
+                            operation: null,
+                            performanceCapture: message['performance'] ?? null,
+                            playlistId: record.playlistId,
+                            requestId: null,
+                            responseEpochMs,
+                            success: message['success'] === true,
+                        });
                         recordTimeline({
                             operationId: record.operationId ?? undefined,
                             playlistId: record.playlistId ?? undefined,
@@ -286,9 +313,22 @@ export async function installMainCapture(
                 ) {
                     const request = dbRequests.get(message['requestId']);
                     if (request) {
+                        record.requestPerformance.push({
+                            identity: request.identity,
+                            operation: request.operation,
+                            performanceCapture: message['performance'] ?? null,
+                            playlistId: request.playlistId,
+                            requestId: message['requestId'],
+                            responseEpochMs: nowEpochMs(),
+                            success: message['success'] === true,
+                        });
+                    }
+                    if (request) {
                         dbRequests.delete(message['requestId']);
                         recordTimeline({
                             operation: request.operation,
+                            operationId:
+                                request.identity.operationId ?? undefined,
                             playlistId: request.playlistId ?? undefined,
                             requestId: message['requestId'],
                             success: message['success'] === true,
@@ -298,46 +338,6 @@ export async function installMainCapture(
                 }
             });
             return record;
-        };
-        const readWorkerPerformance = (
-            message: JsonRecord
-        ): {
-            eventLoopDelay: {
-                maxMs: number;
-                p95Ms: number;
-                p99Ms: number;
-            };
-        } | null => {
-            const performanceCapture = message['performance'];
-            if (
-                typeof performanceCapture !== 'object' ||
-                performanceCapture === null
-            ) {
-                return null;
-            }
-            const eventLoopDelay = (performanceCapture as JsonRecord)[
-                'eventLoopDelay'
-            ];
-            if (typeof eventLoopDelay !== 'object' || eventLoopDelay === null) {
-                return null;
-            }
-            const value = eventLoopDelay as JsonRecord;
-            const maxMs = value['maxMs'];
-            const p95Ms = value['p95Ms'];
-            const p99Ms = value['p99Ms'];
-            if (
-                typeof maxMs !== 'number' ||
-                !Number.isFinite(maxMs) ||
-                typeof p95Ms !== 'number' ||
-                !Number.isFinite(p95Ms) ||
-                typeof p99Ms !== 'number' ||
-                !Number.isFinite(p99Ms)
-            ) {
-                return null;
-            }
-            return {
-                eventLoopDelay: { maxMs, p95Ms, p99Ms },
-            };
         };
         const sampleWorker = async (record: WorkerRecord): Promise<void> => {
             if (record.sampleBusy || record.finalized) {
@@ -373,14 +373,45 @@ export async function installMainCapture(
                 record.sampleBusy = false;
             }
         };
+        const resetWorkerForCapture = (record: WorkerRecord): void => {
+            if (record.sampleTimer) {
+                clearInterval(record.sampleTimer);
+            }
+            record.cancelPostedEpochMs = null;
+            record.captureGeneration = state.captureGeneration;
+            record.cpuFirst = null;
+            record.cpuLast = null;
+            record.elu = null;
+            record.eluStart = null;
+            record.externalPeak = 0;
+            record.finalized = false;
+            record.finalizing = null;
+            record.heapPeak = 0;
+            record.operationId = null;
+            record.playlistId = null;
+            record.postGcHeapUsed = null;
+            record.profileHandle = null;
+            record.profilePath = null;
+            record.requestPerformance = [];
+            record.responseEpochMs = null;
+            record.sampleBusy = false;
+            record.sampleTimer = null;
+            record.snapshotPath = null;
+            record.terminatedEpochMs = null;
+        };
         const startWorker = (record: WorkerRecord): void => {
-            if (!state.active || record.sampleTimer !== null) {
+            if (!state.active) {
+                return;
+            }
+            if (record.captureGeneration !== state.captureGeneration) {
+                resetWorkerForCapture(record);
+            }
+            if (record.sampleTimer !== null) {
                 return;
             }
             record.elu = null;
             record.eluStart =
                 record.worker.performance?.eventLoopUtilization() ?? null;
-            record.eventLoopDelay = null;
             void sampleWorker(record);
             record.sampleTimer = setInterval(
                 () => void sampleWorker(record),
@@ -456,7 +487,11 @@ export async function installMainCapture(
                     const kind = classifyRequest(value);
                     if (kind) {
                         const record = createWorkerRecord(this, kind);
-                        if (kind === 'playlist-refresh.worker') {
+                        startWorker(record);
+                        if (
+                            isCurrentCaptureRecord(record) &&
+                            kind === 'playlist-refresh.worker'
+                        ) {
                             const payload = value['payload'] as JsonRecord;
                             record.operationId = String(payload['operationId']);
                             record.playlistId = String(payload['playlistId']);
@@ -467,23 +502,47 @@ export async function installMainCapture(
                                 type: 'playlist-request',
                             });
                         } else if (
+                            isCurrentCaptureRecord(record) &&
                             typeof value['requestId'] === 'string' &&
                             typeof value['operation'] === 'string'
                         ) {
+                            const payload = value['payload'];
+                            const payloadOperationId =
+                                typeof payload === 'object' &&
+                                payload !== null &&
+                                typeof (payload as JsonRecord)[
+                                    'operationId'
+                                ] === 'string' &&
+                                String((payload as JsonRecord)['operationId'])
+                                    .length > 0
+                                    ? String(
+                                          (payload as JsonRecord)['operationId']
+                                      )
+                                    : null;
+                            const identity =
+                                payloadOperationId === null
+                                    ? databaseRequestIdentityCapture.matchDatabaseRequest(
+                                          value
+                                      )
+                                    : {
+                                          operationId: payloadOperationId,
+                                          operationIdUnavailableReason: null,
+                                      };
                             dbRequests.set(value['requestId'], {
+                                identity,
                                 operation: value['operation'],
                                 playlistId: readDatabasePlaylistId(value),
                                 record,
                             });
                             recordTimeline({
                                 operation: value['operation'],
+                                operationId: identity.operationId ?? undefined,
                                 playlistId:
                                     readDatabasePlaylistId(value) ?? undefined,
                                 requestId: value['requestId'],
                                 type: 'db-request',
                             });
                         }
-                        startWorker(record);
                     }
                 } else if (
                     value['type'] === 'cancel' &&
@@ -505,7 +564,7 @@ export async function installMainCapture(
             this: InstrumentedWorker
         ): Promise<number> {
             const record = records.get(this);
-            if (!record || !state.active) {
+            if (!record || !isCurrentCaptureRecord(record)) {
                 return originalTerminate.call(this);
             }
             const markTerminated = (code: number): number => {
@@ -627,6 +686,7 @@ export async function installMainCapture(
                 ).length,
                 playlistTerminated: [...records.values()].filter(
                     (record) =>
+                        isCurrentCaptureRecord(record) &&
                         record.kind === 'playlist-refresh.worker' &&
                         record.terminatedEpochMs !== null
                 ).length,
@@ -645,7 +705,11 @@ export async function installMainCapture(
                 ).length,
             }),
             start: async (options: MainCaptureStartOptions): Promise<void> => {
+                state.captureGeneration += 1;
                 state.active = true;
+                databaseRequestIdentityCapture.start();
+                dbRequests.clear();
+                operationWorkers.clear();
                 state.diagnostic = options.diagnostic;
                 state.outputDirectory = options.outputDirectory;
                 state.timeline = [];
@@ -682,7 +746,7 @@ export async function installMainCapture(
                     );
                 }
             },
-            stop: async (): Promise<MainCaptureMetrics> => {
+            stop: async (): Promise<MainCaptureGenerationTransport> => {
                 if (state.sampleTimer) {
                     clearInterval(state.sampleTimer);
                     state.sampleTimer = null;
@@ -705,6 +769,7 @@ export async function installMainCapture(
                 const delay = state.eventLoopDelay;
                 const databaseRecords = [...records.values()].filter(
                     (record) =>
+                        record.captureGeneration === state.captureGeneration &&
                         record.kind === 'database.worker' &&
                         record.sampleTimer !== null
                 );
@@ -756,78 +821,91 @@ export async function installMainCapture(
                 }
                 state.windowListeners = [];
                 state.active = false;
+                databaseRequestIdentityCapture.stop();
 
                 const workers = [...records.values()]
                     .filter(
                         (record) =>
                             record.kind === 'playlist-refresh.worker' ||
-                            record.heapPeak > 0
+                            record.heapPeak > 0 ||
+                            record.requestPerformance.length > 0
                     )
                     .map((record) => ({
-                        cancelPostedEpochMs: record.cancelPostedEpochMs,
-                        cpuSystemMicros:
-                            record.cpuFirst && record.cpuLast
-                                ? record.cpuLast.system - record.cpuFirst.system
-                                : null,
-                        cpuUserMicros:
-                            record.cpuFirst && record.cpuLast
-                                ? record.cpuLast.user - record.cpuFirst.user
-                                : null,
-                        eventLoopDelay: record.eventLoopDelay,
-                        eventLoopDelayUnavailableReason:
-                            record.eventLoopDelay === null
-                                ? record.terminatedEpochMs !== null
-                                    ? 'worker-terminated-before-profile-flush'
-                                    : 'worker-self-profile-result-unavailable'
-                                : null,
-                        eventLoopUtilization: record.elu,
-                        kind: record.kind,
-                        operationId: record.operationId,
-                        peakExternalBytes: record.externalPeak,
-                        peakHeapUsedBytes: record.heapPeak,
-                        playlistId: record.playlistId,
-                        postGcHeapUsedBytes: record.postGcHeapUsed,
-                        profilePath: record.profilePath,
-                        responseEpochMs: record.responseEpochMs,
-                        snapshotPath: record.snapshotPath,
-                        terminatedEpochMs: record.terminatedEpochMs,
+                        captureGeneration: record.captureGeneration,
+                        metrics: {
+                            cancelPostedEpochMs: record.cancelPostedEpochMs,
+                            cpuSystemMicros:
+                                record.cpuFirst && record.cpuLast
+                                    ? record.cpuLast.system -
+                                      record.cpuFirst.system
+                                    : null,
+                            cpuUserMicros:
+                                record.cpuFirst && record.cpuLast
+                                    ? record.cpuLast.user - record.cpuFirst.user
+                                    : null,
+                            eventLoopUtilization: record.elu,
+                            kind: record.kind,
+                            operationId: record.operationId,
+                            peakExternalBytes: record.externalPeak,
+                            peakHeapUsedBytes: record.heapPeak,
+                            playlistId: record.playlistId,
+                            postGcHeapUsedBytes: record.postGcHeapUsed,
+                            profilePath: record.profilePath,
+                            responseEpochMs: record.responseEpochMs,
+                            snapshotPath: record.snapshotPath,
+                            terminatedEpochMs: record.terminatedEpochMs,
+                        },
+                        requests: record.requestPerformance.map((request) => ({
+                            operation: request.operation,
+                            operationId: request.identity.operationId,
+                            operationIdUnavailableReason:
+                                request.identity.operationIdUnavailableReason,
+                            performanceCapture: request.performanceCapture,
+                            playlistId: request.playlistId,
+                            requestId: request.requestId,
+                            responseEpochMs: request.responseEpochMs,
+                            success: request.success,
+                        })),
                     }));
                 return {
-                    cpuProfilePath: state.mainProfilePath,
-                    cpuSystemMicros: cpu.system,
-                    cpuUserMicros: cpu.user,
-                    eventLoopDelay: {
-                        maxMs: Number(delay?.max ?? 0) / 1e6,
-                        p95Ms: Number(delay?.percentile(95) ?? 0) / 1e6,
-                        p99Ms: Number(delay?.percentile(99) ?? 0) / 1e6,
+                    captureGeneration: state.captureGeneration,
+                    metrics: {
+                        cpuProfilePath: state.mainProfilePath,
+                        cpuSystemMicros: cpu.system,
+                        cpuUserMicros: cpu.user,
+                        eventLoopDelay: {
+                            maxMs: Number(delay?.max ?? 0) / 1e6,
+                            p95Ms: Number(delay?.percentile(95) ?? 0) / 1e6,
+                            p99Ms: Number(delay?.percentile(99) ?? 0) / 1e6,
+                        },
+                        // Electron's Chromium-owned main message pump currently
+                        // leaves Node's libuv ELU counters at zero. Preserve that
+                        // as unavailable instead of reporting a misleading 0%.
+                        eventLoopUtilization,
+                        eventLoopUtilizationUnavailableReason:
+                            eventLoopUtilization === null
+                                ? 'electron-main-embedded-event-loop'
+                                : null,
+                        heapSnapshotPath: state.mainSnapshotPath,
+                        memory: {
+                            peakHeapUsedBytes: state.mainPeakHeap,
+                            peakRssBytes: state.mainPeakRss,
+                            postGcHeapUsedBytes: state.postGcHeap,
+                            postGcRssBytes: state.postGcRss,
+                        },
+                        rendererPeakRssBytes: state.rendererPeakRss,
+                        responsiveEvents: state.responsiveEvents,
+                        rssScope:
+                            'electron-main-process-including-worker-threads-and-native-memory',
+                        timeline: state.timeline,
+                        unresponsiveEvents: state.unresponsiveEvents,
                     },
-                    // Electron's Chromium-owned main message pump currently
-                    // leaves Node's libuv ELU counters at zero. Preserve that
-                    // as unavailable instead of reporting a misleading 0%.
-                    eventLoopUtilization,
-                    eventLoopUtilizationUnavailableReason:
-                        eventLoopUtilization === null
-                            ? 'electron-main-embedded-event-loop'
-                            : null,
-                    heapSnapshotPath: state.mainSnapshotPath,
-                    memory: {
-                        peakHeapUsedBytes: state.mainPeakHeap,
-                        peakRssBytes: state.mainPeakRss,
-                        postGcHeapUsedBytes: state.postGcHeap,
-                        postGcRssBytes: state.postGcRss,
-                    },
-                    rendererPeakRssBytes: state.rendererPeakRss,
-                    responsiveEvents: state.responsiveEvents,
-                    rssScope:
-                        'electron-main-process-including-worker-threads-and-native-memory',
-                    timeline: state.timeline,
-                    unresponsiveEvents: state.unresponsiveEvents,
                     workers,
                 };
             },
         };
-        target[stateKey] = api;
-    }, MAIN_CAPTURE_STATE_KEY);
+        target[input.stateKey] = api;
+    }, captureStateKeys);
 }
 
 export async function startMainCapture(
@@ -861,11 +939,15 @@ export async function readMainCaptureStatus(
 export async function stopMainCapture(
     electronApp: ElectronApplication
 ): Promise<MainCaptureMetrics> {
-    return electronApp.evaluate(async (_electron, stateKey) => {
-        const target = globalThis as unknown as Record<string, unknown>;
-        const api = target[stateKey] as {
-            stop(): Promise<MainCaptureMetrics>;
-        };
-        return api.stop();
-    }, MAIN_CAPTURE_STATE_KEY);
+    const transport = await electronApp.evaluate(
+        async (_electron, stateKey) => {
+            const target = globalThis as unknown as Record<string, unknown>;
+            const api = target[stateKey] as {
+                stop(): Promise<MainCaptureGenerationTransport>;
+            };
+            return api.stop();
+        },
+        MAIN_CAPTURE_STATE_KEY
+    );
+    return selectMainCaptureGeneration(transport);
 }

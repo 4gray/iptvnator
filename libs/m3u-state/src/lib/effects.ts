@@ -55,6 +55,7 @@ import {
 } from './external-player-payload.util';
 import { resolvePlaylistScopedEpgFetchPlan } from './playlist-scoped-epg-fetch.util';
 import { resolveActiveEpgProgramAction } from './resolve-active-epg-program.util';
+import { persistPlaylistUpdate } from './playlist-update.effect-handler';
 
 @Injectable({ providedIn: 'any' })
 export class PlaylistEffects {
@@ -305,10 +306,7 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylist),
                 switchMap((action) =>
-                    this.playlistsService.updatePlaylist(action.playlistId, {
-                        ...action.playlist,
-                        _id: action.playlistId,
-                    }).pipe(
+                    persistPlaylistUpdate(this.playlistsService, action).pipe(
                         tap(() => {
                             this.fetchPlaylistScopedEpg(action.playlist, {
                                 force: action.refreshEpg === true,
@@ -353,12 +351,14 @@ export class PlaylistEffects {
                     if ('isTemporary' in action && action.isTemporary) {
                         return EMPTY;
                     }
-                    return this.playlistsService.addPlaylist(action.playlist).pipe(
-                        tap(() => {
-                            this.fetchPlaylistScopedEpg(action.playlist);
-                            this.navigateToPlaylist(action.playlist);
-                        })
-                    );
+                    return this.playlistsService
+                        .addPlaylist(action.playlist)
+                        .pipe(
+                            tap(() => {
+                                this.fetchPlaylistScopedEpg(action.playlist);
+                                this.navigateToPlaylist(action.playlist);
+                            })
+                        );
                 })
             );
         },
@@ -370,17 +370,21 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
                 switchMap((action) =>
-                    this.playlistsService.updatePlaylistMeta(action.playlist).pipe(
-                        tap(() => {
-                            if (
-                                this.hasPlaylistScopedEpgSourceChange(
-                                    action.playlist
-                                )
-                            ) {
-                                this.fetchPlaylistScopedEpg(action.playlist);
-                            }
-                        })
-                    )
+                    this.playlistsService
+                        .updatePlaylistMeta(action.playlist)
+                        .pipe(
+                            tap(() => {
+                                if (
+                                    this.hasPlaylistScopedEpgSourceChange(
+                                        action.playlist
+                                    )
+                                ) {
+                                    this.fetchPlaylistScopedEpg(
+                                        action.playlist
+                                    );
+                                }
+                            })
+                        )
                 )
             );
         },
