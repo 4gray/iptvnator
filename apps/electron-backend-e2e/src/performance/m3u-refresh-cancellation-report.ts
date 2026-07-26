@@ -57,12 +57,11 @@ export function createCancellationBenchmarkSummary(
         select: (worker: MainCaptureMetrics['workers'][number]) => number | null
     ): NumericDistribution =>
         summarizeNumbers(
-            measured.map((iteration) => {
-                const worker = iteration.main.workers.find(
-                    (candidate) => candidate.kind === kind
-                );
-                return worker ? select(worker) : null;
-            })
+            measured.flatMap((iteration) =>
+                iteration.main.workers
+                    .filter((worker) => worker.kind === kind)
+                    .map((worker) => select(worker))
+            )
         );
     const workerRequestMetric = (
         kind: PerformanceWorkerKind,
