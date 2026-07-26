@@ -312,6 +312,10 @@ Toolchain notes for the Electron 41 upgrade:
 2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
    `@electron/rebuild` (via `electron-builder install-app-deps`) can map
    Electron 41 to its ABI.
+3. Local development needs **Node >= 22.12**, declared in `engines`.
+   `electron-builder` 26.15.3 pulls `@electron/rebuild` 4, which sets that
+   floor, and the root `postinstall` runs `install-app-deps` on every
+   `pnpm install`. CI already runs Node 22.
 
 Known caveats:
 
