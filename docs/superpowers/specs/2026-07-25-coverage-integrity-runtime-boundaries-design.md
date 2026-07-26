@@ -6,7 +6,7 @@ Approved in the delegated coverage-audit task on 2026-07-25.
 
 Before recording the final ratchets, the implementation branch was rebased
 onto fresh `origin/master` commit
-`a5bb8dc25ca1284320d93f14e17de58687984602`.
+`7e8c2ccce16b71d72a64c45f1d96dd090dc8e077`.
 
 ## Goal
 
@@ -20,14 +20,14 @@ percentage by testing type-only modules, re-export shims, or low-risk code.
 ## Fresh Baseline
 
 An uncached `pnpm run coverage:ci` on
-`a5bb8dc25ca1284320d93f14e17de58687984602` completed successfully and reported:
+`7e8c2ccce16b71d72a64c45f1d96dd090dc8e077` completed successfully and reported:
 
 | Metric     | Covered / total | Percent |
 | ---------- | --------------: | ------: |
-| Statements | 24,974 / 36,062 |  69.25% |
-| Branches   | 17,461 / 29,637 |  58.91% |
-| Functions  |   5,784 / 8,577 |  67.43% |
-| Lines      | 24,315 / 34,959 |  69.55% |
+| Statements | 24,982 / 36,062 |  69.27% |
+| Branches   | 17,465 / 29,637 |  58.92% |
+| Functions  |   5,785 / 8,577 |  67.44% |
+| Lines      | 24,323 / 34,959 |  69.57% |
 
 The successful command nevertheless printed `Failed to collect coverage` for
 `libs/m3u-state/src/lib/effects.ts`. TypeScript could not resolve
@@ -86,7 +86,7 @@ missing behavior rather than repeat existing assertions.
 
 ### Deferred
 
-- `database.worker.ts`: its 942-line worker-thread dispatcher and database
+- `database.worker.ts`: its 950-line worker-thread dispatcher and database
   operation surface deserve a dedicated worker-contract design and PR.
 - `workspace-dashboard-rails.component.ts`: the existing same-name spec tests
   extracted helpers but never instantiates the 660-line component. Component
@@ -107,7 +107,7 @@ Create a pure Node module under `tools/coverage/` that owns:
 - source-file exclusion rules;
 - TypeScript AST classification of runtime-owning files;
 - coverage path normalization;
-- project-report completeness checks;
+- project- and merged-report completeness checks;
 - instrumentation-error marker detection;
 - merged and critical-file ratchet evaluation; and
 - diagnostic formatting.
@@ -136,7 +136,7 @@ expressions, control flow, and other emitted statements do.
 This rule intentionally checks executable ownership rather than all TypeScript
 text. It excludes type-only contracts and re-export shims without maintaining
 a large hand-authored manifest. A discovery prototype over the fresh baseline
-classified 588 of 652 Tier A TypeScript source files as runtime-owning and
+classified 591 of 655 Tier A TypeScript source files as runtime-owning and
 identified exactly one absent file: `libs/m3u-state/src/lib/effects.ts`.
 
 Coverage keys and expected source paths are normalized to absolute POSIX-style
@@ -175,13 +175,17 @@ merges partial input.
 
 - per-project report existence and JSON validity;
 - runtime-owning source completeness;
+- merged-report completeness and usable instrumentation for every
+  runtime-owning Tier A file;
 - merged metric ratchets; and
 - selected critical-file ratchets.
 
-This defense in depth catches stale or manually merged reports even when the
-runner was not the process that generated them. Local health checks without
-`--require-report` retain their current warning behavior when report artifacts
-are not available, but any present invalid report remains an error.
+It computes the aggregate summary from that validated merged map before
+checking the serialized summary and ratchets. This defense in depth catches
+stale, incomplete, or manually merged reports even when the runner was not the
+process that generated them. Local health checks without `--require-report`
+retain their current warning behavior when report artifacts are not available,
+but any present invalid report remains an error.
 
 ### Ratchets
 
@@ -202,7 +206,11 @@ or rise in future changes, but must not be lowered merely to make CI green.
 Per-file minimums are likewise recorded from the achieved behavioral suites,
 not from an arbitrary aspirational percentage. The two currently uncovered
 files must become nonzero; the existing `settings` and `downloads` coverage
-must not regress.
+must not regress. A reviewed production source shrink is the sole exception to
+the normally monotonic absolute `minimumCovered`: a PR may lower it only when
+it identifies the removed executable statements and a fresh full report proves
+that the file's `minimumPercent`, all aggregate ratchets, and coverage of the
+remaining behavior stay level or rise.
 
 ## Behavioral Test Design
 
@@ -346,10 +354,10 @@ ratchets are:
 
 | Metric     | Covered / total | Percent |
 | ---------- | --------------: | ------: |
-| Statements | 25,196 / 36,241 |  69.52% |
-| Branches   | 17,569 / 29,748 |  59.05% |
-| Functions  |   5,823 / 8,635 |  67.43% |
-| Lines      | 24,535 / 35,136 |  69.82% |
+| Statements | 25,204 / 36,241 |  69.54% |
+| Branches   | 17,573 / 29,748 |  59.07% |
+| Functions  |   5,824 / 8,635 |  67.44% |
+| Lines      | 24,543 / 35,136 |  69.85% |
 
 The selected Electron boundary statement coverage changed as follows:
 
@@ -364,6 +372,9 @@ The integrity correction makes the denominator honest:
 `libs/m3u-state/src/lib/effects.ts` is now present at 0 / 159 statements
 instead of silently disappearing. The aggregate improvement therefore holds
 even after surfacing those 159 previously unreported uncovered statements.
+Strict health validation also rechecks the merged map itself, so a
+runtime-owning file cannot disappear between valid project reports and the
+merged artifact while permissive percentages still pass.
 
 Two production seams were sufficient for isolated contract tests:
 `HttpServer` accepts an optional server factory and static distribution path,

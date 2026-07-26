@@ -28,11 +28,11 @@ Current capabilities:
 1. User opens remote web UI (`http://<local-ip>:<port>`).
 2. Remote web app calls `/api/remote-control/*`.
 3. Electron main handles API request and sends IPC to renderer:
-   - `CHANNEL_CHANGE` for up/down
-   - `REMOTE_CONTROL_COMMAND` for numeric/volume commands
+    - `CHANNEL_CHANGE` for up/down
+    - `REMOTE_CONTROL_COMMAND` for numeric/volume commands
 4. Renderer-specific feature module (M3U/Xtream/Stalker) applies action.
 5. Renderer pushes status snapshots back to main via:
-   - `REMOTE_CONTROL_STATUS_UPDATE`
+    - `REMOTE_CONTROL_STATUS_UPDATE`
 6. Remote web app polls `/api/remote-control/status` and updates UI.
 
 ## Backend (Electron Main)
@@ -41,11 +41,16 @@ Current capabilities:
 
 - File: `apps/electron-backend/src/app/server/http-server.ts`
 - Responsibilities:
-  - Serves static remote app from:
-    - dev: `dist/apps/remote-control-web/browser`
-    - prod: `<appPath>/remote-control-web/browser`
-  - Routes `/api/remote-control/*` to registered handlers.
-  - Starts/stops/restarts on settings updates.
+    - Serves static remote app from:
+        - dev: `dist/apps/remote-control-web/browser`
+        - prod: `<appPath>/remote-control-web/browser`
+    - Keeps every non-API request inside that configured static root: the request
+      pathname is decoded once, malformed encoding and NUL bytes fail closed,
+      and the platform-specific resolved path must remain the root or its
+      descendant. Angular route fallback may serve only that root's `index.html`;
+      it must never bypass the containment check.
+    - Routes `/api/remote-control/*` to registered handlers.
+    - Starts/stops/restarts on settings updates.
 
 ### Remote control event module
 
@@ -66,8 +71,8 @@ IPC emitted to renderer:
 
 - `CHANNEL_CHANGE` payload: `{ direction: 'up' | 'down' }`
 - `REMOTE_CONTROL_COMMAND` payload:
-  - `{ type: 'channel-select-number', number }`
-  - `{ type: 'volume-up' | 'volume-down' | 'volume-toggle-mute' }`
+    - `{ type: 'channel-select-number', number }`
+    - `{ type: 'volume-up' | 'volume-down' | 'volume-toggle-mute' }`
 
 Status ingestion from renderer:
 
@@ -78,7 +83,7 @@ Status ingestion from renderer:
 
 - Main handler: `apps/electron-backend/src/app/events/settings.events.ts`
 - On `SETTINGS_UPDATE`, reads `remoteControl` and `remoteControlPort`, persists to store, and calls:
-  - `httpServer.updateSettings(enabled, port)`
+    - `httpServer.updateSettings(enabled, port)`
 
 ## Preload Bridge
 
@@ -122,23 +127,23 @@ Used by M3U, Xtream, and Stalker live integrations.
 Implemented behavior:
 
 - Subscribes to:
-  - `onChannelChange` (up/down)
-  - `onRemoteControlCommand` (number + volume)
+    - `onChannelChange` (up/down)
+    - `onRemoteControlCommand` (number + volume)
 - Applies channel up/down by active channel URL over `channels$`
 - Applies number select through existing `switchToChannelByNumber(...)`
 - Dispatches remote channel changes as explicit playback requests so MPV/VLC starts immediately even when mouse channel rows require double-click before external playback.
 - Applies volume commands:
-  - up/down in 0.1 increments
-  - toggle mute with last non-zero volume restore
-  - persists to `localStorage`
-  - propagates to built-in inline players: Video.js, HTML5, ArtPlayer, and radio `AudioPlayerComponent`
-  - does not control external MPV/VLC sessions or the experimental Embedded MPV player
+    - up/down in 0.1 increments
+    - toggle mute with last non-zero volume restore
+    - persists to `localStorage`
+    - propagates to built-in inline players: Video.js, HTML5, ArtPlayer, and radio `AudioPlayerComponent`
+    - does not control external MPV/VLC sessions or the experimental Embedded MPV player
 - Publishes status snapshots via `updateRemoteControlStatus(...)`:
-  - `portal: 'm3u'`
-  - `isLiveView: true`
-  - channel name/number
-  - EPG now fields
-  - `supportsVolume: true`, `volume`, `muted`
+    - `portal: 'm3u'`
+    - `isLiveView: true`
+    - channel name/number
+    - EPG now fields
+    - `supportsVolume: true`, `volume`, `muted`
 - Cleans listeners/subscriptions in `ngOnDestroy`.
 
 ## Xtream integration (live view)
@@ -148,20 +153,20 @@ Implemented behavior:
 Implemented behavior:
 
 - Subscribes to:
-  - `onChannelChange` for up/down
-  - `onRemoteControlCommand` for number select
+    - `onChannelChange` for up/down
+    - `onRemoteControlCommand` for number select
 - Up/down:
-  - Uses selected live item `selectedItem().xtream_id`
-  - Navigates inside `selectItemsFromSelectedCategory()`
-  - Calls `playLive(nextItem, true)` so remote actions explicitly start playback
+    - Uses selected live item `selectedItem().xtream_id`
+    - Navigates inside `selectItemsFromSelectedCategory()`
+    - Calls `playLive(nextItem, true)` so remote actions explicitly start playback
 - Number select:
-  - Maps number to item in current category list
-  - Calls `playLive(channel, true)` so remote actions explicitly start playback
+    - Maps number to item in current category list
+    - Calls `playLive(channel, true)` so remote actions explicitly start playback
 - Publishes status via effect:
-  - `portal: 'xtream'`
-  - `isLiveView` only when selected content type is `live` and item is selected
-  - channel name/number + current EPG item
-  - `supportsVolume: false`
+    - `portal: 'xtream'`
+    - `isLiveView` only when selected content type is `live` and item is selected
+    - channel name/number + current EPG item
+    - `supportsVolume: false`
 - Cleans listeners in `ngOnDestroy`.
 
 ## Stalker integration (ITV live view)
@@ -171,20 +176,20 @@ Implemented behavior:
 Implemented behavior:
 
 - Subscribes to:
-  - `onChannelChange` for up/down
-  - `onRemoteControlCommand` for number select
+    - `onChannelChange` for up/down
+    - `onRemoteControlCommand` for number select
 - Up/down:
-  - Uses `selectedItem().id`
-  - Navigates inside `itvChannels()`
-  - Calls `playChannel(nextItem, true)` so remote actions explicitly start playback
+    - Uses `selectedItem().id`
+    - Navigates inside `itvChannels()`
+    - Calls `playChannel(nextItem, true)` so remote actions explicitly start playback
 - Number select:
-  - Maps number into `itvChannels()`
-  - Calls `playChannel(channel, true)` so remote actions explicitly start playback
+    - Maps number into `itvChannels()`
+    - Calls `playChannel(channel, true)` so remote actions explicitly start playback
 - Publishes status via effect:
-  - `portal: 'stalker'`
-  - `isLiveView` only for selected content type `itv` with active item
-  - channel name/number + current EPG item
-  - `supportsVolume: false`
+    - `portal: 'stalker'`
+    - `isLiveView` only for selected content type `itv` with active item
+    - channel name/number + current EPG item
+    - `supportsVolume: false`
 - Cleans listeners in `ngOnDestroy`.
 
 ## Remote Web App
@@ -199,11 +204,11 @@ Implemented behavior:
 ### Shared remote UI library
 
 - Component:
-  - `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts`
-  - `libs/ui/remote-control/src/lib/remote-control/remote-control.component.html`
-  - `libs/ui/remote-control/src/lib/remote-control/remote-control.component.scss`
+    - `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts`
+    - `libs/ui/remote-control/src/lib/remote-control/remote-control.component.html`
+    - `libs/ui/remote-control/src/lib/remote-control/remote-control.component.scss`
 - Service:
-  - `libs/ui/remote-control/src/lib/remote-control/remote-control.service.ts`
+    - `libs/ui/remote-control/src/lib/remote-control/remote-control.service.ts`
 
 Implemented UI behavior:
 
@@ -217,23 +222,23 @@ Implemented UI behavior:
 ## Settings UI and discoverability
 
 - Files:
-  - `apps/web/src/app/settings/settings.component.ts`
-  - `apps/web/src/app/settings/settings.component.html`
+    - `apps/web/src/app/settings/settings.component.ts`
+    - `apps/web/src/app/settings/settings.component.html`
 - Features:
-  - Toggle `remoteControl`
-  - Configure `remoteControlPort`
-  - Display local URLs and QR codes for remote access
-  - Local IP list loaded via `getLocalIpAddresses()`
+    - Toggle `remoteControl`
+    - Configure `remoteControlPort`
+    - Display local URLs and QR codes for remote access
+    - Local IP list loaded via `getLocalIpAddresses()`
 
 ## Feature Matrix (Current)
 
-| Capability | M3U | Xtream Live | Stalker ITV |
-|---|---|---|---|
-| Channel up/down | Yes | Yes | Yes |
-| Number select | Yes | Yes | Yes |
-| Status publish | Yes | Yes | Yes |
-| Volume command handling | Yes, for built-in inline M3U players | No | No |
-| `supportsVolume` in status | true | false | false |
+| Capability                 | M3U                                  | Xtream Live | Stalker ITV |
+| -------------------------- | ------------------------------------ | ----------- | ----------- |
+| Channel up/down            | Yes                                  | Yes         | Yes         |
+| Number select              | Yes                                  | Yes         | Yes         |
+| Status publish             | Yes                                  | Yes         | Yes         |
+| Volume command handling    | Yes, for built-in inline M3U players | No          | No          |
+| `supportsVolume` in status | true                                 | false       | false       |
 
 ## Known limitations
 

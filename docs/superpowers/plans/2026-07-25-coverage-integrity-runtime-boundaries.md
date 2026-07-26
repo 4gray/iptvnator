@@ -9,10 +9,12 @@
 **Tech Stack:** Node.js ESM and `node:test`, TypeScript compiler API, Istanbul coverage maps, Jest/ts-jest, Electron main-process IPC, Node HTTP streams, Angular Jest configuration, Nx, Playwright.
 
 **Execution note (2026-07-26):** The branch was rebased onto
-`origin/master` commit `a5bb8dc25ca1284320d93f14e17de58687984602`
+`origin/master` commit `7e8c2ccce16b71d72a64c45f1d96dd090dc8e077`
 before the final ratchet run. A real-loopback HTTP regression exposed a Windows
 double-leading-slash traversal escape; the implementation adds a tested pure
-resolver and a user-facing Electron fix note.
+resolver and a user-facing Electron fix note. A final integrity follow-up also
+validates the merged Istanbul map itself before evaluating its recomputed
+summary and ratchets.
 
 ---
 
@@ -130,11 +132,15 @@ Run even when Step 2 reports no new master commits:
 NX_SKIP_NX_CACHE=true pnpm run coverage:ci
 ```
 
-Expected on unchanged `4e5132cb`: the command exits 0 while printing
+Expected on unchanged
+`7e8c2ccce16b71d72a64c45f1d96dd090dc8e077`: the command exits 0 while printing
 `Failed to collect coverage` for `libs/m3u-state/src/lib/effects.ts`, and the
-aggregate remains 68.86/58.66/67.19/69.20. Record the fresh aggregate and
-selected-file values. If master changed them, replace the numeric ratchet seed
-in Task 3; do not lower a baseline already present on newer master.
+30 project reports merge 709 files while omitting that runtime-owning source.
+The aggregate remains 69.27/58.92/67.44/69.57, with HTTP and remote control at
+0%, settings at 16 / 27 (59.25%), and downloads at 69 / 147 (46.93%). Record
+the fresh aggregate and selected-file values. If master changed them, replace
+the numeric ratchet seed in Task 3; do not lower a baseline already present on
+newer master.
 
 ### Task 1: Build And Unit-Test The Shared Coverage Integrity Module
 
@@ -739,16 +745,18 @@ on the current policy.
 
 In `coverage-health.mjs`:
 
-- import `evaluateCoverageRatchets`, `validateProjectCoverage`, and
-  `validateRequiredProjectReports`;
+- import `evaluateCoverageRatchets`, `validateMergedCoverage`,
+  `validateProjectCoverage`, and `validateRequiredProjectReports`;
 - under `--require-report`, validate every Tier A report and append all
   diagnostics to `errors`;
 - without `--require-report`, validate only report files that actually exist,
   treating invalid JSON or missing runtime source in a present report as an
   error rather than printing 30 missing-report warnings;
-- after loading merged `coverage-summary.json`, load merged
-  `coverage-final.json` and evaluate `policy.reporting.coverageRatchet` when
-  the policy has one.
+- after loading merged `coverage-summary.json`, load and independently validate
+  merged `coverage-final.json` for every runtime-owning Tier A file;
+- recompute the aggregate summary from the validated merged map, compare it
+  with the serialized summary, and evaluate
+  `policy.reporting.coverageRatchet` when the policy has one.
 
 Do not change existing source-root/spec ownership checks, E2E tag warnings, or
 changed-file warnings.
@@ -1706,7 +1714,7 @@ manually or retain the provisional one-statement probes.
 Run:
 
 ```bash
-node tools/coverage/coverage-health.mjs --require-report
+pnpm run coverage:health -- --require-report
 node --test tools/coverage/coverage-integrity.test.mjs
 ```
 
@@ -1732,7 +1740,11 @@ pure re-export shims do not count as executable coverage inputs.
 Ratchets live under `reporting.coverageRatchet` in
 `tools/coverage/coverage-policy.json`. Update them only from a fresh full
 `coverage:ci` report when every value stays level or rises; never lower a
-ratchet to accept a regression.
+ratchet to accept a regression. The only exception is a reviewed production
+source shrink: `minimumCovered` may follow a lower statement total when the PR
+identifies the removed executable statements and fresh coverage proves that
+the file percentage, aggregate ratchets, and remaining behavioral coverage do
+not decrease.
 ```
 
 Also include `pnpm run coverage:tools:test` in the local coverage command block.

@@ -59,15 +59,22 @@ Tier A coverage is fail-closed. `coverage:unit:ci` relays Jest output but exits
 nonzero on a `Failed to collect coverage` marker, a missing or invalid project
 report, or a runtime-owning production TypeScript file absent from that report.
 `coverage:merge` requires every configured Tier A report before replacing the
-merged output. `coverage:health --require-report` independently repeats report
-completeness checks plus aggregate and selected critical-file ratchets.
+merged output. Strict health validation also requires the merged Istanbul map
+itself to contain usable instrumentation for every runtime-owning Tier A file,
+recomputes its summary, and then applies aggregate and selected critical-file
+ratchets.
 
 Runtime-owning files are discovered from the TypeScript AST. Specs,
 declarations, test setup and stubs, generated and environment files, `index.ts`,
 type-only files, and pure re-export shims are excluded. Ratchets live under
 `reporting.coverageRatchet` in `tools/coverage/coverage-policy.json`; update
 them only from a fresh full `coverage:ci` report when every value stays level
-or rises, and never lower one to accept a regression.
+or rises, and never lower one to accept a regression. The only exception is an
+explicitly reviewed production source shrink: `minimumCovered` may follow a
+lower total statement count when the PR documents the removed executable
+statements and fresh coverage proves that the corresponding
+`minimumPercent`, every aggregate ratchet, and the remaining behavioral
+coverage do not decrease.
 
 | Tier | Rule                                                                                                                                              | Validation                                                                             |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -86,7 +93,7 @@ For local coverage inspection:
 pnpm run coverage:tools:test
 pnpm run coverage:unit:ci
 pnpm run coverage:merge
-pnpm run coverage:health
+pnpm run coverage:health -- --require-report
 ```
 
 The merged report is written to `coverage/merged/` as HTML, LCOV, Cobertura,

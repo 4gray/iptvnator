@@ -6,10 +6,10 @@
         "unitCodecovFlag": "unit",
         "coverageRatchet": {
             "merged": {
-                "statements": 69.52,
-                "branches": 59.05,
-                "functions": 67.43,
-                "lines": 69.82
+                "statements": 69.54,
+                "branches": 59.07,
+                "functions": 67.44,
+                "lines": 69.85
             },
             "criticalFiles": [
                 {
