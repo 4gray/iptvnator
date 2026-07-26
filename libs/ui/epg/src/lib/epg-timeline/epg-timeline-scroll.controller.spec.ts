@@ -8,6 +8,7 @@ import {
     buildTimelineBlocks,
     hasProgramsForDateKey,
     TIMELINE_MINUTE_MS,
+    TimelineBlock,
 } from './epg-timeline.utils';
 
 function programAt(
@@ -52,15 +53,73 @@ describe('TimelineScrollController', () => {
         });
     });
 
+    describe('focusCurrentProgram (target selection)', () => {
+        const axisStartMs = Date.UTC(2026, 0, 1);
+        const nowMs = axisStartMs + 3 * TIMELINE_MINUTE_MS;
+        const currentBlock: TimelineBlock = {
+            program: programAt(0, 2),
+            key: 'current',
+            startMs: axisStartMs + TIMELINE_MINUTE_MS,
+            stopMs: axisStartMs + 3 * TIMELINE_MINUTE_MS,
+            when: 'now',
+            offsetMin: 1,
+            durationMin: 2,
+        };
+
+        function controllerWith(
+            blocks: readonly TimelineBlock[]
+        ): TimelineScrollController {
+            return new TimelineScrollController({
+                ribbon: () => undefined,
+                scale: () => 1,
+                axis: () => ({
+                    startMs: axisStartMs,
+                    endMs: axisStartMs + 24 * 60 * TIMELINE_MINUTE_MS,
+                }),
+                blocks: () => blocks,
+                nowMs: () => nowMs,
+                viewDayKey: () => '2026-01-01',
+                commitDay: () => undefined,
+                hasProgramsForDay: () => true,
+            });
+        }
+
+        it('centres the midpoint of the current programme', () => {
+            const controller = controllerWith([currentBlock]);
+            const scrollSpy = jest
+                .spyOn(controller, 'scrollToOffset')
+                .mockImplementation(() => undefined);
+
+            controller.focusCurrentProgram(false);
+
+            expect(scrollSpy).toHaveBeenCalledWith(2, 0.5, false);
+        });
+
+        it('centres now when no programme is currently airing', () => {
+            const controller = controllerWith([
+                { ...currentBlock, when: 'future' },
+            ]);
+            const scrollSpy = jest
+                .spyOn(controller, 'scrollToOffset')
+                .mockImplementation(() => undefined);
+
+            controller.focusCurrentProgram(false);
+
+            expect(scrollSpy).toHaveBeenCalledWith(3, 0.5, false);
+        });
+    });
+
     describe('maybeAutoFocus (channel-select centring)', () => {
         let programs: EpgProgram[];
         let controller: TimelineScrollController;
         let scrollSpy: jest.SpyInstance;
         let commitDaySpy: jest.Mock;
+        let dateNowSpy: jest.SpyInstance;
 
         beforeEach(() => {
             programs = [];
             const nowMs = Date.now();
+            dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(nowMs);
             commitDaySpy = jest.fn();
             controller = new TimelineScrollController({
                 ribbon: () => undefined,
@@ -82,6 +141,8 @@ describe('TimelineScrollController', () => {
                 .spyOn(controller, 'scrollToOffset')
                 .mockImplementation(() => undefined);
         });
+
+        afterEach(() => dateNowSpy.mockRestore());
 
         function focus(
             scroller: HTMLElement | undefined,
