@@ -13,7 +13,7 @@
     "targets": {
         "build": {
             "executor": "@angular/build:application",
-            "outputs": ["{options.outputPath}"],
+            "outputs": ["{workspaceRoot}/dist/apps/web"],
             "options": {
                 "outputPath": {
                     "base": "dist/apps/web",

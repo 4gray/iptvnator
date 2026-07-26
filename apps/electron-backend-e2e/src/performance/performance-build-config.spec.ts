@@ -1,5 +1,6 @@
 /* eslint-disable playwright/expect-expect -- These are Node assertion-based configuration contract tests. */
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -16,12 +17,57 @@ interface ProjectConfiguration {
     targets: Record<string, TargetConfiguration>;
 }
 
+interface NxGraphTask {
+    outputs?: string[];
+    target: {
+        project: string;
+        target: string;
+    };
+}
+
+interface NxGraph {
+    tasks: {
+        tasks: Record<string, NxGraphTask>;
+    };
+}
+
 const workspaceRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 
 function readProject(relativePath: string): ProjectConfiguration {
     return JSON.parse(
         readFileSync(join(workspaceRoot, relativePath), 'utf8')
     ) as ProjectConfiguration;
+}
+
+function readResolvedWebBuildTask(): NxGraphTask | undefined {
+    const environment = {
+        ...process.env,
+        FORCE_COLOR: '0',
+        NX_DAEMON: 'false',
+    };
+    delete environment['NO_COLOR'];
+
+    const graph = JSON.parse(
+        execFileSync(
+            process.execPath,
+            [
+                join(workspaceRoot, 'node_modules/nx/dist/bin/nx.js'),
+                'run',
+                'web:build',
+                '--graph=stdout',
+            ],
+            {
+                cwd: workspaceRoot,
+                encoding: 'utf8',
+                env: environment,
+            }
+        )
+    ) as NxGraph;
+
+    return Object.values(graph.tasks.tasks).find(
+        (task) =>
+            task.target.project === 'web' && task.target.target === 'build'
+    );
 }
 
 const e2eProject = readProject('apps/electron-backend-e2e/project.json');
@@ -62,6 +108,13 @@ test('the web performance build keeps production renderer behavior with profilin
         production['fileReplacements']
     );
     assert.equal(performance['sourceMap'], true);
+});
+
+test('the resolved web build cache output is the renderer directory', () => {
+    const task = readResolvedWebBuildTask();
+
+    assert.ok(task, 'the Nx graph must include web:build');
+    assert.deepEqual(task.outputs, ['dist/apps/web']);
 });
 
 test('the remote-control performance build keeps optimized hashed output with profiling source maps', () => {
