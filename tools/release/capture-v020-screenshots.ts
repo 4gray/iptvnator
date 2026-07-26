@@ -126,7 +126,11 @@ async function ensureXtreamMockServer(): Promise<ChildProcess | undefined> {
 
     const child = spawn(
         path.join(workspaceRoot, 'node_modules/.bin/tsx'),
-        ['apps/xtream-mock-server/src/main.ts'],
+        [
+            '--tsconfig',
+            'tsconfig.base.json',
+            'apps/xtream-mock-server/src/main.ts',
+        ],
         {
             cwd: workspaceRoot,
             env: {
@@ -515,7 +519,7 @@ async function openXtreamVodDetails(page: Page): Promise<void> {
     const xtreamId = requireCapturedPlaylistId('xtreams');
 
     await clickHrefSuffix(page, `/workspace/xtreams/${xtreamId}/vod`);
-    await clickCategoryByName(page, 'Hero Premieres');
+    await clickCategoryByName(page, 'Action & Mystery');
     await clickFirstGridCard(page);
     await page.waitForURL(/\/workspace\/xtreams\/[^/]+\/vod\/[^/]+\/[^/]+/, {
         timeout: 30_000,
@@ -531,7 +535,7 @@ async function openXtreamSeriesSeason(page: Page): Promise<void> {
     const xtreamId = requireCapturedPlaylistId('xtreams');
 
     await clickHrefSuffix(page, `/workspace/xtreams/${xtreamId}/series`);
-    await clickCategoryByName(page, 'Hero Teams');
+    await clickCategoryByName(page, 'Urban Drama');
     await clickFirstGridCard(page);
     await page.waitForURL(/\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+/, {
         timeout: 30_000,

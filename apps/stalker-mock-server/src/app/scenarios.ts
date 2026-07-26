@@ -21,6 +21,8 @@ export interface ScenarioConfig {
      * `get_ordered_list` crawling (legacy portals).
      */
     supportsGetAllChannels?: boolean;
+    /** Replace generated VOD with the shared screenshot-safe poster catalog. */
+    marketingFixture?: true;
 }
 
 /**
@@ -106,6 +108,18 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         isSeriesFraction: 0,
         embeddedSeriesFraction: 0,
         supportsGetAllChannels: false,
+    },
+    '00:1a:79:00:00:07': {
+        name: 'marketing-demo',
+        description: 'Screenshot-safe portal with 35 original poster movies',
+        seed: 7007,
+        categoryCount: { itv: 4, radio: 4, vod: 4, series: 4 },
+        itemsPerCategory: 6,
+        seasonsPerSeries: 2,
+        episodesPerSeason: 5,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        marketingFixture: true,
     },
 };
 

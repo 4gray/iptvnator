@@ -68,8 +68,12 @@ export function handleGetOrderedList(req: Request, res: Response): void {
     } else {
         // vod (default)
         if (categoryId === '*') {
-            for (const items of data.vod.values()) {
-                allItems.push(...items);
+            if (data.vodOrder) {
+                allItems.push(...data.vodOrder);
+            } else {
+                for (const items of data.vod.values()) {
+                    allItems.push(...items);
+                }
             }
         } else {
             allItems = data.vod.get(categoryId) ?? [];

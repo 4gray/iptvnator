@@ -1,4 +1,5 @@
 import http from 'http';
+import { join } from 'node:path';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import portalRouter from './app/routes/portal.route.js';
@@ -8,6 +9,10 @@ import { SCENARIOS } from './app/scenarios.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
 const app = express();
+const MARKETING_POSTER_DIRECTORY = join(
+    process.cwd(),
+    'apps/xtream-mock-server/public/marketing/poster'
+);
 
 // ---------------------------------------------------------------------------
 // Middleware
@@ -34,6 +39,16 @@ app.use((req, _res, next) => {
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// Serve the shared screenshot-safe poster catalog directly from this process.
+app.use(
+    '/assets/marketing/poster',
+    express.static(MARKETING_POSTER_DIRECTORY, {
+        fallthrough: false,
+        immutable: true,
+        maxAge: '1y',
+    })
+);
 
 // Stalker portal.php endpoint (direct portal protocol, Electron mode)
 app.use('/portal.php', portalRouter);

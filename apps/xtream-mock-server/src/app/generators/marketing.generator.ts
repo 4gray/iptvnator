@@ -1,3 +1,8 @@
+import {
+    MarketingMovieCategoryKey,
+    MarketingMovieFixture,
+    POSTER_SHOWCASE_MOVIES as SHARED_POSTER_SHOWCASE_MOVIES,
+} from '@iptvnator/shared/marketing-fixtures';
 import { RawCategory } from './categories.generator.js';
 import {
     buildEpgListing,
@@ -82,6 +87,27 @@ const VOD_CATEGORIES: RawCategory[] = [
     { category_id: '5203', category_name: 'Family Animation', parent_id: 0 },
     { category_id: '5204', category_name: 'Documentary & Drama', parent_id: 0 },
 ];
+
+const XTREAM_VOD_CATEGORY_IDS: Record<MarketingMovieCategoryKey, string> = {
+    'action-mystery': '5201',
+    'future-fantasy': '5202',
+    'family-comedy': '5203',
+    'drama-documentary': '5204',
+};
+
+function toMarketingMovie(movie: MarketingMovieFixture): MarketingMovie {
+    return {
+        actors: movie.actors,
+        categoryId: XTREAM_VOD_CATEGORY_IDS[movie.categoryKey],
+        description: movie.description,
+        director: movie.director,
+        genre: movie.genre,
+        name: movie.name,
+        rating: movie.rating,
+        tagline: movie.tagline,
+        year: movie.year,
+    };
+}
 
 const SERIES_CATEGORIES: RawCategory[] = [
     { category_id: '5301', category_name: 'Urban Drama', parent_id: 0 },
@@ -352,192 +378,12 @@ const GENERATED_ARTWORK_MOVIES: MarketingMovie[] = [
     },
 ];
 
-const POSTER_SHOWCASE_MOVIES: MarketingMovie[] = [
-    {
-        categoryId: '5204',
-        name: 'Orchard Walls',
-        description:
-            'A quiet prison gardener and a new volunteer rebuild an abandoned orchard while both reconsider the lives waiting beyond its walls.',
-        director: 'Elena March',
-        actors: 'Darius Cole, Mina Hart, Ruth Bell, Owen Pike',
-        genre: 'Human Drama',
-        rating: 8.4,
-        tagline: 'Some walls are grown, not built.',
-        year: 2025,
-    },
-    {
-        categoryId: '5203',
-        name: 'Blue Current',
-        description:
-            'A young reef fish and an anxious lantern companion cross a changing ocean current to guide their family home.',
-        director: 'Talia North',
-        actors: 'Lumi Vale, Finn Reed, Orla Moss, Kit Arden',
-        genre: 'Animated Family Adventure',
-        rating: 8.6,
-        tagline: 'The smallest light can find the way.',
-        year: 2026,
-    },
-    {
-        categoryId: '5201',
-        name: 'Signal Nine',
-        description:
-            'A transit reporter and a railway investigator trace a repeating emergency signal through a city that insists nothing happened.',
-        director: 'Mara Venn',
-        actors: 'Nadia Cross, Elias Rowe, June Mercer, Tomas Vale',
-        genre: 'Urban Conspiracy Thriller',
-        rating: 8.1,
-        tagline: 'The ninth signal was never sent.',
-        year: 2026,
-    },
-    {
-        categoryId: '5204',
-        name: 'Checkout at Noon',
-        description:
-            'An exhausted hotel manager has one morning to settle a cheerful traveler and a formidable guest into the same impossible room.',
-        director: 'Milo Hart',
-        actors: 'Adrian Moss, Clara Wynn, Evelyn Shore, Ben Vale',
-        genre: 'Ensemble Comedy',
-        rating: 7.7,
-        tagline: 'Every guest has a different plan.',
-        year: 2025,
-    },
-    {
-        categoryId: '5202',
-        name: 'Vesper Crown',
-        description:
-            'A royal archivist crosses a silent salt kingdom to recover a broken crown before its seven pieces choose a new ruler.',
-        director: 'Iris March',
-        actors: 'Selah Quinn, Rowan Pike, Mira Holt, Theo Arden',
-        genre: 'Fantasy Adventure',
-        rating: 8.3,
-        tagline: 'Seven pieces remember the throne.',
-        year: 2026,
-    },
-    {
-        categoryId: '5201',
-        name: 'Last Detour',
-        description:
-            'A veteran mechanic and a bicycle courier take one mountain road too far and discover why every map avoids it.',
-        director: 'Noah Rook',
-        actors: 'Tessa Marr, Leo Venn, Omar Pike, Nina Cross',
-        genre: 'Road Action Thriller',
-        rating: 7.9,
-        tagline: 'The long way back is the only way out.',
-        year: 2025,
-    },
-    {
-        categoryId: '5204',
-        name: 'Borrowed Summer',
-        description:
-            'Two former friends meet beside a lakeside bus route and spend one final season deciding which memories still belong to them.',
-        director: 'Lina Shore',
-        actors: 'Mara Wynn, Julian Hart, Elise Rowe, Finn Cole',
-        genre: 'Romantic Drama',
-        rating: 8.0,
-        tagline: 'Some seasons are only passing through.',
-        year: 2024,
-    },
-    {
-        categoryId: '5201',
-        name: 'Under the Floor',
-        description:
-            'A tenant renovating an empty family home follows a red thread beneath the floorboards and into a history no room remembers.',
-        director: 'Oren Vale',
-        actors: 'Rhea Moss, Daniel Cross, Mina Shore, Asa Bell',
-        genre: 'Supernatural Horror',
-        rating: 7.8,
-        tagline: 'The house kept one thing hidden.',
-        year: 2025,
-    },
-    {
-        categoryId: '5202',
-        name: 'Red Winter',
-        description:
-            'A planetary botanist crosses a frozen red plain with the last living samples after her remote habitat falls silent.',
-        director: 'Vera Holt',
-        actors: 'Nora Venn, Kai March, Elias Moss, Ruth Arden',
-        genre: 'Science Fiction Survival',
-        rating: 8.5,
-        tagline: 'Life travels light.',
-        year: 2026,
-    },
-    {
-        categoryId: '5203',
-        name: 'Saturday Champions',
-        description:
-            'Six neighborhood footballers with mismatched kits train for the one match their muddy community field has been waiting for.',
-        director: 'Tomas Hart',
-        actors: 'Milo Quinn, Ari Bell, Leni Moss, Kit Rowe',
-        genre: 'Family Sports Comedy',
-        rating: 7.9,
-        tagline: 'The score is not the whole story.',
-        year: 2025,
-    },
-    {
-        categoryId: '5204',
-        name: 'The Silent Verdict',
-        description:
-            'A public defender receives one sealed envelope after an empty courtroom closes and must decide whether justice can survive the truth.',
-        director: 'June Marr',
-        actors: 'Amara Voss, Theo Reed, Elias Hart, Cora Wynn',
-        genre: 'Courtroom Drama',
-        rating: 8.2,
-        tagline: 'The final evidence said nothing.',
-        year: 2026,
-    },
-    {
-        categoryId: '5201',
-        name: 'Low Tide Letters',
-        description:
-            'An aging postal worker crosses the tidal flats to deliver a final bundle of letters to a village missing from every new map.',
-        director: 'Owen Shore',
-        actors: 'Bram North, Iris Cole, Lena March, Rafi Bell',
-        genre: 'Coastal Mystery',
-        rating: 8.1,
-        tagline: 'The sea returns every address.',
-        year: 2024,
-    },
-    {
-        categoryId: '5204',
-        name: 'Salt & Cedar',
-        description:
-            'Two estranged siblings reopen their family restaurant and discover that the old recipes settle fewer arguments than they start.',
-        director: 'Cora Vale',
-        actors: 'Mina Wynn, Adrian Rowe, Ruth Moss, Nico Hart',
-        genre: 'Culinary Dramedy',
-        rating: 7.8,
-        tagline: 'Every table remembers.',
-        year: 2025,
-    },
-    {
-        categoryId: '5201',
-        name: 'Brass Horizon',
-        description:
-            'A desert aircraft engineer races an experimental survey plane ahead of a dust front that has erased every route home.',
-        director: 'Ren Arden',
-        actors: 'Talia Cross, Owen Pike, Mara Bell, Jules North',
-        genre: 'Retro Aviation Adventure',
-        rating: 8.0,
-        tagline: 'Build what the horizon cannot stop.',
-        year: 2023,
-    },
-    {
-        categoryId: '5203',
-        name: 'Moonlight Delivery',
-        description:
-            'A young night courier climbs a winding miniature city to deliver three glowing parcels before the moon disappears.',
-        director: 'Lumi Hart',
-        actors: 'Kit Vale, Orla Reed, Finn Moss, Ari Shore',
-        genre: 'Animated Family Adventure',
-        rating: 8.4,
-        tagline: 'Every doorstep needs a little light.',
-        year: 2026,
-    },
-];
+const POSTER_SHOWCASE_MOVIES: MarketingMovie[] =
+    SHARED_POSTER_SHOWCASE_MOVIES.map(toMarketingMovie);
 
 const MOVIES: MarketingMovie[] = [
-    ...GENERATED_ARTWORK_MOVIES,
     ...POSTER_SHOWCASE_MOVIES,
+    ...GENERATED_ARTWORK_MOVIES,
 ];
 
 const SERIES: MarketingSeries[] = [
