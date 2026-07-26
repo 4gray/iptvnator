@@ -311,3 +311,51 @@ describe('worker cancellation while performance capture arms', () => {
         );
     });
 });
+
+describe('database worker performance control messages', () => {
+    afterEach(() => {
+        jest.restoreAllMocks();
+        jest.resetModules();
+    });
+
+    it('handles a post-GC probe without dispatching a database request', async () => {
+        const armGate = createArmGate();
+        armGate.release();
+        const port = createParentPortHarness<unknown, DbWorkerMessage>();
+        const getWorkerDatabase = jest.fn().mockResolvedValue({});
+        const handlePostGcHeapRequest = jest.fn();
+        const responsePort = { marker: 'response-port' };
+        mockPerformanceCapture(armGate);
+        jest.doMock('worker_threads', () => ({
+            parentPort: port.parentPort,
+        }));
+        jest.doMock('./database.worker-connection', () => ({
+            closeWorkerDatabase: jest.fn(),
+            getWorkerDatabase,
+        }));
+        jest.doMock('./database-worker-post-gc-heap', () => ({
+            handleDatabaseWorkerPostGcHeapRequest: handlePostGcHeapRequest,
+            isDatabaseWorkerPostGcHeapRequest: jest.fn(
+                (message: unknown) =>
+                    typeof message === 'object' &&
+                    message !== null &&
+                    (message as Record<string, unknown>)['type'] ===
+                        'performance:collect-post-gc-heap'
+            ),
+        }));
+
+        await import('./database.worker');
+        port.postMessage.mockClear();
+        const handleMessage = port.getMessageHandler();
+        const message = {
+            type: 'performance:collect-post-gc-heap',
+            responsePort,
+        };
+
+        await handleMessage(message);
+
+        expect(handlePostGcHeapRequest).toHaveBeenCalledWith(message, true);
+        expect(getWorkerDatabase).not.toHaveBeenCalled();
+        expect(port.postMessage).not.toHaveBeenCalled();
+    });
+});
