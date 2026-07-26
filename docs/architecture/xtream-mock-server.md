@@ -273,8 +273,11 @@ labels instead of trusting provider-local strings.
 
 This scenario is reserved for release screenshots and marketing materials:
 
-- VOD and series data use 30 curated fictional titles instead of faker-generated
+- VOD and series data use 45 curated fictional titles instead of faker-generated
   titles or real media metadata
+- the core 30-title generated artwork pack keeps matched posters and backdrops;
+  15 additional movie-poster showcase titles use approved local poster PNGs and
+  the deterministic SVG fallback for their missing backdrops
 - posters and backdrops are served from committed PNG files in
   `apps/xtream-mock-server/public/marketing/{poster,backdrop}/`
 - `tools/release/generate-marketing-artwork.ts` generates the PNGs with
