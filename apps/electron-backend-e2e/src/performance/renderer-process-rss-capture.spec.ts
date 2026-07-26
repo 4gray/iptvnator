@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import * as rendererProcessRssCaptureModule from './renderer-process-rss-capture';
 import {
     captureRendererProcessRssSample,
     createRendererProcessRssCapture,
@@ -11,6 +12,34 @@ import {
 
 const RENDERER_PID = 42;
 const RENDERER_CREATION_TIME = 1_721_234_567_890;
+
+test('exposes a self-contained factory for the Electron main-process injection boundary', () => {
+    const factory = (
+        rendererProcessRssCaptureModule as unknown as Record<string, unknown>
+    )['createRendererProcessRssCaptureApi'];
+
+    assert.equal(typeof factory, 'function');
+    const source = (factory as () => unknown).toString();
+    const restoredFactory = Function(
+        `"use strict"; return (${source});`
+    )() as () => {
+        create(
+            webContentsOsPid: unknown,
+            processMetrics: readonly unknown[]
+        ): RendererProcessRssCapture;
+    };
+
+    assert.deepEqual(restoredFactory().create(RENDERER_PID, [metric()]), {
+        identity: {
+            creationTime: RENDERER_CREATION_TIME,
+            pid: RENDERER_PID,
+        },
+        missingSampleCount: 0,
+        peakRssBytes: 1_263_616,
+        unavailableReason: null,
+        validSampleCount: 1,
+    });
+});
 
 interface MetricOverrides {
     readonly creationTime?: unknown;
