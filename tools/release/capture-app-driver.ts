@@ -72,7 +72,14 @@ export async function ensureXtreamMockServer(
 
     const child = spawn(
         path.join(workspaceRoot, 'node_modules/.bin/tsx'),
-        ['apps/xtream-mock-server/src/main.ts'],
+        // The mock server imports `@iptvnator/shared/marketing-fixtures`, and
+        // tsx only resolves that path alias when pointed at the base config —
+        // matching how the project's own serve target invokes it.
+        [
+            '--tsconfig',
+            'tsconfig.base.json',
+            'apps/xtream-mock-server/src/main.ts',
+        ],
         {
             cwd: workspaceRoot,
             env: { ...process.env, NODE_ENV: 'development', PORT: '3211' },
@@ -217,10 +224,15 @@ async function seedDashboardActivity(page: Page): Promise<void> {
         `${XTREAM_MOCK_ORIGIN}/assets/marketing/backdrop/${title
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')}.svg?size=${encodeURIComponent('1280x720')}`;
+    // Xtream VOD stream ids are assigned by array position
+    // (`MARKETING_VOD_STREAM_ID_BASE + index` in marketing.generator.ts), and
+    // the generator lists POSTER_SHOWCASE_MOVIES first. Keep these three titles
+    // in step with the first three entries of that fixture list, otherwise the
+    // seeded backdrops belong to different movies than the ids resolve to.
     const items = [
-        { xtreamId: 62000, type: 'movie', backdropUrl: backdrop('Crimson Skylark'), recent: true },
-        { xtreamId: 62001, type: 'movie', backdropUrl: backdrop('The Voltage Guard'), recent: true },
-        { xtreamId: 62002, type: 'movie', backdropUrl: backdrop('Midnight Mantle'), recent: false },
+        { xtreamId: 62000, type: 'movie', backdropUrl: backdrop('Black Harbor'), recent: true },
+        { xtreamId: 62001, type: 'movie', backdropUrl: backdrop('The Paper Astronaut'), recent: true },
+        { xtreamId: 62002, type: 'movie', backdropUrl: backdrop('Summer Static'), recent: false },
         { xtreamId: 72000, type: 'series', backdropUrl: backdrop('Skyline Sentinels'), recent: true },
         { xtreamId: 72001, type: 'series', backdropUrl: backdrop('The Aegis Club'), recent: false },
     ] as const;
