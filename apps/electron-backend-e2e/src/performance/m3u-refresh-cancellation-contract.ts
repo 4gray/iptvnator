@@ -1,3 +1,5 @@
+import type { RendererProcessRssCapture } from './renderer-process-rss-capture';
+
 export const PERFORMANCE_ITERATION_KIND = {
     DIAGNOSTIC: 'diagnostic',
     MEASURED: 'measured',
@@ -100,11 +102,17 @@ export interface MainCaptureMetrics {
     readonly eventLoopUtilizationUnavailableReason: string | null;
     readonly heapSnapshotPath: string | null;
     readonly memory: ProcessMemoryMetrics;
-    readonly rendererPeakRssBytes: number;
+    readonly rendererWindow: {
+        readonly responsiveEvents: number;
+        readonly rss: RendererProcessRssCapture;
+        readonly unresponsiveEvents: number;
+        readonly windowIdentity: {
+            readonly browserWindowId: number;
+            readonly webContentsId: number;
+        };
+    };
     readonly rssScope: 'electron-main-process-including-worker-threads-and-native-memory';
     readonly timeline: readonly MainTimelineRecord[];
-    readonly unresponsiveEvents: number;
-    readonly responsiveEvents: number;
     readonly workers: readonly WorkerCaptureMetrics[];
 }
 

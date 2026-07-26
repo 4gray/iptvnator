@@ -43,6 +43,7 @@ import {
     stopMainCapture,
 } from './m3u-refresh-main-capture';
 import { startRendererCapture } from './m3u-refresh-renderer-capture';
+import type { RendererWindowIdentity } from './renderer-window-rss-session';
 import {
     createSyntheticM3uFixture,
     SYNTHETIC_M3U_CHANNEL_COUNT,
@@ -193,9 +194,11 @@ async function runIteration(
 
         const diagnostic =
             definition.kind === PERFORMANCE_ITERATION_KIND.DIAGNOSTIC;
+        const rendererWindowIdentity = await resolveRendererWindowIdentity(app);
         await startMainCapture(app.electronApp, {
             diagnostic,
             outputDirectory: iterationDirectory,
+            rendererWindowIdentity,
         });
         const renderer = await startRendererCapture(app.mainWindow, {
             diagnostic,
@@ -235,6 +238,28 @@ async function runIteration(
             });
         }
         await rm(dataDirectory, { force: true, recursive: true });
+    }
+}
+
+async function resolveRendererWindowIdentity(
+    app: LaunchedElectronApp
+): Promise<RendererWindowIdentity> {
+    const browserWindowHandle = await app.electronApp.browserWindow(
+        app.mainWindow
+    );
+    try {
+        return await browserWindowHandle.evaluate((browserWindow) => {
+            const exactWindow = browserWindow as unknown as {
+                readonly id: number;
+                readonly webContents: { readonly id: number };
+            };
+            return {
+                browserWindowId: exactWindow.id,
+                webContentsId: exactWindow.webContents.id,
+            };
+        });
+    } finally {
+        await browserWindowHandle.dispose();
     }
 }
 

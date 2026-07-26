@@ -12,12 +12,24 @@ import {
     selectMainCaptureGeneration,
     type MainCaptureGenerationTransport,
 } from './worker-request-performance';
+import {
+    createRendererProcessRssCaptureApi,
+    type RendererProcessRssCaptureApi,
+} from './renderer-process-rss-capture';
+import {
+    createRendererWindowRssSessionApi,
+    type RendererWindowIdentity,
+    type RendererWindowRssSession,
+    type RendererWindowRssSessionApi,
+    type RendererWindowRssSessionMetrics,
+} from './renderer-window-rss-session';
 
 const MAIN_CAPTURE_STATE_KEY = '__iptvnatorM3uRefreshMainCapture';
 
 export interface MainCaptureStartOptions {
     readonly diagnostic: boolean;
     readonly outputDirectory: string;
+    readonly rendererWindowIdentity: RendererWindowIdentity;
 }
 
 export interface MainCaptureStatus {
@@ -37,6 +49,10 @@ export async function installMainCapture(
     const captureStateKeys = {
         databaseRequestIdentityStateKey:
             DATABASE_REQUEST_IDENTITY_CAPTURE_STATE_KEY,
+        rendererProcessRssApiFactorySource:
+            createRendererProcessRssCaptureApi.toString(),
+        rendererWindowRssSessionApiFactorySource:
+            createRendererWindowRssSessionApi.toString(),
         stateKey: MAIN_CAPTURE_STATE_KEY,
     };
     await electronApp.evaluate(async ({ app, BrowserWindow }, input) => {
@@ -127,6 +143,20 @@ export async function installMainCapture(
         const databaseRequestIdentityCapture = target[
             input.databaseRequestIdentityStateKey
         ] as DatabaseRequestIdentityCaptureApi;
+        const restoreFactory = <T>(source: string): T => {
+            const factory = new Function(
+                `"use strict"; return (${source});`
+            )() as () => T;
+            return factory();
+        };
+        const rendererProcessRssApi =
+            restoreFactory<RendererProcessRssCaptureApi>(
+                input.rendererProcessRssApiFactorySource
+            );
+        const rendererWindowRssSessionApi =
+            restoreFactory<RendererWindowRssSessionApi>(
+                input.rendererWindowRssSessionApiFactorySource
+            );
 
         const runtimeProcess = process as typeof process & {
             getBuiltinModule(id: string): unknown;
@@ -183,16 +213,9 @@ export async function installMainCapture(
             outputDirectory: '',
             postGcHeap: null as number | null,
             postGcRss: null as number | null,
-            rendererPeakRss: 0,
-            responsiveEvents: 0,
+            rendererWindowSession: null as RendererWindowRssSession | null,
             sampleTimer: null as NodeJS.Timeout | null,
             timeline: [] as TimelineRecord[],
-            unresponsiveEvents: 0,
-            windowListeners: [] as {
-                responsive: () => void;
-                unresponsive: () => void;
-                window: Electron.BrowserWindow;
-            }[],
         };
 
         const nowEpochMs = (): number =>
@@ -644,32 +667,7 @@ export async function installMainCapture(
             const memory = process.memoryUsage();
             state.mainPeakHeap = Math.max(state.mainPeakHeap, memory.heapUsed);
             state.mainPeakRss = Math.max(state.mainPeakRss, memory.rss);
-            for (const metric of app.getAppMetrics()) {
-                const type = String(metric.type).toLowerCase();
-                if (type.includes('tab') || type.includes('renderer')) {
-                    state.rendererPeakRss = Math.max(
-                        state.rendererPeakRss,
-                        Number(metric.memory?.workingSetSize ?? 0) * 1024
-                    );
-                }
-            }
-        };
-        const attachWindowListeners = (): void => {
-            for (const window of BrowserWindow.getAllWindows()) {
-                const unresponsive = () => {
-                    state.unresponsiveEvents += 1;
-                };
-                const responsive = () => {
-                    state.responsiveEvents += 1;
-                };
-                window.on('unresponsive', unresponsive);
-                window.on('responsive', responsive);
-                state.windowListeners.push({
-                    responsive,
-                    unresponsive,
-                    window,
-                });
-            }
+            state.rendererWindowSession?.sample();
         };
 
         const api = {
@@ -705,6 +703,19 @@ export async function installMainCapture(
                 ).length,
             }),
             start: async (options: MainCaptureStartOptions): Promise<void> => {
+                state.rendererWindowSession?.detach();
+                state.rendererWindowSession = null;
+                const rendererWindowSession =
+                    rendererWindowRssSessionApi.create({
+                        browserWindowFromId: (browserWindowId) =>
+                            BrowserWindow.fromId(browserWindowId),
+                        browserWindowId:
+                            options.rendererWindowIdentity.browserWindowId,
+                        getAppMetrics: () => app.getAppMetrics(),
+                        rendererRssApi: rendererProcessRssApi,
+                        webContentsId:
+                            options.rendererWindowIdentity.webContentsId,
+                    });
                 state.captureGeneration += 1;
                 state.active = true;
                 databaseRequestIdentityCapture.start();
@@ -715,11 +726,9 @@ export async function installMainCapture(
                 state.timeline = [];
                 state.mainPeakHeap = 0;
                 state.mainPeakRss = 0;
-                state.rendererPeakRss = 0;
                 state.postGcHeap = null;
                 state.postGcRss = null;
-                state.unresponsiveEvents = 0;
-                state.responsiveEvents = 0;
+                state.rendererWindowSession = rendererWindowSession;
                 state.cpuStart = process.cpuUsage();
                 state.eventLoopStart =
                     perfHooks.performance.eventLoopUtilization();
@@ -727,7 +736,6 @@ export async function installMainCapture(
                     resolution: 1,
                 });
                 state.eventLoopDelay.enable();
-                attachWindowListeners();
                 sampleMain();
                 state.sampleTimer = setInterval(sampleMain, 20);
                 if (state.diagnostic) {
@@ -753,6 +761,13 @@ export async function installMainCapture(
                 }
                 state.eventLoopDelay?.disable();
                 sampleMain();
+                const rendererWindow: RendererWindowRssSessionMetrics | null =
+                    state.rendererWindowSession?.snapshot() ?? null;
+                state.rendererWindowSession?.detach();
+                state.rendererWindowSession = null;
+                if (rendererWindow === null) {
+                    throw new Error('renderer-window-session-missing');
+                }
                 const cpu = process.cpuUsage(state.cpuStart ?? undefined);
                 const eluEnd = perfHooks.performance.eventLoopUtilization();
                 const elu = perfHooks.performance.eventLoopUtilization(
@@ -815,11 +830,6 @@ export async function installMainCapture(
                 }
                 session.disconnect();
                 state.inspectorSession = null;
-                for (const listener of state.windowListeners) {
-                    listener.window.off('unresponsive', listener.unresponsive);
-                    listener.window.off('responsive', listener.responsive);
-                }
-                state.windowListeners = [];
                 state.active = false;
                 databaseRequestIdentityCapture.stop();
 
@@ -893,12 +903,10 @@ export async function installMainCapture(
                             postGcHeapUsedBytes: state.postGcHeap,
                             postGcRssBytes: state.postGcRss,
                         },
-                        rendererPeakRssBytes: state.rendererPeakRss,
-                        responsiveEvents: state.responsiveEvents,
+                        rendererWindow,
                         rssScope:
                             'electron-main-process-including-worker-threads-and-native-memory',
                         timeline: state.timeline,
-                        unresponsiveEvents: state.unresponsiveEvents,
                     },
                     workers,
                 };

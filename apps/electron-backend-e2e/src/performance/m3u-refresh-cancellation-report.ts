@@ -280,10 +280,14 @@ export function createCancellationBenchmarkSummary(
                 )
             ),
             rendererRssPeakBytes: summarizeNumbers(
-                measured.map((iteration) => iteration.main.rendererPeakRssBytes)
+                measured.map(
+                    (iteration) =>
+                        iteration.main.rendererWindow.rss.peakRssBytes
+                )
             ),
             responsiveEvents: measured.reduce(
-                (sum, iteration) => sum + iteration.main.responsiveEvents,
+                (sum, iteration) =>
+                    sum + iteration.main.rendererWindow.responsiveEvents,
                 0
             ),
             totalMs: summarizeNumbers(
@@ -295,7 +299,8 @@ export function createCancellationBenchmarkSummary(
                 )
             ),
             unresponsiveEvents: measured.reduce(
-                (sum, iteration) => sum + iteration.main.unresponsiveEvents,
+                (sum, iteration) =>
+                    sum + iteration.main.rendererWindow.unresponsiveEvents,
                 0
             ),
             visibleTotalMs: summarizeNumbers(

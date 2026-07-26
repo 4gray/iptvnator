@@ -50,7 +50,7 @@ All four parse call sites (Electron `playlist-source.ts` import, `playlist-refre
 
 - **`radio` attribute** — `item.radio` (string, `'true'` triggers the radio player, EPG suppression, and external-player gating app-wide). Upstream does not have this field; it must survive every upstream sync.
 - **Pipe stripping** — `item.url` is cut at the first `|`; `|User-Agent=` / `|Referer=` params still land in `item.http`. Upstream 0.15.0 stopped stripping, but iptvnator consumes `item.url` verbatim in hls.js/mpv/vlc, catch-up URL building, and url-keyed favorites.
-- **`#KODIPROP` lines before `#EXTINF` are preserved** (since `v0.15.2-iptvnator.2`) — Kodi property lines apply to the *next* list entry, so ones placed above the `#EXTINF` are buffered and attached to that item's `raw` in file order (case-insensitive prefix); other stray `#` lines outside an open item are still dropped. The DASH + ClearKey feature extracts `inputstream.adaptive.license_*` config from `item.raw`, so this delta must survive every upstream sync.
+- **`#KODIPROP` lines before `#EXTINF` are preserved** (since `v0.15.2-iptvnator.2`) — Kodi property lines apply to the _next_ list entry, so ones placed above the `#EXTINF` are buffered and attached to that item's `raw` in file order (case-insensitive prefix); other stray `#` lines outside an open item are still dropped. The DASH + ClearKey feature extracts `inputstream.adaptive.license_*` config from `item.raw`, so this delta must survive every upstream sync.
 
 There is intentionally **no URL validation** (upstream removed it in 0.15.0): any non-empty non-`#` line after `#EXTINF` becomes the item URL. This is what fixes issue #1189 (Pluto TV JWT URLs longer than validator's 2084-char IE-era limit used to be rejected, and the stalled item index collapsed the whole playlist into one channel). `#` comment lines and unknown directives are appended to `item.raw` and never treated as URLs.
 
@@ -123,7 +123,13 @@ The target reserves and verifies CDP port 9222, freezes renderer long-task,
 frame-gap, and heartbeat probes before forced post-GC heap collection, and
 builds the Electron main process, renderer, and workers with optimized,
 source-mapped performance configurations before enabling opt-in worker
-profiling. Each worker response retains a raw
+profiling. Renderer RSS is scoped to the Playwright page's exact
+`BrowserWindow` and `webContents`: every sample matches `getOSProcessId()` to
+one exact `app.getAppMetrics()` PID and creation time, while responsive and
+unresponsive events come only from that window. Identity changes, missing or
+ambiguous process metrics, and invalid working-set values fail closed with a
+raw reason and nullable RSS; summaries exclude unavailable RSS instead of
+reporting zero. Each worker response retains a raw
 request-scoped record containing request/operation identity, received/work/flush
 timestamps, thread CPU, event-loop utilization, event-loop delay, and fixed
 unavailability or invalid reasons. Missing or malformed profiling metadata
@@ -811,7 +817,7 @@ player in settings.
 1. The playlist parser fork does not interpret `#KODIPROP:` lines, but
    preserves them in `item.raw` for **both** layouts: unknown lines between
    `#EXTINF` and the stream URL are kept as before, and since parser pin
-   `v0.15.2-iptvnator.2` `#KODIPROP` lines placed *before* the `#EXTINF` are
+   `v0.15.2-iptvnator.2` `#KODIPROP` lines placed _before_ the `#EXTINF` are
    buffered and attached to the **next** entry's `raw` in file order (Kodi
    semantics, case-insensitive prefix). Other stray `#` lines outside an open
    item are still dropped, matching upstream.

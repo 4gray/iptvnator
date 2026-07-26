@@ -130,9 +130,24 @@ function measuredIteration(
                 postGcHeapUsedBytes: null,
                 postGcRssBytes: null,
             },
-            rendererPeakRssBytes: 0,
-            responsiveEvents: 0,
-            unresponsiveEvents: 0,
+            rendererWindow: {
+                responsiveEvents: 0,
+                rss: {
+                    identity: {
+                        creationTime: 1_721_234_567_890,
+                        pid: 42,
+                    },
+                    missingSampleCount: 0,
+                    peakRssBytes: 0,
+                    unavailableReason: null,
+                    validSampleCount: 1,
+                },
+                unresponsiveEvents: 0,
+                windowIdentity: {
+                    browserWindowId: 7,
+                    webContentsId: 11,
+                },
+            },
             workers,
         } as CancellationIterationResult['main'],
         phases: {} as CancellationIterationResult['phases'],
@@ -212,6 +227,26 @@ test('main capture retains raw request identity, timestamps, metrics, and reason
         source,
         /record\.eventLoopDelay = record\.eventLoopDelay/
     );
+});
+
+test('benchmark resolves one exact BrowserWindow and main capture never scans all windows', () => {
+    const benchmarkSource = readFileSync(
+        new URL('./m3u-refresh-cancellation.benchmark.ts', import.meta.url),
+        'utf8'
+    );
+    const mainCaptureSource = readFileSync(
+        new URL('./m3u-refresh-main-capture.ts', import.meta.url),
+        'utf8'
+    );
+
+    assert.match(
+        benchmarkSource,
+        /electronApp\.browserWindow\(\s*app\.mainWindow\s*\)/
+    );
+    assert.match(benchmarkSource, /rendererWindowIdentity/);
+    assert.doesNotMatch(mainCaptureSource, /BrowserWindow\.getAllWindows/);
+    assert.doesNotMatch(mainCaptureSource, /type\.includes\('renderer'\)/);
+    assert.doesNotMatch(mainCaptureSource, /type\.includes\('tab'\)/);
 });
 
 test('capture-generation selection excludes a pre-start seed worker', () => {
