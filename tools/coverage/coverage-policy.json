@@ -206,6 +206,13 @@
                 "e2eTags": ["@dashboard", "@persistence"]
             },
             {
+                "name": "workspace-multiview-feature",
+                "root": "libs/workspace/multiview/feature",
+                "sourceRoot": "libs/workspace/multiview/feature/src",
+                "validationCommand": "pnpm nx test workspace-multiview-feature",
+                "e2eTags": ["@web", "@persistence"]
+            },
+            {
                 "name": "workspace-shell-feature",
                 "root": "libs/workspace/shell/feature",
                 "sourceRoot": "libs/workspace/shell/feature/src",

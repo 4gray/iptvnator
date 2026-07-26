@@ -1,0 +1,45 @@
+<video #tileVideo class="tile-video" playsinline></video>
+
+<div class="tile-header">
+    @if (playback()?.logo) {
+        <img class="tile-logo" [src]="playback()?.logo" alt="" />
+    }
+    <span class="tile-title">{{ playback()?.title }}</span>
+    <mat-icon class="tile-audio-indicator" aria-hidden="true">
+        {{ audioFocused() ? 'volume_up' : 'volume_off' }}
+    </mat-icon>
+    <button
+        mat-icon-button
+        class="tile-remove"
+        type="button"
+        [matTooltip]="'MULTIVIEW.REMOVE_TILE' | translate"
+        [attr.aria-label]="'MULTIVIEW.REMOVE_TILE' | translate"
+        (click)="onRemove($event)"
+        (dblclick)="$event.stopPropagation()"
+    >
+        <mat-icon>close</mat-icon>
+    </button>
+</div>
+
+@if (status() === 'resolving') {
+    <div class="tile-status">
+        <mat-spinner [diameter]="36" />
+    </div>
+}
+
+@if (status() === 'error') {
+    <div class="tile-status tile-status--error">
+        <mat-icon>error_outline</mat-icon>
+        <span class="tile-error-text">
+            {{ (errorKey() ?? 'MULTIVIEW.TILE_ERROR') | translate }}
+        </span>
+        <button
+            mat-stroked-button
+            type="button"
+            (click)="onRetry($event)"
+            (dblclick)="$event.stopPropagation()"
+        >
+            {{ 'MULTIVIEW.RETRY' | translate }}
+        </button>
+    </div>
+}
