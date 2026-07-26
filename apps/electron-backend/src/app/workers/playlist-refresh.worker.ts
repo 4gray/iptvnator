@@ -178,6 +178,20 @@ async function executeRefresh(
 
         checkpoint(payload);
         return playlist;
+    } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            emitEvent(payload, {
+                status: 'cancelled',
+                phase: 'parsing',
+            });
+        } else {
+            emitEvent(payload, {
+                status: 'error',
+                phase: payload.url ? 'fetching' : 'reading-file',
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+        throw error;
     } finally {
         releaseActiveRefresh(payload.operationId, activeRefresh);
     }
@@ -219,22 +233,6 @@ parentPort.on(
                 });
             } else {
                 const error = execution.error;
-                if (error instanceof Error && error.name === 'AbortError') {
-                    emitEvent(payload, {
-                        status: 'cancelled',
-                        phase: 'parsing',
-                    });
-                } else {
-                    emitEvent(payload, {
-                        status: 'error',
-                        phase: payload.url ? 'fetching' : 'reading-file',
-                        error:
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
-                    });
-                }
-
                 postMessage({
                     type: 'response',
                     success: false,

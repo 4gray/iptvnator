@@ -37,7 +37,7 @@ describe('worker performance integration order', () => {
         expect(handler).not.toContain('requestQueue');
     });
 
-    it('finishes playlist profiling before cancellation/error events and response serialization', () => {
+    it('keeps playlist response serialization after profiling completion', () => {
         const source = readWorkerSource('playlist-refresh.worker.ts');
         const handler = source.slice(source.lastIndexOf('parentPort.on('));
         const executionIndex = handler.indexOf(
@@ -46,9 +46,6 @@ describe('worker performance integration order', () => {
 
         expect(executionIndex).toBeGreaterThanOrEqual(0);
         expect(handler).not.toContain('finishWorkerPerformanceCapture');
-        expect(executionIndex).toBeLessThan(
-            handler.indexOf('emitEvent', executionIndex)
-        );
         expect(executionIndex).toBeLessThan(
             handler.indexOf('serializeError', executionIndex)
         );

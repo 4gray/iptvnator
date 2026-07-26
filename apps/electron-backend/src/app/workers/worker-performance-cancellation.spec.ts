@@ -50,7 +50,13 @@ function createParentPortHarness<TIncoming, TOutgoing>() {
     };
 }
 
-function mockPerformanceCapture(armGate: ArmGate): void {
+function mockPerformanceCapture(
+    armGate: ArmGate,
+    failureGates?: {
+        readonly observed: ArmGate;
+        readonly profilingFinished: ArmGate;
+    }
+): void {
     jest.doMock('./worker-performance-capture', () => ({
         armWorkerPerformanceCapture: jest.fn(() => armGate.promise),
         executeWithWorkerPerformanceCapture: jest.fn(
@@ -63,6 +69,8 @@ function mockPerformanceCapture(armGate: ArmGate): void {
                         success: true,
                     };
                 } catch (error) {
+                    failureGates?.observed.release();
+                    await failureGates?.profilingFinished.promise;
                     return {
                         error,
                         performance: undefined,
@@ -86,12 +94,17 @@ describe('worker cancellation while performance capture arms', () => {
 
     it('cancels playlist work before file access when cancel arrives during arming', async () => {
         const armGate = createArmGate();
+        const profilingFinished = createArmGate();
+        const failureObserved = createArmGate();
         const port = createParentPortHarness<
             PlaylistRefreshWorkerIncomingMessage,
             PlaylistRefreshWorkerMessage<unknown>
         >();
         const readFile = jest.fn().mockResolvedValue('#EXTM3U');
-        mockPerformanceCapture(armGate);
+        mockPerformanceCapture(armGate, {
+            observed: failureObserved,
+            profilingFinished,
+        });
         jest.doMock('worker_threads', () => ({
             parentPort: port.parentPort,
         }));
@@ -122,9 +135,25 @@ describe('worker cancellation while performance capture arms', () => {
             operationId: 'refresh-1',
         });
         armGate.release();
+        await failureObserved.promise;
+
+        const cancelledBeforeProfilingFinished =
+            port.postMessage.mock.calls.some(
+                ([message]) =>
+                    message.type === 'event' &&
+                    message.event.status === 'cancelled'
+            );
+        const responseBeforeProfilingFinished =
+            port.postMessage.mock.calls.some(
+                ([message]) => message.type === 'response'
+            );
+
+        profilingFinished.release();
         await requestPromise;
 
         expect(readFile).not.toHaveBeenCalled();
+        expect(cancelledBeforeProfilingFinished).toBe(true);
+        expect(responseBeforeProfilingFinished).toBe(false);
         expect(port.postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: expect.objectContaining({
