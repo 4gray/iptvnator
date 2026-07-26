@@ -210,6 +210,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 // The store already applied the change in memory, so without
                 // this the save looks successful until the next restart. The
                 // dialog stays open so it can be retried.
+                //
+                // The Electron-side pushes in SettingsFormFacade.save() stay in
+                // the success branch on purpose: main keeps its own copy of the
+                // player paths and remote-control state, and applying half the
+                // form while telling the user nothing was saved is worse than
+                // applying none of it. Once settings live in the main process
+                // (issue #1273) this split disappears.
                 this.settingsSnackbar.storageFailure('save');
             });
     }
