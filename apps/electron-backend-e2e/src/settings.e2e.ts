@@ -154,8 +154,14 @@ test.describe('Electron Settings', () => {
         try {
             const competing = await launchCompetingElectronInstance(dataDir);
 
-            expect(competing.timedOut).toBe(false);
-            expect(competing.exitCode).toBe(0);
+            expect(
+                {
+                    exitCode: competing.exitCode,
+                    signal: competing.signal,
+                    timedOut: competing.timedOut,
+                },
+                competing.stderr
+            ).toEqual({ exitCode: 0, signal: null, timedOut: false });
             // The running instance keeps its window and its storage lock.
             expect(runningApp.electronApp.windows().length).toBeGreaterThan(0);
             await expect(runningApp.mainWindow.locator('body')).toBeVisible();

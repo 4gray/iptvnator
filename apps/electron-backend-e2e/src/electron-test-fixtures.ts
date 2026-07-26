@@ -120,6 +120,38 @@ export type LaunchedElectronApp = {
     mainWindow: Page;
 };
 
+export type CompetingElectronInstanceResult = {
+    exitCode: number | null;
+    signal: NodeJS.Signals | null;
+    stderr: string;
+    timedOut: boolean;
+};
+
+const competingInstanceStderrLimit = 4000;
+
+/**
+ * Removes a run's data directory, tolerating handles the OS has not released
+ * yet.
+ *
+ * Electron's single-instance lock keeps `SingletonLock`/`SingletonSocket`
+ * (`lockfile` on Windows) open for the whole process lifetime, and Windows
+ * releases those handles asynchronously as the process dies — so a removal
+ * issued right after `closeElectronApp` can still hit EBUSY. This is throwaway
+ * temp state, so a stubborn directory is a warning, never a test failure.
+ */
+function removeDataDir(dataDir: string): void {
+    try {
+        rmSync(dataDir, {
+            force: true,
+            maxRetries: 20,
+            recursive: true,
+            retryDelay: 250,
+        });
+    } catch (error) {
+        console.warn(`Could not remove E2E data dir ${dataDir}:`, error);
+    }
+}
+
 export const test = base.extend<ElectronFixtures>({
     dataDir: async ({ browserName }, use) => {
         void browserName;
@@ -127,11 +159,28 @@ export const test = base.extend<ElectronFixtures>({
 
         await use(dataDir);
 
-        rmSync(dataDir, { force: true, recursive: true });
+        removeDataDir(dataDir);
     },
 });
 
 export { expect };
+
+/**
+ * Builds the argv every locally launched Electron process must share.
+ *
+ * Headless Linux CI has no usable sandbox or GPU, and an Electron started
+ * without these flags there dies on a signal instead of running — so any
+ * helper that spawns the app itself has to use the same list.
+ */
+function buildElectronLaunchArgs(extraArgs: readonly string[] = []): string[] {
+    const args = [...extraArgs, electronMainPath];
+
+    if (process.platform === 'linux' && process.env['CI']) {
+        args.unshift('--no-sandbox', '--disable-gpu');
+    }
+
+    return args;
+}
 
 export async function launchElectronApp(
     dataDir: string,
@@ -144,11 +193,7 @@ export async function launchElectronApp(
     }
     assertPackagedRendererBuildIsElectronSafe();
 
-    const args = [...(options.args ?? []), electronMainPath];
-
-    if (process.platform === 'linux' && process.env['CI']) {
-        args.unshift('--no-sandbox', '--disable-gpu');
-    }
+    const args = buildElectronLaunchArgs(options.args);
 
     const electronApp = await electron.launch({
         args,
@@ -347,28 +392,48 @@ function attachElectronProcessDiagnostics(
 export async function launchCompetingElectronInstance(
     dataDir: string,
     timeoutMs = 30000
-): Promise<{ exitCode: number | null; timedOut: boolean }> {
+): Promise<CompetingElectronInstanceResult> {
     // In a Node context the `electron` package resolves to its binary path.
     const electronBinaryPath = require('electron') as unknown as string;
-    const child = spawn(electronBinaryPath, [electronMainPath], {
+    const child = spawn(electronBinaryPath, buildElectronLaunchArgs(), {
         env: {
             ...process.env,
             ELECTRON_IS_DEV: '0',
             IPTVNATOR_E2E_DATA_DIR: dataDir,
             NODE_ENV: 'test',
         },
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', 'pipe'],
+    });
+
+    // Kept for the assertion message: a competing launch that dies for an
+    // unrelated reason (missing sandbox, missing GPU) looks exactly like a
+    // refused one from the outside.
+    let stderr = '';
+    child.stderr?.on('data', (chunk: Buffer) => {
+        stderr = `${stderr}${chunk.toString()}`.slice(
+            -competingInstanceStderrLimit
+        );
     });
 
     return new Promise((resolvePromise) => {
         const timer = setTimeout(() => {
             child.kill();
-            resolvePromise({ exitCode: null, timedOut: true });
+            resolvePromise({
+                exitCode: null,
+                signal: null,
+                stderr,
+                timedOut: true,
+            });
         }, timeoutMs);
 
-        child.once('exit', (code) => {
+        child.once('exit', (code, signal) => {
             clearTimeout(timer);
-            resolvePromise({ exitCode: code, timedOut: false });
+            resolvePromise({
+                exitCode: code,
+                signal,
+                stderr,
+                timedOut: false,
+            });
         });
     });
 }
