@@ -268,15 +268,28 @@ export default class App {
         }
     }
 
-    private static onActivate() {
-        // On macOS it's common to re-create a window in the app when the
-        // dock icon is clicked and there are no other windows open.
+    /**
+     * Brings the app back to a windowed state, re-creating the main window if
+     * it is gone.
+     *
+     * On macOS closing the last window deliberately keeps the process alive
+     * (`onWindowAllClosed`), so this is the recovery path for both the dock
+     * `activate` event and a second launch that the single-instance guard
+     * hands over to this process.
+     */
+    static ensureMainWindow() {
         if (App.mainWindow === null) {
             App.onReady();
         }
         if (App.rendererLoadingEnabled) {
             App.startMainWindowLoad();
         }
+    }
+
+    private static onActivate() {
+        // On macOS it's common to re-create a window in the app when the
+        // dock icon is clicked and there are no other windows open.
+        App.ensureMainWindow();
     }
 
     private static handleRendererNavigation(

@@ -168,6 +168,42 @@ test.describe('Electron Settings', () => {
         await closeElectronApp(relaunch);
     });
 
+    test('@settings @electron re-opens a window when a second launch arrives with none open', async ({
+        dataDir,
+    }) => {
+        // Only macOS keeps the process alive after its last window closes;
+        // elsewhere `window-all-closed` quits and the next launch is a plain
+        // cold start.
+        test.skip(
+            process.platform !== 'darwin',
+            'macOS-only windowless-process behaviour'
+        );
+        const runningApp = await launchElectronApp(dataDir);
+
+        try {
+            await runningApp.electronApp.evaluate(({ BrowserWindow }) => {
+                for (const window of BrowserWindow.getAllWindows()) {
+                    window.close();
+                }
+            });
+            await expect
+                .poll(() => runningApp.electronApp.windows().length)
+                .toBe(0);
+
+            const recreatedWindow =
+                runningApp.electronApp.waitForEvent('window');
+            const competing = await launchCompetingElectronInstance(dataDir);
+
+            expect(competing.timedOut).toBe(false);
+            expect(competing.exitCode).toBe(0);
+            // Without this the guard would quit the launch into nothing and
+            // leave the user staring at no window at all.
+            await expect((await recreatedWindow).locator('body')).toBeVisible();
+        } finally {
+            await closeElectronApp(runningApp);
+        }
+    });
+
     test('@settings @persistence @electron persists changed desktop settings across app restart', async ({
         dataDir,
     }) => {

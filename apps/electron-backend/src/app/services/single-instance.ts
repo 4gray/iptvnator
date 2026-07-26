@@ -67,15 +67,27 @@ export function focusExistingWindow(
     window.focus();
 }
 
+/** True when there is no live window left to bring forward. */
+function needsNewWindow(
+    window: SingleInstanceWindow | null | undefined
+): boolean {
+    return !window || window.isDestroyed();
+}
+
 /**
  * Acquires the single instance lock.
  *
+ * @param createMainWindow re-creates the main window when the lock owner has
+ * none left. On macOS closing the last window keeps the process alive, so
+ * without this a second launch would quit silently and leave the user with no
+ * window at all.
  * @returns `true` when this process owns the profile and startup may continue,
  * `false` when another instance already owns it and this one is quitting.
  */
 export function acquireSingleInstanceLock(
     app: SingleInstanceApp,
     getMainWindow: () => SingleInstanceWindow | null | undefined,
+    createMainWindow: () => void,
     env: NodeJS.ProcessEnv = process.env
 ): boolean {
     if (allowsMultipleInstances(env)) {
@@ -88,7 +100,14 @@ export function acquireSingleInstanceLock(
     }
 
     app.on('second-instance', () => {
-        focusExistingWindow(getMainWindow());
+        const mainWindow = getMainWindow();
+
+        if (needsNewWindow(mainWindow)) {
+            createMainWindow();
+            return;
+        }
+
+        focusExistingWindow(mainWindow);
     });
 
     return true;

@@ -197,8 +197,15 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
 
     // A second instance sharing this userData directory cannot take the
     // Chromium storage lock, so its renderer silently loses every settings
-    // write. Focus the window that already owns the profile instead.
-    if (!acquireSingleInstanceLock(app, () => App.mainWindow)) {
+    // write. Focus the window that already owns the profile instead — or
+    // re-create it, since on macOS the process outlives its last window.
+    if (
+        !acquireSingleInstanceLock(
+            app,
+            () => App.mainWindow,
+            () => App.ensureMainWindow()
+        )
+    ) {
         return;
     }
 
