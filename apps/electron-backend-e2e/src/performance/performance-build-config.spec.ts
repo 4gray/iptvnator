@@ -210,10 +210,10 @@ test('the Electron performance wrapper owns build dependencies before its profil
     );
 });
 
-test('the cancellation benchmark keeps its existing E2E build dependency', () => {
+test('the cancellation benchmark uses the production-equivalent performance build', () => {
     const target = e2eProject.targets['benchmark-m3u-refresh-cancellation'];
 
-    assert.deepEqual(target.dependsOn, ['electron-backend:build-e2e']);
+    assert.deepEqual(target.dependsOn, ['electron-backend:build-performance']);
 });
 
 test('the cancellation benchmark command is pinned to its Playwright test file', () => {
