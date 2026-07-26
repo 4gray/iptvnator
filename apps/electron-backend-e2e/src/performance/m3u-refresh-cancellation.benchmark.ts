@@ -163,6 +163,7 @@ async function runIteration(
         server.serveSeedFixture();
         app = await launchElectronApp(dataDirectory, {
             args: [
+                '--js-flags=--expose-gc',
                 '--remote-debugging-address=127.0.0.1',
                 `--remote-debugging-port=${RENDERER_CDP_PORT}`,
                 `--user-data-dir=${join(dataDirectory, 'user-data')}`,

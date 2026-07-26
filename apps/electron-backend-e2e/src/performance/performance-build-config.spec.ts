@@ -257,3 +257,16 @@ test('the cancellation benchmark enables preload performance capture', () => {
 
     assert.match(source, /IPTVNATOR_PERF_CAPTURE:\s*'1'/);
 });
+
+test('the cancellation benchmark exposes GC to Electron worker isolates', () => {
+    const source = readFileSync(
+        join(
+            workspaceRoot,
+            'apps/electron-backend-e2e/src/performance/m3u-refresh-cancellation.benchmark.ts'
+        ),
+        'utf8'
+    );
+
+    assert.match(source, /'--js-flags=--expose-gc'/);
+    assert.doesNotMatch(source, /execArgv/);
+});
