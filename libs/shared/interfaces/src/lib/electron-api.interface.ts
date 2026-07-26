@@ -684,13 +684,21 @@ export interface ElectronBridgeApi {
     dbGetPlaylist: (
         playlistId: string
     ) => Promise<ElectronBridgePlaylistRow | null>;
-    dbUpsertAppPlaylist: (playlist: Playlist) => Promise<ElectronBridgeResult>;
+    dbUpsertAppPlaylist: (
+        playlist: Playlist,
+        /** Instrumentation-only; never persisted or sent to main/worker IPC. */
+        operationId?: string
+    ) => Promise<ElectronBridgeResult>;
     dbUpsertAppPlaylists: (
         playlists: Playlist[]
     ) => Promise<ElectronBridgeCountResult>;
     dbGetAppPlaylists: () => Promise<Playlist[]>;
     dbGetAppPlaylistMetas: () => Promise<Playlist[]>;
-    dbGetAppPlaylist: (playlistId: string) => Promise<Playlist | null>;
+    dbGetAppPlaylist: (
+        playlistId: string,
+        /** Instrumentation-only; never persisted or sent to main/worker IPC. */
+        operationId?: string
+    ) => Promise<Playlist | null>;
     dbGetAppPlaylistFavoriteChannels: (
         playlistId: string
     ) => Promise<M3uFavoriteChannel[]>;

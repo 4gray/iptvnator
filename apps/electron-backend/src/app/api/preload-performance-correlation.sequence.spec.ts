@@ -39,28 +39,28 @@ describe('preload performance marker correlation sequences', () => {
         const getStart = advance({
             ipcCallId: 2,
             method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'start',
             playlistId: PLAYLIST_ONE,
         });
         const getSuccess = advance({
             ipcCallId: 2,
             method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'success',
             playlistId: PLAYLIST_ONE,
         });
         const upsertStart = advance({
             ipcCallId: 3,
             method: PRELOAD_PERFORMANCE_METHOD.DB_UPSERT_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'start',
             playlistId: PLAYLIST_ONE,
         });
         const upsertSuccess = advance({
             ipcCallId: 3,
             method: PRELOAD_PERFORMANCE_METHOD.DB_UPSERT_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'success',
             playlistId: PLAYLIST_ONE,
         });
@@ -104,7 +104,7 @@ describe('preload performance marker correlation sequences', () => {
         const wrongOrder = advance({
             ipcCallId: 2,
             method: PRELOAD_PERFORMANCE_METHOD.DB_UPSERT_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'start',
             playlistId: PLAYLIST_ONE,
         });
@@ -133,21 +133,21 @@ describe('preload performance marker correlation sequences', () => {
         advance({
             ipcCallId: 4,
             method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'start',
             playlistId: PLAYLIST_ONE,
         });
         const duplicate = advance({
             ipcCallId: 5,
             method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'start',
             playlistId: PLAYLIST_ONE,
         });
         const originalCompletion = advance({
             ipcCallId: 4,
             method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'success',
             playlistId: PLAYLIST_ONE,
         });
@@ -253,7 +253,7 @@ describe('preload performance marker correlation sequences', () => {
         advance({
             ipcCallId: 3,
             method: PRELOAD_PERFORMANCE_METHOD.DB_UPSERT_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_ONE,
             phase: 'start',
             playlistId: PLAYLIST_ONE,
         });
@@ -261,7 +261,7 @@ describe('preload performance marker correlation sequences', () => {
         const playlistTwoGet = advance({
             ipcCallId: 4,
             method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-            operationId: null,
+            operationId: OPERATION_TWO,
             phase: 'start',
             playlistId: PLAYLIST_TWO,
         });
@@ -293,28 +293,28 @@ describe('preload performance marker correlation sequences', () => {
             {
                 ipcCallId: 2,
                 method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-                operationId: null,
+                operationId: OPERATION_ONE,
                 phase: 'start',
                 playlistId: PLAYLIST_ONE,
             },
             {
                 ipcCallId: 2,
                 method: PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST,
-                operationId: null,
+                operationId: OPERATION_ONE,
                 phase: 'success',
                 playlistId: PLAYLIST_ONE,
             },
             {
                 ipcCallId: 3,
                 method: PRELOAD_PERFORMANCE_METHOD.DB_UPSERT_APP_PLAYLIST,
-                operationId: null,
+                operationId: OPERATION_ONE,
                 phase: 'start',
                 playlistId: PLAYLIST_ONE,
             },
             {
                 ipcCallId: 3,
                 method: PRELOAD_PERFORMANCE_METHOD.DB_UPSERT_APP_PLAYLIST,
-                operationId: null,
+                operationId: OPERATION_ONE,
                 phase: 'success',
                 playlistId: PLAYLIST_ONE,
             },

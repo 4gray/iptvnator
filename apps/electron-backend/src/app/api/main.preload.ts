@@ -618,14 +618,14 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
     dbGetPlaylist: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_PLAYLIST', playlistId),
-    dbUpsertAppPlaylist: (playlist: Playlist) =>
+    dbUpsertAppPlaylist: (playlist: Playlist, _operationId?: string) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLIST', playlist),
     dbUpsertAppPlaylists: (playlists: Playlist[]) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLISTS', playlists),
     dbGetAppPlaylists: () => ipcRenderer.invoke('DB_GET_APP_PLAYLISTS'),
     dbGetAppPlaylistMetas: () =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST_METAS'),
-    dbGetAppPlaylist: (playlistId: string) =>
+    dbGetAppPlaylist: (playlistId: string, _operationId?: string) =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST', playlistId),
     dbGetAppPlaylistFavoriteChannels: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS', playlistId),

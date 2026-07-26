@@ -1,4 +1,3 @@
-import { PRELOAD_PERFORMANCE_METHOD } from '@iptvnator/shared/interfaces';
 import { completePreloadPerformanceCall } from './preload-performance-correlation.complete';
 import {
     normalizePreloadPerformanceIdentifier,
@@ -29,10 +28,9 @@ export function advancePreloadPerformanceCorrelation(
     const calls = new Map(state.calls);
     const sequences = new Map(state.sequences);
     const playlistId = normalizePreloadPerformanceIdentifier(event.playlistId);
-    const operationId =
-        event.method === PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST
-            ? normalizePreloadPerformanceIdentifier(event.operationId)
-            : null;
+    const operationId = normalizePreloadPerformanceIdentifier(
+        event.operationId
+    );
     const marker =
         event.phase === 'start'
             ? startPreloadPerformanceCall(

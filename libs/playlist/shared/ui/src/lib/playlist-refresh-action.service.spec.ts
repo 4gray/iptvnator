@@ -630,6 +630,7 @@ describe('PlaylistRefreshActionService', () => {
                 playlist: refreshedPlaylist,
                 playlistId: item._id,
                 refreshEpg: true,
+                operationId: 'playlist-refresh-op',
             })
         );
     });

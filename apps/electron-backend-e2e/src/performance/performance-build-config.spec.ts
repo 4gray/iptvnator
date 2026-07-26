@@ -224,3 +224,15 @@ test('the cancellation benchmark command is pinned to its Playwright test file',
         'pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts'
     );
 });
+
+test('the cancellation benchmark enables preload performance capture', () => {
+    const source = readFileSync(
+        join(
+            workspaceRoot,
+            'apps/electron-backend-e2e/src/performance/m3u-refresh-cancellation.benchmark.ts'
+        ),
+        'utf8'
+    );
+
+    assert.match(source, /IPTVNATOR_PERF_CAPTURE:\s*'1'/);
+});

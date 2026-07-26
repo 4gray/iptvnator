@@ -1336,6 +1336,37 @@ describe('PlaylistsService', () => {
             expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(2);
         });
 
+        it('forwards refresh instrumentation only to its SQLite read and write', async () => {
+            const { electron } = createStatefulElectronStore(
+                createBasePlaylist('playlist-instrumented-refresh')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+            const operationId = 'playlist-refresh-operation';
+
+            await firstValueFrom(
+                service.updatePlaylist(
+                    'playlist-instrumented-refresh',
+                    {
+                        _id: 'playlist-instrumented-refresh',
+                        playlist: { items: [] },
+                    } as Playlist,
+                    operationId
+                )
+            );
+
+            expect(electron.dbGetAppPlaylist).toHaveBeenCalledWith(
+                'playlist-instrumented-refresh',
+                operationId
+            );
+            expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    _id: 'playlist-instrumented-refresh',
+                }),
+                operationId
+            );
+        });
+
         it('keeps both favorites when two rapid favorite adds overlap (SQLite)', async () => {
             const { store, electron } = createStatefulElectronStore(
                 createBasePlaylist('portal-race-two-favorites')

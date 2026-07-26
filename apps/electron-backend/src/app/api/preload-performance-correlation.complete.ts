@@ -14,12 +14,25 @@ import {
     type PreloadPerformanceSequence,
 } from './preload-performance-correlation.model';
 
+function eventForRememberedCall(
+    event: PreloadPerformanceCorrelationEvent,
+    call: PreloadPerformanceCall
+): PreloadPerformanceCorrelationEvent {
+    return {
+        ...event,
+        method: call.method,
+        operationId: call.operationId,
+        playlistId: call.playlistId,
+    };
+}
+
 function invalidCompletion(
     calls: Map<number, PreloadPerformanceCall>,
     sequences: Map<string, PreloadPerformanceSequence>,
     event: PreloadPerformanceCorrelationEvent,
     call: PreloadPerformanceCall
 ): PreloadPerformanceMarkerMetadata {
+    const rememberedEvent = eventForRememberedCall(event, call);
     const invalidSequence =
         call.playlistId === null
             ? undefined
@@ -36,11 +49,12 @@ function invalidCompletion(
         call.playlistId
     );
     return createPreloadPerformanceMarkerMetadata(
-        event,
+        rememberedEvent,
         call.playlistId,
         invalidSequence?.operationId ?? call.operationId,
         PRELOAD_PERFORMANCE_CORRELATION_STATE.INVALID,
         invalidSequence?.invalidReason ??
+            call.invalidReason ??
             PRELOAD_PERFORMANCE_INVALID_REASON.OUT_OF_ORDER
     );
 }
@@ -49,26 +63,28 @@ function completeCorrelatedCall(
     calls: Map<number, PreloadPerformanceCall>,
     sequences: Map<string, PreloadPerformanceSequence>,
     event: PreloadPerformanceCorrelationEvent,
-    call: PreloadPerformanceCall & { playlistId: string }
+    call: PreloadPerformanceCall & {
+        operationId: string;
+        playlistId: string;
+    }
 ): PreloadPerformanceMarkerMetadata {
     const sequence = sequences.get(call.playlistId);
     const expectedStage =
-        event.method === PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST
+        call.method === PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST
             ? PRELOAD_PERFORMANCE_SEQUENCE_STAGE.REFRESH_STARTED
-            : event.method === PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST
+            : call.method === PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST
               ? PRELOAD_PERFORMANCE_SEQUENCE_STAGE.DB_GET_STARTED
               : PRELOAD_PERFORMANCE_SEQUENCE_STAGE.DB_UPSERT_STARTED;
     if (
         !sequence ||
-        sequence.stage !== expectedStage ||
-        sequence.activeCallId !== event.ipcCallId ||
-        sequence.operationId !== call.operationId
+        sequence.operationId !== call.operationId ||
+        sequence.stage !== expectedStage
     ) {
         return invalidCompletion(calls, sequences, event, call);
     }
 
     if (event.phase === 'error') {
-        const invalidSequence = invalidatePreloadPerformanceSequence(
+        invalidatePreloadPerformanceSequence(
             calls,
             sequences,
             call.playlistId,
@@ -83,54 +99,51 @@ function completeCorrelatedCall(
         return createPreloadPerformanceMarkerMetadata(
             event,
             call.playlistId,
-            sequence.operationId,
+            call.operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.INVALID,
-            invalidSequence?.invalidReason ??
-                PRELOAD_PERFORMANCE_INVALID_REASON.IPC_ERROR
+            PRELOAD_PERFORMANCE_INVALID_REASON.IPC_ERROR
         );
     }
 
     if (
-        event.method === PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST &&
+        call.method === PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST &&
         event.refreshCancelled === true
     ) {
-        sequences.delete(call.playlistId);
         calls.delete(event.ipcCallId);
+        sequences.delete(call.playlistId);
         return createPreloadPerformanceMarkerMetadata(
             event,
             call.playlistId,
-            sequence.operationId,
+            call.operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.INVALID,
             PRELOAD_PERFORMANCE_INVALID_REASON.REFRESH_CANCELLED
         );
     }
 
     calls.delete(event.ipcCallId);
-    if (event.method === PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST) {
+    if (call.method === PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST) {
         sequences.set(call.playlistId, {
             ...sequence,
-            activeCallId: null,
             stage: PRELOAD_PERFORMANCE_SEQUENCE_STAGE.REFRESH_SUCCEEDED,
         });
         return createPreloadPerformanceMarkerMetadata(
             event,
             call.playlistId,
-            sequence.operationId,
+            call.operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.CORRELATED,
             null
         );
     }
 
-    if (event.method === PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST) {
+    if (call.method === PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST) {
         sequences.set(call.playlistId, {
             ...sequence,
-            activeCallId: null,
             stage: PRELOAD_PERFORMANCE_SEQUENCE_STAGE.DB_GET_SUCCEEDED,
         });
         return createPreloadPerformanceMarkerMetadata(
             event,
             call.playlistId,
-            sequence.operationId,
+            call.operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.CORRELATED,
             null
         );
@@ -140,7 +153,7 @@ function completeCorrelatedCall(
     return createPreloadPerformanceMarkerMetadata(
         event,
         call.playlistId,
-        sequence.operationId,
+        call.operationId,
         PRELOAD_PERFORMANCE_CORRELATION_STATE.COMPLETE,
         null
     );
@@ -155,50 +168,33 @@ export function completePreloadPerformanceCall(
 ): PreloadPerformanceMarkerMetadata {
     const call = calls.get(event.ipcCallId);
     if (!call) {
-        const sequence = playlistId ? sequences.get(playlistId) : undefined;
-        const invalidSequence = playlistId
-            ? invalidatePreloadPerformanceSequence(
-                  calls,
-                  sequences,
-                  playlistId,
-                  PRELOAD_PERFORMANCE_INVALID_REASON.OUT_OF_ORDER
-              )
-            : undefined;
-        const invalidReason =
-            invalidSequence?.invalidReason ??
-            PRELOAD_PERFORMANCE_INVALID_REASON.OUT_OF_ORDER;
-        closeInvalidPreloadPerformanceSequenceWhenSettled(
-            calls,
-            sequences,
-            playlistId
-        );
         return createPreloadPerformanceMarkerMetadata(
             event,
             playlistId,
-            invalidSequence?.operationId ?? sequence?.operationId ?? null,
+            operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.INVALID,
-            invalidReason
+            PRELOAD_PERFORMANCE_INVALID_REASON.OUT_OF_ORDER
         );
     }
 
     const identityMatches =
         call.method === event.method &&
-        call.playlistId === playlistId &&
-        (event.method !== PRELOAD_PERFORMANCE_METHOD.REFRESH_PLAYLIST ||
-            call.expectedOperationId === operationId);
+        call.operationId === operationId &&
+        call.playlistId === playlistId;
     if (!identityMatches) {
         return invalidCompletion(calls, sequences, event, call);
     }
 
+    const rememberedEvent = eventForRememberedCall(event, call);
     if (
         call.correlationState ===
         PRELOAD_PERFORMANCE_CORRELATION_STATE.UNCORRELATED
     ) {
         calls.delete(event.ipcCallId);
         return createPreloadPerformanceMarkerMetadata(
-            event,
+            rememberedEvent,
             call.playlistId,
-            null,
+            call.operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.UNCORRELATED,
             null
         );
@@ -214,7 +210,7 @@ export function completePreloadPerformanceCall(
             call.playlistId
         );
         return createPreloadPerformanceMarkerMetadata(
-            event,
+            rememberedEvent,
             call.playlistId,
             call.operationId,
             PRELOAD_PERFORMANCE_CORRELATION_STATE.INVALID,
@@ -223,13 +219,13 @@ export function completePreloadPerformanceCall(
         );
     }
 
-    if (call.playlistId === null) {
-        return invalidCompletion(calls, sequences, event, call);
-    }
     return completeCorrelatedCall(
         calls,
         sequences,
-        event,
-        call as PreloadPerformanceCall & { playlistId: string }
+        rememberedEvent,
+        call as PreloadPerformanceCall & {
+            operationId: string;
+            playlistId: string;
+        }
     );
 }

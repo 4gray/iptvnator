@@ -23,7 +23,6 @@ export type PreloadPerformanceSequenceStage =
     (typeof PRELOAD_PERFORMANCE_SEQUENCE_STAGE)[keyof typeof PRELOAD_PERFORMANCE_SEQUENCE_STAGE];
 
 export interface PreloadPerformanceSequence {
-    activeCallId: number | null;
     invalidReason: PreloadPerformanceInvalidReason | null;
     operationId: string;
     stage: PreloadPerformanceSequenceStage;
@@ -31,7 +30,6 @@ export interface PreloadPerformanceSequence {
 
 export interface PreloadPerformanceCall {
     correlationState: PreloadPerformanceCorrelationStateName;
-    expectedOperationId: string | null;
     invalidReason: PreloadPerformanceInvalidReason | null;
     method: PreloadPerformanceMethod;
     operationId: string | null;
@@ -100,12 +98,10 @@ export function createInvalidPreloadPerformanceCall(
     event: PreloadPerformanceCorrelationEvent,
     playlistId: string | null,
     operationId: string | null,
-    invalidReason: PreloadPerformanceInvalidReason,
-    expectedOperationId = operationId
+    invalidReason: PreloadPerformanceInvalidReason
 ): PreloadPerformanceCall {
     return {
         correlationState: PRELOAD_PERFORMANCE_CORRELATION_STATE.INVALID,
-        expectedOperationId,
         invalidReason,
         method: event.method,
         operationId,
@@ -130,7 +126,6 @@ export function invalidatePreloadPerformanceSequence(
             : reason;
     const invalidSequence: PreloadPerformanceSequence = {
         ...sequence,
-        activeCallId: null,
         invalidReason,
         stage: PRELOAD_PERFORMANCE_SEQUENCE_STAGE.INVALID,
     };

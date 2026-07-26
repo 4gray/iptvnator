@@ -549,5 +549,15 @@ describe('RecentPlaylistsComponent busy state', () => {
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
 
         await Promise.resolve();
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.updatePlaylist({
+                playlist: expect.objectContaining({
+                    _id: item._id,
+                }),
+                playlistId: item._id,
+                refreshEpg: true,
+                operationId: 'playlist-refresh-op',
+            })
+        );
     });
 });

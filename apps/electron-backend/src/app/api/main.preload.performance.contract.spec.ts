@@ -77,12 +77,12 @@ describe('main preload performance marker contract', () => {
         await expect(api.refreshPlaylist(payload)).resolves.toBe(
             refreshedPlaylist
         );
-        await expect(api.dbGetAppPlaylist(payload.playlistId)).resolves.toBe(
-            storedPlaylist
-        );
-        await expect(api.dbUpsertAppPlaylist(upsertPlaylist)).resolves.toBe(
-            upsertResult
-        );
+        await expect(
+            api.dbGetAppPlaylist(payload.playlistId, payload.operationId)
+        ).resolves.toBe(storedPlaylist);
+        await expect(
+            api.dbUpsertAppPlaylist(upsertPlaylist, payload.operationId)
+        ).resolves.toBe(upsertResult);
 
         expect(harness.ipcRenderer.invoke.mock.calls).toEqual([
             ['PLAYLIST:REFRESH', payload],
@@ -289,12 +289,15 @@ describe('main preload performance marker contract', () => {
         );
     });
 
-    it('keeps results unchanged when marker delivery throws', async () => {
+    it('poisons correlation after the first marker delivery failure', async () => {
         const payload = createRefreshPayload();
         const result = createPlaylist(payload.playlistId);
         await loadPerformancePreload();
-        harness.ipcRenderer.invoke.mockResolvedValueOnce(result);
-        harness.ipcRenderer.send.mockImplementation((channel: string) => {
+        harness.ipcRenderer.invoke
+            .mockResolvedValueOnce(result)
+            .mockResolvedValueOnce(result)
+            .mockResolvedValueOnce({ success: true });
+        harness.ipcRenderer.send.mockImplementationOnce((channel: string) => {
             if (channel === PRELOAD_PERFORMANCE_MARKER_CHANNEL) {
                 throw new Error('marker-send-failed');
             }
@@ -303,11 +306,33 @@ describe('main preload performance marker contract', () => {
         await expect(harness.getApi().refreshPlaylist(payload)).resolves.toBe(
             result
         );
+        await expect(
+            harness
+                .getApi()
+                .dbGetAppPlaylist(payload.playlistId, payload.operationId)
+        ).resolves.toBe(result);
+        await expect(
+            harness.getApi().dbUpsertAppPlaylist(result, payload.operationId)
+        ).resolves.toEqual({ success: true });
         expect(
             harness.ipcRenderer.send.mock.calls.filter(
                 ([channel]) => channel === PRELOAD_PERFORMANCE_MARKER_CHANNEL
             )
-        ).toHaveLength(2);
+        ).toHaveLength(1);
+        expect(harness.getMarkers()).toHaveLength(1);
+        expect(harness.getMarkers()[0]).toMatchObject({
+            correlationState: PRELOAD_PERFORMANCE_CORRELATION_STATE.CORRELATED,
+            phase: 'start',
+        });
+        expect(
+            harness
+                .getMarkers()
+                .some(
+                    ({ correlationState }) =>
+                        correlationState ===
+                        PRELOAD_PERFORMANCE_CORRELATION_STATE.COMPLETE
+                )
+        ).toBe(false);
     });
 });
 

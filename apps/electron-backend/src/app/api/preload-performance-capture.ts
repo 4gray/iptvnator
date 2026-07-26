@@ -96,13 +96,13 @@ function extractIdentifiers(
 
     if (method === PRELOAD_PERFORMANCE_METHOD.DB_GET_APP_PLAYLIST) {
         return {
-            operationId: null,
+            operationId: normalizePreloadPerformanceIdentifier(args[1]),
             playlistId: normalizePreloadPerformanceIdentifier(args[0]),
         };
     }
 
     return {
-        operationId: null,
+        operationId: normalizePreloadPerformanceIdentifier(args[1]),
         playlistId: normalizePreloadPerformanceIdentifier(
             readProperty(args[0], '_id')
         ),
@@ -115,6 +115,7 @@ export function createPreloadPerformanceCapture(
 ): PreloadPerformanceCapture {
     let correlationState: PreloadPerformanceCorrelationState =
         createPreloadPerformanceCorrelationState();
+    let markerDeliveryFailed = false;
     let lastSourceEpochMs = 0;
     let nextIpcCallId = 1;
 
@@ -123,6 +124,10 @@ export function createPreloadPerformanceCapture(
         phase: PreloadPerformancePhase,
         refreshCancelled = false
     ): void {
+        if (markerDeliveryFailed) {
+            return;
+        }
+
         try {
             const transition = advancePreloadPerformanceCorrelation(
                 correlationState,
@@ -132,17 +137,18 @@ export function createPreloadPerformanceCapture(
                     refreshCancelled,
                 }
             );
-            correlationState = transition.state;
             const sourceEpochMs = Math.max(
                 readHighResolutionEpochMs(),
                 lastSourceEpochMs
             );
-            lastSourceEpochMs = sourceEpochMs;
             sendMarker(PRELOAD_PERFORMANCE_MARKER_CHANNEL, {
                 ...transition.marker,
                 sourceEpochMs,
             });
+            correlationState = transition.state;
+            lastSourceEpochMs = sourceEpochMs;
         } catch {
+            markerDeliveryFailed = true;
             // Performance instrumentation must never affect the bridge call.
         }
     }
