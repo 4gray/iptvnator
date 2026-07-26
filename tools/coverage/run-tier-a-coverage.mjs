@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+
+import {
+    createCoverageOutputScanner,
+    validateProjectCoverage,
+} from './coverage-integrity.mjs';
 
 const workspaceRoot = process.cwd();
 const policyPath = path.join(workspaceRoot, 'tools/coverage/coverage-policy.json');
@@ -120,6 +125,64 @@ function buildNxArgs(project) {
     );
 }
 
+function spawnCoverage(args, scanner) {
+    return new Promise((resolve, reject) => {
+        const child = spawn('pnpm', args, {
+            cwd: workspaceRoot,
+            env: {
+                ...process.env,
+                CI: process.env.CI ?? 'true',
+                NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false',
+            },
+            stdio: ['inherit', 'pipe', 'pipe'],
+        });
+
+        child.stdout.on('data', (chunk) => {
+            scanner.push(chunk);
+            process.stdout.write(chunk);
+        });
+        child.stderr.on('data', (chunk) => {
+            scanner.push(chunk);
+            process.stderr.write(chunk);
+        });
+        child.once('error', reject);
+        child.once('close', (code, signal) => {
+            resolve({ code, signal });
+        });
+    });
+}
+
+async function collectProjectCoverage(project) {
+    const args = buildNxArgs(project);
+    console.log(`\n==> Collecting coverage for ${project.name}`);
+    console.log(`pnpm ${args.join(' ')}`);
+
+    const scanner = createCoverageOutputScanner();
+    const result = await spawnCoverage(args, scanner);
+    let failed = result.code !== 0 || result.signal !== null;
+
+    if (scanner.collectionFailed) {
+        console.error(
+            `Coverage collection failed while testing ${project.name}.`
+        );
+        failed = true;
+    }
+
+    if (failed) {
+        return result.code && result.code !== 0 ? result.code : 1;
+    }
+
+    const validation = validateProjectCoverage({
+        project,
+        workspaceRoot,
+    });
+    for (const error of validation.errors) {
+        console.error(`Error: ${error}`);
+    }
+
+    return validation.errors.length === 0 ? 0 : 1;
+}
+
 for (const project of tierAProjects) {
     const coverageDir = path.join(workspaceRoot, 'coverage', project.root);
     rmSync(coverageDir, { recursive: true, force: true });
@@ -136,21 +199,8 @@ if (requestedProjects.size === 0) {
 }
 
 for (const project of tierAProjects) {
-    const args = buildNxArgs(project);
-    console.log(`\n==> Collecting coverage for ${project.name}`);
-    console.log(`pnpm ${args.join(' ')}`);
-
-    const result = spawnSync('pnpm', args, {
-        cwd: workspaceRoot,
-        env: {
-            ...process.env,
-            CI: process.env.CI ?? 'true',
-            NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false',
-        },
-        stdio: 'inherit',
-    });
-
-    if (result.status !== 0) {
-        process.exit(result.status ?? 1);
+    const status = await collectProjectCoverage(project);
+    if (status !== 0) {
+        process.exit(status);
     }
 }
