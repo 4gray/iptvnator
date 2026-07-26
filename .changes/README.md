@@ -69,9 +69,20 @@ node tools/release/build-release-notes.mjs --consume
 ```
 
 The release version comes from the root `package.json` — bump it first, then
-generate. `--version 0.24.0` overrides it for a dry run before the bump.
+generate. `--version 0.24.0` overrides it to preview a release before the bump:
 
-Only `--consume` deletes anything; every other mode is a safe dry run.
+```bash
+pnpm run release:notes:github --version 0.24.0
+```
+
+A bare `--` separator is accepted and ignored, so the npm habit of
+`pnpm run release:notes:github -- --version 0.24.0` works too: pnpm forwards
+that separator to the script rather than consuming it the way npm does.
+
+`--validate` and `--format github` only read and print. `--format changelog`
+and `--format blog` write their target file (rerunning `changelog` for the same
+version replaces that section rather than duplicating it). Only `--consume`
+deletes anything.
 
 The release sequence is: bump the version → `release:notes:changelog` →
 `release:notes:blog` → `--consume` → commit → tag → push. The tag build then
