@@ -8,6 +8,7 @@ import {
     createCoverageOutputScanner,
     evaluateCoverageRatchets,
     hasRuntimeOwnedStatement,
+    validateMergedCoverage,
     validateProjectCoverage,
     validateRequiredProjectReports,
 } from './coverage-integrity.mjs';
@@ -421,6 +422,170 @@ describe('validateProjectCoverage', () => {
         );
         assert.equal(result.errors.length, 1);
         assert.match(result.errors[0], /missing/);
+    });
+});
+
+describe('validateMergedCoverage', () => {
+    it('reports the exact runtime source omitted from an otherwise valid merged map', () => {
+        const included = makeProjectFixture({
+            name: 'included',
+            projectRoot: 'libs/included',
+        });
+        const omitted = makeProjectFixture({
+            name: 'omitted',
+            projectRoot: 'libs/omitted',
+            workspaceRoot: included.workspaceRoot,
+        });
+        writeCompleteReport(included);
+        writeCompleteReport(omitted);
+
+        assert.deepEqual(validateProjectCoverage(included).errors, []);
+        assert.deepEqual(validateProjectCoverage(omitted).errors, []);
+
+        const result = validateMergedCoverage({
+            coverageData: {
+                [included.sourcePath]: coverageEntry(included.sourcePath),
+            },
+            projects: [included.project, omitted.project],
+            reportPath: path.join(
+                included.workspaceRoot,
+                'coverage/merged/coverage-final.json'
+            ),
+            workspaceRoot: included.workspaceRoot,
+        });
+
+        assert.deepEqual(result.errors, [
+            'Merged coverage report coverage/merged/coverage-final.json is missing runtime-owning source libs/omitted/src/runtime.ts from Tier A project omitted.',
+        ]);
+    });
+
+    it('fails completeness when permissive ratchets accept a recomputed summary', () => {
+        const fixture = makeProjectFixture({
+            name: 'm3u-state',
+            projectRoot: 'libs/m3u-state',
+        });
+        const effectsPath = path.join(
+            fixture.workspaceRoot,
+            fixture.project.sourceRoot,
+            'effects.ts'
+        );
+        writeFileSync(
+            effectsPath,
+            'export const effects = () => "runtime";\n'
+        );
+        writeFileSync(
+            fixture.reportPath,
+            JSON.stringify({
+                [fixture.sourcePath]: coverageEntry(fixture.sourcePath, [1]),
+                [effectsPath]: coverageEntry(effectsPath, [0]),
+            })
+        );
+        assert.deepEqual(validateProjectCoverage(fixture).errors, []);
+
+        const coverageData = {
+            [fixture.sourcePath]: coverageEntry(fixture.sourcePath, [1]),
+        };
+        const completeness = validateMergedCoverage({
+            coverageData,
+            projects: [fixture.project],
+            reportPath: path.join(
+                fixture.workspaceRoot,
+                'coverage/merged/coverage-final.json'
+            ),
+            workspaceRoot: fixture.workspaceRoot,
+        });
+        const recomputedSummary = completeness.coverageMap
+            .getCoverageSummary()
+            .toJSON();
+
+        assert.deepEqual(
+            evaluateCoverageRatchets({
+                coverageData,
+                mergedSummary: recomputedSummary,
+                ratchet: ratchetWithCriticalFiles([]),
+                workspaceRoot: fixture.workspaceRoot,
+            }),
+            []
+        );
+        assert.deepEqual(completeness.errors, [
+            'Merged coverage report coverage/merged/coverage-final.json is missing runtime-owning source libs/m3u-state/src/effects.ts from Tier A project m3u-state.',
+        ]);
+    });
+
+    it('accepts a complete merged map with normalized relative and absolute paths', () => {
+        const relative = makeProjectFixture({
+            name: 'relative',
+            projectRoot: 'libs/relative',
+        });
+        const absolute = makeProjectFixture({
+            name: 'absolute',
+            projectRoot: 'libs/absolute',
+            workspaceRoot: relative.workspaceRoot,
+        });
+        const relativePath = path.relative(
+            relative.workspaceRoot,
+            relative.sourcePath
+        );
+
+        const result = validateMergedCoverage({
+            coverageData: {
+                [relativePath]: coverageEntry(relativePath),
+                [absolute.sourcePath]: coverageEntry(absolute.sourcePath),
+            },
+            projects: [relative.project, absolute.project],
+            reportPath: path.join(
+                relative.workspaceRoot,
+                'coverage/merged/coverage-final.json'
+            ),
+            workspaceRoot: relative.workspaceRoot,
+        });
+
+        assert.deepEqual(result.errors, []);
+    });
+
+    it('rejects unusable merged instrumentation for a runtime source', () => {
+        const fixture = makeProjectFixture();
+
+        const result = validateMergedCoverage({
+            coverageData: {
+                [fixture.sourcePath]: coverageEntry(fixture.sourcePath, []),
+            },
+            projects: [fixture.project],
+            reportPath: path.join(
+                fixture.workspaceRoot,
+                'coverage/merged/coverage-final.json'
+            ),
+            workspaceRoot: fixture.workspaceRoot,
+        });
+
+        assert.deepEqual(result.errors, [
+            'Merged coverage report coverage/merged/coverage-final.json has no usable instrumentation for runtime-owning source libs/example/src/runtime.ts from Tier A project example.',
+        ]);
+    });
+
+    it('rejects duplicate merged paths after normalization', () => {
+        const fixture = makeProjectFixture();
+        const relativePath = path.relative(
+            fixture.workspaceRoot,
+            fixture.sourcePath
+        );
+
+        const result = validateMergedCoverage({
+            coverageData: {
+                [relativePath]: coverageEntry(relativePath),
+                [fixture.sourcePath]: coverageEntry(fixture.sourcePath),
+            },
+            projects: [fixture.project],
+            reportPath: path.join(
+                fixture.workspaceRoot,
+                'coverage/merged/coverage-final.json'
+            ),
+            workspaceRoot: fixture.workspaceRoot,
+        });
+
+        assert.deepEqual(result.errors, [
+            'Merged coverage report coverage/merged/coverage-final.json contains a duplicate entry for libs/example/src/runtime.ts after path normalization.',
+        ]);
     });
 });
 

@@ -339,6 +339,99 @@ export function validateRequiredProjectReports({ projects, workspaceRoot }) {
     return { errors, reports };
 }
 
+export function validateMergedCoverage({
+    coverageData,
+    projects,
+    reportPath,
+    workspaceRoot,
+}) {
+    const relativeReportPath = toPosix(
+        path.relative(workspaceRoot, reportPath)
+    );
+    const reportDescription = `Merged coverage report ${relativeReportPath}`;
+
+    if (
+        !isObjectRecord(coverageData) ||
+        Object.values(coverageData).some(
+            (entry) => !isObjectRecord(entry)
+        )
+    ) {
+        return {
+            coverageMap: undefined,
+            errors: [
+                `${reportDescription} must contain a JSON object mapping source paths to JSON objects.`,
+            ],
+        };
+    }
+
+    let coverageMap;
+    try {
+        coverageMap = createCoverageMap(coverageData);
+        for (const filePath of coverageMap.files()) {
+            coverageMap.fileCoverageFor(filePath).toSummary();
+        }
+    } catch (error) {
+        return {
+            coverageMap: undefined,
+            errors: [
+                `${reportDescription} is not valid Istanbul coverage: ${error.message}`,
+            ],
+        };
+    }
+
+    const {
+        duplicateAbsolutePaths,
+        filesByAbsolutePath: reportedFiles,
+    } = indexCoverageFilesByAbsolutePath(coverageMap, workspaceRoot);
+    if (duplicateAbsolutePaths.length > 0) {
+        return {
+            coverageMap: undefined,
+            errors: duplicateAbsolutePaths.map(
+                (filePath) =>
+                    `${reportDescription} contains a duplicate entry for ${toPosix(
+                        path.relative(workspaceRoot, filePath)
+                    )} after path normalization.`
+            ),
+        };
+    }
+
+    const errors = [];
+    for (const project of projects) {
+        for (const filePath of runtimeOwningSourceFiles(
+            workspaceRoot,
+            project.sourceRoot
+        )) {
+            const relativeSourcePath = toPosix(
+                path.relative(workspaceRoot, filePath)
+            );
+            const reportedPath = reportedFiles.get(filePath);
+            if (reportedPath === undefined) {
+                errors.push(
+                    `${reportDescription} is missing runtime-owning source ${relativeSourcePath} from Tier A project ${project.name}.`
+                );
+                continue;
+            }
+
+            const summary = coverageMap
+                .fileCoverageFor(reportedPath)
+                .toSummary()
+                .toJSON();
+            const hasUsableInstrumentation = [
+                summary.statements,
+                summary.functions,
+                summary.branches,
+            ].some((metric) => metric.total > 0);
+            if (!hasUsableInstrumentation) {
+                errors.push(
+                    `${reportDescription} has no usable instrumentation for runtime-owning source ${relativeSourcePath} from Tier A project ${project.name}.`
+                );
+            }
+        }
+    }
+
+    return { coverageMap, errors };
+}
+
 function formatConfigurationValue(value) {
     return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }

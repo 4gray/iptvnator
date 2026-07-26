@@ -7,18 +7,16 @@ import {
     readdirSync,
     statSync,
 } from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 
 import {
     evaluateCoverageRatchets,
+    validateMergedCoverage,
     validateProjectCoverage,
     validateRequiredProjectReports,
 } from './coverage-integrity.mjs';
 
-const require = createRequire(import.meta.url);
-const { createCoverageMap } = require('istanbul-lib-coverage');
 const COVERAGE_METRICS = [
     'statements',
     'branches',
@@ -194,23 +192,26 @@ function verifyCoverageReport() {
         return;
     }
 
-    let computedSummary;
-    try {
-        const coverageMap = createCoverageMap(coverageData);
-        computedSummary = coverageMap.getCoverageSummary().toJSON();
-    } catch (error) {
-        errors.push(
-            `Merged coverage report ${path.relative(workspaceRoot, coveragePath)} is not valid Istanbul coverage: ${error.message}`
-        );
+    const mergedValidation = validateMergedCoverage({
+        coverageData,
+        projects: policy.unitCoverage.tierA,
+        reportPath: coveragePath,
+        workspaceRoot,
+    });
+    errors.push(...mergedValidation.errors);
+    if (!mergedValidation.coverageMap) {
         return;
     }
+    const computedSummary = mergedValidation.coverageMap
+        .getCoverageSummary()
+        .toJSON();
 
     console.log(
         `Merged coverage: statements ${computedSummary.statements.pct}%, branches ${computedSummary.branches.pct}%, functions ${computedSummary.functions.pct}%, lines ${computedSummary.lines.pct}%.`
     );
     reportCoverageSummaryMismatches(summary, computedSummary);
 
-    if (ratchet === undefined) {
+    if (mergedValidation.errors.length > 0 || ratchet === undefined) {
         return;
     }
 
