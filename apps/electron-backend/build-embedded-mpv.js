@@ -677,44 +677,23 @@ function copyGenericRuntimeToNativeBuild(runtime) {
     return manifest;
 }
 
-function resolveElectronNodeGypBin() {
-    const pnpmRoot = path.join(workspaceRoot, 'node_modules', '.pnpm');
-
-    if (!fs.existsSync(pnpmRoot)) {
-        throw new Error('Unable to find node_modules/.pnpm.');
-    }
-
-    const packageDirs = fs
-        .readdirSync(pnpmRoot, { withFileTypes: true })
-        .filter(
-            (entry) =>
-                entry.isDirectory() &&
-                entry.name.startsWith('@electron+node-gyp@')
-        )
-        .map((entry) => entry.name)
-        .sort();
-
-    for (const packageDir of packageDirs) {
-        const candidate = path.join(
-            pnpmRoot,
-            packageDir,
-            'node_modules',
-            '@electron',
-            'node-gyp',
-            'bin',
-            'node-gyp.js'
+// Upstream node-gyp, resolved as a declared devDependency. This used to scan
+// node_modules/.pnpm for the `@electron/node-gyp` fork, which was only ever in
+// the tree as a transitive of `@electron/rebuild` 3 — rebuild 4 moved to
+// upstream `node-gyp` and the scan started throwing. The Electron target is
+// selected through the npm_config_* env below, not by the binary.
+function resolveNodeGypBin() {
+    try {
+        return require.resolve('node-gyp/bin/node-gyp.js');
+    } catch (error) {
+        throw new Error(
+            `Unable to resolve node-gyp. Is it installed? (${error.message})`
         );
-
-        if (fs.existsSync(candidate)) {
-            return candidate;
-        }
     }
-
-    throw new Error('Unable to resolve @electron/node-gyp.');
 }
 
 function runNodeGyp(command, env) {
-    const nodeGypBin = resolveElectronNodeGypBin();
+    const nodeGypBin = resolveNodeGypBin();
     const result = spawnSync(
         process.execPath,
         [nodeGypBin, command, '--directory', addonRoot],
