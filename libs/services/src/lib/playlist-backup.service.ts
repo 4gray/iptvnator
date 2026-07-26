@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { v4 as uuidv4 } from 'uuid';
 import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
 import { DatabaseService } from './database-electron.service';
@@ -23,6 +22,7 @@ import {
     XtreamBackupContentType,
     XtreamPlaylistBackupEntry,
     XtreamPendingRestoreState,
+    createRandomId,
 } from '@iptvnator/shared/interfaces';
 
 export interface PlaylistBackupExportPayload {
@@ -585,10 +585,10 @@ export class PlaylistBackupService {
             return entry.exportedId;
         }
 
-        let nextId = uuidv4();
+        let nextId = createRandomId();
 
         while (existingIds.has(nextId)) {
-            nextId = uuidv4();
+            nextId = createRandomId();
         }
 
         return nextId;
