@@ -3,6 +3,7 @@ type: perf
 area: stalker
 ---
 
-Detail pages open faster: a movie, channel or series no longer triggers an extra
-episode-list request before it can show anything — whether you got there from
-browsing, search, Favorites, Recent or the dashboard.
+Detail pages for anything that is not a series — a movie, a live channel, a VOD
+item that only looks like a series — no longer fire an episode-list request
+before they can show anything, so they open faster on every route in, from
+browsing and search to Favorites, Recent and the dashboard.
