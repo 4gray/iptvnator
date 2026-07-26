@@ -1,10 +1,10 @@
 import {
     Channel,
+    createRandomId,
     ParsedPlaylist,
     ParsedPlaylistItem,
     Playlist,
 } from '@iptvnator/shared/interfaces';
-import { v4 as uuidv4 } from 'uuid';
 import { extractDrmFromRaw } from './kodiprop.utils';
 
 /**
@@ -387,7 +387,7 @@ export const createPlaylistObject = (
     });
 
     return {
-        _id: uuidv4(),
+        _id: createRandomId(),
         filename: name,
         title: name,
         count: playlist.items.length,
@@ -397,7 +397,7 @@ export const createPlaylistObject = (
                 const drm = extractDrmFromRaw(item.raw);
                 return {
                     ...item,
-                    id: uuidv4(),
+                    id: createRandomId(),
                     ...(drm ? { drm } : {}),
                 };
             }),
