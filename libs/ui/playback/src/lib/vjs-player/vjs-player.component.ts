@@ -31,11 +31,8 @@ import {
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
-import {
-    VjsAudioTracks,
-    logVjsAudioTracks,
-    setupVjsAudioTrackMenu,
-} from './vjs-audio-tracks';
+import { logVjsAudioTracks, setupVjsAudioTrackMenu } from './vjs-audio-tracks';
+import { VjsLegacyTracks } from './vjs-legacy-tracks';
 import { VjsMpegTsSession } from './vjs-mpegts-session';
 import { VjsPlayerControlsBridge } from './vjs-player-controls.bridge';
 import {
@@ -112,7 +109,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             debugVjsPlayer('Failed to reset Video.js player:', error),
     });
     private controlsBridge: VjsPlayerControlsBridge | null = null;
-    private legacyAudioTracks: VjsAudioTracks | null = null;
+    /** Track ownership for the legacy chrome; null with shared controls. */
+    private legacyTracks: VjsLegacyTracks | null = null;
     private desiredSource: VideoPlayerSource | null = null;
     private readyHandled = false;
     private destroyed = false;
@@ -161,6 +159,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
         if (changes['showCaptions']) {
             this.controlsBridge?.refreshInputs();
+            this.legacyTracks?.refreshInputs();
         }
         if (changes['interactionEnabled']?.currentValue === false) {
             exitOwnedVjsFullscreen(
@@ -187,8 +186,8 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.resetCoordinator.destroy();
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
-        this.legacyAudioTracks?.clear();
-        this.legacyAudioTracks = null;
+        this.legacyTracks?.destroy();
+        this.legacyTracks = null;
         this.mpegTsSession.destroy();
         this.videoSession.destroy();
         if (this.player) {
@@ -211,7 +210,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.volume()
         );
         this.player.volume(this.volume());
-        this.initializeLegacyAudioTracks();
+        this.initializeLegacyTracks();
         const video = this.bindCurrentTechVideo();
         if (video && this.resetCoordinator.canApplyReadySource()) {
             this.activateSource(this.desiredSource, video);
@@ -224,7 +223,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.player.currentTime(this.startTime());
         }
         this.playbackIssue.emit(null);
-        this.legacyAudioTracks?.bind();
+        this.legacyTracks?.bind();
         logVjsAudioTracks(this.player);
         setupVjsAudioTrackMenu(this.player);
         this.controlsBridge?.refreshInputs();
@@ -271,7 +270,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private readonly handlePlayerReset = () => {
         this.player.volume(this.resetCoordinator.handlePlayerReset());
         this.controlsBridge?.clearSource();
-        this.legacyAudioTracks?.clear();
+        this.legacyTracks?.clear();
         this.mpegTsSession.destroy();
         this.restoreDesiredSourceAfterReset(true);
     };
@@ -283,7 +282,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private changeSource(source: VideoPlayerSource | null): void {
         this.playbackIssue.emit(null);
         this.controlsBridge?.clearSource();
-        this.legacyAudioTracks?.clear();
+        this.legacyTracks?.clear();
         this.mpegTsSession.destroy();
         this.desiredSource = source;
         this.resetCoordinator.clearSourceApplied();
@@ -325,7 +324,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
         this.player.src(source);
         this.controlsBridge?.setSource();
-        this.legacyAudioTracks?.bind();
+        this.legacyTracks?.bind();
         this.resetCoordinator.markSourceApplied();
     }
 
@@ -338,7 +337,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             return;
         }
         this.controlsBridge?.setSource();
-        this.legacyAudioTracks?.bind();
+        this.legacyTracks?.bind();
         if (this.mpegTsSession.isSupportedSource(source.src)) {
             debugVjsPlayer('Using mpegts.js for TS stream:', source.src);
             this.mpegTsSession.start(source.src, video);
@@ -368,15 +367,15 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         return video;
     }
 
-    private initializeLegacyAudioTracks(): void {
-        if (this.sharedControls || this.legacyAudioTracks) {
+    private initializeLegacyTracks(): void {
+        if (this.sharedControls || this.legacyTracks) {
             return;
         }
-        this.legacyAudioTracks = new VjsAudioTracks({
+        this.legacyTracks = new VjsLegacyTracks({
             player: this.player,
-            refresh: () => undefined,
+            showCaptions: () => this.showCaptions(),
         });
-        this.legacyAudioTracks.bind();
+        this.legacyTracks.bind();
     }
 
     private bindPlayerEvents(): void {

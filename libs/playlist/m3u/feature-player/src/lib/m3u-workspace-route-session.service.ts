@@ -117,7 +117,7 @@ export class M3uWorkspaceRouteSession {
                 (favorite): favorite is string => typeof favorite === 'string'
             );
             this.store.dispatch(
-                FavoritesActions.setFavorites({
+                FavoritesActions.hydrateFavorites({
                     channelIds: favorites,
                 })
             );
@@ -128,7 +128,7 @@ export class M3uWorkspaceRouteSession {
 
             this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
             this.store.dispatch(
-                FavoritesActions.setFavorites({ channelIds: [] })
+                FavoritesActions.hydrateFavorites({ channelIds: [] })
             );
         }
     }

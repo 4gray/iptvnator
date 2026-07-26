@@ -131,12 +131,14 @@ export function resetArtPlayerSourceFixtures(): void {
 export function createSession({
     sharedControls,
     isLive = true,
+    showCaptions = () => false,
     emitPlaybackIssue = () => undefined,
     getDrm,
     loadShaka,
 }: {
     sharedControls: boolean;
     isLive?: boolean;
+    showCaptions?: () => boolean;
     emitPlaybackIssue?: (issue: PlaybackDiagnostic) => void;
     getDrm?: () => ChannelDrm | undefined;
     loadShaka?: ShakaModuleLoader;
@@ -161,7 +163,7 @@ export function createSession({
             sharedControls,
             controlsAdapter: adapter,
             isLive: () => isLive,
-            showCaptions: () => false,
+            showCaptions,
             emitPlaybackIssue,
             getDrm,
             loadShaka,

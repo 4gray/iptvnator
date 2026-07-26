@@ -788,6 +788,8 @@ const electronApi: ElectronBridgeApi = {
         ),
     dbSetTmdbMetadata: (entry: TmdbCacheEntry) =>
         ipcRenderer.invoke('DB_SET_TMDB_METADATA', entry),
+    dbGetTmdbCacheStats: () => ipcRenderer.invoke('DB_GET_TMDB_CACHE_STATS'),
+    dbClearTmdbMetadata: () => ipcRenderer.invoke('DB_CLEAR_TMDB_METADATA'),
     dbMatchTitles: (titles: string[]) =>
         ipcRenderer.invoke('DB_MATCH_TITLES', titles),
     // Playback Positions

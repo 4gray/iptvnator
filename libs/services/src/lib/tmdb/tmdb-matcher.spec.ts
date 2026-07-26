@@ -1,6 +1,8 @@
 import {
+    buildBadProviderIdLookupKey,
     buildDetailsLookupKey,
     buildSearchLookupKey,
+    detailsMatchProviderTitle,
     buildSearchTitleVariants,
     extractYear,
     normalizeTitle,
@@ -293,5 +295,60 @@ describe('pickConfidentMatch', () => {
         expect(
             pickConfidentMatch([matrix1999], { title: '', year: null }, 'movie')
         ).toBeNull();
+    });
+});
+
+describe('buildBadProviderIdLookupKey', () => {
+    it('namespaces the id so it cannot collide with a details row', () => {
+        expect(buildBadProviderIdLookupKey(603)).toBe('badProviderId:603');
+        expect(buildBadProviderIdLookupKey(603)).not.toBe(
+            buildDetailsLookupKey(603)
+        );
+    });
+});
+
+describe('detailsMatchProviderTitle', () => {
+    const details = {
+        title: 'The Matrix',
+        original_title: 'The Matrix',
+    };
+
+    it('accepts a match on a noisy provider title', () => {
+        expect(
+            detailsMatchProviderTitle(details, {
+                title: 'EN - The Matrix (1999) 1080p',
+            })
+        ).toBe(true);
+    });
+
+    it('accepts a match against the original title only', () => {
+        expect(
+            detailsMatchProviderTitle(
+                { title: 'Die Hard', original_title: 'Stirb langsam' },
+                { title: 'Stirb langsam' }
+            )
+        ).toBe(true);
+    });
+
+    it('matches series payloads through name/original_name', () => {
+        expect(
+            detailsMatchProviderTitle(
+                { name: 'The Boys', original_name: 'The Boys' },
+                { title: 'The Boys s05' }
+            )
+        ).toBe(true);
+    });
+
+    it('reports a mismatch for an unrelated title', () => {
+        expect(
+            detailsMatchProviderTitle(details, { title: 'Blade Runner' })
+        ).toBe(false);
+    });
+
+    it('never reports a mismatch when there is nothing to compare', () => {
+        expect(detailsMatchProviderTitle(details, { title: '' })).toBe(true);
+        expect(detailsMatchProviderTitle({}, { title: 'The Matrix' })).toBe(
+            false
+        );
     });
 });

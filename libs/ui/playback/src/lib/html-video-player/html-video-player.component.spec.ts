@@ -91,23 +91,6 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(adapterAttach).not.toHaveBeenCalled();
     });
 
-    it('keeps legacy post-play caption suppression when shared controls are disabled', async () => {
-        const video = component.videoPlayer.nativeElement;
-        const tracks = [{ mode: 'showing' as TextTrackMode }];
-        Object.defineProperty(video, 'textTracks', {
-            configurable: true,
-            value: tracks,
-        });
-        jest.spyOn(video, 'play').mockResolvedValue(undefined);
-        fixture.componentRef.setInput('showCaptions', false);
-        fixture.detectChanges();
-
-        component.handlePlayOperation();
-        await Promise.resolve();
-
-        expect(tracks[0].mode).toBe('hidden');
-    });
-
     it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
         const el = component.videoPlayer.nativeElement;
         const removeSpy = jest.spyOn(el, 'removeEventListener');

@@ -55,6 +55,10 @@ import { store } from './services/store.service';
 type MockMainWindow = {
     center: jest.Mock<void, []>;
     getNormalBounds: jest.Mock<object, []>;
+    // Read once by attachWindowStateEvents to seed the tracked window
+    // state; only reached off macOS, where the custom controls exist.
+    isFullScreen: jest.Mock<boolean, []>;
+    isMaximized: jest.Mock<boolean, []>;
     loadFile: jest.Mock<Promise<void>, [string]>;
     loadURL: jest.Mock<Promise<void>, [string]>;
     on: jest.Mock<void, [string, (...args: unknown[]) => void]>;
@@ -72,6 +76,8 @@ function createMockMainWindow(): MockMainWindow {
     return {
         center: jest.fn<void, []>(),
         getNormalBounds: jest.fn<object, []>().mockReturnValue({}),
+        isFullScreen: jest.fn<boolean, []>().mockReturnValue(false),
+        isMaximized: jest.fn<boolean, []>().mockReturnValue(false),
         loadFile: jest.fn<Promise<void>, [string]>().mockResolvedValue(),
         loadURL: jest.fn<Promise<void>, [string]>().mockResolvedValue(),
         on: jest.fn<void, [string, (...args: unknown[]) => void]>(),

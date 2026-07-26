@@ -106,6 +106,13 @@ export interface TmdbRecommendation {
  * - `title:<normalized>|year:<year>` — search resolution result; a `null`
  *   `tmdbId` is a cached "no confident match" verdict (negative cache)
  */
+/** Size of the persisted TMDB cache, shown in the settings panel */
+export interface TmdbCacheStats {
+    entries: number;
+    /** Total payload size in bytes */
+    bytes: number;
+}
+
 export interface TmdbCacheEntry {
     mediaType: TmdbCacheMediaType;
     lookupKey: string;

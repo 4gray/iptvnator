@@ -62,7 +62,16 @@ Two paths re-download an M3U playlist from its original source:
 
 - **Explicit refresh** — `PLAYLIST_REFRESH` runs in `playlist-refresh.worker.ts`, reports
   progress through `PLAYLIST_REFRESH_EVENT`, and is cancellable via
-  `PLAYLIST_CANCEL_REFRESH`.
+  `PLAYLIST_CANCEL_REFRESH`. Cancellation is owned by the main process: it first
+  sends the cooperative cancel message, then terminates the one-shot worker
+  without waiting for its event loop. The cancel IPC resolves only after the
+  worker has stopped, the correlated `cancelled` event has been emitted with the
+  last known phase, and a structured cancellation result is ready. That result
+  crosses both Electron IPC and the context bridge unchanged;
+  `PlaylistRefreshService` converts it into a renderer-local `AbortError`.
+  Relying on an error created in main or preload would lose its `name` at one of
+  those serialization boundaries. A cancelled refresh must not update the
+  renderer store or reach SQLite.
 - **Startup auto-update** — after `loadPlaylistsSuccess`, `AppComponent` sends
   `AUTO_UPDATE_PLAYLISTS` for every playlist with `autoRefresh === true`. The main
   process fulfils it in `playlist-auto-update.ts` on top of `playlist-source.ts`.
@@ -86,6 +95,37 @@ dead source must never stall startup (issue #931):
 - Playlist URLs frequently carry Xtream-style `username`/`password` query parameters,
   so refresh logging goes through `redactSensitiveData()` from
   `@iptvnator/shared/logging`.
+
+### Refresh Cancellation Performance Regression
+
+The Electron E2E project includes a deterministic 100,000-channel cancellation
+benchmark. It uses only a loopback synthetic M3U server, performs one warm-up,
+five measured runs, and one diagnostic run, and writes summaries plus raw
+profiles below the gitignored `dist/performance/` directory:
+
+```bash
+perf_output="$PWD/dist/performance/$(date -u +%Y%m%dT%H%M%SZ)-m3u-refresh-cancel"
+IPTVNATOR_PERF_OUTPUT_DIR="$perf_output" \
+IPTVNATOR_PERF_VARIANT=after \
+pnpm nx run electron-backend-e2e:benchmark-m3u-refresh-cancellation
+```
+
+The output path must be an absolute, previously unused descendant of
+`dist/performance/`. A formal run fails on a dirty worktree and records the
+commit, source-state hash, OS/architecture, Node, Electron, and fixture identity
+in its manifest. Commit the harness first and capture `baseline` from that clean
+commit; commit the production change separately, rebuild, and capture `after`
+with the same harness and machine. Set `IPTVNATOR_PERF_SMOKE=1` for one measured
+run during harness development; smoke runs may be dirty and must not support
+before/after claims.
+
+The target reserves and verifies CDP port 9222, freezes renderer long-task,
+frame-gap, and heartbeat probes before forced post-GC heap collection, and
+enables opt-in worker profiling. Worker event-loop delay is read from a
+request-scoped `node:perf_hooks` capture; a worker terminated before it can flush
+the capture reports the metric as unavailable rather than zero. Diagnostic CPU
+profiles, heap snapshots, and Chromium traces are excluded from the five-run
+headline distributions.
 
 ### Reporting The Auto-Update Result
 
@@ -152,7 +192,7 @@ used by the groups view to remember which group titles the user has hidden.
 | **PlaylistActions**  | `loadPlaylists`, `addPlaylist`, `removePlaylist`, `parsePlaylist`, `setActivePlaylist` | Playlist CRUD                  |
 | **ChannelActions**   | `setChannels`, `setActiveChannel`, `setAdjacentChannelAsActive`                        | Channel selection & navigation |
 | **EpgActions**       | `setActiveEpgProgram`, `setCurrentEpgProgram`, `setEpgAvailableFlag`                   | EPG state                      |
-| **FavoritesActions** | `updateFavorites`, `setFavorites`                                                      | Favorites management           |
+| **FavoritesActions** | `updateFavorites`, `setFavorites`, `hydrateFavorites`                                  | Favorites management           |
 | **FilterActions**    | `setSelectedFilters`                                                                   | Playlist type filtering        |
 
 ### Key Selectors
@@ -250,6 +290,10 @@ channel-list-container/
 
 - `M3uWorkspaceRouteSession` owns route-driven channel loading for the player/sidebar routes: `all` and `groups`.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
+- The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
+  after that persisted read. Hydration must not use the persistence-bearing
+  `setFavorites` action: doing so reads and rewrites the complete M3U payload
+  again just to store favorites that already came from SQLite.
 - `ChannelListContainerComponent` now renders a dedicated skeleton state while `channelsLoading` is true.
 - `ChannelListContainerComponent` no longer clears `channels` on destroy; route/session code is the single owner of shared list lifecycle during navigation.
 - The dedicated `/workspace/playlists/:id/favorites` and `/workspace/playlists/:id/recent` collection routes do not drive the shared sidebar channel list; they default to the `playlist` scope so rail links always open the current playlist view, not the last persisted global scope.
@@ -897,4 +941,6 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 
 1. Dispatch `FavoritesActions.updateFavorites` for toggle
 2. Dispatch `FavoritesActions.setFavorites` for reordering
-3. Effects automatically persist to database
+3. Dispatch `FavoritesActions.hydrateFavorites` only when copying values that
+   were already read from persistence into NgRx
+4. Effects persist the two user-mutation actions; hydration is reducer-only

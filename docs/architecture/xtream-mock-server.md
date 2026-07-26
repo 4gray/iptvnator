@@ -290,8 +290,9 @@ This scenario is reserved for release screenshots and marketing materials:
   including documentary, noir, animated family, retro rescue drama, cyberpunk,
   anime-inspired space school, and workplace dramedy styles
 - screenshot capture remains deterministic and offline because
-  `tools/release/capture-v020-screenshots.ts` consumes the local mock server
-  assets and never calls OpenAI
+  `tools/release/capture-release-screenshots.ts` consumes the local mock server
+  assets and never calls OpenAI; its guards additionally verify that the
+  service answering on the mock port really is this fixture server
 - the SVG renderer in `marketing.generator.ts` remains the fallback for missing
   assets, live logos, season covers, and episode thumbnails
 

@@ -255,10 +255,25 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    WebContents. Close goes through `win.close()` so the existing
    window-bounds persistence in `app.ts` still runs.
 2. `WINDOW:STATE_CHANGED` is pushed main → renderer on
-   maximize/unmaximize/enter-full-screen/leave-full-screen so the
-   maximize/restore glyph stays correct for externally triggered changes
-   (double-click on a drag region, OS snap, F11). The controls hide
-   themselves while the window is fullscreen.
+   maximize/unmaximize and on the fullscreen events —
+   `enter/leave-full-screen` plus the `enter/leave-html-full-screen`
+   variants emitted for HTML-element fullscreen (video player
+   fullscreen) — so the maximize/restore glyph stays correct for
+   externally triggered changes (double-click on a drag region, OS
+   snap, F11). The controls hide themselves while the window is
+   fullscreen.
+
+   Window state is **never re-read at event time**. `attachWindowStateEvents`
+   seeds `{ isMaximized, isFullScreen }` once at window creation and each
+   event patches only the flag it names; every push carries a copy of that
+   tracked state. On Windows both getters can still report the
+   pre-transition value while the matching event fires — `isFullScreen()`
+   stays `true` during an HTML fullscreen exit, and `isMaximized()` reads
+   `false` while the window is fullscreen. Because the renderer replaces
+   both flags on every push and no later event corrects a stale one,
+   polling left the controls hidden forever after leaving fullscreen and
+   stuck the maximize/restore glyph on the wrong icon. Regression coverage:
+   `app-window-state.spec.ts` and `window-controls.e2e.ts`.
 
 Layout integration:
 

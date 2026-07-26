@@ -71,6 +71,7 @@ export const FavoritesActions = createActionGroup({
     events: {
         'Update Favorites': props<{ channel: Channel }>(),
         'Set Favorites': props<{ channelIds: string[] }>(),
+        'Hydrate Favorites': props<{ channelIds: string[] }>(),
     },
 });
 

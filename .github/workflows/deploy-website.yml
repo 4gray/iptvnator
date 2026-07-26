@@ -42,7 +42,7 @@ jobs:
         run: pnpm nx build website
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist/apps/website
 

@@ -211,20 +211,24 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
         expect(setContext).toHaveBeenCalledTimes(1);
     });
 
-    it('does not run legacy post-play caption suppression', async () => {
+    it('leaves caption state to the controls bridge when playback starts', async () => {
         const { component } = renderSharedControls(
             HtmlVideoPlayerComponent,
             fixtures
         );
-        const disableCaptions = jest.spyOn(
-            component as HtmlVideoPlayerComponentInstance,
-            'disableCaptions'
-        );
+        const video = (component as HtmlVideoPlayerComponentInstance)
+            .videoPlayer.nativeElement;
+        const tracks = [{ mode: 'showing' as TextTrackMode }];
+        Object.defineProperty(video, 'textTracks', {
+            configurable: true,
+            value: tracks,
+        });
+        jest.spyOn(video, 'play').mockResolvedValue(undefined);
 
         component.handlePlayOperation();
         await Promise.resolve();
 
-        expect(disableCaptions).not.toHaveBeenCalled();
+        expect(tracks[0].mode).toBe('showing');
     });
 });
 

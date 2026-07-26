@@ -18,6 +18,7 @@ import {
     type WebVideoControlsSource,
     WebVideoSourceControlsBridge,
 } from '../web-video-support/web-video-source-controls.bridge';
+import { WebVideoSourceTracks } from '../web-video-support/web-video-source-tracks';
 import { addHlsAudioTrackSettings } from './art-player-audio-tracks';
 
 export interface ArtPlayerSourceSessionConfig {
@@ -49,6 +50,11 @@ export class ArtPlayerSourceSession {
 
     private player: Artplayer | null = null;
     private controlsBridge: WebVideoSourceControlsBridge | null = null;
+    /**
+     * Legacy (ArtPlayer chrome) counterpart of {@link controlsBridge}: keeps
+     * the `showCaptions` preference authoritative without a controls adapter.
+     */
+    private captionTracks: WebVideoSourceTracks | null = null;
     private pendingControlsSource: WebVideoControlsSource = { kind: 'native' };
     private hls: Hls | null = null;
     private hlsManifestListener:
@@ -73,6 +79,12 @@ export class ArtPlayerSourceSession {
 
         this.player = player;
         if (!this.config.sharedControls) {
+            this.captionTracks = new WebVideoSourceTracks({
+                video: player.video,
+                showCaptions: this.config.showCaptions,
+                vendorCaptionControls: true,
+            });
+            this.captionTracks.setSource(this.pendingControlsSource);
             return;
         }
 
@@ -89,6 +101,7 @@ export class ArtPlayerSourceSession {
 
     refreshInputs(): void {
         this.controlsBridge?.refreshInputs();
+        this.captionTracks?.refreshInputs();
     }
 
     resolveDuration(fallbackDuration: number): number {
@@ -106,6 +119,8 @@ export class ArtPlayerSourceSession {
         this.destroyed = true;
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
+        this.captionTracks?.destroy();
+        this.captionTracks = null;
         this.destroyHls();
         this.destroyMpegTs();
         this.shakaSession?.destroy();
@@ -215,6 +230,7 @@ export class ArtPlayerSourceSession {
 
     private prepareForSourceChange(): void {
         this.controlsBridge?.clearSource();
+        this.captionTracks?.clearSource();
         this.destroyHls();
         this.destroyMpegTs();
         this.shakaSession?.stop();
@@ -234,6 +250,7 @@ export class ArtPlayerSourceSession {
     private bindControlsSource(source: WebVideoControlsSource): void {
         this.pendingControlsSource = source;
         this.controlsBridge?.setSource(source);
+        this.captionTracks?.setSource(source);
     }
 
     private destroyHls(): void {

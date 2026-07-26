@@ -2,7 +2,9 @@ import { XtreamSerieInfo, XtreamVodInfo } from '@iptvnator/shared/interfaces';
 import { mergeSerieInfoWithTmdb, mergeVodInfoWithTmdb } from './tmdb-merge';
 import { TmdbMovieDetails, TmdbTvDetails } from './tmdb.types';
 
-function providerVodInfo(overrides: Partial<XtreamVodInfo> = {}): XtreamVodInfo {
+function providerVodInfo(
+    overrides: Partial<XtreamVodInfo> = {}
+): XtreamVodInfo {
     return {
         kinopoisk_url: '',
         tmdb_id: '',
@@ -183,9 +185,7 @@ describe('mergeVodInfoWithTmdb', () => {
         expect(merged.rating).toBe(7);
         expect(merged.movie_image).toBe('http://provider/poster.jpg');
         expect(merged.tmdb_cast).toBeUndefined();
-        expect(merged.backdrop_path).toEqual([
-            'http://provider/backdrop.jpg',
-        ]);
+        expect(merged.backdrop_path).toEqual(['http://provider/backdrop.jpg']);
     });
 
     it('ignores TMDB rating without votes', () => {

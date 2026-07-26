@@ -6,6 +6,10 @@ import portalRouter from './app/routes/portal.route.js';
 import dispatchPortalAction from './app/routes/dispatch.js';
 import { resetAll } from './app/data-store.js';
 import { SCENARIOS } from './app/scenarios.js';
+import {
+    buildRequestOrigin,
+    resolveMarketingPosterUrls,
+} from './app/marketing-poster-url.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
 const app = express();
@@ -29,10 +33,32 @@ app.use((req, _res, next) => {
             .split(';')
             .find((c) => c.trim().startsWith('mac='))
             ?.split('=')[1]
-            ?.trim() ?? (req.query['macAddress'] as string) ?? 'no-mac';
+            ?.trim() ??
+        (req.query['macAddress'] as string) ??
+        'no-mac';
     console.log(
         `[${new Date().toISOString()}] ${req.method} ${req.path} action=${action} mac=${mac}`
     );
+    next();
+});
+
+// Marketing fixtures store deployment-neutral asset paths. Resolve them
+// against the public origin of each request, including reverse-proxy headers.
+app.use((req, res, next) => {
+    if (
+        !['get_ordered_list', 'favorites'].includes(String(req.query['action']))
+    ) {
+        next();
+        return;
+    }
+
+    const sendJson = res.json.bind(res);
+    const requestOrigin = buildRequestOrigin(req);
+
+    res.json = ((body: unknown) =>
+        sendJson(
+            resolveMarketingPosterUrls(body, requestOrigin)
+        )) as Response['json'];
     next();
 });
 
@@ -63,7 +89,11 @@ app.use('/portal.php', portalRouter);
  * so no app code changes are required.
  */
 app.get('/stalker', (req: Request, res: Response) => {
-    const { macAddress, url: _url, ...rest } = req.query as Record<string, string>;
+    const {
+        macAddress,
+        url: _url,
+        ...rest
+    } = req.query as Record<string, string>;
     const mac = macAddress ?? '00:1a:79:00:00:01';
 
     // Build a lightweight synthetic request. We need a fresh object with mutable
@@ -130,7 +160,9 @@ process.on('unhandledRejection', (reason) => {
 // When Nx (or any process manager) closes stdin, prevent auto-exit.
 // The HTTP server handle is what keeps the process alive.
 process.stdin.resume();
-process.stdin.on('end', () => { /* ignore stdin close */ });
+process.stdin.on('end', () => {
+    /* ignore stdin close */
+});
 
 server.listen(PORT, () => {
     const divider = '─'.repeat(62);
@@ -150,9 +182,13 @@ server.listen(PORT, () => {
         );
     }
     console.log('');
-    console.log('  Any other MAC generates deterministic unique data from MAC bytes.');
+    console.log(
+        '  Any other MAC generates deterministic unique data from MAC bytes.'
+    );
     console.log(`  Utilities:`);
     console.log(`    GET  http://localhost:${PORT}/health`);
-    console.log(`    POST http://localhost:${PORT}/reset    (clears favorites + cache)`);
+    console.log(
+        `    POST http://localhost:${PORT}/reset    (clears favorites + cache)`
+    );
     console.log(`${divider}\n`);
 });

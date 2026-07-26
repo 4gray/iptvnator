@@ -44,6 +44,8 @@ store imports):
 | `tmdb-matcher.ts`            | Title normalization, year extraction, and the match-confidence gate (pure functions)                                                         |
 | `tmdb-cache.service.ts`      | Environment-aware cache (Electron IPC bridge vs in-memory LRU capped at 300 entries) with caller-supplied TTLs                               |
 | `tmdb-merge.ts`              | Field-level merge into `XtreamVodInfo` / `XtreamSerieInfo` (pure functions, no mutation)                                                     |
+| `tmdb-credits.ts`            | People out of credit payloads: display cast, person chips, and the two-shape union a series cast needs                                       |
+| `tmdb-cache-payload.ts`      | Trims a details payload before caching (aggregate roles/crew) without changing what a merge over it produces                                 |
 | `tmdb-runtime.service.ts`    | Shared runtime context: opt-in gate, effective API key, language resolution                                                                  |
 | `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups                                     |
 | `tmdb-person.service.ts`     | Cached person details + combined filmography (`person:<id>` rows)                                                                            |
@@ -75,16 +77,44 @@ also show a production-status chip (`tmdb_status`): TMDB returns `status`
 as an ENGLISH string regardless of the request language, so it is
 normalized to a token (`normalizeSeriesStatus`) and rendered through
 translated labels (`seriesStatusLabelKey`) — the raw value never reaches
-the UI. Unknown values are dropped rather than displayed. A "check key" button
-in the settings section validates the API key against `/configuration`.
+the UI. Unknown values are dropped rather than displayed. A "check key"
+button in the settings section validates the API key against
+`/configuration`, and a cache panel beside it shows the stored row count
+plus payload size and can drop the lot (`DB_GET_TMDB_CACHE_STATS` /
+`DB_CLEAR_TMDB_METADATA`, in-memory map in the PWA). Sizing is a full
+scan, so it only runs once the TMDB section is the active one. Clearing
+costs nothing but the next few requests — enrichment refetches on demand
+— and it is also the escape hatch when a lookup-key version bump orphans
+rows, since a bump makes them unreachable rather than deleting them.
 
 ## Match Confidence
 
 Wrong metadata is worse than no metadata, so id resolution is conservative:
 
 1. If the provider returns a usable `tmdb_id` (Xtream VOD info often does),
-   it is trusted fully and no search runs. Series have no show-level
-   `tmdb_id`, so they always go through search.
+   its details are fetched directly and normally used as-is. Series have no
+   show-level `tmdb_id`, so they always go through search. The id is a
+   strong hint rather than gospel — panels ship dead and stale ones — so
+   the payload it returns is weighed against the provider item
+   (`assessProviderId`):
+    - a matching title **or** a compatible release year (±1; for series,
+      any earlier premiere) → **corroborated**, use it;
+    - both years known and incompatible → **contradicted**, the stale-id
+      signature ("Blade Runner 2049" carrying the 1982 film's id): the
+      title search may take over, and does so only if it finds a confident
+      match of its own;
+    - title differs with no year to arbitrate → **inconclusive**, keep the
+      details. TMDB returns titles in the request language and
+      normalization strips stylized prefixes ("IT - Chapter Two" →
+      "chapter two"), so a name mismatch alone says more about our inputs
+      than about the id.
+
+   A 404 is the one hard verdict: the id is recorded as dead
+   (`badProviderId:<id>` row), skipped next time, and the title search
+   takes over. Transient failures (auth, rate limit, 5xx, offline) neither
+   disable the id nor trigger a search — that request would hit the same
+   outage, and a title match that did come back would be weaker evidence
+   than the id already in hand.
 2. Otherwise `/search/movie` (or `/search/tv`) runs with the normalized
    title. Normalization strips bracketed tags, quality markers (`4K`,
    `1080p`, `MULTI`, …), leading language prefixes (`EN - `), diacritics,
@@ -121,7 +151,19 @@ are still fetched in the app language afterwards.
 
 Details are fetched with
 `/movie/{id}?append_to_response=credits,videos,recommendations` (`/tv/{id}`
-for series). Credits provide cast/director; videos supply the best YouTube
+for series). Credits provide cast/director — for series the request also
+appends `aggregate_credits`, because TMDB documents a TV id's `credits` as
+the **latest season's** credits. What `aggregate_credits` covers is
+described in one self-contradicting sentence — "it does not return the
+newest season. Instead, it is a view of all the entire cast & crew for all
+episodes belonging to a TV show" — so it is either the whole run minus the
+newest season or the whole run. `unifiedTvCast` is written not to care:
+it unions the two by set difference (whole-run billing order first, then
+anyone `credits` has that the aggregate lacks), which under the second
+reading appends nothing. Either way, long-running shows neither lose
+departed regulars nor miss new ones. Payloads cached
+before this landed have no `aggregate_credits` and fall back to the old
+behaviour until they are refetched; videos supply the best YouTube
 trailer (official trailer > trailer > teaser, merged into
 `youtube_trailer` / `tmdb_trailer`); recommendations power the "Similar"
 rail. In Xtream detail views the rail shows only recommendations that
@@ -247,14 +289,18 @@ Filmography has two scopes:
 
 ## Cache
 
-Single table with two row kinds discriminated by `lookup_key` prefix:
+Single table with several row kinds discriminated by the `lookup_key`
+prefix:
 
 ```
 tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>|v2'               -- details payload row
+              'id:<tmdbId>|season:<n>'       -- season payload row
               'title:<normalized>|year:<y>|v2' -- search resolution row
               'person:<personId>'            -- person payload row
+              'trending:week'                -- trending list row
+              'badProviderId:<tmdbId>'       -- id confirmed 404 by TMDB
   language    TEXT,       -- TMDB language code
   tmdb_id     INTEGER,    -- NULL on a search row = negative cache
   payload     TEXT,       -- raw JSON details, NULL for search rows
@@ -278,12 +324,31 @@ person cache rows are unaffected.
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):
 
-- Worker ops: `DB_GET_TMDB_METADATA`, `DB_SET_TMDB_METADATA`
+- Worker ops: `DB_GET_TMDB_METADATA`, `DB_SET_TMDB_METADATA`, plus the two
+  maintenance ops behind the settings cache panel,
+  `DB_GET_TMDB_CACHE_STATS` and `DB_CLEAR_TMDB_METADATA`
   (`database-worker.types.ts`, `database.worker.ts`,
   `operations/tmdb.operations.ts`)
 - IPC registration: `events/database/tmdb.events.ts`
-- Preload bridge: `dbGetTmdbMetadata` / `dbSetTmdbMetadata` on
-  `window.electron` (typed in `ElectronBridgeApi`)
+- Preload bridge: `dbGetTmdbMetadata` / `dbSetTmdbMetadata` /
+  `dbGetTmdbCacheStats` / `dbClearTmdbMetadata` on `window.electron` (typed
+  in `ElectronBridgeApi`)
+
+`TmdbCacheService` treats the maintenance pair as optional on the bridge: an
+Electron shell that predates them reports `null` (unsupported) rather than
+falling back to the renderer map, which is always empty in Electron and
+would claim the SQLite cache is empty. A `clear()` first awaits the writes
+already in flight so they land and are deleted with everything else, and
+holds the clear promise for its duration so a write starting meanwhile
+queues behind the delete instead of racing it. Rows written after the user
+cleared are deliberately kept.
+
+The panel's full path — settings button, preload bridge, DB worker, real
+SQLite — is covered by `@settings @electron @persistence sizes and clears
+the TMDB metadata cache` in `apps/electron-backend-e2e/src/settings.e2e.ts`.
+It seeds a row through `dbSetTmdbMetadata` rather than through enrichment,
+which needs an API key that builds outside the release pipeline do not
+carry.
 
 The PWA uses a session-scoped in-memory map (acceptable for phase 1; TMDB
 supports CORS so the PWA calls the API directly).
@@ -292,7 +357,12 @@ supports CORS so the PWA calls the API directly).
 
 `Settings.tmdb?: { enabled: boolean; apiKey?: string }`
 (`libs/shared/interfaces/src/lib/tmdb.interface.ts`). The settings page has
-a "Metadata (TMDB)" section (enable toggle + optional API key override).
+a "Metadata (TMDB)" section: enable toggle, optional API key override with a
+"check key" button (validates against `/configuration`), and a cache panel
+showing the stored row count plus payload size with a button that drops the
+lot. Sizing is a full table scan, so it runs only once that section is the
+active one, and a failed read or clear says so instead of showing an empty
+cache.
 
 The embedded default key lives in `DEFAULT_TMDB_API_KEY`
 (`libs/services/src/lib/tmdb/tmdb-config.ts`) and is an **empty placeholder
@@ -343,3 +413,18 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   heroes additionally show the tracked "S{n}·E{n}" badge from the playback
   position (no TMDB involved); the watch-progress bar is limited to
   movie/series heroes.
+
+### `badProviderId:` rows
+
+Providers ship `tmdb_id` values that do not exist. A failed details fetch
+caches nothing, so without a marker the same 404 is re-issued on every
+detail open, forever. These rows record that verdict: `tmdb_id` NULL,
+language `any` (a dead id is dead in every language), read with the
+negative-match TTL.
+
+Only a **confirmed 404** is recorded. Transient failures (401, 429, 5xx,
+offline) leave no marker — they say nothing about the id. Neither does a
+title mismatch: that id exists and may be correct for a *different* item,
+and since the row is keyed by id alone and shared across playlists,
+recording per-item mismatches here would deny the direct lookup to every
+other item that legitimately uses the same id.

@@ -21,6 +21,7 @@ import {
     XtreamBackupRecentlyViewedItem,
 } from './playlist-backup.interface';
 import {
+    PlaylistRefreshCancelledResult,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
 } from './playlist-refresh.interface';
@@ -32,7 +33,11 @@ import {
 import { PortalDebugEvent } from './portal-debug.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
 import { Settings } from './settings.interface';
-import { TmdbCacheEntry, TmdbCacheMediaType } from './tmdb.interface';
+import {
+    TmdbCacheEntry,
+    TmdbCacheMediaType,
+    TmdbCacheStats,
+} from './tmdb.interface';
 import { XtreamCategory } from './xtream-category.interface';
 
 export const ELECTRON_BRIDGE_CONTENT_TYPES = {
@@ -667,7 +672,9 @@ export interface ElectronBridgeApi {
         url: string,
         method?: 'GET' | 'HEAD'
     ) => Promise<ElectronBridgeXtreamProbeResult>;
-    refreshPlaylist: (payload: PlaylistRefreshPayload) => Promise<Playlist>;
+    refreshPlaylist: (
+        payload: PlaylistRefreshPayload
+    ) => Promise<Playlist | PlaylistRefreshCancelledResult>;
     cancelPlaylistRefresh: (
         operationId: string
     ) => Promise<ElectronBridgeResult>;
@@ -821,6 +828,11 @@ export interface ElectronBridgeApi {
         language: string
     ) => Promise<TmdbCacheEntry | null>;
     dbSetTmdbMetadata: (entry: TmdbCacheEntry) => Promise<ElectronBridgeResult>;
+    /** Row count + payload bytes for the settings cache panel */
+    dbGetTmdbCacheStats: () => Promise<TmdbCacheStats>;
+    dbClearTmdbMetadata: () => Promise<
+        ElectronBridgeResult & { deleted: number }
+    >;
     /** Cross-playlist title matching (actor page "All portals" scope) */
     dbMatchTitles: (titles: string[]) => Promise<CatalogTitleMatch[]>;
     onChannelChange?: (

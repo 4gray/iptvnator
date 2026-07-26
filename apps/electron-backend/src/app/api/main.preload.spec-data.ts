@@ -371,6 +371,18 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [tmdbCacheEntry],
     },
     {
+        method: 'dbGetTmdbCacheStats',
+        args: [],
+        channel: 'DB_GET_TMDB_CACHE_STATS',
+        forwardedArgs: [],
+    },
+    {
+        method: 'dbClearTmdbMetadata',
+        args: [],
+        channel: 'DB_CLEAR_TMDB_METADATA',
+        forwardedArgs: [],
+    },
+    {
         method: 'dbMatchTitles',
         args: [[['The Matrix', 'Inception']][0]],
         channel: 'DB_MATCH_TITLES',

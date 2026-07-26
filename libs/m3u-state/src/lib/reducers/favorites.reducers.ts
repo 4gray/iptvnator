@@ -32,26 +32,30 @@ export const favoritesReducers = [
             },
         };
     }),
-    on(FavoritesActions.setFavorites, (state, action): PlaylistState => {
-        const selectedId = state.playlists.selectedId;
-        const playlist = state.playlists.entities[selectedId];
-        if (!selectedId || !playlist) {
-            return state;
-        }
+    on(
+        FavoritesActions.setFavorites,
+        FavoritesActions.hydrateFavorites,
+        (state, action): PlaylistState => {
+            const selectedId = state.playlists.selectedId;
+            const playlist = state.playlists.entities[selectedId];
+            if (!selectedId || !playlist) {
+                return state;
+            }
 
-        const { channelIds } = action;
-        return {
-            ...state,
-            playlists: {
-                ...state.playlists,
-                entities: {
-                    ...state.playlists.entities,
-                    [selectedId]: {
-                        ...playlist,
-                        favorites: channelIds,
+            const { channelIds } = action;
+            return {
+                ...state,
+                playlists: {
+                    ...state.playlists,
+                    entities: {
+                        ...state.playlists.entities,
+                        [selectedId]: {
+                            ...playlist,
+                            favorites: channelIds,
+                        },
                     },
                 },
-            },
-        };
-    }),
+            };
+        }
+    ),
 ];

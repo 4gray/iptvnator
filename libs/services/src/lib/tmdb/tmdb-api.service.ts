@@ -14,6 +14,25 @@ import {
  * both the Electron renderer and the PWA can call it without a proxy.
  * Supports classic v3 keys (query param) and v4 read tokens (Bearer).
  */
+/**
+ * A non-2xx TMDB response. Carries the status so callers can tell a
+ * definitive verdict (404 — this id does not exist) apart from a
+ * transient one (401/429/5xx, offline), which must stay retryable.
+ */
+export class TmdbApiError extends Error {
+    constructor(
+        readonly status: number,
+        statusText = ''
+    ) {
+        super(`TMDB request failed: ${status} ${statusText}`.trim());
+        this.name = 'TmdbApiError';
+    }
+}
+
+export function isTmdbNotFound(error: unknown): boolean {
+    return error instanceof TmdbApiError && error.status === 404;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TmdbApiService {
     async searchMovie(
@@ -71,7 +90,14 @@ export class TmdbApiService {
     ): Promise<TmdbTvDetails> {
         return this.request<TmdbTvDetails>(
             `/tv/${tmdbId}`,
-            { language, append_to_response: 'credits,videos,recommendations' },
+            {
+                language,
+                // aggregate_credits spans the whole run; plain `credits` on
+                // a TV id is documented as the LATEST SEASON only, so both
+                // are needed to reconstruct the real cast (see tmdb-merge)
+                append_to_response:
+                    'credits,aggregate_credits,videos,recommendations',
+            },
             apiKey
         );
     }
@@ -155,9 +181,7 @@ export class TmdbApiService {
         });
 
         if (!response.ok) {
-            throw new Error(
-                `TMDB request failed: ${response.status} ${response.statusText}`
-            );
+            throw new TmdbApiError(response.status, response.statusText);
         }
 
         return (await response.json()) as T;
