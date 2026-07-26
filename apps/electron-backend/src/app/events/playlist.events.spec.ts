@@ -527,7 +527,94 @@ describe('playlist IPC events', () => {
         expect(worker.terminate).toHaveBeenCalled();
     });
 
-    it('routes refresh cancellation to the active worker and converts worker error responses to Error instances', async () => {
+    it('settles cancellation without waiting for a CPU-bound refresh worker', async () => {
+        const ipcEvent = createIpcEvent();
+        const payload: PlaylistRefreshPayload = {
+            operationId: 'refresh-busy',
+            playlistId: 'playlist-busy',
+            title: 'Busy playlist',
+            filePath: '/playlists/busy.m3u',
+        };
+        const refreshPromise = getHandler(PLAYLIST_REFRESH)(ipcEvent, payload);
+        const worker = mockWorkerInstances[0];
+        let outcome:
+            | { error: unknown; status: 'rejected' }
+            | { status: 'resolved'; value: unknown }
+            | undefined;
+        void refreshPromise.then(
+            (value) => {
+                outcome = { status: 'resolved', value };
+            },
+            (error: unknown) => {
+                outcome = { error, status: 'rejected' };
+            }
+        );
+
+        worker.emit('message', { type: 'ready' });
+        worker.emit('message', {
+            event: {
+                operationId: payload.operationId,
+                phase: 'parsing',
+                playlistId: payload.playlistId,
+                status: 'progress',
+            } satisfies PlaylistRefreshEvent,
+            type: 'event',
+        });
+
+        let finishTermination: ((exitCode: number) => void) | undefined;
+        worker.terminate.mockImplementationOnce(
+            () =>
+                new Promise<number>((resolveTermination) => {
+                    finishTermination = resolveTermination;
+                })
+        );
+        const cancelPromise = getHandler(PLAYLIST_CANCEL_REFRESH)(
+            createIpcEvent(),
+            payload.operationId
+        );
+        await Promise.resolve();
+
+        expect(worker.removeAllListeners).toHaveBeenCalledTimes(1);
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
+        expect(worker.postMessage).toHaveBeenLastCalledWith({
+            operationId: payload.operationId,
+            type: 'cancel',
+        });
+        expect(outcome).toBeUndefined();
+        expect(ipcEvent.sender.send).not.toHaveBeenCalledWith(
+            PLAYLIST_REFRESH_EVENT,
+            expect.objectContaining({ status: 'cancelled' })
+        );
+
+        finishTermination?.(1);
+        await expect(cancelPromise).resolves.toEqual({ success: true });
+        await Promise.resolve();
+
+        expect(outcome).toEqual({
+            status: 'resolved',
+            value: {
+                operationId: payload.operationId,
+                type: 'playlist-refresh-cancelled',
+            },
+        });
+        expect(ipcEvent.sender.send).toHaveBeenLastCalledWith(
+            PLAYLIST_REFRESH_EVENT,
+            {
+                operationId: payload.operationId,
+                phase: 'parsing',
+                playlistId: payload.playlistId,
+                status: 'cancelled',
+            }
+        );
+        await expect(
+            getHandler(PLAYLIST_CANCEL_REFRESH)(
+                createIpcEvent(),
+                payload.operationId
+            )
+        ).resolves.toEqual({ success: false });
+    });
+
+    it('converts playlist refresh worker error responses to Error instances', async () => {
         const payload: PlaylistRefreshPayload = {
             operationId: 'refresh-error',
             playlistId: 'playlist-error',
@@ -539,17 +626,6 @@ describe('playlist IPC events', () => {
             payload
         );
         const worker = mockWorkerInstances[0];
-
-        expect(
-            await getHandler(PLAYLIST_CANCEL_REFRESH)(
-                createIpcEvent(),
-                'refresh-error'
-            )
-        ).toEqual({ success: true });
-        expect(worker.postMessage).toHaveBeenCalledWith({
-            operationId: 'refresh-error',
-            type: 'cancel',
-        });
 
         const rejectedRefresh = expect(refreshPromise).rejects.toMatchObject({
             message: 'Refresh failed',
@@ -568,13 +644,6 @@ describe('playlist IPC events', () => {
         });
 
         await rejectedRefresh;
-
-        expect(
-            await getHandler(PLAYLIST_CANCEL_REFRESH)(
-                createIpcEvent(),
-                'refresh-error'
-            )
-        ).toEqual({ success: false });
     });
 
     it('returns save dialog paths and writes files through the filesystem handler', async () => {

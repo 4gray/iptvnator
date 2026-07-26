@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import {
+    isPlaylistRefreshCancelledResult,
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
@@ -30,7 +31,15 @@ export class PlaylistRefreshService {
         });
 
         try {
-            return await window.electron.refreshPlaylist(payload);
+            const result = await window.electron.refreshPlaylist(payload);
+            if (isPlaylistRefreshCancelledResult(result)) {
+                const error = new Error(
+                    `Playlist refresh "${result.operationId}" was cancelled`
+                );
+                error.name = 'AbortError';
+                throw error;
+            }
+            return result;
         } finally {
             unsubscribe?.();
         }

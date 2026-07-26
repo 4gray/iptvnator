@@ -141,6 +141,7 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow navigation/load lifecycle
 - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
+- `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only event-loop metrics in database and playlist-refresh worker responses; the performance benchmark sets it automatically, and production launches must leave it unset
 
 Settings, portal request/response, and trace payloads must use
 `@iptvnator/shared/logging` or the redacting portal logger before reaching
@@ -615,7 +616,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 - EPG parsing: `epg-parser.worker.ts`; main-process worker lifecycle is coordinated from `apps/electron-backend/src/app/events/epg-worker.service.ts`
 - Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`)
-- Playlist refresh: `playlist-refresh.worker.ts`
+- Playlist refresh: `playlist-refresh.worker.ts`; explicit cancellation is main-process-owned and terminates the one-shot worker before acknowledging `PLAYLIST_CANCEL_REFRESH` (see `docs/architecture/m3u-playlist-module.md`)
 
 ### Key Features
 

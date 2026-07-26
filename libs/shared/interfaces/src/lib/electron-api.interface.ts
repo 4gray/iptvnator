@@ -21,6 +21,7 @@ import {
     XtreamBackupRecentlyViewedItem,
 } from './playlist-backup.interface';
 import {
+    PlaylistRefreshCancelledResult,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
 } from './playlist-refresh.interface';
@@ -671,7 +672,9 @@ export interface ElectronBridgeApi {
         url: string,
         method?: 'GET' | 'HEAD'
     ) => Promise<ElectronBridgeXtreamProbeResult>;
-    refreshPlaylist: (payload: PlaylistRefreshPayload) => Promise<Playlist>;
+    refreshPlaylist: (
+        payload: PlaylistRefreshPayload
+    ) => Promise<Playlist | PlaylistRefreshCancelledResult>;
     cancelPlaylistRefresh: (
         operationId: string
     ) => Promise<ElectronBridgeResult>;
