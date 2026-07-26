@@ -121,11 +121,27 @@ before/after claims.
 
 The target reserves and verifies CDP port 9222, freezes renderer long-task,
 frame-gap, and heartbeat probes before forced post-GC heap collection, and
-enables opt-in worker profiling. Worker event-loop delay is read from a
-request-scoped `node:perf_hooks` capture; a worker terminated before it can flush
-the capture reports the metric as unavailable rather than zero. Diagnostic CPU
-profiles, heap snapshots, and Chromium traces are excluded from the five-run
-headline distributions.
+enables opt-in worker profiling. Each worker response retains a raw
+request-scoped record containing request/operation identity, received/work/flush
+timestamps, thread CPU, event-loop utilization, event-loop delay, and fixed
+unavailability or invalid reasons. Missing or malformed profiling metadata
+still produces an outcome with its request identity, nullable metrics, and a
+fixed capture-unavailable reason. A worker terminated before it can flush the
+capture reports the metric as unavailable rather than zero.
+
+The harness excludes workers created by pre-capture seed setup through an exact
+capture-generation marker. Since the production M3U database payload
+deliberately omits the refresh operation ID, the benchmark correlates only a
+valid preload `start` marker to the exact database operation and playlist. A
+missing or ambiguous marker leaves the raw operation ID `null` with a fixed
+reason; it does not infer identity from timing alone.
+
+Headline worker fields named `*WorkerRequest*` are distributions of individual
+request metrics. In particular, request p95/p99 distributions are not presented
+as an operation-wide or process-wide percentile, and database request
+percentiles are never collapsed with `Math.max`. Diagnostic CPU profiles, heap
+snapshots, and Chromium traces are excluded from the five-run headline
+distributions.
 
 ### Reporting The Auto-Update Result
 

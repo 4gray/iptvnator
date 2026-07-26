@@ -48,6 +48,29 @@ export interface MainTimelineRecord {
     readonly type: string;
 }
 
+export interface WorkerRequestPerformanceMetrics {
+    readonly eventLoopDelay: EventLoopDelayMetrics | null;
+    readonly eventLoopDelayUnavailableReason: string | null;
+    readonly eventLoopUtilization: number | null;
+    readonly eventLoopUtilizationUnavailableReason: string | null;
+    readonly histogramFlushedEpochMs: number | null;
+    readonly invalidReason: string | null;
+    readonly operation: string | null;
+    readonly operationId: string | null;
+    readonly operationIdUnavailableReason: string | null;
+    readonly performanceCaptureUnavailableReason: string | null;
+    readonly playlistId: string | null;
+    readonly requestId: string | null;
+    readonly requestReceivedEpochMs: number | null;
+    readonly responseEpochMs: number;
+    readonly success: boolean;
+    readonly threadCpuSystemMicros: number | null;
+    readonly threadCpuUnavailableReason: string | null;
+    readonly threadCpuUserMicros: number | null;
+    readonly workEndedEpochMs: number | null;
+    readonly workStartedEpochMs: number | null;
+}
+
 export interface WorkerCaptureMetrics {
     readonly cancelPostedEpochMs: number | null;
     readonly cpuSystemMicros: number | null;
@@ -62,6 +85,7 @@ export interface WorkerCaptureMetrics {
     readonly playlistId: string | null;
     readonly postGcHeapUsedBytes: number | null;
     readonly profilePath: string | null;
+    readonly requests: readonly WorkerRequestPerformanceMetrics[];
     readonly responseEpochMs: number | null;
     readonly snapshotPath: string | null;
     readonly terminatedEpochMs: number | null;
@@ -176,13 +200,15 @@ export interface CancellationBenchmarkSummary {
         readonly cancelToDurableTerminalMs: NumericDistribution;
         readonly cancelToWorkerTerminatedMs: NumericDistribution;
         readonly cancelTransportLatencyMs: NumericDistribution;
-        readonly databaseWorkerEventLoopDelayMaxMs: NumericDistribution;
-        readonly databaseWorkerEventLoopDelayP95Ms: NumericDistribution;
-        readonly databaseWorkerEventLoopDelayP99Ms: NumericDistribution;
-        readonly databaseWorkerEventLoopUtilization: NumericDistribution;
         readonly databaseWorkerExternalPeakBytes: NumericDistribution;
         readonly databaseWorkerHeapPeakBytes: NumericDistribution;
         readonly databaseWorkerPostGcHeapBytes: NumericDistribution;
+        readonly databaseWorkerRequestEventLoopDelayMaxMs: NumericDistribution;
+        readonly databaseWorkerRequestEventLoopDelayP95Ms: NumericDistribution;
+        readonly databaseWorkerRequestEventLoopDelayP99Ms: NumericDistribution;
+        readonly databaseWorkerRequestEventLoopUtilization: NumericDistribution;
+        readonly databaseWorkerRequestThreadCpuSystemMicros: NumericDistribution;
+        readonly databaseWorkerRequestThreadCpuUserMicros: NumericDistribution;
         readonly dataFetchMs: NumericDistribution;
         readonly dbCommitProxyMs: NumericDistribution;
         readonly ipcStoreDispatchProxyMs: NumericDistribution;
@@ -196,13 +222,15 @@ export interface CancellationBenchmarkSummary {
         readonly mainRssPostGcBytes: NumericDistribution;
         readonly parseNormalizeCloneProxyMs: NumericDistribution;
         readonly persistencePreparationProxyMs: NumericDistribution;
-        readonly playlistWorkerEventLoopUtilization: NumericDistribution;
-        readonly playlistWorkerEventLoopDelayMaxMs: NumericDistribution;
-        readonly playlistWorkerEventLoopDelayP95Ms: NumericDistribution;
-        readonly playlistWorkerEventLoopDelayP99Ms: NumericDistribution;
         readonly playlistWorkerExternalPeakBytes: NumericDistribution;
         readonly playlistWorkerHeapPeakBytes: NumericDistribution;
         readonly playlistWorkerPostGcHeapBytes: NumericDistribution;
+        readonly playlistWorkerRequestEventLoopDelayMaxMs: NumericDistribution;
+        readonly playlistWorkerRequestEventLoopDelayP95Ms: NumericDistribution;
+        readonly playlistWorkerRequestEventLoopDelayP99Ms: NumericDistribution;
+        readonly playlistWorkerRequestEventLoopUtilization: NumericDistribution;
+        readonly playlistWorkerRequestThreadCpuSystemMicros: NumericDistribution;
+        readonly playlistWorkerRequestThreadCpuUserMicros: NumericDistribution;
         readonly rendererFrameGapMs: NumericDistribution;
         readonly rendererHeartbeatDelayMs: NumericDistribution;
         readonly rendererHeapPeakBytes: NumericDistribution;
