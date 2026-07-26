@@ -1,10 +1,7 @@
 /* eslint-disable max-lines -- This file is a single static, provider-neutral catalog with no behavior. */
 
 export type MarketingMovieCategoryKey =
-    | 'action-mystery'
-    | 'future-fantasy'
-    | 'family-comedy'
-    | 'drama-documentary';
+    'action-mystery' | 'future-fantasy' | 'family-comedy' | 'drama-documentary';
 
 export type MarketingMovieFixture = {
     actors: string;
