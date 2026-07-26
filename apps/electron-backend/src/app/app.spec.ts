@@ -57,6 +57,7 @@ type MockMainWindow = {
     getNormalBounds: jest.Mock<object, []>;
     // Read once by attachWindowStateEvents to seed the tracked window
     // state; only reached off macOS, where the custom controls exist.
+    isDestroyed: jest.Mock<boolean, []>;
     isFullScreen: jest.Mock<boolean, []>;
     isMaximized: jest.Mock<boolean, []>;
     loadFile: jest.Mock<Promise<void>, [string]>;
@@ -82,6 +83,7 @@ function createMockMainWindow(): MockMainWindow {
         loadURL: jest.fn<Promise<void>, [string]>().mockResolvedValue(),
         on: jest.fn<void, [string, (...args: unknown[]) => void]>(),
         once: jest.fn<void, [string, (...args: unknown[]) => void]>(),
+        isDestroyed: jest.fn<boolean, []>().mockReturnValue(false),
         setMenu: jest.fn<void, [unknown]>(),
         show: jest.fn<void, []>(),
         webContents: {
@@ -95,6 +97,7 @@ function createMockMainWindow(): MockMainWindow {
 type AppInternals = {
     loadedMainWindow: MockMainWindow | null;
     mainWindow: MockMainWindow | null;
+    mainWindowListeners: Array<(mainWindow: MockMainWindow) => void>;
     mainWindowLoadPromise: Promise<void> | null;
     onReady: () => void;
     rendererLoadingEnabled: boolean;
@@ -118,6 +121,7 @@ describe('Electron app security helpers', () => {
         appInternals.mainWindow = null;
         appInternals.mainWindowLoadPromise = null;
         appInternals.rendererLoadingEnabled = false;
+        appInternals.mainWindowListeners.length = 0;
         (electronApp as unknown as { isPackaged: boolean }).isPackaged = false;
         (screen.getPrimaryDisplay as jest.Mock).mockReturnValue({
             workAreaSize: { height: 720, width: 1280 },
@@ -313,6 +317,44 @@ describe('Electron app security helpers', () => {
         );
         expect(mainWindow.loadURL).not.toHaveBeenCalled();
         expect(mainWindow.loadFile).not.toHaveBeenCalled();
+    });
+
+    it('runs a main-window listener immediately when a window already exists', () => {
+        const mainWindow = createMockMainWindow();
+        (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+        (electronApp.isReady as jest.Mock).mockReturnValue(true);
+        App.main(electronApp, BrowserWindow);
+        const listener = jest.fn();
+
+        App.onMainWindowCreated(
+            listener as unknown as (mainWindow: Electron.BrowserWindow) => void
+        );
+
+        expect(listener).toHaveBeenCalledWith(mainWindow);
+    });
+
+    // macOS keeps the process alive without windows, so anything caching the
+    // window (download-broadcast) must be handed the rebuilt one.
+    it('re-runs main-window listeners when the window is rebuilt', () => {
+        const firstWindow = createMockMainWindow();
+        (BrowserWindow as unknown as jest.Mock).mockReturnValue(firstWindow);
+        (electronApp.isReady as jest.Mock).mockReturnValue(true);
+        App.main(electronApp, BrowserWindow);
+        const listener = jest.fn();
+        App.onMainWindowCreated(
+            listener as unknown as (mainWindow: Electron.BrowserWindow) => void
+        );
+        listener.mockClear();
+
+        // Simulate the macOS 'closed' handler clearing the reference.
+        getAppInternals().mainWindow = null;
+        const secondWindow = createMockMainWindow();
+        (BrowserWindow as unknown as jest.Mock).mockReturnValue(secondWindow);
+
+        App.ensureMainWindow();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(secondWindow);
     });
 
     it('clears only service worker registrations and cache storage', async () => {

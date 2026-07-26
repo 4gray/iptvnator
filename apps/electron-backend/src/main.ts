@@ -149,10 +149,10 @@ export default class Main {
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
 
-        // Set main window for downloads and reset stale downloads
-        if (App.mainWindow) {
-            setDownloadsMainWindow(App.mainWindow);
-        }
+        // Keep the downloads broadcaster bound to the live window. macOS can
+        // rebuild the window while the process runs, and a stale reference
+        // silently swallows every DOWNLOADS_UPDATE_EVENT.
+        App.onMainWindowCreated(setDownloadsMainWindow);
 
         // Load the renderer only after IPC handlers are registered. On slower
         // Linux CI hosts the renderer can otherwise invoke Electron bridge IPC
