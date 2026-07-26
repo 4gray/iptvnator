@@ -7,7 +7,13 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { isFrameCopyPlatformSupported } from './embedded-mpv-frame-copy-platform.util';
-import { createLinuxFrameCopyHelperLaunch } from './embedded-mpv-frame-copy-runtime';
+import {
+    applyHelperEvent,
+    buildLoadPlaybackCommand,
+    createInitialSnapshot,
+    encodeProtocolValue,
+} from './embedded-mpv-frame-copy-protocol';
+import { resolveFrameCopyHelperSpawn } from './embedded-mpv-frame-copy-spawn';
 import type {
     EmbeddedMpvFrameCopyRuntimeMode,
     LinuxFrameCopyHelperLaunchFileSystem,
@@ -24,11 +30,10 @@ import type {
  * size, audio) and publishes BGRA frames into a shared-memory ring that the
  * preload frame pump uploads to a renderer canvas.
  *
- * Protocol: tab-separated commands over stdin, JSON events over stdout.
- * The helper's `snapshot` events already carry the
- * NativeEmbeddedMpvSessionSnapshot shape, so this adapter is mostly a
- * process-lifecycle wrapper plus a snapshot cache that the existing
- * EmbeddedMpvNativeService polling consumes unchanged.
+ * The wire protocol lives in `embedded-mpv-frame-copy-protocol.ts` and the
+ * launch/environment rules in `embedded-mpv-frame-copy-spawn.ts`, so this
+ * class is mostly a process-lifecycle wrapper plus a snapshot cache that the
+ * existing EmbeddedMpvNativeService polling consumes unchanged.
  */
 
 export interface EmbeddedMpvFrameCopyAdapterOptions {
@@ -55,31 +60,6 @@ interface FrameCopyRuntimeSession {
 
 const HELPER_QUIT_GRACE_MS = 500;
 const HELPER_KILL_GRACE_MS = 2000;
-
-function encodeProtocolValue(value: string): string {
-    return value
-        .replace(/%/g, '%25')
-        .replace(/\t/g, '%09')
-        .replace(/\n/g, '%0A')
-        .replace(/\r/g, '%0D');
-}
-
-function createInitialSnapshot(): NativeEmbeddedMpvSessionSnapshot {
-    return {
-        status: 'loading',
-        positionSeconds: 0,
-        durationSeconds: null,
-        volume: 1,
-        streamUrl: '',
-        audioTracks: [],
-        selectedAudioTrackId: null,
-        subtitleTracks: [],
-        selectedSubtitleTrackId: null,
-        playbackSpeed: 1,
-        aspectOverride: 'no',
-        recording: { active: false },
-    };
-}
 
 export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     private readonly sessions = new Map<string, FrameCopyRuntimeSession>();
@@ -113,62 +93,24 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
         }
 
         const sessionId = `impv-fc-${randomUUID().slice(0, 8)}`;
-        const scale = this.options.getScaleFactor();
-        const width = Math.max(16, Math.round(bounds.width * scale));
-        const height = Math.max(16, Math.round(bounds.height * scale));
-        const helperArgs = [
-            '--shm-base',
-            `/${sessionId}`,
-            '--width',
-            String(width),
-            '--height',
-            String(height),
-            '--volume',
-            String(Math.min(Math.max(initialVolume ?? 1, 0), 1)),
-            // Lip-sync compensation for the video path's added latency
-            // (~10 ms measured on M1 Pro); tunable until calibration
-            // lands, see the architecture doc.
-            ...(process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY
-                ? [
-                      '--audio-delay',
-                      process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY,
-                  ]
-                : []),
-        ];
-        let helperCommand = helperPath;
-        let resolvedHelperArgs = helperArgs;
-        let helperEnvironment: NodeJS.ProcessEnv | undefined;
-        if (process.platform === 'linux') {
-            const runtimeMode = this.options.resolveRuntimeMode();
-            if (!runtimeMode) {
-                throw new Error(
-                    'A validated Linux frame-copy runtime is not available.'
-                );
-            }
-            const launch = createLinuxFrameCopyHelperLaunch({
-                environment: this.options.environment ?? process.env,
-                helperPath,
-                helperArgs,
-                runtimeMode,
-                fileSystem: this.options.helperLaunchFileSystem,
-            });
-            if (!launch.usable) {
-                throw new Error(
-                    'The connected Snap graphics provider is not available.'
-                );
-            }
-            helperCommand = launch.command;
-            resolvedHelperArgs = launch.args;
-            helperEnvironment = launch.env;
-        }
+        const plan = resolveFrameCopyHelperSpawn({
+            bounds,
+            environment: this.options.environment,
+            helperLaunchFileSystem: this.options.helperLaunchFileSystem,
+            helperPath,
+            initialVolume,
+            resolveRuntimeMode: this.options.resolveRuntimeMode,
+            scale: this.options.getScaleFactor(),
+            sessionId,
+        });
 
-        const child = spawn(helperCommand, resolvedHelperArgs, {
+        const child = spawn(plan.command, plan.args, {
             stdio: ['pipe', 'pipe', 'pipe'],
-            ...(helperEnvironment ? { env: helperEnvironment } : {}),
+            ...(plan.env ? { env: plan.env } : {}),
         });
 
         console.log(
-            `[embedded-mpv-fc][${sessionId}] spawn ${width}x${height} (pid pending)`
+            `[embedded-mpv-fc][${sessionId}] spawn ${plan.width}x${plan.height} (pid pending)`
         );
         const session: FrameCopyRuntimeSession = {
             id: sessionId,
@@ -215,40 +157,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
     }
 
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void {
-        const fields: string[] = [
-            `url=${encodeProtocolValue(playback.streamUrl)}`,
-        ];
-        if (playback.title) {
-            fields.push(
-                `opt.force-media-title=${encodeProtocolValue(playback.title)}`
-            );
-        }
-        if (playback.userAgent) {
-            fields.push(
-                `opt.user-agent=${encodeProtocolValue(playback.userAgent)}`
-            );
-        }
-        if (playback.referer) {
-            fields.push(
-                `opt.referrer=${encodeProtocolValue(playback.referer)}`
-            );
-        }
-        if (
-            typeof playback.startTime === 'number' &&
-            Number.isFinite(playback.startTime) &&
-            playback.startTime >= 0
-        ) {
-            fields.push(`opt.start=${playback.startTime}`);
-        }
-        if (playback.headers && Object.keys(playback.headers).length > 0) {
-            const headerFields = Object.entries(playback.headers)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join(',');
-            fields.push(
-                `opt.http-header-fields=${encodeProtocolValue(headerFields)}`
-            );
-        }
-        this.send(sessionId, `load\t${fields.join('\t')}`);
+        this.send(sessionId, buildLoadPlaybackCommand(playback));
     }
 
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void {
@@ -362,57 +271,18 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             newlineIndex = session.stdoutBuffer.indexOf('\n');
             if (!line) continue;
             try {
-                this.handleEvent(session, JSON.parse(line));
+                applyHelperEvent(session, JSON.parse(line), {
+                    resolveReaderPath: () => this.resolveReaderPath(),
+                    // Call through `this.options` so a callback that relies on
+                    // its own receiver keeps working, as it did inline.
+                    onFrameSourceChanged: (id, source) =>
+                        this.options.onFrameSourceChanged(id, source),
+                });
             } catch {
                 console.error(
                     `[embedded-mpv-fc][${session.id}] unparseable event: ${line}`
                 );
             }
-        }
-    }
-
-    private handleEvent(
-        session: FrameCopyRuntimeSession,
-        event: Record<string, unknown>
-    ): void {
-        switch (event.event) {
-            case 'snapshot': {
-                const { event: _ignored, ...snapshot } = event;
-                session.snapshot = {
-                    ...session.snapshot,
-                    ...(snapshot as Partial<NativeEmbeddedMpvSessionSnapshot>),
-                } as NativeEmbeddedMpvSessionSnapshot;
-                break;
-            }
-            case 'shm': {
-                const source: EmbeddedMpvFrameSource = {
-                    shmName: String(event.name ?? ''),
-                    width: Number(event.width ?? 0),
-                    height: Number(event.height ?? 0),
-                    generation: Number(event.generation ?? 0),
-                    readerPath: this.resolveReaderPath(),
-                };
-                session.frameSource = source;
-                this.options.onFrameSourceChanged(session.id, source);
-                break;
-            }
-            case 'fatal':
-                session.snapshot.status = 'error';
-                session.snapshot.error = String(
-                    event.error ?? 'Embedded MPV helper failed.'
-                );
-                break;
-            case 'log':
-                if (event.level === 'error' || event.level === 'fatal') {
-                    console.error(
-                        `[embedded-mpv-fc][${session.id}][mpv/${String(
-                            event.prefix ?? ''
-                        )}] ${String(event.text ?? '').trim()}`
-                    );
-                }
-                break;
-            default:
-                break;
         }
     }
 

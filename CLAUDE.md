@@ -220,7 +220,11 @@ Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
 rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
 are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
 with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
-Never add new files to the baseline.
+Never add new files to the baseline — the list must only shrink. A new file
+that genuinely cannot be split (for example a function serialized into another
+process) instead carries its own file-wide
+`/* eslint-disable max-lines -- <why> */`; the generator skips those files, so
+a justified exemption never lands in the baseline.
 
 ## Architecture
 
@@ -605,7 +609,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - **Event handlers**: `apps/electron-backend/src/app/events/`
     - `database.events.ts` - Database CRUD operations
     - `playlist.events.ts` - Playlist import/update
-    - `epg.events.ts` - EPG IPC registration and freshness/fetch orchestration; worker lifecycle lives in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
+    - `epg.events.ts` - EPG IPC registration; freshness/fetch orchestration lives in `epg-fetch.service.ts`, manual channel-mapping resolution and CRUD in `epg-mapping.service.ts`, worker lifecycle in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
     - `xtream.events.ts` - Xtream Codes API
     - `stalker.events.ts` - Stalker portal API
     - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
