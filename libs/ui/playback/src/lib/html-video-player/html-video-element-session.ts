@@ -12,8 +12,6 @@ export interface HtmlVideoElementSessionConfig {
     video: HTMLVideoElement;
     getChannelUrl: () => string | undefined;
     getStartTime: () => number;
-    showCaptions: () => boolean;
-    sharedControls: () => boolean;
     emitPlaybackIssue: (issue: PlaybackDiagnostic | null) => void;
     emitTimeUpdate: (value: { currentTime: number; duration: number }) => void;
     emitPlaybackEnded: () => void;
@@ -95,25 +93,10 @@ export class HtmlVideoElementSession {
             return;
         }
 
-        void playPromise
-            .then(() => {
-                if (
-                    !this.config.sharedControls() &&
-                    !this.config.showCaptions()
-                ) {
-                    this.disableCaptions();
-                }
-            })
-            .catch(() => {
-                // Autoplay failures are surfaced by the surrounding player UI.
-            });
-    }
-
-    disableCaptions(): void {
-        const tracks = this.config.video.textTracks;
-        for (let index = 0; index < tracks.length; index += 1) {
-            tracks[index].mode = 'hidden';
-        }
+        // Autoplay failures are surfaced by the surrounding player UI. Caption
+        // state is owned by WebVideoSourceTracks, which tracks the active
+        // source engine instead of guessing once when playback starts.
+        void playPromise.catch(() => undefined);
     }
 
     destroy(): void {

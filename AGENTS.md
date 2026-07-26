@@ -160,6 +160,26 @@ Key files:
   links, before this snapshot can occur. Saving applies to the next host without
   an application restart; an existing session never changes controls mode in
   place.
+- `Settings.showCaptions` is deliberately outside this rollout gate: it is
+  engine state, not controls UI. HTML5, Video.js, and ArtPlayer apply it in both
+  modes — shared controls through their controls bridge, the preference-off
+  paths through the same helpers without an adapter (`WebVideoSourceTracks` for
+  HTML5/ArtPlayer, `VjsLegacyTracks` for Video.js). Both re-apply the preference
+  as the engine adds or switches text tracks. `WebPlayerViewComponent` reads it
+  from `SettingsStore` rather than a host input, so the M3U player, the
+  Xtream/Stalker live layouts, and the portal detail inline player all inherit
+  it (#1155).
+- The modes differ in how long the preference is enforced. Shared controls are
+  authoritative for the session; user intent arrives through `setSubtitleTrack`
+  and wins until the source changes. Vendor chrome is source-default: the
+  preference seeds each new source and is released once the media element
+  reports `playing`, so the engine's own caption menu keeps working. The mode is
+  selected by the optional `playbackStarted` probe the legacy owners pass to all
+  three helpers (HLS, native text tracks, Shaka); in that mode the HLS helper
+  deselects the track (`subtitleTrack = -1`) instead of hiding it, because
+  `subtitleDisplay` would silently override whatever the vendor menu picks. For
+  DASH the seed happens in `ShakaVideoSession.start()` after the manifest loads,
+  so the helper only stops re-suppressing afterwards.
 - Embedded MPV ignores the web-player preference. Frame-copy always uses shared
   DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
   native-view retains the legacy compositor-safe dock and external MPV/VLC

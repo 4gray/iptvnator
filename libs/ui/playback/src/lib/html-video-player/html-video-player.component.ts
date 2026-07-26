@@ -36,6 +36,7 @@ import {
     clearNativeVideoSources,
     setNativeVideoSource,
 } from '../web-video-support/web-video-native-source.util';
+import { WebVideoSourceTracks } from '../web-video-support/web-video-source-tracks';
 import { HtmlVideoElementSession } from './html-video-element-session';
 import {
     emitFatalHlsPlaybackError,
@@ -101,6 +102,12 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private shakaSession: ShakaVideoSession | null = null;
     private controlsSource: HtmlVideoControlsSource | null = null;
     private controlsBridge: HtmlVideoPlayerControlsBridge | null = null;
+    /**
+     * Legacy (vendor-chrome) counterpart of {@link controlsBridge}: without
+     * shared controls there is no adapter to feed, but the `showCaptions`
+     * preference still has to reach the active source engine.
+     */
+    private captionTracks: WebVideoSourceTracks | null = null;
     private videoSession: HtmlVideoElementSession | null = null;
 
     ngOnInit() {
@@ -116,9 +123,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 showCaptions: () => this.showCaptions(),
             });
             this.controlsBridge.attach();
-            if (this.controlsSource) {
-                this.controlsBridge.setSource(this.controlsSource);
-            }
+        } else {
+            this.captionTracks = new WebVideoSourceTracks({
+                video: this.videoPlayer.nativeElement,
+                showCaptions: () => this.showCaptions(),
+                vendorCaptionControls: true,
+            });
+        }
+        if (this.controlsSource) {
+            this.bindControlsSource(this.controlsSource);
         }
         this.getVideoSession().attach();
     }
@@ -136,6 +149,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
         if (changes['isLive'] || changes['showCaptions']) {
             this.controlsBridge?.refreshInputs();
+            this.captionTracks?.refreshInputs();
         }
         if (changes['interactionEnabled']?.currentValue === false) {
             exitOwnedFullscreen(
@@ -273,10 +287,12 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private bindControlsSource(source: HtmlVideoControlsSource): void {
         this.controlsSource = source;
         this.controlsBridge?.setSource(source);
+        this.captionTracks?.setSource(source);
     }
 
     private clearControlsSource(): void {
         this.controlsBridge?.clearSource();
+        this.captionTracks?.clearSource();
         this.controlsSource = null;
     }
 
@@ -308,13 +324,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     /**
-     * Disables text based captions based on the global settings
-     */
-    disableCaptions(): void {
-        this.getVideoSession().disableCaptions();
-    }
-
-    /**
      * Handles promise based play operation
      */
     handlePlayOperation(): void {
@@ -342,6 +351,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ngOnDestroy(): void {
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
+        this.captionTracks?.destroy();
+        this.captionTracks = null;
         this.controlsSource = null;
         this.videoSession?.destroy();
         this.videoSession = null;
@@ -356,8 +367,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             video: this.videoPlayer.nativeElement,
             getChannelUrl: () => this.channel?.url,
             getStartTime: () => this.startTime,
-            showCaptions: () => this.showCaptions(),
-            sharedControls: () => this.sharedControls,
             emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
             emitTimeUpdate: (value) => this.timeUpdate.emit(value),
             emitPlaybackEnded: () => this.playbackEnded.emit(),

@@ -4,6 +4,15 @@ import type { PlayerTrack } from '../player-controls/player-controls.model';
 export interface WebVideoHlsControlsConfig {
     showCaptions: () => boolean;
     refresh: () => void;
+    /**
+     * Vendor-chrome hosts pass a "playback started" probe. Its presence
+     * switches the caption preference from authoritative (shared controls, the
+     * default) to source-default: the preference seeds each new source and
+     * stops being enforced once the probe returns true, so the engine's own
+     * caption menu keeps working. Shared controls omit it — they own the
+     * caption UI themselves and route user intent through `setSubtitleTrack`.
+     */
+    playbackStarted?: () => boolean;
 }
 
 export class WebVideoHlsControls {
@@ -125,14 +134,25 @@ export class WebVideoHlsControls {
         }
 
         if (!this.config.showCaptions()) {
+            const selectedTrack = this.readSelectedSubtitleTrack();
+            if (this.config.playbackStarted) {
+                if (this.config.playbackStarted() || selectedTrack === null) {
+                    return;
+                }
+                // Deselect instead of hiding: hls.js keeps `subtitleDisplay`
+                // authoritative over the track the vendor caption menu picks,
+                // so suppressing display would make that menu inert. A `-1`
+                // assignment also clears hls.js' own default-track selection,
+                // so it will not reselect one behind the user's back.
+                this.suppressedSubtitleTrack = selectedTrack;
+                this.setSubtitleTrackValue(-1);
+                return;
+            }
+
             // HLS may choose its default track while display is suppressed.
             // Explicit user-off remains owned by subtitleOverride === -1 above.
-            if (
-                Number.isInteger(this.hls.subtitleTrack) &&
-                this.hls.subtitleTrack >= 0 &&
-                this.hls.subtitleTrack < this.hls.subtitleTracks.length
-            ) {
-                this.suppressedSubtitleTrack = this.hls.subtitleTrack;
+            if (selectedTrack !== null) {
+                this.suppressedSubtitleTrack = selectedTrack;
             }
             this.setSubtitleDisplay(false);
             return;
@@ -147,6 +167,19 @@ export class WebVideoHlsControls {
             this.setSubtitleDisplay(true);
             this.setSubtitleTrackValue(suppressedTrack);
         }
+    }
+
+    /** Current subtitle index, or null when nothing valid is selected. */
+    private readSelectedSubtitleTrack(): number | null {
+        const hls = this.hls;
+        if (!hls) {
+            return null;
+        }
+        return Number.isInteger(hls.subtitleTrack) &&
+            hls.subtitleTrack >= 0 &&
+            hls.subtitleTrack < hls.subtitleTracks.length
+            ? hls.subtitleTrack
+            : null;
     }
 
     private setSubtitleTrackValue(id: number): void {

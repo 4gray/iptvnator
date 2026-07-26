@@ -21,6 +21,14 @@ export interface VjsTextTracksConfig {
     player: Pick<VideoJsPlayer, 'textTracks'>;
     showCaptions: () => boolean;
     refresh: () => void;
+    /**
+     * Vendor-chrome hosts pass a "playback started" probe. Its presence
+     * switches the caption preference from authoritative (shared controls, the
+     * default) to source-default: the preference seeds each new source and
+     * stops being enforced once the probe returns true, so the Video.js
+     * captions menu keeps working. Shared controls omit it.
+     */
+    playbackStarted?: () => boolean;
 }
 
 export class VjsTextTracks {
@@ -169,6 +177,11 @@ export class VjsTextTracks {
         }
 
         if (!this.config.showCaptions()) {
+            if (this.config.playbackStarted?.()) {
+                // Source-default mode: the Video.js captions menu owns the
+                // selection once playback is running.
+                return;
+            }
             const selectedTrack = tracks.find(
                 ({ track }) => track.mode === 'showing'
             )?.track;
