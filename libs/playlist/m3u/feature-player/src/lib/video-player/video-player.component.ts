@@ -367,7 +367,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** Selected video player options */
     playerSettings: Partial<Settings> = {
         player: VideoPlayer.VideoJs,
-        showCaptions: false,
     };
 
     readonly isDesktop = this.runtime.isElectron;
@@ -403,7 +402,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         effect(() => {
             this.playerSettings = {
                 player: this.settingsStore.player(),
-                showCaptions: this.settingsStore.showCaptions(),
             };
         });
 
@@ -739,7 +737,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 this.playerSettings = {
                     player:
                         (settings as Settings).player || VideoPlayer.VideoJs,
-                    showCaptions: (settings as Settings).showCaptions || false,
                 };
             }
         });

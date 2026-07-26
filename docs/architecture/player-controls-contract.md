@@ -335,6 +335,21 @@ contract. It uses DOM/media events and accepts optional engine-specific track
 accessors through `WebVideoControlsOptions`, so the adapter itself stays usable
 in the PWA and does not import a concrete web engine.
 
+### Caption preference in both modes
+
+The `Settings.showCaptions` preference is **not** part of the rollout gate. It
+is engine state, not controls UI, so HTML5, Video.js, and ArtPlayer enforce it
+whether or not their host snapshot enables `WEB_PLAYER_SHARED_CONTROLS`. Shared
+controls route it through their controls bridge; the preference-off paths use
+the same helpers without an adapter — `WebVideoSourceTracks` for HTML5 and
+ArtPlayer, `VjsLegacyTracks` for Video.js. Both apply the preference when a
+source binds and re-apply it as the engine adds or switches text tracks, which
+a one-shot check at playback start could not do (#1155).
+
+`WebPlayerViewComponent` reads the preference from `SettingsStore` rather than
+from a host input, so every host — the M3U player, Xtream and Stalker live
+layouts, and the portal detail inline player — gets it without wiring.
+
 ### Standard element picture-in-picture
 
 Picture-in-picture is part of the existing default-off shared web-controls
@@ -602,12 +617,16 @@ The neutral web-video source support shared by HTML5 and ArtPlayer lives in:
 libs/ui/playback/src/lib/web-video-support/
 ├── web-video-hls-controls.ts
 ├── web-video-native-text-tracks.ts
+├── web-video-source-tracks.ts
 └── web-video-source-controls.bridge.ts
 ```
 
-The bridge owns source-local HLS/native track projection, caption preference
-and explicit subtitle-off state, MPEG-TS VOD duration correction, adapter
-refresh, and exact track-list listener cleanup.
+`WebVideoSourceTracks` owns source-local HLS/Shaka/native track projection,
+caption preference and explicit subtitle-off state, and exact track-list
+listener cleanup. It has no controls dependency, so the preference-off players
+use it directly. `WebVideoSourceControlsBridge` wraps it for shared controls
+and adds adapter attach/detach, adapter refresh, and MPEG-TS VOD duration
+correction.
 
 The guarded HTML5 integration lives in:
 
@@ -625,14 +644,16 @@ libs/ui/playback/src/lib/html-video-player/
 `WebVideoControlsAdapter`. Its bridge/helper filenames re-export the neutral
 web-video support so existing imports and focused specs remain stable.
 `HtmlVideoElementSession` separately owns native video-event attachment,
-persisted volume, start-time/time/ended propagation, and the preference-off
-post-play caption behavior.
+persisted volume, and start-time/time/ended propagation. Captions are not its
+concern in either mode: the component binds `WebVideoSourceTracks` alongside
+its controls bridge and feeds both the same active source.
 
 The guarded Video.js integration lives in:
 
 ```text
 libs/ui/playback/src/lib/vjs-player/
 ├── vjs-audio-tracks.ts
+├── vjs-legacy-tracks.ts
 ├── vjs-mpegts-session.ts
 ├── vjs-player-controls.bridge.ts
 ├── vjs-player-reset-coordinator.ts

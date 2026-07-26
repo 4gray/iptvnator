@@ -85,13 +85,13 @@ function resolveWebPlayerSharedControls(): boolean {
 export class WebPlayerViewComponent {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly settingsStore = inject(SettingsStore);
 
     streamUrl = input.required<string>();
     title = input('');
     playback = input<ResolvedPortalPlayback | null>(null);
     startTime = input<number>(0);
     volume = input<number>(1);
-    showCaptions = input<boolean>(false);
     playerOverride = input<VideoPlayer | null>(null);
     seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     /** Display-ready title lines for the fullscreen overlay; hosts with richer
@@ -109,6 +109,16 @@ export class WebPlayerViewComponent {
     settings = toSignal(this.storage.get(STORE_KEY.Settings)) as Signal<
         Settings | undefined
     >;
+
+    /**
+     * Subtitle preference for the built-in web players. Read from the settings
+     * store instead of an input so every host (M3U, Xtream, Stalker, portal
+     * detail pages) gets it without having to wire it through — the missing
+     * bindings were why the setting looked like a no-op (#1155).
+     */
+    readonly showCaptions = computed(
+        () => this.settingsStore.showCaptions?.() ?? false
+    );
 
     channel!: Channel;
     vjsOptions!: {

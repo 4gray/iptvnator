@@ -12,8 +12,6 @@ describe('HtmlVideoElementSession', () => {
             video,
             getChannelUrl: () => 'https://example.test/video.ts',
             getStartTime: () => 12,
-            showCaptions: () => true,
-            sharedControls: () => false,
             emitPlaybackIssue: (issue) => playbackIssues.push(issue),
             emitTimeUpdate: (value) => timeUpdates.push(value),
             emitPlaybackEnded: playbackEnded,
@@ -74,7 +72,10 @@ describe('HtmlVideoElementSession', () => {
         session.destroy();
     });
 
-    it('suppresses legacy captions only after successful non-shared playback', async () => {
+    // Caption state belongs to WebVideoSourceTracks, which follows the active
+    // source engine. The old play()-time one-shot ran before hls.js had added
+    // its text tracks, which is what made the preference look like a no-op.
+    it('leaves text tracks alone when playback starts', async () => {
         const video = document.createElement('video');
         const tracks = [
             { mode: 'showing' as TextTrackMode },
@@ -85,41 +86,27 @@ describe('HtmlVideoElementSession', () => {
             value: tracks,
         });
         jest.spyOn(video, 'play').mockResolvedValue(undefined);
-        const session = createSession(video, {
-            showCaptions: () => false,
-            sharedControls: () => false,
-        });
+        const session = createSession(video);
 
         session.play();
         await Promise.resolve();
 
-        expect(tracks.map((track) => track.mode)).toEqual(['hidden', 'hidden']);
+        expect(tracks.map((track) => track.mode)).toEqual([
+            'showing',
+            'showing',
+        ]);
     });
 
-    it.each([
-        { showCaptions: true, sharedControls: false },
-        { showCaptions: false, sharedControls: true },
-    ])(
-        'keeps captions when showCaptions=$showCaptions and sharedControls=$sharedControls',
-        async ({ showCaptions, sharedControls }) => {
-            const video = document.createElement('video');
-            const tracks = [{ mode: 'showing' as TextTrackMode }];
-            Object.defineProperty(video, 'textTracks', {
-                configurable: true,
-                value: tracks,
-            });
-            jest.spyOn(video, 'play').mockResolvedValue(undefined);
-            const session = createSession(video, {
-                showCaptions: () => showCaptions,
-                sharedControls: () => sharedControls,
-            });
+    it('swallows autoplay rejections', async () => {
+        const video = document.createElement('video');
+        jest.spyOn(video, 'play').mockRejectedValue(
+            new Error('autoplay blocked')
+        );
+        const session = createSession(video);
 
-            session.play();
-            await Promise.resolve();
-
-            expect(tracks[0].mode).toBe('showing');
-        }
-    );
+        expect(() => session.play()).not.toThrow();
+        await Promise.resolve();
+    });
 });
 
 function createSession(
@@ -132,8 +119,6 @@ function createSession(
         video,
         getChannelUrl: () => undefined,
         getStartTime: () => 0,
-        showCaptions: () => true,
-        sharedControls: () => false,
         emitPlaybackIssue: jest.fn(),
         emitTimeUpdate: jest.fn(),
         emitPlaybackEnded: jest.fn(),

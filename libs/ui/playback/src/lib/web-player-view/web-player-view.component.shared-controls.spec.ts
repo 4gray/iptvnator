@@ -1,5 +1,5 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
-import { Component, input, output, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import {
     ComponentFixture,
     DeferBlockBehavior,
@@ -20,6 +20,12 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
 import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import {
+    StubArtPlayerComponent,
+    StubEmbeddedMpvPlayerComponent,
+    StubHtmlVideoPlayerComponent,
+    StubVjsPlayerComponent,
+} from './web-player-view.spec-stubs';
+import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
@@ -32,69 +38,8 @@ jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
 jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
 jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 
-@Component({ selector: 'app-vjs-player', template: '' })
-class StubVjsPlayerComponent {
-    readonly options = input<unknown>();
-    readonly mediaTitle = input<unknown>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-    readonly interactionEnabled = input(true);
-    readonly startTime = input(0);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackIssue = output<PlaybackDiagnostic | null>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-}
-
-@Component({ selector: 'app-html-video-player', template: '' })
-class StubHtmlVideoPlayerComponent {
-    readonly channel = input<unknown>();
-    readonly mediaTitle = input<unknown>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-    readonly isLive = input(true);
-    readonly interactionEnabled = input(true);
-    readonly startTime = input(0);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackIssue = output<PlaybackDiagnostic | null>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-}
-
-@Component({ selector: 'app-art-player', template: '' })
-class StubArtPlayerComponent {
-    readonly channel = input<unknown>();
-    readonly mediaTitle = input<unknown>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-    readonly isLive = input(true);
-    readonly interactionEnabled = input(true);
-    readonly startTime = input(0);
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackIssue = output<PlaybackDiagnostic | null>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-}
-
-@Component({ selector: 'app-embedded-mpv-player', template: '' })
-class StubEmbeddedMpvPlayerComponent {
-    readonly playback = input.required<unknown>();
-    readonly mediaTitle = input<unknown>(null);
-    readonly recordingFolder = input('');
-    readonly seriesNavigation = input<unknown>(null);
-    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
-    readonly playbackEnded = output<void>();
-    readonly previousEpisodeRequested = output<void>();
-    readonly nextEpisodeRequested = output<void>();
-}
-
 const webPlayerSharedControls = signal(false);
+const showCaptionsSetting = signal(false);
 
 describe('WebPlayerViewComponent shared web controls metadata', () => {
     let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
@@ -108,6 +53,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
 
     beforeEach(async () => {
         webPlayerSharedControls.set(false);
+        showCaptionsSetting.set(false);
 
         await TestBed.configureTestingModule({
             deferBlockBehavior: DeferBlockBehavior.Playthrough,
@@ -125,7 +71,10 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { webPlayerSharedControls },
+                    useValue: {
+                        webPlayerSharedControls,
+                        showCaptions: showCaptionsSetting,
+                    },
                 },
             ],
         })
@@ -212,8 +161,23 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         expect(htmlPlayer.isLive()).toBe(false);
     });
 
+    // Regression for #1155: portal hosts never bound a showCaptions input, so
+    // the preference has to come from the settings store instead.
+    it('reads the caption preference from settings without a host binding', async () => {
+        showCaptionsSetting.set(true);
+
+        const htmlPlayer = await renderHtmlPlayer();
+
+        expect(htmlPlayer.showCaptions()).toBe(true);
+
+        showCaptionsSetting.set(false);
+        fixture.detectChanges();
+
+        expect(htmlPlayer.showCaptions()).toBe(false);
+    });
+
     it('passes resolved playback metadata and caption preference to Video.js', async () => {
-        fixture.componentRef.setInput('showCaptions', true);
+        showCaptionsSetting.set(true);
 
         const vjsPlayer = await renderVjsPlayer({ isLive: false });
 
@@ -225,7 +189,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
     });
 
     it('passes resolved playback metadata and diagnostic interaction state to ArtPlayer', async () => {
-        fixture.componentRef.setInput('showCaptions', true);
+        showCaptionsSetting.set(true);
 
         const artPlayer = await renderArtPlayer({ isLive: false });
 

@@ -1,16 +1,11 @@
-import type Hls from 'hls.js';
 import type { PlayerTrack } from '../player-controls/player-controls.model';
 import type { WebVideoControlsAdapter } from '../player-controls/web-video-controls.adapter';
-import type { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
-import { WebVideoHlsControls } from './web-video-hls-controls';
-import { WebVideoNativeTextTracks } from './web-video-native-text-tracks';
-import { WebVideoShakaControls } from './web-video-shaka-controls';
+import {
+    type WebVideoControlsSource,
+    WebVideoSourceTracks,
+} from './web-video-source-tracks';
 
-export type WebVideoControlsSource =
-    | { kind: 'native' }
-    | { kind: 'mpegts' }
-    | { kind: 'hls'; hls: Hls }
-    | { kind: 'shaka'; session: ShakaVideoSession };
+export type { WebVideoControlsSource };
 
 export interface WebVideoSourceControlsBridgeConfig {
     video: HTMLVideoElement;
@@ -21,28 +16,16 @@ export interface WebVideoSourceControlsBridgeConfig {
 
 export class WebVideoSourceControlsBridge {
     private readonly config: WebVideoSourceControlsBridgeConfig;
-    private readonly hlsControls: WebVideoHlsControls;
-    private readonly shakaControls: WebVideoShakaControls;
-    private readonly nativeTextTracks: WebVideoNativeTextTracks;
-    private source: WebVideoControlsSource | null = null;
+    private readonly tracks: WebVideoSourceTracks;
     private attached = false;
     private destroyed = false;
 
     constructor(config: WebVideoSourceControlsBridgeConfig) {
         this.config = config;
-        const refresh = () => this.config.adapter.refresh();
-        this.hlsControls = new WebVideoHlsControls({
-            showCaptions: config.showCaptions,
-            refresh,
-        });
-        this.shakaControls = new WebVideoShakaControls({
-            showCaptions: config.showCaptions,
-            refresh,
-        });
-        this.nativeTextTracks = new WebVideoNativeTextTracks({
+        this.tracks = new WebVideoSourceTracks({
             video: config.video,
             showCaptions: config.showCaptions,
-            refresh,
+            refresh: () => this.config.adapter.refresh(),
         });
     }
 
@@ -67,15 +50,7 @@ export class WebVideoSourceControlsBridge {
             return;
         }
 
-        this.clearActiveSource();
-        this.source = source;
-        if (source.kind === 'hls') {
-            this.hlsControls.bind(source.hls);
-        } else if (source.kind === 'shaka') {
-            this.shakaControls.bind(source.session);
-        } else {
-            this.nativeTextTracks.bind();
-        }
+        this.tracks.setSource(source);
         this.config.adapter.refresh();
     }
 
@@ -84,13 +59,7 @@ export class WebVideoSourceControlsBridge {
             return;
         }
 
-        if (this.source?.kind === 'hls') {
-            this.hlsControls.refreshInputs();
-        } else if (this.source?.kind === 'shaka') {
-            this.shakaControls.refreshInputs();
-        } else if (this.source) {
-            this.nativeTextTracks.refreshInputs();
-        }
+        this.tracks.refreshInputs();
         this.config.adapter.refresh();
     }
 
@@ -99,8 +68,7 @@ export class WebVideoSourceControlsBridge {
             return;
         }
 
-        this.clearActiveSource();
-        this.source = null;
+        this.tracks.clearSource();
         this.config.adapter.refresh();
     }
 
@@ -110,6 +78,7 @@ export class WebVideoSourceControlsBridge {
         }
 
         this.clearSource();
+        this.tracks.destroy();
         if (this.attached) {
             this.config.adapter.detach();
             this.attached = false;
@@ -118,7 +87,7 @@ export class WebVideoSourceControlsBridge {
     }
 
     readDuration(): number {
-        if (this.source?.kind !== 'mpegts' || this.config.isLive()) {
+        if (this.tracks.sourceKind !== 'mpegts' || this.config.isLive()) {
             return NaN;
         }
 
@@ -142,51 +111,19 @@ export class WebVideoSourceControlsBridge {
     }
 
     private getAudioTracks(): PlayerTrack[] {
-        if (this.source?.kind === 'hls') {
-            return this.hlsControls.getAudioTracks();
-        }
-        if (this.source?.kind === 'shaka') {
-            return this.shakaControls.getAudioTracks();
-        }
-        return [];
+        return this.tracks.getAudioTracks();
     }
 
     private setAudioTrack(id: number): void {
-        if (this.source?.kind === 'hls') {
-            this.hlsControls.setAudioTrack(id);
-        } else if (this.source?.kind === 'shaka') {
-            this.shakaControls.setAudioTrack(id);
-        }
+        this.tracks.setAudioTrack(id);
     }
 
     private getSubtitleTracks(): PlayerTrack[] {
-        if (this.source?.kind === 'hls') {
-            return this.hlsControls.getSubtitleTracks();
-        }
-        if (this.source?.kind === 'shaka') {
-            return this.shakaControls.getSubtitleTracks();
-        }
-        return this.source ? this.nativeTextTracks.getSubtitleTracks() : [];
+        return this.tracks.getSubtitleTracks();
     }
 
     private setSubtitleTrack(id: number): void {
-        if (this.source?.kind === 'hls') {
-            this.hlsControls.setSubtitleTrack(id);
-        } else if (this.source?.kind === 'shaka') {
-            this.shakaControls.setSubtitleTrack(id);
-        } else if (this.source) {
-            this.nativeTextTracks.setSubtitleTrack(id);
-        }
-    }
-
-    private clearActiveSource(): void {
-        if (this.source?.kind === 'hls') {
-            this.hlsControls.clear();
-        } else if (this.source?.kind === 'shaka') {
-            this.shakaControls.clear();
-        } else if (this.source) {
-            this.nativeTextTracks.clear();
-        }
+        this.tracks.setSubtitleTrack(id);
     }
 
     private readFinitePositive(read: () => number): number {

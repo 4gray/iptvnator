@@ -159,6 +159,15 @@ Key files:
   links, before this snapshot can occur. Saving applies to the next host without
   an application restart; an existing session never changes controls mode in
   place.
+- `Settings.showCaptions` is deliberately outside this rollout gate: it is
+  engine state, not controls UI. HTML5, Video.js, and ArtPlayer apply it in both
+  modes — shared controls through their controls bridge, the preference-off
+  paths through the same helpers without an adapter (`WebVideoSourceTracks` for
+  HTML5/ArtPlayer, `VjsLegacyTracks` for Video.js). Both re-apply the preference
+  as the engine adds or switches text tracks. `WebPlayerViewComponent` reads it
+  from `SettingsStore` rather than a host input, so the M3U player, the
+  Xtream/Stalker live layouts, and the portal detail inline player all inherit
+  it (#1155).
 - Embedded MPV ignores the web-player preference. Frame-copy always uses shared
   DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
   native-view retains the legacy compositor-safe dock and external MPV/VLC
