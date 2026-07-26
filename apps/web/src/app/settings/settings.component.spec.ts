@@ -46,6 +46,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { SettingsComponent } from './settings.component';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
+import { SettingsAppUpdateFacade } from './settings-app-update.facade';
 
 import { signal } from '@angular/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
@@ -171,10 +172,28 @@ interface SettingsSectionScrollDirectiveTestApi {
 }
 
 interface SettingsComponentPrivateTestApi {
-    loadAppUpdateStatus(): Promise<void>;
     matDialog: MatDialog;
     waitForUiFeedbackFrame(): Promise<void>;
-    waitForAppUpdateStatusRetry(): Promise<void>;
+}
+
+interface SettingsAppUpdateFacadePrivateTestApi {
+    loadStatus(): Promise<void>;
+    waitForRetry(): Promise<void>;
+}
+
+/**
+ * `ngOnInit` kicks off a version check and a LAN address lookup; both are
+ * stubbed on the owning facades so tests stay deterministic.
+ */
+function stubSettingsSideEffects(settingsComponent: SettingsComponent): void {
+    jest.spyOn(
+        settingsComponent.appUpdate,
+        'checkAppVersion'
+    ).mockImplementation();
+    jest.spyOn(
+        settingsComponent.remoteControl,
+        'fetchLocalIpAddresses'
+    ).mockResolvedValue(undefined);
 }
 
 describe('SettingsComponent', () => {
@@ -361,10 +380,7 @@ describe('SettingsComponent', () => {
         snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
 
         component = fixture.componentInstance;
-        component.checkAppVersion = jest.fn();
-        component.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        stubSettingsSideEffects(component);
         fixture.detectChanges();
     });
 
@@ -382,6 +398,13 @@ describe('SettingsComponent', () => {
         settingsComponent: SettingsComponent
     ): SettingsComponentPrivateTestApi {
         return settingsComponent as unknown as SettingsComponentPrivateTestApi;
+    }
+
+    /** Exposes the app update facade's retry internals to the tests */
+    function appUpdateFacade(): SettingsAppUpdateFacade &
+        SettingsAppUpdateFacadePrivateTestApi {
+        return component.appUpdate as SettingsAppUpdateFacade &
+            SettingsAppUpdateFacadePrivateTestApi;
     }
 
     it('should create and init component', () => {
@@ -405,7 +428,7 @@ describe('SettingsComponent', () => {
         expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalledTimes(
             1
         );
-        expect(component.appUpdateStatus()).toEqual(pushedStatus);
+        expect(component.appUpdate.status()).toEqual(pushedStatus);
     });
 
     it('retries the initial app update status load when IPC handlers are still starting', async () => {
@@ -419,15 +442,14 @@ describe('SettingsComponent', () => {
             .mockReset()
             .mockRejectedValueOnce(new Error('No handler registered'))
             .mockResolvedValueOnce(retriedStatus);
-        jest.spyOn(
-            privateApi(component),
-            'waitForAppUpdateStatusRetry'
-        ).mockResolvedValue(undefined);
+        jest.spyOn(appUpdateFacade(), 'waitForRetry').mockResolvedValue(
+            undefined
+        );
 
-        await privateApi(component).loadAppUpdateStatus();
+        await appUpdateFacade().loadStatus();
 
         expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(2);
-        expect(component.appUpdateStatus()).toEqual(retriedStatus);
+        expect(component.appUpdate.status()).toEqual(retriedStatus);
     });
 
     it('waits for the desktop app update bridge method before loading status', async () => {
@@ -441,28 +463,27 @@ describe('SettingsComponent', () => {
             .getAppUpdateStatus;
         let retryCount = 0;
         const getStatus = jest.fn().mockResolvedValue(retriedStatus);
-        jest.spyOn(
-            privateApi(component),
-            'waitForAppUpdateStatusRetry'
-        ).mockImplementation(async () => {
-            retryCount += 1;
+        jest.spyOn(appUpdateFacade(), 'waitForRetry').mockImplementation(
+            async () => {
+                retryCount += 1;
 
-            if (retryCount === 1) {
-                window.electron.getAppUpdateStatus = getStatus;
+                if (retryCount === 1) {
+                    window.electron.getAppUpdateStatus = getStatus;
+                }
             }
-        });
+        );
 
-        await privateApi(component).loadAppUpdateStatus();
+        await appUpdateFacade().loadStatus();
 
         expect(retryCount).toBe(1);
         expect(getStatus).toHaveBeenCalledTimes(1);
-        expect(component.appUpdateStatus()).toEqual(retriedStatus);
+        expect(component.appUpdate.status()).toEqual(retriedStatus);
     });
 
     it('forwards app update actions to the desktop bridge', async () => {
-        await component.checkForAppUpdate();
-        await component.downloadAppUpdate();
-        await component.installAppUpdate();
+        await component.appUpdate.checkForAppUpdate();
+        await component.appUpdate.downloadAppUpdate();
+        await component.appUpdate.installAppUpdate();
 
         expect(window.electron.checkForAppUpdate).toHaveBeenCalledTimes(1);
         expect(window.electron.downloadAppUpdate).toHaveBeenCalledTimes(1);
@@ -471,13 +492,13 @@ describe('SettingsComponent', () => {
 
     it('opens the manual release URL from unsupported update status', () => {
         const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
-        component.appUpdateStatus.set({
+        component.appUpdate.status.set({
             ...DEFAULT_APP_UPDATE_STATUS,
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
         });
 
-        component.openManualAppUpdate();
+        component.appUpdate.openManualAppUpdate();
 
         expect(openSpy).toHaveBeenCalledWith(
             DEFAULT_APP_UPDATE_STATUS.manualDownloadUrl,
@@ -490,13 +511,13 @@ describe('SettingsComponent', () => {
         const openSpy = jest
             .spyOn(privateApi(component).matDialog, 'open')
             .mockReturnValue(createDialogRef(false));
-        component.appUpdateStatus.set({
+        component.appUpdate.status.set({
             ...DEFAULT_APP_UPDATE_STATUS,
             latestVersion: '0.23.0',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
         });
 
-        component.openAppUpdateReleaseNotes();
+        component.appUpdate.openReleaseNotes();
 
         expect(openSpy).toHaveBeenCalledWith(
             AppUpdateReleaseNotesDialogComponent,
@@ -512,7 +533,7 @@ describe('SettingsComponent', () => {
         const openSpy = jest
             .spyOn(privateApi(component).matDialog, 'open')
             .mockReturnValue(createDialogRef(false));
-        component.appUpdateStatus.set({
+        component.appUpdate.status.set({
             ...DEFAULT_APP_UPDATE_STATUS,
             latestVersion: '0.21.0',
             release: {
@@ -521,7 +542,7 @@ describe('SettingsComponent', () => {
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
         });
 
-        component.openAppUpdateReleaseNotes();
+        component.appUpdate.openReleaseNotes();
 
         expect(openSpy).toHaveBeenCalledWith(
             AppUpdateReleaseNotesDialogComponent,
@@ -549,10 +570,7 @@ describe('SettingsComponent', () => {
         const dialogFixture = TestBed.createComponent(SettingsComponent);
         const dialogComponent = dialogFixture.componentInstance;
 
-        dialogComponent.checkAppVersion = jest.fn();
-        dialogComponent.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        stubSettingsSideEffects(dialogComponent);
         dialogComponent.isDialog = true;
         dialogFixture.detectChanges();
 
@@ -587,10 +605,7 @@ describe('SettingsComponent', () => {
                 scrollTo,
             } as unknown as HTMLElement;
 
-            scrollComponent.checkAppVersion = jest.fn();
-            scrollComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
+            stubSettingsSideEffects(scrollComponent);
             scrollFixture.detectChanges();
             const scrollDirective = scrollFixture.debugElement
                 .query(By.directive(SettingsSectionScrollDirective))
@@ -656,7 +671,7 @@ describe('SettingsComponent', () => {
                 ...settings,
             });
 
-            component.setSettings();
+            component.form.hydrateFromStore();
 
             //expect(settingsStore.loadSettings).toHaveBeenCalled();
             expect(component.settingsForm.value).toEqual({
@@ -671,7 +686,7 @@ describe('SettingsComponent', () => {
                 webPlayerSharedControls: true,
             });
 
-            component.setSettings();
+            component.form.hydrateFromStore();
 
             expect(
                 component.settingsForm.get('webPlayerSharedControls')?.value
@@ -733,10 +748,7 @@ describe('SettingsComponent', () => {
                 TestBed.createComponent(SettingsComponent);
             const partialBridgeComponent =
                 partialBridgeFixture.componentInstance;
-            partialBridgeComponent.checkAppVersion = jest.fn();
-            partialBridgeComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
+            stubSettingsSideEffects(partialBridgeComponent);
             partialBridgeFixture.detectChanges();
 
             expect(partialBridgeComponent.isDesktop).toBe(true);
@@ -787,10 +799,7 @@ describe('SettingsComponent', () => {
                 TestBed.createComponent(SettingsComponent);
             const launchOnlyBridgeComponent =
                 launchOnlyBridgeFixture.componentInstance;
-            launchOnlyBridgeComponent.checkAppVersion = jest.fn();
-            launchOnlyBridgeComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
+            stubSettingsSideEffects(launchOnlyBridgeComponent);
             launchOnlyBridgeFixture.detectChanges();
 
             expect(
@@ -880,7 +889,7 @@ describe('SettingsComponent', () => {
                 currentVersion
             );
             const isOutdated =
-                component.isCurrentVersionOutdated(latestVersion);
+                component.appUpdate.isCurrentVersionOutdated(latestVersion);
             expect(isOutdated).toBeTruthy();
         });
 
@@ -889,11 +898,11 @@ describe('SettingsComponent', () => {
             jest.spyOn(electronService, 'getAppVersion').mockReturnValue(
                 currentVersion
             );
-            component.showVersionInformation(latestVersion);
+            component.appUpdate.showVersionInformation(latestVersion);
             expect(translate.instant).toHaveBeenCalledWith(
                 'SETTINGS.NEW_VERSION_AVAILABLE'
             );
-            expect(component.updateMessage).toBe(
+            expect(component.appUpdate.updateMessage()).toBe(
                 'New version available: 1.0.0'
             );
         });
@@ -906,7 +915,7 @@ describe('SettingsComponent', () => {
             fixture.nativeElement as HTMLElement
         ).querySelector('.danger-zone__button') as HTMLButtonElement | null;
 
-        expect(component.canRemoveAllPlaylists()).toBe(false);
+        expect(component.playlistReset.canRemoveAll()).toBe(false);
         expect(deleteButton?.disabled).toBe(true);
     });
 
@@ -929,7 +938,7 @@ describe('SettingsComponent', () => {
 
         component.removeAll();
 
-        expect(component.playlistDeleteSummary()).toEqual({
+        expect(component.playlistReset.deleteSummary()).toEqual({
             total: 3,
             m3u: 1,
             xtream: 1,
@@ -1006,8 +1015,8 @@ describe('SettingsComponent', () => {
         await Promise.resolve();
         fixture.detectChanges();
 
-        expect(component.isRemovingAllPlaylists()).toBe(true);
-        expect(component.removeAllProgressLabel()).toBe('3/7');
+        expect(component.playlistReset.isRemovingAllPlaylists()).toBe(true);
+        expect(component.playlistReset.removeAllProgressLabel()).toBe('3/7');
         expect(databaseService.deleteAllPlaylists).toHaveBeenCalledWith(
             expect.objectContaining({
                 operationId: 'delete-all-op',
@@ -1018,8 +1027,8 @@ describe('SettingsComponent', () => {
         resolveDelete(true);
         await fixture.whenStable();
 
-        expect(component.isRemovingAllPlaylists()).toBe(false);
-        expect(component.removeAllProgress()).toBeNull();
+        expect(component.playlistReset.isRemovingAllPlaylists()).toBe(false);
+        expect(component.playlistReset.removeAllProgress()).toBeNull();
         expect(dispatchSpy).toHaveBeenCalledWith(
             PlaylistActions.removeAllPlaylists()
         );
@@ -1042,10 +1051,7 @@ describe('SettingsComponent', () => {
 
         const browserFixture = TestBed.createComponent(SettingsComponent);
         const browserComponent = browserFixture.componentInstance;
-        browserComponent.checkAppVersion = jest.fn();
-        browserComponent.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        stubSettingsSideEffects(browserComponent);
         browserFixture.detectChanges();
 
         expect(browserComponent.isDesktop).toBe(false);
@@ -1104,7 +1110,7 @@ describe('SettingsComponent', () => {
 
     it('should force-fetch EPG for a single URL (bypassing freshness cache)', () => {
         const url = 'http://epg-url-here/data.xml';
-        component.refreshEpg(url);
+        component.epg.refresh(url);
         expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(url, {
             trustedPrivateNetworkEpgUrls: [],
             trustedInsecureTlsHosts: [],
@@ -1122,18 +1128,18 @@ describe('SettingsComponent', () => {
                 void onConfirm();
             }
         );
-        const refreshSpy = jest.spyOn(component, 'refreshAllEpg');
+        const refreshSpy = jest.spyOn(component.epg, 'refreshAll');
         jest.spyOn(translate, 'instant').mockImplementation((key) => key);
 
-        component.clearEpgData();
+        component.epg.clear();
 
-        expect(component.isClearingEpgData()).toBe(true);
+        expect(component.epg.isClearing()).toBe(true);
         expect(refreshSpy).not.toHaveBeenCalled();
 
         resolveClear();
         await fixture.whenStable();
 
-        expect(component.isClearingEpgData()).toBe(false);
+        expect(component.epg.isClearing()).toBe(false);
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.EPG_DATA_CLEARED',
             undefined,
@@ -1163,7 +1169,7 @@ describe('SettingsComponent', () => {
 
         const exportPromise = component.exportData();
 
-        expect(component.isExportingData()).toBe(true);
+        expect(component.backup.isExportingData()).toBe(true);
 
         resolveExport({
             defaultFileName: 'iptvnator-playlist-backup-2026-04-21.json',
@@ -1192,7 +1198,7 @@ describe('SettingsComponent', () => {
             '/tmp/backup.json',
             '{}'
         );
-        expect(component.isExportingData()).toBe(false);
+        expect(component.backup.isExportingData()).toBe(false);
     });
 
     it('falls back to browser backup download when desktop file-save preload is incomplete', async () => {
@@ -1225,10 +1231,7 @@ describe('SettingsComponent', () => {
             partialFileSaveFixture = TestBed.createComponent(SettingsComponent);
             const partialFileSaveComponent =
                 partialFileSaveFixture.componentInstance;
-            partialFileSaveComponent.checkAppVersion = jest.fn();
-            partialFileSaveComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
+            stubSettingsSideEffects(partialFileSaveComponent);
             partialFileSaveFixture.detectChanges();
 
             expect(partialFileSaveComponent.isDesktop).toBe(true);
@@ -1265,14 +1268,14 @@ describe('SettingsComponent', () => {
                 void onConfirm();
             }
         );
-        const refreshSpy = jest.spyOn(component, 'refreshAllEpg');
+        const refreshSpy = jest.spyOn(component.epg, 'refreshAll');
         jest.spyOn(translate, 'instant').mockImplementation((key) => key);
         jest.spyOn(console, 'error').mockImplementation();
 
-        component.clearEpgData();
+        component.epg.clear();
         await fixture.whenStable();
 
-        expect(component.isClearingEpgData()).toBe(false);
+        expect(component.epg.isClearing()).toBe(false);
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.EPG_DATA_CLEAR_FAILED',
             undefined,
@@ -1492,10 +1495,7 @@ describe('SettingsComponent', () => {
 
         const webFixture = TestBed.createComponent(SettingsComponent);
         const webComponent = webFixture.componentInstance;
-        webComponent.checkAppVersion = jest.fn();
-        webComponent.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        stubSettingsSideEffects(webComponent);
         webFixture.detectChanges();
         await webFixture.whenStable();
 

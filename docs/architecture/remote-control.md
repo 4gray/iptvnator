@@ -222,8 +222,10 @@ Implemented UI behavior:
 ## Settings UI and discoverability
 
 - Files:
-    - `apps/web/src/app/settings/settings.component.ts`
-    - `apps/web/src/app/settings/settings.component.html`
+    - `apps/web/src/app/settings/settings-remote-control-section.component.ts`
+      (+ `.html`) — the section rendered by `settings.component.html`
+    - `apps/web/src/app/settings/settings-remote-control.facade.ts` — LAN
+      address lookup and QR-code visibility state
 - Features:
     - Toggle `remoteControl`
     - Configure `remoteControlPort`
