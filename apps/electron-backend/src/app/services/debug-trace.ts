@@ -52,6 +52,10 @@ export function isRendererApiTraceEnabled(): boolean {
     return isStartupTraceEnabled() || readFlag('IPTVNATOR_TRACE_IPC');
 }
 
+export function isPerformanceCaptureEnabled(): boolean {
+    return readFlag('IPTVNATOR_PERF_CAPTURE');
+}
+
 export function isDbTraceEnabled(): boolean {
     return isStartupTraceEnabled() || readFlag('IPTVNATOR_TRACE_DB');
 }

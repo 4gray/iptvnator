@@ -23,6 +23,7 @@ export * from './lib/playback-position.interface';
 export * from './lib/playlist-auto-update.interface';
 export * from './lib/playlist-backup.interface';
 export * from './lib/playlist-meta.type';
+export * from './lib/preload-performance-marker.interface';
 export * from './lib/playlist-recently-viewed.interface';
 export * from './lib/playlist-recently-viewed.utils';
 export * from './lib/playlist-refresh.interface';
