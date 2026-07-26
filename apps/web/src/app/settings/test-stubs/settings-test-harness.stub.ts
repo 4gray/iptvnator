@@ -48,14 +48,20 @@ import { TranslateModule } from '@ngx-translate/core';
 import { MockModule, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { from, of } from 'rxjs';
-import { ElectronServiceStub } from '../services/electron.service.stub';
-import { SettingsStore } from '../services/settings-store.service';
-import { SettingsService } from '../services/settings.service';
-import { SettingsComponent } from './settings.component';
+import { ElectronServiceStub } from '../../services/electron.service.stub';
+import { SettingsStore } from '../../services/settings-store.service';
+import { SettingsService } from '../../services/settings.service';
+import { SettingsComponent } from '../settings.component';
 
 /**
- * Shared fixtures for the settings specs. Kept as a `.stub.ts` so the Angular
- * app build skips it (see `tsconfig.app.json`) while Jest still picks it up.
+ * Shared fixtures for the settings specs.
+ *
+ * Both halves of the name matter: the `.stub.ts` suffix keeps the file out of
+ * the Angular app build (`tsconfig.app.json` excludes it), and the
+ * `test-stubs/` directory keeps it out of coverage — `collectCoverageFrom`,
+ * `tools/coverage/run-tier-a-coverage.mjs` and the integrity checker all
+ * exclude that path, so this harness never lands in the coverage ratchet as
+ * production source.
  */
 
 export const DEFAULT_DASHBOARD_RAILS = {

@@ -14,7 +14,7 @@ import {
     BACKUP_EXPORT_RESULT,
     createElectronStub,
     MatSnackBarStub,
-} from './settings-test-harness.stub';
+} from './test-stubs/settings-test-harness.stub';
 
 describe('SettingsBackupFacade', () => {
     let facade: SettingsBackupFacade;

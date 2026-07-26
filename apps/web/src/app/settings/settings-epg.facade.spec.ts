@@ -19,7 +19,7 @@ import {
     MatSnackBarStub,
     MockSettingsService,
     MockSettingsStore,
-} from './settings-test-harness.stub';
+} from './test-stubs/settings-test-harness.stub';
 
 describe('SettingsEpgFacade', () => {
     let facade: SettingsEpgFacade;

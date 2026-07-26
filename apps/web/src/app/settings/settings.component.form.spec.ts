@@ -19,7 +19,7 @@ import {
     MatSnackBarStub,
     MockSettingsStore,
     stubSettingsSideEffects,
-} from './settings-test-harness.stub';
+} from './test-stubs/settings-test-harness.stub';
 
 /**
  * Everything the rendered settings form does: hydration from the store, the

@@ -16,7 +16,7 @@ import {
     createElectronStub,
     DEFAULT_APP_UPDATE_STATUS,
     MockSettingsService,
-} from './settings-test-harness.stub';
+} from './test-stubs/settings-test-harness.stub';
 
 /** The retry loop is deliberately private; tests drive it directly. */
 interface SettingsAppUpdateFacadePrivateTestApi {

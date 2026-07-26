@@ -20,7 +20,7 @@ import {
     createElectronStub,
     createPlaylistMeta,
     MatSnackBarStub,
-} from './settings-test-harness.stub';
+} from './test-stubs/settings-test-harness.stub';
 
 describe('SettingsPlaylistResetFacade', () => {
     let facade: SettingsPlaylistResetFacade;

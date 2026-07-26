@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
@@ -8,10 +7,8 @@ import {
     PlaylistMeta,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { MockStore } from '@ngrx/store/testing';
 import { SettingsComponent } from './settings.component';
-import { SettingsSectionScrollDirective } from './settings-section-scroll.directive';
 import {
     configureSettingsComponentTestBed,
     createElectronStub,
@@ -19,16 +16,13 @@ import {
     createPlaylistMeta,
     DEFAULT_SETTINGS,
     stubSettingsSideEffects,
-} from './settings-test-harness.stub';
-
-interface SettingsSectionScrollDirectiveTestApi {
-    getScrollRoot(): HTMLElement | null;
-}
+} from './test-stubs/settings-test-harness.stub';
 
 /**
- * Page-shell behaviour: chrome, section navigation and the runtime
+ * Page-shell behaviour: chrome, the facade lifecycle and the runtime
  * capabilities that decide which sections and players are offered. Form
- * editing and saving live in `settings.component.form.spec.ts`, and the
+ * editing and saving live in `settings.component.form.spec.ts`, section
+ * scrolling in `settings-section-scroll.directive.spec.ts`, and the
  * per-section behaviour in the matching `*.facade.spec.ts` files.
  */
 describe('SettingsComponent', () => {
@@ -68,6 +62,44 @@ describe('SettingsComponent', () => {
 
     it('should create and init component', () => {
         expect(component).toBeTruthy();
+    });
+
+    /**
+     * The facades own the behaviour, but only the component knows when to
+     * start and stop them — so the seam itself needs coverage here.
+     */
+    it('drives the facade lifecycle from the page lifecycle', async () => {
+        fixture.destroy();
+
+        const lifecycleFixture = TestBed.createComponent(SettingsComponent);
+        const lifecycleComponent = lifecycleFixture.componentInstance;
+        stubSettingsSideEffects(lifecycleComponent);
+        const appUpdateInit = jest.spyOn(lifecycleComponent.appUpdate, 'init');
+        const appUpdateDispose = jest.spyOn(
+            lifecycleComponent.appUpdate,
+            'dispose'
+        );
+        const embeddedMpvLoad = jest.spyOn(
+            lifecycleComponent.embeddedMpv,
+            'load'
+        );
+
+        lifecycleFixture.detectChanges();
+        await lifecycleFixture.whenStable();
+
+        expect(appUpdateInit).toHaveBeenCalledTimes(1);
+        expect(lifecycleComponent.appUpdate.checkAppVersion).toHaveBeenCalled();
+        expect(embeddedMpvLoad).toHaveBeenCalled();
+        expect(
+            lifecycleComponent.remoteControl.fetchLocalIpAddresses
+        ).toHaveBeenCalled();
+        // The lifecycle really reaches the desktop bridge, not just the facade
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalled();
+        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalled();
+
+        lifecycleFixture.destroy();
+
+        expect(appUpdateDispose).toHaveBeenCalledTimes(1);
     });
 
     it('should render a compact page header outside dialog mode', () => {
@@ -119,74 +151,6 @@ describe('SettingsComponent', () => {
 
         expect(component.playlistReset.canRemoveAll()).toBe(true);
         expect(deleteButton()?.disabled).toBe(false);
-    });
-
-    it('should scroll the selected navigation target within the workspace viewport', async () => {
-        fixture.destroy();
-        jest.useFakeTimers();
-
-        try {
-            const scrollFixture = TestBed.createComponent(SettingsComponent);
-            const scrollComponent = scrollFixture.componentInstance;
-            const settingsContext = TestBed.inject(SettingsContextService);
-            const originalGetElementById =
-                document.getElementById.bind(document);
-            const scrollTo = jest.fn();
-            const scrollRoot = {
-                scrollTop: 96,
-                clientHeight: 885,
-                scrollHeight: 2469,
-                getBoundingClientRect: () =>
-                    ({
-                        top: 56,
-                    }) as DOMRect,
-                scrollTo,
-            } as unknown as HTMLElement;
-
-            stubSettingsSideEffects(scrollComponent);
-            scrollFixture.detectChanges();
-            const scrollDirective = scrollFixture.debugElement
-                .query(By.directive(SettingsSectionScrollDirective))
-                .injector.get(SettingsSectionScrollDirective);
-            jest.spyOn(
-                scrollDirective as unknown as SettingsSectionScrollDirectiveTestApi,
-                'getScrollRoot'
-            ).mockReturnValue(scrollRoot);
-
-            const getElementByIdSpy = jest
-                .spyOn(document, 'getElementById')
-                .mockImplementation((id: string) => {
-                    if (id === 'about') {
-                        return {
-                            getBoundingClientRect: () =>
-                                ({
-                                    top: 2050,
-                                    height: 159,
-                                }) as DOMRect,
-                        } as HTMLElement;
-                    }
-
-                    return originalGetElementById(id);
-                });
-
-            await scrollFixture.whenStable();
-            scrollFixture.detectChanges();
-            settingsContext.navigateToSection('about');
-            scrollFixture.detectChanges();
-
-            expect(getElementByIdSpy).toHaveBeenCalledWith('about');
-            expect(scrollTo).toHaveBeenCalledWith({
-                behavior: 'smooth',
-                top: 1488,
-            });
-            expect(settingsContext.pendingScrollTarget()).toBe('about');
-
-            jest.advanceTimersByTime(600);
-
-            expect(settingsContext.pendingScrollTarget()).toBeNull();
-        } finally {
-            jest.useRealTimers();
-        }
     });
 
     describe('Runtime capabilities', () => {
