@@ -220,6 +220,29 @@ describe('main preload DB IPC contract', () => {
         );
     });
 
+    it('preserves a structured playlist cancellation result across the context bridge', async () => {
+        const api = getExposedApi();
+        const payload = {
+            operationId: 'playlist-refresh-cancelled',
+            playlistId: 'playlist-1',
+            title: 'Large playlist',
+            url: 'http://127.0.0.1/large.m3u',
+        };
+        const cancelledResult = {
+            operationId: payload.operationId,
+            type: 'playlist-refresh-cancelled',
+        } as const;
+        mockIpcRenderer.invoke.mockResolvedValueOnce(cancelledResult);
+
+        await expect(api.refreshPlaylist(payload)).resolves.toEqual(
+            cancelledResult
+        );
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'PLAYLIST:REFRESH',
+            payload
+        );
+    });
+
     it('keeps the legacy save-content progress bridge scoped to progress events', () => {
         const api = getExposedApi();
         const callback = jest.fn();

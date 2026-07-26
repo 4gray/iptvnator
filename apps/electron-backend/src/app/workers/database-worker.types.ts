@@ -1,3 +1,5 @@
+import type { WorkerPerformanceCaptureResult } from './worker-performance-capture';
+
 export const DB_WORKER_OPERATIONS = [
     'DB_HAS_CATEGORIES',
     'DB_GET_CATEGORIES',
@@ -138,6 +140,7 @@ export interface DbWorkerResponseMessage<TResult = unknown> {
     success: boolean;
     result?: TResult;
     error?: SerializedWorkerError;
+    performance?: WorkerPerformanceCaptureResult;
 }
 
 export type DbWorkerIncomingMessage =

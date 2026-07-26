@@ -22,6 +22,11 @@ import {
 } from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import { PLAYLIST_FETCH_TIMEOUT_MS } from '../events/playlist-source';
+import {
+    armWorkerPerformanceCapture,
+    finishWorkerPerformanceCapture,
+    startWorkerPerformanceCapture,
+} from './worker-performance-capture';
 
 type ActiveRefreshState = {
     cancelled: boolean;
@@ -186,12 +191,17 @@ parentPort.on(
             return;
         }
 
+        const performanceCapture = startWorkerPerformanceCapture();
+        await armWorkerPerformanceCapture(performanceCapture);
         try {
             const result = await executeRefresh(message.payload);
+            const performance =
+                await finishWorkerPerformanceCapture(performanceCapture);
             postMessage({
                 type: 'response',
                 success: true,
                 result,
+                performance,
             });
         } catch (error) {
             const payload = message.payload;
@@ -206,10 +216,13 @@ parentPort.on(
                 });
             }
 
+            const performance =
+                await finishWorkerPerformanceCapture(performanceCapture);
             postMessage({
                 type: 'response',
                 success: false,
                 error: serializeError(error),
+                performance,
             });
         }
     }

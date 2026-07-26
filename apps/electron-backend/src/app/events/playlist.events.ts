@@ -11,9 +11,11 @@ import {
     AUTO_UPDATE_PLAYLISTS,
     PLAYLIST_CANCEL_REFRESH,
     PLAYLIST_REFRESH,
+    PLAYLIST_REFRESH_CANCELLED_RESULT_TYPE,
     PLAYLIST_REFRESH_EVENT,
     ElectronBridgeTrustOptions,
     Playlist,
+    PlaylistRefreshCancelledResult,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
     summarizeAutoUpdateOutcomes,
@@ -40,10 +42,7 @@ export default class PlaylistEvents {
 const playlistWriteAuthorizer = new PlaylistWriteAuthorizer();
 
 type ActivePlaylistRefresh = {
-    reject: (reason?: unknown) => void;
-    resolve: (value: Playlist) => void;
-    sender: WebContents;
-    worker: Worker;
+    cancel: () => Promise<void>;
 };
 
 const activePlaylistRefreshes = new Map<string, ActivePlaylistRefresh>();
@@ -170,76 +169,126 @@ ipcMain.handle(
     async (event, payload: PlaylistRefreshPayload) => {
         const worker = resolvePlaylistRefreshWorker();
 
-        return await new Promise<Playlist>((resolve, reject) => {
-            const cleanup = async (): Promise<void> => {
-                activePlaylistRefreshes.delete(payload.operationId);
-                worker.removeAllListeners();
-                await worker.terminate().catch(() => undefined);
-            };
+        return await new Promise<Playlist | PlaylistRefreshCancelledResult>(
+            (resolve, reject) => {
+                let cleanupPromise: Promise<void> | null = null;
+                let lastPhase: PlaylistRefreshEvent['phase'] = payload.url
+                    ? 'fetching'
+                    : 'reading-file';
+                let settled = false;
 
-            activePlaylistRefreshes.set(payload.operationId, {
-                worker,
-                sender: event.sender,
-                resolve,
-                reject,
-            });
+                const cleanup = (): Promise<void> => {
+                    cleanupPromise ??= (async () => {
+                        activePlaylistRefreshes.delete(payload.operationId);
+                        worker.removeAllListeners();
+                        await worker.terminate().catch(() => undefined);
+                    })();
+                    return cleanupPromise;
+                };
 
-            worker.on(
-                'message',
-                async (message: PlaylistRefreshWorkerMessage<Playlist>) => {
-                    if (message.type === 'ready') {
-                        worker.postMessage({
-                            type: 'request',
-                            payload,
-                        });
+                const cancel = async (): Promise<void> => {
+                    if (settled) {
                         return;
                     }
+                    settled = true;
 
-                    if (message.type === 'event') {
-                        emitPlaylistRefreshEvent(event.sender, message.event);
-                        return;
+                    try {
+                        worker.postMessage({
+                            type: 'cancel',
+                            operationId: payload.operationId,
+                        });
+                    } catch {
+                        // Termination below is authoritative even if cooperative
+                        // cancellation cannot be delivered.
                     }
 
                     await cleanup();
+                    emitPlaylistRefreshEvent(event.sender, {
+                        operationId: payload.operationId,
+                        playlistId: payload.playlistId,
+                        phase: lastPhase,
+                        status: 'cancelled',
+                    });
+                    resolve({
+                        operationId: payload.operationId,
+                        type: PLAYLIST_REFRESH_CANCELLED_RESULT_TYPE,
+                    });
+                };
 
-                    const response =
-                        message as PlaylistRefreshWorkerResponseMessage<Playlist>;
-                    if (response.success && response.result) {
-                        resolve(response.result);
+                const activeRefresh: ActivePlaylistRefresh = { cancel };
+                activePlaylistRefreshes.set(payload.operationId, activeRefresh);
+
+                worker.on(
+                    'message',
+                    async (message: PlaylistRefreshWorkerMessage<Playlist>) => {
+                        if (settled) {
+                            return;
+                        }
+
+                        if (message.type === 'ready') {
+                            worker.postMessage({
+                                type: 'request',
+                                payload,
+                            });
+                            return;
+                        }
+
+                        if (message.type === 'event') {
+                            lastPhase = message.event.phase ?? lastPhase;
+                            emitPlaylistRefreshEvent(
+                                event.sender,
+                                message.event
+                            );
+                            return;
+                        }
+
+                        settled = true;
+                        await cleanup();
+
+                        const response =
+                            message as PlaylistRefreshWorkerResponseMessage<Playlist>;
+                        if (response.success && response.result) {
+                            resolve(response.result);
+                            return;
+                        }
+
+                        reject(
+                            createPlaylistRefreshError(
+                                response.error ?? {
+                                    message:
+                                        'Playlist refresh worker request failed',
+                                }
+                            )
+                        );
+                    }
+                );
+
+                worker.on('error', async (error) => {
+                    if (settled) {
+                        return;
+                    }
+                    settled = true;
+                    await cleanup();
+                    reject(error);
+                });
+
+                worker.on('exit', async (code) => {
+                    if (settled) {
                         return;
                     }
 
+                    settled = true;
+                    await cleanup();
                     reject(
-                        createPlaylistRefreshError(
-                            response.error ?? {
-                                message:
-                                    'Playlist refresh worker request failed',
-                            }
+                        new Error(
+                            code === 0
+                                ? 'Playlist refresh worker exited unexpectedly'
+                                : `Playlist refresh worker stopped with exit code ${code}`
                         )
                     );
-                }
-            );
-
-            worker.on('error', async (error) => {
-                await cleanup();
-                reject(error);
-            });
-
-            worker.on('exit', async (code) => {
-                if (!activePlaylistRefreshes.has(payload.operationId)) {
-                    return;
-                }
-
-                await cleanup();
-                reject(
-                    new Error(
-                        code === 0
-                            ? 'Playlist refresh worker exited unexpectedly'
-                            : `Playlist refresh worker stopped with exit code ${code}`
-                    )
-                );
-            });
-        });
+                });
+            }
+        );
     }
 );
 
@@ -251,10 +300,7 @@ ipcMain.handle(
             return { success: false };
         }
 
-        activeRefresh.worker.postMessage({
-            type: 'cancel',
-            operationId,
-        });
+        await activeRefresh.cancel();
 
         return { success: true };
     }

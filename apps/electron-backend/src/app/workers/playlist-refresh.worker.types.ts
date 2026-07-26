@@ -1,4 +1,8 @@
-import type { PlaylistRefreshEvent, PlaylistRefreshPayload } from '@iptvnator/shared/interfaces';
+import type {
+    PlaylistRefreshEvent,
+    PlaylistRefreshPayload,
+} from '@iptvnator/shared/interfaces';
+import type { WorkerPerformanceCaptureResult } from './worker-performance-capture';
 
 export interface PlaylistRefreshWorkerRequestMessage {
     type: 'request';
@@ -28,6 +32,7 @@ export interface PlaylistRefreshWorkerResponseMessage<TResult = unknown> {
         message: string;
         stack?: string;
     };
+    performance?: WorkerPerformanceCaptureResult;
 }
 
 export type PlaylistRefreshWorkerIncomingMessage =

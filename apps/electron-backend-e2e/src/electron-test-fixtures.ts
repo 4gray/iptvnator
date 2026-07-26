@@ -75,6 +75,7 @@ type ElectronFixtures = {
 };
 
 export type LaunchElectronAppOptions = {
+    args?: readonly string[];
     env?: Record<string, string | undefined>;
 };
 
@@ -142,7 +143,7 @@ export async function launchElectronApp(
     }
     assertPackagedRendererBuildIsElectronSafe();
 
-    const args = [electronMainPath];
+    const args = [...(options.args ?? []), electronMainPath];
 
     if (process.platform === 'linux' && process.env['CI']) {
         args.unshift('--no-sandbox', '--disable-gpu');
