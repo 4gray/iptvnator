@@ -59,6 +59,23 @@ const DEFAULT_SETTINGS: Settings = {
     tmdb: DEFAULT_TMDB_SETTINGS,
 };
 
+/**
+ * Which half of the settings persistence round-trip failed, if any.
+ *
+ * Settings live in the renderer's IndexedDB, which can be unavailable for
+ * reasons the app cannot control (a second instance holding the Chromium
+ * storage lock, a corrupted profile, storage blocked by security software).
+ * Both failures used to be swallowed: `updateSettings` patches the in-memory
+ * state before persisting, so a failed write still looked applied until the
+ * next restart (issue #1156). Recording the failure lets the settings UI say
+ * so instead of pretending the change stuck.
+ */
+export type SettingsStorageFailure = 'load' | 'save';
+
+interface SettingsStorageState {
+    storageFailure: SettingsStorageFailure | null;
+}
+
 let embeddedMpvPrepareScheduled = false;
 
 function scheduleEmbeddedMpvPrepare(): void {
@@ -101,6 +118,7 @@ function scheduleEmbeddedMpvPrepare(): void {
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
+    withState<SettingsStorageState>({ storageFailure: null }),
     withComputed((store) => ({
         /**
          * Live EPG panel layout with the `'timeline'` default applied — the
@@ -124,6 +142,7 @@ export const SettingsStore = signalStore(
                     const stored = await firstValueFrom(
                         storage.get(STORE_KEY.Settings)
                     );
+                    patchState(store, { storageFailure: null });
                     if (stored) {
                         const storedSettings = stored as Partial<Settings>;
                         patchState(store, {
@@ -147,7 +166,10 @@ export const SettingsStore = signalStore(
                 })().catch((error) => {
                     settingsLoadPromise = undefined;
                     console.error('Failed to load settings:', error);
-                    // Keep default settings if loading fails
+                    // Keep default settings if loading fails, but remember
+                    // that they are defaults-by-failure rather than by choice
+                    // so the settings UI can warn about it.
+                    patchState(store, { storageFailure: 'load' });
                 });
 
                 return settingsLoadPromise;
@@ -176,11 +198,15 @@ export const SettingsStore = signalStore(
                     await firstValueFrom(
                         storage.set(STORE_KEY.Settings, completeSettings)
                     );
+                    patchState(store, { storageFailure: null });
                     if (completeSettings.player === VideoPlayer.EmbeddedMpv) {
                         scheduleEmbeddedMpvPrepare();
                     }
                 } catch (error) {
                     console.error('Failed to save settings:', error);
+                    // The in-memory patch above already applied, so without
+                    // this flag the change looks saved until the next restart.
+                    patchState(store, { storageFailure: 'save' });
                     throw error;
                 }
             },

@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Exige um duplo clique nas linhas de canais antes de iniciar a reprodução no MPV ou VLC.",
         "LANGUAGE": "Idioma",
         "SETTINGS_SAVED": "Sucesso! A configuração foi salva.",
+        "SETTINGS_SAVE_FAILED": "Não foi possível guardar as definições. As alterações serão perdidas ao reiniciar a aplicação.",
+        "SETTINGS_LOAD_FAILED": "Não foi possível carregar as definições guardadas — a mostrar os valores predefinidos. Certifique-se de que a aplicação não está já em execução.",
         "THEME": "Tema visual",
         "SHOW_CAPTIONS": "Mostrar legendas",
         "SHOW_DASHBOARD": "Mostrar dashboard",

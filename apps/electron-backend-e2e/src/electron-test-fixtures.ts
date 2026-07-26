@@ -7,6 +7,7 @@ import {
     Page,
     test as base,
 } from '@playwright/test';
+import { spawn } from 'child_process';
 import { createServer, Server } from 'http';
 import {
     accessSync,
@@ -330,6 +331,45 @@ function attachElectronProcessDiagnostics(
                 signal ?? '<null>'
             }`
         );
+    });
+}
+
+/**
+ * Starts a raw second Electron process against an already-running instance's
+ * data directory and reports how it terminated.
+ *
+ * Deliberately not `launchElectronApp`: the expected outcome is that no window
+ * is ever created, because the single-instance guard hands the launch over to
+ * the running app. Two live instances would share a Chromium profile whose
+ * IndexedDB only one of them can lock, which is how settings silently stopped
+ * persisting (issues #102, #1156).
+ */
+export async function launchCompetingElectronInstance(
+    dataDir: string,
+    timeoutMs = 30000
+): Promise<{ exitCode: number | null; timedOut: boolean }> {
+    // In a Node context the `electron` package resolves to its binary path.
+    const electronBinaryPath = require('electron') as unknown as string;
+    const child = spawn(electronBinaryPath, [electronMainPath], {
+        env: {
+            ...process.env,
+            ELECTRON_IS_DEV: '0',
+            IPTVNATOR_E2E_DATA_DIR: dataDir,
+            NODE_ENV: 'test',
+        },
+        stdio: 'ignore',
+    });
+
+    return new Promise((resolvePromise) => {
+        const timer = setTimeout(() => {
+            child.kill();
+            resolvePromise({ exitCode: null, timedOut: true });
+        }, timeoutMs);
+
+        child.once('exit', (code) => {
+            clearTimeout(timer);
+            resolvePromise({ exitCode: code, timedOut: false });
+        });
     });
 }
 

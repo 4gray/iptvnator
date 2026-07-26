@@ -237,6 +237,14 @@ textarea,
     margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
+// Failures (settings could not be saved/loaded) must not read as the usual
+// neutral confirmation toast.
+.mat-mdc-snack-bar-container.settings-snackbar--error {
+    --mdc-snackbar-container-color: var(--mat-sys-error-container);
+    --mdc-snackbar-supporting-text-color: var(--mat-sys-on-error-container);
+    --mat-snack-bar-button-color: var(--mat-sys-on-error-container);
+}
+
 // WCAG-friendly visually-hidden helper — content stays in the
 // accessibility tree and DOM query results but occupies no layout box.
 // Used where a visible heading would duplicate adjacent navigation

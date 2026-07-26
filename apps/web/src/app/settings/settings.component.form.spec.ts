@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    CoverSize,
     Language,
     StartupBehavior,
     Theme,
@@ -20,6 +22,11 @@ import {
     MockSettingsStore,
     stubSettingsSideEffects,
 } from './test-stubs/settings-test-harness.stub';
+
+/** Matches the snackbar config used by `SettingsSnackbarService.error`. */
+const ERROR_SNACKBAR_CONFIG = expect.objectContaining({
+    panelClass: ['settings-snackbar', 'settings-snackbar--error'],
+});
 
 /**
  * Everything the rendered settings form does: hydration from the store, the
@@ -69,6 +76,18 @@ describe('SettingsComponent form', () => {
             await component.ngOnInit();
 
             expect(component.settingsForm.value).toEqual(DEFAULT_SETTINGS);
+        });
+
+        it('warns when the persisted settings could not be read', async () => {
+            settingsStore.storageFailure.set('load');
+
+            await component.ngOnInit();
+
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'SETTINGS.SETTINGS_LOAD_FAILED',
+                'CLOSE',
+                ERROR_SNACKBAR_CONFIG
+            );
         });
 
         it('should get and apply custom settings', () => {
@@ -246,6 +265,52 @@ describe('SettingsComponent form', () => {
                 trustedPrivateNetworkEpgUrls: [],
                 trustedInsecureTlsHosts: [],
             });
+        });
+
+        it('warns and keeps the dialog open when the settings write fails', async () => {
+            settingsStore.updateSettings.mockRejectedValue(
+                new Error('storage unavailable')
+            );
+            const matDialog = TestBed.inject(MatDialog);
+            const closeAll = jest.spyOn(matDialog, 'closeAll');
+            component.isDialog = true;
+
+            component.onSubmit();
+            await fixture.whenStable();
+
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'SETTINGS.SETTINGS_SAVE_FAILED',
+                'CLOSE',
+                ERROR_SNACKBAR_CONFIG
+            );
+            expect(closeAll).not.toHaveBeenCalled();
+        });
+
+        it('closes the dialog only after the settings write succeeded', async () => {
+            settingsStore.updateSettings.mockResolvedValue(undefined);
+            const matDialog = TestBed.inject(MatDialog);
+            const closeAll = jest.spyOn(matDialog, 'closeAll');
+            component.isDialog = true;
+
+            component.onSubmit();
+            await fixture.whenStable();
+
+            expect(closeAll).toHaveBeenCalledTimes(1);
+        });
+
+        it('warns when a section write fails without leaving an unhandled rejection', async () => {
+            settingsStore.updateSettings.mockRejectedValue(
+                new Error('storage unavailable')
+            );
+
+            component.form.selectCoverSize(CoverSize.Large);
+            await fixture.whenStable();
+
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'SETTINGS.SETTINGS_SAVE_FAILED',
+                'CLOSE',
+                ERROR_SNACKBAR_CONFIG
+            );
         });
 
         it('saves the shared web controls setting on submit', async () => {

@@ -10,6 +10,7 @@ import {
     expect,
     goToDashboard,
     importM3uPlaylistFromNativeDialog,
+    launchCompetingElectronInstance,
     launchElectronApp,
     LaunchedElectronApp,
     m3uFixturePath,
@@ -143,6 +144,28 @@ test.describe('Electron Settings', () => {
         } finally {
             await closeElectronApp(app);
         }
+    });
+
+    test('@settings @persistence @electron refuses a second instance so it cannot break settings storage', async ({
+        dataDir,
+    }) => {
+        const runningApp = await launchElectronApp(dataDir);
+
+        try {
+            const competing = await launchCompetingElectronInstance(dataDir);
+
+            expect(competing.timedOut).toBe(false);
+            expect(competing.exitCode).toBe(0);
+            // The running instance keeps its window and its storage lock.
+            expect(runningApp.electronApp.windows().length).toBeGreaterThan(0);
+            await expect(runningApp.mainWindow.locator('body')).toBeVisible();
+        } finally {
+            await closeElectronApp(runningApp);
+        }
+
+        // The lock is released on exit, so a later launch starts normally.
+        const relaunch = await launchElectronApp(dataDir);
+        await closeElectronApp(relaunch);
     });
 
     test('@settings @persistence @electron persists changed desktop settings across app restart', async ({

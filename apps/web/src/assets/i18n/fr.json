@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Exiger un double-clic sur les lignes de chaînes avant de lancer la lecture avec MPV ou VLC.",
         "LANGUAGE": "Langue",
         "SETTINGS_SAVED": "La configuration a été enregistrée avec succès.",
+        "SETTINGS_SAVE_FAILED": "Les paramètres n'ont pas pu être enregistrés. Vos modifications seront perdues au redémarrage de l'application.",
+        "SETTINGS_LOAD_FAILED": "Les paramètres enregistrés n'ont pas pu être chargés — les valeurs par défaut sont affichées. Vérifiez qu'aucune autre copie de l'application n'est ouverte.",
         "THEME": "Thème",
         "SHOW_CAPTIONS": "Afficher les sous-titres",
         "SHOW_DASHBOARD": "Afficher le tableau de bord",

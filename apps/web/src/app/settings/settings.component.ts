@@ -199,11 +199,19 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * the indexed db store
      */
     onSubmit(): void {
-        void this.form.save(() => this.applyChangedSettings());
-
-        if (this.isDialog) {
-            this.matDialog.closeAll();
-        }
+        this.form
+            .save(() => this.applyChangedSettings())
+            .then(() => {
+                if (this.isDialog) {
+                    this.matDialog.closeAll();
+                }
+            })
+            .catch(() => {
+                // The store already applied the change in memory, so without
+                // this the save looks successful until the next restart. The
+                // dialog stays open so it can be retried.
+                this.settingsSnackbar.storageFailure('save');
+            });
     }
 
     /**

@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Require a double-click on channel rows before MPV or VLC playback starts.",
         "LANGUAGE": "Language",
         "SETTINGS_SAVED": "Success! Configuration was saved.",
+        "SETTINGS_SAVE_FAILED": "Settings could not be saved. Your changes will be lost when the app is restarted.",
+        "SETTINGS_LOAD_FAILED": "Saved settings could not be loaded — showing defaults. Make sure no other copy of the app is running.",
         "THEME": "Visual theme",
         "SHOW_CAPTIONS": "Show subtitles",
         "SHOW_DASHBOARD": "Show dashboard",
