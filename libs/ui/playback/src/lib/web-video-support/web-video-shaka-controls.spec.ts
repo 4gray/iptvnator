@@ -9,7 +9,7 @@ import { WebVideoShakaControls } from './web-video-shaka-controls';
 describe('WebVideoShakaControls', () => {
     const video = {} as HTMLVideoElement;
 
-    function createHarness() {
+    function createHarness(playbackStarted?: () => boolean) {
         const environment = createFakeShakaEnvironment({
             onCreate: (player) => {
                 player.textTracks = [
@@ -33,9 +33,44 @@ describe('WebVideoShakaControls', () => {
         const controls = new WebVideoShakaControls({
             showCaptions: () => state.showCaptions,
             refresh: () => undefined,
+            playbackStarted,
         });
         return { environment, session, controls, state };
     }
+
+    // Vendor-chrome hosts seed the source through ShakaVideoSession.start()
+    // and then stop enforcing, mirroring the HLS and native helpers.
+    it('stops re-suppressing text once playback started in source-default mode', async () => {
+        const settled = { value: false };
+        const { environment, session, controls } = createHarness(
+            () => settled.value
+        );
+        controls.bind(session);
+        session.start(video, 'http://example.com/subs.mpd');
+        await flush();
+
+        const player = environment.instances[0];
+        expect(player.textTracks[0].active).toBe(false);
+
+        settled.value = true;
+        player.selectTextTrack(player.textTracks[0]);
+        controls.refreshInputs();
+
+        expect(player.textTracks[0].active).toBe(true);
+    });
+
+    it('still seeds the source before playback started', async () => {
+        const { environment, session, controls } = createHarness(() => false);
+        controls.bind(session);
+        session.start(video, 'http://example.com/subs.mpd');
+        await flush();
+
+        const player = environment.instances[0];
+        player.selectTextTrack(player.textTracks[0]);
+        controls.refreshInputs();
+
+        expect(player.textTracks[0].active).toBe(false);
+    });
 
     it('restores the suppressed caption track when the preference turns on', async () => {
         const { environment, session, controls, state } = createHarness();

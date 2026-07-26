@@ -358,7 +358,9 @@ they differ in who owns the caption UI:
   make that menu inert.
 
 The mode is selected by passing a `playbackStarted` probe to the track helpers;
-shared controls omit it. `WebVideoSourceTracks` owns the probe for HTML5 and
+shared controls omit it. All three helpers take it — HLS, native text tracks,
+and Shaka. For DASH the seed happens inside `ShakaVideoSession.start()` once the
+manifest is loaded, so the helper only has to stop re-suppressing afterwards. `WebVideoSourceTracks` owns the probe for HTML5 and
 ArtPlayer (a `playing` listener on the media element, reset on every
 `setSource`); `VjsLegacyTracks` owns it for Video.js (the player's own `playing`
 event, reset on every `clear`). In source-default mode the HLS helper also

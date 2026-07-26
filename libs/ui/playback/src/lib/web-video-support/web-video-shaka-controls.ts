@@ -8,6 +8,14 @@ import type { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
 export interface WebVideoShakaControlsConfig {
     showCaptions: () => boolean;
     refresh: () => void;
+    /**
+     * Vendor-chrome hosts pass a "playback started" probe, mirroring the HLS
+     * and native helpers. `ShakaVideoSession` already seeds the preference once
+     * the manifest is loaded, so re-suppressing on every later Shaka event
+     * would only override selections the host cannot see. Shared controls own
+     * the caption UI and omit it, staying authoritative.
+     */
+    playbackStarted?: () => boolean;
 }
 
 const SUBTITLES_OFF = -1;
@@ -117,9 +125,14 @@ export class WebVideoShakaControls {
         // off, and reselect the suppressed track when it turns back on.
         if (this.config.showCaptions()) {
             session.restoreSuppressedTextTrack();
-        } else {
-            session.suppressTextTracks();
+            return;
         }
+        if (this.config.playbackStarted?.()) {
+            // Source-default mode: the session already seeded this source at
+            // load time, so leave the running selection alone.
+            return;
+        }
+        session.suppressTextTracks();
     }
 
     private getPlayer(): ShakaPlayerLike | null {

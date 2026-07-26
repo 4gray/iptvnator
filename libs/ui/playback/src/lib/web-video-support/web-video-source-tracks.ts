@@ -60,6 +60,7 @@ export class WebVideoSourceTracks {
         this.shakaControls = new WebVideoShakaControls({
             showCaptions: config.showCaptions,
             refresh,
+            playbackStarted,
         });
         this.nativeTextTracks = new WebVideoNativeTextTracks({
             video: config.video,
