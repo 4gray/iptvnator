@@ -70,9 +70,6 @@
         "build": "nx build electron-backend"
     },
     "private": true,
-    "engines": {
-        "node": ">=22.12.0"
-    },
     "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319",
     "dependencies": {
         "@angular/animations": "21.2.17",
@@ -185,7 +182,7 @@
         "cors": "2.8.6",
         "drizzle-kit": "0.31.10",
         "electron": "^41.7.2",
-        "electron-builder": "^26.15.3",
+        "electron-builder": "^26.0.12",
         "electron-playwright-helpers": "1.8.2",
         "esbuild": "0.28.1",
         "eslint": "^9.8.0",
@@ -205,7 +202,6 @@
         "jsonc-eslint-parser": "^2.1.0",
         "material-design-icons-iconfont": "6.7.0",
         "ng-mocks": "14.15.3",
-        "node-gyp": "12.2.0",
         "nx": "22.7.1",
         "nx-electron": "22.0.0",
         "prettier": "^3.9.6",
