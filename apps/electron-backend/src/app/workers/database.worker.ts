@@ -192,6 +192,7 @@ function postEvent(requestId: string, event: DbOperationEvent): void {
 
 async function pauseBetweenBatches(): Promise<void> {
     if (batchDelayMs <= 0) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
         return;
     }
 
