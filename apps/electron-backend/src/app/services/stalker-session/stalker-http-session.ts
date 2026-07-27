@@ -60,6 +60,7 @@ export interface StalkerHttpOriginApprovalRequiredOutcome {
     readonly finalOrigin: string;
     readonly kind: typeof STALKER_HTTP_OUTCOME_KINDS.OriginApprovalRequired;
     readonly sourceOrigin: string;
+    readonly targetUrl: string;
 }
 
 export interface StalkerHttpFailureOutcome {
@@ -78,7 +79,8 @@ const CALLER_MANAGED_HEADERS = new Set(['cookie', 'proxy-authorization']);
 class StalkerOriginApprovalPause extends Error {
     constructor(
         readonly sourceOrigin: string,
-        readonly finalOrigin: string
+        readonly finalOrigin: string,
+        readonly targetUrl: string
     ) {
         super(STALKER_HTTP_OUTCOME_KINDS.OriginApprovalRequired);
         this.name = 'StalkerOriginApprovalPause';
@@ -168,6 +170,7 @@ export class StalkerHttpSession {
                 kind: STALKER_HTTP_OUTCOME_KINDS.Success,
                 result: {
                     body: copyResponseBytes(response.data),
+                    ...readResponseMetadata(response.headers),
                     finalUrl,
                     status: response.status,
                 },
@@ -178,6 +181,7 @@ export class StalkerHttpSession {
                     finalOrigin: error.finalOrigin,
                     kind: STALKER_HTTP_OUTCOME_KINDS.OriginApprovalRequired,
                     sourceOrigin: error.sourceOrigin,
+                    targetUrl: error.targetUrl,
                 };
             }
 
@@ -251,6 +255,37 @@ function readSetCookieHeaders(
     return undefined;
 }
 
+function readResponseMetadata(
+    headers: RawAxiosResponseHeaders
+): Pick<StalkerTransportResult<unknown>, 'contentType' | 'retryAfterSeconds'> {
+    const contentType = readStringHeader(headers, 'content-type');
+    const retryAfter = readStringHeader(headers, 'retry-after');
+    const retryAfterSeconds =
+        retryAfter === undefined ? undefined : Number(retryAfter.trim());
+    return {
+        ...(contentType === undefined ? {} : { contentType }),
+        ...(retryAfterSeconds !== undefined &&
+        Number.isFinite(retryAfterSeconds) &&
+        retryAfterSeconds >= 0
+            ? { retryAfterSeconds }
+            : {}),
+    };
+}
+
+function readStringHeader(
+    headers: RawAxiosResponseHeaders,
+    name: string
+): string | undefined {
+    const value = headers[name];
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return String(value);
+    }
+    return undefined;
+}
+
 function validateRedirectTarget(
     redirect: ValidatedAxiosRedirectContext,
     identityBearing: boolean,
@@ -260,7 +295,8 @@ function validateRedirectTarget(
     if (identityBearing && redirect.crossOrigin) {
         throw new StalkerOriginApprovalPause(
             sourceOrigin,
-            new URL(normalizedTarget).origin
+            new URL(normalizedTarget).origin,
+            normalizedTarget
         );
     }
 }

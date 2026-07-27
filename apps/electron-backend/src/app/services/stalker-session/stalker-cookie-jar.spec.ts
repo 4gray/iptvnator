@@ -40,12 +40,12 @@ describe('StalkerCookieJar', () => {
             'second=two; Path=/',
         ]);
 
-        expect(
-            await jar.getCookieHeader('https://one.example.test/next')
-        ).toBe('first=one');
-        expect(
-            await jar.getCookieHeader('https://two.example.test/next')
-        ).toBe('second=two');
+        expect(await jar.getCookieHeader('https://one.example.test/next')).toBe(
+            'first=one'
+        );
+        expect(await jar.getCookieHeader('https://two.example.test/next')).toBe(
+            'second=two'
+        );
     });
 
     it('honors expiry against an injected clock', async () => {
@@ -58,9 +58,9 @@ describe('StalkerCookieJar', () => {
         ]);
 
         now = new Date('2026-07-27T10:01:01.000Z');
-        expect(
-            await jar.getCookieHeader('https://portal.example.com/')
-        ).toBe('absolute=alive');
+        expect(await jar.getCookieHeader('https://portal.example.com/')).toBe(
+            'absolute=alive'
+        );
 
         now = new Date('2026-07-27T10:02:01.000Z');
         expect(
@@ -76,9 +76,9 @@ describe('StalkerCookieJar', () => {
             'good=value; Path=/',
         ]);
 
-        expect(
-            await jar.getCookieHeader('https://portal.example.com/')
-        ).toBe('good=value');
+        expect(await jar.getCookieHeader('https://portal.example.com/')).toBe(
+            'good=value'
+        );
     });
 
     it.each([
@@ -93,10 +93,10 @@ describe('StalkerCookieJar', () => {
         async (setCookie) => {
             const jar = new StalkerCookieJar(managedCookies);
 
-            await jar.collectResponseCookies(
-                'https://portal.example.com/c/',
-                [setCookie, 'server=retained; Path=/']
-            );
+            await jar.collectResponseCookies('https://portal.example.com/c/', [
+                setCookie,
+                'server=retained; Path=/',
+            ]);
 
             expect(
                 await jar.getCookieHeader(
@@ -117,25 +117,21 @@ describe('StalkerCookieJar', () => {
 
         const internalJar = Reflect.get(jar, '__testJar');
         expect(internalJar).toBeUndefined();
-        expect(
-            await jar.getCookieHeader('https://portal.example.com/')
-        ).toBe(
+        expect(await jar.getCookieHeader('https://portal.example.com/')).toBe(
             'session=server; mac=00:1A:79:00:00:01; stb_lang=en; timezone=Europe/Berlin'
         );
     });
 
     it('clones cookie state without sharing later mutations', async () => {
         const original = new StalkerCookieJar(managedCookies);
-        await original.collectResponseCookies(
-            'https://portal.example.com/',
-            ['landing=kept; Path=/']
-        );
+        await original.collectResponseCookies('https://portal.example.com/', [
+            'landing=kept; Path=/',
+        ]);
 
         const candidate = await original.clone();
-        await candidate.collectResponseCookies(
-            'https://portal.example.com/',
-            ['candidate=isolated; Path=/']
-        );
+        await candidate.collectResponseCookies('https://portal.example.com/', [
+            'candidate=isolated; Path=/',
+        ]);
 
         expect(
             await original.getCookieHeader('https://portal.example.com/')
@@ -144,6 +140,28 @@ describe('StalkerCookieJar', () => {
         );
         expect(
             await candidate.getCookieHeader('https://portal.example.com/')
+        ).toBe(
+            'landing=kept; candidate=isolated; mac=00:1A:79:00:00:01; stb_lang=en; timezone=Europe/Berlin'
+        );
+    });
+
+    it('promotes anonymous landing cookies into an isolated managed candidate jar', async () => {
+        const landing = new StalkerCookieJar();
+        await landing.collectResponseCookies('https://portal.example.com/c/', [
+            'landing=kept; Path=/',
+        ]);
+
+        const candidate = await landing.cloneWithManagedCookies(managedCookies);
+        await candidate.collectResponseCookies(
+            'https://portal.example.com/c/',
+            ['candidate=isolated; Path=/']
+        );
+
+        expect(
+            await landing.getCookieHeader('https://portal.example.com/c/')
+        ).toBe('landing=kept');
+        expect(
+            await candidate.getCookieHeader('https://portal.example.com/c/')
         ).toBe(
             'landing=kept; candidate=isolated; mac=00:1A:79:00:00:01; stb_lang=en; timezone=Europe/Berlin'
         );

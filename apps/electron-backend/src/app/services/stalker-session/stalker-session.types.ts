@@ -30,7 +30,9 @@ export interface StalkerValidatedRuntimeInput {
 
 export interface StalkerTransportResult<T> {
     readonly body: T;
+    readonly contentType?: string;
     readonly finalUrl: string;
+    readonly retryAfterSeconds?: number;
     readonly status: number;
 }
 

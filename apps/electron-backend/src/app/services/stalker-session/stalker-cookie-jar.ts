@@ -93,7 +93,13 @@ export class StalkerCookieJar {
     }
 
     async clone(): Promise<StalkerCookieJar> {
-        const clone = new StalkerCookieJar(this.#managedCookies, {
+        return this.cloneWithManagedCookies(this.#managedCookies);
+    }
+
+    async cloneWithManagedCookies(
+        managedCookies: StalkerManagedCookies
+    ): Promise<StalkerCookieJar> {
+        const clone = new StalkerCookieJar(managedCookies, {
             now: this.#now,
         });
         clone.#jar = await this.#jar.clone();

@@ -40,7 +40,10 @@ describe('StalkerHttpSession', () => {
         axiosMock.mockImplementationOnce(async (config) => ({
             config,
             data: Buffer.from('denied', 'utf8'),
-            headers: {},
+            headers: {
+                'content-type': 'application/json; charset=utf-8',
+                'retry-after': '12',
+            },
             status: 403,
         }));
         const session = new StalkerHttpSession(
@@ -62,7 +65,9 @@ describe('StalkerHttpSession', () => {
             throw new Error('Expected transport success');
         }
         expect(outcome.result).toMatchObject({
+            contentType: 'application/json; charset=utf-8',
             finalUrl: 'http://192.168.1.20/server/load.php',
+            retryAfterSeconds: 12,
             status: 403,
         });
         expect(Buffer.from(outcome.result.body).toString('utf8')).toBe(
@@ -279,6 +284,7 @@ describe('StalkerHttpSession', () => {
             finalOrigin: 'http://192.168.2.30',
             kind: 'origin-approval-required',
             sourceOrigin: 'http://192.168.1.20',
+            targetUrl: 'http://192.168.2.30/landing?display=portal',
         });
         expectNoSecretEcho(outcome, secrets);
         expect(axiosMock).toHaveBeenCalledTimes(1);
