@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the import lifecycle matrix shares one state-machine harness */
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
@@ -405,6 +406,83 @@ describe('StalkerPortalImportComponent', () => {
             'attempt-awaiting-credentials'
         );
         expect(component.connectionStage()).toBe('idle');
+    });
+
+    it('discards a ready attempt returned after the form was cleared during open', async () => {
+        const open = deferred<StalkerSessionConnectionOutcome>();
+        session.open.mockReturnValueOnce(open.promise);
+
+        const add = component.addPlaylist();
+        await Promise.resolve();
+        component.clearForm();
+        open.resolve(READY_OUTCOME);
+        await add;
+
+        expect(session.discard).toHaveBeenCalledWith('attempt-import-1');
+        expect(playlists.persistStalkerConnection).not.toHaveBeenCalled();
+        expect(component.connectionStage()).toBe('idle');
+    });
+
+    it('discards a challenge returned after the form was cleared during continuation', async () => {
+        session.open.mockResolvedValueOnce({
+            attemptRef: 'attempt-origin-stale',
+            challengeRef: 'challenge-origin-stale',
+            finalOrigin: 'https://redirected.example',
+            kind: 'origin-approval-required',
+            requestId: 'request-origin-stale',
+            sourceOrigin: 'https://portal.example',
+        });
+        const continuation = deferred<StalkerSessionConnectionOutcome>();
+        session.continue.mockReturnValueOnce(continuation.promise);
+        await component.addPlaylist();
+
+        const approval = component.respondToOriginApproval(true);
+        await Promise.resolve();
+        component.clearForm();
+        session.discard.mockClear();
+        continuation.resolve({
+            attemptNumber: 1,
+            attemptRef: 'attempt-origin-stale',
+            challengeRef: 'challenge-credentials-stale',
+            kind: 'credentials-required',
+            requestId: 'request-credentials-stale',
+        });
+        await approval;
+
+        expect(session.discard).toHaveBeenCalledWith('attempt-origin-stale');
+        expect(component.connectionStage()).toBe('idle');
+    });
+
+    it('discards a ready attempt returned after destruction during credential validation', async () => {
+        session.open.mockResolvedValueOnce({
+            attemptNumber: 1,
+            attemptRef: 'attempt-credentials-stale',
+            challengeRef: 'challenge-credentials-stale',
+            kind: 'credentials-required',
+            requestId: 'request-credentials-stale',
+        });
+        const continuation = deferred<StalkerSessionConnectionOutcome>();
+        session.continue.mockReturnValueOnce(continuation.promise);
+        await component.addPlaylist();
+        component.form.patchValue({
+            password: 'entered-password',
+            username: 'entered-user',
+        });
+
+        const submit = component.submitCredentials();
+        await Promise.resolve();
+        component.ngOnDestroy();
+        session.discard.mockClear();
+        continuation.resolve({
+            ...READY_OUTCOME,
+            attemptRef: 'attempt-credentials-stale',
+        });
+        await submit;
+
+        expect(session.discard).toHaveBeenCalledWith(
+            'attempt-credentials-stale'
+        );
+        expect(playlists.persistStalkerConnection).not.toHaveBeenCalled();
     });
 
     function setValidForm(): void {

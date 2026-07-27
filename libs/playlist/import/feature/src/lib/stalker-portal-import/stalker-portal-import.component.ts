@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- the challenge-driven import state machine is kept in one lifecycle owner */
 import {
     Component,
     OnDestroy,
@@ -155,6 +156,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
                 provisionalReason: 'import',
             });
             if (runId !== this.runId) {
+                await this.discardStaleOutcome(outcome);
                 return;
             }
             await this.handleOutcome(outcome, runId);
@@ -186,6 +188,8 @@ export class StalkerPortalImportComponent implements OnDestroy {
             });
             if (runId === this.runId) {
                 await this.handleOutcome(outcome, runId);
+            } else {
+                await this.discardStaleOutcome(outcome);
             }
         } catch {
             if (runId === this.runId) {
@@ -242,6 +246,8 @@ export class StalkerPortalImportComponent implements OnDestroy {
             });
             if (runId === this.runId) {
                 await this.handleOutcome(outcome, runId);
+            } else {
+                await this.discardStaleOutcome(outcome);
             }
         } catch {
             if (runId === this.runId) {
@@ -372,6 +378,16 @@ export class StalkerPortalImportComponent implements OnDestroy {
         this.pendingAttemptRef = null;
         this.pendingReady = null;
         if (attemptRef !== undefined && !this.committed) {
+            await this.session.discard(attemptRef).catch(() => undefined);
+        }
+    }
+
+    private async discardStaleOutcome(
+        outcome: StalkerSessionConnectionOutcome
+    ): Promise<void> {
+        const attemptRef =
+            'attemptRef' in outcome ? outcome.attemptRef : undefined;
+        if (attemptRef !== undefined) {
             await this.session.discard(attemptRef).catch(() => undefined);
         }
     }
