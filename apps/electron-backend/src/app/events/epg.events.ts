@@ -1,29 +1,29 @@
-import { eq } from 'drizzle-orm';
 import { ipcMain } from 'electron';
 import {
     ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
-import { getDatabase } from '../database/connection';
-import * as schema from '../database/schema';
 import { epgQueryService } from './epg-query.service';
 import { epgWorkerService } from './epg-worker.service';
+import { checkEpgFreshness, handleFetchEpg } from './epg-fetch.service';
+import type { EpgFetchResult, EpgFreshnessResult } from './epg-fetch.service';
 import {
-    getEpgMapping,
-    getEpgMappingsBatch,
-    setEpgMapping,
-    deleteEpgMapping,
-    searchEpgChannels,
-} from '../database/operations/epg-mapping.operations';
+    handleDeleteEpgMapping,
+    handleGetEpgMapping,
+    handleGetEpgMappingsBatch,
+    handleSearchEpgChannels,
+    handleSetEpgMapping,
+    queryByResolvedChannelIds,
+} from './epg-mapping.service';
 
 /**
  * EPG Events Handler
  * Manages EPG IPC registration and delegates worker/query behavior.
+ * Freshness and fetch orchestration live in `epg-fetch.service.ts`; manual
+ * channel-mapping resolution and CRUD live in `epg-mapping.service.ts`.
  */
 export default class EpgEvents {
-    private static readonly loggerLabel = '[EPG Events]';
-
     /**
      * Bootstrap EPG events
      */
@@ -136,11 +136,11 @@ export default class EpgEvents {
             }
         );
 
-        // EPG channel mapping CRUD
+        // EPG channel mapping CRUD — handled entirely by epg-mapping.service.
         ipcMain.handle(
             'EPG_MAPPING_GET',
             async (_event, args: { channelKey: string }) => {
-                return this.handleGetEpgMapping(args.channelKey);
+                return handleGetEpgMapping(args.channelKey);
             }
         );
 
@@ -154,7 +154,7 @@ export default class EpgEvents {
                     playlistId?: string;
                 }
             ) => {
-                return this.handleSetEpgMapping(
+                return handleSetEpgMapping(
                     args.channelKey,
                     args.epgChannelId,
                     args.playlistId
@@ -165,14 +165,14 @@ export default class EpgEvents {
         ipcMain.handle(
             'EPG_MAPPING_GET_BATCH',
             async (_event, args: { channelKeys: string[] }) => {
-                return this.handleGetEpgMappingsBatch(args.channelKeys);
+                return handleGetEpgMappingsBatch(args.channelKeys);
             }
         );
 
         ipcMain.handle(
             'EPG_MAPPING_DELETE',
             async (_event, args: { channelKey: string }) => {
-                return this.handleDeleteEpgMapping(args.channelKey);
+                return handleDeleteEpgMapping(args.channelKey);
             }
         );
 
@@ -182,158 +182,25 @@ export default class EpgEvents {
                 _event,
                 args: { searchTerm: string; limit?: number }
             ) => {
-                return this.handleSearchEpgChannels(
-                    args.searchTerm,
-                    args.limit
-                );
+                return handleSearchEpgChannels(args.searchTerm, args.limit);
             }
         );
 
         return ipcMain;
     }
 
-    /**
-     * Check which EPG URLs have fresh data vs stale/missing data
-     * @param urls - EPG source URLs to check
-     * @param maxAgeHours - Maximum age in hours before data is considered stale
-     */
     private static async checkEpgFreshness(
         urls: string[],
         maxAgeHours: number
-    ): Promise<{ staleUrls: string[]; freshUrls: string[] }> {
-        const staleUrls: string[] = [];
-        const freshUrls: string[] = [];
-        const cutoffTime = new Date(
-            Date.now() - maxAgeHours * 60 * 60 * 1000
-        ).toISOString();
-
-        try {
-            const db = await getDatabase();
-
-            for (const url of urls) {
-                if (!url?.trim()) continue;
-
-                const result = await db
-                    .select({ updatedAt: schema.epgChannels.updatedAt })
-                    .from(schema.epgChannels)
-                    .where(eq(schema.epgChannels.sourceUrl, url))
-                    .limit(1);
-
-                const isFresh =
-                    result.length > 0 &&
-                    result[0].updatedAt &&
-                    result[0].updatedAt >= cutoffTime;
-
-                if (isFresh) {
-                    freshUrls.push(url);
-                    epgWorkerService.markFetchedUrl(url);
-                } else {
-                    staleUrls.push(url);
-                }
-            }
-        } catch (error) {
-            console.error(
-                this.loggerLabel,
-                'Error checking EPG freshness:',
-                error
-            );
-            return { staleUrls: urls, freshUrls: [] };
-        }
-
-        if (freshUrls.length > 0) {
-            console.log(
-                this.loggerLabel,
-                `EPG fresh (skipping): ${freshUrls.length} source(s)`
-            );
-        }
-        if (staleUrls.length > 0) {
-            console.log(
-                this.loggerLabel,
-                `EPG stale (will fetch): ${staleUrls.length} source(s)`
-            );
-        }
-
-        return { staleUrls, freshUrls };
+    ): Promise<EpgFreshnessResult> {
+        return checkEpgFreshness(urls, maxAgeHours);
     }
 
-    /**
-     * Handle EPG fetch from URLs
-     * Automatically skips URLs with fresh data (less than 12 hours old)
-     * Processes URLs sequentially to avoid SQLite database locking issues
-     */
     private static async handleFetchEpg(
         urls: string[],
         options: ElectronBridgeTrustOptions = {}
-    ): Promise<{ success: boolean; message?: string; skipped?: string[] }> {
-        const validUrls = urls.filter((url) => url?.trim());
-
-        if (validUrls.length === 0) {
-            return { success: false, message: 'No valid URLs provided' };
-        }
-
-        const { staleUrls, freshUrls } = await this.checkEpgFreshness(
-            validUrls,
-            12
-        );
-
-        if (staleUrls.length === 0) {
-            return {
-                success: true,
-                message: 'All EPG data is fresh',
-                skipped: freshUrls,
-            };
-        }
-
-        // Exclude URLs already processed this session — otherwise the loop sends
-        // a 'queued' status, then fetchEpgFromUrl silently skips the URL and no
-        // completion update ever arrives, leaving the UI stuck at "queued".
-        const urlsToFetch = staleUrls.filter(
-            (url) => !epgWorkerService.hasFetchedUrl(url)
-        );
-
-        if (urlsToFetch.length === 0) {
-            console.log(
-                this.loggerLabel,
-                `All ${staleUrls.length} stale URL(s) already fetched this session; skipping`
-            );
-            return { success: true, skipped: freshUrls };
-        }
-
-        urlsToFetch.forEach((url, index) => {
-            epgWorkerService.sendProgressToRenderer(
-                url,
-                'queued',
-                undefined,
-                undefined,
-                index + 1
-            );
-        });
-
-        const errors: string[] = [];
-        for (const url of urlsToFetch) {
-            try {
-                await this.fetchEpgFromUrl(url, options);
-            } catch (error) {
-                console.error(
-                    this.loggerLabel,
-                    `Error fetching EPG from ${url}:`,
-                    error
-                );
-                errors.push(
-                    error instanceof Error ? error.message : String(error)
-                );
-            }
-        }
-
-        if (errors.length > 0) {
-            return {
-                success: errors.length < urlsToFetch.length,
-                message: errors.join('; '),
-                skipped: freshUrls,
-            };
-        }
-
-        return { success: true, skipped: freshUrls };
+    ): Promise<EpgFetchResult> {
+        return handleFetchEpg(urls, options);
     }
 
     private static async fetchEpgFromUrl(
@@ -354,21 +221,9 @@ export default class EpgEvents {
         channelIds: string[],
         options?: { sourceUrls?: string[] }
     ): Promise<Record<string, EpgProgram | null>> {
-        const resolvedMap = await this.resolveChannelIds(channelIds);
-        const resolvedIds = channelIds.map(
-            (id) => resolvedMap.get(id) ?? id
+        return queryByResolvedChannelIds(channelIds, (resolvedIds) =>
+            epgQueryService.getCurrentProgramsBatch(resolvedIds, options)
         );
-        const results = await epgQueryService.getCurrentProgramsBatch(
-            resolvedIds,
-            options
-        );
-        // Remap results back to the original request keys.
-        const remapped: Record<string, EpgProgram | null> = {};
-        for (const originalId of channelIds) {
-            const resolvedId = resolvedMap.get(originalId) ?? originalId;
-            remapped[originalId] = results[resolvedId] ?? null;
-        }
-        return remapped;
     }
 
     private static async handleGetAllChannels(): Promise<{
@@ -382,21 +237,9 @@ export default class EpgEvents {
         channelIds: string[],
         options?: { sourceUrls?: string[] }
     ): Promise<Record<string, EpgChannelMetadata | null>> {
-        const resolvedMap = await this.resolveChannelIds(channelIds);
-        const resolvedIds = channelIds.map(
-            (id) => resolvedMap.get(id) ?? id
+        return queryByResolvedChannelIds(channelIds, (resolvedIds) =>
+            epgQueryService.getChannelMetadata(resolvedIds, options)
         );
-        const results = await epgQueryService.getChannelMetadata(
-            resolvedIds,
-            options
-        );
-        // Remap results back to the original request keys.
-        const remapped: Record<string, EpgChannelMetadata | null> = {};
-        for (const originalId of channelIds) {
-            const resolvedId = resolvedMap.get(originalId) ?? originalId;
-            remapped[originalId] = results[resolvedId] ?? null;
-        }
-        return remapped;
     }
 
     private static async handleGetChannelsByRange(
@@ -411,97 +254,6 @@ export default class EpgEvents {
         }>
     > {
         return epgQueryService.getChannelsByRange(skip, limit);
-    }
-
-    // ---------------------------------------------------------------------------
-    // EPG mapping resolution — called at the IPC boundary before queries.
-    // ---------------------------------------------------------------------------
-
-    /**
-     * Batch-resolve multiple channel IDs through manual mappings.
-     * Returns a Map of original ID → mapped ID (identity when no mapping).
-     */
-    private static async resolveChannelIds(
-        channelIds: string[]
-    ): Promise<Map<string, string>> {
-        try {
-            const db = await getDatabase();
-            const mappings = await getEpgMappingsBatch(db, channelIds);
-            return mappings;
-        } catch {
-            return new Map();
-        }
-    }
-
-    // ---------------------------------------------------------------------------
-    // EPG mapping CRUD handlers
-    // ---------------------------------------------------------------------------
-
-    private static async handleGetEpgMapping(
-        channelKey: string
-    ): Promise<{ id: number; channelKey: string; epgChannelId: string; playlistId: string | null } | null> {
-        try {
-            const db = await getDatabase();
-            return getEpgMapping(db, channelKey);
-        } catch {
-            return null;
-        }
-    }
-
-    private static async handleGetEpgMappingsBatch(
-        channelKeys: string[]
-    ): Promise<Record<string, string>> {
-        if (!Array.isArray(channelKeys) || channelKeys.length === 0) {
-            return {};
-        }
-
-        try {
-            const db = await getDatabase();
-            const mappings = await getEpgMappingsBatch(db, channelKeys);
-            return Object.fromEntries(mappings);
-        } catch {
-            return {};
-        }
-    }
-
-    private static async handleSetEpgMapping(
-        channelKey: string,
-        epgChannelId: string,
-        playlistId?: string
-    ): Promise<{ success: boolean }> {
-        try {
-            const db = await getDatabase();
-            return setEpgMapping(db, channelKey, epgChannelId, playlistId);
-        } catch {
-            return { success: false };
-        }
-    }
-
-    private static async handleDeleteEpgMapping(
-        channelKey: string
-    ): Promise<{ success: boolean }> {
-        try {
-            const db = await getDatabase();
-            return deleteEpgMapping(db, channelKey);
-        } catch {
-            return { success: false };
-        }
-    }
-
-    private static async handleSearchEpgChannels(
-        searchTerm: string,
-        limit?: number
-    ): Promise<Array<{ id: string; displayName: string; iconUrl: string | null }>> {
-        if (!searchTerm?.trim()) {
-            return [];
-        }
-
-        try {
-            const db = await getDatabase();
-            return searchEpgChannels(db, searchTerm, limit);
-        } catch {
-            return [];
-        }
     }
 
     static async clearEpgData(): Promise<void> {

@@ -386,11 +386,15 @@ Current sources:
 Main-process EPG ownership is split across focused event modules:
 
 1. `apps/electron-backend/src/app/events/epg.events.ts` registers EPG IPC
-   handlers and owns freshness/fetch orchestration.
-2. `apps/electron-backend/src/app/events/epg-worker.service.ts` owns EPG
+   handlers and delegates to the modules below.
+2. `apps/electron-backend/src/app/events/epg-fetch.service.ts` owns EPG
+   freshness checks and multi-URL fetch orchestration.
+3. `apps/electron-backend/src/app/events/epg-mapping.service.ts` owns manual
+   EPG channel-mapping resolution and CRUD at the IPC boundary.
+4. `apps/electron-backend/src/app/events/epg-worker.service.ts` owns EPG
    worker creation, renderer progress updates, fetch worker lifecycle, and
    clear-worker lifecycle.
-3. `apps/electron-backend/src/app/events/epg-query.service.ts` owns EPG
+5. `apps/electron-backend/src/app/events/epg-query.service.ts` owns EPG
    channel/program database lookups, metadata resolution, and DB row mapping.
 
 Keep worker lifecycle state out of the IPC registration layer. Add new EPG DB
