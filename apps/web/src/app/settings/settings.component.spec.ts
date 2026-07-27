@@ -46,6 +46,8 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { SettingsComponent } from './settings.component';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
+import { SettingsBackupCredentialsDialogComponent } from './settings-backup-credentials-dialog.component';
+import { SettingsBackupSectionComponent } from './settings-backup-section.component';
 
 import { signal } from '@angular/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
@@ -1192,7 +1194,123 @@ describe('SettingsComponent', () => {
             '/tmp/backup.json',
             '{}'
         );
+        expect(playlistBackupService.exportBackup).toHaveBeenCalledWith({
+            includeSecrets: false,
+        });
         expect(component.isExportingData()).toBe(false);
+    });
+
+    it('includes credentials only after the backup checkbox is enabled', async () => {
+        const backupSection = fixture.debugElement.query(
+            By.directive(SettingsBackupSectionComponent)
+        ).componentInstance as SettingsBackupSectionComponent;
+
+        expect(backupSection.includeSecrets()).toBe(false);
+
+        backupSection.includeSecrets.set(true);
+        await component.exportData();
+
+        expect(playlistBackupService.exportBackup).toHaveBeenCalledWith({
+            includeSecrets: true,
+        });
+    });
+
+    it('shows both redacted-backup and secret-export guidance', () => {
+        const backupSection = fixture.debugElement.query(
+            By.directive(SettingsBackupSectionComponent)
+        );
+
+        expect(backupSection.nativeElement.textContent).toContain(
+            'SETTINGS.BACKUP_REDACTED_WARNING'
+        );
+        expect(backupSection.nativeElement.textContent).not.toContain(
+            'SETTINGS.BACKUP_SECRETS_WARNING'
+        );
+
+        (
+            backupSection.componentInstance as SettingsBackupSectionComponent
+        ).includeSecrets.set(true);
+        fixture.detectChanges();
+
+        expect(backupSection.nativeElement.textContent).toContain(
+            'SETTINGS.BACKUP_SECRETS_WARNING'
+        );
+    });
+
+    it('resolves redacted Xtream credentials through the dialog and reports skipped entries', async () => {
+        const backupJson = JSON.stringify({
+            kind: 'iptvnator-playlist-backup',
+            version: 1,
+            exportedAt: '2026-04-21T00:00:00.000Z',
+            includeSecrets: false,
+            playlists: [],
+        });
+        const file = {
+            text: jest.fn().mockResolvedValue(backupJson),
+        } as unknown as File;
+        const inputClickSpy = jest
+            .spyOn(HTMLInputElement.prototype, 'click')
+            .mockImplementation(function (this: HTMLInputElement) {
+                Object.defineProperty(this, 'files', {
+                    configurable: true,
+                    value: [file],
+                });
+                this.dispatchEvent(new Event('change'));
+            });
+        const dialogOpenSpy = jest
+            .spyOn(privateApi(component).matDialog, 'open')
+            .mockReturnValue({
+                afterClosed: () => of(undefined),
+            } as unknown as ReturnType<MatDialog['open']>);
+        (
+            playlistBackupService.importBackup as jest.Mock
+        ).mockImplementationOnce(async (_json, options) => {
+            const credentials = await options.resolveXtreamCredentials({
+                exportedId: 'xtream-redacted',
+                title: 'Living room',
+                serverUrl:
+                    'https://viewer:secret@provider.example:8443/player_api.php?token=private',
+            });
+
+            expect(credentials).toBeNull();
+
+            return {
+                imported: 0,
+                merged: 0,
+                skipped: 1,
+                failed: 0,
+                errors: [],
+            };
+        });
+
+        try {
+            component.importData();
+            await fixture.whenStable();
+
+            expect(playlistBackupService.importBackup).toHaveBeenCalledWith(
+                backupJson,
+                {
+                    resolveXtreamCredentials: expect.any(Function),
+                }
+            );
+            expect(dialogOpenSpy).toHaveBeenCalledWith(
+                SettingsBackupCredentialsDialogComponent,
+                expect.objectContaining({
+                    data: {
+                        playlistTitle: 'Living room',
+                        serverHost: 'provider.example:8443',
+                    },
+                })
+            );
+            expect(snackBar.open).toHaveBeenCalledWith(
+                expect.stringContaining('1 skipped'),
+                undefined,
+                expect.any(Object)
+            );
+        } finally {
+            dialogOpenSpy.mockRestore();
+            inputClickSpy.mockRestore();
+        }
     });
 
     it('falls back to browser backup download when desktop file-save preload is incomplete', async () => {

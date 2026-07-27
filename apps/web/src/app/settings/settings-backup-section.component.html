@@ -63,6 +63,37 @@
         </div>
     </div>
 
+    <div class="setting-item">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.BACKUP_CONTENTS' | translate }}</h4>
+            <p id="backup-redacted-warning">
+                {{ 'SETTINGS.BACKUP_REDACTED_WARNING' | translate }}
+            </p>
+            @if (includeSecrets()) {
+                <p
+                    id="backup-secrets-warning"
+                    class="settings-backup-warning--secrets"
+                >
+                    {{ 'SETTINGS.BACKUP_SECRETS_WARNING' | translate }}
+                </p>
+            }
+        </div>
+        <div class="setting-item__control">
+            <mat-checkbox
+                data-test-id="backup-include-secrets"
+                [checked]="includeSecrets()"
+                [attr.aria-describedby]="
+                    includeSecrets()
+                        ? 'backup-redacted-warning backup-secrets-warning'
+                        : 'backup-redacted-warning'
+                "
+                (change)="includeSecrets.set($event.checked)"
+            >
+                {{ 'SETTINGS.BACKUP_INCLUDE_SECRETS' | translate }}
+            </mat-checkbox>
+        </div>
+    </div>
+
     @if (isPwa()) {
         <div class="settings-note">
             {{ 'SETTINGS.EPG_NOTE' | translate }}

@@ -1,12 +1,20 @@
 import { inject, Injectable, signal } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     PlaylistBackupImportSummary,
     PlaylistBackupService,
+    PlaylistBackupXtreamCredentials,
+    PlaylistBackupXtreamCredentialsRequest,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import { firstValueFrom } from 'rxjs';
+import {
+    SettingsBackupCredentialsDialogComponent,
+    SettingsBackupCredentialsDialogData,
+} from './settings-backup-credentials-dialog.component';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Injectable()
@@ -16,7 +24,9 @@ export class SettingsBackupFacade {
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    private readonly matDialog = inject(MatDialog);
 
+    readonly includeSecrets = signal(false);
     readonly isExportingData = signal(false);
 
     async exportData(waitForUiFeedbackFrame: () => Promise<void>) {
@@ -28,7 +38,9 @@ export class SettingsBackupFacade {
         await waitForUiFeedbackFrame();
 
         try {
-            const backup = await this.playlistBackupService.exportBackup();
+            const backup = await this.playlistBackupService.exportBackup({
+                includeSecrets: this.includeSecrets(),
+            });
 
             if (this.runtime.supportsDesktopFileSave && window.electron) {
                 const savePath = await window.electron.saveFileDialog(
@@ -77,7 +89,11 @@ export class SettingsBackupFacade {
 
             try {
                 const summary = await this.playlistBackupService.importBackup(
-                    await file.text()
+                    await file.text(),
+                    {
+                        resolveXtreamCredentials: (request) =>
+                            this.resolveXtreamCredentials(request),
+                    }
                 );
 
                 if (summary.imported > 0 || summary.merged > 0) {
@@ -122,6 +138,36 @@ export class SettingsBackupFacade {
         link.download = defaultFileName;
         link.click();
         window.URL.revokeObjectURL(url);
+    }
+
+    private async resolveXtreamCredentials(
+        request: PlaylistBackupXtreamCredentialsRequest
+    ): Promise<PlaylistBackupXtreamCredentials | null> {
+        const dialogRef = this.matDialog.open<
+            SettingsBackupCredentialsDialogComponent,
+            SettingsBackupCredentialsDialogData,
+            PlaylistBackupXtreamCredentials | null
+        >(SettingsBackupCredentialsDialogComponent, {
+            data: {
+                playlistTitle: request.title,
+                serverHost: this.getServerHost(request.serverUrl),
+            },
+            maxWidth: 'calc(100vw - 32px)',
+            width: '440px',
+        });
+
+        return (await firstValueFrom(dialogRef.afterClosed())) ?? null;
+    }
+
+    private getServerHost(serverUrl: string): string {
+        try {
+            const normalizedUrl = serverUrl.includes('://')
+                ? serverUrl
+                : `https://${serverUrl}`;
+            return new URL(normalizedUrl).host;
+        } catch {
+            return '';
+        }
     }
 
     private buildBackupImportSummary(

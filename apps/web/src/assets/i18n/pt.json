@@ -354,6 +354,22 @@
         "EXPORT_DATA": "Exportar",
         "EXPORTING_DATA": "Exportando…",
         "REMOVE_ALL": "Delete all playlists and playlist data",
+        "BACKUP_CONTENTS": "Backup contents",
+        "BACKUP_INCLUDE_SECRETS": "Include portal credentials and Stalker device identity",
+        "BACKUP_REDACTED_WARNING": "Portal passwords and Stalker device identity are excluded by default. Even a redacted backup can still contain MAC addresses, portal hosts/source URLs, and private URLs embedded in raw M3U playlist data.",
+        "BACKUP_SECRETS_WARNING": "Warning: this export will include portal usernames and passwords plus Stalker device identity fields. Store the backup securely.",
+        "BACKUP_CREDENTIALS_DIALOG": {
+            "TITLE": "Xtream credentials required",
+            "MESSAGE": "This redacted backup does not contain the credentials for this playlist.",
+            "PLAYLIST": "Playlist",
+            "SERVER": "Server",
+            "USERNAME": "Username",
+            "PASSWORD": "Password",
+            "USERNAME_REQUIRED": "Enter a username.",
+            "PASSWORD_REQUIRED": "Enter a password.",
+            "SKIP": "Skip playlist",
+            "IMPORT": "Import playlist"
+        },
         "REMOVE_ALL_BUTTON": "Delete all",
         "REMOVE_ALL_DESCRIPTION": "Delete every M3U, Xtream, and Stalker playlist stored in the app.",
         "REMOVE_DIALOG": {
