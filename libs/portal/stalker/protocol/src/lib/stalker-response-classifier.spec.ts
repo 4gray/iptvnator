@@ -43,6 +43,36 @@ describe('Stalker response classifier', () => {
     );
 
     it.each([
+        { error: { message: 'Access denied' }, js: { id: 7 } },
+        { js: { error: { message: 'Access denied' }, id: 7 } },
+    ])('rejects structured profile failure indicators', (value) => {
+        expect(classifyStalkerProfile(value)).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
+        });
+        expect(
+            classifyStalkerResponseFailure({
+                httpStatus: 200,
+                value,
+            })
+        ).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
+        });
+    });
+
+    it('rejects a failure indicator before accepting profile status 0', () => {
+        expect(
+            classifyStalkerProfile({
+                js: { error: 'Access denied', id: 7, status: 0 },
+            })
+        ).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
+        });
+    });
+
+    it.each([
         { js: { id: 7, status: 3 } },
         { js: { status: 'unknown' } },
         { status: 0 },
@@ -124,6 +154,31 @@ describe('Stalker response classifier', () => {
             kind: 'failure',
             reason: 'portal-protection-blocked',
         });
+    });
+
+    it('ignores a normal raw JSON body when a parsed response value exists', () => {
+        expect(
+            classifyStalkerResponseFailure({
+                httpStatus: 200,
+                rawBody: '{"js":{"status":0}}',
+                value: { js: { status: 0 } },
+            })
+        ).toEqual({ kind: 'none' });
+    });
+
+    it.each([
+        ['Authorization failed', { kind: 'token-rejected' }],
+        [
+            'Access denied',
+            { kind: 'failure', reason: 'account-access-denied' },
+        ],
+    ])('recognizes the exact plain error body %s', (rawBody, expected) => {
+        expect(
+            classifyStalkerResponseFailure({
+                httpStatus: 200,
+                rawBody,
+            })
+        ).toEqual(expected);
     });
 
     it.each(['Authorization failed.', 'Access denied.'])(

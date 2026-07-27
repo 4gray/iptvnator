@@ -36,6 +36,13 @@ interface StalkerResponseFailureInput {
     value?: unknown;
 }
 
+const STALKER_ERROR_FIELDS = [
+    'error',
+    'errors',
+    'error_message',
+    'error_msg',
+] as const;
+
 export function parseStalkerResponseEnvelope(
     input: StalkerResponseEnvelopeInput
 ): StalkerParsedEnvelope | StalkerClassifierFailure {
@@ -76,8 +83,11 @@ export function classifyStalkerProfile(
     value: unknown
 ): StalkerNormalizedProfileResult {
     const envelope = asRecord(value);
-    const profile = asRecord(envelope?.['js']);
-    if (!profile) {
+    if (!envelope) {
+        return incompatibleResponse();
+    }
+    const profile = asRecord(envelope['js']);
+    if (!profile || hasProfileFailureIndicator(envelope, profile)) {
         return incompatibleResponse();
     }
 
@@ -105,8 +115,7 @@ export function classifyStalkerProfile(
     }
     if (
         profile['status'] === undefined &&
-        hasRecognizedStatuslessProfileField(profile) &&
-        !hasProfileFailureIndicator(envelope ?? {}, profile)
+        hasRecognizedStatuslessProfileField(profile)
     ) {
         return {
             kind: STALKER_PROFILE_RESULT_KINDS.Ready,
@@ -141,6 +150,7 @@ export function classifyStalkerResponseFailure(
     | { kind: 'token-rejected' }
     | StalkerClassifierFailure {
     const bodyError = extractBodyError(input.value, input.rawBody);
+    const bodyHasErrorIndicator = hasBodyErrorIndicator(input.value);
     if (input.httpStatus === 403 && looksLikePortalProtection(input.rawBody)) {
         return {
             kind: 'failure',
@@ -156,7 +166,11 @@ export function classifyStalkerResponseFailure(
             reason: STALKER_FAILURE_REASONS.AccountAccessDenied,
         };
     }
-    if (bodyError !== undefined || input.httpStatus === 403) {
+    if (
+        bodyError !== undefined ||
+        bodyHasErrorIndicator ||
+        input.httpStatus === 403
+    ) {
         return incompatibleResponse();
     }
     if (input.httpStatus === 429) {
@@ -200,7 +214,6 @@ function hasProfileFailureIndicator(
     envelope: Readonly<Record<string, unknown>>,
     profile: Readonly<Record<string, unknown>>
 ): boolean {
-    const errorFields = ['error', 'errors', 'error_message', 'error_msg'];
     const blockFields = [
         'blocked',
         'is_blocked',
@@ -217,7 +230,7 @@ function hasProfileFailureIndicator(
         'need_auth',
         'requires_auth',
     ];
-    return [...errorFields, ...blockFields, ...credentialFields].some(
+    return [...STALKER_ERROR_FIELDS, ...blockFields, ...credentialFields].some(
         (field) =>
             isFailureIndicator(envelope[field]) ||
             isFailureIndicator(profile[field])
@@ -227,6 +240,7 @@ function hasProfileFailureIndicator(
 function isFailureIndicator(value: unknown): boolean {
     if (value === true) return true;
     if (typeof value === 'number') return value !== 0;
+    if (value !== null && typeof value === 'object') return true;
     if (typeof value !== 'string') return false;
     const normalized = value.trim().toLowerCase();
     return (
@@ -301,13 +315,28 @@ function extractBodyError(
 ): string | undefined {
     const envelope = asRecord(value);
     const js = asRecord(envelope?.['js']);
-    const candidate =
-        typeof js?.['error'] === 'string'
-            ? js['error']
-            : typeof envelope?.['error'] === 'string'
-              ? envelope['error']
-              : rawBody;
-    return typeof candidate === 'string' ? candidate : undefined;
+    if (typeof js?.['error'] === 'string') {
+        return js['error'];
+    }
+    if (typeof envelope?.['error'] === 'string') {
+        return envelope['error'];
+    }
+    if (value !== undefined) {
+        return undefined;
+    }
+    return rawBody === 'Authorization failed' || rawBody === 'Access denied'
+        ? rawBody
+        : undefined;
+}
+
+function hasBodyErrorIndicator(value: unknown): boolean {
+    const envelope = asRecord(value);
+    const js = asRecord(envelope?.['js']);
+    return STALKER_ERROR_FIELDS.some(
+        (field) =>
+            isFailureIndicator(envelope?.[field]) ||
+            isFailureIndicator(js?.[field])
+    );
 }
 
 function looksLikePortalProtection(body: string | undefined): boolean {
