@@ -485,7 +485,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                 playlistDisplayLabel(active.playlistName, active.playlistId),
                 ...facts,
             ].join(' · '),
-            alternativeCount: this.multiSource.alternativeCount(),
+            // The caption speaks of PLAYLISTS ("also found in 2 others"), so
+            // three copies inside one portal must not read as three portals.
+            alternativeCount: this.multiSource.alternativePlaylistCount(),
         };
     });
 
@@ -546,10 +548,21 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         currentTime: number;
         duration: number;
     }): void {
+        const settled = this.playback.handleInlineTimeUpdate(event);
+
         // Ahead of the service's 15s persistence throttle, so a source switch
         // resumes from where playback actually is rather than up to 15s back.
-        this.multiSource.reportPosition(event.currentTime);
-        this.playback.handleInlineTimeUpdate(event);
+        //
+        // Until the engine has finished seeking to the resume point it reports
+        // ~0, and that is not where the film is — it is where it has not got
+        // to yet. Feeding it to multi-source would make a switch or a failure
+        // during those first seconds restart the movie from the beginning, so
+        // the position we asked the engine for stands in until it arrives.
+        this.multiSource.reportPosition(
+            settled
+                ? event.currentTime
+                : (this.inlinePlayback()?.startTime ?? 0)
+        );
     }
 
     showCopyNotification(): void {

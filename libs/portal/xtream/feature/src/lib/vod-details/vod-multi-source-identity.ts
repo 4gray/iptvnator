@@ -81,3 +81,16 @@ export function vodMultiSourceMovieKey(movie: VodMultiSourceMovie): string {
         movie.tmdbId ?? '',
     ].join(':');
 }
+
+/**
+ * Identity of the FILM, made of the only two things that cannot change while
+ * it stays on screen.
+ *
+ * The key above deliberately reacts to metadata, so enrichment re-runs
+ * discovery. This one answers the question that arises at that same moment:
+ * is this a different movie — reset everything — or the same one being
+ * described better, whose session must survive?
+ */
+export function vodMultiSourceSessionKey(movie: VodMultiSourceMovie): string {
+    return `${movie.playlistId}:${movie.contentId}`;
+}

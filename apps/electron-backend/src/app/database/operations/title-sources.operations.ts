@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import {
     normalizeTitleKeys,
     titleYearsCompatible,
@@ -21,6 +21,14 @@ import type { AppDatabase } from '../database.types';
  */
 
 const CANDIDATE_LIMIT = 60;
+
+/**
+ * The scan path gets its own, wider window. FTS ranks by relevance, so the
+ * real match is near the top of its 60; the scan can only order by title, and
+ * its predicate is a word-boundary match rather than an equality — several
+ * genuinely different films can share the token ("It Follows", "Bring It On").
+ */
+const SCAN_CANDIDATE_LIMIT = 200;
 
 /** A row as it comes back from SQLite, before match confirmation. */
 interface TitleSourceRow {
@@ -51,14 +59,45 @@ function buildFtsMatchQuery(normalizedTitle: string): string {
 }
 
 /**
+ * The playlist the user is already on, removed IN SQL.
+ *
+ * Filtering it out afterwards is not enough: a playlist that lists the film in
+ * a dozen categories would spend the whole row budget on rows that are then
+ * all discarded, and the alternatives it was supposed to make room for would
+ * never be read at all.
+ */
+function excludePlaylistClause(
+    excludePlaylistId: string | null | undefined
+): SQL {
+    return excludePlaylistId
+        ? sql`AND cat.playlist_id <> ${excludePlaylistId}`
+        : sql``;
+}
+
+/**
  * The trigram tokenizer cannot index tokens shorter than three characters, so
  * a title like "Up", "It" or "Us" produces an empty MATCH expression. Those are
  * real movies, and silently returning nothing for them means the chip never
- * appears. This fallback scans instead — slower, but bounded by the same limit
- * and only reachable for the handful of titles FTS structurally cannot serve.
+ * appears. This fallback scans instead — slower, and only reachable for the
+ * handful of titles FTS structurally cannot serve.
+ *
+ * The predicate is a WORD-boundary match, not a substring one: `LIKE '%it%'`
+ * matches "Titanic" and "The Italian Job", so alphabetically earlier noise
+ * could fill the window and push the real "It" out of it. Padding both sides
+ * lets one GLOB pattern cover the start, middle and end of the title at once.
+ * Rows come back shortest-title-first because a matching title is the base
+ * plus decoration ("IT (2017) 1080p"), so the true matches sort ahead of the
+ * longer films that merely contain the word.
+ *
+ * Still a necessary-not-sufficient filter — `normalizeTitleKeys` below is what
+ * confirms a match. Like the `LIKE` it replaces, it compares ASCII-lowercased
+ * text, so a non-ASCII short title is no better and no worse served than before.
  */
-function scanCandidateQuery(base: string) {
-    const like = `%${base.replace(/[\\%_]/g, '\\$&')}%`;
+function scanCandidateQuery(base: string, excludePlaylist: SQL) {
+    // Normalized, so it holds letters, digits and spaces only — nothing GLOB
+    // would read as a metacharacter.
+    const token = base.split(' ')[0];
+    const wordMatch = `*[^a-z0-9]${token}[^a-z0-9]*`;
     return sql`
         SELECT
             c.id AS content_id,
@@ -74,13 +113,14 @@ function scanCandidateQuery(base: string) {
         WHERE c.type = 'movie'
         AND cat.hidden = 0
         AND p.type = 'xtream'
-        AND LOWER(c.title) LIKE ${like} ESCAPE '\\'
-        ORDER BY c.title
-        LIMIT ${CANDIDATE_LIMIT}
+        AND ' ' || LOWER(c.title) || ' ' GLOB ${wordMatch}
+        ${excludePlaylist}
+        ORDER BY LENGTH(c.title), c.title
+        LIMIT ${SCAN_CANDIDATE_LIMIT}
     `;
 }
 
-function ftsCandidateQuery(matchQuery: string) {
+function ftsCandidateQuery(matchQuery: string, excludePlaylist: SQL) {
     return sql`
         SELECT
             c.id AS content_id,
@@ -98,6 +138,7 @@ function ftsCandidateQuery(matchQuery: string) {
         AND c.type = 'movie'
         AND cat.hidden = 0
         AND p.type = 'xtream'
+        ${excludePlaylist}
         ORDER BY rank, c.title
         LIMIT ${CANDIDATE_LIMIT}
     `;
@@ -124,14 +165,16 @@ export async function findTitleSources(
     // that does not still find each other; the year gate below re-tightens it.
     const matchQuery = buildFtsMatchQuery(wanted.base);
 
+    const excludePlaylist = excludePlaylistClause(request.excludePlaylistId);
+
     let rows: TitleSourceRow[];
     try {
         rows = matchQuery
             ? ((await db.all(
-                  ftsCandidateQuery(matchQuery)
+                  ftsCandidateQuery(matchQuery, excludePlaylist)
               )) as TitleSourceRow[])
             : ((await db.all(
-                  scanCandidateQuery(wanted.base)
+                  scanCandidateQuery(wanted.base, excludePlaylist)
               )) as TitleSourceRow[]);
     } catch {
         // Malformed FTS query for exotic titles — no sources, not a crash
@@ -144,6 +187,8 @@ export async function findTitleSources(
     const seen = new Set<string>();
 
     for (const row of rows) {
+        // SQL already excluded these; this keeps the guarantee a property of
+        // the function rather than of one WHERE clause.
         if (
             request.excludePlaylistId &&
             row.playlist_id === request.excludePlaylistId

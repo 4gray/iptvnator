@@ -32,12 +32,17 @@
                             class="player-shell__sources"
                             [sources]="allSources()"
                             [count]="alternativeSources().length"
+                            [matchKind]="sourcesMatchKind()"
                             [resumeLabel]="sourcesResumeLabel()"
+                            [autoFailoverEnabled]="sourcesAutoFailoverEnabled()"
                             (playRequested)="
                                 alternativeSourceRequested.emit($event)
                             "
                             (pinRequested)="sourcePinRequested.emit($event)"
                             (checkRequested)="sourceCheckRequested.emit($event)"
+                            (autoFailoverToggled)="
+                                sourcesAutoFailoverToggled.emit($event)
+                            "
                         />
                     }
                     <button

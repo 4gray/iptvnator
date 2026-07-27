@@ -20,6 +20,7 @@ import {
     ResolvedPortalPlayback,
     VideoPlayer,
     type VodSourceDescriptor,
+    type VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import type { PlaybackDiagnosticCode } from '../playback-diagnostics/playback-diagnostics.model';
@@ -211,6 +212,16 @@ export class PortalInlinePlayerComponent {
     readonly allSources = input<VodSourceDescriptor[]>([]);
     /** Formatted resume timecode shown in the picker header. */
     readonly sourcesResumeLabel = input<string | null>(null);
+    /** How the sources were matched — the picker states it, so it must be true. */
+    readonly sourcesMatchKind = input<VodSourceMatchKind>('title-year');
+    /**
+     * Auto-failover is one persisted setting, and this picker is the same
+     * picker as the detail page's. Without these two the in-player copy would
+     * show the toggle off while it is on, and switching it would change
+     * nothing.
+     */
+    readonly sourcesAutoFailoverEnabled = input(false);
+    readonly sourcesAutoFailoverToggled = output<boolean>();
     readonly sourcePinRequested = output<string>();
     readonly sourceCheckRequested = output<string>();
     readonly alternativeSourceRequested = output<string>();

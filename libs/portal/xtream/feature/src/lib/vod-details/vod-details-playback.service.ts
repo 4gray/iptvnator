@@ -279,12 +279,19 @@ export class VodDetailsPlaybackService {
         this.resumeSettled = false;
     }
 
+    /**
+     * @returns whether `currentTime` can be believed yet — false while the
+     * engine is still on its way to `startTime`. Multi-source switching needs
+     * the same answer, and one latch has to serve both or they disagree.
+     */
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
-    }): void {
+    }): boolean {
         const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) return;
+        // Nothing to persist against and the latch never ran, so the answer is
+        // whatever it already was — not a fresh "no".
+        if (!playback?.contentInfo) return this.resumeSettled;
 
         // A resuming engine can emit timeupdates at ~0 before it finishes
         // seeking to startTime. Writing one would overwrite the very position
@@ -295,12 +302,13 @@ export class VodDetailsPlaybackService {
         // is still saved normally.
         if (!this.resumeSettled) {
             const startTime = playback.startTime ?? 0;
-            if (startTime > 0 && event.currentTime < startTime - 5) return;
+            if (startTime > 0 && event.currentTime < startTime - 5)
+                return false;
             this.resumeSettled = true;
         }
 
         const now = Date.now();
-        if (now - this.lastSaveTime <= 15000) return;
+        if (now - this.lastSaveTime <= 15000) return true;
 
         this.lastSaveTime = now;
         const position: PlaybackPositionData = {
@@ -313,6 +321,7 @@ export class VodDetailsPlaybackService {
             position
         );
         this.vodPlaybackPosition.set(position);
+        return true;
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {

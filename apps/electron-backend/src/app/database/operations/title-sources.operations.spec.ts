@@ -1,9 +1,24 @@
+import type { SQL } from 'drizzle-orm';
+import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
 import type { AppDatabase } from '../database.types';
 import { findTitleSources } from './title-sources.operations';
 
 function createDbMock(rows: unknown[] = []) {
     const all = jest.fn().mockResolvedValue(rows);
     return { db: { all } as unknown as AppDatabase, all };
+}
+
+/**
+ * The statement as SQLite will actually see it.
+ *
+ * `better-sqlite3` is built against the Electron ABI and cannot be loaded by
+ * Jest, so the row-shaping tests below run against a mock that returns rows
+ * whatever the query says. What rows the DATABASE is asked for is therefore
+ * only observable here — and it is exactly what the window-crowding fixes
+ * changed.
+ */
+function compiledQuery(all: jest.Mock, call = 0) {
+    return new SQLiteSyncDialect().sqlToQuery(all.mock.calls[call][0] as SQL);
 }
 
 function createFailingDbMock() {
@@ -54,6 +69,31 @@ describe('title-sources.operations', () => {
             expect(result[0]).toEqual(
                 expect.objectContaining({ xtreamId: 77, matchConfidence: 'exact' })
             );
+        });
+
+        it('scans on a word boundary, shortest first, in a wider window', async () => {
+            // A substring scan for "It" matches "Titanic" and "The Italian
+            // Job"; 60 of those sorted by title can push the real "It" out of
+            // the window, and discovery then reports no sources at all. The
+            // scan therefore asks for the token as a WORD, orders by title
+            // length (a match is the title plus decoration: "IT (2017)"), and
+            // gets a wider budget than the relevance-ranked FTS path.
+            const scan = createDbMock([]);
+            await findTitleSources(scan.db, { title: 'It' });
+            const scanQuery = compiledQuery(scan.all);
+
+            expect(scanQuery.sql).toContain('GLOB ?');
+            expect(scanQuery.sql).not.toContain('LIKE ?');
+            expect(scanQuery.params).toContain('*[^a-z0-9]it[^a-z0-9]*');
+            expect(scanQuery.sql).toContain('ORDER BY LENGTH(c.title)');
+
+            const fts = createDbMock([]);
+            await findTitleSources(fts.db, { title: 'Dune' });
+            const [scanLimit] = scanQuery.params.slice(-1) as number[];
+            const [ftsLimit] = compiledQuery(fts.all).params.slice(
+                -1
+            ) as number[];
+            expect(scanLimit).toBeGreaterThan(ftsLimit);
         });
 
         it('does not offer a scan hit whose title merely contains the query', async () => {
@@ -174,6 +214,47 @@ describe('title-sources.operations', () => {
 
             expect(matches).toHaveLength(1);
             expect(matches[0].playlistId).toBe('playlist-2');
+        });
+
+        it('excludes the current playlist inside both queries, not after them', async () => {
+            // Filtering afterwards is not enough: the current playlist often
+            // lists the film several times, and those rows would spend the row
+            // budget the alternatives need — the chip then vanishes even
+            // though other playlists have the movie.
+            const fts = createDbMock([duneRow]);
+            await findTitleSources(fts.db, {
+                title: 'Dune',
+                excludePlaylistId: 'playlist-1',
+            });
+
+            const ftsQuery = compiledQuery(fts.all);
+            expect(ftsQuery.sql).toContain('cat.playlist_id <> ?');
+            expect(ftsQuery.params).toContain('playlist-1');
+            expect(ftsQuery.sql.indexOf('cat.playlist_id <> ?')).toBeLessThan(
+                ftsQuery.sql.indexOf('LIMIT')
+            );
+
+            // The short-title scan is a separate statement and needs it too.
+            const scan = createDbMock([duneRow]);
+            await findTitleSources(scan.db, {
+                title: 'It',
+                excludePlaylistId: 'playlist-1',
+            });
+
+            const scanQuery = compiledQuery(scan.all);
+            expect(scanQuery.sql).toContain('cat.playlist_id <> ?');
+            expect(scanQuery.params).toContain('playlist-1');
+            expect(scanQuery.sql.indexOf('cat.playlist_id <> ?')).toBeLessThan(
+                scanQuery.sql.indexOf('LIMIT')
+            );
+        });
+
+        it('leaves the queries unfiltered when no playlist is excluded', async () => {
+            const { db, all } = createDbMock([duneRow]);
+
+            await findTitleSources(db, { title: 'Dune' });
+
+            expect(compiledQuery(all).sql).not.toContain('cat.playlist_id <>');
         });
 
         it('collapses the same film listed in several categories', async () => {

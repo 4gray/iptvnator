@@ -283,6 +283,11 @@
                 [playback]="playback"
                 [alternativeSources]="multiSource.alternatives()"
                 [allSources]="multiSource.sources()"
+                [sourcesMatchKind]="multiSource.matchKind()"
+                [sourcesAutoFailoverEnabled]="
+                    multiSource.autoFailoverEnabled()
+                "
+                (sourcesAutoFailoverToggled)="setAutoFailover($event)"
                 (alternativeSourceRequested)="playFromSource($event)"
                 (sourcePinRequested)="pinSource($event)"
                 (sourceCheckRequested)="checkSource($event)"

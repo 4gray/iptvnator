@@ -59,3 +59,34 @@ export async function erasePin(
         await pins.clear([...matchKeys]);
     }
 }
+
+/**
+ * Pin or unpin `candidate`, and report the id the controller should now hold.
+ *
+ * `undefined` means the toggle did not happen at all — no key to store it
+ * under, no such row, or the write failed — and the caller must leave the
+ * current pin exactly as it was rather than showing one that was not saved.
+ */
+export async function togglePinnedSource(
+    pins: Pick<VodSourcePinService, 'set' | 'clear'>,
+    matchKeys: readonly string[],
+    candidate: VodSourceCandidate | null,
+    isPinned: boolean
+): Promise<string | null | undefined> {
+    if (matchKeys.length === 0) {
+        return undefined;
+    }
+
+    if (isPinned) {
+        await erasePin(pins, matchKeys);
+        return null;
+    }
+
+    if (!candidate) {
+        return undefined;
+    }
+
+    return (await writePin(pins, matchKeys, candidate))
+        ? candidate.id
+        : undefined;
+}

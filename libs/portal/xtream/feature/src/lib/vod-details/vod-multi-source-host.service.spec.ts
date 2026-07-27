@@ -23,12 +23,9 @@ import {
     API_AC3,
     CURRENT_A_ID,
     MOVIE_A,
-    MOVIE_B,
     PARSED_DUB,
     PROBE_OK,
-    createDeferred,
     resolveWith,
-    type DiscoveryResult,
 } from './vod-multi-source-host.fixtures';
 
 describe('VodMultiSourceHostService', () => {
@@ -41,14 +38,6 @@ describe('VodMultiSourceHostService', () => {
     const resolver = { resolve: jest.fn() };
     const pins = { get: jest.fn(), set: jest.fn(), clear: jest.fn() };
     const probes = { probe: jest.fn() };
-
-    /** Runs pending root effects, then drains the work they started. */
-    async function flushEffects(): Promise<void> {
-        for (let index = 0; index < 6; index += 1) {
-            TestBed.tick();
-            await Promise.resolve();
-        }
-    }
 
     async function loadMovie(
         sources: VodSourceCandidate[],
@@ -119,26 +108,6 @@ describe('VodMultiSourceHostService', () => {
         );
     });
 
-    it('discovers once per bound movie identity', async () => {
-        movie.set(MOVIE_A);
-        await flushEffects();
-
-        expect(discovery.discover).toHaveBeenCalledTimes(1);
-        expect(discovery.discover).toHaveBeenCalledWith({
-            title: 'The Matrix',
-            year: 1999,
-            currentPlaylistId: 'playlist-1',
-        });
-
-        movie.set({ ...MOVIE_A });
-        await flushEffects();
-        expect(discovery.discover).toHaveBeenCalledTimes(1);
-
-        movie.set(MOVIE_B);
-        await flushEffects();
-        expect(discovery.discover).toHaveBeenCalledTimes(2);
-    });
-
     it('counts only sources other than the playing one as alternatives', async () => {
         await loadMovie([]);
 
@@ -152,6 +121,24 @@ describe('VodMultiSourceHostService', () => {
         expect(service.sources()).toHaveLength(2);
         expect(service.hasAlternatives()).toBe(true);
         expect(service.alternativeCount()).toBe(1);
+    });
+
+    it('counts playlists, not copies, for the "found in N others" caption', async () => {
+        // Two copies inside ONE other playlist. The popover groups them under
+        // that single portal, so a caption reading "also found in 2 other
+        // playlists" would contradict the list it invites the user to open.
+        const secondCopy: VodSourceCandidate = {
+            ...ALT_TWO,
+            id: `${ALT_TWO.playlistId}:xtream:999`,
+            contentId: 999,
+        };
+        await loadMovie([ALT_TWO, secondCopy]);
+
+        expect(service.alternativeCount()).toBe(2);
+        expect(service.alternativePlaylistCount()).toBe(1);
+
+        await loadMovie([ALT_TWO, secondCopy, ALT_THREE]);
+        expect(service.alternativePlaylistCount()).toBe(2);
     });
 
     it('carries the live timecode into the resolve call and the playback', async () => {
@@ -343,47 +330,5 @@ describe('VodMultiSourceHostService', () => {
             `http://${ALT_TWO.playlistId}/${ALT_TWO.contentId}.mkv`
         );
         expect(rowFor(ALT_TWO.id)?.probe).toEqual(PROBE_OK);
-    });
-
-    it('discards a discovery that resolves after the movie changed', async () => {
-        const first = createDeferred<DiscoveryResult>();
-        const second = createDeferred<DiscoveryResult>();
-        discovery.discover
-            .mockReturnValueOnce(first.promise)
-            .mockReturnValueOnce(second.promise);
-
-        const loadA = service.load(MOVIE_A);
-        const loadB = service.load(MOVIE_B);
-
-        first.resolve({ sources: [ALT_TWO], matchKind: 'title-year' });
-        await loadA;
-
-        expect(service.sources()).toEqual([]);
-        // Abandoned on arrival: it never even looks the stale pin up.
-        expect(pins.get).not.toHaveBeenCalled();
-
-        second.resolve({ sources: [ALT_THREE], matchKind: 'title-year' });
-        await loadB;
-
-        expect(pins.get).toHaveBeenCalledTimes(1);
-        expect(service.sources().map((source) => source.id)).toEqual([
-            'playlist-1:xtream:202',
-            ALT_THREE.id,
-        ]);
-    });
-
-    it('resets the failover session when a new movie loads', async () => {
-        await loadMovie([ALT_TWO]);
-        vodAutoFailover.set(true);
-
-        await expect(service.failover()).resolves.not.toBeNull();
-        await expect(service.failover()).resolves.toBeNull();
-        expect(service.previousSourceId()).toBe(CURRENT_A_ID);
-
-        await loadMovie([ALT_TWO], MOVIE_B);
-
-        expect(service.previousSourceId()).toBeNull();
-        expect(service.lastSwitch()).toBeNull();
-        await expect(service.failover()).resolves.not.toBeNull();
     });
 });

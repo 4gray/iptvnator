@@ -19,6 +19,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 describe('VodDetailsRouteComponent', () => {
@@ -295,6 +296,37 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback"]')
         ).toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+    });
+
+    it('holds the resume point until the engine has seeked to it', () => {
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        playback.inlinePlayback.set({
+            streamUrl: 'http://example.com/movie/650020.mp4',
+            title: 'City of McFarland',
+            startTime: 2538,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const reported = jest.spyOn(component.multiSource, 'reportPosition');
+
+        // A resuming engine emits timeupdates at ~0 on its way to 2538. That
+        // is not where the film is, and multi-source must not switch or fail
+        // over back to the beginning because of it.
+        component.handleInlineTimeUpdate({ currentTime: 0.2, duration: 7744 });
+        expect(reported).toHaveBeenLastCalledWith(2538);
+
+        component.handleInlineTimeUpdate({ currentTime: 2540, duration: 7744 });
+        expect(reported).toHaveBeenLastCalledWith(2540);
+
+        // One-shot latch, not a filter: a deliberate seek backwards counts.
+        component.handleInlineTimeUpdate({ currentTime: 12, duration: 7744 });
+        expect(reported).toHaveBeenLastCalledWith(12);
     });
 
     it('renders usable metadata when backdrop_path is absent at runtime', () => {

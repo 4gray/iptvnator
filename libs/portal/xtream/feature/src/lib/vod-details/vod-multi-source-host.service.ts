@@ -18,16 +18,21 @@ import {
 } from '@iptvnator/services';
 import {
     vodMultiSourceMovieKey,
+    vodMultiSourceSessionKey,
     type VodMultiSourceMovie,
 } from './vod-multi-source-identity';
+import {
+    applyDiscoveredSources,
+    runFailover,
+    type SwitchOutcome,
+} from './vod-multi-source-session';
 import { buildSwitchNotice } from './vod-multi-source-notice';
 import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
-    erasePin,
     pinnedSourceIdOf,
     readPin,
-    writePin,
+    togglePinnedSource,
 } from './vod-multi-source-pin';
 import {
     buildVodSourceMatchKeyCandidates,
@@ -55,12 +60,6 @@ export interface VodMultiSourceBindings {
     movie: Signal<VodMultiSourceMovie | null>;
 }
 
-/**
- * Why a switch attempt ended. `unresolvable` is the only outcome failover may
- * continue past — `superseded` means something newer already owns the screen.
- */
-type SwitchOutcome = 'switched' | 'unresolvable' | 'superseded';
-
 export interface VodMultiSourceSwitchNotice {
     playlistName: string;
     resumeSeconds: number;
@@ -81,22 +80,27 @@ export class VodMultiSourceHostService {
     private controller = new VodMultiSourceController();
     private bindings: VodMultiSourceBindings | null = null;
     private matchKeys: string[] = [];
-    /** Guards against a stale discovery resolving after the user moved on. */
+    /** Bumped per `load()`: discards a discovery the next one superseded. */
     private discoveryToken = 0;
-    private lastMovieKey: string | null = null;
     /**
-     * Bumped by every switch. Two things can go wrong across the `await` in
-     * `switchTo`: a newer switch may already have committed (the slower
-     * resolution would then overwrite the user's latest choice and the Undo
-     * target), or the user may have navigated to another movie entirely (the
-     * continuation would activate the old film's source in the new session and
-     * restart it from that session's zero resume position).
+     * Bumped when the FILM changes, and only then — a rediscovery of the same
+     * film (enrichment described it better) must not cancel a switch or probe
+     * in flight for it. Without this guard the continuation would activate the
+     * old film's source in the new session and restart it from that session's
+     * zero resume position.
+     */
+    private sessionToken = 0;
+    /**
+     * Bumped by every switch, so a slower resolution cannot overwrite the
+     * user's latest choice, nor the source Undo points back to.
      */
     private switchToken = 0;
+    private lastMovieKey: string | null = null;
+    private movieIdentity: string | null = null;
 
     /** True while `session`/`switch` still describe the operation in flight. */
     private isCurrentSwitch(session: number, attempt: number): boolean {
-        return session === this.discoveryToken && attempt === this.switchToken;
+        return session === this.sessionToken && attempt === this.switchToken;
     }
     /** The source that was playing before the most recent switch. */
     private readonly _previousSourceId = signal<string | null>(null);
@@ -118,7 +122,17 @@ export class VodMultiSourceHostService {
     );
     /** The chip appears only when there is genuinely somewhere else to go. */
     readonly hasAlternatives = computed(() => this.alternatives().length > 0);
+    /** Alternative STREAMS — what the "Sources N" chip counts. */
     readonly alternativeCount = computed(() => this.alternatives().length);
+    /**
+     * Alternative PLAYLISTS. One playlist listing the film three times is one
+     * other place to watch it, and the popover already groups those three
+     * under that single playlist — so "also found in N other playlists" has to
+     * count portals, not copies, or it contradicts the list it opens.
+     */
+    readonly alternativePlaylistCount = computed(
+        () => new Set(this.alternatives().map((s) => s.playlistId)).size
+    );
     readonly matchKind = computed(() => this.controller.matchKind());
 
     /** Opt-in and off by default — a silent switch is never acceptable. */
@@ -152,6 +166,7 @@ export class VodMultiSourceHostService {
                 // flight for the PREVIOUS movie would pass the staleness guard
                 // and start its playback over the page the user is leaving.
                 this.discoveryToken++;
+                this.sessionToken++;
                 return;
             }
 
@@ -166,18 +181,33 @@ export class VodMultiSourceHostService {
     }
 
     /**
-     * Start a fresh session for a movie. The router REUSES this component for
-     * detail→detail navigation, so this must fully reset — including the
-     * tried-source set.
+     * (Re)discover the sources for a movie.
+     *
+     * A DIFFERENT film starts a fresh session — the router REUSES this
+     * component for detail→detail navigation, so everything resets, above all
+     * the tried-source set that makes failover terminate.
+     *
+     * The SAME film arriving again is a refresh, not a new session: enrichment
+     * supplies its year and TMDB id after the page opened, which changes the
+     * movie key on purpose (discovery gets the year, a `tmdb:` pin becomes
+     * findable) but changes nothing about what is playing. Resetting there
+     * would take the film back off the source the user switched to and hand
+     * failover a clean tried-set for sources it has already burned.
      */
     async load(movie: VodMultiSourceMovie): Promise<void> {
         const token = ++this.discoveryToken;
+        const identity = vodMultiSourceSessionKey(movie);
+        const sameMovie = identity === this.movieIdentity;
+        this.movieIdentity = identity;
 
-        this.controller = new VodMultiSourceController();
-        this._sources.set([]);
-        this._lastSwitch.set(null);
-        this._busySourceId.set(null);
-        this._previousSourceId.set(null);
+        if (!sameMovie) {
+            this.sessionToken++;
+            this.controller = new VodMultiSourceController();
+            this._sources.set([]);
+            this._lastSwitch.set(null);
+            this._busySourceId.set(null);
+            this._previousSourceId.set(null);
+        }
         this.matchKeys = buildVodSourceMatchKeyCandidates(movie);
 
         if (!this.discovery.isAvailable) {
@@ -193,13 +223,12 @@ export class VodMultiSourceHostService {
             return;
         }
 
-        const current = currentSourceRow(movie);
-
-        this.controller.setSources(
-            [current, ...result.sources],
+        applyDiscoveredSources(
+            this.controller,
+            currentSourceRow(movie),
+            result.sources,
             result.matchKind
         );
-        this.controller.setActiveSource(current.id);
 
         const pin = await readPin(this.pins, this.matchKeys);
         if (token !== this.discoveryToken) {
@@ -250,28 +279,18 @@ export class VodMultiSourceHostService {
 
     /** Pin or unpin this source as the movie's preferred one. */
     async togglePin(sourceId: string): Promise<void> {
-        if (this.matchKeys.length === 0) {
-            return;
-        }
-
-        const alreadyPinned = this._sources().some(
+        const isPinned = this._sources().some(
             (source) => source.id === sourceId && source.isPinned
         );
+        const pinned = await togglePinnedSource(
+            this.pins,
+            this.matchKeys,
+            this.controller.findSource(sourceId),
+            isPinned
+        );
 
-        if (alreadyPinned) {
-            await erasePin(this.pins, this.matchKeys);
-            this.controller.setPinnedSource(null);
-            this.publish();
-            return;
-        }
-
-        const candidate = this.controller.findSource(sourceId);
-        if (!candidate) {
-            return;
-        }
-
-        if (await writePin(this.pins, this.matchKeys, candidate)) {
-            this.controller.setPinnedSource(sourceId);
+        if (pinned !== undefined) {
+            this.controller.setPinnedSource(pinned);
             this.publish();
         }
     }
@@ -282,8 +301,8 @@ export class VodMultiSourceHostService {
             controller: this.controller,
             resolver: this.resolver,
             probes: this.probes,
-            isCurrent: (session) => session === this.discoveryToken,
-            session: this.discoveryToken,
+            isCurrent: (session) => session === this.sessionToken,
+            session: this.sessionToken,
             publish: () => this.publish(),
         });
     }
@@ -300,28 +319,10 @@ export class VodMultiSourceHostService {
             return null;
         }
 
-        // Keep going past candidates that cannot be resolved at all. A dead
-        // account or a failing get_vod_info on the top-ranked source must not
-        // end the attempt: production only calls this once, on the original
-        // failure, so giving up here would strand a healthy lower-ranked
-        // source. `switchTo` marks each attempt tried, so this terminates.
-        for (;;) {
-            const target = this.controller.pickFailoverTarget();
-            if (!target) {
-                return null;
-            }
-
-            const outcome = await this.switchTo(target);
-            if (outcome === 'switched') {
-                return this._lastSwitch();
-            }
-            if (outcome === 'superseded') {
-                // A newer switch or another movie already owns the screen.
-                return null;
-            }
-            // 'unresolvable': the candidate is now marked tried, so the next
-            // pick is strictly a different source and the loop terminates.
-        }
+        const switched = await runFailover(this.controller, (candidate) =>
+            this.switchTo(candidate)
+        );
+        return switched ? this._lastSwitch() : null;
     }
 
     /** True once every alternative has been attempted this session. */
@@ -341,7 +342,7 @@ export class VodMultiSourceHostService {
             return 'superseded';
         }
 
-        const session = this.discoveryToken;
+        const session = this.sessionToken;
         const attempt = ++this.switchToken;
         // Snapshot the controller: `load()` swaps in a fresh one for a new
         // movie, and the continuation below must never touch that one.

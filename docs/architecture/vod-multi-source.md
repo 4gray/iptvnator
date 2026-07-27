@@ -97,6 +97,21 @@ and so its ranking logic is testable without TestBed.
 | Row / popover / chip | `libs/ui/components/src/lib/vod-sources/` |
 | Page wiring | `libs/portal/xtream/feature/src/lib/vod-details/vod-multi-source-*.ts` |
 
+### One picker, two places, two counts
+
+The chip on the action row and the chip in the inline player's now-playing bar
+are the same component, so both are handed the same `matchKind` and the same
+`vodAutoFailover` value and both write the setting back. A copy that rendered
+the toggle off while it was on — and did nothing when flipped — would be worse
+than not offering it.
+
+The two numbers around it are deliberately different, because their sentences
+are: the chip says "Sources N" and counts alternative **streams**, while the
+caption says "also found in N other playlists" and counts distinct
+**playlists** (`alternativePlaylistCount`). The popover groups a portal's three
+copies of a film under that one portal, so counting rows there would contradict
+the list the caption invites the user to open.
+
 ## Identity
 
 Provider ids cannot key a pin — the same film has a different `stream_id` in
@@ -110,15 +125,47 @@ landed is stored under its title key and prefers a `tmdb:` key afterwards;
 reading both means the id arriving later does not orphan the pin, and unpinning
 clears every alias so a stale row cannot resurrect it.
 
-## Short titles
+### Rediscovery vs. a new session
 
-The trigram tokenizer cannot index tokens under three characters, so a title
-like "Up", "It" or "Us" produces an empty `MATCH` expression. Discovery falls
-back to a bounded `LIKE` scan for exactly those titles rather than returning
-nothing — the two-tier normalized confirmation still runs afterwards, so the
-looser query does not admit "Upgrade" for "Up". The scan is slower and cannot
-use the title index, which is acceptable because it is only reachable for the
-handful of titles FTS structurally cannot serve.
+Two keys, deliberately, because the host has two different questions to answer
+when enrichment lands:
+
+- `vodMultiSourceMovieKey` covers title, year and TMDB id. Enrichment changing
+  any of them **re-runs discovery** — that is how a yearless search gets its
+  year and a `tmdb:`-keyed pin becomes findable.
+- `vodMultiSourceSessionKey` is `playlistId:contentId` — the film itself. It is
+  what decides whether that rerun is a *refresh* or a *new session*.
+
+A refresh keeps the controller: the source the user switched to stays active
+(with the facts its resolve produced, rather than the catalog's guesses), the
+tried set stays burned, the live position stays, and a switch already in flight
+still commits. Rebuilding there would take the film off the source it is
+actually streaming, and hand failover a clean slate for sources it has already
+spent. Only a different film resets — including the tried set, which is what
+makes failover terminate.
+
+## The candidate window
+
+Both queries take a bounded number of rows, so what fills that window decides
+whether an alternative is findable at all:
+
+- **The current playlist is excluded in SQL**, not afterwards. It routinely
+  lists a film in several categories, and those rows would otherwise spend the
+  budget before a single other playlist was read.
+- **Short titles scan on a word boundary.** The trigram tokenizer cannot index
+  tokens under three characters, so "Up", "It" or "Us" produce an empty `MATCH`
+  and fall back to a scan. A substring scan matches "Titanic" and "The Italian
+  Job" for "It", and enough of those sorted by title push the real film out of
+  the window — so the scan asks for the token as a word
+  (`' ' || LOWER(title) || ' ' GLOB '*[^a-z0-9]it[^a-z0-9]*'`), orders by title
+  length (a match is the title plus decoration: "IT (2017) 1080p"), and gets a
+  wider budget than the relevance-ranked FTS path. Like the `LIKE` it replaces
+  it compares ASCII-lowercased text, so a non-ASCII short title is no better and
+  no worse served than before.
+
+Both remain necessary-not-sufficient filters: the two-tier normalized
+confirmation still runs afterwards, so the looser query never admits "Upgrade"
+for "Up".
 
 ## Why resolution is lazy
 
@@ -154,7 +201,11 @@ Three details make the position survive:
 
 A resuming engine can emit a `timeupdate` at ~0 before it finishes seeking.
 `VodDetailsPlaybackService` guards this with a one-shot `resumeSettled` latch —
-a filter would have broken deliberate seek-backwards.
+a filter would have broken deliberate seek-backwards. `handleInlineTimeUpdate`
+returns that verdict and the route feeds multi-source the `startTime` it asked
+for until the engine gets there, so a switch or a failure during the initial
+seek does not resolve the next source at zero and restart the film. One latch
+serves both, because two would eventually disagree.
 
 ## Failover
 

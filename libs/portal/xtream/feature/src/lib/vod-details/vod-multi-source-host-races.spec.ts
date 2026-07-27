@@ -157,6 +157,26 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(false);
     });
 
+    it('keeps a switch alive when the same movie is rediscovered', async () => {
+        await loadMovie([ALT_TWO]);
+
+        const slow = createDeferred<ReturnType<typeof resolvedFor>>();
+        resolver.resolve.mockReturnValueOnce(slow.promise);
+
+        const pending = service.play(ALT_TWO.id);
+
+        // Enrichment lands mid-resolution and reruns discovery for the SAME
+        // film. That is a refresh, not a navigation: cancelling here would
+        // make the user's click do nothing at all.
+        await loadMovie([ALT_TWO], { ...MOVIE_A, tmdbId: 603 });
+
+        slow.resolve(resolvedFor(ALT_TWO, 0));
+        await expect(pending).resolves.toBe(true);
+
+        expect(startPlayback).toHaveBeenCalledTimes(1);
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
+    });
+
     it('drops a probe result whose movie was navigated away from', async () => {
         await loadMovie([ALT_TWO]);
 
