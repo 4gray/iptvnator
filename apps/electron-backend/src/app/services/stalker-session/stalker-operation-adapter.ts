@@ -212,7 +212,9 @@ function mapShortEpg<Operation extends StalkerSessionApplicationOperation>(
         type: 'itv',
     };
     copyPositiveInteger(record, 'limit', wire, 'size');
-    return remote(wire, (value) => mapEpg(value, channelId));
+    return remote(wire, (value) =>
+        mapEpg(value, { fallbackChannelId: channelId })
+    );
 }
 
 function mapEpgInfo<Operation extends StalkerSessionApplicationOperation>(
@@ -227,7 +229,9 @@ function mapEpgInfo<Operation extends StalkerSessionApplicationOperation>(
     copyNonNegativeInteger(record, 'fromTimestamp', wire, 'from_timestamp');
     copyPositiveInteger(record, 'periodHours', wire, 'period');
     copyNonNegativeInteger(record, 'toTimestamp', wire, 'to_timestamp');
-    return remote(wire, (value) => mapEpg(value));
+    return remote(wire, (value) =>
+        mapEpg(value, { allowChannelMap: true })
+    );
 }
 
 function mapCreateLink<Operation extends StalkerSessionApplicationOperation>(
@@ -257,7 +261,7 @@ function mapCreateLink<Operation extends StalkerSessionApplicationOperation>(
 }
 
 function mapCategories(value: unknown): StalkerSessionCategoriesResult {
-    const items = readArray(unwrapJs(value)).flatMap((value) => {
+    const items = readDataArray(value).flatMap((value) => {
         const record = asRecord(value);
         if (!record) {
             return [];
@@ -292,7 +296,7 @@ function mapCatalog(
 ): StalkerSessionCatalogResult {
     const js = unwrapJs(value);
     const envelope = asRecord(js);
-    const rawItems = envelope ? readArray(envelope['data']) : readArray(js);
+    const rawItems = readListPayload(js);
     const items = rawItems.flatMap((value) => {
         const mapped = mapCatalogItem(value, contentType);
         return mapped ? [mapped] : [];
@@ -470,9 +474,18 @@ function mapEpisodeResult(
 
 function mapEpg(
     value: unknown,
-    fallbackChannelId?: StalkerSessionEntityId
+    {
+        allowChannelMap = false,
+        fallbackChannelId,
+    }: {
+        readonly allowChannelMap?: boolean;
+        readonly fallbackChannelId?: StalkerSessionEntityId;
+    } = {}
 ): StalkerSessionEpgResult {
-    const programs = flattenEpgEntries(unwrapJs(value)).flatMap((value) => {
+    const programs = flattenEpgEntries(
+        unwrapJs(value),
+        allowChannelMap
+    ).flatMap((value) => {
         const record = asRecord(value);
         if (!record) {
             return [];
@@ -561,41 +574,91 @@ function unwrapJs(value: unknown): unknown {
 }
 
 function readDataArray(value: unknown): readonly unknown[] {
-    const js = unwrapJs(value);
-    const record = asRecord(js);
-    return record ? readArray(record['data']) : readArray(js);
+    return readListPayload(unwrapJs(value));
 }
 
-function flattenEpgEntries(value: unknown): readonly unknown[] {
+function readListPayload(value: unknown): readonly unknown[] {
+    if (Array.isArray(value)) {
+        return value;
+    }
+    const envelope = asRecord(value);
+    if (
+        !envelope ||
+        !Object.prototype.hasOwnProperty.call(envelope, 'data') ||
+        !Array.isArray(envelope['data'])
+    ) {
+        throw invalidResponse();
+    }
+    return envelope['data'];
+}
+
+function flattenEpgEntries(
+    value: unknown,
+    allowChannelMap: boolean
+): readonly unknown[] {
     if (Array.isArray(value)) {
         return value;
     }
     const record = asRecord(value);
     if (!record) {
-        return [];
+        throw invalidResponse();
     }
-    const direct = readArray(record['data']);
-    if (direct.length > 0) {
-        return direct;
+    if (Object.prototype.hasOwnProperty.call(record, 'data')) {
+        if (Array.isArray(record['data'])) {
+            return record['data'];
+        }
+        if (!allowChannelMap) {
+            throw invalidResponse();
+        }
+        const channelMap = asRecord(record['data']);
+        if (!channelMap) {
+            throw invalidResponse();
+        }
+        return flattenEpgChannelMap(channelMap, true);
     }
+    if (!allowChannelMap) {
+        throw invalidResponse();
+    }
+    return flattenEpgChannelMap(record, false);
+}
+
+function flattenEpgChannelMap(
+    value: Readonly<Record<string, unknown>>,
+    allowEmpty: boolean
+): readonly unknown[] {
+    const nestedValues = Object.values(value);
+    if (!allowEmpty && nestedValues.length === 0) {
+        throw invalidResponse();
+    }
+
     const result: unknown[] = [];
-    for (const nested of Object.values(record)) {
+    for (const nested of nestedValues) {
         if (Array.isArray(nested)) {
             result.push(...nested);
             continue;
         }
         const nestedRecord = asRecord(nested);
-        if (nestedRecord) {
-            result.push(
-                ...readArray(
-                    nestedRecord['data'] ??
-                        nestedRecord['epg'] ??
-                        nestedRecord['items']
-                )
-            );
+        if (!nestedRecord) {
+            throw invalidResponse();
         }
+        result.push(...readNestedEpgArray(nestedRecord));
     }
     return result;
+}
+
+function readNestedEpgArray(
+    value: Readonly<Record<string, unknown>>
+): readonly unknown[] {
+    for (const key of ['data', 'epg', 'items'] as const) {
+        if (!Object.prototype.hasOwnProperty.call(value, key)) {
+            continue;
+        }
+        if (!Array.isArray(value[key])) {
+            throw invalidResponse();
+        }
+        return value[key];
+    }
+    throw invalidResponse();
 }
 
 function normalizePlaybackCommand(value: string): string {
@@ -629,10 +692,6 @@ function asRecord(
     return value !== null && typeof value === 'object' && !Array.isArray(value)
         ? (value as Readonly<Record<string, unknown>>)
         : undefined;
-}
-
-function readArray(value: unknown): readonly unknown[] {
-    return Array.isArray(value) ? value : [];
 }
 
 function readRequiredString(value: unknown): string {

@@ -144,6 +144,7 @@ export class StalkerHttpSession {
                     validateStatus: () => true,
                 },
                 {
+                    allowPrivateNetworkRedirects: identityBearing,
                     allowPrivateNetworks: true,
                     pinAllowedPrivateNetworkHosts: true,
                 }

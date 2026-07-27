@@ -15,7 +15,7 @@ import {
     StalkerSessionConnectionOutcome,
     StalkerSessionFullReadyOutcome,
 } from '@iptvnator/shared/interfaces';
-import { EMPTY, Subject, of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import { StalkerCredentialsDialogComponent } from './stalker-credentials-dialog.component';
 import { StalkerConnectionFlowService } from './stalker-connection-flow.service';
 import { StalkerOriginApprovalDialogComponent } from './stalker-origin-approval-dialog.component';
@@ -178,6 +178,14 @@ describe('StalkerConnectionFlowService', () => {
     let dialog: {
         open: jest.Mock;
     };
+    let snackAction: Subject<void>;
+    let snackBar: {
+        open: jest.Mock;
+    };
+    let snackRef: {
+        dismiss: jest.Mock;
+        onAction: () => Subject<void>;
+    };
     let queuedDialogResults: unknown[];
 
     beforeEach(() => {
@@ -189,6 +197,14 @@ describe('StalkerConnectionFlowService', () => {
         };
         store = {
             dispatch: jest.fn(),
+        };
+        snackAction = new Subject<void>();
+        snackRef = {
+            dismiss: jest.fn(),
+            onAction: () => snackAction,
+        };
+        snackBar = {
+            open: jest.fn(() => snackRef),
         };
         queuedDialogResults = [];
         dialog = {
@@ -219,11 +235,7 @@ describe('StalkerConnectionFlowService', () => {
                 },
                 {
                     provide: MatSnackBar,
-                    useValue: {
-                        open: jest.fn(() => ({
-                            onAction: () => EMPTY,
-                        })),
-                    },
+                    useValue: snackBar,
                 },
                 {
                     provide: TranslateService,
@@ -602,6 +614,138 @@ describe('StalkerConnectionFlowService', () => {
         expect(playlists.persistStalkerConnection).not.toHaveBeenCalled();
     });
 
+    it('offers an actionable retry with the stable terminal reason', async () => {
+        session.open.mockResolvedValueOnce({
+            kind: 'failure',
+            reason: 'incompatible-response',
+            requestId: 'request-terminal-failure',
+            retryable: false,
+            stage: 'resolving',
+        });
+        session.forceRedetect.mockResolvedValueOnce(READY);
+
+        await expect(
+            service.ensureConnected(LEGACY_PLAYLIST)
+        ).resolves.toBeUndefined();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            expect.stringContaining('incompatible-response'),
+            'HOME.STALKER_PORTAL.RETRY',
+            { duration: 120_000 }
+        );
+
+        snackAction.next();
+        snackAction.next();
+        await flushPromises();
+
+        expect(session.forceRedetect).toHaveBeenCalledWith('lease-route-1');
+        expect(session.forceRedetect).toHaveBeenCalledTimes(1);
+    });
+
+    it('invalidates a terminal retry action when navigation cancels the flow', async () => {
+        session.open.mockResolvedValueOnce({
+            kind: 'failure',
+            reason: 'request-timeout',
+            requestId: 'request-terminal-cancel',
+            retryable: true,
+            stage: 'handshaking',
+        });
+
+        await service.ensureConnected(LEGACY_PLAYLIST);
+        await service.cancel();
+        snackAction.next();
+        await flushPromises();
+
+        expect(snackRef.dismiss).toHaveBeenCalled();
+        expect(session.forceRedetect).not.toHaveBeenCalled();
+    });
+
+    it('invalidates an in-flight typed run when a new run resolves through the stateless path', async () => {
+        const deferredOpen = createDeferred<StalkerSessionConnectionOutcome>();
+        session.open.mockReturnValueOnce(deferredOpen.promise);
+        const connecting = service.ensureConnected(LEGACY_PLAYLIST);
+        await flushPromises();
+
+        const statelessPlaylist = {
+            ...LEGACY_PLAYLIST,
+            stalkerRecipeClassifierVersion: 1,
+            stalkerRequestRecipe: 'stateless-mac' as const,
+        };
+        await expect(
+            service.ensureConnected(statelessPlaylist)
+        ).resolves.toBe(statelessPlaylist);
+
+        deferredOpen.resolve({
+            kind: 'failure',
+            reason: 'request-timeout',
+            requestId: 'request-stale-typed-failure',
+            retryable: true,
+            stage: 'handshaking',
+        });
+        await expect(connecting).resolves.toBeUndefined();
+
+        expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('turns an asynchronous force-redetect continuation rejection into an actionable failure', async () => {
+        session.forceRedetect.mockResolvedValueOnce({
+            attemptNumber: 1,
+            attemptRef: 'attempt-redetect-rejection',
+            challengeRef: 'challenge-redetect-rejection',
+            kind: 'credentials-required',
+            requestId: 'request-redetect-rejection',
+        });
+        session.continue.mockRejectedValueOnce(
+            new Error('redetect-continue-failed')
+        );
+        queuedDialogResults.push({
+            password: 'password',
+            username: 'user',
+        });
+
+        await expect(
+            service.forceRedetect(LEGACY_PLAYLIST)
+        ).resolves.toBeUndefined();
+
+        expect(snackBar.open).toHaveBeenLastCalledWith(
+            expect.stringContaining('connection-redetect-failed'),
+            'HOME.STALKER_PORTAL.RETRY',
+            { duration: 120_000 }
+        );
+    });
+
+    it('turns an asynchronous recovery continuation rejection into an actionable failure', async () => {
+        session.open.mockResolvedValueOnce({
+            attemptNumber: 1,
+            attemptRef: 'attempt-recovery-rejection',
+            challengeRef: 'challenge-recovery-rejection',
+            kind: 'credentials-required',
+            requestId: 'request-recovery-rejection',
+        });
+        session.continue.mockRejectedValueOnce(
+            new Error('recovery-continue-failed')
+        );
+        queuedDialogResults.push({
+            password: 'password',
+            username: 'user',
+        });
+        const handler = session.recoveryHandler();
+        expect(handler).toBeDefined();
+
+        await expect(
+            handler?.({
+                playlist: LEGACY_PLAYLIST,
+                trigger: 'endpoint-shape',
+            })
+        ).resolves.toBeUndefined();
+
+        expect(snackBar.open).toHaveBeenLastCalledWith(
+            expect.stringContaining('connection-recovery-failed'),
+            'HOME.STALKER_PORTAL.RETRY',
+            { duration: 120_000 }
+        );
+    });
+
     it('retains a ready attempt after a local write failure and retries the same draft', async () => {
         session.open.mockResolvedValue(READY);
         playlists.persistStalkerConnection.mockReturnValueOnce(
@@ -677,6 +821,44 @@ describe('StalkerConnectionFlowService', () => {
             portalUrl: 'https://portal.example/stalker_portal/server/load.php',
             stalkerRequestRecipe: 'full-session',
         });
+    });
+
+    it('preserves the actionable terminal reason when promotion recovery returns a failure', async () => {
+        session.open.mockResolvedValueOnce(READY).mockResolvedValueOnce({
+            kind: 'failure',
+            reason: 'portal-unavailable',
+            requestId: 'request-promotion-reopen-failure',
+            retryable: true,
+            stage: 'handshaking',
+        });
+        session.commit.mockRejectedValueOnce(new Error('promotion-failed'));
+
+        await expect(
+            service.ensureConnected(LEGACY_PLAYLIST)
+        ).resolves.toBeUndefined();
+
+        expect(snackBar.open).toHaveBeenLastCalledWith(
+            expect.stringContaining('portal-unavailable'),
+            'HOME.STALKER_PORTAL.RETRY',
+            { duration: 120_000 }
+        );
+    });
+
+    it('offers an actionable retry when promotion recovery cannot reopen the persisted playlist', async () => {
+        session.open
+            .mockResolvedValueOnce(READY)
+            .mockRejectedValueOnce(new Error('reopen-failed'));
+        session.commit.mockRejectedValueOnce(new Error('promotion-failed'));
+
+        await expect(
+            service.ensureConnected(LEGACY_PLAYLIST)
+        ).resolves.toBeUndefined();
+
+        expect(snackBar.open).toHaveBeenLastCalledWith(
+            expect.stringContaining('session-promotion-failed'),
+            'HOME.STALKER_PORTAL.RETRY',
+            { duration: 120_000 }
+        );
     });
 
     it('discards a provisional ready outcome that arrives after cancellation of open', async () => {

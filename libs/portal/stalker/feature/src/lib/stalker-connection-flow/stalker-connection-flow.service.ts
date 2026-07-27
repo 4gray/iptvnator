@@ -47,6 +47,7 @@ export class StalkerConnectionFlowService {
     private readonly translate = inject(TranslateService);
     private readonly readySubject = new Subject<Playlist>();
     private activeDialog: { close: () => void } | null = null;
+    private activeConnectionRetry: { dismiss: () => void } | null = null;
     private activeAttemptRef: string | null = null;
     private pendingPersistence: PendingPersistence | null = null;
     private runId = 0;
@@ -65,10 +66,11 @@ export class StalkerConnectionFlowService {
     }
 
     async ensureConnected(playlist: Playlist): Promise<Playlist | undefined> {
+        const runId = ++this.runId;
+        this.dismissConnectionRetry();
         if (!this.shouldUseTypedSession(playlist)) {
             return playlist;
         }
-        const runId = ++this.runId;
         await this.discardPending();
         const needsMigration = !this.hasVerifiedRecipe(playlist);
         try {
@@ -83,33 +85,49 @@ export class StalkerConnectionFlowService {
             );
             return await this.handleOutcome(playlist, outcome, runId, false);
         } catch {
+            this.offerConnectionRetry(
+                playlist,
+                'connection-open-failed',
+                runId
+            );
             return undefined;
         }
     }
 
     async forceRedetect(playlist: Playlist): Promise<Playlist | undefined> {
         if (!this.session.supportsTypedSessions()) {
+            this.dismissConnectionRetry();
             return playlist;
         }
         const leaseRef = this.session.getLeaseRef(playlist._id);
-        if (leaseRef === undefined) {
-            const runId = ++this.runId;
-            await this.discardPending();
-            try {
+        const runId = ++this.runId;
+        this.dismissConnectionRetry();
+        try {
+            if (leaseRef === undefined) {
+                await this.discardPending();
                 const outcome = await this.session.open(playlist, {
                     connectionMode: 'provisional',
                     provisionalReason: 'migration',
                 });
-                return this.handleOutcome(playlist, outcome, runId, true);
-            } catch {
-                return undefined;
+                return await this.handleOutcome(
+                    playlist,
+                    outcome,
+                    runId,
+                    true
+                );
             }
+            const outcome = await this.session.forceRedetect(leaseRef);
+            return outcome.kind === 'success'
+                ? playlist
+                : await this.handleOutcome(playlist, outcome, runId, true);
+        } catch {
+            this.offerConnectionRetry(
+                playlist,
+                'connection-redetect-failed',
+                runId
+            );
+            return undefined;
         }
-        const runId = ++this.runId;
-        const outcome = await this.session.forceRedetect(leaseRef);
-        return outcome.kind === 'success'
-            ? playlist
-            : this.handleOutcome(playlist, outcome, runId, true);
     }
 
     async retryPendingPersistence(): Promise<Playlist | undefined> {
@@ -125,6 +143,7 @@ export class StalkerConnectionFlowService {
 
     async cancel(): Promise<void> {
         this.runId += 1;
+        this.dismissConnectionRetry();
         this.activeDialog?.close();
         this.activeDialog = null;
         await this.discardPending();
@@ -141,6 +160,7 @@ export class StalkerConnectionFlowService {
             return undefined;
         }
         const runId = ++this.runId;
+        this.dismissConnectionRetry();
         await this.discardPending();
         try {
             const outcome =
@@ -151,13 +171,18 @@ export class StalkerConnectionFlowService {
                           provisionalReason: 'migration',
                       })
                     : request.outcome;
-            return this.handleOutcome(
+            return await this.handleOutcome(
                 request.playlist,
                 outcome,
                 runId,
                 true
             );
         } catch {
+            this.offerConnectionRetry(
+                request.playlist,
+                'connection-recovery-failed',
+                runId
+            );
             return undefined;
         }
     }
@@ -245,6 +270,9 @@ export class StalkerConnectionFlowService {
                 acceptedCredentials =
                     outcome.kind === 'ready' ? credentials : undefined;
                 continue;
+            }
+            if (outcome.kind === 'failure') {
+                this.offerConnectionRetry(playlist, outcome.reason, runId);
             }
             return undefined;
         }
@@ -350,6 +378,7 @@ export class StalkerConnectionFlowService {
         }
         this.activeAttemptRef = null;
         this.pendingPersistence = null;
+        this.dismissConnectionRetry();
         if (pending.announceReady) {
             this.readySubject.next(persisted);
         }
@@ -371,23 +400,23 @@ export class StalkerConnectionFlowService {
         try {
             outcome = await this.session.open(persisted);
         } catch {
-            this.notifyPromotionFailure();
+            this.offerConnectionRetry(
+                persisted,
+                'session-promotion-failed',
+                pending.runId
+            );
             return undefined;
         }
         if (await this.discardOutcomeWhenStale(outcome, pending.runId)) {
             return undefined;
         }
         if (outcome.kind !== 'ready') {
-            const recovered = await this.handleOutcome(
+            return this.handleOutcome(
                 persisted,
                 outcome,
                 pending.runId,
                 pending.announceReady
             );
-            if (recovered === undefined && pending.runId === this.runId) {
-                this.notifyPromotionFailure();
-            }
-            return recovered;
         }
 
         if (pending.announceReady) {
@@ -442,6 +471,7 @@ export class StalkerConnectionFlowService {
     }
 
     private offerPersistenceRetry(): void {
+        this.dismissConnectionRetry();
         const ref = this.snackBar.open(
             this.translate.instant(
                 'HOME.STALKER_PORTAL.CONNECTION_FAILURE_GENERIC',
@@ -455,15 +485,50 @@ export class StalkerConnectionFlowService {
             .subscribe(() => void this.retryPendingPersistence());
     }
 
-    private notifyPromotionFailure(): void {
-        this.snackBar.open(
-            this.translate.instant(
-                'HOME.STALKER_PORTAL.CONNECTION_FAILURE_GENERIC',
-                { reason: 'session-promotion-failed' }
-            ),
-            undefined,
-            { duration: 10_000 }
+    offerRetry(playlist: Playlist, reason: string): void {
+        this.offerConnectionRetry(playlist, reason, this.runId);
+    }
+
+    private offerConnectionRetry(
+        playlist: Playlist,
+        reason: string,
+        runId: number
+    ): void {
+        if (runId !== this.runId) {
+            return;
+        }
+        this.dismissConnectionRetry();
+        const ref = this.snackBar.open(
+            this.connectionFailureMessage(reason),
+            this.translate.instant('HOME.STALKER_PORTAL.RETRY'),
+            { duration: 120_000 }
         );
+        this.activeConnectionRetry = ref;
+        ref.onAction()
+            .pipe(take(1))
+            .subscribe(() => {
+                if (
+                    runId !== this.runId ||
+                    this.activeConnectionRetry !== ref
+                ) {
+                    return;
+                }
+                this.activeConnectionRetry = null;
+                void this.forceRedetect(playlist);
+            });
+    }
+
+    private connectionFailureMessage(reason: string): string {
+        const message = this.translate.instant(
+            'HOME.STALKER_PORTAL.CONNECTION_FAILURE_GENERIC',
+            { reason }
+        );
+        return message.includes(reason) ? message : `${message} ${reason}`;
+    }
+
+    private dismissConnectionRetry(): void {
+        this.activeConnectionRetry?.dismiss();
+        this.activeConnectionRetry = null;
     }
 
     private async discardPending(): Promise<void> {

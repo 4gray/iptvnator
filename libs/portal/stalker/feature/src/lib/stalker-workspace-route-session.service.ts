@@ -16,8 +16,13 @@ import {
     StalkerSessionService,
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
+import { STALKER_RECIPE_CLASSIFIER_VERSION } from '@iptvnator/portal/stalker/protocol';
 import { PlaylistsService } from '@iptvnator/services';
-import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    Playlist,
+    PlaylistMeta,
+    type StalkerSessionLeaseRef,
+} from '@iptvnator/shared/interfaces';
 import { StalkerConnectionFlowService } from './stalker-connection-flow/stalker-connection-flow.service';
 
 @Injectable()
@@ -146,7 +151,8 @@ export class StalkerWorkspaceRouteSession {
     private async activateAndSetCurrentPlaylist(
         playlist: Playlist
     ): Promise<void> {
-        if (playlist._id !== this.currentPlaylistId) {
+        const activationGeneration = this.syncGeneration;
+        if (!this.isCurrentActivation(playlist, activationGeneration)) {
             return;
         }
         const leaseRef = this.session.getLeaseRef(playlist._id);
@@ -154,16 +160,65 @@ export class StalkerWorkspaceRouteSession {
             try {
                 const activation = await this.session.activate(leaseRef);
                 if (activation.kind !== 'success') {
-                    await this.releasePlaylistSession(playlist._id);
+                    const retryEligible = this.isCurrentActivation(
+                        playlist,
+                        activationGeneration,
+                        leaseRef
+                    );
+                    await this.releaseLeaseSession(leaseRef);
+                    this.offerActivationRetry(
+                        playlist,
+                        activation.kind === 'failure'
+                            ? activation.reason
+                            : `session-activation-${activation.kind}`,
+                        activationGeneration,
+                        leaseRef,
+                        retryEligible
+                    );
                     return;
                 }
             } catch {
-                await this.releasePlaylistSession(playlist._id);
+                const retryEligible = this.isCurrentActivation(
+                    playlist,
+                    activationGeneration,
+                    leaseRef
+                );
+                await this.releaseLeaseSession(leaseRef);
+                this.offerActivationRetry(
+                    playlist,
+                    'session-activation-failed',
+                    activationGeneration,
+                    leaseRef,
+                    retryEligible
+                );
                 return;
             }
         }
-        if (playlist._id === this.currentPlaylistId) {
+        if (
+            this.isCurrentActivation(
+                playlist,
+                activationGeneration,
+                leaseRef
+            )
+        ) {
             await this.stalkerStore.setCurrentPlaylist(playlist);
+        }
+    }
+
+    private offerActivationRetry(
+        playlist: Playlist,
+        reason: string,
+        activationGeneration: number,
+        leaseRef: StalkerSessionLeaseRef,
+        retryEligible: boolean
+    ): void {
+        const currentLeaseRef = this.session.getLeaseRef(playlist._id);
+        if (
+            retryEligible &&
+            this.isCurrentActivation(playlist, activationGeneration) &&
+            (currentLeaseRef === undefined || currentLeaseRef === leaseRef)
+        ) {
+            this.connectionFlow.offerRetry(playlist, reason);
         }
     }
 
@@ -172,8 +227,27 @@ export class StalkerWorkspaceRouteSession {
         if (leaseRef === undefined) {
             return;
         }
+        await this.releaseLeaseSession(leaseRef);
+    }
+
+    private async releaseLeaseSession(
+        leaseRef: StalkerSessionLeaseRef
+    ): Promise<void> {
         await this.session.deactivate(leaseRef).catch(() => undefined);
         await this.session.close(leaseRef).catch(() => undefined);
+    }
+
+    private isCurrentActivation(
+        playlist: Playlist,
+        activationGeneration: number,
+        leaseRef?: StalkerSessionLeaseRef
+    ): boolean {
+        return (
+            activationGeneration === this.syncGeneration &&
+            playlist._id === this.currentPlaylistId &&
+            (leaseRef === undefined ||
+                this.session.getLeaseRef(playlist._id) === leaseRef)
+        );
     }
 
     private syncRouteState(section: PortalRailSection | null): void {
@@ -213,7 +287,7 @@ export class StalkerWorkspaceRouteSession {
     ): Promise<PlaylistMeta | undefined> {
         const activePlaylist = this.playlistContext.activePlaylist();
 
-        if (this.hasExplicitStalkerPortalMode(playlistId, activePlaylist)) {
+        if (this.hasCurrentStalkerRecipe(playlistId, activePlaylist)) {
             return activePlaylist;
         }
 
@@ -225,13 +299,15 @@ export class StalkerWorkspaceRouteSession {
         return storedPlaylist ?? activePlaylist ?? undefined;
     }
 
-    private hasExplicitStalkerPortalMode(
+    private hasCurrentStalkerRecipe(
         playlistId: string,
         playlist: PlaylistMeta | null
     ): playlist is PlaylistMeta {
         return (
             playlist?._id === playlistId &&
-            playlist.isFullStalkerPortal !== undefined
+            playlist.stalkerRequestRecipe !== undefined &&
+            playlist.stalkerRecipeClassifierVersion ===
+                STALKER_RECIPE_CLASSIFIER_VERSION
         );
     }
 }

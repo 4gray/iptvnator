@@ -65,6 +65,7 @@ import {
 } from './stalker-watchdog';
 
 const ATTEMPT_TTL_MS = 120_000;
+const MAX_CREDENTIAL_SUBMISSIONS_PER_ATTEMPT = 3;
 const REFERENCE_BYTES = 32;
 const MAX_REFERENCE_ATTEMPTS = 4;
 const RECIPE_CLASSIFIER_VERSION = 1;
@@ -214,6 +215,7 @@ interface AttemptRecord {
     challengeRef?: string;
     coordinator: StalkerBaseIdentityCoordinator;
     credentialCandidate?: StalkerAuthCredentials;
+    credentialSubmissions: number;
     descriptor: StalkerSessionConnectionDescriptor;
     expiresAt: number;
     lastEndpoint?: string;
@@ -916,6 +918,7 @@ export class StalkerSessionManager {
                 validated.descriptor.sourceUrl,
                 validated.descriptor.macAddress
             ),
+            credentialSubmissions: 0,
             descriptor: validated.descriptor,
             expiresAt: this.#now() + ATTEMPT_TTL_MS,
             previousSessions:
@@ -970,7 +973,16 @@ export class StalkerSessionManager {
                                 attempt.descriptor
                             );
                         attempt.lastLandingUrl = resolved.landingUrl;
-                        const authOutcome = await auth.start(credentials);
+                        const authOutcome =
+                            credentials === undefined
+                                ? this.#normalizeCredentialChallenge(
+                                      attempt,
+                                      await auth.start()
+                                  )
+                                : await this.#runCredentialSubmission(
+                                      attempt,
+                                      () => auth.start(credentials)
+                                  );
                         if (authOutcome.kind !== 'ready') {
                             throw new ProgressSignal(
                                 authProgress(authOutcome, auth, resolved, epoch)
@@ -1044,9 +1056,9 @@ export class StalkerSessionManager {
                             attempt.coordinator,
                             epoch
                         );
-                        const outcome = await auth.submitCredentials(
-                            credentials,
-                            false
+                        const outcome = await this.#runCredentialSubmission(
+                            attempt,
+                            () => auth.submitCredentials(credentials, false)
                         );
                         if (outcome.kind !== 'ready') {
                             throw new ProgressSignal(
@@ -1094,6 +1106,42 @@ export class StalkerSessionManager {
                 true
             );
         }
+    }
+
+    async #runCredentialSubmission(
+        attempt: AttemptRecord,
+        operation: () => Promise<StalkerAuthOutcome>
+    ): Promise<StalkerAuthOutcome> {
+        if (
+            attempt.credentialSubmissions >=
+            MAX_CREDENTIAL_SUBMISSIONS_PER_ATTEMPT
+        ) {
+            return credentialAttemptLimit();
+        }
+        attempt.credentialSubmissions += 1;
+        return this.#normalizeCredentialChallenge(
+            attempt,
+            await operation()
+        );
+    }
+
+    #normalizeCredentialChallenge(
+        attempt: AttemptRecord,
+        outcome: StalkerAuthOutcome
+    ): StalkerAuthOutcome {
+        if (outcome.kind !== 'credentials-required') {
+            return outcome;
+        }
+        if (
+            attempt.credentialSubmissions >=
+            MAX_CREDENTIAL_SUBMISSIONS_PER_ATTEMPT
+        ) {
+            return credentialAttemptLimit();
+        }
+        return {
+            ...outcome,
+            attemptNumber: attempt.credentialSubmissions + 1,
+        };
     }
 
     async #publishProgress(
@@ -1702,6 +1750,7 @@ export class StalkerSessionManager {
             approvedOrigins: new Set(session.approvedOrigins),
             coordinator: session.coordinator,
             credentialCandidate: session.credentials,
+            credentialSubmissions: 0,
             descriptor: session.descriptor,
             expiresAt: this.#now() + ATTEMPT_TTL_MS,
             lastIdentityRevision: session.identityRevision,
@@ -2271,6 +2320,18 @@ export class StalkerSessionManager {
         }
         return value;
     }
+}
+
+function credentialAttemptLimit(): Extract<
+    StalkerAuthOutcome,
+    { kind: 'failure' }
+> {
+    return {
+        kind: 'failure',
+        reason: STALKER_SESSION_FAILURE_REASONS.CredentialsAttemptLimit,
+        retryable: false,
+        stage: 'do-auth',
+    };
 }
 
 function endpointProgress(

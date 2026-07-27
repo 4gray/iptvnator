@@ -223,6 +223,7 @@
             "USER_AGENT": "Browser-User-Agent überschreiben (optional)",
             "VALIDATE_CREDENTIALS": "Anmeldedaten prüfen",
             "SAVE_AGAIN": "Erneut speichern",
+            "RETRY": "Erneut versuchen",
             "USERNAME": "Benutzername",
             "PASSWORD": "Passwort"
         },

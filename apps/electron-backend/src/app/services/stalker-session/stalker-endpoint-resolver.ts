@@ -563,15 +563,19 @@ function isBenignHtmlEndpointMiss(
         ?.split(';', 1)[0]
         ?.trim()
         .toLowerCase();
-    if (mediaType !== 'text/html' && mediaType !== 'application/xhtml+xml') {
+    if (mediaType !== 'text/html' || rawBody === undefined) {
         return false;
     }
-    const prefix = rawBody?.trimStart().slice(0, 64).toLowerCase() ?? '';
-    return (
-        prefix.startsWith('<!doctype html') ||
-        prefix.startsWith('<html') ||
-        prefix.startsWith('<?xml')
-    );
+    // The public Stalker /c/ shell combines these bootstrap markers. Requiring
+    // two keeps branded denial pages from becoming a downgrade signal.
+    const normalized = rawBody.toLowerCase();
+    const markerCount = [
+        /<title[^>]*>\s*stalker_portal\s*<\/title>/i.test(rawBody),
+        normalized.includes('server/api/load_js.php'),
+        normalized.includes('window.loadrequiredfiles('),
+        normalized.includes('stb.init('),
+    ].filter(Boolean).length;
+    return markerCount >= 2;
 }
 
 function isApiEnvelopeRejectedOnlyByMediaType(

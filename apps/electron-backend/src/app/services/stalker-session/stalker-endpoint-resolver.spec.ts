@@ -395,7 +395,12 @@ describe('StalkerEndpointResolver', () => {
                 action === 'handshake'
             ) {
                 return rawSuccess(
-                    '<!doctype html><html><body>Portal landing</body></html>',
+                    [
+                        '<!doctype html><html><head>',
+                        '<title>stalker_portal</title>',
+                        '<script src="../server/api/load_js.php"></script>',
+                        '</head><body></body></html>',
+                    ].join(''),
                     {
                         contentType: 'text/html; charset=utf-8',
                         finalUrl: request.url,
@@ -437,6 +442,74 @@ describe('StalkerEndpointResolver', () => {
             )
         ).toBe(false);
     });
+
+    it.each([
+        [
+            'an unknown HTML account denial',
+            '<!doctype html><html><body>Account suspended</body></html>',
+            'text/html',
+        ],
+        [
+            'an unknown XHTML device denial',
+            '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml"><body>Device blocked</body></html>',
+            'application/xhtml+xml',
+        ],
+        [
+            'an HTML denial with only a portal title marker',
+            '<!doctype html><html><head><title>stalker_portal</title></head><body>Account suspended</body></html>',
+            'text/html',
+        ],
+    ])(
+        'treats %s as terminal after earlier stateless evidence',
+        async (_, denialBody, contentType) => {
+            const harness = createHarness((request) => {
+                const action = request.params?.['action'];
+                if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                    return success({}, { finalUrl: request.url });
+                }
+                if (
+                    request.url.endsWith('/server/load.php') &&
+                    action === 'handshake'
+                ) {
+                    return success(
+                        {},
+                        { finalUrl: request.url, status: 404 }
+                    );
+                }
+                if (
+                    request.url.endsWith('/server/load.php') &&
+                    action === 'get_genres'
+                ) {
+                    return success(
+                        { js: [{ id: '*', title: 'All' }] },
+                        { finalUrl: request.url }
+                    );
+                }
+                if (
+                    request.url.endsWith('/portal.php') &&
+                    action === 'handshake'
+                ) {
+                    return rawSuccess(denialBody, {
+                        contentType,
+                        finalUrl: request.url,
+                    });
+                }
+                throw new Error('Unexpected request');
+            });
+
+            const outcome = await harness.resolver.resolve({
+                descriptor: descriptor(),
+                transport,
+            });
+
+            expect(outcome).toEqual({
+                kind: 'failure',
+                reason: 'incompatible-response',
+                retryable: false,
+                stage: 'resolving',
+            });
+        }
+    );
 
     it('continues after early stateless evidence so a later full endpoint wins', async () => {
         const harness = createHarness((request) => {

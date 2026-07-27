@@ -16,6 +16,63 @@ function mapRemote<Operation extends StalkerSessionApplicationOperation>(
     return mapped;
 }
 
+const listResultMappers = [
+    {
+        name: 'categories',
+        emptyResult: { items: [] },
+        mapResult: (value: unknown) =>
+            mapRemote(
+                STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
+                { contentType: 'vod' }
+            ).mapResult(value),
+    },
+    {
+        name: 'catalog',
+        emptyResult: { items: [] },
+        mapResult: (value: unknown) =>
+            mapRemote(STALKER_SESSION_APPLICATION_OPERATIONS.CatalogItems, {
+                contentType: 'vod',
+            }).mapResult(value),
+    },
+    {
+        name: 'seasons',
+        emptyResult: { seasons: [] },
+        mapResult: (value: unknown) =>
+            mapRemote(STALKER_SESSION_APPLICATION_OPERATIONS.SeriesSeasons, {
+                seriesId: '42',
+            }).mapResult(value),
+    },
+    {
+        name: 'episodes',
+        emptyResult: { episodes: [] },
+        mapResult: (value: unknown) =>
+            mapRemote(STALKER_SESSION_APPLICATION_OPERATIONS.SeriesEpisodes, {
+                seasonId: '42:1',
+                seriesId: '42',
+            }).mapResult(value),
+    },
+    {
+        name: 'short EPG',
+        emptyResult: { programs: [] },
+        mapResult: (value: unknown) =>
+            mapRemote(STALKER_SESSION_APPLICATION_OPERATIONS.ShortEpg, {
+                channelId: '11',
+            }).mapResult(value),
+    },
+] as const;
+
+const malformedListEnvelopes = [
+    { name: 'object-without-data', value: { js: {} } },
+    { name: 'direct-null', value: { js: null } },
+    { name: 'direct-scalar', value: { js: 7 } },
+    { name: 'direct-string', value: { js: 'not-a-list' } },
+    { name: 'undefined', value: { js: { data: undefined } } },
+    { name: 'null', value: { js: { data: null } } },
+    { name: 'scalar', value: { js: { data: 7 } } },
+    { name: 'object', value: { js: { data: {} } } },
+    { name: 'string', value: { js: { data: 'not-a-list' } } },
+] as const;
+
 describe('stalker-operation-adapter', () => {
     it.each([
         {
@@ -300,6 +357,161 @@ describe('stalker-operation-adapter', () => {
             total: 25,
             totalPages: 3,
         });
+    });
+
+    it.each(listResultMappers)(
+        'keeps real empty arrays valid for $name direct and data-envelope shapes',
+        ({ emptyResult, mapResult }) => {
+            expect(mapResult({ js: [] })).toEqual(emptyResult);
+            expect(mapResult({ js: { data: [] } })).toEqual(emptyResult);
+        }
+    );
+
+    it.each(
+        listResultMappers.flatMap((operation) =>
+            malformedListEnvelopes.map((envelope) => ({
+                envelope: envelope.name,
+                mapResult: operation.mapResult,
+                operation: operation.name,
+                value: envelope.value,
+            }))
+        )
+    )(
+        'rejects $envelope data for $operation',
+        ({ mapResult, value }) => {
+            expect(() => mapResult(value)).toThrow(
+                'stalker-operation-invalid-response'
+            );
+        }
+    );
+
+    it('accepts the real data-wrapped channel map and empty bulk EPG shapes', () => {
+        const mapped = mapRemote(
+            STALKER_SESSION_APPLICATION_OPERATIONS.EpgInfo,
+            {}
+        );
+        const program = {
+            ch_id: '11',
+            name: 'News',
+            start_timestamp: 100,
+            stop_timestamp: 200,
+        };
+
+        expect(
+            mapped.mapResult({
+                js: {
+                    data: {
+                        '11': [program],
+                        '12': [],
+                    },
+                },
+            })
+        ).toEqual({
+            programs: [
+                {
+                    channelId: '11',
+                    endsAt: 200,
+                    startsAt: 100,
+                    title: 'News',
+                },
+            ],
+        });
+        expect(mapped.mapResult({ js: { data: {} } })).toEqual({
+            programs: [],
+        });
+        expect(mapped.mapResult({ js: [] })).toEqual({ programs: [] });
+        expect(mapped.mapResult({ js: { data: [] } })).toEqual({
+            programs: [],
+        });
+    });
+
+    it('preserves direct and nested channel-keyed bulk EPG variants', () => {
+        const mapped = mapRemote(
+            STALKER_SESSION_APPLICATION_OPERATIONS.EpgInfo,
+            {}
+        );
+        const program = {
+            ch_id: '11',
+            name: 'News',
+            start_timestamp: 100,
+            stop_timestamp: 200,
+        };
+
+        expect(
+            mapped.mapResult({
+                js: {
+                    '11': [program],
+                    '12': { data: [] },
+                    '13': { epg: [] },
+                    '14': { items: [] },
+                },
+            })
+        ).toEqual({
+            programs: [
+                {
+                    channelId: '11',
+                    endsAt: 200,
+                    startsAt: 100,
+                    title: 'News',
+                },
+            ],
+        });
+        expect(
+            mapped.mapResult({
+                js: {
+                    data: {
+                        '11': { data: [program] },
+                        '12': { epg: [] },
+                        '13': { items: [] },
+                    },
+                },
+            })
+        ).toEqual({
+            programs: [
+                {
+                    channelId: '11',
+                    endsAt: 200,
+                    startsAt: 100,
+                    title: 'News',
+                },
+            ],
+        });
+    });
+
+    it.each([
+        { name: 'object-without-data', value: { js: {} } },
+        { name: 'direct-null', value: { js: null } },
+        { name: 'direct-scalar', value: { js: 7 } },
+        { name: 'direct-string', value: { js: 'not-an-epg-map' } },
+        { name: 'undefined-data', value: { js: { data: undefined } } },
+        { name: 'null-data', value: { js: { data: null } } },
+        { name: 'scalar-data', value: { js: { data: 7 } } },
+        { name: 'string-data', value: { js: { data: 'not-an-epg-map' } } },
+        {
+            name: 'scalar-channel-entry',
+            value: { js: { data: { '11': 7 } } },
+        },
+        {
+            name: 'unknown-channel-entry',
+            value: { js: { data: { '11': { unknown: [] } } } },
+        },
+        {
+            name: 'direct-scalar-channel-entry',
+            value: { js: { '11': 7 } },
+        },
+        {
+            name: 'direct-unknown-channel-entry',
+            value: { js: { '11': { unknown: [] } } },
+        },
+    ] as const)('rejects malformed bulk EPG $name', ({ value }) => {
+        const mapped = mapRemote(
+            STALKER_SESSION_APPLICATION_OPERATIONS.EpgInfo,
+            {}
+        );
+
+        expect(() => mapped.mapResult(value)).toThrow(
+            'stalker-operation-invalid-response'
+        );
     });
 
     it('normalizes categories, seasons, episodes, EPG, links, and account summaries', () => {

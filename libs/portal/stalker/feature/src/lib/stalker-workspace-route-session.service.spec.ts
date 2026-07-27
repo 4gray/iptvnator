@@ -25,6 +25,8 @@ const ACTIVE_PLAYLIST: PlaylistMeta = {
 const FULL_STALKER_PLAYLIST: PlaylistMeta = {
     ...ACTIVE_PLAYLIST,
     isFullStalkerPortal: true,
+    stalkerRecipeClassifierVersion: 1,
+    stalkerRequestRecipe: 'full-session',
     stalkerSerialNumber: 'CUSTOMSN123',
     stalkerDeviceId1: 'DEVICE-ID-1',
     stalkerDeviceId2: 'DEVICE-ID-2',
@@ -89,6 +91,7 @@ describe('StalkerWorkspaceRouteSession', () => {
         cancel: jest.fn().mockResolvedValue(undefined),
         connectionReady$: connectionReady.asObservable(),
         ensureConnected: jest.fn(async (playlist: PlaylistMeta) => playlist),
+        offerRetry: jest.fn(),
     };
 
     const session = {
@@ -142,12 +145,19 @@ describe('StalkerWorkspaceRouteSession', () => {
         stalkerStore.setSelectedContentType.mockClear();
         stalkerStore.setSearchPhrase.mockClear();
         playlistsService.getPlaylistById.mockClear();
+        playlistsService.getPlaylistById.mockImplementation(() =>
+            of(ACTIVE_PLAYLIST)
+        );
         connectionFlow.cancel.mockClear();
         connectionFlow.ensureConnected.mockClear();
+        connectionFlow.offerRetry.mockClear();
         session.activate.mockClear();
         session.close.mockClear();
         session.deactivate.mockClear();
         session.getLeaseRef.mockClear();
+        session.getLeaseRef.mockImplementation(
+            (playlistId: string) => `lease-${playlistId}`
+        );
 
         await TestBed.configureTestingModule({
             providers: [
@@ -258,13 +268,37 @@ describe('StalkerWorkspaceRouteSession', () => {
         );
     });
 
-    it('uses active Stalker playlist metadata directly when the portal mode is explicit', async () => {
+    it('uses active Stalker playlist metadata directly when its recipe is current', async () => {
         activePlaylist.set(FULL_STALKER_PLAYLIST);
 
         TestBed.inject(StalkerWorkspaceRouteSession);
         await flushEffects();
 
         expect(playlistsService.getPlaylistById).not.toHaveBeenCalled();
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
+    });
+
+    it('does not let a legacy boolean on temporary route metadata shadow the full stored playlist', async () => {
+        activePlaylist.set({
+            ...ACTIVE_PLAYLIST,
+            isFullStalkerPortal: false,
+            title: 'Untitled playlist',
+        });
+        playlistsService.getPlaylistById.mockReturnValue(
+            of(FULL_STALKER_PLAYLIST)
+        );
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+            PLAYLIST_ID
+        );
+        expect(connectionFlow.ensureConnected).toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
         expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
             FULL_STALKER_PLAYLIST
         );
@@ -277,6 +311,92 @@ describe('StalkerWorkspaceRouteSession', () => {
         await flushEffects();
 
         expect(stalkerStore.setCurrentPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('offers a retry instead of exposing a playlist when lease activation fails', async () => {
+        session.activate.mockResolvedValueOnce({
+            kind: 'failure',
+            reason: 'portal-unavailable',
+            requestId: 'activate-failure',
+            retryable: true,
+            stage: 'ready',
+        });
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(connectionFlow.offerRetry).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: PLAYLIST_ID }),
+            'portal-unavailable'
+        );
+        expect(stalkerStore.setCurrentPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('does not let a stale activation failure close or retry a newer lease for the same playlist', async () => {
+        const staleActivation = createDeferred<{
+            kind: 'failure';
+            reason: string;
+            requestId: string;
+            retryable: boolean;
+            stage: 'ready';
+        }>();
+        let currentLeaseRef = 'lease-stale';
+        session.getLeaseRef.mockImplementation(() => currentLeaseRef);
+        session.activate
+            .mockReturnValueOnce(staleActivation.promise)
+            .mockResolvedValueOnce({
+                action: 'activate',
+                kind: 'success',
+                requestId: 'activate-current',
+            });
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        expect(session.activate).toHaveBeenCalledWith('lease-stale');
+
+        router.url = '/workspace/m3u/playlist-2';
+        playlistContext.syncFromUrl.mockReturnValueOnce({
+            inWorkspace: true,
+            playlistId: 'playlist-2',
+            provider: 'm3u',
+            section: null,
+        });
+        routerEvents.next(
+            new NavigationEnd(
+                2,
+                `/workspace/stalker/${PLAYLIST_ID}/vod`,
+                router.url
+            )
+        );
+        await flushEffects();
+
+        currentLeaseRef = 'lease-current';
+        router.url = `/workspace/stalker/${PLAYLIST_ID}/vod`;
+        routerEvents.next(
+            new NavigationEnd(
+                3,
+                '/workspace/m3u/playlist-2',
+                router.url
+            )
+        );
+        await flushEffects();
+        expect(session.activate).toHaveBeenLastCalledWith('lease-current');
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenLastCalledWith(
+            expect.objectContaining({ _id: PLAYLIST_ID })
+        );
+
+        staleActivation.resolve({
+            kind: 'failure',
+            reason: 'stale-portal-unavailable',
+            requestId: 'activate-stale-failure',
+            retryable: true,
+            stage: 'ready',
+        });
+        await flushEffects();
+
+        expect(session.deactivate).not.toHaveBeenCalledWith('lease-current');
+        expect(session.close).not.toHaveBeenCalledWith('lease-current');
+        expect(connectionFlow.offerRetry).not.toHaveBeenCalled();
     });
 
     it('cancels a provisional route attempt before leaving the Stalker workspace', async () => {

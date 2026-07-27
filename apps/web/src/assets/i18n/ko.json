@@ -223,6 +223,7 @@
             "USER_AGENT": "Browser User-Agent override (optional)",
             "VALIDATE_CREDENTIALS": "Validate credentials",
             "SAVE_AGAIN": "Save again",
+            "RETRY": "다시 시도",
             "USERNAME": "Username",
             "PASSWORD": "Password"
         },

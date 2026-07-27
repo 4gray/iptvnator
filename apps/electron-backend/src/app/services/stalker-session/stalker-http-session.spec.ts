@@ -98,6 +98,38 @@ describe('StalkerHttpSession', () => {
         expect(config.headers).not.toHaveProperty('Proxy-Authorization');
     });
 
+    it('blocks an anonymous public-to-private redirect before target contact', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                data: Buffer.alloc(0),
+                headers: {
+                    location: 'http://127.0.0.1/private-admin',
+                },
+                status: 302,
+            })
+            .mockResolvedValueOnce({
+                data: Buffer.from('private response'),
+                headers: {},
+                status: 200,
+            });
+        const session = new StalkerHttpSession(
+            new StalkerCookieJar(),
+            DEFAULT_TRANSPORT
+        );
+
+        const outcome = await session.request({
+            mode: STALKER_HTTP_REQUEST_MODES.Anonymous,
+            url: 'http://93.184.216.34/landing',
+        });
+
+        expect(outcome).toEqual({
+            kind: 'failure',
+            reason: 'invalid-url',
+            retryable: false,
+        });
+        expect(axiosMock).toHaveBeenCalledTimes(1);
+    });
+
     it.each([200, 401, 404, 429, 500, 503])(
         'returns HTTP %i as a successful transport result',
         async (status) => {

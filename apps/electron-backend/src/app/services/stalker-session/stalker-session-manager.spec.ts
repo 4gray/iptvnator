@@ -834,6 +834,87 @@ describe('StalkerSessionManager', () => {
         });
     });
 
+    it('caps one attempt at three credential submissions across auth replacements caused by alternating principals', async () => {
+        const targetAuths = [
+            new FakeAuth('target-user', false, [
+                { attemptNumber: 1, kind: 'credentials-required' },
+            ]),
+            new FakeAuth('target-user', false, [
+                { attemptNumber: 2, kind: 'credentials-required' },
+            ]),
+            new FakeAuth('target-user', false, [
+                { attemptNumber: 2, kind: 'credentials-required' },
+            ]),
+            new FakeAuth('target-user', false, [
+                { attemptNumber: 2, kind: 'credentials-required' },
+            ]),
+        ];
+        const { manager } = harness({
+            auths: [
+                targetAuths[0],
+                new FakeAuth('principal-a'),
+                targetAuths[1],
+                new FakeAuth('principal-b'),
+                targetAuths[2],
+                new FakeAuth('principal-a'),
+                targetAuths[3],
+            ],
+            resolverOutcomes: Array.from({ length: 7 }, () => full()),
+        });
+
+        let challenge = await manager.open(1, {
+            descriptor: descriptor('credential-budget-target'),
+        });
+        if (challenge.kind !== 'credentials-required') {
+            throw new Error('expected-credentials-challenge');
+        }
+
+        for (const [index, principal] of [
+            [0, 'principal-a'],
+            [1, 'principal-b'],
+            [2, 'principal-a'],
+        ] as const) {
+            const interferer = await manager.open(index + 2, {
+                descriptor: descriptor(
+                    `credential-budget-${principal}-${index}`
+                ),
+            });
+            expectFullReady(interferer);
+
+            const outcome = await manager.continue(1, {
+                challengeRef: challenge.challengeRef,
+                response: {
+                    kind: 'credentials',
+                    password: `bad-password-${index}`,
+                    username: 'target-user',
+                },
+            });
+            if (index === 2) {
+                expect(outcome).toMatchObject({
+                    kind: 'failure',
+                    reason: STALKER_SESSION_FAILURE_REASONS
+                        .CredentialsAttemptLimit,
+                    stage: 'do-auth',
+                });
+                continue;
+            }
+            expect(outcome).toMatchObject({
+                attemptNumber: index + 2,
+                kind: 'credentials-required',
+            });
+            if (outcome.kind !== 'credentials-required') {
+                throw new Error('expected-credentials-challenge');
+            }
+            challenge = outcome;
+        }
+
+        expect(
+            targetAuths.flatMap((auth) => auth.startedCredentials).filter(
+                (credentials) => credentials !== undefined
+            )
+        ).toHaveLength(3);
+    });
+
     it('resets the two-minute lifetime when a slow attempt becomes ready or issues a challenge', async () => {
         jest.useFakeTimers();
         jest.setSystemTime(0);
