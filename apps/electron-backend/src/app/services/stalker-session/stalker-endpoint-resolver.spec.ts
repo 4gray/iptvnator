@@ -294,6 +294,55 @@ describe('StalkerEndpointResolver', () => {
         }
     );
 
+    it('skips a learned endpoint whose valid API JSON has the wrong content type', async () => {
+        const handshakeUrls: string[] = [];
+        const harness = createHarness((request) => {
+            const action = request.params?.['action'];
+            if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                return success({}, { finalUrl: request.url });
+            }
+            if (action === 'handshake') {
+                handshakeUrls.push(request.url);
+            }
+            if (request.url.includes('/learned/')) {
+                return rawSuccess(
+                    '{"js":{"token":"stale-learned-token"}}',
+                    {
+                        contentType: 'text/html',
+                        finalUrl: request.url,
+                    }
+                );
+            }
+            if (action === 'handshake') {
+                return success(
+                    { js: { token: 'rediscovered-token' } },
+                    { finalUrl: request.url }
+                );
+            }
+            return success(
+                { js: { status: 0 } },
+                { finalUrl: request.url }
+            );
+        });
+
+        const outcome = await harness.resolver.resolve({
+            descriptor: descriptor({
+                learnedEndpointHint:
+                    'https://portal.test/learned/server/load.php',
+            }),
+            transport,
+        });
+
+        expect(outcome).toMatchObject({
+            endpoint: 'https://portal.test/server/load.php',
+            kind: 'full-session',
+        });
+        expect(handshakeUrls).toEqual([
+            'https://portal.test/learned/server/load.php',
+            'https://portal.test/server/load.php',
+        ]);
+    });
+
     it('rejects a stateless catalog near miss without advancing candidates', async () => {
         const harness = createHarness((request) => {
             const action = request.params?.['action'];

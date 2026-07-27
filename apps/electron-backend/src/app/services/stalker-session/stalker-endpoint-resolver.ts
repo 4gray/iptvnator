@@ -180,14 +180,21 @@ export class StalkerEndpointResolver {
         }
 
         const identity = buildIdentity(input.descriptor, landingUrl);
+        const learnedEndpointHint =
+            input.descriptor.learnedEndpointHint === undefined
+                ? undefined
+                : normalizeStalkerSourceUrl(
+                      input.descriptor.learnedEndpointHint
+                  );
         const candidates = buildCandidates(
             landingUrl,
-            input.descriptor.learnedEndpointHint,
+            learnedEndpointHint,
             approvedOrigins
         );
         let statelessFallback: string | undefined;
 
         for (const endpoint of candidates) {
+            const isLearnedEndpoint = endpoint === learnedEndpointHint;
             const candidateJar = await anonymousJar.cloneWithManagedCookies(
                 identity.managedCookies
             );
@@ -200,6 +207,7 @@ export class StalkerEndpointResolver {
                 candidateSession,
                 endpoint,
                 identity,
+                isLearnedEndpoint,
                 landingUrl,
                 transport: input.transport,
             });
@@ -215,7 +223,8 @@ export class StalkerEndpointResolver {
                 const simple = await this.probeStateless(
                     candidateSession,
                     endpoint,
-                    identity
+                    identity,
+                    isLearnedEndpoint
                 );
                 if (
                     simple.kind === 'failure' ||
@@ -243,6 +252,7 @@ export class StalkerEndpointResolver {
         candidateSession: StalkerHttpSessionLike;
         endpoint: string;
         identity: StalkerIdentityProfile;
+        isLearnedEndpoint: boolean;
         landingUrl: string;
         transport: StalkerTransportConfig;
     }): Promise<CandidateProbeOutcome> {
@@ -256,7 +266,10 @@ export class StalkerEndpointResolver {
             },
             url: input.endpoint,
         });
-        const normalizedHandshake = normalizeProtocolOutcome(handshake);
+        const normalizedHandshake = normalizeProtocolOutcome(
+            handshake,
+            input.isLearnedEndpoint
+        );
         if (normalizedHandshake.kind !== 'parsed') {
             return normalizedHandshake;
         }
@@ -291,7 +304,10 @@ export class StalkerEndpointResolver {
             },
             url: input.endpoint,
         });
-        const normalizedProfile = normalizeProtocolOutcome(profile);
+        const normalizedProfile = normalizeProtocolOutcome(
+            profile,
+            input.isLearnedEndpoint
+        );
         if (normalizedProfile.kind !== 'parsed') {
             return normalizedProfile;
         }
@@ -319,7 +335,8 @@ export class StalkerEndpointResolver {
     private async probeStateless(
         session: StalkerHttpSessionLike,
         endpoint: string,
-        identity: StalkerIdentityProfile
+        identity: StalkerIdentityProfile,
+        isLearnedEndpoint: boolean
     ): Promise<
         | StalkerEndpointStatelessOutcome
         | StalkerEndpointOriginApprovalOutcome
@@ -336,7 +353,10 @@ export class StalkerEndpointResolver {
             },
             url: endpoint,
         });
-        const normalized = normalizeProtocolOutcome(outcome);
+        const normalized = normalizeProtocolOutcome(
+            outcome,
+            isLearnedEndpoint
+        );
         if (normalized.kind !== 'parsed') {
             return normalized.kind === 'unsupported'
                 ? { kind: 'miss' }
@@ -427,7 +447,8 @@ function normalizeApprovedOrigins(
 }
 
 function normalizeProtocolOutcome(
-    outcome: StalkerHttpRequestOutcome
+    outcome: StalkerHttpRequestOutcome,
+    allowLearnedEndpointMediaTypeMiss = false
 ):
     | { kind: 'parsed'; value: unknown }
     | CandidateProbeUnsupported
@@ -470,6 +491,15 @@ function normalizeProtocolOutcome(
         return failure(STALKER_FAILURE_REASONS.IncompatibleResponse, false);
     }
     if (parsed.kind === 'unparsed') {
+        if (
+            allowLearnedEndpointMediaTypeMiss &&
+            isApiEnvelopeRejectedOnlyByMediaType(
+                outcome.result,
+                parsed.rawBody
+            )
+        ) {
+            return { kind: 'miss' };
+        }
         if (isBenignHtmlEndpointMiss(outcome.result, parsed.rawBody)) {
             return { kind: 'miss' };
         }
@@ -541,6 +571,22 @@ function isBenignHtmlEndpointMiss(
         prefix.startsWith('<!doctype html') ||
         prefix.startsWith('<html') ||
         prefix.startsWith('<?xml')
+    );
+}
+
+function isApiEnvelopeRejectedOnlyByMediaType(
+    result: StalkerTransportResult<Uint8Array>,
+    rawBody: string | undefined
+): boolean {
+    if (rawBody === undefined) {
+        return false;
+    }
+    return (
+        parseStalkerResponseEnvelope({
+            body: rawBody,
+            contentType: undefined,
+            maxBodyBytes: result.body.byteLength,
+        }).kind === 'parsed'
     );
 }
 
