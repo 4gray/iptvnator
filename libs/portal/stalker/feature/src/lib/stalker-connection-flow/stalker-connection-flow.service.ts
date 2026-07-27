@@ -30,6 +30,7 @@ type ReadyOutcome =
 
 interface PendingPersistence {
     readonly announceReady: boolean;
+    readonly clearCredentials: boolean;
     readonly draft: Playlist;
     readonly outcome: ReadyOutcome;
     readonly runId: number;
@@ -131,30 +132,33 @@ export class StalkerConnectionFlowService {
 
     private async recover(
         request: StalkerSessionRecoveryRequest
-    ): Promise<boolean> {
-        if (!this.shouldUseTypedSession(request.playlist)) {
-            return false;
+    ): Promise<Playlist | undefined> {
+        if (
+            !this.session.supportsTypedSessions() ||
+            (request.trigger !== 'endpoint-shape' &&
+                !this.shouldUseTypedSession(request.playlist))
+        ) {
+            return undefined;
         }
         const runId = ++this.runId;
         await this.discardPending();
         try {
             const outcome =
+                request.trigger === 'endpoint-shape' ||
                 request.outcome.kind === 'failure'
                     ? await this.session.open(request.playlist, {
                           connectionMode: 'provisional',
                           provisionalReason: 'migration',
                       })
                     : request.outcome;
-            return (
-                (await this.handleOutcome(
-                    request.playlist,
-                    outcome,
-                    runId,
-                    true
-                )) !== undefined
+            return this.handleOutcome(
+                request.playlist,
+                outcome,
+                runId,
+                true
             );
         } catch {
-            return false;
+            return undefined;
         }
     }
 
@@ -177,14 +181,19 @@ export class StalkerConnectionFlowService {
             this.activeAttemptRef =
                 this.getOutcomeAttemptRef(outcome) ?? this.activeAttemptRef;
             if (outcome.kind === 'ready') {
+                const clearCredentials =
+                    outcome.recipe === 'stateless-mac' ||
+                    ((credentialsInvalidated || credentialsSubmitted) &&
+                        acceptedCredentials === undefined);
                 const draft = this.applyReadyOutcome(
                     playlist,
                     outcome,
                     acceptedCredentials,
-                    credentialsInvalidated || credentialsSubmitted
+                    clearCredentials
                 );
                 return this.persistAndCommit({
                     announceReady,
+                    clearCredentials,
                     draft,
                     outcome,
                     runId,
@@ -292,8 +301,13 @@ export class StalkerConnectionFlowService {
         this.activeAttemptRef = pending.outcome.attemptRef ?? null;
         let persisted: Playlist;
         try {
+            const persistence = pending.clearCredentials
+                ? this.playlists.persistStalkerConnection(pending.draft, {
+                      clearCredentials: true,
+                  })
+                : this.playlists.persistStalkerConnection(pending.draft);
             persisted = await firstValueFrom(
-                this.playlists.persistStalkerConnection(pending.draft)
+                persistence
             );
         } catch {
             if (pending.runId === this.runId) {
@@ -403,7 +417,7 @@ export class StalkerConnectionFlowService {
         playlist: Playlist,
         outcome: ReadyOutcome,
         acceptedCredentials: StalkerCredentialsDialogResult | undefined,
-        clearUnacceptedCredentials: boolean
+        clearCredentials: boolean
     ): Playlist {
         const draft: Playlist = {
             ...playlist,
@@ -413,10 +427,7 @@ export class StalkerConnectionFlowService {
                 ? {}
                 : acceptedCredentials),
         };
-        if (
-            outcome.recipe === 'stateless-mac' ||
-            (clearUnacceptedCredentials && acceptedCredentials === undefined)
-        ) {
+        if (clearCredentials) {
             delete draft.username;
             delete draft.password;
         }

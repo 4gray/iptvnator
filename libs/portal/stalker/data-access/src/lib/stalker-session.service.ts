@@ -56,15 +56,24 @@ export type StalkerSessionNonSuccessOutcome =
           { kind: 'success' }
       >;
 
-export interface StalkerSessionRecoveryRequest {
+export interface StalkerSessionOutcomeRecoveryRequest {
     readonly playlist: Playlist;
     readonly outcome: StalkerSessionNonSuccessOutcome;
     readonly trigger: 'open' | 'request';
 }
 
+export interface StalkerSessionEndpointShapeRecoveryRequest {
+    readonly playlist: Playlist;
+    readonly trigger: 'endpoint-shape';
+}
+
+export type StalkerSessionRecoveryRequest =
+    | StalkerSessionOutcomeRecoveryRequest
+    | StalkerSessionEndpointShapeRecoveryRequest;
+
 export type StalkerSessionRecoveryHandler = (
     request: StalkerSessionRecoveryRequest
-) => Promise<boolean>;
+) => Promise<Playlist | undefined>;
 
 export class StalkerSessionOutcomeError extends Error {
     constructor(readonly outcome: StalkerSessionNonSuccessOutcome) {
@@ -110,7 +119,7 @@ export class StalkerSessionService {
     >();
     private readonly recoveryByPlaylistRef = new Map<
         string,
-        Promise<boolean>
+        Promise<Playlist | undefined>
     >();
     private recoveryHandler: StalkerSessionRecoveryHandler | undefined;
 
@@ -209,7 +218,11 @@ export class StalkerSessionService {
         if (
             outcome.kind !== 'success' &&
             this.isRecoverable(outcome) &&
-            (await this.recover(playlist, outcome, 'request'))
+            (await this.recover({
+                outcome,
+                playlist,
+                trigger: 'request',
+            })) !== undefined
         ) {
             const recoveredLease = this.getLeaseRef(playlist._id);
             if (recoveredLease !== undefined) {
@@ -351,6 +364,16 @@ export class StalkerSessionService {
         ) as T;
     }
 
+    recoverEndpointShape(playlist: Playlist): Promise<Playlist | undefined> {
+        if (!this.supportsTypedSessions()) {
+            return Promise.resolve(undefined);
+        }
+        return this.recover({
+            playlist,
+            trigger: 'endpoint-shape',
+        });
+    }
+
     private async resolveLease(
         playlist: Playlist
     ): Promise<StalkerSessionLeaseRef> {
@@ -363,7 +386,11 @@ export class StalkerSessionService {
         if (outcome.kind !== 'ready' || outcome.recipe !== 'full-session') {
             if (
                 this.isRecoverable(outcome) &&
-                (await this.recover(playlist, outcome, 'open'))
+                (await this.recover({
+                    outcome,
+                    playlist,
+                    trigger: 'open',
+                })) !== undefined
             ) {
                 const recoveredLease = this.getLeaseRef(playlist._id);
                 if (recoveredLease !== undefined) {
@@ -399,30 +426,25 @@ export class StalkerSessionService {
     }
 
     private recover(
-        playlist: Playlist,
-        outcome: StalkerSessionNonSuccessOutcome,
-        trigger: StalkerSessionRecoveryRequest['trigger']
-    ): Promise<boolean> {
-        const active = this.recoveryByPlaylistRef.get(playlist._id);
+        request: StalkerSessionRecoveryRequest
+    ): Promise<Playlist | undefined> {
+        const active = this.recoveryByPlaylistRef.get(request.playlist._id);
         if (active !== undefined) {
             return active;
         }
         const handler = this.recoveryHandler;
         if (handler === undefined) {
-            return Promise.resolve(false);
+            return Promise.resolve(undefined);
         }
-        const recovery = Promise.resolve(
-            handler({
-                outcome,
-                playlist,
-                trigger,
-            })
-        ).finally(() => {
-            if (this.recoveryByPlaylistRef.get(playlist._id) === recovery) {
-                this.recoveryByPlaylistRef.delete(playlist._id);
+        const recovery = Promise.resolve(handler(request)).finally(() => {
+            if (
+                this.recoveryByPlaylistRef.get(request.playlist._id) ===
+                recovery
+            ) {
+                this.recoveryByPlaylistRef.delete(request.playlist._id);
             }
         });
-        this.recoveryByPlaylistRef.set(playlist._id, recovery);
+        this.recoveryByPlaylistRef.set(request.playlist._id, recovery);
         return recovery;
     }
 

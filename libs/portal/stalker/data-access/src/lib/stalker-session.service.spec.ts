@@ -423,6 +423,34 @@ describe('StalkerSessionService', () => {
         expect(bridge.stalkerSessionRequest).not.toHaveBeenCalled();
     });
 
+    it('single-flights endpoint-shape recovery with a sanitized trigger and returns the updated playlist', async () => {
+        const rediscovered: Playlist = {
+            ...PLAYLIST,
+            portalUrl: 'https://portal.example/portal.php',
+            stalkerRequestRecipe: 'stateless-mac',
+        };
+        let resolveRecovery!: (value: Playlist | undefined) => void;
+        const recovery = new Promise<Playlist | undefined>((resolve) => {
+            resolveRecovery = resolve;
+        });
+        const recover = jest.fn(() => recovery);
+        service.registerRecoveryHandler(recover);
+
+        const first = service.recoverEndpointShape(PLAYLIST);
+        const second = service.recoverEndpointShape(PLAYLIST);
+        resolveRecovery(rediscovered);
+
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            rediscovered,
+            rediscovered,
+        ]);
+        expect(recover).toHaveBeenCalledTimes(1);
+        expect(recover).toHaveBeenCalledWith({
+            playlist: PLAYLIST,
+            trigger: 'endpoint-shape',
+        });
+    });
+
     it('lets the route recover a principal transition and reissues the original operation exactly once', async () => {
         const transition: StalkerSessionRequestOutcome = {
             kind: 'failure',
@@ -450,7 +478,7 @@ describe('StalkerSessionService', () => {
                 connectionMode: 'provisional',
                 provisionalReason: 'migration',
             });
-            return true;
+            return PLAYLIST;
         });
         service.registerRecoveryHandler(recover);
 
@@ -521,8 +549,8 @@ describe('StalkerSessionService', () => {
                 payload: { items: [] },
                 requestId: 'request-categories-retried',
             });
-        let resolveRecovery!: (value: boolean) => void;
-        const recovery = new Promise<boolean>((resolve) => {
+        let resolveRecovery!: (value: Playlist | undefined) => void;
+        const recovery = new Promise<Playlist | undefined>((resolve) => {
             resolveRecovery = resolve;
         });
         const recover = jest.fn(() => recovery);
@@ -538,7 +566,7 @@ describe('StalkerSessionService', () => {
         });
         await Promise.resolve();
         await Promise.resolve();
-        resolveRecovery(true);
+        resolveRecovery(PLAYLIST);
 
         await expect(Promise.all([first, second])).resolves.toEqual([
             { js: [] },
@@ -574,7 +602,7 @@ describe('StalkerSessionService', () => {
                     username: 'entered-user',
                 },
             });
-            return true;
+            return PLAYLIST;
         });
         service.registerRecoveryHandler(recover);
 
@@ -594,8 +622,8 @@ describe('StalkerSessionService', () => {
     });
 
     it('unregisters only the matching route recovery handler', async () => {
-        const first = jest.fn(async () => true);
-        const second = jest.fn(async () => true);
+        const first = jest.fn(async () => PLAYLIST);
+        const second = jest.fn(async () => PLAYLIST);
         const unregisterFirst = service.registerRecoveryHandler(first);
         service.registerRecoveryHandler(second);
 

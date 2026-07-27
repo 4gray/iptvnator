@@ -2,8 +2,10 @@ import {
     type PlaylistMeta,
     STALKER_REQUEST,
 } from '@iptvnator/shared/interfaces';
+import { STALKER_RECIPE_CLASSIFIER_VERSION } from '@iptvnator/portal/stalker/protocol';
 import {
     executeStalkerRequest,
+    StalkerEndpointShapeRecoveryError,
     type StalkerRequestDeps,
 } from './stalker-request.utils';
 
@@ -19,6 +21,7 @@ function createDeps(typedSessionsAvailable: boolean): StalkerRequestDeps {
         },
         stalkerSession: {
             makeAuthenticatedRequest: jest.fn().mockResolvedValue({ js: [] }),
+            recoverEndpointShape: jest.fn().mockResolvedValue(undefined),
             supportsTypedSessions: jest
                 .fn()
                 .mockReturnValue(typedSessionsAvailable),
@@ -32,6 +35,7 @@ function fullPlaylist(): PlaylistMeta {
         isFullStalkerPortal: true,
         macAddress: 'has-mac-address',
         portalUrl: 'https://portal.example.test/stalker_portal/server/load.php',
+        stalkerRecipeClassifierVersion: STALKER_RECIPE_CLASSIFIER_VERSION,
         stalkerRequestRecipe: 'full-session',
         stalkerDeviceId1: 'has-device-id-1',
         stalkerDeviceId2: 'has-device-id-2',
@@ -39,6 +43,18 @@ function fullPlaylist(): PlaylistMeta {
         stalkerSignature1: 'has-signature-1',
         stalkerSignature2: 'has-signature-2',
         title: 'Full Stalker Portal',
+    } as PlaylistMeta;
+}
+
+function currentStatelessPlaylist(): PlaylistMeta {
+    return {
+        _id: 'stalker-basic',
+        isFullStalkerPortal: false,
+        macAddress: 'has-mac-address',
+        portalUrl: 'https://portal.example.test/server/load.php',
+        stalkerRecipeClassifierVersion: STALKER_RECIPE_CLASSIFIER_VERSION,
+        stalkerRequestRecipe: 'stateless-mac',
+        title: 'Basic Stalker Portal',
     } as PlaylistMeta;
 }
 
@@ -158,5 +174,163 @@ describe('executeStalkerRequest', () => {
         expect(
             deps.stalkerSession.makeAuthenticatedRequest
         ).not.toHaveBeenCalled();
+    });
+
+    it.each([404, 405, 501])(
+        'reclassifies a current stateless recipe after endpoint status %i and reissues through the promoted full session',
+        async (status) => {
+            const deps = createDeps(true);
+            const playlist = currentStatelessPlaylist();
+            const endpointFailure = {
+                message: 'endpoint unavailable',
+                status,
+            };
+            (
+                deps.dataService.sendIpcEvent as jest.Mock
+            ).mockRejectedValueOnce(endpointFailure);
+            (
+                deps.stalkerSession.recoverEndpointShape as jest.Mock
+            ).mockResolvedValueOnce(fullPlaylist());
+
+            await expect(
+                executeStalkerRequest(deps, playlist, CATEGORY_PARAMS)
+            ).resolves.toEqual({ js: [] });
+
+            expect(
+                deps.stalkerSession.recoverEndpointShape
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    _id: playlist._id,
+                    lastUsage: '',
+                })
+            );
+            expect(deps.dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+            expect(
+                deps.stalkerSession.makeAuthenticatedRequest
+            ).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it.each([
+        '<!doctype html><html><body>Portal landing</body></html>',
+        {},
+    ])(
+        'reclassifies a current stateless recipe after an incompatible endpoint envelope',
+        async (incompatibleResponse) => {
+            const deps = createDeps(true);
+            const playlist = currentStatelessPlaylist();
+            const rediscovered = {
+                ...playlist,
+                portalUrl: 'https://portal.example.test/portal.php',
+            };
+            (deps.dataService.sendIpcEvent as jest.Mock)
+                .mockResolvedValueOnce(incompatibleResponse)
+                .mockResolvedValueOnce({ js: [{ id: '7' }] });
+            (
+                deps.stalkerSession.recoverEndpointShape as jest.Mock
+            ).mockResolvedValueOnce(rediscovered);
+
+            await expect(
+                executeStalkerRequest(deps, playlist, CATEGORY_PARAMS)
+            ).resolves.toEqual({ js: [{ id: '7' }] });
+
+            expect(
+                deps.stalkerSession.recoverEndpointShape
+            ).toHaveBeenCalledTimes(1);
+            expect(deps.dataService.sendIpcEvent).toHaveBeenNthCalledWith(
+                2,
+                STALKER_REQUEST,
+                {
+                    url: rediscovered.portalUrl,
+                    macAddress: rediscovered.macAddress,
+                    params: CATEGORY_PARAMS,
+                }
+            );
+        }
+    );
+
+    it('spends at most one reclassification budget when the rediscovered endpoint is also incompatible', async () => {
+        const deps = createDeps(true);
+        const playlist = currentStatelessPlaylist();
+        const rediscovered = {
+            ...playlist,
+            portalUrl: 'https://portal.example.test/portal.php',
+        };
+        (deps.dataService.sendIpcEvent as jest.Mock).mockResolvedValue({});
+        (
+            deps.stalkerSession.recoverEndpointShape as jest.Mock
+        ).mockResolvedValueOnce(rediscovered);
+
+        await expect(
+            executeStalkerRequest(deps, playlist, CATEGORY_PARAMS)
+        ).rejects.toEqual(new StalkerEndpointShapeRecoveryError());
+
+        expect(
+            deps.stalkerSession.recoverEndpointShape
+        ).toHaveBeenCalledTimes(1);
+        expect(deps.dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails closed when an incompatible HTTP 200 envelope cannot be reclassified', async () => {
+        const deps = createDeps(true);
+        const playlist = currentStatelessPlaylist();
+        (deps.dataService.sendIpcEvent as jest.Mock).mockResolvedValue({});
+        (
+            deps.stalkerSession.recoverEndpointShape as jest.Mock
+        ).mockRejectedValueOnce(new Error('provisional discovery failed'));
+
+        await expect(
+            executeStalkerRequest(deps, playlist, CATEGORY_PARAMS)
+        ).rejects.toEqual(new StalkerEndpointShapeRecoveryError());
+
+        expect(
+            deps.stalkerSession.recoverEndpointShape
+        ).toHaveBeenCalledTimes(1);
+        expect(deps.dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves the original unsupported-status failure when reclassification fails', async () => {
+        const deps = createDeps(true);
+        const playlist = currentStatelessPlaylist();
+        const endpointFailure = {
+            message: 'endpoint unavailable',
+            status: 404,
+        };
+        (
+            deps.dataService.sendIpcEvent as jest.Mock
+        ).mockRejectedValueOnce(endpointFailure);
+        (
+            deps.stalkerSession.recoverEndpointShape as jest.Mock
+        ).mockRejectedValueOnce(new Error('provisional discovery failed'));
+
+        await expect(
+            executeStalkerRequest(deps, playlist, CATEGORY_PARAMS)
+        ).rejects.toBe(endpointFailure);
+
+        expect(
+            deps.stalkerSession.recoverEndpointShape
+        ).toHaveBeenCalledTimes(1);
+        expect(deps.dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves the legacy PWA failure path without attempting recipe recovery', async () => {
+        const deps = createDeps(false);
+        const playlist = currentStatelessPlaylist();
+        const endpointFailure = {
+            message: 'endpoint unavailable',
+            status: 404,
+        };
+        (
+            deps.dataService.sendIpcEvent as jest.Mock
+        ).mockRejectedValueOnce(endpointFailure);
+
+        await expect(
+            executeStalkerRequest(deps, playlist, CATEGORY_PARAMS)
+        ).rejects.toBe(endpointFailure);
+
+        expect(
+            deps.stalkerSession.recoverEndpointShape
+        ).not.toHaveBeenCalled();
+        expect(deps.dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
     });
 });

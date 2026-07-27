@@ -57,6 +57,24 @@ const READY: StalkerSessionFullReadyOutcome = {
     requestId: 'request-ready-route-1',
 };
 
+const STATELESS_READY: StalkerSessionConnectionOutcome = {
+    attemptRef: 'attempt-stateless-route-1',
+    connectionMode: 'provisional',
+    endpoint: 'https://portal.example/portal.php',
+    kind: 'ready',
+    landingUrl: 'https://portal.example/c/',
+    persistenceDraft: {
+        isFullStalkerPortal: false,
+        portalUrl: 'https://portal.example/portal.php',
+        stalkerLandingUrl: 'https://portal.example/c/',
+        stalkerRecipeClassifierVersion: 1,
+        stalkerRequestRecipe: 'stateless-mac',
+    },
+    provisionalReason: 'migration',
+    recipe: 'stateless-mac',
+    requestId: 'request-stateless-route-1',
+};
+
 const CONTROL_SUCCESS = {
     action: 'commit' as const,
     kind: 'success' as const,
@@ -265,6 +283,50 @@ describe('StalkerConnectionFlowService', () => {
         expect(session.open).not.toHaveBeenCalled();
     });
 
+    it('explicitly clears saved credentials when reclassification resolves to stateless', async () => {
+        const playlist = {
+            ...LEGACY_PLAYLIST,
+            password: 'saved-password',
+            username: 'saved-user',
+        };
+        session.open.mockResolvedValueOnce(STATELESS_READY);
+
+        const connected = await service.ensureConnected(playlist);
+
+        expect(connected).not.toHaveProperty('username');
+        expect(connected).not.toHaveProperty('password');
+        expect(playlists.persistStalkerConnection).toHaveBeenCalledWith(
+            expect.not.objectContaining({
+                password: expect.anything(),
+                username: expect.anything(),
+            }),
+            { clearCredentials: true }
+        );
+    });
+
+    it('preserves saved credentials for an untouched full-session ready outcome', async () => {
+        const playlist = {
+            ...LEGACY_PLAYLIST,
+            password: 'saved-password',
+            stalkerRecipeClassifierVersion: 1,
+            stalkerRequestRecipe: 'full-session' as const,
+            username: 'saved-user',
+        };
+        session.open.mockResolvedValueOnce(READY);
+
+        await service.ensureConnected(playlist);
+
+        expect(playlists.persistStalkerConnection).toHaveBeenCalledWith(
+            expect.objectContaining({
+                password: 'saved-password',
+                username: 'saved-user',
+            })
+        );
+        expect(
+            playlists.persistStalkerConnection.mock.calls[0]
+        ).toHaveLength(1);
+    });
+
     it('lets a full-session recipe override a stale false legacy boolean', async () => {
         session.open.mockResolvedValueOnce(READY);
         const playlist = {
@@ -451,6 +513,9 @@ describe('StalkerConnectionFlowService', () => {
             .calls[0][0] as Playlist;
         expect(persisted.username).toBeUndefined();
         expect(persisted.password).toBeUndefined();
+        expect(
+            playlists.persistStalkerConnection.mock.calls[0][1]
+        ).toEqual({ clearCredentials: true });
     });
 
     it('invalidates saved credentials when open redirects before the target becomes ready', async () => {
@@ -478,6 +543,9 @@ describe('StalkerConnectionFlowService', () => {
             .calls[0][0] as Playlist;
         expect(persisted.username).toBeUndefined();
         expect(persisted.password).toBeUndefined();
+        expect(
+            playlists.persistStalkerConnection.mock.calls[0][1]
+        ).toEqual({ clearCredentials: true });
     });
 
     it('discards the active credential challenge when the dialog is explicitly cancelled', async () => {
@@ -705,6 +773,35 @@ describe('StalkerConnectionFlowService', () => {
         );
     });
 
+    it('reclassifies a current stateless recipe for a sanitized endpoint-shape recovery request', async () => {
+        const simple = {
+            ...LEGACY_PLAYLIST,
+            isFullStalkerPortal: false,
+            stalkerRecipeClassifierVersion: 1,
+            stalkerRequestRecipe: 'stateless-mac' as const,
+        };
+        session.open.mockResolvedValue(READY);
+        const handler = session.recoveryHandler();
+        expect(handler).toBeDefined();
+
+        await expect(
+            handler?.({
+                playlist: simple,
+                trigger: 'endpoint-shape',
+            })
+        ).resolves.toMatchObject({
+            portalUrl:
+                'https://portal.example/stalker_portal/server/load.php',
+            stalkerRequestRecipe: 'full-session',
+        });
+
+        expect(session.open).toHaveBeenCalledWith(simple, {
+            connectionMode: 'provisional',
+            provisionalReason: 'migration',
+        });
+        expect(session.commit).toHaveBeenCalledWith('attempt-route-1');
+    });
+
     it('opens a provisional replacement for a principal transition and enables one facade reissue', async () => {
         session.open.mockResolvedValue(READY);
         const handler = session.recoveryHandler();
@@ -722,7 +819,9 @@ describe('StalkerConnectionFlowService', () => {
                 playlist: LEGACY_PLAYLIST,
                 trigger: 'request',
             })
-        ).resolves.toBe(true);
+        ).resolves.toMatchObject({
+            stalkerRequestRecipe: 'full-session',
+        });
 
         expect(session.open).toHaveBeenCalledWith(LEGACY_PLAYLIST, {
             connectionMode: 'provisional',

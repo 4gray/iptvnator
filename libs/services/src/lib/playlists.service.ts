@@ -99,6 +99,10 @@ const STALKER_CONNECTION_FIELDS = [
     'username',
 ] as const satisfies readonly (keyof Playlist)[];
 
+export interface StalkerConnectionPersistenceOptions {
+    readonly clearCredentials?: boolean;
+}
+
 export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
     const parse = parserModule.parse ?? parserModule.default?.parse;
 
@@ -494,10 +498,14 @@ export class PlaylistsService {
      * refresh, and display-setting changes survive this promotion boundary.
      *
      * The legacy bearer token is always removed. Omitted credentials preserve
-     * an existing accepted pair, which lets saved-credential reconnects update
-     * endpoint/profile metadata without rewriting secrets.
+     * an existing accepted pair unless the verified connection flow explicitly
+     * invalidates them. A stateless recipe cannot own credentials and always
+     * clears any pair left by an earlier full-session classification.
      */
-    persistStalkerConnection(draft: Playlist): Observable<Playlist> {
+    persistStalkerConnection(
+        draft: Playlist,
+        options: StalkerConnectionPersistenceOptions = {}
+    ): Observable<Playlist> {
         const playlistId = String(draft?._id ?? '').trim();
         if (!playlistId) {
             throw new Error('Playlist ID is required');
@@ -519,6 +527,13 @@ export class PlaylistsService {
                           _id: playlistId,
                       };
             delete nextPlaylist.stalkerToken;
+            if (
+                options.clearCredentials === true ||
+                safeDraft.stalkerRequestRecipe === 'stateless-mac'
+            ) {
+                delete nextPlaylist.username;
+                delete nextPlaylist.password;
+            }
 
             await this.persistPlaylistMutation(nextPlaylist);
             return nextPlaylist;

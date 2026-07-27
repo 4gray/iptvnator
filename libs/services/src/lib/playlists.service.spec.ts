@@ -1750,7 +1750,7 @@ describe('PlaylistsService', () => {
                     macAddress: '00:1A:79:AA:BB:CC',
                     password: undefined,
                     portalUrl: 'https://portal.example/portal.php',
-                    stalkerRequestRecipe: 'stateless-mac',
+                    stalkerRequestRecipe: 'full-session',
                     title: 'Updated Portal',
                     username: undefined,
                 })
@@ -1758,6 +1758,76 @@ describe('PlaylistsService', () => {
 
             expect(store.current.username).toBe('saved-user');
             expect(store.current.password).toBe('saved-password');
+        });
+
+        it('removes prior credentials when a verified Stalker promotion explicitly clears them', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('stalker-cleared-credentials'),
+                macAddress: '00:1A:79:AA:BB:CC',
+                password: 'candidate-password',
+                portalUrl: 'https://old.example/server/load.php',
+                username: 'candidate-user',
+            } as Playlist);
+            testWindow.electron = electron;
+            const service = createService();
+
+            await firstValueFrom(
+                service.persistStalkerConnection(
+                    {
+                        _id: 'stalker-cleared-credentials',
+                        autoRefresh: false,
+                        count: 0,
+                        importDate: '2026-07-27T00:00:00.000Z',
+                        lastUsage: '2026-07-27T00:00:00.000Z',
+                        macAddress: '00:1A:79:AA:BB:CC',
+                        portalUrl:
+                            'https://new.example/stalker_portal/server/load.php',
+                        stalkerRecipeClassifierVersion: 1,
+                        stalkerRequestRecipe: 'full-session',
+                        title: 'Reclassified Portal',
+                    },
+                    { clearCredentials: true }
+                )
+            );
+
+            expect(store.current).not.toHaveProperty('username');
+            expect(store.current).not.toHaveProperty('password');
+            expect(
+                electron.dbUpsertAppPlaylist.mock.calls.at(-1)?.[0]
+            ).not.toHaveProperty('username');
+            expect(
+                electron.dbUpsertAppPlaylist.mock.calls.at(-1)?.[0]
+            ).not.toHaveProperty('password');
+        });
+
+        it('removes prior credentials whenever the verified recipe becomes stateless', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('stalker-stateless-credentials'),
+                macAddress: '00:1A:79:AA:BB:CC',
+                password: 'obsolete-password',
+                portalUrl: 'https://old.example/server/load.php',
+                username: 'obsolete-user',
+            } as Playlist);
+            testWindow.electron = electron;
+            const service = createService();
+
+            await firstValueFrom(
+                service.persistStalkerConnection({
+                    _id: 'stalker-stateless-credentials',
+                    autoRefresh: false,
+                    count: 0,
+                    importDate: '2026-07-27T00:00:00.000Z',
+                    lastUsage: '2026-07-27T00:00:00.000Z',
+                    macAddress: '00:1A:79:AA:BB:CC',
+                    portalUrl: 'https://new.example/portal.php',
+                    stalkerRecipeClassifierVersion: 1,
+                    stalkerRequestRecipe: 'stateless-mac',
+                    title: 'Stateless Portal',
+                })
+            );
+
+            expect(store.current).not.toHaveProperty('username');
+            expect(store.current).not.toHaveProperty('password');
         });
 
         it('merges only connection-owned fields from a stale Stalker authentication snapshot', async () => {
