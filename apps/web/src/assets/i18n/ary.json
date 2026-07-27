@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "فشل تحديث قائمة التشغيل. الملف المحلي ما بقاش متوفر. تحقق من مسار الملف ولا استورد قائمة التشغيل من جديد.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "فشل تحديث قائمة التشغيل. التطبيق ما قدرش يوصل للملف المحلي.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! قوائم التشغيل تحدثات بنجاح",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "التحديث التلقائي ما كملش: تحدّاو {{updated}} من {{total}} ديال قوائم التشغيل، و{{failed}} فشلو.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "التحديث التلقائي ما كملش: تحدّاو {{updated}} من {{total}} ديال قوائم التشغيل، {{failed}} فشلو، و{{skipped}} تخطاو (بلا رابط ولا مسار ملف).",
+            "AUTO_REFRESH_UPDATE_FAILED": "فشل التحديث التلقائي ديال قوائم التشغيل. حتى وحدة من {{total}} ما تحدّاتش.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "التحديث التلقائي ديال قوائم التشغيل: تحدّاو {{updated}} من {{total}}، و{{skipped}} تخطاو (بلا رابط ولا مسار ملف).",
             "AUTO_REFRESH_ENABLED": "التحديث التلقائي مفعل"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "تأكد من المفتاح",
         "TMDB_TEST_SUCCESS": "المفتاح خدام — TMDB جاوب مزيان",
         "TMDB_TEST_FAILED": "التحقق ما نجحش — TMDB رفض المفتاح ولا ما يمكنش الوصول ليه",
+        "TMDB_CACHE": "كاش ديال البيانات الوصفية",
+        "TMDB_CACHE_DESCRIPTION": "البيانات الوصفية اللي تحملات كتبقى محفوظة محلياً باش صفحات التفاصيل تتفتح دغيا. إلا مسحتيها، التطبيق غايجيب بيانات جديدة فالمرة الجاية.",
+        "TMDB_CACHE_SIZE": "{{entries}} عنصر · {{size}}",
+        "TMDB_CACHE_CLEAR": "مسح الكاش",
+        "TMDB_CACHE_ERROR": "ماقدرناش نقراو الكاش — عاود جرب",
         "TMDB_CREDITS": "الميتاداتا",
         "TMDB_ATTRIBUTION": "هاد المنتج كيستعمل TMDB API ولكن ماشي معتمد ولا مصادق عليه من طرف TMDB.",
         "APP_PREFERENCES": "تفضيلات التطبيق",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "جاري المسح…",
         "EPG_URL_ERROR": "القيمة ماشي رابط صحيح",
         "VIDEO_PLAYER_DESCRIPTION": "اختار مشغل الفيديو الافتراضي",
+        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحدة لمشغلات الويب (تجريبية)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استعمل عناصر التحكم المشتركة ديال IPTVnator مع HTML5 وVideo.js وArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "خلفية محيطة",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "ملي المساحة حول المشغل بغلاف معتم وطابت بلاصة الشرائط السوداء.",
+        "PLAYER_UP_NEXT_RAIL": "شريط الحلقات الجاية",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "فالنوافذ العريضة، حط مشغل السلسلة على اليسار وبيّن الحلقات الجاية بحداه.",
         "STREAM_FORMAT_DESCRIPTION": "اختار صيغة البث الافتراضية (xtream)",
         "LANGUAGE_DESCRIPTION": "اختار لغة التطبيق",
         "THEME_DESCRIPTION": "اختار المظهر المرئي للتطبيق",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "وري ولا خفي الترجمة افتراضياً",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "وري شريط التشغيل الحالي",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "خلي شريط حالة المشغل الخارجي ظاهر في الأسفل ديال مساحة العمل على سطح المكتب.",
+        "STRIP_COUNTRY_PREFIX": "حيد بادئات البلد من أسماء القنوات",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "كيحيد بادئات البلد/المجموعة بحال \"US | \" ولا \"UK - \" من أسماء قنوات البث المباشر فكامل التطبيق.",
         "VERSION_DESCRIPTION": "الإصدار الحالي ديال التطبيق",
         "ABOUT_SUBTITLE": "الإصدار، روابط المشروع، وطرق دعم IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "وقت تشغيل MPV المدمج",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "MPV المدمج: محرك نسخ الإطارات (تجريبي)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "الفيديو كيترسم على لوحة التطبيق باش القوائم والحوارات يبانو فوقو.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "غادي يخدم من بعد ما تعاود تشغل التطبيق."
     },
     "THEMES": {
         "DARK_THEME": "داكن",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "رجوع",
             "RETRY": "حاول مرة أخرى",
             "STALLED": "هاد البث كياخد وقت كثر من المتوقع باش يبدا.",
             "PLAYBACK_FAILED": "فشل التشغيل بـ MPV المدمج.",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "رجع 10 ثواني",
             "FORWARD_10_SECONDS": "قدّم 10 ثواني",
             "LIVE_STREAM": "بث مباشر",
+            "PLAYBACK_POSITION": "موضع التشغيل",
             "MUTE": "كتم الصوت",
             "UNMUTE": "رجّع الصوت",
             "MUTED": "الصوت مكتوم",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "التسجيل ما قدرش يبدا.",
             "RECORDING_FAILED_TO_STOP": "التسجيل ما قدرش يتوقف.",
             "SAVED_TO": "تحفظ في {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "شغّل صورة داخل صورة",
+            "EXIT_PICTURE_IN_PICTURE": "خرج من صورة داخل صورة",
             "ENTER_FULLSCREEN": "دخل لملء الشاشة",
             "EXIT_FULLSCREEN": "خرج من ملء الشاشة"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "حيد من المفضلة",
         "ADD_FAVORITE": "زيد للمفضلة",
         "SHOW_DETAILS": "وري تفاصيل القناة",
+        "MAP_EPG": "ربط قناة ديال EPG",
         "FAVORITES_UPDATED": "المفضلة تحدثات!",
         "SELECT_CHANNEL_PLAYBACK": "عفاك اختار قناة باش يبدا التشغيل",
         "SORT_BY": "رتب بـ",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "وري ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "ربط قناة ديال EPG",
+        "SUBTITLE": "اختار يدويا قناة EPG لـ \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "قلب على قنوات EPG...",
+        "CURRENT_MAPPING": "الربط الحالي",
+        "NO_MAPPING": "ما كاين حتى ربط ديال EPG",
+        "SAVE": "سجل الربط",
+        "REMOVE": "حيد الربط",
+        "CLOSE": "سد",
+        "NO_RESULTS": "ما لقينا حتى قناة EPG",
+        "SEARCH_HINT": "كتب على الأقل {{min}} حروف باش تقلب",
+        "SAVED": "تسجل الربط ديال EPG",
+        "REMOVED": "تحيد الربط ديال EPG",
+        "SAVE_FAILED": "ما قدرناش نبدلو الربط ديال EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "آه",
     "NO": "لا",
@@ -756,6 +797,8 @@
         "ACTORS": "الممثلون",
         "DIRECTOR": "المخرج",
         "SIMILAR": "بحال هادو",
+        "CREW_JOB_DIRECTOR": "المخرج",
+        "CREW_JOB_CREATOR": "المبتكر",
         "ACTOR_FILMOGRAPHY": "الأفلام ديالو",
         "ACTOR_FILTER_ALL": "كلشي",
         "ACTOR_SCOPE_THIS_PORTAL": "هاد البوابة",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "كاين فالمكتبة ديالك",
         "ACTOR_SEARCH_IN_PORTAL": "قلب فالبوابة",
         "ACTOR_BORN": "مزداد:",
+        "ACTOR_DIED": "توفا",
+        "SERIES_STATUS_RETURNING": "مستمر",
+        "SERIES_STATUS_PLANNED": "مخطط",
+        "SERIES_STATUS_IN_PRODUCTION": "كيتصور",
+        "SERIES_STATUS_ENDED": "سالا",
+        "SERIES_STATUS_CANCELED": "تلغا",
+        "SERIES_STATUS_PILOT": "حلقة تجريبية",
         "DURATION": "المدة",
         "CAST": "طاقم التمثيل",
         "EPISODE_RUN_TIME": "مدة تشغيل الحلقة",
@@ -779,6 +829,7 @@
         "RESTART": "بدا من الأول",
         "CONTINUE_WATCHING": "كمل المشاهدة",
         "PLAY_FIRST_EPISODE": "شغل الحلقة الأولى",
+        "PLAY_EPISODE": "شغل الحلقة {{episode}}",
         "RESUME_EPISODE": "كمل الحلقة",
         "PLAY_NEXT_EPISODE": "شغل الحلقة الجاية",
         "SERIES_WATCHED": "السلسلة متشافة",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "رابط البث تنقل للحافظة",
         "COPY_STREAM_URL": "نسخ رابط البث",
         "NOW_PLAYING": "كيتشغل دابا",
+        "UP_NEXT": "اللي جاي",
         "CLOSE_PLAYER": "سد المشغل",
         "ABOUT": "حول",
         "SEASONS_AND_EPISODES": "المواسم والحلقات",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "هاد المحتوى ما متوفرش على هاد السيرفر",
         "PLAYBACK_ERROR": "فشل جلب رابط التشغيل",
         "LOADING_SEASONS": "جاري تشريج المواسم...",
+        "LOADING_ALL_CHANNELS": "كيتم تحميل لائحة القنوات كاملة…",
+        "REFRESH_CHANNEL_LIST": "تحديث لائحة القنوات",
+        "NO_CHANNELS_IN_CATEGORY": "ماكاينش قنوات فهاد الصنف",
+        "ITEM": "عنصر",
+        "ITEMS": "عناصر",
         "NO_EPISODES": "ما كاينش حلقات متوفرة",
         "ALL_RADIO": "All radio"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "هاد التحميل ما يقدرش يتحل في المكتبة حيت قائمة التشغيل المصدر تحيدات.",
         "FILE_NOT_FOUND": "هاد الملف المحمل ما بقاش متوفر على القرص.",
         "FILE_ACTION_ERROR": "العملية على الملف ما تكملاتش.",
+        "ACTION_FAILED": "العملية ما نجحاتش",
+        "PAUSE": "وقّف مؤقتاً",
+        "RESUME": "كمّل",
         "CANCEL": "إلغاء",
         "RETRY": "حاول مرة أخرى",
         "REMOVE": "حيد",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "جاري التحميل",
             "COMPLETED": "كمل",
             "FAILED": "فشل",
-            "CANCELED": "تلغى"
+            "CANCELED": "تلغى",
+            "PAUSED": "موقوف مؤقتاً"
         }
     },
     "REMOTE_CONTROL": {

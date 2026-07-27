@@ -196,6 +196,62 @@ https://stream.example/news.m3u8`);
         );
     });
 
+    it('extracts KODIPROP ClearKey DRM on the /parse URL-import path', async () => {
+        const httpClient = new StubHttpClient();
+        const kid = '00112233445566778899aabbccddeeff';
+        const key = 'ffeeddccbbaa99887766554433221100';
+        // First channel uses the KODIPROP-before-#EXTINF layout (supported
+        // since the 0.15.2-iptvnator.2 parser pin), the second the common
+        // between-#EXTINF-and-URL layout.
+        httpClient.queueResponse(`#EXTM3U
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=${kid}:${key}
+#EXTINF:-1 tvg-id="ck" group-title="DASH",Encrypted DASH
+https://stream.example/enc.mpd
+#EXTINF:-1 tvg-id="ck2" group-title="DASH",Encrypted DASH 2
+#KODIPROP:inputstream.adaptive.license_type=clearkey
+#KODIPROP:inputstream.adaptive.license_key=${kid}:${key}
+https://stream.example/enc2.mpd
+#EXTINF:-1 tvg-id="plain",Plain Channel
+https://stream.example/live.m3u8`);
+
+        await withServer(
+            createWebBackendApp({
+                clientOrigins: ['http://localhost:4200'],
+                guid: () => 'fixed-id',
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'https://provider.example/drm.m3u'
+                );
+                const response = await fetch(
+                    `${baseUrl}/parse?targetId=${targetId}`,
+                    { headers: { Origin: 'http://localhost:4200' } }
+                );
+                const body = (await response.json()) as {
+                    playlist: { items: Array<Record<string, unknown>> };
+                };
+
+                expect(response.status).toBe(200);
+                expect(body.playlist.items).toHaveLength(3);
+                expect(body.playlist.items[0]['drm']).toEqual({
+                    licenseType: 'clearkey',
+                    supported: true,
+                    clearKeys: { [kid]: key },
+                });
+                expect(body.playlist.items[1]['drm']).toEqual({
+                    licenseType: 'clearkey',
+                    supported: true,
+                    clearKeys: { [kid]: key },
+                });
+                expect(body.playlist.items[2]['drm']).toBeUndefined();
+            }
+        );
+    });
+
     it('allows browser preflight checks for provider target registration', async () => {
         await withServer(
             createWebBackendApp({

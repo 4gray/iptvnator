@@ -33,6 +33,7 @@ The application is a cross-platform, open-source project built with Electron and
 **Playback**
 
 - Built-in HTML5 player (HLS.js or Video.js) with a resizable, resumable inline view
+- Optional unified IPTVnator controls for HTML5, Video.js, and ArtPlayer, enabled in **Settings → Playback** _(experimental)_
 - External players — MPV, VLC, and IINA on macOS (`mpv.app` / `VLC.app` bundle paths supported) _(desktop)_
 - Embedded MPV — native mpv rendered inside the app window on macOS, Windows & Linux 🖥️ _(experimental · desktop)_
 - Dedicated radio player for `radio="true"` streams 📻
@@ -66,7 +67,7 @@ The application is a cross-platform, open-source project built with Electron and
 - Cross-platform desktop (Electron) and installable PWA
 - Desktop auto-updater and mobile remote control _(desktop)_
 - Docker self-hosting for the PWA + web backend
-- 18 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
+- 19 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
 
 ## Keyboard shortcuts
 
@@ -298,13 +299,6 @@ $ IPTVNATOR_E2E_DATA_DIR="$PWD/.tmp/iptvnator-empty" pnpm run serve:backend
 This redirects the SQLite database, Electron user data, and local config under
 the given directory. Delete that directory whenever you want a fresh empty
 state.
-
-If you need to debug renderer freezes or GPU/compositor issues in Electron, you
-can disable hardware acceleration for a run:
-
-```
-$ IPTVNATOR_DISABLE_HARDWARE_ACCELERATION=1 pnpm run serve:backend
-```
 
 If you need startup diagnostics for a white screen or a frozen route, you can
 also turn on opt-in Electron tracing. These logs are written to the Electron

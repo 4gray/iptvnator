@@ -31,6 +31,9 @@ export function createSettingsForm(
 ) {
     return formBuilder.group({
         player: [VideoPlayer.VideoJs],
+        webPlayerSharedControls: false,
+        playerAmbientMode: false,
+        playerUpNextRail: true,
         ...(supportsEpg
             ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
             : {}),
@@ -54,6 +57,7 @@ export function createSettingsForm(
         }),
         startupBehavior: StartupBehavior.FirstView,
         showExternalPlaybackBar: true,
+        stripCountryPrefix: false,
         theme: Theme.SystemTheme,
         mpvPlayerPath: '',
         mpvPlayerArguments: '',
@@ -72,6 +76,7 @@ export function createSettingsForm(
             ],
         ],
         recordingFolder: '',
+        embeddedMpvFrameCopy: false,
         coverSize: 'medium' as CoverSize,
         ...(supportsEpg
             ? {
@@ -113,6 +118,9 @@ export function createSettingsFromFormValue(
 
     return {
         player: value.player ?? VideoPlayer.VideoJs,
+        webPlayerSharedControls: value.webPlayerSharedControls ?? false,
+        playerAmbientMode: value.playerAmbientMode ?? false,
+        playerUpNextRail: value.playerUpNextRail ?? true,
         streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
         language: value.language ?? Language.ENGLISH,
@@ -121,6 +129,7 @@ export function createSettingsFromFormValue(
         dashboardRails: normalizeDashboardRailsSettings(value.dashboardRails),
         startupBehavior: value.startupBehavior ?? StartupBehavior.FirstView,
         showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
+        stripCountryPrefix: value.stripCountryPrefix ?? false,
         theme: value.theme ?? Theme.SystemTheme,
         mpvPlayerPath: normalizeExternalPlayerPath(value.mpvPlayerPath),
         mpvPlayerArguments: normalizeExternalPlayerArguments(
@@ -135,6 +144,7 @@ export function createSettingsFromFormValue(
         remoteControl: value.remoteControl ?? false,
         remoteControlPort: Number(value.remoteControlPort ?? 8765),
         recordingFolder: value.recordingFolder ?? '',
+        embeddedMpvFrameCopy: value.embeddedMpvFrameCopy ?? false,
         coverSize: value.coverSize ?? 'medium',
         epgUrl,
         preferUploadedEpgOverXtream:

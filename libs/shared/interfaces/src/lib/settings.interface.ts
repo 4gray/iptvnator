@@ -78,6 +78,24 @@ export function normalizeDashboardRailsSettings(
  */
 export interface Settings {
     player: VideoPlayer;
+    /**
+     * Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.
+     * Missing values remain off for compatibility with older saved settings.
+     */
+    webPlayerSharedControls?: boolean;
+    /**
+     * Fill the empty space around the inline VOD/series player with a blurred,
+     * dimmed copy of the poster (YouTube "Ambient mode" style) instead of plain
+     * black bars. Off by default; only affects the built-in web players.
+     */
+    playerAmbientMode?: boolean;
+    /**
+     * Dock the inline series player to the left and show an "Up Next"
+     * episode rail in the leftover stage column on wide windows. On by
+     * default (the rail only appears when there is genuinely unused space);
+     * missing values mean enabled. Only affects the built-in web players.
+     */
+    playerUpNextRail?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;
@@ -87,6 +105,8 @@ export interface Settings {
     startupBehavior: StartupBehavior;
     /** Show the desktop footer bar for external playback status */
     showExternalPlaybackBar?: boolean;
+    /** Strip country/group prefixes like "US | " or "UK - " from channel names */
+    stripCountryPrefix?: boolean;
     theme: Theme;
     mpvPlayerPath: string;
     /**
@@ -108,6 +128,12 @@ export interface Settings {
     downloadFolder?: string;
     /** Custom live recording folder path (uses system Downloads folder if not set) */
     recordingFolder?: string;
+    /**
+     * Embedded MPV frame-copy engine (experimental, macOS Apple Silicon and Linux).
+     * Applied on the next app start — the engine relaxes the window sandbox
+     * for its preload frame pump, which is fixed at window creation.
+     */
+    embeddedMpvFrameCopy?: boolean;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */

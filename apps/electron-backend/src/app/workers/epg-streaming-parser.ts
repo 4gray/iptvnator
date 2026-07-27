@@ -56,15 +56,31 @@ export function parseXmltvDate(dateStr: string): string {
 
     const [, year, month, day, hour, minute, second, tz] = match;
 
-    let isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
-
     if (tz) {
-        isoString += `${tz.slice(0, 3)}:${tz.slice(3)}`;
-    } else {
-        isoString += 'Z';
+        // Normalise to UTC so all stored timestamps have a consistent
+        // representation.  Without this, lexicographic comparisons in the
+        // SQL queries (e.g. lte(start, now)) produce incorrect results
+        // when offset-containing strings like "+01:00" are compared against
+        // the always-UTC `now` string.
+        // The sign is parsed from the string rather than derived from the
+        // hours value: Math.sign(0) would silently drop the minutes of
+        // offsets like "+0030".
+        const offsetSign = tz.startsWith('-') ? -1 : 1;
+        const offsetTotalMinutes =
+            offsetSign *
+            (Number(tz.slice(1, 3)) * 60 + Number(tz.slice(3)));
+        const utcMs = Date.UTC(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hour),
+            Number(minute) - offsetTotalMinutes,
+            Number(second)
+        );
+        return new Date(utcMs).toISOString();
     }
 
-    return isoString;
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}Z`;
 }
 
 /**

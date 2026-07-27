@@ -273,8 +273,14 @@ labels instead of trusting provider-local strings.
 
 This scenario is reserved for release screenshots and marketing materials:
 
-- VOD and series data use 30 curated fictional titles instead of faker-generated
+- VOD and series data use 65 curated fictional titles instead of faker-generated
   titles or real media metadata
+- the core 30-title generated artwork pack keeps matched posters and backdrops;
+  35 additional movie-poster showcase titles use approved local poster PNGs and
+  the deterministic SVG fallback for their missing backdrops; the newest 20
+  appear first in the VOD catalog
+- showcase metadata comes from the provider-neutral
+  `@iptvnator/shared/marketing-fixtures` catalog shared with the Stalker mock
 - posters and backdrops are served from committed PNG files in
   `apps/xtream-mock-server/public/marketing/{poster,backdrop}/`
 - `tools/release/generate-marketing-artwork.ts` generates the PNGs with
@@ -284,8 +290,9 @@ This scenario is reserved for release screenshots and marketing materials:
   including documentary, noir, animated family, retro rescue drama, cyberpunk,
   anime-inspired space school, and workplace dramedy styles
 - screenshot capture remains deterministic and offline because
-  `tools/release/capture-v020-screenshots.ts` consumes the local mock server
-  assets and never calls OpenAI
+  `tools/release/capture-release-screenshots.ts` consumes the local mock server
+  assets and never calls OpenAI; its guards additionally verify that the
+  service answering on the mock port really is this fixture server
 - the SVG renderer in `marketing.generator.ts` remains the fallback for missing
   assets, live logos, season covers, and episode thumbnails
 

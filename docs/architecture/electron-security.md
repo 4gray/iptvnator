@@ -9,7 +9,9 @@ explicit hardened `webPreferences` object:
 
 - `contextIsolation: true`
 - `nodeIntegration: false`
-- `sandbox: true`
+- `sandbox: !frameCopyExperiment` — `true` by default; the opt-in Embedded MPV
+  frame-copy experiment is the one path that disables the renderer sandbox
+  (`contextIsolation`/`nodeIntegration` stay hardened regardless)
 - `webSecurity: true`
 - `preload: apps/electron-backend/src/app/api/main.preload.ts`
 
@@ -98,11 +100,13 @@ produce both `dmg` and `zip` targets, and publish a single merged
 
 The Angular shell defines a baseline CSP in `apps/web/src/index.html`.
 
-The policy keeps the application self-hosted for scripts, blocks object and
-frame embedding, limits forms to the app origin, and allows IPTV playback
-sources through `media-src` and `connect-src` for `http:`, `https:`, `blob:`,
-and `data:`. The policy keeps `script-src` self-hosted and currently keeps
-`unsafe-inline` for existing inline styles.
+The policy keeps the application self-hosted for scripts, blocks object
+embedding (`object-src 'none'`) while allowing frames only from
+`https://www.youtube-nocookie.com` (`frame-src`, used for TMDB trailers),
+limits forms to the app origin, and allows IPTV playback sources through
+`media-src` and `connect-src` for `http:`, `https:`, `blob:`, and `data:`. The
+policy keeps `script-src` self-hosted and currently keeps `unsafe-inline` for
+existing inline styles.
 
 Angular production builds must not rely on inline event handlers for stylesheet
 activation. Keep `web:build:production` and `web:build:pwa` configured without
@@ -187,6 +191,26 @@ renderer can persist a host-scoped invalid-certificate trust decision for a
 playlist or EPG source host. The `IPTVNATOR_ALLOW_INSECURE_TLS=1` escape hatch
 is only for explicitly trusted providers with invalid or self-signed
 certificates when the host-scoped UI path is not available.
+
+## Sensitive Diagnostic Logging
+
+Settings, portal requests/responses, IPC trace payloads, and remote-request
+errors can contain provider credentials. Code at those boundaries must pass
+structured values through `redactSensitiveData` from
+`@iptvnator/shared/logging`, or through the portal `createLogger`/portal-debug
+helpers that apply it. Do not send a raw settings object, request params,
+response, or `Error` directly to `console.*`.
+
+The redactor preserves non-sensitive diagnostic fields while replacing
+credential fields case-insensitively, including usernames, passwords, tokens,
+API keys, authorization/cookie headers, and MAC addresses. It also sanitizes
+URL query parameters, serialized JSON, nested query values, errors, arrays,
+and cyclic objects without mutating the original value. Depth, collection,
+object-key, and string limits keep opt-in debug traces bounded.
+
+When adding a new logging boundary, extend the closest regression test with a
+synthetic secret and assert that the exact value is absent from captured log
+output. Never use a real provider credential to validate logging.
 
 ## Filesystem Capabilities
 

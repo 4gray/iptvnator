@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { firstValueFrom, from, of } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
@@ -49,8 +49,7 @@ describe('UnifiedFavoritesDataService', () => {
     let playlistsService: {
         addPortalFavorite: jest.Mock;
         getPlaylistById: jest.Mock;
-        setFavorites: jest.Mock;
-        setPortalFavorites: jest.Mock;
+        transformPlaylistFavorites: jest.Mock;
     };
 
     const m3uChannels: Channel[] = [
@@ -134,8 +133,31 @@ describe('UnifiedFavoritesDataService', () => {
         playlistsService = {
             addPortalFavorite: jest.fn().mockReturnValue(of({})),
             getPlaylistById: jest.fn(),
-            setFavorites: jest.fn().mockReturnValue(of({})),
-            setPortalFavorites: jest.fn().mockReturnValue(of({})),
+            // Faithful default: read the playlist through the configured
+            // getPlaylistById mock and apply the transform to its favorites,
+            // like the real queued PlaylistsService implementation.
+            transformPlaylistFavorites: jest.fn(
+                (
+                    playlistId: string,
+                    transform: (current: unknown[]) => unknown[]
+                ) =>
+                    from(
+                        (async () => {
+                            const playlist = (await firstValueFrom(
+                                playlistsService.getPlaylistById(playlistId) ??
+                                    of(undefined)
+                            )) as Partial<Playlist> | undefined;
+                            const current = Array.isArray(playlist?.favorites)
+                                ? playlist.favorites
+                                : [];
+                            return {
+                                ...playlist,
+                                _id: playlistId,
+                                favorites: transform(current),
+                            };
+                        })()
+                    )
+            ),
         };
         databaseService = {
             getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
@@ -209,6 +231,8 @@ describe('UnifiedFavoritesDataService', () => {
                 title: 'Live One',
                 type: 'live',
                 poster_url: 'live.png',
+                tv_archive: 1,
+                tv_archive_duration: 7,
                 added_at: '2026-03-26T09:00:00.000Z',
                 position: 0,
             },
@@ -247,6 +271,10 @@ describe('UnifiedFavoritesDataService', () => {
                     contentType: 'live',
                     logo: 'live.png',
                     posterUrl: null,
+                    // Regression for issue #1138: archive metadata must
+                    // survive the global favorites mapping for catch-up.
+                    tvArchive: 1,
+                    tvArchiveDuration: 7,
                 }),
                 expect.objectContaining({
                     name: 'Movie One',
@@ -402,7 +430,7 @@ describe('UnifiedFavoritesDataService', () => {
         ]);
     });
 
-    it('persists M3U playlist reorders through setFavorites', async () => {
+    it('persists M3U playlist reorders through an atomic favorites transform', async () => {
         const reorderedItems = [
             {
                 uid: 'm3u::m3u-1::https://example.com/2.m3u8',
@@ -432,13 +460,27 @@ describe('UnifiedFavoritesDataService', () => {
             portalType: 'm3u',
         });
 
-        expect(playlistsService.setFavorites).toHaveBeenCalledWith('m3u-1', [
+        expect(
+            playlistsService.transformPlaylistFavorites
+        ).toHaveBeenCalledWith('m3u-1', expect.any(Function));
+        const [, transform] =
+            playlistsService.transformPlaylistFavorites.mock.calls[0];
+        // The reordered ids come first; favorites added concurrently (not part
+        // of the drag list) are preserved at the end instead of being dropped.
+        expect(
+            transform([
+                'https://example.com/1.m3u8',
+                'https://example.com/2.m3u8',
+                'https://example.com/concurrent.m3u8',
+            ])
+        ).toEqual([
             'https://example.com/2.m3u8',
             'https://example.com/1.m3u8',
+            'https://example.com/concurrent.m3u8',
         ]);
     });
 
-    it('adds M3U favorites through setFavorites without duplicating existing entries', async () => {
+    it('adds M3U favorites through an atomic transform without duplicating existing entries', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'm3u-1',
@@ -457,10 +499,9 @@ describe('UnifiedFavoritesDataService', () => {
             channelId: 'new-channel',
         } satisfies UnifiedCollectionItem);
 
-        expect(playlistsService.setFavorites).toHaveBeenCalledWith('m3u-1', [
-            'https://example.com/existing.m3u8',
-            'https://example.com/new.m3u8',
-        ]);
+        expect(
+            playlistsService.transformPlaylistFavorites
+        ).toHaveBeenCalledWith('m3u-1', expect.any(Function));
         expect(store.dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: '[Playlists] Update Playlist Meta',
@@ -484,7 +525,69 @@ describe('UnifiedFavoritesDataService', () => {
             streamUrl: 'https://example.com/existing.m3u8',
         } satisfies UnifiedCollectionItem);
 
-        expect(playlistsService.setFavorites).toHaveBeenCalledTimes(1);
+        // The duplicate add still runs atomically, but its transform leaves
+        // the favorites unchanged.
+        const [, duplicateTransform] =
+            playlistsService.transformPlaylistFavorites.mock.calls[1];
+        expect(
+            duplicateTransform(['https://example.com/existing.m3u8'])
+        ).toEqual(['https://example.com/existing.m3u8']);
+    });
+
+    it('does not lose a rapid favorite toggle through the public M3U add flow', async () => {
+        const backingStore = {
+            favorites: ['https://example.com/existing.m3u8'],
+        };
+        let queue: Promise<unknown> = Promise.resolve();
+        playlistsService.transformPlaylistFavorites.mockImplementation(
+            (
+                playlistId: string,
+                transform: (current: string[]) => string[]
+            ) => {
+                // Emulate the real queued read-transform-write semantics.
+                const run = queue.then(async () => {
+                    await Promise.resolve();
+                    backingStore.favorites = transform(backingStore.favorites);
+                    return {
+                        _id: playlistId,
+                        favorites: backingStore.favorites,
+                    };
+                });
+                queue = run.then(
+                    () => undefined,
+                    () => undefined
+                );
+                return from(run);
+            }
+        );
+
+        const baseItem = {
+            contentType: 'live',
+            sourceType: 'm3u',
+            playlistId: 'm3u-1',
+            playlistName: 'M3U List',
+        } as const;
+
+        await Promise.all([
+            service.addFavorite({
+                ...baseItem,
+                uid: 'm3u::m3u-1::https://example.com/a.m3u8',
+                name: 'Channel A',
+                streamUrl: 'https://example.com/a.m3u8',
+            } satisfies UnifiedCollectionItem),
+            service.addFavorite({
+                ...baseItem,
+                uid: 'm3u::m3u-1::https://example.com/b.m3u8',
+                name: 'Channel B',
+                streamUrl: 'https://example.com/b.m3u8',
+            } satisfies UnifiedCollectionItem),
+        ]);
+
+        expect(backingStore.favorites).toEqual([
+            'https://example.com/existing.m3u8',
+            'https://example.com/a.m3u8',
+            'https://example.com/b.m3u8',
+        ]);
     });
 
     it('adds Xtream favorites after resolving the content id', async () => {
@@ -599,7 +702,7 @@ describe('UnifiedFavoritesDataService', () => {
         );
     });
 
-    it('persists Stalker playlist reorders through setPortalFavorites', async () => {
+    it('persists Stalker playlist reorders through an atomic favorites transform', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'stalker-1',
@@ -636,10 +739,15 @@ describe('UnifiedFavoritesDataService', () => {
             }
         );
 
-        expect(playlistsService.setPortalFavorites).toHaveBeenCalledWith(
-            'stalker-1',
-            [stalkerFavorites[1], stalkerFavorites[0]]
-        );
+        expect(
+            playlistsService.transformPlaylistFavorites
+        ).toHaveBeenCalledWith('stalker-1', expect.any(Function));
+        const [, transform] =
+            playlistsService.transformPlaylistFavorites.mock.calls[0];
+        expect(transform(stalkerFavorites)).toEqual([
+            stalkerFavorites[1],
+            stalkerFavorites[0],
+        ]);
     });
 
     it('clears M3U favorites once per playlist with the remaining favorites preserved', async () => {
@@ -677,10 +785,21 @@ describe('UnifiedFavoritesDataService', () => {
             },
         ] satisfies UnifiedCollectionItem[]);
 
-        expect(playlistsService.setFavorites).toHaveBeenCalledTimes(1);
-        expect(playlistsService.setFavorites).toHaveBeenCalledWith('m3u-1', [
-            'https://example.com/3.m3u8',
-        ]);
+        expect(
+            playlistsService.transformPlaylistFavorites
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            playlistsService.transformPlaylistFavorites
+        ).toHaveBeenCalledWith('m3u-1', expect.any(Function));
+        expect(store.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: '[Playlists] Update Playlist Meta',
+                playlist: expect.objectContaining({
+                    _id: 'm3u-1',
+                    favorites: ['https://example.com/3.m3u8'],
+                }),
+            })
+        );
     });
 
     it('clears Stalker favorites once per playlist with the remaining favorites preserved', async () => {
@@ -721,11 +840,15 @@ describe('UnifiedFavoritesDataService', () => {
             },
         ] satisfies UnifiedCollectionItem[]);
 
-        expect(playlistsService.setPortalFavorites).toHaveBeenCalledTimes(1);
-        expect(playlistsService.setPortalFavorites).toHaveBeenCalledWith(
-            'stalker-1',
-            [remainingFavorite]
-        );
+        expect(
+            playlistsService.transformPlaylistFavorites
+        ).toHaveBeenCalledTimes(1);
+        const [transformedPlaylistId, transform] =
+            playlistsService.transformPlaylistFavorites.mock.calls[0];
+        expect(transformedPlaylistId).toBe('stalker-1');
+        expect(transform([...stalkerFavorites, remainingFavorite])).toEqual([
+            remainingFavorite,
+        ]);
     });
 
     it('clears Xtream favorites through the bulk removal path', async () => {

@@ -324,6 +324,16 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { entry: tmdbCacheEntry },
     },
     {
+        operation: 'DB_GET_TMDB_CACHE_STATS',
+        args: [],
+        payload: {},
+    },
+    {
+        operation: 'DB_CLEAR_TMDB_METADATA',
+        args: [],
+        payload: {},
+    },
+    {
         operation: 'DB_MATCH_TITLES',
         args: [['The Matrix', 'Inception']],
         payload: { titles: ['The Matrix', 'Inception'] },

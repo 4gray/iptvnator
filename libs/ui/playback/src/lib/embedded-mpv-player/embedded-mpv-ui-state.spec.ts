@@ -19,6 +19,22 @@ describe('EmbeddedMpvMenuState', () => {
         expect(menus.audioOpen()).toBe(false);
         expect(menus.anyOpen()).toBe(false);
     });
+
+    it('reports dockPanelOpen for chip panels but not the volume slider', () => {
+        const menus = new EmbeddedMpvMenuState();
+
+        menus.open('volume');
+        expect(menus.anyOpen()).toBe(true);
+        expect(menus.dockPanelOpen()).toBe(false);
+
+        for (const menu of ['audio', 'subtitle', 'speed', 'aspect'] as const) {
+            menus.open(menu);
+            expect(menus.dockPanelOpen()).toBe(true);
+        }
+
+        menus.closeAll();
+        expect(menus.dockPanelOpen()).toBe(false);
+    });
 });
 
 describe('EmbeddedMpvFeedback', () => {

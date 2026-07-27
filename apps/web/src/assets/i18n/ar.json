@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "فشل تحديث قائمة التشغيل. الملف المحلي لم يعد متاحًا. تحقق من مسار الملف أو أعد استيراد قائمة التشغيل.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "فشل تحديث قائمة التشغيل. لم يعد بإمكان التطبيق الوصول إلى الملف المحلي.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! تم تحديث قوائم التشغيل بنجاح",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "التحديث التلقائي غير مكتمل: تم تحديث {{updated}} من {{total}} من قوائم التشغيل، وفشل {{failed}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
+            "AUTO_REFRESH_UPDATE_FAILED": "فشل التحديث التلقائي لقوائم التشغيل. لم يتم تحديث أي من قوائم التشغيل الـ {{total}}.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "التحديث التلقائي لقوائم التشغيل: تم تحديث {{updated}} من {{total}}، وتم تخطي {{skipped}} (بدون رابط أو مسار ملف).",
             "AUTO_REFRESH_ENABLED": "تم تفعيل التحديث التلقائي"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "التحقق من المفتاح",
         "TMDB_TEST_SUCCESS": "المفتاح يعمل — استجاب TMDB بنجاح",
         "TMDB_TEST_FAILED": "فشل التحقق — رفض TMDB المفتاح أو تعذر الوصول إليه",
+        "TMDB_CACHE": "ذاكرة التخزين المؤقت للبيانات الوصفية",
+        "TMDB_CACHE_DESCRIPTION": "تُحفظ البيانات الوصفية المنزّلة محلياً لتفتح صفحات التفاصيل فوراً. مسحها يجعل التطبيق يجلب بيانات جديدة عند الزيارة التالية.",
+        "TMDB_CACHE_SIZE": "{{entries}} عنصر · {{size}}",
+        "TMDB_CACHE_CLEAR": "مسح الذاكرة المؤقتة",
+        "TMDB_CACHE_ERROR": "تعذّر قراءة الذاكرة المؤقتة — حاول مجدداً",
         "TMDB_CREDITS": "البيانات الوصفية",
         "TMDB_ATTRIBUTION": "يستخدم هذا المنتج TMDB API ولكنه غير معتمد أو مصدّق من قِبل TMDB.",
         "APP_PREFERENCES": "تفضيلات التطبيق",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "جارٍ المسح…",
         "EPG_URL_ERROR": "القيمة ليست رابطًا صالحًا",
         "VIDEO_PLAYER_DESCRIPTION": "اختر مشغل الفيديو الافتراضي",
+        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحّدة لمشغلات الويب (تجريبي)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استخدم عناصر التحكم المشتركة في IPTVnator مع HTML5 وVideo.js وArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "ملء الخلفية المحيطة",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "تعبئة المساحة حول المشغل بنسخة مشوشة ومعتمة من الملصق بدلاً من الخطوط السوداء.",
+        "PLAYER_UP_NEXT_RAIL": "شريط الحلقات التالية",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "في النوافذ العريضة، تثبيت مشغل المسلسل على اليسار وعرض الحلقات القادمة بجانبه.",
         "STREAM_FORMAT_DESCRIPTION": "اختر تنسيق البث الافتراضي (xtream)",
         "LANGUAGE_DESCRIPTION": "اختر لغة التطبيق",
         "THEME_DESCRIPTION": "اختر السمة البصرية للتطبيق",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "عرض أو إخفاء الترجمات افتراضيًا",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "عرض شريط التشغيل الحالي",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "إبقاء شريط حالة المشغل الخارجي مرئيًا في أسفل مساحة العمل على سطح المكتب.",
+        "STRIP_COUNTRY_PREFIX": "إزالة بادئات البلد من أسماء القنوات",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "يزيل بادئات البلد/المجموعة مثل \"US | \" أو \"UK - \" من أسماء قنوات البث المباشر في جميع أنحاء التطبيق.",
         "VERSION_DESCRIPTION": "الإصدار الحالي للتطبيق",
         "ABOUT_SUBTITLE": "الإصدار وروابط المشروع وطرق دعم IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "بيئة تشغيل MPV المضمّنة",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "MPV المدمج: محرك نسخ الإطارات (تجريبي)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "يُرسم الفيديو على لوحة التطبيق بحيث تظهر القوائم ومربعات الحوار فوقه.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "يسري المفعول بعد إعادة تشغيل التطبيق."
     },
     "THEMES": {
         "DARK_THEME": "داكن",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "رجوع",
             "RETRY": "إعادة المحاولة",
             "STALLED": "يستغرق بدء هذا البث وقتًا أطول من المتوقع.",
             "PLAYBACK_FAILED": "فشل التشغيل عبر MPV المضمّن.",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "رجوع 10 ثوانٍ",
             "FORWARD_10_SECONDS": "تقديم 10 ثوانٍ",
             "LIVE_STREAM": "بث مباشر",
+            "PLAYBACK_POSITION": "موضع التشغيل",
             "MUTE": "كتم الصوت",
             "UNMUTE": "إلغاء كتم الصوت",
             "MUTED": "الصوت مكتوم",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "فشل بدء التسجيل.",
             "RECORDING_FAILED_TO_STOP": "فشل إيقاف التسجيل.",
             "SAVED_TO": "تم الحفظ في {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "تشغيل صورة داخل صورة",
+            "EXIT_PICTURE_IN_PICTURE": "إنهاء صورة داخل صورة",
             "ENTER_FULLSCREEN": "ملء الشاشة",
             "EXIT_FULLSCREEN": "الخروج من ملء الشاشة"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "إزالة من المفضلة",
         "ADD_FAVORITE": "إضافة إلى المفضلة",
         "SHOW_DETAILS": "عرض تفاصيل القناة",
+        "MAP_EPG": "ربط قناة دليل البرامج",
         "FAVORITES_UPDATED": "تم تحديث المفضلة!",
         "SELECT_CHANNEL_PLAYBACK": "يرجى اختيار قناة لبدء التشغيل",
         "SORT_BY": "ترتيب حسب",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "عرض ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "ربط قناة دليل البرامج (EPG)",
+        "SUBTITLE": "اختر يدويًا قناة دليل البرامج لـ \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "البحث في قنوات دليل البرامج...",
+        "CURRENT_MAPPING": "الربط الحالي",
+        "NO_MAPPING": "لم يتم تعيين ربط لدليل البرامج",
+        "SAVE": "حفظ الربط",
+        "REMOVE": "إزالة الربط",
+        "CLOSE": "إغلاق",
+        "NO_RESULTS": "لم يتم العثور على قنوات دليل البرامج",
+        "SEARCH_HINT": "اكتب {{min}} أحرف على الأقل للبحث",
+        "SAVED": "تم حفظ ربط دليل البرامج",
+        "REMOVED": "تمت إزالة ربط دليل البرامج",
+        "SAVE_FAILED": "تعذر تحديث ربط دليل البرامج"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "نعم",
     "NO": "لا",
@@ -756,6 +797,8 @@
         "ACTORS": "الممثلون",
         "DIRECTOR": "المخرج",
         "SIMILAR": "مشابه",
+        "CREW_JOB_DIRECTOR": "المخرج",
+        "CREW_JOB_CREATOR": "المبتكر",
         "ACTOR_FILMOGRAPHY": "الأعمال الفنية",
         "ACTOR_FILTER_ALL": "الكل",
         "ACTOR_SCOPE_THIS_PORTAL": "هذه البوابة",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "متوفر في مكتبتك",
         "ACTOR_SEARCH_IN_PORTAL": "البحث في البوابة",
         "ACTOR_BORN": "تاريخ الميلاد:",
+        "ACTOR_DIED": "توفي",
+        "SERIES_STATUS_RETURNING": "مستمر",
+        "SERIES_STATUS_PLANNED": "مخطط",
+        "SERIES_STATUS_IN_PRODUCTION": "قيد الإنتاج",
+        "SERIES_STATUS_ENDED": "منتهي",
+        "SERIES_STATUS_CANCELED": "ملغى",
+        "SERIES_STATUS_PILOT": "حلقة تجريبية",
         "DURATION": "المدة",
         "CAST": "طاقم العمل",
         "EPISODE_RUN_TIME": "مدة الحلقة",
@@ -779,6 +829,7 @@
         "RESTART": "البدء من جديد",
         "CONTINUE_WATCHING": "متابعة المشاهدة",
         "PLAY_FIRST_EPISODE": "تشغيل الحلقة الأولى",
+        "PLAY_EPISODE": "تشغيل الحلقة {{episode}}",
         "RESUME_EPISODE": "استئناف الحلقة",
         "PLAY_NEXT_EPISODE": "تشغيل الحلقة التالية",
         "SERIES_WATCHED": "تمت مشاهدة المسلسل",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "تم نسخ رابط البث إلى الحافظة",
         "COPY_STREAM_URL": "نسخ رابط البث",
         "NOW_PLAYING": "قيد التشغيل",
+        "UP_NEXT": "التالي",
         "CLOSE_PLAYER": "إغلاق المشغل",
         "ABOUT": "نبذة",
         "SEASONS_AND_EPISODES": "المواسم والحلقات",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "هذا المحتوى غير متاح على هذا الخادم",
         "PLAYBACK_ERROR": "فشل الحصول على رابط التشغيل",
         "LOADING_SEASONS": "جارٍ تحميل المواسم...",
+        "LOADING_ALL_CHANNELS": "جارٍ تحميل قائمة القنوات الكاملة…",
+        "REFRESH_CHANNEL_LIST": "تحديث قائمة القنوات",
+        "NO_CHANNELS_IN_CATEGORY": "لا توجد قنوات في هذه الفئة",
+        "ITEM": "عنصر",
+        "ITEMS": "عناصر",
         "NO_EPISODES": "لا توجد حلقات متاحة",
         "ALL_RADIO": "كل الراديو"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "لم يعد بالإمكان فتح هذا التنزيل في المكتبة لأنه تمت إزالة قائمة التشغيل المصدر.",
         "FILE_NOT_FOUND": "هذا الملف الذي تم تنزيله لم يعد متاحًا على القرص.",
         "FILE_ACTION_ERROR": "تعذر إكمال الإجراء على الملف.",
+        "ACTION_FAILED": "فشل الإجراء",
+        "PAUSE": "إيقاف مؤقت",
+        "RESUME": "استئناف",
         "CANCEL": "إلغاء",
         "RETRY": "إعادة المحاولة",
         "REMOVE": "إزالة",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "جارٍ التنزيل",
             "COMPLETED": "مكتمل",
             "FAILED": "فشل",
-            "CANCELED": "ملغى"
+            "CANCELED": "ملغى",
+            "PAUSED": "متوقف مؤقتًا"
         }
     },
     "REMOTE_CONTROL": {

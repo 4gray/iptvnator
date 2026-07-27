@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Не ўдалося абнавіць плэйліст. Лакальны файл больш недаступны. Праверце шлях да файла або паўторна імпартуйце плэйліст.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Не ўдалося абнавіць плэйліст. Праграма больш не мае доступу да лакальнага файла.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Гатова! Плэйлісты былі паспяхова абноўлены",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Аўтаабнаўленне не завершана: абноўлена {{updated}} з {{total}} плэйлістоў, не ўдалося — {{failed}}.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Аўтаабнаўленне не завершана: абноўлена {{updated}} з {{total}} плэйлістоў, не ўдалося — {{failed}}, прапушчана {{skipped}} (няма URL або шляху да файла).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Аўтаабнаўленне плэйлістоў не ўдалося. Ніводзін з {{total}} плэйлістоў не быў абноўлены.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Аўтаабнаўленне плэйлістоў: абноўлена {{updated}} з {{total}}, прапушчана {{skipped}} (няма URL або шляху да файла).",
             "AUTO_REFRESH_ENABLED": "Аўтаабнаўленне ўключана"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "Праверыць ключ",
         "TMDB_TEST_SUCCESS": "Ключ працуе — TMDB паспяхова адказаў",
         "TMDB_TEST_FAILED": "Праверка не ўдалася — TMDB адхіліў ключ або недаступны",
+        "TMDB_CACHE": "Кэш метаданых",
+        "TMDB_CACHE_DESCRIPTION": "Спампаваныя метаданыя захоўваюцца лакальна, каб старонкі дэталяў адкрываліся імгненна. Пасля ачысткі праграма загрузіць свежыя даныя пры наступным адкрыцці.",
+        "TMDB_CACHE_SIZE": "{{entries}} запісаў · {{size}}",
+        "TMDB_CACHE_CLEAR": "Ачысціць кэш",
+        "TMDB_CACHE_ERROR": "Не ўдалося прачытаць кэш — паспрабуйце зноў",
         "TMDB_CREDITS": "Метаданыя",
         "TMDB_ATTRIBUTION": "Гэты прадукт выкарыстоўвае TMDB API, але не ўхвалены і не сертыфікаваны TMDB.",
         "APP_PREFERENCES": "Параметры праграмы",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "Ачышчаецца...",
         "EPG_URL_ERROR": "Уведзенае значэнне не з'яўляецца URL-адрасам.",
         "VIDEO_PLAYER_DESCRIPTION": "Выбраць стандартны відэапрайгравальнік",
+        "WEB_PLAYER_SHARED_CONTROLS": "Адзіныя элементы кіравання для вэб-прайгравальнікаў (эксперыментальна)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Выкарыстоўваць агульныя элементы кіравання IPTVnator у HTML5, Video.js і ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Атмасфернае запаўненне",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Запаўніць прастор вакол плэйра размытай, затемнёнай вокладкай замяст чорных палос.",
+        "PLAYER_UP_NEXT_RAIL": "Панэль наступных эпізодаў",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "На шырокіх вокнах замацоўваць прайгравальнік серыяла злева і паказваць наступныя эпізоды побач з ім.",
         "STREAM_FORMAT_DESCRIPTION": "Выберыце фармат патоку па змаўчанні (xtream)",
         "LANGUAGE_DESCRIPTION": "Выбраць мову праграмы",
         "THEME_DESCRIPTION": "Выбраць візуальную тэму афармлення",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Паказаць або схаваць субтытры па змаўчанні.",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Паказаць ніжнюю панэль прайгравання",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Пакідаць панэль стану знешняга прайгравальніка бачнай унізе працоўнай прасторы на дэсктопе.",
+        "STRIP_COUNTRY_PREFIX": "Выдаляць прэфіксы краін з назваў каналаў",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Выдаляе прэфіксы краін/груп, такія як \"US | \" або \"UK - \", з назваў каналаў прамых трансляцый ва ўсёй праграме.",
         "VERSION_DESCRIPTION": "Бягучая версія праграмы",
         "ABOUT_SUBTITLE": "Версія, спасылкі праекта і спосабы падтрымаць IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Асяроддзе ўбудаванага MPV",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: рухавік frame-copy (эксперыментальна)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Відэа малюецца на канвасе праграмы, таму меню і дыялогі паказваюцца па-над ім.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Пачне дзейнічаць пасля перазапуску праграмы."
     },
     "THEMES": {
         "DARK_THEME": "Цёмная",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Назад",
             "RETRY": "Паўтарыць",
             "STALLED": "Гэты паток запускаецца даўжэй, чым чакалася.",
             "PLAYBACK_FAILED": "Не ўдалося прайграць праз убудаваны MPV.",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "Назад на 10 секунд",
             "FORWARD_10_SECONDS": "Наперад на 10 секунд",
             "LIVE_STREAM": "Прамая трансляцыя",
+            "PLAYBACK_POSITION": "Пазіцыя прайгравання",
             "MUTE": "Адключыць гук",
             "UNMUTE": "Уключыць гук",
             "MUTED": "Гук адключаны",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "Не ўдалося пачаць запіс.",
             "RECORDING_FAILED_TO_STOP": "Не ўдалося спыніць запіс.",
             "SAVED_TO": "Захавана ў {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Уключыць рэжым «выява ў выяве»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйсці з рэжыму «выява ў выяве»",
             "ENTER_FULLSCREEN": "Увайсці ў поўнаэкранны рэжым",
             "EXIT_FULLSCREEN": "Выйсці з поўнаэкраннага рэжыму"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "Выдаліць са спісу фаварытаў",
         "ADD_FAVORITE": "Дадаць у выбранае",
         "SHOW_DETAILS": "Паказаць інфармацыю аб канале",
+        "MAP_EPG": "Прывязаць канал EPG",
         "FAVORITES_UPDATED": "Спіс фаварытаў быў абноўлены!",
         "SELECT_CHANNEL_PLAYBACK": "Калі ласка, выберыце канал, каб пачаць прайграванне",
         "SORT_BY": "Сартаваць па",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "паказаць ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Прывязка канала EPG",
+        "SUBTITLE": "Выберыце канал EPG для \"{{channelName}}\" уручную",
+        "SEARCH_PLACEHOLDER": "Пошук каналаў EPG...",
+        "CURRENT_MAPPING": "Бягучая прывязка",
+        "NO_MAPPING": "Прывязка EPG не зададзена",
+        "SAVE": "Захаваць прывязку",
+        "REMOVE": "Выдаліць прывязку",
+        "CLOSE": "Закрыць",
+        "NO_RESULTS": "Каналы EPG не знойдзены",
+        "SEARCH_HINT": "Увядзіце не менш за {{min}} сімвалы для пошуку",
+        "SAVED": "Прывязка EPG захавана",
+        "REMOVED": "Прывязка EPG выдалена",
+        "SAVE_FAILED": "Не ўдалося абнавіць прывязку EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "Так",
     "NO": "Не",
@@ -756,6 +797,8 @@
         "ACTORS": "Акцёры",
         "DIRECTOR": "Рэжысёр",
         "SIMILAR": "Падобнае",
+        "CREW_JOB_DIRECTOR": "Рэжысёр",
+        "CREW_JOB_CREATOR": "Стваральнік",
         "ACTOR_FILMOGRAPHY": "Фільмаграфія",
         "ACTOR_FILTER_ALL": "Усе",
         "ACTOR_SCOPE_THIS_PORTAL": "Гэты партал",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "Ёсць у вашай бібліятэцы",
         "ACTOR_SEARCH_IN_PORTAL": "Пошук на партале",
         "ACTOR_BORN": "Нарадзіўся:",
+        "ACTOR_DIED": "Памёр",
+        "SERIES_STATUS_RETURNING": "Працягваецца",
+        "SERIES_STATUS_PLANNED": "Запланаваны",
+        "SERIES_STATUS_IN_PRODUCTION": "У вытворчасці",
+        "SERIES_STATUS_ENDED": "Завершаны",
+        "SERIES_STATUS_CANCELED": "Скасаваны",
+        "SERIES_STATUS_PILOT": "Пілот",
         "DURATION": "Працягласць",
         "CAST": "Акцёрскі склад",
         "EPISODE_RUN_TIME": "Працягласць эпізоду",
@@ -779,6 +829,7 @@
         "RESTART": "Спачатку",
         "CONTINUE_WATCHING": "Працягнуць прагляд",
         "PLAY_FIRST_EPISODE": "Прайграць першы эпізод",
+        "PLAY_EPISODE": "Прайграць эпізод {{episode}}",
         "RESUME_EPISODE": "Працягнуць эпізод",
         "PLAY_NEXT_EPISODE": "Прайграць наступны эпізод",
         "SERIES_WATCHED": "Серыял прагледжаны",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "URL-адрас патоку быў скапіяваны ў буфер абмену.",
         "COPY_STREAM_URL": "Капіраваць URL-адрас патоку",
         "NOW_PLAYING": "Зараз прайграецца",
+        "UP_NEXT": "Далей",
         "CLOSE_PLAYER": "Закрыць прайгравальнік",
         "ABOUT": "Пра фільм",
         "SEASONS_AND_EPISODES": "Сезоны і эпізоды",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "Гэты кантэнт недаступны на дадзеным серверы",
         "PLAYBACK_ERROR": "Не ўдалося атрымаць URL для прайгравання",
         "LOADING_SEASONS": "Загрузка сезонаў...",
+        "LOADING_ALL_CHANNELS": "Загрузка поўнага спісу каналаў…",
+        "REFRESH_CHANNEL_LIST": "Абнавіць спіс каналаў",
+        "NO_CHANNELS_IN_CATEGORY": "У гэтай катэгорыі няма каналаў",
+        "ITEM": "элемент",
+        "ITEMS": "элементаў",
         "NO_EPISODES": "Няма даступных эпізодаў",
         "ALL_RADIO": "Усе радыё"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "Гэта спампаванне больш нельга адкрыць у бібліятэцы, бо яго зыходны плэйліст быў выдалены.",
         "FILE_NOT_FOUND": "Гэты спампаваны файл больш недаступны на дыску.",
         "FILE_ACTION_ERROR": "Не ўдалося выканаць дзеянне з файлам.",
+        "ACTION_FAILED": "Дзеянне не выканана",
+        "PAUSE": "Паўза",
+        "RESUME": "Узнавіць",
         "CANCEL": "Скасаваць",
         "RETRY": "Паўтарыць",
         "REMOVE": "Выдаліць",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "Спампоўваецца",
             "COMPLETED": "Завершана",
             "FAILED": "Няўдала",
-            "CANCELED": "Скасавана"
+            "CANCELED": "Скасавана",
+            "PAUSED": "На паўзе"
         }
     },
     "REMOTE_CONTROL": {

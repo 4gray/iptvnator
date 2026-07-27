@@ -1,11 +1,18 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import {
+    MAT_DIALOG_DATA,
+    MatDialog,
+    MatDialogModule,
+} from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { getM3uArchiveDays, isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
 import { Channel } from '@iptvnator/shared/interfaces';
+import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 
 interface ChannelDetailField {
     readonly empty?: boolean;
@@ -35,6 +42,9 @@ interface HeroStat {
 })
 export class ChannelDetailsDialogComponent {
     readonly channel = inject<Channel>(MAT_DIALOG_DATA);
+    private readonly dialog = inject(MatDialog);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
     readonly archiveDays = getM3uArchiveDays(this.channel);
     readonly catchupAvailable = this.archiveDays > 0;
@@ -181,5 +191,17 @@ export class ChannelDetailsDialogComponent {
         }
 
         return { labelKey, monospace, value: normalized };
+    }
+
+    openEpgMapping(): void {
+        const channelKey = resolveChannelEpgLookupKey(this.channel);
+        if (!channelKey) {
+            return;
+        }
+
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: this.channel.name ?? channelKey,
+        });
     }
 }

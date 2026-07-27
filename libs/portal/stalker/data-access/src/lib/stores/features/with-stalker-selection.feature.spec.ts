@@ -49,7 +49,93 @@ describe('withStalkerSelection', () => {
         });
 
         expect(store.selectedVodId()).toBe('55');
-        expect(store.selectedSerialId()).toBe('55');
         expect(store.selectedItvId()).toBe('55');
+    });
+
+    it('sets the serial id for a regular series selection', () => {
+        store.setSelectedContentType('series');
+
+        store.setSelectedItem({
+            id: '55',
+            name: 'Regular series',
+        });
+
+        expect(store.selectedSerialId()).toBe('55');
+    });
+
+    it('does not set the serial id for a plain VOD selection', () => {
+        store.setSelectedContentType('vod');
+
+        store.setSelectedItem({
+            id: '55',
+            name: 'Plain movie',
+        });
+
+        expect(store.selectedSerialId()).toBeUndefined();
+        expect(store.selectedVodId()).toBe('55');
+    });
+
+    it('does not set the serial id for items with embedded series episodes', () => {
+        // vclub items carry their episodes inline and are always opened
+        // under the VOD content type.
+        store.setSelectedContentType('vod');
+
+        store.setSelectedItem({
+            id: '55',
+            name: 'Embedded series',
+            series: [1, 2, 3],
+        });
+
+        expect(store.selectedSerialId()).toBeUndefined();
+    });
+
+    it('still sets the serial id for a series selection carrying is_series', () => {
+        // Under the `series` content type the seasons API is the only
+        // episode source, so the fetch must not be gated on item shape.
+        store.setSelectedContentType('series');
+
+        store.setSelectedItem({
+            id: '55',
+            name: 'Series flagged is_series',
+            is_series: '1',
+        });
+
+        expect(store.selectedSerialId()).toBe('55');
+    });
+
+    it('still sets the serial id for a series selection carrying series[]', () => {
+        store.setSelectedContentType('series');
+
+        store.setSelectedItem({
+            id: '55',
+            name: 'Series carrying series[]',
+            series: [1, 2, 3],
+        });
+
+        expect(store.selectedSerialId()).toBe('55');
+    });
+
+    it('does not set the serial id for Ministra VOD-series items', () => {
+        store.setSelectedContentType('vod');
+
+        store.setSelectedItem({
+            id: '55',
+            name: 'VOD series',
+            is_series: '1',
+        });
+
+        expect(store.selectedSerialId()).toBeUndefined();
+    });
+
+    it('clears a stale serial id when a non-series item is selected', () => {
+        store.setSelectedContentType('series');
+        store.setSelectedItem({ id: '55', name: 'Regular series' });
+        expect(store.selectedSerialId()).toBe('55');
+
+        store.setSelectedContentType('vod');
+        store.setSelectedItem({ id: '77', name: 'Plain movie' });
+
+        expect(store.selectedSerialId()).toBeUndefined();
+        expect(store.selectedVodId()).toBe('77');
     });
 });

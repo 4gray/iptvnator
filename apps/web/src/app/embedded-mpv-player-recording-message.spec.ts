@@ -32,7 +32,10 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
         } as unknown as typeof window.electron;
 
         await TestBed.configureTestingModule({
-            imports: [EmbeddedMpvPlayerHostComponent, TranslateModule.forRoot()],
+            imports: [
+                EmbeddedMpvPlayerHostComponent,
+                TranslateModule.forRoot(),
+            ],
             providers: [
                 {
                     provide: EmbeddedMpvOverlayVisibilityService,
@@ -69,6 +72,7 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
         controller.support.set({
             supported: true,
             platform: 'darwin',
+            engine: 'native',
             capabilities: {
                 subtitles: true,
                 playbackSpeed: true,

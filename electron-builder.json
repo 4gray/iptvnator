@@ -20,6 +20,7 @@
             "filter": ["**/*"]
         },
         "electron-backend/**/*",
+        "!electron-backend/native{,/**/*}",
         "web/**/*",
         "!**/*.map"
     ],
@@ -130,8 +131,32 @@
         "grade": "stable",
         "summary": "IPTV application for M3U playlists, Xtream Codes API, and Stalker portals",
         "executableArgs": ["--ozone-platform=x11"],
+        "plugs": [
+            "default",
+            {
+                "graphics-core22": {
+                    "interface": "content",
+                    "target": "$SNAP/graphics",
+                    "default-provider": "mesa-core22"
+                }
+            },
+            {
+                "shared-memory": {
+                    "interface": "shared-memory",
+                    "private": true
+                }
+            }
+        ],
         "environment": {
             "DISABLE_WAYLAND": "1"
+        },
+        "layout": {
+            "/usr/share/libdrm": {
+                "bind": "$SNAP/graphics/libdrm"
+            },
+            "/usr/share/drirc.d": {
+                "symlink": "$SNAP/graphics/drirc.d"
+            }
         }
     },
     "win": {

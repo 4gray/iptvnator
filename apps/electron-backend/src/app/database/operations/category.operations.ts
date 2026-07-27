@@ -7,6 +7,20 @@ type XtreamCategoryInput = {
     category_id: string | number;
 };
 
+// Category rows cross the DB-worker IPC boundary in the snake_case wire
+// shape declared by XCategoryFromDb/XtreamCategoryFromDb. A bare select()
+// would leak Drizzle's camelCase property names (xtreamId, playlistId)
+// instead, silently breaking consumers such as the playlist backup
+// export/restore (issue #1017).
+const categoryWireShape = {
+    id: schema.categories.id,
+    playlist_id: schema.categories.playlistId,
+    name: schema.categories.name,
+    type: schema.categories.type,
+    xtream_id: schema.categories.xtreamId,
+    hidden: schema.categories.hidden,
+};
+
 function normalizeXtreamCategoryId(
     rawCategoryId: string | number
 ): number | null {
@@ -43,7 +57,7 @@ export async function getCategories(
     // If partial category re-inserts are added later, persist a provider
     // sort index instead of relying on the insertion id.
     return db
-        .select()
+        .select(categoryWireShape)
         .from(schema.categories)
         .where(
             and(
@@ -123,7 +137,7 @@ export async function getAllCategories(
     type: 'live' | 'movies' | 'series'
 ) {
     return db
-        .select()
+        .select(categoryWireShape)
         .from(schema.categories)
         .where(
             and(

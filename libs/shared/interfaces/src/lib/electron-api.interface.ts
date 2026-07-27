@@ -14,12 +14,14 @@ import {
 } from './global-search-result.interface';
 import { M3uFavoriteChannel } from './m3u-favorite-channel.interface';
 import { PlaybackPositionData } from './playback-position.interface';
+import { AutoUpdatePlaylistsResult } from './playlist-auto-update.interface';
 import {
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
 } from './playlist-backup.interface';
 import {
+    PlaylistRefreshCancelledResult,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
 } from './playlist-refresh.interface';
@@ -31,7 +33,11 @@ import {
 import { PortalDebugEvent } from './portal-debug.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
 import { Settings } from './settings.interface';
-import { TmdbCacheEntry, TmdbCacheMediaType } from './tmdb.interface';
+import {
+    TmdbCacheEntry,
+    TmdbCacheMediaType,
+    TmdbCacheStats,
+} from './tmdb.interface';
 import { XtreamCategory } from './xtream-category.interface';
 
 export const ELECTRON_BRIDGE_CONTENT_TYPES = {
@@ -119,6 +125,7 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
     Completed: 'completed',
     Downloading: 'downloading',
     Failed: 'failed',
+    Paused: 'paused',
     Queued: 'queued',
 } as const;
 
@@ -264,6 +271,19 @@ export interface ElectronBridgeTrustOptions {
 export interface ElectronBridgeEpgFreshnessResult {
     staleUrls: string[];
     freshUrls: string[];
+}
+
+export interface ElectronBridgeEpgMapping {
+    id: number;
+    channelKey: string;
+    epgChannelId: string;
+    playlistId: string | null;
+}
+
+export interface ElectronBridgeEpgSearchResult {
+    id: string;
+    displayName: string;
+    iconUrl: string | null;
 }
 
 export interface ElectronBridgeEpgLookupOptions {
@@ -414,6 +434,8 @@ export interface ElectronBridgeGlobalRecentlyAddedItem extends ElectronBridgeXtr
 
 export interface ElectronBridgeFavoriteReorderUpdate {
     content_id: number;
+    /** Favorites are playlist-scoped — scope the position write per playlist */
+    playlist_id: string;
     position: number;
 }
 
@@ -578,7 +600,7 @@ export interface ElectronBridgeApi {
     autoUpdatePlaylists: (
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
-    ) => Promise<Playlist[]>;
+    ) => Promise<AutoUpdatePlaylistsResult>;
     fetchEpg: (
         urls: string[],
         options?: ElectronBridgeTrustOptions
@@ -614,6 +636,25 @@ export interface ElectronBridgeApi {
         searchTerm: string,
         limit?: number
     ) => Promise<EpgProgram[]>;
+
+    // EPG channel mapping (manual user overrides)
+    getEpgMapping: (
+        channelKey: string
+    ) => Promise<ElectronBridgeEpgMapping | null>;
+    getEpgMappingsBatch: (
+        channelKeys: string[]
+    ) => Promise<Record<string, string>>;
+    setEpgMapping: (
+        channelKey: string,
+        epgChannelId: string,
+        playlistId?: string
+    ) => Promise<ElectronBridgeResult>;
+    deleteEpgMapping: (channelKey: string) => Promise<ElectronBridgeResult>;
+    searchEpgChannels: (
+        searchTerm: string,
+        limit?: number
+    ) => Promise<ElectronBridgeEpgSearchResult[]>;
+
     updateSettings: (settings: Partial<Settings>) => Promise<void>;
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
@@ -631,7 +672,9 @@ export interface ElectronBridgeApi {
         url: string,
         method?: 'GET' | 'HEAD'
     ) => Promise<ElectronBridgeXtreamProbeResult>;
-    refreshPlaylist: (payload: PlaylistRefreshPayload) => Promise<Playlist>;
+    refreshPlaylist: (
+        payload: PlaylistRefreshPayload
+    ) => Promise<Playlist | PlaylistRefreshCancelledResult>;
     cancelPlaylistRefresh: (
         operationId: string
     ) => Promise<ElectronBridgeResult>;
@@ -641,13 +684,27 @@ export interface ElectronBridgeApi {
     dbGetPlaylist: (
         playlistId: string
     ) => Promise<ElectronBridgePlaylistRow | null>;
-    dbUpsertAppPlaylist: (playlist: Playlist) => Promise<ElectronBridgeResult>;
+    dbUpsertAppPlaylist: (
+        playlist: Playlist,
+        /**
+         * Instrumentation-only; stripped before the DB invoke.
+         * Never enters the DB worker payload or persisted playlist data.
+         */
+        operationId?: string
+    ) => Promise<ElectronBridgeResult>;
     dbUpsertAppPlaylists: (
         playlists: Playlist[]
     ) => Promise<ElectronBridgeCountResult>;
     dbGetAppPlaylists: () => Promise<Playlist[]>;
     dbGetAppPlaylistMetas: () => Promise<Playlist[]>;
-    dbGetAppPlaylist: (playlistId: string) => Promise<Playlist | null>;
+    dbGetAppPlaylist: (
+        playlistId: string,
+        /**
+         * Instrumentation-only; stripped before the DB invoke.
+         * Never enters the DB worker payload or persisted playlist data.
+         */
+        operationId?: string
+    ) => Promise<Playlist | null>;
     dbGetAppPlaylistFavoriteChannels: (
         playlistId: string
     ) => Promise<M3uFavoriteChannel[]>;
@@ -785,6 +842,11 @@ export interface ElectronBridgeApi {
         language: string
     ) => Promise<TmdbCacheEntry | null>;
     dbSetTmdbMetadata: (entry: TmdbCacheEntry) => Promise<ElectronBridgeResult>;
+    /** Row count + payload bytes for the settings cache panel */
+    dbGetTmdbCacheStats: () => Promise<TmdbCacheStats>;
+    dbClearTmdbMetadata: () => Promise<
+        ElectronBridgeResult & { deleted: number }
+    >;
     /** Cross-playlist title matching (actor page "All portals" scope) */
     dbMatchTitles: (titles: string[]) => Promise<CatalogTitleMatch[]>;
     onChannelChange?: (
@@ -907,10 +969,23 @@ export interface ElectronBridgeApi {
     disposeEmbeddedMpvSession: (
         sessionId: string
     ) => Promise<EmbeddedMpvSession | null>;
+    /**
+     * Frame-copy engine only: start/stop the preload frame pump that
+     * uploads helper frames onto the renderer's
+     * `<canvas data-embedded-mpv-frame>` element. Optional because older
+     * preload builds do not ship the pump.
+     */
+    attachEmbeddedMpvFrameView?: (sessionId: string) => Promise<boolean>;
+    detachEmbeddedMpvFrameView?: () => void;
     downloadsStart: (
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;
     downloadsCancel: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
+    downloadsPause: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
+    downloadsResume: (
+        downloadId: number,
+        downloadFolder: string
+    ) => Promise<ElectronBridgeErrorResult>;
     downloadsRetry: (
         downloadId: number,
         downloadFolder: string

@@ -4,9 +4,36 @@ on:
     push:
         branches:
             - master
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
+            - 'apps/website/**'
     pull_request:
         branches:
             - master
+        paths-ignore:
+            - '**/*.md'
+            - 'docs/**'
+            - '.plans/**'
+            - '.codex/**'
+            - '.claude/**'
+            - 'apps/website/**'
+    workflow_dispatch:
+
+# Superseded PR pushes cancel their still-running E2E matrix (the most
+# expensive per-PR runner time). Non-PR runs get a unique group (run_id):
+# GitHub keeps at most one pending run per group even with
+# cancel-in-progress: false, so a shared ref group could silently drop a
+# queued master run between two rapid pushes.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+    contents: read
 
 jobs:
     electron-e2e-tests:
@@ -22,7 +49,7 @@ jobs:
                 os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -60,7 +87,7 @@ jobs:
 
             - name: Upload Electron Test Results
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: playwright-report-electron-${{ matrix.os }}
                   path: |
@@ -76,7 +103,7 @@ jobs:
             NX_SKIP_NX_CACHE: true
 
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -104,7 +131,7 @@ jobs:
 
             - name: Upload Web Test Results
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: playwright-report-web-ubuntu
                   path: |

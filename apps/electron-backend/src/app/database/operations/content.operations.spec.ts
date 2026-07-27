@@ -12,6 +12,10 @@ const inArrayMock = jest.fn((left: unknown, values: unknown[]) => ({
     left,
     values,
 }));
+const orMock = jest.fn((...conditions: unknown[]) => ({
+    kind: 'or',
+    conditions,
+}));
 const sqlJoinMock = jest.fn((chunks: unknown[], separator?: unknown) => ({
     kind: 'sql.join',
     chunks,
@@ -34,7 +38,7 @@ jest.mock('drizzle-orm', () => ({
     desc: jest.fn(),
     eq: (left: unknown, right: unknown) => eqMock(left, right),
     inArray: (left: unknown, values: unknown[]) => inArrayMock(left, values),
-    or: jest.fn(),
+    or: (...conditions: unknown[]) => orMock(...conditions),
     sql: sqlMock,
 }));
 
@@ -47,6 +51,7 @@ import {
     getGlobalRecentlyAdded,
     saveContent,
     scoreSearchTextMatch,
+    searchContent,
 } from './content.operations';
 
 function createDbMock(result: unknown[] = []) {
@@ -111,6 +116,7 @@ describe('content.operations', () => {
         andMock.mockClear();
         eqMock.mockClear();
         inArrayMock.mockClear();
+        orMock.mockClear();
         sqlJoinMock.mockClear();
         sqlMock.mockClear();
     });
@@ -750,6 +756,299 @@ describe('content.operations', () => {
                     pattern.includes('"name"') || pattern.includes('"title"')
             )
         ).toBe(true);
+    });
+
+    it('finds compound-word channels anywhere in M3U channel names (issue #1161)', () => {
+        const makeChannel = (id: string, name: string) => ({
+            id,
+            url: `https://stream.test/${id}.m3u8`,
+            name,
+            group: { title: 'Entertainment' },
+            tvg: {
+                id,
+                name: '',
+                url: '',
+                logo: '',
+                rec: '',
+            },
+            http: {
+                referrer: '',
+                'user-agent': '',
+                origin: '',
+            },
+            radio: '',
+        });
+
+        const results = buildM3uGlobalSearchResults(
+            [
+                {
+                    id: 'm3u-1',
+                    name: 'M3U One',
+                    payload: JSON.stringify({
+                        playlist: {
+                            items: [
+                                makeChannel('prefixed', 'US: A&E'),
+                                makeChannel('exact', 'A&E'),
+                                makeChannel('noise', 'Casa e Villa'),
+                                makeChannel('other', 'Bravo Espana'),
+                            ],
+                        },
+                    }),
+                },
+            ],
+            'A&E',
+            false
+        );
+
+        expect(results.map((item) => item.title)).toEqual(['A&E', 'US: A&E']);
+    });
+
+    it('finds compound-word titles anywhere via per-playlist search (issue #1161)', async () => {
+        const makeRow = (id: number, title: string) => ({
+            id,
+            category_id: 10,
+            title,
+            rating: '',
+            added: '',
+            poster_url: '',
+            epg_channel_id: '',
+            tv_archive: 0,
+            tv_archive_duration: 0,
+            direct_source: '',
+            xtream_id: id,
+            type: 'live',
+        });
+        const limit = jest
+            .fn()
+            .mockResolvedValue([
+                makeRow(1, 'US: A&E'),
+                makeRow(2, 'Casa e Villa'),
+            ]);
+        const where = jest.fn().mockReturnValue({ limit });
+        const innerJoin = jest.fn().mockReturnValue({ where });
+        const from = jest.fn().mockReturnValue({ innerJoin });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        const results = await searchContent(db, 'playlist-1', 'A&E', ['live']);
+
+        expect(results.map((item) => item.title)).toEqual(['US: A&E']);
+
+        // The intact compound word must reach SQL as a contains pattern and
+        // be OR-combined with the prefix-anchored token conditions.
+        const patterns = sqlMock.mock.calls
+            .flatMap(([, ...values]) => values)
+            .filter((value): value is string => typeof value === 'string');
+        expect(patterns).toContain('%a&e%');
+        expect(where.mock.calls[0][0].conditions).toEqual(
+            expect.arrayContaining([expect.objectContaining({ kind: 'or' })])
+        );
+    });
+
+    it('supplements short compound global searches with a trigram FTS substring lookup', async () => {
+        const makeRow = (id: number, title: string) => ({
+            id,
+            category_id: 10,
+            title,
+            rating: '',
+            added: '',
+            poster_url: '',
+            epg_channel_id: '',
+            tv_archive: 0,
+            tv_archive_duration: 0,
+            direct_source: '',
+            xtream_id: id,
+            type: 'live',
+            playlist_id: 'playlist-1',
+            playlist_name: 'Playlist One',
+        });
+        const all = jest
+            .fn()
+            // Prefix-index arm: titles starting with the short first token.
+            .mockResolvedValueOnce([makeRow(1, 'A&E')])
+            // FTS arm: compound substring matches, overlapping with the
+            // prefix arm to prove candidates are deduplicated.
+            .mockResolvedValueOnce([
+                makeRow(2, 'US: A&E'),
+                makeRow(1, 'A&E'),
+            ]);
+        const select = jest.fn();
+        const db = {
+            all,
+            select,
+        } as unknown as AppDatabase;
+
+        const results = await globalSearch(
+            db,
+            'A&E',
+            ['live'],
+            false,
+            ['xtream'],
+            { limit: 10 }
+        );
+
+        expect(all).toHaveBeenCalledTimes(2);
+        expect(select).not.toHaveBeenCalled();
+
+        const matchSqlCall = sqlMock.mock.calls.find(([strings]) =>
+            Array.from(strings as TemplateStringsArray)
+                .join(' ')
+                .includes('content_title_fts MATCH')
+        );
+        expect(matchSqlCall?.[1]).toBe('"a&e"');
+
+        expect(results.map((item) => item.title)).toEqual(['A&E', 'US: A&E']);
+    });
+
+    it('keeps non-compound tokens as conditions on the compound FTS supplement', async () => {
+        const all = jest.fn().mockResolvedValue([]);
+        const db = {
+            all,
+            select: jest.fn(),
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'A&E HD', ['live'], false, ['xtream'], {
+            limit: 10,
+        });
+
+        expect(all).toHaveBeenCalledTimes(2);
+
+        const matchSqlCall = sqlMock.mock.calls.find(([strings]) =>
+            Array.from(strings as TemplateStringsArray)
+                .join(' ')
+                .includes('content_title_fts MATCH')
+        );
+        expect(matchSqlCall?.[1]).toBe('"a&e"');
+
+        // The FTS arm must AND-in the residual "hd" token so plain "A&E"
+        // titles cannot exhaust the candidate limit before scoring runs.
+        const residualPatterns = sqlMock.mock.calls
+            .filter(([strings]) =>
+                Array.from(strings as TemplateStringsArray)
+                    .join(' ')
+                    .includes('c.title LIKE')
+            )
+            .flatMap(([, ...values]) => values)
+            .filter((value): value is string => typeof value === 'string');
+        expect(residualPatterns).toContain('%hd%');
+    });
+
+    it('requires every word of a multi-token compound term in per-playlist SQL conditions', async () => {
+        const limit = jest.fn().mockResolvedValue([]);
+        const where = jest.fn().mockReturnValue({ limit });
+        const innerJoin = jest.fn().mockReturnValue({ where });
+        const from = jest.fn().mockReturnValue({ innerJoin });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await searchContent(db, 'playlist-1', 'A&E HD', ['live']);
+
+        // One condition per word: the compound "A&E" word (an OR with the
+        // intact-substring arm) plus the plain "hd" word — both AND-ed, so
+        // the compound arm cannot bypass the "hd" requirement.
+        const conditions = where.mock.calls[0][0].conditions as Array<{
+            kind: string;
+        }>;
+        expect(conditions).toHaveLength(4);
+        expect(conditions[2]).toEqual(expect.objectContaining({ kind: 'or' }));
+        expect(conditions[3]).toEqual(expect.objectContaining({ kind: 'and' }));
+
+        const patterns = sqlMock.mock.calls
+            .flatMap(([, ...values]) => values)
+            .filter((value): value is string => typeof value === 'string');
+        expect(patterns).toContain('%a&e%');
+        expect(patterns).toContain('%hd%');
+    });
+
+    it('falls back to a content scan when the compound FTS lookup fails', async () => {
+        const globRow = {
+            id: 1,
+            category_id: 10,
+            title: 'A&E',
+            rating: '',
+            added: '',
+            poster_url: '',
+            epg_channel_id: '',
+            tv_archive: 0,
+            tv_archive_duration: 0,
+            direct_source: '',
+            xtream_id: 1,
+            type: 'live',
+            playlist_id: 'playlist-1',
+            playlist_name: 'Playlist One',
+        };
+        const scanRow = {
+            ...globRow,
+            id: 2,
+            xtream_id: 2,
+            title: 'US: A&E',
+        };
+        const all = jest
+            .fn()
+            .mockResolvedValueOnce([globRow])
+            .mockRejectedValueOnce(new Error('no such table: content_title_fts'));
+        const limit = jest.fn().mockResolvedValue([globRow, scanRow]);
+        const orderBy = jest.fn().mockReturnValue({ limit });
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const innerJoin2 = jest.fn().mockReturnValue({ where });
+        const innerJoin1 = jest.fn().mockReturnValue({ innerJoin: innerJoin2 });
+        const from = jest.fn().mockReturnValue({ innerJoin: innerJoin1 });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            all,
+            select,
+        } as unknown as AppDatabase;
+
+        const results = await globalSearch(
+            db,
+            'A&E',
+            ['live'],
+            false,
+            ['xtream'],
+            { limit: 10 }
+        );
+
+        expect(all).toHaveBeenCalledTimes(2);
+        expect(select).toHaveBeenCalledTimes(1);
+        expect(results.map((item) => item.title)).toEqual(['A&E', 'US: A&E']);
+    });
+
+    it('adds compound contains patterns to the M3U payload prefilter', async () => {
+        const limit = jest.fn().mockResolvedValue([]);
+        const orderedQuery = {
+            limit,
+            then: (resolve: (value: unknown[]) => void) => resolve([]),
+        };
+        const orderBy = jest.fn().mockReturnValue(orderedQuery);
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const from = jest.fn().mockReturnValue({ where });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'A&E', ['live'], false, ['m3u'], {
+            limit: 10,
+        });
+
+        const searchPatterns = sqlMock.mock.calls
+            .flatMap(([, ...values]) => values)
+            .filter(
+                (value): value is string =>
+                    typeof value === 'string' &&
+                    value.toLocaleLowerCase().includes('a&e')
+            );
+
+        expect(searchPatterns).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('"name":"%a&e%"'),
+                expect.stringContaining('"title":"%a&e%"'),
+            ])
+        );
     });
 
     it('keeps accented M3U payload text field variants in SQL prefilters', async () => {

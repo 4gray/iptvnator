@@ -1,0 +1,77 @@
+<h2 mat-dialog-title>{{ 'EPG_MAPPING_DIALOG.TITLE' | translate }}</h2>
+
+<mat-dialog-content>
+    <p class="epg-mapping-subtitle">
+        {{ 'EPG_MAPPING_DIALOG.SUBTITLE' | translate : { channelName: data.channelName } }}
+    </p>
+
+    <div class="epg-mapping-current">
+        <span class="epg-mapping-current__label">
+            {{ 'EPG_MAPPING_DIALOG.CURRENT_MAPPING' | translate }}:
+        </span>
+        <span class="epg-mapping-current__value">
+            {{ currentMapping() || ('EPG_MAPPING_DIALOG.NO_MAPPING' | translate) }}
+        </span>
+    </div>
+
+    <mat-form-field class="epg-mapping-search" appearance="outline">
+        <mat-label>{{ 'EPG_MAPPING_DIALOG.SEARCH_PLACEHOLDER' | translate }}</mat-label>
+        <input
+            matInput
+            [ngModel]="searchTerm()"
+            (ngModelChange)="onSearchInput($event)"
+            [placeholder]="'EPG_MAPPING_DIALOG.SEARCH_PLACEHOLDER' | translate"
+        />
+        <mat-icon matPrefix>search</mat-icon>
+        @if (loading()) {
+            <mat-spinner matSuffix diameter="20" />
+        }
+        @if (!hasSearchTerm()) {
+            <mat-hint>
+                {{
+                    'EPG_MAPPING_DIALOG.SEARCH_HINT'
+                        | translate: { min: searchMinChars }
+                }}
+            </mat-hint>
+        }
+    </mat-form-field>
+
+    @if (hasSearchTerm()) {
+        <div class="epg-mapping-results">
+            @for (channel of results(); track channel.id) {
+                <button
+                    class="epg-mapping-result"
+                    [class.epg-mapping-result--selected]="selectedId() === channel.id"
+                    (click)="selectChannel(channel.id)"
+                >
+                    <span class="epg-mapping-result__name">{{ channel.displayName }}</span>
+                    <span class="epg-mapping-result__id">{{ channel.id }}</span>
+                </button>
+            } @empty {
+                <div class="epg-mapping-empty">
+                    <mat-icon>search_off</mat-icon>
+                    <span>{{ 'EPG_MAPPING_DIALOG.NO_RESULTS' | translate }}</span>
+                </div>
+            }
+        </div>
+    }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    @if (currentMapping()) {
+        <button mat-button color="warn" (click)="removeMapping()">
+            {{ 'EPG_MAPPING_DIALOG.REMOVE' | translate }}
+        </button>
+    }
+    <button mat-button (click)="close()">
+        {{ 'EPG_MAPPING_DIALOG.CLOSE' | translate }}
+    </button>
+    <button
+        mat-raised-button
+        color="primary"
+        [disabled]="!selectedId()"
+        (click)="save()"
+    >
+        {{ 'EPG_MAPPING_DIALOG.SAVE' | translate }}
+    </button>
+</mat-dialog-actions>

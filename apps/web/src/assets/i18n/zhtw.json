@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "播放清單重新整理失敗。本機檔案已不存在。請檢查檔案路徑或重新匯入播放清單。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "播放清單重新整理失敗。應用程式無法再存取本機檔案。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放清單已成功更新",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "播放清單自動重新整理未完成：{{total}} 個播放清單中已更新 {{updated}} 個，{{failed}} 個失敗。",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "播放清單自動重新整理未完成：{{total}} 個播放清單中已更新 {{updated}} 個，{{failed}} 個失敗，略過 {{skipped}} 個（沒有 URL 或檔案路徑）。",
+            "AUTO_REFRESH_UPDATE_FAILED": "播放清單自動重新整理失敗。{{total}} 個播放清單皆未更新。",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "播放清單自動重新整理：{{total}} 個中已更新 {{updated}} 個，略過 {{skipped}} 個（沒有 URL 或檔案路徑）。",
             "AUTO_REFRESH_ENABLED": "已啟用自動重新整理"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "檢查金鑰",
         "TMDB_TEST_SUCCESS": "金鑰有效 — TMDB 回應成功",
         "TMDB_TEST_FAILED": "檢查失敗 — TMDB 拒絕該金鑰或無法連線",
+        "TMDB_CACHE": "中繼資料快取",
+        "TMDB_CACHE_DESCRIPTION": "已下載的中繼資料儲存在本機，詳細頁面可立即開啟。清除後應用程式會在下次瀏覽時重新取得。",
+        "TMDB_CACHE_SIZE": "{{entries}} 筆 · {{size}}",
+        "TMDB_CACHE_CLEAR": "清除快取",
+        "TMDB_CACHE_ERROR": "無法讀取快取 — 請重試",
         "TMDB_CREDITS": "中繼資料",
         "TMDB_ATTRIBUTION": "本產品使用 TMDB API，但未經 TMDB 認可或認證。",
         "APP_PREFERENCES": "應用程式偏好設定",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "正在清除…",
         "EPG_URL_ERROR": "該值不是有效的網址",
         "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器統一控制項（實驗性）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共用控制項。",
+        "PLAYER_AMBIENT_MODE": "環境背景填充",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、昏暗的海報填充播放器周圍的空間，取代純黑色邊框。",
+        "PLAYER_UP_NEXT_RAIL": "即將播放集數側欄",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "在較寬的視窗中，將影集播放器停靠在左側，並在旁邊顯示即將播放的集數。",
         "STREAM_FORMAT_DESCRIPTION": "選擇預設串流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
         "THEME_DESCRIPTION": "選擇應用程式視覺主題",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "預設顯示或隱藏字幕",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "顯示「正在播放」列",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "在桌面工作區底部保留外部播放器狀態列可見。",
+        "STRIP_COUNTRY_PREFIX": "從頻道名稱中移除國家前綴",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "移除應用程式中直播頻道名稱裡的國家/群組前綴，例如「US | 」或「UK - 」。",
         "VERSION_DESCRIPTION": "應用程式目前版本",
         "ABOUT_SUBTITLE": "版本、專案連結，以及支持 IPTVnator 的方式。",
         "EMBEDDED_MPV_NOTICE_TITLE": "內嵌 MPV 執行環境",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "內嵌 MPV：幀複製引擎（實驗性）",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "影片會繪製到應用程式畫布上，選單和對話框可顯示在其上方。",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "重新啟動應用程式後生效。"
     },
     "THEMES": {
         "DARK_THEME": "深色",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "返回",
             "RETRY": "重試",
             "STALLED": "此串流的啟動時間比預期長。",
             "PLAYBACK_FAILED": "內嵌 MPV 播放失敗。",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "倒轉 10 秒",
             "FORWARD_10_SECONDS": "快轉 10 秒",
             "LIVE_STREAM": "現場直播",
+            "PLAYBACK_POSITION": "播放位置",
             "MUTE": "靜音",
             "UNMUTE": "取消靜音",
             "MUTED": "已靜音",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "無法開始錄製。",
             "RECORDING_FAILED_TO_STOP": "無法停止錄製。",
             "SAVED_TO": "已儲存至 {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "進入子母畫面",
+            "EXIT_PICTURE_IN_PICTURE": "退出子母畫面",
             "ENTER_FULLSCREEN": "進入全螢幕",
             "EXIT_FULLSCREEN": "離開全螢幕"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "從我的最愛中移除",
         "ADD_FAVORITE": "加入我的最愛",
         "SHOW_DETAILS": "顯示頻道詳細資訊",
+        "MAP_EPG": "對應 EPG 頻道",
         "FAVORITES_UPDATED": "我的最愛已更新！",
         "SELECT_CHANNEL_PLAYBACK": "請選擇一個頻道以開始播放",
         "SORT_BY": "排序依據",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "顯示 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "對應 EPG 頻道",
+        "SUBTITLE": "為「{{channelName}}」手動選擇 EPG 頻道",
+        "SEARCH_PLACEHOLDER": "搜尋 EPG 頻道...",
+        "CURRENT_MAPPING": "目前對應",
+        "NO_MAPPING": "尚未設定 EPG 對應",
+        "SAVE": "儲存對應",
+        "REMOVE": "移除對應",
+        "CLOSE": "關閉",
+        "NO_RESULTS": "找不到 EPG 頻道",
+        "SEARCH_HINT": "輸入至少 {{min}} 個字元進行搜尋",
+        "SAVED": "EPG 對應已儲存",
+        "REMOVED": "EPG 對應已移除",
+        "SAVE_FAILED": "無法更新 EPG 對應"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "是",
     "NO": "否",
@@ -756,6 +797,8 @@
         "ACTORS": "演員",
         "DIRECTOR": "導演",
         "SIMILAR": "類似作品",
+        "CREW_JOB_DIRECTOR": "導演",
+        "CREW_JOB_CREATOR": "主創",
         "ACTOR_FILMOGRAPHY": "參演作品",
         "ACTOR_FILTER_ALL": "全部",
         "ACTOR_SCOPE_THIS_PORTAL": "目前入口",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "已在您的媒體庫中",
         "ACTOR_SEARCH_IN_PORTAL": "在入口網站搜尋",
         "ACTOR_BORN": "出生:",
+        "ACTOR_DIED": "逝世",
+        "SERIES_STATUS_RETURNING": "連載中",
+        "SERIES_STATUS_PLANNED": "籌備中",
+        "SERIES_STATUS_IN_PRODUCTION": "製作中",
+        "SERIES_STATUS_ENDED": "已完結",
+        "SERIES_STATUS_CANCELED": "已取消",
+        "SERIES_STATUS_PILOT": "試播",
         "DURATION": "片長",
         "CAST": "演員陣容",
         "EPISODE_RUN_TIME": "集數時長",
@@ -779,6 +829,7 @@
         "RESTART": "從頭開始",
         "CONTINUE_WATCHING": "繼續觀看",
         "PLAY_FIRST_EPISODE": "播放第一集",
+        "PLAY_EPISODE": "播放第 {{episode}} 集",
         "RESUME_EPISODE": "繼續播放本集",
         "PLAY_NEXT_EPISODE": "播放下一集",
         "SERIES_WATCHED": "劇集已看完",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "串流網址已複製到剪貼簿",
         "COPY_STREAM_URL": "複製串流網址",
         "NOW_PLAYING": "現正播放",
+        "UP_NEXT": "即將播放",
         "CLOSE_PLAYER": "關閉播放器",
         "ABOUT": "簡介",
         "SEASONS_AND_EPISODES": "季數與集數",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "此伺服器上未提供此內容",
         "PLAYBACK_ERROR": "無法取得播放網址",
         "LOADING_SEASONS": "正在載入季數...",
+        "LOADING_ALL_CHANNELS": "正在載入完整頻道清單…",
+        "REFRESH_CHANNEL_LIST": "重新整理頻道清單",
+        "NO_CHANNELS_IN_CATEGORY": "此分類中沒有頻道",
+        "ITEM": "項",
+        "ITEMS": "項",
         "NO_EPISODES": "沒有可用的集數",
         "ALL_RADIO": "所有廣播"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "此下載項目無法在媒體庫中開啟，因為其來源播放清單已被移除。",
         "FILE_NOT_FOUND": "此下載檔案在磁碟上已不存在。",
         "FILE_ACTION_ERROR": "無法完成檔案操作。",
+        "ACTION_FAILED": "操作失敗",
+        "PAUSE": "暫停",
+        "RESUME": "繼續",
         "CANCEL": "取消",
         "RETRY": "重試",
         "REMOVE": "移除",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "下載中",
             "COMPLETED": "已完成",
             "FAILED": "失敗",
-            "CANCELED": "已取消"
+            "CANCELED": "已取消",
+            "PAUSED": "已暫停"
         }
     },
     "REMOTE_CONTROL": {

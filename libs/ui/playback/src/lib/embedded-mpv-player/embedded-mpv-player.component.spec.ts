@@ -55,6 +55,7 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         controller.support.set({
             supported: true,
             platform: 'darwin',
+            engine: 'native',
             capabilities: {
                 subtitles: false,
                 playbackSpeed: false,
@@ -97,7 +98,10 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [EmbeddedMpvPlayerHostComponent, TranslateModule.forRoot()],
+            imports: [
+                EmbeddedMpvPlayerHostComponent,
+                TranslateModule.forRoot(),
+            ],
             providers: [
                 {
                     provide: EmbeddedMpvOverlayVisibilityService,
@@ -233,9 +237,8 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
     describe('timeline scrubbing', () => {
         const slider = () =>
-            fixture.debugElement.query(
-                By.css('.embedded-mpv-player__slider')
-            ).nativeElement as HTMLInputElement;
+            fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
+                .nativeElement as HTMLInputElement;
 
         const dispatch = (type: string, value: string) => {
             slider().value = value;

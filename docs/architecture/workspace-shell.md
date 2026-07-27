@@ -38,10 +38,15 @@ Core implementation:
 Current workspace routes:
 
 1. `/` -> `/workspace`
-2. `/workspace` -> `/workspace/dashboard`
+2. `/workspace` -> functional redirect `workspaceEntryRedirect`
+   (`WorkspaceStartupPreferencesService.resolveInitialWorkspacePath()`;
+   `/workspace/dashboard` by default, `/workspace/sources` when the dashboard
+   is disabled, or the last restorable route under
+   `StartupBehavior.RestoreLastView` — `dashboard` itself is guarded by
+   `dashboardAccessGuard`)
 3. `/workspace/dashboard`
 4. `/workspace/sources`
-5. `/workspace/playlists/:id/:view`
+5. `/workspace/playlists/:id/:view` (plus `favorites` and `recent` siblings)
 6. `/workspace/global-favorites`
 7. `/workspace/global-recent`
 8. `/workspace/search`
@@ -250,10 +255,25 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    WebContents. Close goes through `win.close()` so the existing
    window-bounds persistence in `app.ts` still runs.
 2. `WINDOW:STATE_CHANGED` is pushed main → renderer on
-   maximize/unmaximize/enter-full-screen/leave-full-screen so the
-   maximize/restore glyph stays correct for externally triggered changes
-   (double-click on a drag region, OS snap, F11). The controls hide
-   themselves while the window is fullscreen.
+   maximize/unmaximize and on the fullscreen events —
+   `enter/leave-full-screen` plus the `enter/leave-html-full-screen`
+   variants emitted for HTML-element fullscreen (video player
+   fullscreen) — so the maximize/restore glyph stays correct for
+   externally triggered changes (double-click on a drag region, OS
+   snap, F11). The controls hide themselves while the window is
+   fullscreen.
+
+   Window state is **never re-read at event time**. `attachWindowStateEvents`
+   seeds `{ isMaximized, isFullScreen }` once at window creation and each
+   event patches only the flag it names; every push carries a copy of that
+   tracked state. On Windows both getters can still report the
+   pre-transition value while the matching event fires — `isFullScreen()`
+   stays `true` during an HTML fullscreen exit, and `isMaximized()` reads
+   `false` while the window is fullscreen. Because the renderer replaces
+   both flags on every push and no later event corrects a stale one,
+   polling left the controls hidden forever after leaving fullscreen and
+   stuck the maximize/restore glyph on the wrong icon. Regression coverage:
+   `app-window-state.spec.ts` and `window-controls.e2e.ts`.
 
 Layout integration:
 
@@ -292,6 +312,10 @@ Toolchain notes for the Electron 41 upgrade:
 2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
    `@electron/rebuild` (via `electron-builder install-app-deps`) can map
    Electron 41 to its ABI.
+3. Local development needs **Node >= 22.12**, declared in `engines`.
+   `electron-builder` 26.15.3 pulls `@electron/rebuild` 4, which sets that
+   floor, and the root `postinstall` runs `install-app-deps` on every
+   `pnpm install`. CI already runs Node 22.
 
 Known caveats:
 

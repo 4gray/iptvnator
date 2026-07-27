@@ -13,15 +13,20 @@ import {
     input,
     OnDestroy,
     output,
+    signal,
     untracked,
     viewChild,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import {
+    buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
     XtreamCategory,
@@ -30,6 +35,7 @@ import {
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
+    EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
     PortalChannelSortMode,
@@ -66,7 +72,9 @@ interface XtreamCategoryLike {
     imports: [
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
+        MatButtonModule,
         MatIcon,
+        MatMenuModule,
         ScrollingModule,
         TranslatePipe,
     ],
@@ -83,7 +91,14 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly dialog = inject(MatDialog);
+
+    readonly contextMenuTrigger =
+        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
+    readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
     readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {
@@ -121,6 +136,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     favorites = new Map<string, boolean>();
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
+
+    /** Last viewport slice, reused to refresh previews after a mapping change. */
+    private lastVisibleChannels: XtreamChannelListItem[] = [];
 
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
@@ -222,6 +240,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                             range.start,
                             range.end
                         );
+                        this.lastVisibleChannels = visibleChannels;
                         this.loadEpgForVisibleChannels(visibleChannels);
                     })
             );
@@ -246,6 +265,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         const uncachedEntries: {
             streamId: number;
             epgChannelId?: string | null;
+            playlistId?: string | null;
         }[] = [];
 
         // Apply cached results immediately
@@ -266,6 +286,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 uncachedEntries.push({
                     streamId: channel.xtream_id,
                     epgChannelId: channel.epg_channel_id ?? null,
+                    playlistId: playlist.id ?? null,
                 });
             }
         }
@@ -458,5 +479,100 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         return Number.isFinite(parsedDate)
             ? Math.floor(parsedDate / 1000)
             : null;
+    }
+
+    // ── Context menu ────────────────────────────────────────────
+
+    onChannelContextMenu(channel: XtreamChannelListItem, event: MouseEvent): void {
+        this.contextMenuChannel.set(channel);
+        this.contextMenuPosition.set({
+            x: `${event.clientX}px`,
+            y: `${event.clientY}px`,
+        });
+
+        const trigger = this.contextMenuTrigger();
+        if (trigger.menuOpen) {
+            trigger.closeMenu();
+        }
+
+        queueMicrotask(() => {
+            this.contextMenuTrigger().openMenu();
+        });
+    }
+
+    openEpgMapping(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const xtreamId = channel.xtream_id ?? channel.id;
+        if (!playlistId || xtreamId == null) {
+            return;
+        }
+
+        const channelKey = buildXtreamEpgMappingKey(playlistId, xtreamId);
+        void this.openEpgMappingDialog(
+            channelKey,
+            channel,
+            xtreamId,
+            playlistId
+        );
+    }
+
+    private async openEpgMappingDialog(
+        channelKey: string,
+        channel: XtreamChannelListItem,
+        streamId: number,
+        playlistId: string
+    ): Promise<void> {
+        const mappingBefore = await this.readEpgMapping(channelKey);
+
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: channel.title ?? channel.name ?? String(streamId),
+            playlistId,
+        })
+            .afterClosed()
+            .subscribe(async () => {
+                const mappingAfter = await this.readEpgMapping(channelKey);
+                if (mappingAfter === mappingBefore) {
+                    return;
+                }
+                // The mapping changed (saved or removed) — drop the cached
+                // preview/resolution and refetch so the row updates now
+                // instead of after the 5-minute TTL or the next scroll.
+                this.epgQueueService.invalidate(streamId);
+                this.epgPrograms.delete(streamId);
+                this.currentProgramsProgress.delete(streamId);
+                const visible = this.lastVisibleChannels.length
+                    ? this.lastVisibleChannels
+                    : this.filteredChannels().slice(0, 50);
+                this.loadEpgForVisibleChannels(visible);
+            });
+    }
+
+    /** Read the current mapped EPG channel id, or null (PWA / no mapping). */
+    private async readEpgMapping(channelKey: string): Promise<string | null> {
+        if (!this.supportsEpgMapping) {
+            return null;
+        }
+        const bridge = (
+            window as unknown as {
+                electron?: {
+                    getEpgMapping?: (
+                        key: string
+                    ) => Promise<{ epgChannelId?: string } | null>;
+                };
+            }
+        ).electron;
+        try {
+            const mapping = await bridge?.getEpgMapping?.(channelKey);
+            return mapping?.epgChannelId?.trim() || null;
+        } catch {
+            return null;
+        }
     }
 }

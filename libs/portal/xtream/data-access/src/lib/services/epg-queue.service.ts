@@ -1,6 +1,9 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
-import { EpgItem } from '@iptvnator/shared/interfaces';
+import {
+    buildXtreamEpgMappingKey,
+    EpgItem,
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
@@ -19,6 +22,8 @@ interface CacheEntry {
 export interface EpgQueueEntry {
     streamId: number;
     epgChannelId?: string | null;
+    /** Owning playlist — required to resolve manual EPG mappings. */
+    playlistId?: string | null;
 }
 
 /**
@@ -50,6 +55,8 @@ export class EpgQueueService implements OnDestroy {
     private readonly cache = new Map<number, CacheEntry>();
     private queue: number[] = [];
     private readonly inFlight = new Set<number>();
+    /** Bumped by invalidate() so a stale in-flight result is discarded. */
+    private readonly invalidationEpoch = new Map<number, number>();
     private readonly epgChannelByStreamId = new Map<number, string>();
     private readonly xmltvPreviewByStreamId = new Map<number, EpgItem>();
     private visibleSet = new Set<number>();
@@ -73,6 +80,29 @@ export class EpgQueueService implements OnDestroy {
             return null;
         }
         return entry.data;
+    }
+
+    /**
+     * Drop every cached artifact for a stream so the next enqueue refetches
+     * it. Used when a manual EPG mapping for the stream changes, since the
+     * cached preview/resolution was computed for the previous mapping.
+     *
+     * Also bumps an invalidation epoch and clears `inFlight`: a request that
+     * was already running when the mapping changed carries the pre-change
+     * resolution, so its result is discarded (epoch mismatch in `fetchEpg`)
+     * and clearing `inFlight` lets the immediate re-enqueue schedule a fresh
+     * fetch through the mapping-aware `enqueue()` path.
+     */
+    invalidate(streamId: number): void {
+        this.cache.delete(streamId);
+        this.failureTimestamps.delete(streamId);
+        this.epgChannelByStreamId.delete(streamId);
+        this.xmltvPreviewByStreamId.delete(streamId);
+        this.inFlight.delete(streamId);
+        this.invalidationEpoch.set(
+            streamId,
+            (this.invalidationEpoch.get(streamId) ?? 0) + 1
+        );
     }
 
     private isFailureCoolingDown(streamId: number): boolean {
@@ -113,6 +143,17 @@ export class EpgQueueService implements OnDestroy {
         const normalized: EpgQueueEntry[] = streams.map((entry) =>
             typeof entry === 'number' ? { streamId: entry } : { ...entry }
         );
+
+        // Resolve manual EPG mappings before building the per-EPG-id index.
+        // When the user has right-clicked a channel and created a mapping,
+        // the stored key is the playlist-scoped Xtream key, not the
+        // provider's epg_channel_id.  By resolving upfront we get the
+        // correct EPG channel ID for the XMLTV batch call that follows.
+        // Guarded so environments without the bridge (PWA) skip the await
+        // entirely and the enqueue keeps its original microtask timing.
+        if (typeof window.electron?.getEpgMappingsBatch === 'function') {
+            await this.resolveManualMappings(normalized);
+        }
 
         const streamsByEpgId = new Map<string, number[]>();
         for (const entry of normalized) {
@@ -192,6 +233,62 @@ export class EpgQueueService implements OnDestroy {
         return this.fallbackService.getCurrentProgramsBatch(epgChannelIds);
     }
 
+    /**
+     * Resolve manual EPG mappings for the queued entries.
+     *
+     * The user may have opened the mapping dialog (right-click → "Map EPG")
+     * from any channel list; the stored key is the playlist-scoped Xtream
+     * key, which does not match the provider's epg_channel_id, so the batch
+     * IPC handler's resolveChannelIds() would miss it.  We resolve here,
+     * upfront, so the XMLTV batch call later uses the *mapped* epgChannelId
+     * — the actual EPG channel that carries the XMLTV data. A mapping also
+     * supplies an epgChannelId to entries whose provider did not send one.
+     */
+    private async resolveManualMappings(
+        entries: EpgQueueEntry[]
+    ): Promise<void> {
+        const getEpgMappingsBatch =
+            typeof window.electron?.getEpgMappingsBatch === 'function'
+                ? window.electron.getEpgMappingsBatch
+                : null;
+        if (!getEpgMappingsBatch) {
+            return;
+        }
+
+        const keyByStreamId = new Map<number, string>();
+        for (const entry of entries) {
+            if (!entry.playlistId) continue;
+            keyByStreamId.set(
+                entry.streamId,
+                buildXtreamEpgMappingKey(entry.playlistId, entry.streamId)
+            );
+        }
+        if (keyByStreamId.size === 0) {
+            return;
+        }
+
+        try {
+            // One IPC round-trip for the whole viewport — a per-entry
+            // lookup would put O(N) IPC calls on every scroll event.
+            const mappings = await getEpgMappingsBatch([
+                ...keyByStreamId.values(),
+            ]);
+            for (const entry of entries) {
+                const key = keyByStreamId.get(entry.streamId);
+                const mapped = key ? mappings[key]?.trim() : undefined;
+                if (mapped) {
+                    this.logger.info(
+                        `Mapped stream ${entry.streamId}: ${entry.epgChannelId ?? '(none)'} → ${mapped}`
+                    );
+                    entry.epgChannelId = mapped;
+                }
+            }
+        } catch {
+            // Mapping lookup failure is non-fatal; keep the original
+            // epgChannelId values and proceed.
+        }
+    }
+
     private pruneEphemeralMaps(visibleIds: Set<number>): void {
         for (const id of [...this.epgChannelByStreamId.keys()]) {
             // getCached() honors TTL and lazily evicts expired entries;
@@ -233,6 +330,9 @@ export class EpgQueueService implements OnDestroy {
         credentials: XtreamCredentials,
         streamId: number
     ): Promise<void> {
+        const startEpoch = this.invalidationEpoch.get(streamId) ?? 0;
+        const isStale = (): boolean =>
+            (this.invalidationEpoch.get(streamId) ?? 0) !== startEpoch;
         try {
             const apiItems = await this.apiService.getShortEpg(
                 credentials,
@@ -240,6 +340,11 @@ export class EpgQueueService implements OnDestroy {
                 this.previewLimit,
                 { suppressErrorLog: true }
             );
+
+            // A mapping change during the request invalidated this result.
+            if (isStale()) {
+                return;
+            }
 
             if (apiItems.length > 0) {
                 this.recordSuccess(streamId, apiItems);
@@ -249,13 +354,23 @@ export class EpgQueueService implements OnDestroy {
             const xmltv = this.xmltvPreviewByStreamId.get(streamId);
             this.recordSuccess(streamId, xmltv ? [xmltv] : []);
         } catch (error) {
+            if (isStale()) {
+                return;
+            }
             this.failureTimestamps.set(streamId, Date.now());
             this.logger.error(
                 `Failed to load EPG for stream ${streamId}`,
                 error
             );
         } finally {
-            this.inFlight.delete(streamId);
+            // Only release the in-flight marker if this request still owns it.
+            // When invalidate() cleared it mid-flight, a later re-enqueue may
+            // already have started a new request for the same stream; an
+            // unconditional delete here would drop that request's marker and
+            // let a third concurrent fetch start.
+            if (!isStale()) {
+                this.inFlight.delete(streamId);
+            }
         }
     }
 

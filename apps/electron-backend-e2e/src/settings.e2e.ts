@@ -169,6 +169,11 @@ test.describe('Electron Settings', () => {
                 'select-video-player',
                 'html5'
             );
+            const sharedControlsCheckbox = firstLaunch.mainWindow
+                .getByTestId('web-player-shared-controls-setting')
+                .locator('input[type="checkbox"]');
+            await expect(sharedControlsCheckbox).toBeVisible();
+            await sharedControlsCheckbox.check();
             await selectSettingsOption(
                 firstLaunch.mainWindow,
                 'select-stream-format',
@@ -207,6 +212,11 @@ test.describe('Electron Settings', () => {
                 secondLaunch.mainWindow.getByTestId('select-video-player')
             ).toContainText(/HTML5/i);
             await expect(
+                secondLaunch.mainWindow
+                    .getByTestId('web-player-shared-controls-setting')
+                    .locator('input[type="checkbox"]')
+            ).toBeChecked();
+            await expect(
                 secondLaunch.mainWindow.getByTestId('select-stream-format')
             ).toContainText('ts');
             await expect(
@@ -228,6 +238,171 @@ test.describe('Electron Settings', () => {
         } finally {
             await closeElectronApp(secondLaunch);
             await epgServer.close();
+        }
+    });
+
+    test('@settings @playback @electron applies shared controls to the next HTML5 session', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await selectSettingsOption(
+                app.mainWindow,
+                'select-video-player',
+                'html5'
+            );
+            const sharedControlsCheckbox = app.mainWindow
+                .getByTestId('web-player-shared-controls-setting')
+                .locator('input[type="checkbox"]');
+            await expect(sharedControlsCheckbox).toBeVisible();
+            await sharedControlsCheckbox.check();
+            await saveSettings(app.mainWindow);
+
+            await goToDashboard(app.mainWindow);
+            await importM3uPlaylistFromNativeDialog(app, m3uFixturePath);
+            await app.mainWindow.waitForURL(/\/workspace\/playlists\/.+/);
+            await app.mainWindow.route(
+                'https://example.channels/path-to-file/1.m3u8',
+                () => {
+                    // Keep the synthetic stream pending so its network failure
+                    // cannot replace the shared controls with a diagnostic.
+                }
+            );
+
+            const firstChannel = channelItemByTitle(
+                app.mainWindow,
+                'Channel 1'
+            ).first();
+
+            await expect(firstChannel).toBeVisible({ timeout: 20000 });
+            await firstChannel.click();
+            const video = app.mainWindow.locator(
+                'app-html-video-player video'
+            );
+            await expect(video).toBeAttached();
+            await video.evaluate<void, HTMLVideoElement>((video) => {
+                const ownerDocument = video.ownerDocument;
+                let activePictureInPictureElement: Element | null = null;
+                video.dataset['pictureInPictureRequestCount'] = '0';
+                video.dataset['pictureInPictureExitCount'] = '0';
+
+                Object.defineProperty(
+                    ownerDocument,
+                    'pictureInPictureEnabled',
+                    {
+                        configurable: true,
+                        value: true,
+                    }
+                );
+                Object.defineProperty(
+                    ownerDocument,
+                    'pictureInPictureElement',
+                    {
+                        configurable: true,
+                        get: () => activePictureInPictureElement,
+                    }
+                );
+                Object.defineProperty(ownerDocument, 'exitPictureInPicture', {
+                    configurable: true,
+                    value: async (): Promise<void> => {
+                        video.dataset['pictureInPictureExitCount'] = String(
+                            Number(
+                                video.dataset['pictureInPictureExitCount'] ??
+                                    '0'
+                            ) + 1
+                        );
+                        const previousOwner = activePictureInPictureElement;
+                        activePictureInPictureElement = null;
+                        previousOwner?.dispatchEvent(
+                            new Event('leavepictureinpicture')
+                        );
+                    },
+                });
+                Object.defineProperty(video, 'requestPictureInPicture', {
+                    configurable: true,
+                    value: async (): Promise<PictureInPictureWindow> => {
+                        video.dataset['pictureInPictureRequestCount'] = String(
+                            Number(
+                                video.dataset['pictureInPictureRequestCount'] ??
+                                    '0'
+                            ) + 1
+                        );
+                        activePictureInPictureElement = video;
+                        video.dispatchEvent(new Event('enterpictureinpicture'));
+
+                        const pictureInPictureWindow: PictureInPictureWindow =
+                            Object.assign(new EventTarget(), {
+                                height: video.videoHeight,
+                                onresize: null,
+                                width: video.videoWidth,
+                            });
+                        return pictureInPictureWindow;
+                    },
+                });
+                Object.defineProperty(video, 'disablePictureInPicture', {
+                    configurable: true,
+                    value: false,
+                });
+                Object.defineProperty(video, 'readyState', {
+                    configurable: true,
+                    value: HTMLMediaElement.HAVE_METADATA,
+                });
+                video.dispatchEvent(new Event('loadedmetadata'));
+            });
+
+            const playerControls = app.mainWindow.locator(
+                'app-html-video-player app-player-controls'
+            );
+            await expect(playerControls).toBeVisible();
+            await expect(
+                app.mainWindow.locator('app-html-video-player video[controls]')
+            ).toHaveCount(0);
+            const enterPictureInPicture = playerControls.getByRole('button', {
+                name: 'Enter picture-in-picture',
+            });
+
+            await expect(enterPictureInPicture).toBeVisible();
+            await expect(enterPictureInPicture).toBeEnabled();
+            await expect(enterPictureInPicture).toHaveAttribute(
+                'aria-pressed',
+                'false'
+            );
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-request-count',
+                '0'
+            );
+            await enterPictureInPicture.click();
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-request-count',
+                '1'
+            );
+
+            const exitPictureInPicture = playerControls.getByRole('button', {
+                name: 'Exit picture-in-picture',
+            });
+            await expect(exitPictureInPicture).toBeVisible();
+            await expect(exitPictureInPicture).toHaveAttribute(
+                'aria-pressed',
+                'true'
+            );
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-exit-count',
+                '0'
+            );
+            await exitPictureInPicture.click();
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-exit-count',
+                '1'
+            );
+            await expect(enterPictureInPicture).toBeVisible();
+            await expect(enterPictureInPicture).toHaveAttribute(
+                'aria-pressed',
+                'false'
+            );
+        } finally {
+            await closeElectronApp(app);
         }
     });
 
@@ -429,6 +604,57 @@ test.describe('Electron Settings', () => {
             await closeElectronApp(app);
         }
     });
+
+    test('@settings @electron @persistence sizes and clears the TMDB metadata cache', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            // Seeded through the same preload bridge the enrichment service
+            // uses, so this exercises real IPC -> DB worker -> SQLite.
+            // Enrichment itself cannot run here: it needs a TMDB API key,
+            // which builds outside the release pipeline do not carry.
+            await app.mainWindow.evaluate(async () => {
+                await window.electron.dbSetTmdbMetadata({
+                    mediaType: 'movie',
+                    lookupKey: 'id:603|v2',
+                    language: 'en-US',
+                    tmdbId: 603,
+                    payload: JSON.stringify({ id: 603, title: 'The Matrix' }),
+                    fetchedAt: new Date().toISOString(),
+                });
+            });
+
+            await openSettings(app.mainWindow);
+            await app.mainWindow.getByTestId('settings-section-tmdb').click();
+
+            // Sizing is deferred until this section is the active one
+            await expect(
+                app.mainWindow.getByTestId('tmdb-cache-size')
+            ).toHaveText(/\b1 entries/);
+
+            const clearButton =
+                app.mainWindow.getByTestId('tmdb-clear-cache');
+            await expect(clearButton).toBeEnabled();
+            await clearButton.click();
+
+            // Re-read reports an empty cache, so there is nothing to clear
+            await expect(clearButton).toBeDisabled();
+            await expect(
+                app.mainWindow.getByTestId('tmdb-cache-size')
+            ).toHaveText(/\b0 entries/);
+
+            // ...and the row is gone from the database, not just the panel
+            const remaining = await app.mainWindow.evaluate(() =>
+                window.electron.dbGetTmdbMetadata('movie', 'id:603|v2', 'en-US')
+            );
+            expect(remaining).toBeNull();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
 });
 
 async function selectSettingsOption(

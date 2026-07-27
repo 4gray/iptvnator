@@ -28,7 +28,7 @@
             }
         </div>
         <div class="channel-details">
-            <div class="channel-name">{{ name() }}</div>
+            <div class="channel-name">{{ displayName() }}</div>
             @if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">

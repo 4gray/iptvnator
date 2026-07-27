@@ -15,6 +15,14 @@ export interface ScenarioConfig {
     isSeriesFraction: number;
     /** Fraction of VOD items that have embedded series[] array */
     embeddedSeriesFraction: number;
+    /**
+     * Whether the portal implements the ITV `get_all_channels` action.
+     * Defaults to true; set false to force clients onto paginated
+     * `get_ordered_list` crawling (legacy portals).
+     */
+    supportsGetAllChannels?: boolean;
+    /** Replace generated VOD with the shared screenshot-safe poster catalog. */
+    marketingFixture?: true;
 }
 
 /**
@@ -87,6 +95,31 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         episodesPerSeason: 5,
         isSeriesFraction: 0,
         embeddedSeriesFraction: 0.5, // 50% of VOD items have embedded series[]
+    },
+    '00:1a:79:00:00:06': {
+        name: 'legacy-pagination',
+        description:
+            'Portal without get_all_channels — clients must crawl get_ordered_list pages',
+        seed: 6006,
+        categoryCount: { itv: 6, radio: 4, vod: 4, series: 4 },
+        itemsPerCategory: 40,
+        seasonsPerSeries: 2,
+        episodesPerSeason: 5,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        supportsGetAllChannels: false,
+    },
+    '00:1a:79:00:00:07': {
+        name: 'marketing-demo',
+        description: 'Screenshot-safe portal with 35 original poster movies',
+        seed: 7007,
+        categoryCount: { itv: 4, radio: 4, vod: 4, series: 4 },
+        itemsPerCategory: 6,
+        seasonsPerSeries: 2,
+        episodesPerSeason: 5,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        marketingFixture: true,
     },
 };
 

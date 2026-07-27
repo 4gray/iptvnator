@@ -18,6 +18,12 @@ const nativeModules = [
 ];
 
 const isProduction = process.env.NODE_ENV === 'production';
+const isPerformance = process.argv.includes('--performance');
+const buildMode = isPerformance
+    ? 'performance'
+    : isProduction
+      ? 'production'
+      : 'development';
 
 async function buildWorker() {
     try {
@@ -59,7 +65,7 @@ async function buildWorker() {
 
         for (const worker of workers) {
             console.log(
-                `Building ${worker.label} with esbuild (${isProduction ? 'production' : 'development'})...`
+                `Building ${worker.label} with esbuild (${buildMode})...`
             );
 
             await esbuild.build({
@@ -74,8 +80,8 @@ async function buildWorker() {
                     ...nodeBuiltins,
                     ...nativeModules,
                 ],
-                sourcemap: !isProduction,
-                minify: isProduction,
+                sourcemap: isPerformance || !isProduction,
+                minify: isProduction || isPerformance,
                 alias: {
                     '@iptvnator/shared/interfaces': path.join(
                         __dirname,

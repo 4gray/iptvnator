@@ -53,7 +53,9 @@ class StubSeasonContainerComponent {
 class StubPortalInlinePlayerComponent {
     readonly playback = input<unknown>(null);
     readonly episodeMetadata = input<unknown>(null);
+    readonly seriesTitle = input<string | null>(null);
     readonly seriesNavigation = input<unknown>(null);
+    readonly upNextEpisodes = input<unknown>(null);
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();
     readonly streamUrlCopied = output<void>();
@@ -61,6 +63,7 @@ class StubPortalInlinePlayerComponent {
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
+    readonly upNextEpisodeSelected = output<unknown>();
 }
 
 @Component({
@@ -79,6 +82,7 @@ describe('StalkerSeriesViewComponent', () => {
     const selectedItem = signal<StalkerVodSource | null>(null);
     const serialSeasonsResource = signal<unknown[]>([]);
     const vodSeriesSeasonsResource = signal<unknown[]>([]);
+    const isSerialSeasonsLoading = signal(false);
     const fetchVodSeriesEpisodes = jest.fn();
     const resolveVodPlayback = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
@@ -106,6 +110,7 @@ describe('StalkerSeriesViewComponent', () => {
             },
         ]);
         vodSeriesSeasonsResource.set([]);
+        isSerialSeasonsLoading.set(false);
         fetchVodSeriesEpisodes.mockReset();
         resolveVodPlayback.mockReset();
         resolveVodPlayback.mockImplementation(
@@ -156,7 +161,7 @@ describe('StalkerSeriesViewComponent', () => {
                         getVodSeriesSeasonsResource: () =>
                             vodSeriesSeasonsResource(),
                         isVodSeriesSeasonsLoading: signal(false),
-                        isSerialSeasonsLoading: signal(false),
+                        isSerialSeasonsLoading,
                         fetchVodSeriesEpisodes,
                         resolveVodPlayback,
                         fetchLinkToPlay: jest.fn(),
@@ -241,7 +246,17 @@ describe('StalkerSeriesViewComponent', () => {
                         StubSeasonContainerComponent,
                         MockPipe(
                             TranslatePipe,
-                            (value: string | null | undefined) => value ?? ''
+                            (
+                                value: string | null | undefined,
+                                params?: Record<string, number>
+                            ) => {
+                                if (value === 'XTREAM.PLAY_EPISODE') {
+                                    return `Play episode ${
+                                        params?.['episode'] ?? '{{episode}}'
+                                    }`;
+                                }
+                                return value ?? '';
+                            }
                         ),
                     ],
                 },
@@ -288,6 +303,68 @@ describe('StalkerSeriesViewComponent', () => {
             }),
             true
         );
+    });
+
+    it('interpolates the episode number for a recently started VOD is_series episode', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: '1',
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([]);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    {
+                        id: 'episode-1',
+                        series_number: 1,
+                        name: 'Pilot',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        const episode = fixture.componentInstance.mappedSeasons()['1'][0];
+        fixture.componentInstance.episodePlaybackPositions.set(
+            new Map([
+                [
+                    Number(episode.id),
+                    {
+                        contentXtreamId: Number(episode.id),
+                        contentType: 'episode',
+                        seriesXtreamId: 50001,
+                        positionSeconds: 5,
+                        durationSeconds: 100,
+                    },
+                ],
+            ])
+        );
+        fixture.detectChanges();
+
+        const button: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+
+        expect(
+            fixture.componentInstance.quickStartAction()?.labelParams
+        ).toEqual({ episode: 1 });
+        expect(button?.textContent).toContain('Play episode 1');
+        expect(button?.textContent).not.toContain('{{episode}}');
     });
 
     it('loads the first VOD-series season and starts its first episode from quick start', async () => {
@@ -349,6 +426,15 @@ describe('StalkerSeriesViewComponent', () => {
             1,
             expect.any(Number),
             undefined
+        );
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentInfo: expect.objectContaining({
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                }),
+            }),
+            true
         );
     });
 
@@ -541,6 +627,14 @@ describe('StalkerSeriesViewComponent', () => {
             By.directive(StubPortalInlinePlayerComponent)
         ).componentInstance as StubPortalInlinePlayerComponent;
 
+        expect(inlinePlayer.playback()).toEqual(
+            expect.objectContaining({
+                contentInfo: expect.objectContaining({
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                }),
+            })
+        );
         expect(inlinePlayer.episodeMetadata()).toEqual({
             label: 'S01E01',
             title: 'Pilot',
@@ -589,6 +683,259 @@ describe('StalkerSeriesViewComponent', () => {
             Number(seasonTwoEpisode.id),
             undefined
         );
+    });
+
+    it('prefetches the next unopened season so the Up Next rail can spill over', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+        ]);
+        isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Season 1 loaded, season 2 still empty — the state a user is in
+        // right after opening the series and starting the first episode.
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    { id: 'episode-1', series_number: 1, name: 'Pilot' },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockClear();
+        fetchVodSeriesEpisodes.mockResolvedValue([
+            { id: 'episode-3', series_number: 1, name: 'Next Season' },
+        ]);
+
+        const firstEpisode = fixture.componentInstance.mappedSeasons()['1'][0];
+        fixture.componentInstance.onEpisodeClicked(firstEpisode);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
+            '50001',
+            'season-2'
+        );
+
+        const inlinePlayer = fixture.debugElement.query(
+            By.directive(StubPortalInlinePlayerComponent)
+        ).componentInstance as StubPortalInlinePlayerComponent;
+        const railItems = inlinePlayer.upNextEpisodes() as Array<{
+            label: string;
+        }>;
+        expect(railItems.map((item) => item.label)).toEqual([
+            'S01E01',
+            'S02E01',
+        ]);
+    });
+
+    it('does not re-request a spillover season that came back empty', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+        ]);
+        isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    { id: 'episode-1', series_number: 1, name: 'Pilot' },
+                    { id: 'episode-2', series_number: 2, name: 'Second' },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockClear();
+        // Failed or genuinely empty season: isLoading returns to false while
+        // episodes stays empty — the retry trap.
+        fetchVodSeriesEpisodes.mockResolvedValue([]);
+
+        const seasonOne = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(seasonOne[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
+
+        // Further playback activity in the same season must not retrigger it.
+        fixture.componentInstance.onEpisodeClicked(seasonOne[1]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries a failed spillover prefetch on the next episode', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+        ]);
+        isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    { id: 'episode-1', series_number: 1, name: 'Pilot' },
+                    { id: 'episode-2', series_number: 2, name: 'Second' },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockClear();
+        fetchVodSeriesEpisodes.mockRejectedValueOnce(new Error('network'));
+
+        const seasonOne = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(seasonOne[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        // The failure must not loop while the same episode keeps playing.
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(1);
+
+        // Moving to the next episode gives the transient failure a new chance.
+        fetchVodSeriesEpisodes.mockResolvedValue([
+            { id: 'episode-3', series_number: 1, name: 'Next Season' },
+        ]);
+        fixture.componentInstance.onEpisodeClicked(seasonOne[1]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(2);
+
+        const inlinePlayer = fixture.debugElement.query(
+            By.directive(StubPortalInlinePlayerComponent)
+        ).componentInstance as StubPortalInlinePlayerComponent;
+        const railItems = inlinePlayer.upNextEpisodes() as Array<{
+            label: string;
+        }>;
+        expect(railItems.map((item) => item.label)).toEqual([
+            'S01E02',
+            'S02E01',
+        ]);
     });
 
     it('loads the next unloaded VOD-series season after the loaded season is watched', async () => {
@@ -726,5 +1073,146 @@ describe('StalkerSeriesViewComponent', () => {
         await fixture.whenStable();
 
         expect(tmdbGetSeason).toHaveBeenCalledWith(777, 1);
+    });
+
+    it('waits for the season map before fetching so a per-season slice gets the title-marked season', async () => {
+        serialSeasonsResource.set([]);
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series (2 season)',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Season resource still loading — fetching now would pass a zero
+        // season count, suppress the title-marker override and cache the
+        // wrong season forever (fetchSeason is idempotent).
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        serialSeasonsResource.set([
+            {
+                id: 'season-1',
+                name: 'Season 1',
+                cmd: '/media/file_30001.mpg',
+                series: [1, 2],
+            },
+        ]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Single-season slice whose provider season is renumbered to 1:
+        // the title marker names the real TMDB season.
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
+    });
+
+    it('gates the fetch on the reloading season resource during detail-to-detail navigation', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        // No show-level TMDB match yet — nothing fetched for the first item
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // Detail-to-detail navigation reuses the component; the new item's
+        // TMDB match can arrive while the season resource reloads and the
+        // map still shows the previous series' seasons.
+        isSerialSeasonsLoading.set(true);
+        selectedItem.set({
+            id: '30002',
+            cmd: '/media/file_30002.mpg',
+            info: {
+                name: 'Other Series (2 season)',
+                description: 'Other description',
+                movie_image: 'poster2.jpg',
+                tmdb_id: 888,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // The new tmdb_id must NOT pair with the previous series' season
+        // context while the resource reloads.
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // Once the new item's own seasons land, the fetch runs WITHOUT a
+        // new seasonSelected emission — the season container deduplicates
+        // emissions when both items share the same season-key set, so the
+        // retained key must stay usable.
+        serialSeasonsResource.set([
+            {
+                id: 'season-1',
+                name: 'Season 1',
+                cmd: '/media/file_30002.mpg',
+                series: [1, 2],
+            },
+        ]);
+        isSerialSeasonsLoading.set(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).toHaveBeenCalledWith(888, 2);
+    });
+
+    it('enriches after equal-id navigation once the season resource settles', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Distinct items can reuse a provider id; the loading gate (not an
+        // id comparison) keeps the stale map from being used.
+        isSerialSeasonsLoading.set(true);
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Different Series (3 season)',
+                description: 'Different description',
+                movie_image: 'poster3.jpg',
+                tmdb_id: 999,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        isSerialSeasonsLoading.set(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).toHaveBeenCalledWith(999, 3);
+    });
+
+    it('reads the season marker from o_name when name is generic', async () => {
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series',
+                o_name: 'Regular Series (2 season)',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.onSeasonSelected('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 2);
     });
 });

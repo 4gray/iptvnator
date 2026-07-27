@@ -6,6 +6,7 @@ import {
 
 export const SERIES_QUICK_START_ACTION_KIND = {
     PlayFirst: 'play-first',
+    PlayRecent: 'play-recent',
     Resume: 'resume',
     PlayNext: 'play-next',
     Completed: 'completed',
@@ -17,6 +18,7 @@ export type SeriesQuickStartActionKind =
 export interface SeriesQuickStartAction {
     kind: SeriesQuickStartActionKind;
     labelKey: string;
+    labelParams?: Record<string, number>;
     episodeLabel: string;
     icon: string;
     episode: XtreamSerieEpisode;
@@ -49,18 +51,37 @@ export function getSeriesQuickStartAction(
         return null;
     }
 
-    const inProgress = orderedEpisodes
-        .filter(({ position }) => isPortalPlaybackInProgress(position))
-        .sort(compareInProgressPositions);
+    const startedEpisodes = orderedEpisodes
+        .filter(
+            ({ position }) =>
+                position !== null && !isPortalPlaybackWatched(position)
+        )
+        .sort(comparePlaybackPositionRecency);
 
-    const resumeEpisode = inProgress[inProgress.length - 1];
-    if (resumeEpisode?.position) {
+    const latestStartedEpisode = startedEpisodes[startedEpisodes.length - 1];
+    if (latestStartedEpisode?.position) {
+        const shouldResume = isPortalPlaybackInProgress(
+            latestStartedEpisode.position
+        );
         return createQuickStartAction({
-            kind: SERIES_QUICK_START_ACTION_KIND.Resume,
-            labelKey: 'XTREAM.RESUME_EPISODE',
+            kind: shouldResume
+                ? SERIES_QUICK_START_ACTION_KIND.Resume
+                : SERIES_QUICK_START_ACTION_KIND.PlayRecent,
+            labelKey: shouldResume
+                ? 'XTREAM.RESUME_EPISODE'
+                : 'XTREAM.PLAY_EPISODE',
+            ...(!shouldResume
+                ? {
+                      labelParams: {
+                          episode: Number(
+                              latestStartedEpisode.episode.episode_num
+                          ),
+                      },
+                  }
+                : {}),
             icon: 'play_arrow',
-            episode: resumeEpisode.episode,
-            position: resumeEpisode.position,
+            episode: latestStartedEpisode.episode,
+            position: latestStartedEpisode.position,
             disabled: false,
         });
     }
@@ -150,7 +171,7 @@ function compareEpisodes(
     return naturalCollator.compare(episodeA.title ?? '', episodeB.title ?? '');
 }
 
-function compareInProgressPositions(
+function comparePlaybackPositionRecency(
     episodeA: OrderedEpisode,
     episodeB: OrderedEpisode
 ): number {

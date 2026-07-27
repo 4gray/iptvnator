@@ -1,0 +1,295 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>mpv frame-copy spike viewer</title>
+<style>
+    html,
+    body {
+        margin: 0;
+        height: 100%;
+        background: #101014;
+        color: #e8e8ee;
+        font: 13px/1.5 ui-monospace, monospace;
+        overflow: hidden;
+    }
+    #stage {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    canvas {
+        max-width: 100%;
+        max-height: 100%;
+    }
+    #hud {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        padding: 8px 12px;
+        background: rgba(10, 10, 14, 0.78);
+        border: 1px solid #2a2a33;
+        border-radius: 6px;
+        white-space: pre;
+        pointer-events: none;
+    }
+</style>
+<div id="stage"><canvas id="video"></canvas></div>
+<div id="hud">waiting for helper…</div>
+<script>
+    const path = require('path');
+    const shm = require(path.join(__dirname, '..', 'build', 'shm_reader.node'));
+    const shmName =
+        new URLSearchParams(location.search).get('shm') || '/mpv-frame-spike';
+    const hud = document.getElementById('hud');
+
+    function percentile(samples, p) {
+        if (!samples.length) return 0;
+        const sorted = [...samples].sort((a, b) => a - b);
+        return sorted[Math.floor((sorted.length - 1) * p)];
+    }
+    const avg = (samples) =>
+        samples.length
+            ? samples.reduce((sum, v) => sum + v, 0) / samples.length
+            : 0;
+    function stddev(samples) {
+        if (samples.length < 2) return 0;
+        const mean = avg(samples);
+        const variance =
+            samples.reduce((sum, v) => sum + (v - mean) * (v - mean), 0) /
+            (samples.length - 1);
+        return Math.sqrt(variance);
+    }
+    function median(samples) {
+        if (!samples.length) return 0;
+        const sorted = [...samples].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)];
+    }
+
+    function start(info) {
+        const width = info.width;
+        const height = info.height;
+        const canvas = document.getElementById('video');
+        canvas.width = width;
+        canvas.height = height;
+
+        const gl = canvas.getContext('webgl2', {
+            antialias: false,
+            preserveDrawingBuffer: false,
+        });
+        const vertexSrc = `#version 300 es
+            out vec2 v_uv;
+            void main() {
+                vec2 corner = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+                v_uv = vec2(corner.x, 1.0 - corner.y); // top-down rows in shm
+                gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
+            }`;
+        const fragmentSrc = `#version 300 es
+            precision mediump float;
+            uniform sampler2D u_tex;
+            in vec2 v_uv;
+            out vec4 o_color;
+            void main() {
+                vec4 c = texture(u_tex, v_uv);
+                o_color = vec4(c.b, c.g, c.r, 1.0); // shm frames are BGRA
+            }`;
+        const program = gl.createProgram();
+        for (const [type, src] of [
+            [gl.VERTEX_SHADER, vertexSrc],
+            [gl.FRAGMENT_SHADER, fragmentSrc],
+        ]) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, src);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('shader: ' + gl.getShaderInfoLog(shader));
+            }
+            gl.attachShader(program, shader);
+        }
+        gl.linkProgram(program);
+        gl.useProgram(program);
+        gl.createVertexArray && gl.bindVertexArray(gl.createVertexArray());
+
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(
+            gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,
+            gl.RGBA, gl.UNSIGNED_BYTE, null,
+        );
+        gl.viewport(0, 0, width, height);
+
+        const frame = new Uint8Array(info.frameBytes);
+        let pixelProbeDone = false;
+        function probePixels() {
+            // One-shot sanity check that frames carry a real image: sample a
+            // grid and report channel spread (a black/uniform frame fails).
+            let min = 255;
+            let max = 0;
+            for (let i = 0; i < 64; i++) {
+                const offset =
+                    Math.floor((i / 64) * (info.frameBytes / 4)) * 4;
+                for (let channel = 0; channel < 3; channel++) {
+                    const v = frame[offset + channel];
+                    if (v < min) min = v;
+                    if (v > max) max = v;
+                }
+            }
+            console.log(`PIXELPROBE min=${min} max=${max} spread=${max - min}`);
+        }
+        let lastSeq = 0;
+        let drawTicks = 0;
+        let newFrames = 0;
+        let dropped = 0;
+        let torn = 0;
+        const copyMs = [];
+        const uploadMs = [];
+        const ageMs = [];
+        // Pacing/judder instrumentation: intervals between consecutive
+        // presented frames (viewer clock) and between produced frames
+        // (helper clock via produceMs). The gate is variance, not avg fps.
+        const presentIntervals = [];
+        const producerIntervals = [];
+        let lastPresentMs = 0;
+        let lastProduceMs = 0;
+        const longRun = {
+            start: performance.now(),
+            frames: 0,
+            late15: 0, // present interval > 1.5x nominal (one missed beat)
+            late25: 0, // present interval > 2.5x nominal (visible stutter)
+            worstIntervalMs: 0,
+        };
+        let lastSummaryMs = performance.now();
+        let windowStart = performance.now();
+
+        function tick() {
+            requestAnimationFrame(tick);
+            drawTicks++;
+
+            if (shm.latestSeq() > lastSeq) {
+                const result = shm.copyLatest(frame.buffer);
+                if (result) {
+                    const t0 = performance.now();
+                    gl.texSubImage2D(
+                        gl.TEXTURE_2D, 0, 0, 0, width, height,
+                        gl.RGBA, gl.UNSIGNED_BYTE, frame,
+                    );
+                    const upload = performance.now() - t0;
+                    if (lastSeq > 0 && result.seq - lastSeq > 1) {
+                        dropped += result.seq - lastSeq - 1;
+                    }
+                    lastSeq = result.seq;
+                    newFrames++;
+                    if (!pixelProbeDone && result.seq > 60) {
+                        pixelProbeDone = true;
+                        probePixels();
+                    }
+                    copyMs.push(result.copyMs);
+                    uploadMs.push(upload);
+                    ageMs.push(result.ageMs + upload);
+                    if (result.torn) torn++;
+                    const tPresent = performance.now();
+                    if (lastPresentMs > 0) {
+                        presentIntervals.push(tPresent - lastPresentMs);
+                    }
+                    lastPresentMs = tPresent;
+                    if (lastProduceMs > 0) {
+                        producerIntervals.push(
+                            result.produceMs - lastProduceMs,
+                        );
+                    }
+                    lastProduceMs = result.produceMs;
+                }
+            }
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+            const now = performance.now();
+            if (now - windowStart >= 2000) {
+                const seconds = (now - windowStart) / 1000;
+                // Nominal frame interval from the producer's own cadence —
+                // robust against rAF quantization on high-Hz displays.
+                const nominal =
+                    median(producerIntervals) ||
+                    (shm.producerFps() > 0 ? 1000 / shm.producerFps() : 0);
+                let late15 = 0;
+                let late25 = 0;
+                let worst = 0;
+                for (const interval of presentIntervals) {
+                    if (interval > worst) worst = interval;
+                    if (nominal > 0 && interval > nominal * 1.5) late15++;
+                    if (nominal > 0 && interval > nominal * 2.5) late25++;
+                }
+                longRun.frames += newFrames;
+                longRun.late15 += late15;
+                longRun.late25 += late25;
+                longRun.worstIntervalMs = Math.max(
+                    longRun.worstIntervalMs,
+                    worst,
+                );
+                const line =
+                    `STATS draw=${(drawTicks / seconds).toFixed(1)}fps ` +
+                    `new=${(newFrames / seconds).toFixed(1)}fps ` +
+                    `producer=${shm.producerFps().toFixed(1)}fps | ` +
+                    `copy ms avg=${avg(copyMs).toFixed(2)} p95=${percentile(copyMs, 0.95).toFixed(2)} | ` +
+                    `upload ms avg=${avg(uploadMs).toFixed(2)} p95=${percentile(uploadMs, 0.95).toFixed(2)} | ` +
+                    `age ms avg=${avg(ageMs).toFixed(1)} p95=${percentile(ageMs, 0.95).toFixed(1)} | ` +
+                    `present iv ms sd=${stddev(presentIntervals).toFixed(2)} ` +
+                    `p99=${percentile(presentIntervals, 0.99).toFixed(1)} ` +
+                    `max=${worst.toFixed(1)} late1.5x=${late15} | ` +
+                    `src iv ms sd=${stddev(producerIntervals).toFixed(2)} ` +
+                    `p99=${percentile(producerIntervals, 0.99).toFixed(1)} | ` +
+                    `dropped=${dropped} torn=${torn}`;
+                console.log(line);
+                hud.textContent =
+                    `shm ${shmName}  ${width}x${height}\n` +
+                    line.replace('STATS ', '').replaceAll(' | ', '\n');
+                if (now - lastSummaryMs >= 30000) {
+                    lastSummaryMs = now;
+                    const totalSeconds = (now - longRun.start) / 1000;
+                    const latePct = (
+                        (100 * longRun.late15) / Math.max(1, longRun.frames)
+                    ).toFixed(3);
+                    console.log(
+                        `LONGRUN t=${totalSeconds.toFixed(0)}s ` +
+                            `frames=${longRun.frames} ` +
+                            `avg=${(longRun.frames / totalSeconds).toFixed(2)}fps ` +
+                            `late1.5x=${longRun.late15} (${latePct}%) ` +
+                            `late2.5x=${longRun.late25} ` +
+                            `worstIv=${longRun.worstIntervalMs.toFixed(1)}ms ` +
+                            `dropped=${dropped} torn=${torn}`,
+                    );
+                }
+                drawTicks = 0;
+                newFrames = 0;
+                copyMs.length = 0;
+                uploadMs.length = 0;
+                ageMs.length = 0;
+                presentIntervals.length = 0;
+                producerIntervals.length = 0;
+                windowStart = now;
+            }
+        }
+        tick();
+    }
+
+    (function waitForHelper() {
+        let info = null;
+        try {
+            info = shm.open(shmName);
+        } catch (error) {
+            hud.textContent = `waiting for helper… (${error.message})`;
+        }
+        if (info) {
+            console.log(
+                `attached to ${shmName}: ${info.width}x${info.height}, ` +
+                    `${info.frameBytes} bytes/frame`,
+            );
+            start(info);
+        } else {
+            setTimeout(waitForHelper, 250);
+        }
+    })();
+</script>

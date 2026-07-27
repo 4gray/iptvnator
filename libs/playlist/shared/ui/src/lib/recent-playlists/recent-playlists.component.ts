@@ -463,6 +463,7 @@ export class RecentPlaylistsComponent {
                     },
                     playlistId: item._id,
                     refreshEpg: true,
+                    operationId,
                 })
             );
 

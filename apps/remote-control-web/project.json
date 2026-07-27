@@ -49,6 +49,11 @@
                     ],
                     "outputHashing": "all"
                 },
+                "electron-performance": {
+                    "optimization": true,
+                    "outputHashing": "all",
+                    "sourceMap": true
+                },
                 "development": {
                     "optimization": false,
                     "extractLicenses": false,
@@ -61,6 +66,12 @@
             "executor": "nx:run-commands",
             "options": {
                 "command": "pnpm nx run remote-control-web:build:development"
+            }
+        },
+        "build-performance": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run remote-control-web:build:electron-performance"
             }
         },
         "serve": {

@@ -1,3 +1,5 @@
+import type { WorkerPerformanceCaptureResult } from './worker-performance-capture';
+
 export const DB_WORKER_OPERATIONS = [
     'DB_HAS_CATEGORIES',
     'DB_GET_CATEGORIES',
@@ -51,6 +53,8 @@ export const DB_WORKER_OPERATIONS = [
     'DB_CLEAR_PLAYBACK_POSITION',
     'DB_GET_TMDB_METADATA',
     'DB_SET_TMDB_METADATA',
+    'DB_GET_TMDB_CACHE_STATS',
+    'DB_CLEAR_TMDB_METADATA',
     'DB_MATCH_TITLES',
 ] as const;
 
@@ -136,6 +140,7 @@ export interface DbWorkerResponseMessage<TResult = unknown> {
     success: boolean;
     result?: TResult;
     error?: SerializedWorkerError;
+    performance?: WorkerPerformanceCaptureResult;
 }
 
 export type DbWorkerIncomingMessage =

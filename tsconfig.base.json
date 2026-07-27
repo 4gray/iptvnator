@@ -5,6 +5,7 @@
         "sourceMap": true,
         "declaration": false,
         "moduleResolution": "node",
+        "esModuleInterop": true,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
         "importHelpers": true,
@@ -80,6 +81,7 @@
                 "libs/shared/m3u-utils/src/index.ts"
             ],
             "@iptvnator/shared/testing": ["libs/shared/testing/src/index.ts"],
+            "@iptvnator/shared/logging": ["libs/shared/logging/src/index.ts"],
             "@iptvnator/services": ["libs/services/src/index.ts"],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
@@ -106,7 +108,10 @@
             "@iptvnator/workspace/dashboard/data-access": [
                 "libs/workspace/dashboard/data-access/src/index.ts"
             ],
-            "@package": ["./package.json"]
+            "@package": ["./package.json"],
+            "@iptvnator/shared/marketing-fixtures": [
+                "./libs/shared/marketing-fixtures/src/index.ts"
+            ]
         }
     },
     "exclude": ["node_modules", "tmp"],

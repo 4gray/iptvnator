@@ -121,6 +121,78 @@ Contracts:
 - Entering watch scrolls the shell to the top; leaving keeps the scroll
   position.
 
+### Inline player stage (theater + ambient fill)
+
+`PortalInlinePlayerComponent`
+(`libs/ui/playback/src/lib/portal-inline-player/`) wraps the projected
+`WebPlayerViewComponent` in a `.player-shell__viewport` "theater stage".
+The stage spans the full content width and is capped at
+`min(70vh, 720px)`; on wide-short windows it becomes wider than 16:9. The
+player is sized as the largest 16:9 box that fits the stage height and is
+centered, so the leftover is always the stage's own black background — never
+a stray strip of app surface. This is the YouTube-style letterbox and is the
+default behavior for every inline engine.
+
+The optional `playerAmbientMode` setting (Settings → Playback, default off,
+shown only for the built-in web players) renders a blurred, dimmed copy of the
+poster (`ResolvedPortalPlayback.thumbnail`) behind the player via the
+`--ambient-image` custom property, turning the letterbox margins into
+atmosphere (YouTube "Ambient mode" / Netflix backdrops). The component also
+enforces the web-player scope at runtime (HTML5, Video.js, ArtPlayer): with
+Embedded MPV selected, a persisted `playerAmbientMode=true` never renders the
+layer, keeping extra DOM out of the native-video compositing path. Live
+channels are excluded (their `thumbnail` is a logo), and only
+`http(s):`/`data:` poster URLs are accepted to avoid CSS `url()` breakout.
+
+### Up Next side rail (series)
+
+For inline **series** playback the stage can trade its centered letterbox for
+a Netflix/Plex-style layout: the player docks left and the leftover column
+becomes an "Up Next" episode rail (`app-up-next-rail`,
+`libs/ui/playback/src/lib/portal-inline-player/up-next-rail.component.ts`).
+The rail lists the currently playing episode (highlighted, click-inert)
+followed by the rest of its season and a spillover into the following
+seasons, with per-episode watch-progress bars from playback positions.
+
+- Data flow: the hosts (Xtream `SerialDetailsComponent`, Stalker
+  `StalkerSeriesViewComponent`) build the entries with
+  `buildUpNextRailItems()` (`up-next-rail.util.ts`) from their
+  season→episodes map, the inline episode state, and the playback-position
+  map, and pass them into `PortalInlinePlayerComponent` via the
+  `upNextEpisodes` input. Selection comes back through
+  `upNextEpisodeSelected`, carrying the host's raw episode object, and is
+  routed into the host's existing episode-play flow — the same path the
+  season container uses.
+- Width gating: a ResizeObserver on `.player-shell__viewport` feeds the
+  component's `stageSize` with the stage's **border-box** size, and the gate
+  computes the width the rail would actually receive — stage minus the docked
+  layout's padding, minus the 16:9 player sized to the remaining height, minus
+  the flex gap (`RAIL_STAGE_PADDING` / `RAIL_STAGE_GAP`, kept in sync with the
+  stylesheet). The rail docks in only when that is ≥ 320px
+  (`UP_NEXT_RAIL_MIN_WIDTH`). Measuring the border box matters: the docked
+  modifier adds padding to the same element being observed, so a content-box
+  measurement would change the input the moment the rail appears and could
+  oscillate around the threshold. On near-16:9 or taller windows the rail
+  auto-hides and the centered theater/ambient behavior above remains.
+- Lazy Stalker seasons: Ministra VOD-series seasons carry no episodes until
+  their tab is opened, so `StalkerSeriesViewComponent` prefetches the season
+  after the playing one while inline playback is active — otherwise the rail's
+  next-season spillover would silently stop at the current season's end. The
+  prefetch is claimed synchronously and answered seasons (including genuinely
+  empty ones) are never re-requested: a failed request leaves `episodes` empty
+  with `isLoading` back to false, which would otherwise re-run the effect that
+  issued it and loop. A *failed* request releases the claim but is pinned to
+  the episode that triggered it, so a transient portal error retries on the
+  next playback change instead of either looping or giving up permanently.
+- Gating mirrors ambient mode: the `playerUpNextRail` setting (Settings →
+  Playback, **default on**, shown only for the built-in web players) plus a
+  runtime web-engine check; the rail also requires
+  `contentInfo.contentType === 'episode'` and non-live playback, so movies
+  and live channels always keep the centered stage.
+- Layering: the rail is an opaque panel rendered on top of the stage, so the
+  ambient fill stays behind it and shows in the flexible gap between the
+  docked player and the rail on very wide stages.
+
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
 seasons-grid + "Back to seasons" level. A season is auto-selected
@@ -176,6 +248,13 @@ When a detail view starts playback:
 The detail or collection/search host owns inline state. `PlayerService` is not
 an owner of embedded UI playback state.
 
+After a successful external episode launch, the detail host immediately
+persists that episode as the latest playback-position entry, preserving an
+existing resume offset or using zero for a newly opened episode. MPV/VLC
+position telemetry overwrites this launch marker when available. This keeps the
+last-watched season and episode correct even when an external player's progress
+interface is unavailable; exact external timestamps remain best-effort.
+
 ## Series Quick Start CTA
 
 Xtream and Stalker series detail views share the quick-start decision helper in
@@ -189,6 +268,9 @@ Current contract:
   `S01E02 · Episode title`
 - if an episode is in progress, resume the latest updated in-progress episode
   with its saved offset
+- if the newest episode entry is a successful external-player launch marker
+  with no meaningful progress yet, target it with `Play episode N` instead of
+  falling back to the first episode
 - if no episode is in progress, play the first unwatched episode in season order
 - if watched episodes end at a season boundary, play the first episode of the
   next loaded season
@@ -253,6 +335,13 @@ mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decod
 The diagnostic surface covers the inline player viewport when playback fails, with a compact warning badge, a native-player fallback headline, and player-card actions for configured external players. It exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, and raw HLS/mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
+
+MKV sources are attempted through Chromium's native Matroska path. Video.js
+receives `video/matroska` for `.mkv` URLs and explicit query metadata such as
+`extension=mkv` or `container=mkv`; ArtPlayer and HTML5 continue to use their
+native video paths. This is container support rather than a universal codec
+guarantee: native source or decode failures still produce the existing
+diagnostic and explicit MPV/VLC fallback.
 
 Portal VOD and episode payloads with `contentInfo` are treated as non-live by the inline players unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. Embedded MPV uses the same live decision rule and shows an unknown duration placeholder for VOD/episode snapshots until MPV reports a finite duration. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
 

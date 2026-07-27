@@ -9,6 +9,7 @@ import {
     XtreamSerieDetails,
     XtreamVodDetails,
     getXtreamVodInfo,
+    resolveEnrichmentSeasonNumber,
 } from '@iptvnator/shared/interfaces';
 
 /**
@@ -162,10 +163,18 @@ export async function enrichSerialSeasonWithTmdb<
         return;
     }
 
-    const seasonNumber = Number(episodes[0]?.season ?? seasonKey);
-    if (!Number.isFinite(seasonNumber)) {
+    const providerSeasonNumber = Number(episodes[0]?.season ?? seasonKey);
+    if (!Number.isFinite(providerSeasonNumber)) {
         return;
     }
+
+    // Per-season provider slices ("The Mandalorian (2 season)") renumber
+    // their single season to 1 — the title marker names the real TMDB season
+    const seasonNumber = resolveEnrichmentSeasonNumber({
+        rawTitle: info.name,
+        providerSeasonNumber,
+        providerSeasonCount: Object.keys(selected?.episodes ?? {}).length,
+    });
 
     const tmdbEpisodes = await enrichment.getSeasonEpisodes(
         info.tmdb_id,

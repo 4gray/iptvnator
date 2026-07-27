@@ -2,7 +2,6 @@
 
 import { createRequire } from 'node:module';
 import {
-    existsSync,
     mkdirSync,
     readFileSync,
     rmSync,
@@ -10,6 +9,8 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+
+import { validateRequiredProjectReports } from './coverage-integrity.mjs';
 
 const require = createRequire(import.meta.url);
 const { createCoverageMap } = require('istanbul-lib-coverage');
@@ -22,11 +23,20 @@ const policy = JSON.parse(
 );
 const outputDir = path.join(workspaceRoot, policy.reporting.mergedCoverageDir);
 
-const coverageFiles = policy.unitCoverage.tierA
-    .map((project) => path.join(workspaceRoot, 'coverage', project.root, 'coverage-final.json'))
-    .filter((coverageFile) => existsSync(coverageFile));
+const validation = validateRequiredProjectReports({
+    projects: policy.unitCoverage.tierA,
+    workspaceRoot,
+});
 
-if (coverageFiles.length === 0) {
+if (validation.errors.length > 0) {
+    for (const error of validation.errors) {
+        console.error(`Error: ${error}`);
+    }
+    process.exit(1);
+}
+
+const coverageInputs = validation.reports;
+if (coverageInputs.length === 0) {
     console.error('No Tier A coverage-final.json files found under coverage/.');
     process.exit(1);
 }
@@ -36,9 +46,8 @@ mkdirSync(outputDir, { recursive: true });
 
 const coverageMap = createCoverageMap({});
 
-for (const coverageFile of coverageFiles) {
-    const data = JSON.parse(readFileSync(coverageFile, 'utf8'));
-    coverageMap.merge(data);
+for (const input of coverageInputs) {
+    coverageMap.merge(input.data);
 }
 
 const context = libReport.createContext({
@@ -56,7 +65,7 @@ writeFileSync(
     `${JSON.stringify(summary, null, 4)}\n`
 );
 
-console.log(`Merged ${coverageFiles.length} coverage files into ${policy.reporting.mergedCoverageDir}`);
+console.log(`Merged ${coverageInputs.length} coverage files into ${policy.reporting.mergedCoverageDir}`);
 console.log(
     `Statements: ${summary.statements.pct}% | Branches: ${summary.branches.pct}% | Functions: ${summary.functions.pct}% | Lines: ${summary.lines.pct}%`
 );

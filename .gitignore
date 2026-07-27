@@ -72,7 +72,17 @@ Thumbs.db
 .gemini
 .cursor
 .agent
-.claude
+# Agent config stays local, except the skills the repo owns. Claude Code only
+# discovers skills under .claude/skills/, so the release skills are committed
+# there as well as under .codex/skills/. Personal skills in .claude/skills/
+# remain ignored — each shared skill is opted in by name.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/release-notes/
+!.claude/skills/release-notes/**
+!.claude/skills/release-cut/
+!.claude/skills/release-cut/**
 .codex/*
 !.codex/skills/
 !.codex/skills/**
@@ -84,4 +94,9 @@ apps/electron-backend/src/app/options/electron-builder.metadata.generated.json
 vendor/embedded-mpv/*/bin/
 vendor/embedded-mpv/*/include/
 vendor/embedded-mpv/*/lib/
+vendor/embedded-mpv/*/notices/
 vendor/embedded-mpv/*/runtime-manifest.json
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json

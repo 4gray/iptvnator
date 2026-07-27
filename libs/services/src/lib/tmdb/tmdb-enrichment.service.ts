@@ -1,21 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { TmdbMediaType } from '@iptvnator/shared/interfaces';
-import { TmdbApiService } from './tmdb-api.service';
+import { TmdbApiService, isTmdbNotFound } from './tmdb-api.service';
+import { trimDetailsForCache } from './tmdb-cache-payload';
 import { TmdbCacheService } from './tmdb-cache.service';
+import { TMDB_DETAILS_CACHE_TTL_MS } from './tmdb-config';
 import {
-    TMDB_DETAILS_CACHE_TTL_MS,
-    TMDB_MATCH_CACHE_TTL_MS,
-    TMDB_NEGATIVE_MATCH_CACHE_TTL_MS,
-    tmdbSearchLanguageForTitle,
-} from './tmdb-config';
-import {
+    assessProviderId,
     buildDetailsLookupKey,
-    buildSearchLookupKey,
-    buildSearchTitleVariants,
-    extractYear,
     parseProviderTmdbId,
-    pickConfidentMatch,
 } from './tmdb-matcher';
+import { TmdbIdResolverService } from './tmdb-id-resolver.service';
 import {
     detailsFallbackLanguage,
     fillDetailsFromFallback,
@@ -53,6 +47,7 @@ export class TmdbEnrichmentService {
     private readonly person = inject(TmdbPersonService);
     private readonly season = inject(TmdbSeasonService);
     private readonly trending = inject(TmdbTrendingService);
+    private readonly idResolver = inject(TmdbIdResolverService);
 
     isEnabled(): boolean {
         return this.runtime.isEnabled();
@@ -107,15 +102,31 @@ export class TmdbEnrichmentService {
         }
 
         try {
-            const tmdbId =
-                parseProviderTmdbId(query.tmdbId) ??
-                (await this.resolveIdBySearch(mediaType, query));
-
-            if (tmdbId === null) {
-                return null;
+            const providerId = parseProviderTmdbId(query.tmdbId);
+            if (
+                providerId !== null &&
+                !(await this.idResolver.isKnownBadProviderId(
+                    mediaType,
+                    providerId
+                ))
+            ) {
+                const details = await this.detailsForProviderId(
+                    mediaType,
+                    providerId,
+                    query
+                );
+                if (details) {
+                    return details;
+                }
             }
 
-            return await this.getDetails(mediaType, tmdbId);
+            const searchedId = await this.idResolver.resolveBySearch(
+                mediaType,
+                query
+            );
+            return searchedId === null
+                ? null
+                : await this.getDetails(mediaType, searchedId);
         } catch (error) {
             console.warn(`TMDB ${mediaType} enrichment failed:`, error);
             return null;
@@ -123,88 +134,79 @@ export class TmdbEnrichmentService {
     }
 
     /**
-     * Resolve a title/year to a TMDB id via /search with the confidence
-     * gate. Both hits and misses are cached; misses use a shorter TTL.
+     * Details for a provider-supplied `tmdb_id`, or `null` when the id is
+     * unusable and the caller should fall back to the title search.
+     *
+     * Providers ship broken ids. A dead one used to short-circuit the
+     * search and leave the item permanently unenriched; a stale-but-valid
+     * one silently rendered another title's plot and cast. Both cases now
+     * defer to the (confidence-gated) search — but only on evidence the id
+     * is wrong, and only when the search actually produces something, so a
+     * localized or stylized title never costs the user their metadata.
      */
-    private async resolveIdBySearch(
+    private async detailsForProviderId(
         mediaType: TmdbMediaType,
+        providerId: number,
         query: TmdbEnrichmentQuery
-    ): Promise<number | null> {
-        // Try the original title, the display title, then language-prefix-
-        // stripped fallbacks; the first confident match wins.
-        const variants = buildSearchTitleVariants(
-            query.title,
-            query.originalTitle
-        );
-        if (variants.length === 0) {
-            return null;
-        }
-
-        const year = query.year ?? extractYear(null, query.title);
-        const cacheLanguage = tmdbSearchLanguageForTitle(
-            variants[0],
-            this.runtime.appLanguage()
-        );
-        const lookupKey = buildSearchLookupKey(variants[0], year);
-
-        const cached = await this.cache.get(
-            mediaType,
-            lookupKey,
-            cacheLanguage
-        );
-        const ttl =
-            cached?.tmdbId !== null && cached?.tmdbId !== undefined
-                ? TMDB_MATCH_CACHE_TTL_MS
-                : TMDB_NEGATIVE_MATCH_CACHE_TTL_MS;
-        if (this.cache.isFresh(cached, ttl)) {
-            return cached?.tmdbId ?? null;
-        }
-
-        let match = null;
-        for (const variant of variants) {
-            // Cyrillic (and other non-app-script) titles search in their
-            // own language so TMDB returns comparable titles — see
-            // tmdbSearchLanguageForTitle. Search by title only: TMDB's
-            // year params filter strictly; the ±1/season tolerance lives
-            // in pickConfidentMatch instead.
-            const language = tmdbSearchLanguageForTitle(
-                variant,
-                this.runtime.appLanguage()
-            );
-            const results =
-                mediaType === 'movie'
-                    ? await this.api.searchMovie(
-                          variant,
-                          null,
-                          language,
-                          this.runtime.apiKey()
-                      )
-                    : await this.api.searchTv(
-                          variant,
-                          null,
-                          language,
-                          this.runtime.apiKey()
-                      );
-
-            match = pickConfidentMatch(
-                results,
-                { title: variant, year },
-                mediaType
-            );
-            if (match) {
-                break;
+    ): Promise<TmdbDetails | null> {
+        let details: TmdbDetails | null;
+        try {
+            details = await this.getDetails(mediaType, providerId);
+        } catch (error) {
+            // Only a 404 proves the id is dead. Auth, rate-limit, 5xx and
+            // offline failures are transient — remembering those would
+            // disable a perfectly good id until the marker expires.
+            if (isTmdbNotFound(error)) {
+                console.warn(
+                    `TMDB ${mediaType} provider id ${providerId} does not exist, falling back to search:`,
+                    error
+                );
+                await this.idResolver.rememberBadProviderId(
+                    mediaType,
+                    providerId
+                );
+                return null;
             }
+
+            // Rethrow instead: `enrich` reads a null here as "try the
+            // search", and searching during an outage or a rate limit just
+            // adds a request that will fail too — or, worse, succeeds and
+            // swaps a strong id for a title match. The id stays good for
+            // the next attempt.
+            throw error;
         }
 
-        await this.cache.set({
-            mediaType,
-            lookupKey,
-            language: cacheLanguage,
-            tmdbId: match?.id ?? null,
-            payload: null,
-        });
+        if (!details || assessProviderId(details, query, mediaType) !== 'contradicted') {
+            return details;
+        }
 
-        return match?.id ?? null;
+        // The id resolves to a title whose release year contradicts the
+        // provider's — the stale-id signature. Let the search try to beat
+        // it; keep these details if it cannot.
+        //
+        // Deliberately NOT remembered: the id exists and may be correct for
+        // a DIFFERENT item. The bad-id cache is keyed by id alone and shared
+        // across playlists, so recording a per-item mismatch there would
+        // deny the direct lookup to every other item that legitimately uses
+        // the same id. The search verdict is cached anyway, so the repeat
+        // cost is one details fetch.
+        //
+        // The search is best-effort here: offline, rate-limited or 5xx must
+        // fall back to the details we already have, not discard them. Its
+        // own gate needs a year, which this branch guarantees we have, so a
+        // result that comes back is corroborated rather than merely named
+        // alike.
+        const searchedId = await this.idResolver
+            .resolveBySearch(mediaType, query)
+            .catch(() => null);
+        if (searchedId === null || searchedId === providerId) {
+            return details;
+        }
+
+        const searched = await this.getDetails(mediaType, searchedId).catch(
+            () => null
+        );
+        return searched ?? details;
     }
 
     private async getDetails(
@@ -282,7 +284,9 @@ export class TmdbEnrichmentService {
             lookupKey,
             language,
             tmdbId,
-            payload: JSON.stringify(details),
+            payload: JSON.stringify(
+                details === null ? null : trimDetailsForCache(details)
+            ),
         });
 
         return details;

@@ -42,36 +42,309 @@ The M3U playlist module provides:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+## M3U Parsing (`iptv-playlist-parser` fork)
+
+All four parse call sites (Electron `playlist-source.ts` import, `playlist-refresh.worker.ts`, `web-backend` `/parse`, PWA `playlists.service.ts`) use the
+[4gray/iptv-playlist-parser](https://github.com/4gray/iptv-playlist-parser) fork, pinned by commit SHA in `package.json`. The fork tracks upstream
+`freearhey/iptv-playlist-parser` (currently synced to v0.15.2) plus three deliberate deltas iptvnator depends on:
+
+- **`radio` attribute** — `item.radio` (string, `'true'` triggers the radio player, EPG suppression, and external-player gating app-wide). Upstream does not have this field; it must survive every upstream sync.
+- **Pipe stripping** — `item.url` is cut at the first `|`; `|User-Agent=` / `|Referer=` params still land in `item.http`. Upstream 0.15.0 stopped stripping, but iptvnator consumes `item.url` verbatim in hls.js/mpv/vlc, catch-up URL building, and url-keyed favorites.
+- **`#KODIPROP` lines before `#EXTINF` are preserved** (since `v0.15.2-iptvnator.2`) — Kodi property lines apply to the _next_ list entry, so ones placed above the `#EXTINF` are buffered and attached to that item's `raw` in file order (case-insensitive prefix); other stray `#` lines outside an open item are still dropped. The DASH + ClearKey feature extracts `inputstream.adaptive.license_*` config from `item.raw`, so this delta must survive every upstream sync.
+
+There is intentionally **no URL validation** (upstream removed it in 0.15.0): any non-empty non-`#` line after `#EXTINF` becomes the item URL. This is what fixes issue #1189 (Pluto TV JWT URLs longer than validator's 2084-char IE-era limit used to be rejected, and the stalled item index collapsed the whole playlist into one channel). `#` comment lines and unknown directives are appended to `item.raw` and never treated as URLs.
+
+The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
+
+## Initial URL Import Performance Benchmark (Electron)
+
+The Electron E2E project has a deterministic initial-import benchmark for
+10,000-, 50,000-, and 100,000-channel M3U playlists. It uses only generated
+fixtures served by an ephemeral `127.0.0.1` HTTP server; provider URLs,
+credentials, and playlist data must never be used. Each formal scenario runs
+one warm-up, five measured iterations, and one diagnostic iteration in a fresh
+Electron process and data directory:
+
+```bash
+perf_output="$PWD/dist/performance/$(date -u +%Y%m%dT%H%M%SZ)-m3u-import"
+IPTVNATOR_PERF_OUTPUT_DIR="$perf_output" \
+IPTVNATOR_PERF_VARIANT=baseline \
+pnpm nx run electron-backend-e2e:benchmark-m3u-import
+```
+
+Use a new output directory and `IPTVNATOR_PERF_VARIANT=after` for the identical
+post-change run. Formal runs require a clean worktree and record the commit,
+source-state hash, runtime, and exact fixture identity. A development smoke run
+uses one warm-up, one measured iteration, and one diagnostic iteration per
+size:
+
+```bash
+IPTVNATOR_PERF_OUTPUT_DIR="$PWD/dist/performance/<timestamp>-m3u-import-smoke" \
+IPTVNATOR_PERF_VARIANT=smoke \
+IPTVNATOR_PERF_SMOKE=1 \
+pnpm nx run electron-backend-e2e:benchmark-m3u-import
+```
+
+Smoke runs may use a dirty worktree and validate only the harness; they cannot
+support a performance claim. If another local application owns port 9222, smoke
+only may set `IPTVNATOR_PERF_CDP_PORT` to an unused loopback port; formal runs
+fail closed unless CDP uses `127.0.0.1:9222`. Raw captures and JSON results stay
+under the gitignored `dist/performance/` tree; preflight rejects a symbolic
+link in any existing output-path component before creating artifacts. Headline
+distributions contain only the five measured runs: warm-up and diagnostic
+profiles are never mixed into them.
+
+The benchmark attributes these non-additive intervals:
+
+| Field | Boundary |
+| --- | --- |
+| `dataAcquireMs` | loopback response acquisition |
+| `m3uParsingMs` | parser call |
+| `normalizationMs` | parsed-item normalization |
+| `mainToRendererCloneProxyMs` | sum of normalized import-result delivery plus the upsert and GET main-response-to-preload-success legs |
+| `storeImportDispatchMs` | renderer import dispatch |
+| `rendererToMainCloneProxyMs` | sum of the upsert and GET preload-source-to-main-request legs |
+| `mainToDatabaseWorkerCloneProxyMs` | sum of the upsert and GET main-request-to-worker-receive legs |
+| `playlistSerializationMs` | database-worker playlist JSON serialization |
+| `sqliteWriteMs` | SQLite upsert, including its autocommit |
+| `sqliteReadMs` | SQLite read of the newly persisted playlist |
+| `playlistDeserializationMs` | database-worker `parseAppPlaylist`, including playlist JSON parsing |
+| `databaseWorkerToMainCloneProxyMs` | sum of the upsert and GET worker-response-post-to-main-response legs |
+| `storePublishChannelsMs` | renderer channel publication |
+| `angularRenderingMs` | publication end to the terminal two-frame paint proof |
+
+`ipcStructuredCloneProxyMs` is the explicit sum of the four directional proxy
+fields. Each directional field can combine the applicable initial-result,
+upsert, and `DB_GET_APP_PLAYLIST` legs. The worker stamps
+`responsePostedEpochMs` after request profiling is finalized and immediately
+before each response is posted; the database-worker-to-main proxy ends when
+main receives that response. These fields are attribution aids, not an additive
+waterfall: scheduler work and gaps can remain inside total wall time, and a
+proxy can include response construction, dispatch overhead, and structured
+clone work. Initial import does not create indexes; `indexAndCommitMs` is
+therefore `N/A` with
+`indexes-not-created-during-import;sqlite-autocommit-included-in-sqlite-write`.
+
+Instrumentation is development-only, opt-in, fail-neutral, and count-only. It
+must not scan or log playlist payloads to generate metadata. Renderer
+long-task, frame-gap, and heartbeat samples are clipped to the measured
+operation boundary. Main capture stops only after the upsert and route-reload
+GET responses plus both asynchronous preload success markers have arrived, so
+return-clone attribution cannot race capture shutdown. Formal comparison fails
+closed after writing raw results if exact-window renderer RSS, database-worker
+peak heap/external samples, or the database worker's explicit post-GC heap is
+missing or incoherent. Both initial-import database requests in every measured
+run must also contain coherent event-loop delay, event-loop utilization, and
+thread-CPU metrics; the validity record exposes the exact expected and valid
+request counts rather than silently dropping nullable samples. An iteration
+failure idempotently stops renderer timers, closes trace listeners/output, and
+starts best-effort probe/session teardown without waiting on a wedged renderer
+before Electron is closed. A partial capture-start failure performs the same
+rollback before it escapes to the benchmark lifecycle.
+Diagnostic artifacts require separate renderer, main, and database-worker CPU
+profiles plus renderer/main/database-worker heap snapshots and a Chromium
+trace; raw profiles remain ignored.
+
+## Playlist Refresh And Startup Auto-Update (Electron)
+
+Two paths re-download an M3U playlist from its original source:
+
+- **Explicit refresh** — `PLAYLIST_REFRESH` runs in `playlist-refresh.worker.ts`, reports
+  progress through `PLAYLIST_REFRESH_EVENT`, and is cancellable via
+  `PLAYLIST_CANCEL_REFRESH`. Cancellation is owned by the main process: it first
+  sends the cooperative cancel message, then terminates the one-shot worker
+  without waiting for its event loop. The cancel IPC resolves only after the
+  worker has stopped, the correlated `cancelled` event has been emitted with the
+  last known phase, and a structured cancellation result is ready. That result
+  crosses both Electron IPC and the context bridge unchanged;
+  `PlaylistRefreshService` converts it into a renderer-local `AbortError`.
+  Relying on an error created in main or preload would lose its `name` at one of
+  those serialization boundaries. A cancelled refresh must not update the
+  renderer store or reach SQLite.
+- **Startup auto-update** — after `loadPlaylistsSuccess`, `AppComponent` sends
+  `AUTO_UPDATE_PLAYLISTS` for every playlist with `autoRefresh === true`. The main
+  process fulfils it in `playlist-auto-update.ts` on top of `playlist-source.ts`.
+
+Both share one download contract, because this path is unattended and a hostile or
+dead source must never stall startup (issue #931):
+
+- Every HTTP hop uses the idle timeout `PLAYLIST_FETCH_TIMEOUT_MS` (30s, exported by
+  `playlist-source.ts`). Without it a host that accepts the connection and then goes
+  silent keeps the request pending forever. Redirects are followed one hop at a time,
+  so each hop is bounded separately.
+- Auto-update refreshes at most `AUTO_UPDATE_CONCURRENCY` (3) playlists at a time.
+  Sequential refreshes let one slow host delay every remaining playlist; an unbounded
+  fan-out would download and parse arbitrarily many large M3U files in the main
+  process at once.
+- Each playlist's failure is isolated and logged; the successful ones are still
+  returned, in the order they were requested. Playlists with neither a URL nor a file
+  path are skipped with a warning.
+- `preserveAutoUpdatedPlaylistFields()` re-applies the user-owned fields (`_id`,
+  `autoRefresh`, `favorites`, `userAgent`) onto the freshly parsed playlist.
+- Playlist URLs frequently carry Xtream-style `username`/`password` query parameters,
+  so refresh logging goes through `redactSensitiveData()` from
+  `@iptvnator/shared/logging`.
+
+### Refresh Cancellation Performance Regression
+
+The Electron E2E project includes a deterministic 100,000-channel cancellation
+benchmark. It uses only a loopback synthetic M3U server, performs one warm-up,
+five measured runs, and one diagnostic run, and writes summaries plus raw
+profiles below the gitignored `dist/performance/` directory:
+
+```bash
+perf_output="$PWD/dist/performance/$(date -u +%Y%m%dT%H%M%SZ)-m3u-refresh-cancel"
+IPTVNATOR_PERF_OUTPUT_DIR="$perf_output" \
+IPTVNATOR_PERF_VARIANT=after \
+pnpm nx run electron-backend-e2e:benchmark-m3u-refresh-cancellation
+```
+
+The output path must be an absolute, previously unused descendant of
+`dist/performance/`. A formal run fails on a dirty worktree and records the
+commit, source-state hash, OS/architecture, Node, Electron, and fixture identity
+in its manifest. Commit the harness first and capture `baseline` from that clean
+commit; commit the production change separately, rebuild, and capture `after`
+with the same harness and machine. Set `IPTVNATOR_PERF_SMOKE=1` for one measured
+run during harness development; smoke runs may be dirty and must not support
+before/after claims.
+
+The target reserves and verifies CDP port 9222, freezes renderer long-task,
+frame-gap, and heartbeat probes before forced post-GC heap collection, and
+builds the Electron main process, renderer, and workers with optimized,
+source-mapped performance configurations before enabling opt-in worker
+profiling. Renderer RSS is scoped to the Playwright page's exact
+`BrowserWindow` and `webContents`: every sample matches `getOSProcessId()` to
+one exact `app.getAppMetrics()` PID and creation time, while responsive and
+unresponsive events come only from that window. Identity changes, missing or
+ambiguous process metrics, and invalid working-set values fail closed with a
+raw reason and nullable RSS; summaries exclude unavailable RSS instead of
+reporting zero. Formal runs also list every invalid measured capture under
+`summary.validity.rendererRss` and fail after persisting the raw summary unless
+all measured iterations contribute one valid exact-window RSS value. Each
+worker response retains a raw
+request-scoped record containing request/operation identity, received/work/flush
+timestamps, thread CPU, event-loop utilization, event-loop delay, and fixed
+unavailability or invalid reasons. Missing or malformed profiling metadata
+still produces an outcome with its request identity, nullable metrics, and a
+fixed capture-unavailable reason. A worker terminated before it can flush the
+capture reports the metric as unavailable rather than zero.
+
+Database-worker post-GC heap is not inferred from a heap snapshot. The harness
+selects exactly one current-generation database worker independently of its
+sampling timer, waits for any in-flight sample plus one final sample, stops the
+worker CPU profile, sends an explicit-GC one-shot probe over a transferred
+`MessagePort`, and takes an optional diagnostic snapshot only afterward.
+Capture stop first closes a synchronous request cutoff and stops the main CPU
+profile, so worker profile writes and heap snapshots cannot appear as
+application stacks in `main.cpuprofile`. A database request observed after that
+cutoff cannot restart worker sampling or profiling; it records
+`database-worker-activity-after-cutoff` and invalidates the post-GC value.
+Worker artifacts include a stable isolate ordinal in their filename so an
+invalid multiple-worker capture cannot overwrite another isolate's profile.
+The raw heap and unavailability reason form a strict XOR; playlist workers
+terminated during cancellation report `worker-force-terminated-before-gc`
+instead of a snapshot-derived heap. Warm-up and measured cancellation invoke
+the real worker termination before best-effort finalization so profiling cannot
+delay headline acknowledgement metrics. The separate diagnostic iteration
+stops its CPU profile before termination; its timings are excluded from
+headline distributions. That pre-termination drain is bounded; timeout
+invalidates the profile and worker termination still proceeds. Late
+termination completions are generation-gated so they cannot mutate a reused
+record or append timeline events after an atomic capture rollover. The
+benchmark fails closed unless the diagnostic iteration observed cancellation,
+its profile is inside the iteration directory and parses with non-empty nodes
+and samples, and the dying worker has no heap snapshot.
+
+Headline worker memory distributions include every matching isolate and
+exclude only nullable unavailable values. This aggregation is not used as a
+validity shortcut. Runs that reach database persistence must independently
+contain exactly one database worker with a coherent numeric post-GC heap.
+Parsing cancellation happens before the renderer dispatches persistence, so a
+run with no database request is explicitly `N/A:
+operation-cancelled-before-database-phase`, not a missing capture. Any database
+activity in a run that observed the cancellation effect is unrelated
+contamination and invalidates the run. Duplicate, busy, late, timed-out, or
+malformed captures are listed under
+`summary.validity.databaseWorkerPostGc` and invalidate the benchmark. The
+benchmark writes `manifest.json` and `summary.json` first, then fails the formal
+run so the raw evidence remains available without supporting a before/after
+claim. A formal cancellation run also requires the cancellation effect in every
+measured iteration. Database-worker values are comparable only when every
+measured iteration reaches that phase and has one valid capture.
+
+Seed setup runs inside its own capture generation. The harness requires an
+observed seed database request, a completed playlist upsert, and no pending
+request, then persists that generation as `seed-main-capture.json`. Main
+capture finalization validates one idle database worker with a coherent
+explicit-GC result and atomically rolls the clean cutoff into the measured
+generation before yielding. A request before rollover remains late and rejects
+the transition; a request after rollover belongs to the measured generation.
+This prevents seed writes or an unobserved stop/start gap from crossing into
+measured main RSS, worker peaks, or profiles; generation selection also
+excludes the seed worker record. Since the production M3U database payload
+deliberately omits the refresh operation ID, the benchmark correlates only a
+valid preload `start` marker to the exact database operation and playlist. A
+missing or ambiguous marker leaves the raw operation ID `null` with a fixed
+reason; it does not infer identity from timing alone.
+
+Headline worker fields named `*WorkerRequest*` are distributions of individual
+request metrics. In particular, request p95/p99 distributions are not presented
+as an operation-wide or process-wide percentile, and database request
+percentiles are never collapsed with `Math.max`. Diagnostic CPU profiles, heap
+snapshots, and Chromium traces are excluded from the five-run headline
+distributions.
+
+### Reporting The Auto-Update Result
+
+Because auto-update isolates failures, it must also report them — otherwise a
+dropped playlist is indistinguishable from a successful refresh. `autoUpdatePlaylists()`
+returns `AutoUpdatePlaylistsResult`
+(`libs/shared/interfaces/src/lib/playlist-auto-update.interface.ts`): the refreshed
+`playlists` plus one `outcome` per requested playlist, in request order.
+
+| Outcome status | Meaning                                                                         |
+| -------------- | ------------------------------------------------------------------------------- |
+| `updated`      | Source fetched/read and parsed; playlist is in `playlists`                      |
+| `failed`       | Source unreachable, unreadable or unparsable                                    |
+| `skipped`      | Playlist has neither a URL nor a file path, so there is nothing to refresh from |
+
+`ElectronService` dispatches `updateManyPlaylists` with the refreshed playlists only,
+logs the titles of unresolved playlists, then derives the snackbar from those outcomes
+(`apps/web/src/app/services/auto-update-playlists-feedback.ts`):
+`AUTO_REFRESH_UPDATE_SUCCESS` when everything updated,
+`AUTO_REFRESH_UPDATE_PARTIAL` / `AUTO_REFRESH_UPDATE_FAILED` (error styling,
+dismissable) when some or all playlists failed, and `AUTO_REFRESH_UPDATE_SKIPPED` when
+the only unrefreshed playlists lacked a source. A batch that both failed and skipped
+uses `AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED`, because the plain partial message names
+only `updated`/`total`/`failed` and would leave the skipped playlists as an unexplained
+remainder. Every count the user sees must reconcile with `total`, and success is never
+reported unconditionally — a silently dropped playlist used to look like a successful
+refresh.
+`playlist-auto-refresh.e2e.ts` guards this by restarting the app against a killed
+playlist server.
+
 ## State Management (libs/m3u-state/)
 
 ### State Structure
 
 ```typescript
+// libs/m3u-state/src/lib/state.ts
 interface PlaylistState {
-    // Active channel being played
-    active: Channel | undefined;
+    active: Channel | undefined; // Active channel being played
+    activePlaybackUrl: string | null;
+    activeEpgProgram: EpgProgram | undefined;
+    currentEpgProgram: EpgProgram | undefined;
+    epgAvailable: boolean;
+    channelsLoading: boolean; // Route still resolving channel data
+    channels: Channel[]; // All channels from current playlist
+    playlists: PlaylistMetaState; // Playlist metadata (entity adapter)
+}
 
-    // Whether the current route is still resolving channel data
-    channelsLoading: boolean;
-
-    // All channels from current playlist
-    channels: Channel[];
-
-    // EPG state
-    epg: {
-        epgAvailable: boolean;
-        activeEpgProgram: EpgProgram | undefined;
-        currentEpgProgram: EpgProgram | undefined;
-    };
-
-    // Playlist metadata (entity adapter)
-    playlistsMeta: {
-        ids: string[];
-        entities: Record<string, PlaylistMeta>;
-        selectedId: string | undefined;
-        allPlaylistsLoaded: boolean;
-        selectedFilters: PlaylistSourceFilter[];
-    };
+// libs/m3u-state/src/lib/playlists.state.ts
+interface PlaylistMetaState extends EntityState<PlaylistMeta> {
+    selectedId: string;
+    allPlaylistsLoaded: boolean;
+    selectedFilters: string[]; // 'm3u' | 'xtream' | 'stalker'
 }
 ```
 
@@ -86,7 +359,7 @@ used by the groups view to remember which group titles the user has hidden.
 | **PlaylistActions**  | `loadPlaylists`, `addPlaylist`, `removePlaylist`, `parsePlaylist`, `setActivePlaylist` | Playlist CRUD                  |
 | **ChannelActions**   | `setChannels`, `setActiveChannel`, `setAdjacentChannelAsActive`                        | Channel selection & navigation |
 | **EpgActions**       | `setActiveEpgProgram`, `setCurrentEpgProgram`, `setEpgAvailableFlag`                   | EPG state                      |
-| **FavoritesActions** | `updateFavorites`, `setFavorites`                                                      | Favorites management           |
+| **FavoritesActions** | `updateFavorites`, `setFavorites`, `hydrateFavorites`                                  | Favorites management           |
 | **FilterActions**    | `setSelectedFilters`                                                                   | Playlist type filtering        |
 
 ### Key Selectors
@@ -101,7 +374,7 @@ selectFavorites; // Favorite channel URLs
 // Playlist selectors
 selectAllPlaylistsMeta; // All playlists
 selectActivePlaylistId; // Selected playlist ID
-selectCurrentPlaylist; // Active playlist object
+selectActivePlaylist; // Active playlist object
 selectPlaylistTitle; // Title with "Global favorites" fallback
 
 // EPG selectors
@@ -121,20 +394,25 @@ channel-list-container/
 ├── channel-list-container.component.html
 ├── channel-list-container.component.scss
 │
-├── all-channels-tab/                      # Virtual scroll + search
-│   ├── all-channels-tab.component.ts
-│   ├── all-channels-tab.component.html
-│   └── all-channels-tab.component.scss
+├── all-channels-view/                     # Virtual scroll + debounced search
+│   ├── all-channels-view.component.ts
+│   ├── all-channels-view.component.html
+│   └── all-channels-view.component.scss
 │
-├── groups-tab/                            # Expansion panels + infinite scroll
-│   ├── groups-tab.component.ts
-│   ├── groups-tab.component.html
-│   └── groups-tab.component.scss
+├── groups-view/                           # Expansion panels + infinite scroll
+│   ├── groups-view.component.ts
+│   ├── groups-view.component.html
+│   └── groups-view.component.scss
 │
-├── favorites-tab/                         # Drag-drop reordering
-│   ├── favorites-tab.component.ts
-│   ├── favorites-tab.component.html
-│   └── favorites-tab.component.scss
+├── favorites-view/                        # Drag-drop reordering
+│   ├── favorites-view.component.ts
+│   ├── favorites-view.component.html
+│   └── favorites-view.component.scss
+│
+├── recent-view/                           # Recently viewed channels
+│   ├── recent-view.component.ts
+│   ├── recent-view.component.html
+│   └── recent-view.component.scss
 │
 └── channel-list-item/                     # Individual channel display
     ├── channel-list-item.component.ts
@@ -179,6 +457,10 @@ channel-list-container/
 
 - `M3uWorkspaceRouteSession` owns route-driven channel loading for the player/sidebar routes: `all` and `groups`.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
+- The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
+  after that persisted read. Hydration must not use the persistence-bearing
+  `setFavorites` action: doing so reads and rewrites the complete M3U payload
+  again just to store favorites that already came from SQLite.
 - `ChannelListContainerComponent` now renders a dedicated skeleton state while `channelsLoading` is true.
 - `ChannelListContainerComponent` no longer clears `channels` on destroy; route/session code is the single owner of shared list lifecycle during navigation.
 - The dedicated `/workspace/playlists/:id/favorites` and `/workspace/playlists/:id/recent` collection routes do not drive the shared sidebar channel list; they default to the `playlist` scope so rail links always open the current playlist view, not the last persisted global scope.
@@ -222,14 +504,17 @@ channel-list-container/
   rendering. Playlist order avoids cloning the full list when no search term is
   active.
 
-### EnrichedChannel Pattern
+### ChannelEpgMetadata Pattern
 
-For performance optimization, channels are pre-enriched with EPG data:
+For performance optimization, EPG data is kept in a side-car map instead of
+being cloned onto every channel (the older `EnrichedChannel` pattern that
+spread-cloned every channel on every ~30 s tick was removed —
+`channel-list-container/epg-enrichment.util.ts`):
 
 ```typescript
-interface EnrichedChannel extends Channel {
+// libs/ui/components/src/lib/channel-list-container/epg-enrichment.util.ts
+interface ChannelEpgMetadata {
     epgProgram: EpgProgram | null | undefined;
-    logo: string; // Playlist tvg-logo first, XMLTV icon fallback second
     progressPercentage: number; // Pre-computed by parent
 }
 ```
@@ -270,7 +555,7 @@ per-tab EPG logic:
 
 The programme guide under the player renders in one of **two interchangeable
 views**, chosen by the **`epgViewMode`** setting (`'timeline'` default, or
-`'list'`; Settings → EPG → *Guide view*):
+`'list'`; Settings → EPG → _Guide view_):
 
 - **Timeline** — a horizontal **ribbon** (`app-epg-timeline`,
   `libs/ui/epg/src/lib/epg-timeline/`).
@@ -341,7 +626,7 @@ activation, and the details dialog behave identically to the timeline.
   `isLivePlayback`, `loading`, `emptyReason`, `selectedDate`, `collapsed`,
   `summary` and emits `programActivated`, `returnToLive`, `selectedDateChange`,
   `openEpgSettings`, `retry`, `collapsedChange`. The host layout owns playback,
-  persists the collapse state (`liveEpgPanelState` in localStorage), and (for
+  persists the collapse state (`live-epg-panel-state` in localStorage), and (for
   the M3U player) the `EpgActions.setCurrentEpgProgram` / `setEpgAvailableFlag`
   / `setActiveEpgProgram` dispatches. The timeline owns the **single** panel
   bar — collapse chevron + channel name on the left, return-to-live / jump /
@@ -363,7 +648,8 @@ activation, and the details dialog behave identically to the timeline.
   no-EPG-anywhere states and while loading. Return-to-live is a playback control
   (`!isLivePlayback()`) and is independent of EPG state.
 - **State-driven affordances.** Blocks are coloured past / now / future, with a
-  red "now" playhead. Catch-up "Watch" appears on past blocks only when
+  red "now" playhead. Catch-up "Watch" appears on past blocks — and as a
+  start-over replay button on the currently-airing block — only when
   `archivePlaybackAvailable` (Xtream `tv_archive`, M3U `catchup-*`); Stalker is
   schedule-only (dimmed past + a notice, no false buttons). The "i" button opens
   the shared `app-epg-item-description` dialog with a state-aware action.
@@ -543,25 +829,25 @@ These URLs are playlist-scoped by default:
 #### AllChannelsViewComponent
 
 - **Inputs**: `channels`, `channelEpgMap`, `channelIconMap`, `progressTick`, `shouldShowEpg`, `itemSize`, `activeChannelUrl`, `favoriteIds`
-- **Outputs**: `channelSelected`, `favoriteToggled`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `favoriteToggled`, `sidebarToggleRequested`
 - **Features**: Workspace search, persisted channel sorting, virtual scrolling, no-results placeholder
 
 #### GroupsViewComponent
 
-- **Inputs**: Same as AllChannelsTab + `groupedChannels`
-- **Outputs**: `channelSelected`, `favoriteToggled`
+- **Inputs**: Same as AllChannelsViewComponent + `groupedChannels`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `favoriteToggled`, `hiddenGroupTitlesChanged`, sidebar sizing outputs
 - **Features**: Resizable groups rail, local group search, group visibility management, persisted selected-group channel sorting
 
 #### FavoritesViewComponent
 
 - **Inputs**: `favorites`, `channelEpgMap`, `channelIconMap`, `progressTick`, `shouldShowEpg`, `activeChannelUrl`
-- **Outputs**: `channelSelected`, `favoriteToggled`, `favoritesReordered`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `favoriteToggled`, `favoritesReordered`
 - **Features**: Drag-and-drop reordering with CDK DragDrop, read-only channel details context menu
 
 #### RecentViewComponent
 
 - **Inputs**: recent channels, `channelEpgMap`, `channelIconMap`, `progressTick`, `shouldShowEpg`, `activeChannelUrl`
-- **Outputs**: `channelSelected`, `favoriteToggled`, `recentItemRemoved`
+- **Outputs**: `channelSelected`, `channelPlaybackRequested`, `removeRecent`
 - **Features**: Read-only channel details context menu, row-level and context-menu removal
 
 ## EPG Integration
@@ -663,6 +949,75 @@ class EpgService {
   for a programme the user clicked, both hosts surface a
   `EPG.TIMELINE.CATCHUP_FAILED` snackbar instead of doing nothing.
 
+### DASH + ClearKey Playback
+
+MPEG-DASH (`.mpd`) channels play through a Shaka Player _source engine_ inside
+the existing built-in players — exactly like hls.js/mpegts.js. There is no new
+player in settings.
+
+**DRM data flow** (M3U module only; Xtream/Stalker have no DRM concept):
+
+1. The playlist parser fork does not interpret `#KODIPROP:` lines, but
+   preserves them in `item.raw` for **both** layouts: unknown lines between
+   `#EXTINF` and the stream URL are kept as before, and since parser pin
+   `v0.15.2-iptvnator.2` `#KODIPROP` lines placed _before_ the `#EXTINF` are
+   buffered and attached to the **next** entry's `raw` in file order (Kodi
+   semantics, case-insensitive prefix). Other stray `#` lines outside an open
+   item are still dropped, matching upstream.
+2. `extractDrmFromRaw()` (`libs/shared/m3u-utils/src/lib/kodiprop.utils.ts`)
+   post-processes `raw` inside `createPlaylistObject()` — the single funnel
+   for all four import paths (Electron URL/file import, refresh worker,
+   web-backend `/parse`, client-side upload). It reads
+   `inputstream.adaptive.license_type`, `license_key`, and the combined
+   `drm_legacy` property. ClearKey key formats: `kid:key` hex (single or
+   comma-separated), the W3C ClearKey license JSON, and a plain `{kid: key}`
+   JSON map. Unsupported license types (Widevine, PlayReady, license-server
+   URLs, malformed values) are preserved as `supported: false` — never a
+   throw.
+3. The typed result lands on `Channel.drm` (`ChannelDrm` in
+   `@iptvnator/shared/interfaces`), travels through
+   `ResolvedPortalPlayback.drm` into `WebPlayerViewComponent`'s synthetic
+   channel, and reaches the engine. Persistence is free for newly imported or
+   refreshed playlists (playlist JSON blob / IndexedDB object). Playlists
+   imported **before** the DRM feature carry no `drm` field yet, but the raw
+   `#KODIPROP` block survived in the stored items — the M3U player page falls
+   back to `extractDrmFromRaw(channel.raw)` at playback time, so encrypted
+   channels of pre-upgrade playlists work without a re-import.
+
+**Engine selection and routing:**
+
+- `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the
+  engine: lazy `import('shaka-player')` on first use (the module is a separate
+  lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
+  queue + generation guard against channel-switch races, and Shaka-error →
+  `PlaybackDiagnostic` classification (`PlaybackDiagnosticSource.Shaka`).
+  Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
+  without starting an engine.
+- HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:
+  `customType.mpd` in `ArtPlayerSourceSession`. Shared-controls bridge:
+  `WebVideoControlsSource` kind `'shaka'` + `WebVideoShakaControls`
+  (audio/text tracks via the Shaka 5 API — selecting a text track shows it,
+  `selectTextTrack(null)` hides).
+- DASH channels always play inline (radio precedent): `isDashChannel()` gates
+  `shouldShowInlinePlayer()`, the MPV/VLC auto-launch in `m3u-state` effects
+  (`shouldAutoLaunchExternalPlayer()`), and the `playerOverride` passed to
+  `app-web-player-view` — ArtPlayer stays ArtPlayer, every other configured
+  player (Video.js without a DASH bridge, embedded/external MPV, VLC) falls
+  back to the HTML5 player. External players cannot receive KODIPROP ClearKey
+  configuration (VLC upstream feature request #29465).
+- ClearKey EME works in stock Electron (`org.w3.clearkey`; no Widevine CDM
+  required) — EME needs a secure context, which `file://` (packaged) and
+  `http://localhost` (dev/PWA) both satisfy. Widevine/FairPlay are out of
+  scope (castLabs fork + VMP signing).
+
+**Testing:** offline VP9+Opus CENC fixtures in
+`apps/web-e2e/src/fixtures/dash/` (generated with ffmpeg + Shaka Packager —
+see the README there for why), e2e suites `web-e2e:src/dash-clearkey.e2e.ts`
+(Chromium; the Angular service worker is blocked because SW-routed requests
+bypass Playwright interception) and
+`electron-backend-e2e:src/dash-clearkey.e2e.ts` (real ClearKey EME in
+Electron).
+
 ## Interfaces
 
 ### Channel Interface
@@ -689,6 +1044,8 @@ interface Channel {
         'user-agent': string;
         origin: string;
     };
+    /** ClearKey DRM extracted from #KODIPROP lines (DASH channels). */
+    drm?: ChannelDrm;
 }
 ```
 
@@ -722,16 +1079,21 @@ interface EpgProgram {
 
 ## Routes
 
+Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts`
+(`createM3uWorkspaceRoutes()`), nested under the workspace shell:
+
 ```
-/playlists/:id          # Video player with playlist
-/iptv                   # Default IPTV route
+/workspace/playlists/:id            # M3U player (redirects to .../all)
+/workspace/playlists/:id/favorites  # Favorites collection view
+/workspace/playlists/:id/recent     # Recently viewed collection view
+/workspace/playlists/:id/:view      # Video player with channel list view
 ```
 
 ## Adding New Features
 
-### To add a new tab to channel list:
+### To add a new view to channel list:
 
-1. Create component in `channel-list-container/new-tab/`
+1. Create component in `channel-list-container/new-view/`
 2. Accept inputs: `channels`, `channelEpgMap`, `progressTick`, `shouldShowEpg`, `activeChannelUrl`
 3. Emit `channelSelected` output
 4. Add to parent template and imports
@@ -746,4 +1108,6 @@ interface EpgProgram {
 
 1. Dispatch `FavoritesActions.updateFavorites` for toggle
 2. Dispatch `FavoritesActions.setFavorites` for reordering
-3. Effects automatically persist to database
+3. Dispatch `FavoritesActions.hydrateFavorites` only when copying values that
+   were already read from persistence into NgRx
+4. Effects persist the two user-mutation actions; hydration is reducer-only

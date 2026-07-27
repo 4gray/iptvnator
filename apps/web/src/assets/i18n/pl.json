@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Odświeżanie listy odtwarzania nie powiodło się. Plik lokalny jest niedostępny. Sprawdź ścieżkę pliku lub zaimportuj listę ponownie.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Odświeżanie listy odtwarzania nie powiodło się. Aplikacja nie ma już dostępu do pliku lokalnego.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Sukces! Listy odtwarzania zostały pomyślnie zaktualizowane",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Automatyczne odświeżanie niekompletne: zaktualizowano {{updated}} z {{total}} list odtwarzania, {{failed}} nie powiodło się.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Automatyczne odświeżanie niekompletne: zaktualizowano {{updated}} z {{total}} list odtwarzania, {{failed}} nie powiodło się, pominięto {{skipped}} (brak adresu URL lub ścieżki pliku).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Automatyczne odświeżanie list odtwarzania nie powiodło się. Nie zaktualizowano żadnej z {{total}} list.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Automatyczne odświeżanie list odtwarzania: zaktualizowano {{updated}} z {{total}}, pominięto {{skipped}} (brak adresu URL lub ścieżki pliku).",
             "AUTO_REFRESH_ENABLED": "Automatyczne odświeżanie włączone"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "Sprawdź klucz",
         "TMDB_TEST_SUCCESS": "Klucz działa — TMDB odpowiedziało poprawnie",
         "TMDB_TEST_FAILED": "Sprawdzenie nie powiodło się — TMDB odrzuciło klucz lub jest niedostępne",
+        "TMDB_CACHE": "Pamięć podręczna metadanych",
+        "TMDB_CACHE_DESCRIPTION": "Pobrane metadane są zapisywane lokalnie, dzięki czemu strony szczegółów otwierają się natychmiast. Po wyczyszczeniu aplikacja pobierze świeże dane.",
+        "TMDB_CACHE_SIZE": "{{entries}} wpisów · {{size}}",
+        "TMDB_CACHE_CLEAR": "Wyczyść pamięć",
+        "TMDB_CACHE_ERROR": "Nie udało się odczytać pamięci — spróbuj ponownie",
         "TMDB_CREDITS": "Metadane",
         "TMDB_ATTRIBUTION": "Ten produkt korzysta z API TMDB, ale nie jest wspierany ani certyfikowany przez TMDB.",
         "APP_PREFERENCES": "Preferencje aplikacji",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "Czyszczenie…",
         "EPG_URL_ERROR": "Wartość nie jest prawidłowym URL",
         "VIDEO_PLAYER_DESCRIPTION": "Wybierz domyślny odtwarzacz wideo",
+        "WEB_PLAYER_SHARED_CONTROLS": "Ujednolicone sterowanie odtwarzaczami internetowymi (eksperymentalne)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Używaj wspólnych elementów sterowania IPTVnator w HTML5, Video.js i ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Rozmyte tło",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Wypełnij przestrzeń wokół odtwarzacza rozmytym, przyciemnianym plakatem zamiast zwykłych czarnych pasków.",
+        "PLAYER_UP_NEXT_RAIL": "Panel następnych odcinków",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "W szerokich oknach zadokuj odtwarzacz serialu po lewej stronie i pokaż obok kolejne odcinki.",
         "STREAM_FORMAT_DESCRIPTION": "Wybierz domyślny format strumienia (xtream)",
         "LANGUAGE_DESCRIPTION": "Wybierz język aplikacji",
         "THEME_DESCRIPTION": "Wybierz motyw wizualny aplikacji",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Domyślnie pokaż lub ukryj napisy",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Pokaż stopkę „teraz odtwarzane”",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Pozostaw pasek statusu zewnętrznego odtwarzacza widoczny u dołu obszaru roboczego na komputerze.",
+        "STRIP_COUNTRY_PREFIX": "Usuń prefiksy krajów z nazw kanałów",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Usuwa prefiksy kraju/grupy, takie jak \"US | \" lub \"UK - \", z nazw kanałów na żywo w całej aplikacji.",
         "VERSION_DESCRIPTION": "Aktualna wersja aplikacji",
         "ABOUT_SUBTITLE": "Wersja, linki do projektu i sposoby wsparcia IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Środowisko wbudowanego MPV",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: silnik frame-copy (eksperymentalny)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Wideo jest rysowane na kanwie aplikacji, dzięki czemu menu i okna dialogowe wyświetlają się nad nim.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Zacznie działać po ponownym uruchomieniu aplikacji."
     },
     "THEMES": {
         "DARK_THEME": "Ciemny",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Wstecz",
             "RETRY": "Spróbuj ponownie",
             "STALLED": "Uruchamianie tego strumienia trwa dłużej niż zwykle.",
             "PLAYBACK_FAILED": "Odtwarzanie we wbudowanym MPV nie powiodło się.",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "Cofnij o 10 sekund",
             "FORWARD_10_SECONDS": "Do przodu o 10 sekund",
             "LIVE_STREAM": "Transmisja na żywo",
+            "PLAYBACK_POSITION": "Pozycja odtwarzania",
             "MUTE": "Wycisz",
             "UNMUTE": "Wyłącz wyciszenie",
             "MUTED": "Wyciszono",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "Nie udało się rozpocząć nagrywania.",
             "RECORDING_FAILED_TO_STOP": "Nie udało się zatrzymać nagrywania.",
             "SAVED_TO": "Zapisano w {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Włącz obraz w obrazie",
+            "EXIT_PICTURE_IN_PICTURE": "Wyłącz obraz w obrazie",
             "ENTER_FULLSCREEN": "Włącz pełny ekran",
             "EXIT_FULLSCREEN": "Wyłącz pełny ekran"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "Usuń z ulubionych",
         "ADD_FAVORITE": "Dodaj do ulubionych",
         "SHOW_DETAILS": "Pokaż szczegóły kanału",
+        "MAP_EPG": "Przypisz kanał EPG",
         "FAVORITES_UPDATED": "Ulubione zostały zaktualizowane!",
         "SELECT_CHANNEL_PLAYBACK": "Wybierz kanał, aby rozpocząć odtwarzanie",
         "SORT_BY": "Sortuj według",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "pokaż ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Przypisz kanał EPG",
+        "SUBTITLE": "Ręcznie wybierz kanał EPG dla \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Szukaj kanałów EPG...",
+        "CURRENT_MAPPING": "Bieżące przypisanie",
+        "NO_MAPPING": "Brak przypisania EPG",
+        "SAVE": "Zapisz przypisanie",
+        "REMOVE": "Usuń przypisanie",
+        "CLOSE": "Zamknij",
+        "NO_RESULTS": "Nie znaleziono kanałów EPG",
+        "SEARCH_HINT": "Wpisz co najmniej {{min}} znaki, aby wyszukać",
+        "SAVED": "Przypisanie EPG zapisane",
+        "REMOVED": "Przypisanie EPG usunięte",
+        "SAVE_FAILED": "Nie udało się zaktualizować przypisania EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "Tak",
     "NO": "Nie",
@@ -756,6 +797,8 @@
         "ACTORS": "Aktorzy",
         "DIRECTOR": "Reżyser",
         "SIMILAR": "Podobne",
+        "CREW_JOB_DIRECTOR": "Reżyser",
+        "CREW_JOB_CREATOR": "Twórca",
         "ACTOR_FILMOGRAPHY": "Filmografia",
         "ACTOR_FILTER_ALL": "Wszystkie",
         "ACTOR_SCOPE_THIS_PORTAL": "Ten portal",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "W twojej bibliotece",
         "ACTOR_SEARCH_IN_PORTAL": "Szukaj w portalu",
         "ACTOR_BORN": "Data urodzenia:",
+        "ACTOR_DIED": "Zmarł",
+        "SERIES_STATUS_RETURNING": "W trakcie",
+        "SERIES_STATUS_PLANNED": "Zaplanowany",
+        "SERIES_STATUS_IN_PRODUCTION": "W produkcji",
+        "SERIES_STATUS_ENDED": "Zakończony",
+        "SERIES_STATUS_CANCELED": "Anulowany",
+        "SERIES_STATUS_PILOT": "Pilot",
         "DURATION": "Czas trwania",
         "CAST": "Obsada",
         "EPISODE_RUN_TIME": "Czas trwania odcinka",
@@ -779,6 +829,7 @@
         "RESTART": "Zacznij od nowa",
         "CONTINUE_WATCHING": "Kontynuuj oglądanie",
         "PLAY_FIRST_EPISODE": "Odtwórz pierwszy odcinek",
+        "PLAY_EPISODE": "Odtwórz odcinek {{episode}}",
         "RESUME_EPISODE": "Wznów odcinek",
         "PLAY_NEXT_EPISODE": "Odtwórz następny odcinek",
         "SERIES_WATCHED": "Serial obejrzany",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "URL strumienia skopiowany do schowka",
         "COPY_STREAM_URL": "Kopiuj URL strumienia",
         "NOW_PLAYING": "Teraz odtwarzane",
+        "UP_NEXT": "Następne",
         "CLOSE_PLAYER": "Zamknij odtwarzacz",
         "ABOUT": "Informacje",
         "SEASONS_AND_EPISODES": "Sezony i odcinki",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "Ta treść jest niedostępna na tym serwerze",
         "PLAYBACK_ERROR": "Nie udało się uzyskać URL odtwarzania",
         "LOADING_SEASONS": "Ładowanie sezonów...",
+        "LOADING_ALL_CHANNELS": "Ładowanie pełnej listy kanałów…",
+        "REFRESH_CHANNEL_LIST": "Odśwież listę kanałów",
+        "NO_CHANNELS_IN_CATEGORY": "Brak kanałów w tej kategorii",
+        "ITEM": "pozycja",
+        "ITEMS": "pozycji",
         "NO_EPISODES": "Brak dostępnych odcinków",
         "ALL_RADIO": "Wszystkie radia"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "Tego pobrania nie można już otworzyć w bibliotece, ponieważ jego źródłowa lista odtwarzania została usunięta.",
         "FILE_NOT_FOUND": "Ten pobrany plik nie jest już dostępny na dysku.",
         "FILE_ACTION_ERROR": "Nie udało się wykonać akcji na pliku.",
+        "ACTION_FAILED": "Akcja nie powiodła się",
+        "PAUSE": "Wstrzymaj",
+        "RESUME": "Wznów",
         "CANCEL": "Anuluj",
         "RETRY": "Spróbuj ponownie",
         "REMOVE": "Usuń",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "Pobieranie",
             "COMPLETED": "Ukończone",
             "FAILED": "Niepowodzenie",
-            "CANCELED": "Anulowane"
+            "CANCELED": "Anulowane",
+            "PAUSED": "Wstrzymane"
         }
     },
     "REMOTE_CONTROL": {

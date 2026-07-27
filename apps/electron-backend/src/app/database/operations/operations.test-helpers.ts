@@ -112,14 +112,31 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
     const insertValues = jest.fn().mockResolvedValue(undefined);
     const insert = jest.fn().mockReturnValue({ values: insertValues });
 
-    const updateWhere = jest.fn().mockResolvedValue(undefined);
+    // Prepared-statement writes MUST use `.run()` (synchronous) rather than
+    // `.execute()` inside a synchronous `db.transaction()` callback — the
+    // better-sqlite3 driver's `.execute()` defers to a promise that never
+    // settles before COMMIT, silently dropping the write (issue #1137). The
+    // mock exposes both so specs can assert the correct method is used.
+    const updateRun = jest.fn();
+    const updateExecute = jest.fn().mockResolvedValue(undefined);
+    const updatePrepare = jest
+        .fn()
+        .mockReturnValue({ run: updateRun, execute: updateExecute });
+    const updateWhere = jest.fn().mockReturnValue({
+        prepare: updatePrepare,
+        then: (
+            resolve: (value: unknown) => void,
+            reject: (reason: unknown) => void
+        ) => Promise.resolve(undefined).then(resolve, reject),
+    });
     const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
     const update = jest.fn().mockReturnValue({ set: updateSet });
 
+    const deleteRun = jest.fn();
     const deleteExecute = jest.fn().mockResolvedValue(undefined);
     const deletePrepare = jest
         .fn()
-        .mockReturnValue({ execute: deleteExecute });
+        .mockReturnValue({ execute: deleteExecute, run: deleteRun });
     const deleteResult = {
         prepare: deletePrepare,
         then: (
@@ -152,6 +169,7 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         deleteExecute,
         deleteFn,
         deletePrepare,
+        deleteRun,
         deleteWhere,
         insert,
         insertValues,
@@ -159,6 +177,9 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         select,
         transaction,
         update,
+        updatePrepare,
+        updateRun,
+        updateExecute,
         updateSet,
         updateWhere,
     };

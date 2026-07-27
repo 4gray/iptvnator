@@ -219,6 +219,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         return this.downloadsService.isDownloading(vodId, playlistId, 'vod');
     });
 
+    readonly isPausedDownload = computed(() => {
+        const vodId = this.selectedVodId();
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) return false;
+        this.downloadsService.downloads();
+        return this.downloadsService.isPaused(vodId, playlistId, 'vod');
+    });
+
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
     );
@@ -429,6 +437,18 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
         this.playback.handleExternalFallbackRequest(request);
+    }
+
+    async resumePausedDownload(): Promise<void> {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) {
+            return;
+        }
+        await this.downloadsService.resumeDownloadByContent(
+            this.selectedVodId(),
+            playlistId,
+            'vod'
+        );
     }
 
     async downloadVod(vodItem: XtreamVodDetails | null): Promise<void> {

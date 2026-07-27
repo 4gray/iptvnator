@@ -67,20 +67,21 @@
                     <app-audio-player
                         [url]="activeChannel.url"
                         [icon]="activeChannel?.tvg?.logo!"
-                        [channelName]="
-                            activeChannel.name || activeChannel?.tvg?.name || ''
-                        "
+                        [channelName]="displayChannelName()"
                         [volume]="volume()"
                         (volumeChange)="onInlineVolumeChange($event)"
                     />
                 } @else {
                     <app-web-player-view
                         [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
-                        [title]="embeddedPlayback()?.title ?? ''"
+                        [title]="inlinePlayerTitle()"
                         [playback]="embeddedPlayback()"
-                        [playerOverride]="playerSettings.player ?? null"
+                        [playerOverride]="
+                            activeChannelIsDash()
+                                ? dashPlayerOverride()
+                                : (playerSettings.player ?? null)
+                        "
                         [volume]="volume()"
-                        [showCaptions]="!!playerSettings.showCaptions"
                         (externalFallbackRequested)="
                             handleExternalFallbackRequest($event)
                         "

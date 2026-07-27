@@ -27,10 +27,19 @@
             }
             <div class="actor-view__meta">
                 <h1>{{ person.name }}</h1>
-                @if (person.birthday) {
+                @if (person.birthday || person.deathday) {
                     <p class="actor-view__born">
-                        {{ 'XTREAM.ACTOR_BORN' | translate }}
-                        {{ person.birthday }}
+                        @if (person.birthday) {
+                            {{ 'XTREAM.ACTOR_BORN' | translate }}
+                            {{ person.birthday }}
+                        }
+                        @if (person.deathday) {
+                            @if (person.birthday) {
+                                ·
+                            }
+                            {{ 'XTREAM.ACTOR_DIED' | translate }}
+                            {{ person.deathday }}
+                        }
                         @if (person.placeOfBirth) {
                             · {{ person.placeOfBirth }}
                         }
@@ -165,6 +174,8 @@
                             }
                             @if (item.character) {
                                 · {{ item.character }}
+                            } @else if (item.crewJob) {
+                                · {{ crewJobKey(item.crewJob) | translate }}
                             }
                         </span>
                     </button>

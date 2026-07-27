@@ -13,9 +13,73 @@ import {
     isInvalidTlsCertificateError,
 } from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import type { M3uImportPerformanceCapture } from './playlist-import-performance';
+import { M3U_IMPORT_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 
 export interface PlaylistFetchOptions {
+    performanceCapture?: M3uImportPerformanceCapture | null;
     trustedInsecureTlsHosts?: readonly string[];
+}
+
+/**
+ * Idle timeout for every playlist download hop. Without it a host that accepts
+ * the connection and then goes silent keeps the request pending forever, which
+ * stalled the unattended startup auto-update indefinitely (issue #931).
+ * Mirrored by the playlist refresh worker.
+ */
+export const PLAYLIST_FETCH_TIMEOUT_MS = 30000;
+
+function countPlaylistItems(value: unknown): number | undefined {
+    try {
+        if (typeof value !== 'object' || value === null) {
+            return undefined;
+        }
+        const items = Reflect.get(value, 'items');
+        return Array.isArray(items) ? items.length : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function countNormalizedPlaylistItems(value: unknown): number | undefined {
+    try {
+        if (typeof value !== 'object' || value === null) {
+            return undefined;
+        }
+        return countPlaylistItems(Reflect.get(value, 'playlist'));
+    } catch {
+        return undefined;
+    }
+}
+
+function readResponseContentLength(response: unknown): number | undefined {
+    try {
+        if (typeof response !== 'object' || response === null) {
+            return undefined;
+        }
+        const headers = Reflect.get(response, 'headers');
+        if (typeof headers !== 'object' || headers === null) {
+            return undefined;
+        }
+        const directValue = Reflect.get(headers, 'content-length');
+        const getHeader = Reflect.get(headers, 'get');
+        const value =
+            directValue ??
+            (typeof getHeader === 'function'
+                ? Reflect.apply(getHeader, headers, ['content-length'])
+                : undefined);
+        const numericValue =
+            typeof value === 'number'
+                ? value
+                : typeof value === 'string' && value.trim().length > 0
+                  ? Number(value)
+                  : Number.NaN;
+        return Number.isSafeInteger(numericValue) && numericValue >= 0
+            ? numericValue
+            : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 export async function fetchPlaylistFromUrl(
@@ -23,18 +87,30 @@ export async function fetchPlaylistFromUrl(
     title?: string,
     options: PlaylistFetchOptions = {}
 ): Promise<Playlist> {
-    let result;
-    try {
-        result = await requestWithValidatedRedirects<string>(
+    const performanceCapture = options.performanceCapture;
+    const request = () =>
+        requestWithValidatedRedirects<string>(
             url,
             {
                 agentFactory: createPlaylistAgentFactory({
                     trustedInsecureTlsHosts: options.trustedInsecureTlsHosts,
                 }),
                 method: 'GET',
+                timeout: PLAYLIST_FETCH_TIMEOUT_MS,
             },
             { allowPrivateNetworks: true }
         );
+    let result;
+    try {
+        result = performanceCapture
+            ? await performanceCapture.measureAsync(
+                  M3U_IMPORT_PERFORMANCE_PHASE.DATA_ACQUIRE,
+                  request,
+                  (response) => ({
+                      byteCount: readResponseContentLength(response),
+                  })
+              )
+            : await request();
     } catch (error) {
         if (isInvalidTlsCertificateError(error)) {
             throw createInvalidTlsCertificateError(
@@ -44,19 +120,38 @@ export async function fetchPlaylistFromUrl(
         throw error;
     }
 
-    const parsedPlaylist = parse(result.data);
-    const extractedName = url && url.length > 1 ? getFilenameFromUrl(url) : '';
-    const playlistName =
-        !extractedName || extractedName === 'Untitled playlist'
-            ? 'Imported from URL'
-            : extractedName;
+    const parsedPlaylist = performanceCapture
+        ? performanceCapture.measure(
+              M3U_IMPORT_PERFORMANCE_PHASE.PARSE_M3U,
+              () => parse(result.data),
+              (parsed) => ({ itemCount: countPlaylistItems(parsed) })
+          )
+        : parse(result.data);
+    const normalize = (): Playlist => {
+        const extractedName =
+            url && url.length > 1 ? getFilenameFromUrl(url) : '';
+        const playlistName =
+            !extractedName || extractedName === 'Untitled playlist'
+                ? 'Imported from URL'
+                : extractedName;
 
-    return createPlaylistObject(
-        title ?? playlistName,
-        parsedPlaylist,
-        url,
-        'URL'
-    );
+        return createPlaylistObject(
+            title ?? playlistName,
+            parsedPlaylist,
+            url,
+            'URL'
+        );
+    };
+
+    return performanceCapture
+        ? performanceCapture.measure(
+              M3U_IMPORT_PERFORMANCE_PHASE.NORMALIZE,
+              normalize,
+              (playlist) => ({
+                  itemCount: countNormalizedPlaylistItems(playlist),
+              })
+          )
+        : normalize();
 }
 
 export async function fetchPlaylistFromFile(

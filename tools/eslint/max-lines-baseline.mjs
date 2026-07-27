@@ -2,6 +2,8 @@
 // TypeScript files that predate the max-lines (400) ESLint rule.
 // This list should only shrink: split a file below the limit, rerun the
 // generator, and commit the result. Never add new files here.
+// A new file that genuinely cannot be split takes a file-wide
+// `/* eslint-disable max-lines -- <why> */` instead; the generator skips those.
 export const maxLinesBaseline = [
     'apps/electron-backend-e2e/src/catalog-sorting.e2e.ts',
     'apps/electron-backend-e2e/src/category-management.e2e.ts',
@@ -42,8 +44,6 @@ export const maxLinesBaseline = [
     'apps/web-e2e/src/xtream.e2e.ts',
     'apps/web/src/app/services/electron.service.ts',
     'apps/web/src/app/services/pwa.service.ts',
-    'apps/web/src/app/settings/settings.component.spec.ts',
-    'apps/web/src/app/settings/settings.component.ts',
     'apps/xtream-mock-server/src/app/generators/marketing.generator.ts',
     'libs/epg/data-access/src/lib/epg.service.spec.ts',
     'libs/epg/data-access/src/lib/epg.service.ts',
@@ -120,10 +120,6 @@ export const maxLinesBaseline = [
     'libs/ui/components/src/lib/season-container/season-container.component.ts',
     'libs/ui/epg/src/lib/multi-epg/multi-epg-container.component.ts',
     'libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-player.component.ts',
-    'libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts',
-    'libs/ui/playback/src/lib/html-video-player/html-video-player.component.ts',
-    'libs/ui/playback/src/lib/vjs-player/vjs-player.component.spec.ts',
-    'libs/ui/playback/src/lib/vjs-player/vjs-player.component.ts',
     'libs/ui/playback/src/lib/web-player-view/web-player-view.component.spec.ts',
     'libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.spec.ts',
     'libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.ts',
@@ -134,6 +130,5 @@ export const maxLinesBaseline = [
     'libs/workspace/shell/feature/src/lib/workspace-shell/services/helpers/workspace-shell-command-builders.ts',
     'libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.spec.ts',
     'libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.spec.ts',
-    'tools/release/capture-v020-screenshots.ts',
     'tools/release/generate-marketing-artwork.ts',
 ];

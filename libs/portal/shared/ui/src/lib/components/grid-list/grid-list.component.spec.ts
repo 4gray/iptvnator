@@ -1,7 +1,9 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
+import { SettingsStore } from '@iptvnator/services';
 import {
     formatGridRating,
     GridListComponent,
@@ -57,7 +59,7 @@ describe('GridListComponent', () => {
         fixture = TestBed.createComponent(GridListComponent);
     });
 
-    it('renders live logo cards with stream icons and a live badge', () => {
+    it('renders live logo cards with stream icons', () => {
         fixture.componentRef.setInput('items', [
             {
                 name: 'Live Channel',
@@ -71,15 +73,26 @@ describe('GridListComponent', () => {
 
         const card = fixture.debugElement.query(By.css('mat-card'));
         const image = fixture.debugElement.query(By.css('.stream-icon'));
-        const badge = fixture.debugElement.query(By.css('.type-badge'));
 
         expect(card.nativeElement.classList).toContain('grid-card--logo');
         expect(image.nativeElement.getAttribute('src')).toBe(
             'channel-logo.png'
         );
-        expect(badge.nativeElement.classList).toContain('live');
-        expect(badge.nativeElement.textContent.trim()).toBe('live');
     });
+
+    it.each(['live', 'vod', 'series'] as const)(
+        'does not render a redundant %s type badge in homogeneous grids',
+        (type) => {
+            fixture.componentRef.setInput('items', [
+                { name: 'Catalog item', stream_icon: 'catalog-item.png' },
+            ]);
+            fixture.componentRef.setInput('type', type);
+            fixture.detectChanges();
+            expect(
+                fixture.debugElement.query(By.css('.type-badge'))
+            ).toBeNull();
+        }
+    );
 
     it('renders the live placeholder for logo cards without artwork', () => {
         fixture.componentRef.setInput('items', [
@@ -158,5 +171,79 @@ describe('GridListComponent', () => {
         expect(placeholderIcon.nativeElement.textContent.trim()).toBe(
             'live_tv'
         );
+    });
+
+    it('renders raw titles while prefix stripping is disabled', () => {
+        fixture.componentRef.setInput('items', [{ name: 'US | CNN' }]);
+        fixture.componentRef.setInput('type', 'live');
+
+        fixture.detectChanges();
+
+        const title = fixture.debugElement.query(By.css('.title'));
+        expect(title.nativeElement.textContent.trim()).toBe('US | CNN');
+    });
+
+    it('falls back to a placeholder title for items without a name', () => {
+        fixture.componentRef.setInput('items', [{}]);
+
+        fixture.detectChanges();
+
+        const title = fixture.debugElement.query(By.css('.title'));
+        expect(title.nativeElement.textContent.trim()).toBe('No name');
+    });
+});
+
+describe('GridListComponent with strip country prefix enabled', () => {
+    let fixture: ComponentFixture<GridListComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [GridListComponent],
+            providers: [
+                {
+                    provide: SettingsStore,
+                    useValue: { stripCountryPrefix: signal(true) },
+                },
+            ],
+        })
+            .overrideComponent(GridListComponent, {
+                remove: { imports: [TranslatePipe] },
+                add: {
+                    imports: [
+                        MockPipe(
+                            TranslatePipe,
+                            (value: string | null | undefined) => value ?? ''
+                        ),
+                    ],
+                },
+            })
+            .compileComponents();
+
+        fixture = TestBed.createComponent(GridListComponent);
+    });
+
+    const renderedTitle = () =>
+        fixture.debugElement
+            .query(By.css('.title'))
+            .nativeElement.textContent.trim();
+
+    it('strips prefixes from live grid titles', () => {
+        fixture.componentRef.setInput('items', [{ name: 'US | CNN' }]);
+        fixture.componentRef.setInput('type', 'live');
+
+        fixture.detectChanges();
+
+        expect(renderedTitle()).toBe('CNN');
+    });
+
+    it('keeps VOD titles untouched', () => {
+        fixture.componentRef.setInput('items', [
+            { title: 'US | Some Movie' },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+
+        fixture.detectChanges();
+
+        expect(renderedTitle()).toBe('US | Some Movie');
     });
 });

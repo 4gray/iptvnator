@@ -5,6 +5,7 @@ import {
     ElementRef,
     OnDestroy,
     effect,
+    inject,
     input,
     output,
     signal,
@@ -15,6 +16,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { SettingsStore } from '@iptvnator/services';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 
 export interface DashboardRailAction {
     id: string;
@@ -94,6 +97,8 @@ export interface DashboardRailActionSelection {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardRailComponent implements AfterViewInit, OnDestroy {
+    private readonly settingsStore = inject(SettingsStore);
+
     readonly label = input.required<string>();
     readonly items = input.required<DashboardRailCard[]>();
     readonly seeAllLink = input<string[] | null>(null);
@@ -162,6 +167,15 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
 
     stopActionEvent(event: Event): void {
         event.stopPropagation();
+    }
+
+    /** Prefix stripping applies to live-channel cards only, never VOD/series. */
+    protected cardTitle(card: DashboardRailCard): string {
+        return applyChannelNameStrip(
+            card.title,
+            card.contentType === 'live' &&
+                this.settingsStore.stripCountryPrefix?.()
+        );
     }
 
     selectAction(

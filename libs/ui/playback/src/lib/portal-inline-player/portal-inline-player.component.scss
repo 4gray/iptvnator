@@ -77,8 +77,23 @@
     justify-content: flex-end;
 }
 
+// The viewport is the "theater stage": it spans the full content width and,
+// on wide-short windows, becomes wider than 16:9. The player is centered and
+// letterboxed inside it, so the leftover is always the black stage (or the
+// ambient fill) — never a stray strip of app background.
 .player-shell__viewport {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
+    // Definite width is load-bearing: with `width: auto`, `max-height` would
+    // transfer through `aspect-ratio` into a max-width and re-clamp the stage
+    // to 16:9 — recreating the app-surface gap on wide-short windows.
+    width: 100%;
+    // There is no global border-box reset, so the rail modifier's padding
+    // would otherwise widen the stage past its container and get clipped.
+    box-sizing: border-box;
     min-height: 320px;
     max-height: min(70vh, 720px);
     aspect-ratio: 16 / 9;
@@ -86,10 +101,53 @@
     background: #000;
 }
 
+// Player: largest 16:9 box that fits the stage height, horizontally centered.
+// The stage is never narrower than 16:9, so height-driven sizing never overflows.
 .player-shell__viewport > app-web-player-view {
+    position: relative;
+    z-index: 1;
     display: block;
-    width: 100%;
+    flex: 0 0 auto;
     height: 100%;
+    width: auto;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+}
+
+// "Up Next" rail: instead of centering, the player docks left and the
+// leftover column becomes the episode rail. The rail is an opaque panel on
+// top of the stage, so the ambient fill stays behind it (and shows in the
+// flexible gap between player and rail on very wide stages).
+.player-shell__viewport--with-rail {
+    justify-content: space-between;
+    gap: 18px;
+    // Insets the docked player and the rail from the stage edges; the player
+    // keeps sizing itself as the largest 16:9 box fitting the (now smaller)
+    // content height.
+    padding: 12px;
+}
+
+.player-shell__rail {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    align-self: stretch;
+    min-width: 0;
+    max-width: 440px;
+}
+
+// "Ambient mode": a blurred, dimmed copy of the poster fills the whole stage
+// behind the player, turning the letterbox margins into atmosphere.
+.player-shell__ambient {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--ambient-image);
+    background-position: center;
+    background-size: cover;
+    filter: blur(34px) brightness(0.5) saturate(1.15);
+    transform: scale(1.18);
+    pointer-events: none;
 }
 
 :host-context(.dark-theme) .player-shell {

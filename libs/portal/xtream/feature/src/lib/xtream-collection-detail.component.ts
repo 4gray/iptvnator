@@ -12,7 +12,10 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { PortalDetailShellComponent } from '@iptvnator/ui/components';
-import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import {
+    SeriesResumeTarget,
+    UnifiedCollectionItem,
+} from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
     XtreamStore,
@@ -21,6 +24,7 @@ import { PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { firstValueFrom, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
+import { XTREAM_SERIES_RESUME_TARGET } from './serial-details/serial-details-resume-target.token';
 import { VodDetailsRouteComponent } from './vod-details/vod-details-route.component';
 
 interface XtreamCollectionStateSnapshot {
@@ -62,6 +66,7 @@ interface XtreamCollectionStateSnapshot {
 })
 export class XtreamCollectionDetailComponent {
     readonly item = input<UnifiedCollectionItem | null>(null);
+    readonly seriesResume = input<SeriesResumeTarget | null>(null);
 
     private readonly parentInjector = inject(Injector);
     private readonly playlistsService = inject(PlaylistsService);
@@ -153,6 +158,10 @@ export class XtreamCollectionDetailComponent {
                             snapshot: { params: routeParams },
                             params: of(routeParams),
                         },
+                    },
+                    {
+                        provide: XTREAM_SERIES_RESUME_TARGET,
+                        useValue: this.seriesResume,
                     },
                 ],
                 parent: this.parentInjector,

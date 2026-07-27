@@ -58,7 +58,7 @@
                     <div
                         class="rail__card rail__card--channel"
                         role="listitem"
-                        [attr.title]="card.title"
+                        [attr.title]="cardTitle(card)"
                         [attr.data-test-id]="
                             testId() ? testId() + '-card' : null
                         "
@@ -83,7 +83,7 @@
                                     ) {
                                         <img
                                             [src]="card.imageUrl"
-                                            [alt]="card.title"
+                                            [alt]="cardTitle(card)"
                                             loading="lazy"
                                             decoding="async"
                                             (error)="markFailed(card.id)"
@@ -94,7 +94,7 @@
                                 </div>
                                 <div class="rail__channel-meta">
                                     <span class="rail__channel-name">{{
-                                        card.title
+                                        cardTitle(card)
                                     }}</span>
                                     <span class="rail__channel-now">
                                         @if (card.nowPlayingTitle) {
@@ -134,7 +134,7 @@
                     <div
                         class="rail__card"
                         role="listitem"
-                        [attr.title]="card.title"
+                        [attr.title]="cardTitle(card)"
                         [attr.data-test-id]="
                             testId() ? testId() + '-card' : null
                         "
@@ -166,7 +166,7 @@
                                     }
                                     <img
                                         [src]="card.imageUrl"
-                                        [alt]="card.title"
+                                        [alt]="cardTitle(card)"
                                         loading="lazy"
                                         decoding="async"
                                         (error)="markFailed(card.id)"
@@ -191,7 +191,7 @@
 
                             <div class="rail__meta">
                                 <span class="rail__card-title">{{
-                                    card.title
+                                    cardTitle(card)
                                 }}</span>
                                 <span class="rail__card-meta-row">
                                     @if (card.episodeBadge) {

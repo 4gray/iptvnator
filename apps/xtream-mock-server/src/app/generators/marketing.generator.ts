@@ -1,3 +1,8 @@
+import {
+    MarketingMovieCategoryKey,
+    MarketingMovieFixture,
+    POSTER_SHOWCASE_MOVIES as SHARED_POSTER_SHOWCASE_MOVIES,
+} from '@iptvnator/shared/marketing-fixtures';
 import { RawCategory } from './categories.generator.js';
 import {
     buildEpgListing,
@@ -83,6 +88,27 @@ const VOD_CATEGORIES: RawCategory[] = [
     { category_id: '5204', category_name: 'Documentary & Drama', parent_id: 0 },
 ];
 
+const XTREAM_VOD_CATEGORY_IDS: Record<MarketingMovieCategoryKey, string> = {
+    'action-mystery': '5201',
+    'future-fantasy': '5202',
+    'family-comedy': '5203',
+    'drama-documentary': '5204',
+};
+
+function toMarketingMovie(movie: MarketingMovieFixture): MarketingMovie {
+    return {
+        actors: movie.actors,
+        categoryId: XTREAM_VOD_CATEGORY_IDS[movie.categoryKey],
+        description: movie.description,
+        director: movie.director,
+        genre: movie.genre,
+        name: movie.name,
+        rating: movie.rating,
+        tagline: movie.tagline,
+        year: movie.year,
+    };
+}
+
 const SERIES_CATEGORIES: RawCategory[] = [
     { category_id: '5301', category_name: 'Urban Drama', parent_id: 0 },
     { category_id: '5302', category_name: 'Speculative Series', parent_id: 0 },
@@ -133,7 +159,7 @@ const LIVE_CHANNELS: MarketingLiveChannel[] = [
     },
 ];
 
-const MOVIES: MarketingMovie[] = [
+const GENERATED_ARTWORK_MOVIES: MarketingMovie[] = [
     {
         categoryId: '5201',
         name: 'Crimson Skylark',
@@ -352,6 +378,14 @@ const MOVIES: MarketingMovie[] = [
     },
 ];
 
+const POSTER_SHOWCASE_MOVIES: MarketingMovie[] =
+    SHARED_POSTER_SHOWCASE_MOVIES.map(toMarketingMovie);
+
+const MOVIES: MarketingMovie[] = [
+    ...POSTER_SHOWCASE_MOVIES,
+    ...GENERATED_ARTWORK_MOVIES,
+];
+
 const SERIES: MarketingSeries[] = [
     {
         categoryId: '5301',
@@ -531,7 +565,7 @@ export function buildMarketingPortalFixture(): MarketingPortalFixture {
 
 export function listMarketingArtworkFixtures(): MarketingArtworkFixture[] {
     return [
-        ...MOVIES.map((movie) => ({
+        ...GENERATED_ARTWORK_MOVIES.map((movie) => ({
             contentType: 'movie' as const,
             description: movie.description,
             genre: movie.genre,

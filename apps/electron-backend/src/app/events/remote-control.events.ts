@@ -26,7 +26,7 @@ interface RemoteControlStatus {
     updatedAt?: string;
 }
 
-class RemoteControlEvents {
+export class RemoteControlEvents {
     private remoteControlStatus: RemoteControlStatus = {
         portal: 'unknown',
         isLiveView: false,

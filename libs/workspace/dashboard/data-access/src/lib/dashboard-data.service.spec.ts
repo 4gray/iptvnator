@@ -148,7 +148,7 @@ describe('DashboardDataService', () => {
     const playlistsServiceMock = {
         getM3uFavoriteChannels: jest.fn().mockReturnValue(of(null)),
         getPlaylistById: jest.fn().mockReturnValue(of(playlistMock)),
-        setFavorites: jest.fn().mockReturnValue(of(undefined)),
+        transformPlaylistFavorites: jest.fn().mockReturnValue(of(playlistMock)),
         removeFromM3uRecentlyViewed: jest.fn().mockReturnValue(
             of({
                 ...playlistMock,
@@ -193,8 +193,10 @@ describe('DashboardDataService', () => {
         playlistsServiceMock.getM3uFavoriteChannels.mockReturnValue(of(null));
         playlistsServiceMock.getPlaylistById.mockClear();
         playlistsServiceMock.getPlaylistById.mockReturnValue(of(playlistMock));
-        playlistsServiceMock.setFavorites.mockClear();
-        playlistsServiceMock.setFavorites.mockReturnValue(of(undefined));
+        playlistsServiceMock.transformPlaylistFavorites.mockClear();
+        playlistsServiceMock.transformPlaylistFavorites.mockReturnValue(
+            of(playlistMock)
+        );
         playlistsServiceMock.removeFromM3uRecentlyViewed.mockClear();
         playlistsServiceMock.removeFromM3uRecentlyViewed.mockReturnValue(
             of({
@@ -751,10 +753,14 @@ describe('DashboardDataService', () => {
 
         await service.removeGlobalFavorite(m3uItem!);
 
-        expect(playlistsServiceMock.setFavorites).toHaveBeenCalledWith(
-            'm3u-1',
-            ['https://example.com/stream-2.m3u8']
-        );
+        expect(
+            playlistsServiceMock.transformPlaylistFavorites
+        ).toHaveBeenCalledWith('m3u-1', expect.any(Function));
+        const [, transform] =
+            playlistsServiceMock.transformPlaylistFavorites.mock.calls[0];
+        expect(
+            transform(['channel-1', 'https://example.com/stream-2.m3u8'])
+        ).toEqual(['https://example.com/stream-2.m3u8']);
     });
 
     it('removes PWA Xtream favorites through the active data source', async () => {
@@ -969,6 +975,9 @@ describe('DashboardDataService', () => {
         const series = vodItems.find(
             (item) => item.title === 'Color Orchard S02E04'
         );
+        if (!series) {
+            throw new Error('expected the series recent item');
+        }
 
         // Movie: vod position with 60% watched.
         const moviePos = service.getPlaybackPositionForItem(movie!);
@@ -977,13 +986,148 @@ describe('DashboardDataService', () => {
 
         // Series: episode position keyed by the recent item's xtream_id (the
         // episode id, not the series id).
-        const seriesPos = service.getPlaybackPositionForItem(series!);
+        const seriesPos = service.getPlaybackPositionForItem(series);
         expect(seriesPos?.contentType).toBe('episode');
         expect(seriesPos?.positionSeconds).toBe(720);
         // Season/episode metadata travels with the position so cards can
         // render an "S2 · E5" badge without an extra round-trip.
         expect(seriesPos?.seasonNumber).toBe(2);
         expect(seriesPos?.episodeNumber).toBe(4);
+        expect(service.getRecentItemNavigationState(series)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    contentType: 'series',
+                    xtreamId: 900,
+                }),
+                seriesResume: {
+                    seriesXtreamId: 900,
+                    contentXtreamId: 909,
+                    seasonNumber: 2,
+                    episodeNumber: 4,
+                },
+            },
+        });
+    });
+
+    it('resolves episode metadata for a Stalker VOD is_series recent item', async () => {
+        playlistsSignal.set([
+            ...createDefaultPlaylists(),
+            {
+                _id: 'stalker-series',
+                title: 'Ministra Portal',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                macAddress: '00:11:22:33:44:55',
+                recentlyViewed: [
+                    {
+                        id: '50001',
+                        title: 'VOD Flagged Series',
+                        category_id: 'vod',
+                        is_series: '1',
+                        added_at: '2026-07-20T12:00:00.000Z',
+                    },
+                ],
+            },
+        ]);
+        playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+            async (playlistId: string) =>
+                playlistId === 'stalker-series'
+                    ? [
+                          {
+                              playlistId,
+                              contentXtreamId: 5000101,
+                              contentType: 'episode',
+                              seriesXtreamId: 50001,
+                              seasonNumber: 1,
+                              episodeNumber: 1,
+                              positionSeconds: 120,
+                              durationSeconds: 1800,
+                          },
+                      ]
+                    : []
+        );
+
+        await service.reloadPlaybackPositions();
+
+        const item = service
+            .globalRecentItems()
+            .find((recent) => recent.playlist_id === 'stalker-series');
+        if (!item) {
+            throw new Error('expected the Stalker is_series recent item');
+        }
+
+        expect(item.type).toBe('series');
+        expect(service.getPlaybackPositionForItem(item)).toEqual(
+            expect.objectContaining({
+                seasonNumber: 1,
+                episodeNumber: 1,
+            })
+        );
+    });
+
+    it('keeps legacy episode-keyed recents detail-only when the position row lacks the parent series id', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 103,
+                category_id: 19,
+                title: 'Legacy Orchard S02E04',
+                rating: '8.1',
+                viewed_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/legacy-orchard.png',
+                xtream_id: 909,
+                type: 'series',
+                playlist_id: 'xtream-L',
+                playlist_name: 'Xtream Legacy',
+            },
+        ]);
+
+        playlistsSignal.set([
+            ...playlistsSignal(),
+            {
+                _id: 'xtream-L',
+                title: 'Xtream Legacy',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                serverUrl: 'https://legacy.example.com',
+            },
+        ]);
+
+        // Rows saved before seriesXtreamId existed: keyed by the episode id
+        // with no pointer back to the parent series.
+        playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+            {
+                contentXtreamId: 909,
+                contentType: 'episode',
+                seasonNumber: 2,
+                episodeNumber: 4,
+                positionSeconds: 720,
+                durationSeconds: 1800,
+                playlistId: 'xtream-L',
+            } as PlaybackPositionData,
+        ]);
+
+        await service.reloadGlobalRecentItems();
+        await service.reloadPlaybackPositions();
+
+        const series = service
+            .globalRecentVodItems()
+            .find((item) => item.title === 'Legacy Orchard S02E04');
+        if (!series) {
+            throw new Error('expected the series recent item');
+        }
+
+        // The episode id must not be promoted to a series id: no resume
+        // target, and the detail item keeps its original identifier.
+        expect(service.getRecentItemNavigationState(series)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    contentType: 'series',
+                    xtreamId: 909,
+                }),
+            },
+        });
     });
 
     it('resolves the latest episode position for series whose recent_items row carries the series id', async () => {
@@ -1077,6 +1221,21 @@ describe('DashboardDataService', () => {
         expect(position?.contentType).toBe('episode');
         expect(position?.seasonNumber).toBe(3);
         expect(position?.episodeNumber).toBe(7);
+        expect(service.getRecentItemNavigationState(series)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    contentType: 'series',
+                    sourceType: 'xtream',
+                    xtreamId: 4000,
+                }),
+                seriesResume: {
+                    seriesXtreamId: 4000,
+                    contentXtreamId: 4007,
+                    seasonNumber: 3,
+                    episodeNumber: 7,
+                },
+            },
+        });
         expect(failOnLinearScan).not.toHaveBeenCalled();
     });
 
@@ -1135,9 +1294,7 @@ describe('DashboardDataService', () => {
 
         // Crucially, the movie favorite is excluded — the rail source must
         // never leak VOD posters into the channel layout.
-        expect(liveOnly.map((it) => it.title)).not.toContain(
-            'Favorite Movie'
-        );
+        expect(liveOnly.map((it) => it.title)).not.toContain('Favorite Movie');
         expect(
             service.globalFavoriteLiveItems().every((it) => it.type === 'live')
         ).toBe(true);

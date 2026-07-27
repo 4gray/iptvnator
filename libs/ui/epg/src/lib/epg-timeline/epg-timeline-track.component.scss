@@ -167,6 +167,9 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     position: relative;
     z-index: 1;
     flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .epg-timeline__block-time {

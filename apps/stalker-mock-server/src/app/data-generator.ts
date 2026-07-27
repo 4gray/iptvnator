@@ -1,4 +1,8 @@
 import { faker } from '@faker-js/faker';
+import {
+    MarketingMovieCategoryKey,
+    POSTER_SHOWCASE_MOVIES,
+} from '@iptvnator/shared/marketing-fixtures';
 import { ScenarioConfig } from './scenarios.js';
 
 // ---------------------------------------------------------------------------
@@ -9,6 +13,8 @@ export interface RawCategory {
     id: string;
     title: string;
     alias: string;
+    /** Ministra adult-genre flag ('1' = censored). */
+    censored?: string;
 }
 
 export interface RawChannel {
@@ -53,7 +59,8 @@ export interface RawVodItem {
     category_id: string;
     is_series: 0 | 1 | '1';
     has_files: number;
-    series?: RawEmbeddedEpisode[];
+    /** vclub-style embedded episode numbers, e.g. ['1', '2', '3'] */
+    series?: string[];
 }
 
 export interface RawSeriesItem {
@@ -93,12 +100,6 @@ export interface RawSeason {
     series: string[];
 }
 
-export interface RawEmbeddedEpisode {
-    id: number;
-    name: string;
-    cmd: string;
-}
-
 export interface RawEpgProgram {
     id: string;
     name: string;
@@ -118,6 +119,8 @@ export interface GeneratedPortalData {
     channels: Map<string, RawChannel[]>; // categoryId -> channels
     radio: Map<string, RawRadioStation[]>; // categoryId -> radio stations
     vod: Map<string, RawVodItem[]>;       // categoryId -> items
+    /** Preserves the provider-neutral fixture order for the "*" VOD listing. */
+    vodOrder?: RawVodItem[];
     series: Map<string, RawSeriesItem[]>; // categoryId -> items
     seasons: Map<string, RawSeason[]>;    // seriesItemId -> seasons
     epg: Map<string, RawEpgProgram[]>;    // channelId -> programs
@@ -149,6 +152,58 @@ function logoUrl(seed: string): string {
     return `https://picsum.photos/seed/logo-${seed}/100/100`;
 }
 
+const STALKER_MARKETING_VOD_CATEGORIES: RawCategory[] = [
+    { id: '2901', title: 'Action & Mystery', alias: 'action_mystery' },
+    { id: '2902', title: 'Cosmic & Future Worlds', alias: 'future_worlds' },
+    { id: '2903', title: 'Family & Comedy', alias: 'family_comedy' },
+    {
+        id: '2904',
+        title: 'Documentary & Drama',
+        alias: 'documentary_drama',
+    },
+];
+
+const STALKER_MARKETING_VOD_CATEGORY_IDS: Record<
+    MarketingMovieCategoryKey,
+    string
+> = {
+    'action-mystery': '2901',
+    'future-fantasy': '2902',
+    'family-comedy': '2903',
+    'drama-documentary': '2904',
+};
+
+function generateMarketingVodItems(): RawVodItem[] {
+    const assetBaseUrl = '/assets/marketing/poster';
+
+    return POSTER_SHOWCASE_MOVIES.map((movie, index) => {
+        const id = String(29_000 + index);
+        const posterUrl = `${assetBaseUrl}/${movie.slug}.png`;
+        const rating = movie.rating.toFixed(1);
+
+        return {
+            id,
+            name: movie.name,
+            o_name: movie.name,
+            title: movie.name,
+            cmd: `ffrt4://vod/${id}/index.m3u8`,
+            screenshot_uri: posterUrl,
+            cover: posterUrl,
+            description: `${movie.tagline} ${movie.description}`,
+            actors: movie.actors,
+            director: movie.director,
+            year: String(movie.year),
+            genre: movie.genre,
+            genres_str: movie.genre,
+            rating_imdb: rating,
+            rating_kinopoisk: rating,
+            category_id: STALKER_MARKETING_VOD_CATEGORY_IDS[movie.categoryKey],
+            is_series: 0,
+            has_files: 1,
+        };
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Generator
 // ---------------------------------------------------------------------------
@@ -171,6 +226,16 @@ export function generatePortalData(config: ScenarioConfig): GeneratedPortalData 
 
     // ------ ITV categories + channels ------
     data.itvCategories = generateCategories('itv', config.categoryCount.itv);
+    // Real Ministra portals mark adult genres as censored and EXCLUDE their
+    // channels from get_all_channels / the "*" listing; the channels are only
+    // served by paging the specific genre. Mirror that with one extra
+    // censored category so clients can exercise the fallback path.
+    data.itvCategories.push({
+        id: '1099',
+        title: 'For adults',
+        alias: 'for_adults',
+        censored: '1',
+    });
     let channelIndex = 0;
     for (const cat of data.itvCategories) {
         const channels = generateChannels(cat.id, config.itemsPerCategory, channelIndex);
@@ -198,20 +263,39 @@ export function generatePortalData(config: ScenarioConfig): GeneratedPortalData 
     }
 
     // ------ VOD categories + items ------
-    data.vodCategories = generateCategories('vod', config.categoryCount.vod);
-    let vodIndex = 0;
-    for (const cat of data.vodCategories) {
-        const items = generateVodItems(
-            cat.id,
-            config.itemsPerCategory,
-            vodIndex,
-            config.isSeriesFraction,
-            config.embeddedSeriesFraction,
-            config.seasonsPerSeries,
-            config.episodesPerSeason
+    if (config.marketingFixture) {
+        data.vodCategories = STALKER_MARKETING_VOD_CATEGORIES.map(
+            (category) => ({ ...category })
         );
-        data.vod.set(cat.id, items);
-        vodIndex += config.itemsPerCategory;
+        const marketingVodItems = generateMarketingVodItems();
+        data.vodOrder = marketingVodItems;
+        for (const category of data.vodCategories) {
+            data.vod.set(
+                category.id,
+                marketingVodItems.filter(
+                    (item) => item.category_id === category.id
+                )
+            );
+        }
+    } else {
+        data.vodCategories = generateCategories(
+            'vod',
+            config.categoryCount.vod
+        );
+        let vodIndex = 0;
+        for (const cat of data.vodCategories) {
+            const items = generateVodItems(
+                cat.id,
+                config.itemsPerCategory,
+                vodIndex,
+                config.isSeriesFraction,
+                config.embeddedSeriesFraction,
+                config.seasonsPerSeries,
+                config.episodesPerSeason
+            );
+            data.vod.set(cat.id, items);
+            vodIndex += config.itemsPerCategory;
+        }
     }
 
     // ------ Series categories + items ------
@@ -376,19 +460,19 @@ function generateVodItems(
         };
 
         if (hasEmbeddedSeries) {
-            item.series = generateEmbeddedEpisodes(id, seasonsPerSeries * episodesPerSeason);
+            // Real vclub portals expose embedded episodes as an array of
+            // episode numbers; playback appends the number to the item cmd.
+            item.series = generateEmbeddedEpisodes(
+                seasonsPerSeries * episodesPerSeason
+            );
         }
 
         return item;
     });
 }
 
-function generateEmbeddedEpisodes(parentId: string, count: number): RawEmbeddedEpisode[] {
-    return Array.from({ length: count }, (_, i) => ({
-        id: parseInt(parentId) * 100 + i,
-        name: `Episode ${i + 1}`,
-        cmd: `ffrt4://vod/${parentId}/ep${i + 1}/index.m3u8`,
-    }));
+function generateEmbeddedEpisodes(count: number): string[] {
+    return Array.from({ length: count }, (_, i) => String(i + 1));
 }
 
 // ---------------------------------------------------------------------------

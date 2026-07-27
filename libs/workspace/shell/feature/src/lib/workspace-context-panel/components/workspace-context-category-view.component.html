@@ -33,7 +33,7 @@
                             class="item-count item-count--loading"
                             aria-hidden="true"
                         ></div>
-                    } @else {
+                    } @else if (hasItemCount(item)) {
                         <div class="item-count app-count-badge">
                             {{ getItemCount(item) }}
                         </div>

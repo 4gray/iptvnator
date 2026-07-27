@@ -1,73 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Channel } from '@iptvnator/shared/interfaces';
+import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import type { ArtPlayerComponent as ArtPlayerComponentInstance } from './art-player.component';
-
-const artPlayerInstances: MockArtplayer[] = [];
-const hlsInstances: MockHls[] = [];
-const mpegTsInstances: MockMpegTsPlayer[] = [];
-
-class MockArtplayer {
-    static AUTO_PLAYBACK_TIMEOUT = 0;
-
-    readonly video = document.createElement('video');
-    readonly setting = { add: jest.fn() };
-    readonly on = jest.fn();
-    readonly destroy = jest.fn();
-    readonly currentTime = 0;
-    readonly duration = 0;
-    volume: number;
-
-    constructor(readonly options: Record<string, unknown>) {
-        this.volume = Number(options['volume'] ?? 1);
-        artPlayerInstances.push(this);
-    }
-}
-
-class MockHls {
-    static Events = {
-        MANIFEST_PARSED: 'manifestParsed',
-        ERROR: 'error',
-        AUDIO_TRACKS_UPDATED: 'audioTracksUpdated',
-    };
-
-    static isSupported = jest.fn(() => true);
-
-    readonly handlers = new Map<string, (...args: unknown[]) => void>();
-    readonly on = jest.fn(
-        (event: string, handler: (...args: unknown[]) => void) => {
-            this.handlers.set(event, handler);
-        }
-    );
-    readonly loadSource = jest.fn();
-    readonly attachMedia = jest.fn();
-    readonly destroy = jest.fn();
-    readonly audioTracks: unknown[] = [];
-
-    constructor() {
-        hlsInstances.push(this);
-    }
-}
-
-class MockMpegTsPlayer {
-    readonly handlers = new Map<string, (...args: unknown[]) => void>();
-    readonly attachMediaElement = jest.fn();
-    readonly on = jest.fn(
-        (event: string, handler: (...args: unknown[]) => void) => {
-            this.handlers.set(event, handler);
-        }
-    );
-    readonly load = jest.fn();
-    readonly play = jest.fn();
-    readonly pause = jest.fn();
-    readonly unload = jest.fn();
-    readonly detachMediaElement = jest.fn();
-    readonly destroy = jest.fn();
-
-    constructor() {
-        mpegTsInstances.push(this);
-    }
-}
+import {
+    MockArtplayer,
+    MockHls,
+    MockMpegTsPlayer,
+    artPlayerInstances,
+    getCustomType,
+    hlsInstances,
+    mpegTsInstances,
+    resetArtPlayerSpecFixtures,
+} from './art-player.component.spec-fixtures';
 
 jest.unstable_mockModule('artplayer', () => ({
     default: MockArtplayer,
@@ -97,12 +42,14 @@ describe('ArtPlayerComponent', () => {
     });
 
     beforeEach(() => {
-        artPlayerInstances.length = 0;
-        hlsInstances.length = 0;
-        mpegTsInstances.length = 0;
+        resetArtPlayerSpecFixtures();
+        localStorage.clear();
 
         TestBed.configureTestingModule({
             imports: [ArtPlayerComponent],
+            providers: [
+                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
+            ],
         });
     });
 
@@ -128,7 +75,7 @@ describe('ArtPlayerComponent', () => {
             },
         });
 
-        getCustomType('mkv')(
+        getCustomType('video/matroska')(
             artPlayerInstances[0].video,
             'https://example.com/archive/movie.mkv'
         );
@@ -222,6 +169,54 @@ describe('ArtPlayerComponent', () => {
 
         expect(player.volume).toBe(0.37);
         expect(artPlayerInstances).toHaveLength(1);
+    });
+
+    it('applies a simultaneous volume change after rebuilding the legacy player', () => {
+        localStorage.setItem(
+            'artplayer_settings',
+            JSON.stringify({ volume: 0.2 })
+        );
+        createComponent({
+            url: 'https://example.com/live/first.m3u8',
+            name: 'First channel',
+        });
+
+        fixture.componentRef.setInput('channel', {
+            url: 'https://example.com/live/second.m3u8',
+            name: 'Second channel',
+        });
+        fixture.componentRef.setInput('volume', 0.73);
+        fixture.detectChanges();
+
+        expect(artPlayerInstances).toHaveLength(2);
+        expect(artPlayerInstances[1].volume).toBe(0.73);
+    });
+
+    it('keeps the complete ArtPlayer skin and legacy series controls when the flag is off', () => {
+        createComponent({
+            url: 'https://example.com/movie.mp4',
+            name: 'Movie',
+        });
+
+        expect(artPlayerInstances[0].options).toEqual(
+            expect.objectContaining({
+                autoPlayback: true,
+                autoSize: true,
+                autoMini: true,
+                setting: true,
+                fullscreen: true,
+                fullscreenWeb: true,
+            })
+        );
+        expect(artPlayerInstances[0].options['hotkey']).toBeUndefined();
+        expect(
+            fixture.debugElement.query(By.css('app-player-controls'))
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('.art-player-interaction-capture')
+            )
+        ).toBeNull();
     });
 
     it('emits a playback issue when mpegts.js reports an unsupported codec', () => {
@@ -350,16 +345,5 @@ describe('ArtPlayerComponent', () => {
         component = fixture.componentInstance;
         fixture.componentRef.setInput('channel', channel);
         fixture.detectChanges();
-    }
-
-    function getCustomType(
-        type: 'm3u8' | 'ts' | 'mkv'
-    ): (video: HTMLVideoElement, url: string) => void {
-        return (
-            artPlayerInstances[0].options['customType'] as Record<
-                string,
-                (video: HTMLVideoElement, url: string) => void
-            >
-        )[type];
     }
 });

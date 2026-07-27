@@ -16,6 +16,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
@@ -28,6 +29,7 @@ import {
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
+import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 const ALL_CHANNELS_SORT_STORAGE_KEY = 'm3u-all-channels-sort-mode';
@@ -51,6 +53,8 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
 })
 export class AllChannelsViewComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
     readonly contextMenuTrigger =
         viewChild.required<MatMenuTrigger>('contextMenuTrigger');
@@ -200,6 +204,24 @@ export class AllChannelsViewComponent {
             data: channel,
             maxWidth: '720px',
             width: 'calc(100vw - 32px)',
+        });
+    }
+
+    openEpgMapping(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        const channelKey = resolveChannelEpgLookupKey(channel);
+        if (!channelKey) {
+            return;
+        }
+
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: channel.name ?? channelKey,
         });
     }
 }

@@ -25,15 +25,18 @@ import {
 } from '@iptvnator/ui/components';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
+    buildUpNextRailItems,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
-    TmdbEnrichedCastMember,
-    XtreamSerieInfo,
-    XtreamSerieEpisode,
-    XtreamSerieDetails,
     normalizeTitleKeys,
+    seriesStatusLabelKey,
+    TmdbEnrichedCastMember,
+    XtreamSerieDetails,
+    XtreamSerieEpisode,
+    XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import {
     CrossPortalSimilarItem,
@@ -82,6 +85,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
+
+    /** Maps the status token to its translated label key */
+    readonly seriesStatusLabelKey = seriesStatusLabelKey;
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playback = inject(SerialDetailsPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
@@ -115,6 +121,14 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly quickStartAction = this.playback.quickStartAction;
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
+    /** "Up Next" rail entries for the inline player (series only). */
+    readonly upNextEpisodes = computed<UpNextRailItem[]>(() =>
+        buildUpNextRailItems({
+            episodesBySeason: this.selectedItem()?.episodes,
+            currentEpisodeId: this.playback.inlineEpisodeState()?.episode.id,
+            playbackPositions: this.episodePlaybackPositions(),
+        })
+    );
 
     /** Season currently selected in the season container. */
     private readonly selectedSeasonKey = signal<string | null>(null);
@@ -335,6 +349,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
 
     playNextEpisode(): void {
         this.playback.playNextEpisode();
+    }
+
+    playUpNextEpisode(item: UpNextRailItem): void {
+        this.playback.playEpisode(item.episode as XtreamSerieEpisode);
     }
 
     handleInlinePlaybackEnded(): void {

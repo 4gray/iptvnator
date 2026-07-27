@@ -93,6 +93,42 @@ describe('getSeriesQuickStartAction', () => {
         expect(action?.position?.positionSeconds).toBe(30);
     });
 
+    it('plays the most recently launched episode when it has no progress yet', () => {
+        const latestEpisode = episode(108, 1, 8);
+
+        const action = getSeriesQuickStartAction({
+            seasons: {
+                '1': [episode(101, 1, 1), latestEpisode],
+            },
+            playbackPositions: new Map([
+                [
+                    101,
+                    position(101, {
+                        positionSeconds: 20,
+                        updatedAt: '2026-05-10T10:00:00.000Z',
+                    }),
+                ],
+                [
+                    108,
+                    position(108, {
+                        positionSeconds: 0,
+                        durationSeconds: undefined,
+                        updatedAt: '2026-05-10T11:00:00.000Z',
+                    }),
+                ],
+            ]),
+        });
+
+        expect(action?.kind).toBe(
+            SERIES_QUICK_START_ACTION_KIND.PlayRecent
+        );
+        expect(action?.labelKey).toBe('XTREAM.PLAY_EPISODE');
+        expect(action?.labelParams).toEqual({ episode: 8 });
+        expect(action?.episodeLabel).toBe('S01E08 \u00b7 Episode 8');
+        expect(action?.episode).toBe(latestEpisode);
+        expect(action?.position?.positionSeconds).toBe(0);
+    });
+
     it('plays the next unwatched episode after watched episodes', () => {
         const nextEpisode = episode(102, 1, 2);
 

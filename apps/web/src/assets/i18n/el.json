@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Η ανανέωση της λίστας αναπαραγωγής απέτυχε. Το τοπικό αρχείο δεν είναι πλέον διαθέσιμο. Ελέγξτε τη διαδρομή του αρχείου ή εισαγάγετε ξανά τη λίστα αναπαραγωγής.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Η ανανέωση της λίστας αναπαραγωγής απέτυχε. Η εφαρμογή δεν έχει πλέον πρόσβαση στο τοπικό αρχείο.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Επιτυχία! Οι λίστες αναπαραγωγής ενημερώθηκαν με επιτυχία",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Η αυτόματη ανανέωση δεν ολοκληρώθηκε: ενημερώθηκαν {{updated}} από {{total}} λίστες αναπαραγωγής, {{failed}} απέτυχαν.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Η αυτόματη ανανέωση δεν ολοκληρώθηκε: ενημερώθηκαν {{updated}} από {{total}} λίστες αναπαραγωγής, {{failed}} απέτυχαν, {{skipped}} παραλείφθηκαν (χωρίς URL ή διαδρομή αρχείου).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Η αυτόματη ανανέωση των λιστών αναπαραγωγής απέτυχε. Καμία από τις {{total}} λίστες δεν ενημερώθηκε.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Αυτόματη ανανέωση λιστών αναπαραγωγής: ενημερώθηκαν {{updated}} από {{total}}, παραλείφθηκαν {{skipped}} (χωρίς URL ή διαδρομή αρχείου).",
             "AUTO_REFRESH_ENABLED": "Η αυτόματη ανανέωση είναι ενεργοποιημένη"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "Έλεγχος κλειδιού",
         "TMDB_TEST_SUCCESS": "Το κλειδί λειτουργεί — το TMDB απάντησε με επιτυχία",
         "TMDB_TEST_FAILED": "Ο έλεγχος απέτυχε — το TMDB απέρριψε το κλειδί ή δεν είναι προσβάσιμο",
+        "TMDB_CACHE": "Προσωρινή μνήμη μεταδεδομένων",
+        "TMDB_CACHE_DESCRIPTION": "Τα ληφθέντα μεταδεδομένα αποθηκεύονται τοπικά ώστε οι σελίδες λεπτομερειών να ανοίγουν αμέσως. Η εκκαθάριση αναγκάζει την εφαρμογή να κατεβάσει νέα δεδομένα.",
+        "TMDB_CACHE_SIZE": "{{entries}} εγγραφές · {{size}}",
+        "TMDB_CACHE_CLEAR": "Εκκαθάριση",
+        "TMDB_CACHE_ERROR": "Αδυναμία ανάγνωσης της μνήμης — δοκιμάστε ξανά",
         "TMDB_CREDITS": "Μεταδεδομένα",
         "TMDB_ATTRIBUTION": "Αυτό το προϊόν χρησιμοποιεί το TMDB API, αλλά δεν είναι εγκεκριμένο ούτε πιστοποιημένο από το TMDB.",
         "APP_PREFERENCES": "Προτιμήσεις εφαρμογής",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "Διαγραφή…",
         "EPG_URL_ERROR": "Η τιμή δεν είναι έγκυρη διεύθυνση URL",
         "VIDEO_PLAYER_DESCRIPTION": "Επιλογή προεπιλεγμένου προγράμματος αναπαραγωγής βίντεο",
+        "WEB_PLAYER_SHARED_CONTROLS": "Ενοποιημένα στοιχεία ελέγχου για web players (πειραματικό)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Χρησιμοποιήστε τα κοινά στοιχεία ελέγχου του IPTVnator σε HTML5, Video.js και ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Περιβαλλοντικό γέμισμα",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Γεμίστε το χώρο γύρω από τον αναπαραγωγό με θολωμένη, σκοτεινή αφίσα αντί για απλές μαύρες ράβδους.",
+        "PLAYER_UP_NEXT_RAIL": "Λίστα επόμενων επεισοδίων",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Σε πλατιά παράθυρα, ο αναπαραγωγός σειρών αγκυρώνεται στα αριστερά και τα επόμενα επεισόδια εμφανίζονται δίπλα του.",
         "STREAM_FORMAT_DESCRIPTION": "Επιλογή προεπιλεγμένης μορφής ροής (xtream)",
         "LANGUAGE_DESCRIPTION": "Επιλέξτε τη γλώσσα της εφαρμογής",
         "THEME_DESCRIPTION": "Επιλέξτε οπτικό θέμα της εφαρμογής",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Εμφάνιση ή απόκρυψη υποτίτλων από προεπιλογή",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Εμφάνιση υποσέλιδου αναπαραγωγής",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Διατηρήστε ορατή τη γραμμή κατάστασης του εξωτερικού προγράμματος αναπαραγωγής στο κάτω μέρος του χώρου εργασίας στον υπολογιστή.",
+        "STRIP_COUNTRY_PREFIX": "Αφαίρεση προθεμάτων χώρας από τα ονόματα καναλιών",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Αφαιρεί προθέματα χώρας/ομάδας όπως \"US | \" ή \"UK - \" από τα ονόματα καναλιών ζωντανής ροής σε όλη την εφαρμογή.",
         "VERSION_DESCRIPTION": "Τρέχουσα έκδοση της εφαρμογής",
         "ABOUT_SUBTITLE": "Έκδοση, σύνδεσμοι έργου και τρόποι υποστήριξης του IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Ενσωματωμένος χρόνος εκτέλεσης MPV",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: μηχανή frame-copy (πειραματικό)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Το βίντεο σχεδιάζεται στον καμβά της εφαρμογής, ώστε τα μενού και τα παράθυρα διαλόγου να εμφανίζονται από πάνω του.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Ισχύει μετά την επανεκκίνηση της εφαρμογής."
     },
     "THEMES": {
         "DARK_THEME": "Σκούρο",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Πίσω",
             "RETRY": "Επανάληψη",
             "STALLED": "Η έναρξη αυτής της ροής καθυστερεί περισσότερο από το αναμενόμενο.",
             "PLAYBACK_FAILED": "Η αναπαραγωγή με το ενσωματωμένο MPV απέτυχε.",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "Πίσω 10 δευτερόλεπτα",
             "FORWARD_10_SECONDS": "Μπροστά 10 δευτερόλεπτα",
             "LIVE_STREAM": "Ζωντανή ροή",
+            "PLAYBACK_POSITION": "Θέση αναπαραγωγής",
             "MUTE": "Σίγαση",
             "UNMUTE": "Κατάργηση σίγασης",
             "MUTED": "Σε σίγαση",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "Η έναρξη της εγγραφής απέτυχε.",
             "RECORDING_FAILED_TO_STOP": "Η διακοπή της εγγραφής απέτυχε.",
             "SAVED_TO": "Αποθηκεύτηκε στο {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Έναρξη εικόνας εντός εικόνας",
+            "EXIT_PICTURE_IN_PICTURE": "Έξοδος από εικόνα εντός εικόνας",
             "ENTER_FULLSCREEN": "Μετάβαση σε πλήρη οθόνη",
             "EXIT_FULLSCREEN": "Έξοδος από πλήρη οθόνη"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "Αφαίρεση από τα αγαπημένα",
         "ADD_FAVORITE": "Προσθήκη στα αγαπημένα",
         "SHOW_DETAILS": "Εμφάνιση λεπτομερειών καναλιού",
+        "MAP_EPG": "Αντιστοίχιση καναλιού EPG",
         "FAVORITES_UPDATED": "Τα αγαπημένα ενημερώθηκαν!",
         "SELECT_CHANNEL_PLAYBACK": "Επιλέξτε ένα κανάλι για να ξεκινήσει η αναπαραγωγή",
         "SORT_BY": "Ταξινόμηση κατά",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "εμφάνιση ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Αντιστοίχιση καναλιού EPG",
+        "SUBTITLE": "Επιλέξτε χειροκίνητα κανάλι EPG για το \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "Αναζήτηση καναλιών EPG...",
+        "CURRENT_MAPPING": "Τρέχουσα αντιστοίχιση",
+        "NO_MAPPING": "Δεν έχει οριστεί αντιστοίχιση EPG",
+        "SAVE": "Αποθήκευση αντιστοίχισης",
+        "REMOVE": "Κατάργηση αντιστοίχισης",
+        "CLOSE": "Κλείσιμο",
+        "NO_RESULTS": "Δεν βρέθηκαν κανάλια EPG",
+        "SEARCH_HINT": "Πληκτρολογήστε τουλάχιστον {{min}} χαρακτήρες για αναζήτηση",
+        "SAVED": "Η αντιστοίχιση EPG αποθηκεύτηκε",
+        "REMOVED": "Η αντιστοίχιση EPG καταργήθηκε",
+        "SAVE_FAILED": "Δεν ήταν δυνατή η ενημέρωση της αντιστοίχισης EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "Ναι",
     "NO": "Όχι",
@@ -756,6 +797,8 @@
         "ACTORS": "Ηθοποιοί",
         "DIRECTOR": "Σκηνοθέτης",
         "SIMILAR": "Παρόμοια",
+        "CREW_JOB_DIRECTOR": "Σκηνοθέτης",
+        "CREW_JOB_CREATOR": "Δημιουργός",
         "ACTOR_FILMOGRAPHY": "Φιλμογραφία",
         "ACTOR_FILTER_ALL": "Όλα",
         "ACTOR_SCOPE_THIS_PORTAL": "Αυτή η πύλη",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "Στη βιβλιοθήκη σας",
         "ACTOR_SEARCH_IN_PORTAL": "Αναζήτηση στην πύλη",
         "ACTOR_BORN": "Γεννήθηκε:",
+        "ACTOR_DIED": "Απεβίωσε",
+        "SERIES_STATUS_RETURNING": "Σε εξέλιξη",
+        "SERIES_STATUS_PLANNED": "Προγραμματισμένο",
+        "SERIES_STATUS_IN_PRODUCTION": "Σε παραγωγή",
+        "SERIES_STATUS_ENDED": "Ολοκληρώθηκε",
+        "SERIES_STATUS_CANCELED": "Ακυρώθηκε",
+        "SERIES_STATUS_PILOT": "Πιλότος",
         "DURATION": "Διάρκεια",
         "CAST": "Πρόσωπα",
         "EPISODE_RUN_TIME": "Διάρκεια επεισοδίου",
@@ -779,6 +829,7 @@
         "RESTART": "Από την αρχή",
         "CONTINUE_WATCHING": "Συνέχιση παρακολούθησης",
         "PLAY_FIRST_EPISODE": "Αναπαραγωγή πρώτου επεισοδίου",
+        "PLAY_EPISODE": "Αναπαραγωγή επεισοδίου {{episode}}",
         "RESUME_EPISODE": "Συνέχιση επεισοδίου",
         "PLAY_NEXT_EPISODE": "Αναπαραγωγή επόμενου επεισοδίου",
         "SERIES_WATCHED": "Η σειρά προβλήθηκε",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "Η διεύθυνση URL ροής αντιγράφηκε στο πρόχειρο",
         "COPY_STREAM_URL": "Αντιγραφή διεύθηνσης URL ροής",
         "NOW_PLAYING": "Τώρα παίζει",
+        "UP_NEXT": "Επόμενα",
         "CLOSE_PLAYER": "Κλείσιμο προγράμματος αναπαραγωγής",
         "ABOUT": "Σχετικά",
         "SEASONS_AND_EPISODES": "Σεζόν και επεισόδια",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "Αυτό το περιεχόμενο δεν είναι διαθέσιμο σε αυτόν τον διακομιστή",
         "PLAYBACK_ERROR": "Αποτυχία λήψης διεύθυνσης URL αναπαραγωγής",
         "LOADING_SEASONS": "Φόρτωση σεζόν...",
+        "LOADING_ALL_CHANNELS": "Φόρτωση πλήρους λίστας καναλιών…",
+        "REFRESH_CHANNEL_LIST": "Ανανέωση λίστας καναλιών",
+        "NO_CHANNELS_IN_CATEGORY": "Δεν υπάρχουν κανάλια σε αυτήν την κατηγορία",
+        "ITEM": "στοιχείο",
+        "ITEMS": "στοιχεία",
         "NO_EPISODES": "Δεν υπάρχουν διαθέσιμα επεισόδια",
         "ALL_RADIO": "Όλα τα ραδιόφωνα"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "Αυτή η λήψη δεν μπορεί πλέον να ανοίξει στη βιβλιοθήκη επειδή η πηγαία λίστα αναπαραγωγής αφαιρέθηκε.",
         "FILE_NOT_FOUND": "Αυτό το ληφθέν αρχείο δεν είναι πλέον διαθέσιμο στον δίσκο.",
         "FILE_ACTION_ERROR": "Δεν ήταν δυνατή η ολοκλήρωση της ενέργειας αρχείου.",
+        "ACTION_FAILED": "Η ενέργεια απέτυχε",
+        "PAUSE": "Παύση",
+        "RESUME": "Συνέχιση",
         "CANCEL": "Ακύρωση",
         "RETRY": "Επανάληψη",
         "REMOVE": "Αφαίρεση",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "Λήψη",
             "COMPLETED": "Ολοκληρώθηκε",
             "FAILED": "Απέτυχε",
-            "CANCELED": "Ακυρώθηκε"
+            "CANCELED": "Ακυρώθηκε",
+            "PAUSED": "Σε παύση"
         }
     },
     "REMOTE_CONTROL": {

@@ -259,6 +259,9 @@ export class CategoryContentViewComponent implements OnInit {
         }
 
         this.catalog.selectItem(item as CategoryContentItem);
+        // The item came from a stored snapshot, not the live list — let the
+        // provider refresh stale embedded data (e.g. episode lists).
+        this.catalog.refreshSnapshotSelection?.();
         clearNavigationStateKeys([
             OPEN_STALKER_ITEM_STATE_KEY,
             'openFavoriteItem',

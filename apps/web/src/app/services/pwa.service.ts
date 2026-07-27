@@ -15,7 +15,6 @@ import {
 } from 'rxjs';
 import { DataService } from '@iptvnator/services';
 import {
-    createDevLogger,
     ERROR,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
@@ -32,6 +31,7 @@ import {
     createPortalDebugSuccessEvent,
     logPortalDebugEvent,
     logPortalDebugRequest,
+    createLogger,
 } from '@iptvnator/portal/shared/util';
 import { getRuntimeBackendUrl } from './runtime-config';
 
@@ -71,7 +71,7 @@ export class PwaService extends DataService {
     private readonly store = inject(Store);
     private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
-    private readonly debugLog = createDevLogger('PwaService');
+    private readonly logger = createLogger('PwaService');
     private readonly providerTargetIds = new Map<string, Promise<string>>();
     private readonly silentXtreamActions = new Set<string>([
         XtreamCodeActions.GetAccountInfo,
@@ -88,7 +88,6 @@ export class PwaService extends DataService {
 
     constructor() {
         super();
-        this.debugLog('PWA service initialized...');
     }
 
     /** Uses service worker mechanism to check for available application updates */
@@ -358,7 +357,7 @@ export class PwaService extends DataService {
                 );
 
                 if (isSilentAction) {
-                    this.debugLog(
+                    this.logger.debug(
                         `Background Xtream action failed (${action ?? 'unknown'}):`,
                         normalizedMessage
                     );
@@ -398,7 +397,7 @@ export class PwaService extends DataService {
 
             // Log error to console
             if (isSilentAction) {
-                this.debugLog(
+                this.logger.debug(
                     `Background Xtream action failed (${action ?? 'unknown'}):`,
                     normalizedMessage
                 );
@@ -409,7 +408,7 @@ export class PwaService extends DataService {
                 };
             }
 
-            console.error('Xtream request error:', normalizedMessage);
+            this.logger.error('Xtream request error:', normalizedMessage);
             this.snackBar.open(
                 `Xtream request failed: ${normalizedMessage}`,
                 'Close',
@@ -533,7 +532,7 @@ export class PwaService extends DataService {
         } catch (err: unknown) {
             const errorInfo = this.getErrorDetails(err);
             logPortalDebugEvent(createPortalDebugErrorEvent(context, err));
-            console.error('Stalker request error:', err);
+            this.logger.error('Stalker request error:', err);
 
             this.snackBar.open(
                 `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,

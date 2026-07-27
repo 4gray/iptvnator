@@ -17,6 +17,7 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util';
                         type="button"
                         class="nav-item settings-section-item"
                         [class.active]="ctx.activeSection() === section.id"
+                        [attr.data-test-id]="'settings-section-' + section.id"
                         (click)="ctx.navigateToSection(section.id)"
                     >
                         <mat-icon>{{ section.icon }}</mat-icon>

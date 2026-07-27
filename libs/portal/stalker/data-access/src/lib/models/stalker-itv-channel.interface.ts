@@ -10,4 +10,6 @@ export interface StalkerItvChannel extends StalkerVodSource {
     name?: string;
     o_name?: string;
     logo?: string;
+    tv_genre_id?: string | number;
+    number?: string | number;
 }

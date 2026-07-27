@@ -45,14 +45,33 @@ export interface TmdbCastMember {
 }
 
 export interface TmdbCrewMember {
+    id?: number;
     name: string;
     job?: string;
     department?: string;
+    profile_path?: string | null;
 }
 
 export interface TmdbCredits {
     cast?: TmdbCastMember[];
     crew?: TmdbCrewMember[];
+}
+
+/**
+ * `/tv/{id}/aggregate_credits` groups a person's work across the whole
+ * run, so a character lives in `roles[]` rather than on the member.
+ */
+export interface TmdbAggregateCastMember {
+    id?: number;
+    name: string;
+    order?: number;
+    profile_path?: string | null;
+    total_episode_count?: number;
+    roles?: { character?: string; episode_count?: number }[];
+}
+
+export interface TmdbAggregateCredits {
+    cast?: TmdbAggregateCastMember[];
 }
 
 export interface TmdbGenre {
@@ -96,8 +115,16 @@ export interface TmdbTvDetails extends TmdbDetailsBase {
     name?: string;
     original_name?: string;
     first_air_date?: string;
+    /** English production status ("Ended", "Returning Series", ...) */
+    status?: string;
+    /** Series-wide cast; `credits` alone covers only the latest season */
+    aggregate_credits?: TmdbAggregateCredits;
     episode_run_time?: number[];
-    created_by?: { name: string }[];
+    created_by?: {
+        id?: number;
+        name: string;
+        profile_path?: string | null;
+    }[];
 }
 
 export interface TmdbEpisode {
@@ -118,7 +145,7 @@ export interface TmdbSeasonDetails {
     episodes?: TmdbEpisode[];
 }
 
-/** One acting credit from /person/{id} combined_credits */
+/** One credit from /person/{id} combined_credits (cast or crew) */
 export interface TmdbPersonCredit {
     id: number;
     media_type?: string;
@@ -128,7 +155,11 @@ export interface TmdbPersonCredit {
     /** TV credits */
     name?: string;
     first_air_date?: string;
+    /** Acting credits (cast array) */
     character?: string;
+    /** Crew credits (crew array) — e.g. "Director" / "Directing" */
+    job?: string;
+    department?: string;
     poster_path?: string | null;
     vote_count?: number;
     popularity?: number;
@@ -142,7 +173,10 @@ export interface TmdbPersonDetails {
     deathday?: string | null;
     place_of_birth?: string | null;
     profile_path?: string | null;
-    combined_credits?: { cast?: TmdbPersonCredit[] };
+    combined_credits?: {
+        cast?: TmdbPersonCredit[];
+        crew?: TmdbPersonCredit[];
+    };
 }
 
 export type TmdbDetails = TmdbMovieDetails | TmdbTvDetails;

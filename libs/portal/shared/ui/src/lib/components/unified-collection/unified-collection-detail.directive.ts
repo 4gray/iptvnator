@@ -1,9 +1,13 @@
 import { Directive, inject, TemplateRef } from '@angular/core';
-import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import {
+    SeriesResumeTarget,
+    UnifiedCollectionItem,
+} from '@iptvnator/portal/shared/util';
 
 export interface UnifiedCollectionDetailContext {
     $implicit: UnifiedCollectionItem;
     item: UnifiedCollectionItem;
+    seriesResume: SeriesResumeTarget | null;
     close: () => void;
 }
 

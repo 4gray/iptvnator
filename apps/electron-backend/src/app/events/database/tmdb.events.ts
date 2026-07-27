@@ -19,4 +19,8 @@ handleWorkerRequest('DB_SET_TMDB_METADATA', (entry: TmdbCacheEntry) => ({
     entry,
 }));
 
+handleWorkerRequest('DB_GET_TMDB_CACHE_STATS', () => ({}));
+
+handleWorkerRequest('DB_CLEAR_TMDB_METADATA', () => ({}));
+
 handleWorkerRequest('DB_MATCH_TITLES', (titles: string[]) => ({ titles }));

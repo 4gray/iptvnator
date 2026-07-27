@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Не удалось обновить плейлист. Локальный файл больше не доступен. Проверьте путь к файлу или импортируйте плейлист заново.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Не удалось обновить плейлист. Приложение больше не имеет доступа к локальному файлу.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Успешно! Плейлисты были успешно обновлены",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Автообновление выполнено не полностью: обновлено {{updated}} из {{total}} плейлистов, не удалось — {{failed}}.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Автообновление выполнено не полностью: обновлено {{updated}} из {{total}} плейлистов, не удалось — {{failed}}, пропущено {{skipped}} (нет URL или пути к файлу).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Не удалось выполнить автообновление плейлистов. Ни один из {{total}} плейлистов не был обновлён.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Автообновление плейлистов: обновлено {{updated}} из {{total}}, пропущено {{skipped}} (нет URL или пути к файлу).",
             "AUTO_REFRESH_ENABLED": "Автообновление включено"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "Проверить ключ",
         "TMDB_TEST_SUCCESS": "Ключ работает — TMDB успешно ответил",
         "TMDB_TEST_FAILED": "Проверка не удалась — TMDB отклонил ключ или недоступен",
+        "TMDB_CACHE": "Кэш метаданных",
+        "TMDB_CACHE_DESCRIPTION": "Загруженные метаданные хранятся локально, поэтому страницы деталей открываются мгновенно. После очистки приложение загрузит свежие данные при следующем открытии.",
+        "TMDB_CACHE_SIZE": "{{entries}} записей · {{size}}",
+        "TMDB_CACHE_CLEAR": "Очистить кэш",
+        "TMDB_CACHE_ERROR": "Не удалось прочитать кэш — попробуйте ещё раз",
         "TMDB_CREDITS": "Метаданные",
         "TMDB_ATTRIBUTION": "Этот продукт использует TMDB API, но не одобрен и не сертифицирован TMDB.",
         "APP_PREFERENCES": "Параметры приложения",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "Очистка…",
         "EPG_URL_ERROR": "Введенное значение не является URL-адресом.",
         "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
+        "WEB_PLAYER_SHARED_CONTROLS": "Единые элементы управления для веб-плееров (экспериментально)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Использовать общие элементы управления IPTVnator в HTML5, Video.js и ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Заливка фона за плеером",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Заполнять пространство вокруг плеера размытым затемнённым постером вместо чёрных полос.",
+        "PLAYER_UP_NEXT_RAIL": "Панель следующих серий",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "В широких окнах закреплять плеер сериала слева и показывать следующие серии рядом с ним.",
         "STREAM_FORMAT_DESCRIPTION": "Выбрать формат потока по умолчанию (Xtream)",
         "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
         "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Показать или скрыть субтитры по умолчанию.",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Показывать панель «Сейчас воспроизводится»",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Оставлять панель состояния внешнего проигрывателя видимой внизу рабочей области в настольном приложении.",
+        "STRIP_COUNTRY_PREFIX": "Удалять префиксы стран из названий каналов",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Удаляет префиксы стран/групп, такие как \"US | \" или \"UK - \", из названий каналов прямого эфира во всём приложении.",
         "VERSION_DESCRIPTION": "Текущая версия приложения",
         "ABOUT_SUBTITLE": "Версия, ссылки на проект и способы поддержать IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Среда выполнения встроенного MPV",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Обновить",
         "APP_UPDATE_INSTALL": "Перезагрузить приложение",
         "APP_UPDATE_OPEN_RELEASE": "Открыть GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "Что нового"
+        "APP_UPDATE_RELEASE_NOTES": "Что нового",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: движок frame-copy (экспериментально)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Видео рисуется на канвасе приложения, поэтому меню и диалоги отображаются поверх него.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Вступит в силу после перезапуска приложения."
     },
     "THEMES": {
         "DARK_THEME": "Тёмная",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Назад",
             "RETRY": "Повторить",
             "STALLED": "Запуск этого потока занимает больше времени, чем ожидалось.",
             "PLAYBACK_FAILED": "Не удалось воспроизвести через встроенный MPV.",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "Назад на 10 секунд",
             "FORWARD_10_SECONDS": "Вперёд на 10 секунд",
             "LIVE_STREAM": "Прямой эфир",
+            "PLAYBACK_POSITION": "Позиция воспроизведения",
             "MUTE": "Отключить звук",
             "UNMUTE": "Включить звук",
             "MUTED": "Звук отключён",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "Не удалось начать запись.",
             "RECORDING_FAILED_TO_STOP": "Не удалось остановить запись.",
             "SAVED_TO": "Сохранено в {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Включить режим «картинка в картинке»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйти из режима «картинка в картинке»",
             "ENTER_FULLSCREEN": "Во весь экран",
             "EXIT_FULLSCREEN": "Выйти из полноэкранного режима"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "Удалить из списка фаворитов",
         "ADD_FAVORITE": "Добавить в избранное",
         "SHOW_DETAILS": "Показать сведения о канале",
+        "MAP_EPG": "Привязать канал EPG",
         "FAVORITES_UPDATED": "Список фаворитов был обновлен!",
         "SELECT_CHANNEL_PLAYBACK": "Пожалуйста, выберите канал для начала воспроизведения",
         "SORT_BY": "Сортировать по",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "показать ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Привязка канала EPG",
+        "SUBTITLE": "Выберите канал EPG для \"{{channelName}}\" вручную",
+        "SEARCH_PLACEHOLDER": "Поиск каналов EPG...",
+        "CURRENT_MAPPING": "Текущая привязка",
+        "NO_MAPPING": "Привязка EPG не задана",
+        "SAVE": "Сохранить привязку",
+        "REMOVE": "Удалить привязку",
+        "CLOSE": "Закрыть",
+        "NO_RESULTS": "Каналы EPG не найдены",
+        "SEARCH_HINT": "Введите не менее {{min}} символов для поиска",
+        "SAVED": "Привязка EPG сохранена",
+        "REMOVED": "Привязка EPG удалена",
+        "SAVE_FAILED": "Не удалось обновить привязку EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "Да",
     "NO": "Нет",
@@ -756,6 +797,8 @@
         "ACTORS": "Актеры",
         "DIRECTOR": "Режиссёр",
         "SIMILAR": "Похожее",
+        "CREW_JOB_DIRECTOR": "Режиссёр",
+        "CREW_JOB_CREATOR": "Создатель",
         "ACTOR_FILMOGRAPHY": "Фильмография",
         "ACTOR_FILTER_ALL": "Все",
         "ACTOR_SCOPE_THIS_PORTAL": "Этот портал",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "Есть в вашей библиотеке",
         "ACTOR_SEARCH_IN_PORTAL": "Искать на портале",
         "ACTOR_BORN": "Родился:",
+        "ACTOR_DIED": "Умер",
+        "SERIES_STATUS_RETURNING": "Продолжается",
+        "SERIES_STATUS_PLANNED": "Запланирован",
+        "SERIES_STATUS_IN_PRODUCTION": "В производстве",
+        "SERIES_STATUS_ENDED": "Завершён",
+        "SERIES_STATUS_CANCELED": "Закрыт",
+        "SERIES_STATUS_PILOT": "Пилот",
         "DURATION": "Продолжительность",
         "CAST": "Бросать",
         "EPISODE_RUN_TIME": "Длительность эпизода",
@@ -779,6 +829,7 @@
         "RESTART": "С начала",
         "CONTINUE_WATCHING": "Продолжить просмотр",
         "PLAY_FIRST_EPISODE": "Воспроизвести первую серию",
+        "PLAY_EPISODE": "Воспроизвести серию {{episode}}",
         "RESUME_EPISODE": "Продолжить серию",
         "PLAY_NEXT_EPISODE": "Следующая серия",
         "SERIES_WATCHED": "Сериал просмотрен",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "URL-адрес потока был скопирован в буфер обмена.",
         "COPY_STREAM_URL": "Копировать URL-адрес потока",
         "NOW_PLAYING": "Сейчас воспроизводится",
+        "UP_NEXT": "Далее",
         "CLOSE_PLAYER": "Закрыть плеер",
         "ABOUT": "Об этом",
         "SEASONS_AND_EPISODES": "Сезоны и эпизоды",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "Этот контент недоступен на этом сервере",
         "PLAYBACK_ERROR": "Не удалось получить URL для воспроизведения",
         "LOADING_SEASONS": "Загрузка сезонов…",
+        "LOADING_ALL_CHANNELS": "Загрузка полного списка каналов…",
+        "REFRESH_CHANNEL_LIST": "Обновить список каналов",
+        "NO_CHANNELS_IN_CATEGORY": "В этой категории нет каналов",
+        "ITEM": "элемент",
+        "ITEMS": "элементов",
         "NO_EPISODES": "Нет доступных эпизодов",
         "ALL_RADIO": "Все радио"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "Эту загрузку больше нельзя открыть в библиотеке, потому что исходный плейлист был удален.",
         "FILE_NOT_FOUND": "Этот загруженный файл больше недоступен на диске.",
         "FILE_ACTION_ERROR": "Не удалось выполнить действие с файлом.",
+        "ACTION_FAILED": "Действие не выполнено",
+        "PAUSE": "Пауза",
+        "RESUME": "Возобновить",
         "CANCEL": "Отмена",
         "RETRY": "Повторить",
         "REMOVE": "Удалить",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "Скачивается",
             "COMPLETED": "Завершено",
             "FAILED": "Ошибка",
-            "CANCELED": "Отменено"
+            "CANCELED": "Отменено",
+            "PAUSED": "На паузе"
         }
     },
     "REMOTE_CONTROL": {

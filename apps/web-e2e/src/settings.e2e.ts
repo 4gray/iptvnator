@@ -48,6 +48,26 @@ test.describe('Settings', () => {
         );
     });
 
+    test('@settings @web Enable shared web player controls', async ({
+        page,
+    }) => {
+        await openSettings(page);
+
+        const setting = page.locator(
+            '[data-test-id="web-player-shared-controls-setting"]'
+        );
+        const checkbox = setting.locator('input[type="checkbox"]');
+
+        await expect(setting).toBeVisible();
+        await expect(checkbox).not.toBeChecked();
+        await checkbox.check();
+        await saveSettings(page);
+        await page.reload();
+        await openSettings(page);
+
+        await expect(checkbox).toBeChecked();
+    });
+
     test('@settings @web Change app theme', async ({ page }) => {
         await openSettings(page);
         // v0.22 compact theme picker exposes the segmented control as a

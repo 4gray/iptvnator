@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { ChannelActions, FavoritesActions } from '@iptvnator/m3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
@@ -180,6 +180,52 @@ describe('M3uWorkspaceRouteSession', () => {
         );
     });
 
+    it('hydrates persisted favorites without dispatching the persistence action', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                favorites: [PRIMARY_CHANNEL.url],
+                playlist: {
+                    items: [PRIMARY_CHANNEL],
+                },
+            } as Playlist)
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(store.dispatch).toHaveBeenCalledWith(
+            FavoritesActions.hydrateFavorites({
+                channelIds: [PRIMARY_CHANNEL.url],
+            })
+        );
+        expect(
+            store.dispatch.mock.calls.some(
+                ([action]) => action.type === FavoritesActions.setFavorites.type
+            )
+        ).toBe(false);
+    });
+
+    it('clears in-memory favorites without dispatching persistence when playlist loading fails', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            throwError(() => new Error('Playlist loading failed'))
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannels({ channels: [] })
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            FavoritesActions.hydrateFavorites({ channelIds: [] })
+        );
+        expect(
+            store.dispatch.mock.calls.some(
+                ([action]) => action.type === FavoritesActions.setFavorites.type
+            )
+        ).toBe(false);
+    });
+
     it('ignores stale playlist responses after a newer route request wins', async () => {
         const firstResponse = new Subject<Playlist>();
         const secondResponse = new Subject<Playlist>();
@@ -225,7 +271,7 @@ describe('M3uWorkspaceRouteSession', () => {
             [ChannelActions.setChannels({ channels: [NEXT_CHANNEL] })],
         ]);
         expect(store.dispatch).toHaveBeenCalledWith(
-            FavoritesActions.setFavorites({
+            FavoritesActions.hydrateFavorites({
                 channelIds: [NEXT_CHANNEL.url],
             })
         );

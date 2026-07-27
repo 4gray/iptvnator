@@ -1,0 +1,148 @@
+import type { PlayerTrack } from '../player-controls/player-controls.model';
+import type {
+    ShakaPlayerLike,
+    ShakaTextTrackLike,
+} from '../shaka-engine/shaka-module.types';
+import type { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
+
+export interface WebVideoShakaControlsConfig {
+    showCaptions: () => boolean;
+    refresh: () => void;
+    /**
+     * Vendor-chrome hosts pass a "playback started" probe, mirroring the HLS
+     * and native helpers. `ShakaVideoSession` already seeds the preference once
+     * the manifest is loaded, so re-suppressing on every later Shaka event
+     * would only override selections the host cannot see. Shared controls own
+     * the caption UI and omit it, staying authoritative.
+     */
+    playbackStarted?: () => boolean;
+}
+
+const SUBTITLES_OFF = -1;
+
+/**
+ * Maps a {@link ShakaVideoSession} onto the shared-controls track contract,
+ * mirroring {@link WebVideoHlsControls}. Track ids are indexes into the
+ * player's current track arrays; `-1` means subtitles explicitly off.
+ */
+export class WebVideoShakaControls {
+    private session: ShakaVideoSession | null = null;
+    private unsubscribe: (() => void) | null = null;
+    private subtitleOverride: number | null = null;
+
+    constructor(private readonly config: WebVideoShakaControlsConfig) {}
+
+    bind(session: ShakaVideoSession): void {
+        this.clear();
+        this.session = session;
+        this.unsubscribe = session.subscribe(() => {
+            this.applyCaptionState();
+            this.config.refresh();
+        });
+        this.applyCaptionState();
+    }
+
+    clear(): void {
+        this.unsubscribe?.();
+        this.unsubscribe = null;
+        this.session = null;
+        this.subtitleOverride = null;
+    }
+
+    refreshInputs(): void {
+        this.applyCaptionState();
+    }
+
+    getAudioTracks(): PlayerTrack[] {
+        return (this.getPlayer()?.getAudioTracks() ?? []).map(
+            (track, index) => ({
+                id: index,
+                label:
+                    track.label ||
+                    track.language ||
+                    `Audio ${index + 1}`,
+                selected: track.active,
+            })
+        );
+    }
+
+    setAudioTrack(id: number): void {
+        const player = this.getPlayer();
+        if (!player || !Number.isInteger(id)) {
+            return;
+        }
+
+        const track = player.getAudioTracks()[id];
+        if (track) {
+            player.selectAudioTrack(track);
+        }
+    }
+
+    getSubtitleTracks(): PlayerTrack[] {
+        const player = this.getPlayer();
+        if (!player) {
+            return [];
+        }
+
+        return player.getTextTracks().map((track, index) => ({
+            id: index,
+            label: formatTextTrackLabel(track, index),
+            selected: track.active,
+        }));
+    }
+
+    setSubtitleTrack(id: number): void {
+        const player = this.getPlayer();
+        if (!player || !Number.isInteger(id)) {
+            return;
+        }
+
+        // Shaka 5 model: selecting a track shows it, null turns text off.
+        if (id === SUBTITLES_OFF) {
+            this.subtitleOverride = SUBTITLES_OFF;
+            player.selectTextTrack(null);
+            return;
+        }
+
+        const track = player.getTextTracks()[id];
+        if (!track) {
+            return;
+        }
+
+        this.subtitleOverride = id;
+        player.selectTextTrack(track);
+    }
+
+    private applyCaptionState(): void {
+        const session = this.session;
+        if (!session || this.subtitleOverride !== null) {
+            // A user selection (subtitleOverride) always wins.
+            return;
+        }
+
+        // Without an explicit user choice, mirror the HLS bridge: keep
+        // manifest-auto-selected text hidden while the captions preference is
+        // off, and reselect the suppressed track when it turns back on.
+        if (this.config.showCaptions()) {
+            session.restoreSuppressedTextTrack();
+            return;
+        }
+        if (this.config.playbackStarted?.()) {
+            // Source-default mode: the session already seeded this source at
+            // load time, so leave the running selection alone.
+            return;
+        }
+        session.suppressTextTracks();
+    }
+
+    private getPlayer(): ShakaPlayerLike | null {
+        return this.session?.getPlayer() ?? null;
+    }
+}
+
+function formatTextTrackLabel(
+    track: ShakaTextTrackLike,
+    index: number
+): string {
+    return track.label || track.language || `Subtitle ${index + 1}`;
+}

@@ -37,7 +37,7 @@
             }
         },
         "lint": {
-            "command": "eslint apps/web-backend/**/*.ts"
+            "command": "eslint \"apps/web-backend/**/*.ts\""
         },
         "test": {
             "executor": "@nx/jest:jest",

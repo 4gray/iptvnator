@@ -9,6 +9,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { ChannelActions, FavoritesActions } from '@iptvnator/m3u-state';
+import {
+    measureRendererPerformancePhase,
+    RENDERER_PERFORMANCE_PHASE,
+} from '@iptvnator/shared/logging';
 import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
@@ -107,17 +111,23 @@ export class M3uWorkspaceRouteSession {
                     );
                 });
 
-            this.store.dispatch(
-                ChannelActions.setChannels({
-                    channels: playlist.playlist?.items ?? [],
-                })
+            const channels = playlist.playlist?.items ?? [];
+            measureRendererPerformancePhase(
+                RENDERER_PERFORMANCE_PHASE.M3U_PUBLISH_CHANNELS,
+                () =>
+                    this.store.dispatch(
+                        ChannelActions.setChannels({
+                            channels,
+                        })
+                    ),
+                () => ({ items: channels.length })
             );
 
             const favorites = (playlist.favorites ?? []).filter(
                 (favorite): favorite is string => typeof favorite === 'string'
             );
             this.store.dispatch(
-                FavoritesActions.setFavorites({
+                FavoritesActions.hydrateFavorites({
                     channelIds: favorites,
                 })
             );
@@ -128,7 +138,7 @@ export class M3uWorkspaceRouteSession {
 
             this.store.dispatch(ChannelActions.setChannels({ channels: [] }));
             this.store.dispatch(
-                FavoritesActions.setFavorites({ channelIds: [] })
+                FavoritesActions.hydrateFavorites({ channelIds: [] })
             );
         }
     }

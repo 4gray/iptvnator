@@ -76,8 +76,15 @@ class StubUnifiedGridTabComponent {
             [portalType]="portalType"
             [defaultScope]="defaultScope"
         >
-            <ng-template unifiedCollectionDetail let-item>
+            <ng-template
+                unifiedCollectionDetail
+                let-item
+                let-seriesResume="seriesResume"
+            >
                 <div class="detail-probe">{{ item.name }}</div>
+                <div class="resume-probe">
+                    {{ seriesResume?.contentXtreamId }}
+                </div>
             </ng-template>
         </app-unified-collection-page>
     `,
@@ -295,10 +302,10 @@ describe('UnifiedCollectionPageComponent', () => {
             })
             .compileComponents();
 
+        window.history.replaceState({}, document.title);
         fixture = TestBed.createComponent(UnifiedCollectionPageComponent);
         fixture.componentRef.setInput('mode', 'favorites');
         fixture.componentRef.setInput('defaultScope', 'all');
-        window.history.replaceState({}, document.title);
     });
 
     it('reloads favorites after playlist hydration completes', async () => {
@@ -712,9 +719,103 @@ describe('UnifiedCollectionPageComponent', () => {
         ).toBe('movie');
     });
 
+    it('exposes a dashboard series resume target to the inline detail host', async () => {
+        const item: UnifiedCollectionItem = {
+            uid: 'xtream::xtream-1::series:103',
+            name: 'Resume Series',
+            contentType: 'series',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            xtreamId: 103,
+            categoryId: 3,
+        };
+        window.history.replaceState(
+            {
+                [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
+                    item,
+                    seriesResume: {
+                        seriesXtreamId: 103,
+                        contentXtreamId: 2001,
+                        seasonNumber: 2,
+                        episodeNumber: 1,
+                    },
+                },
+            },
+            document.title
+        );
+
+        const hostFixture = TestBed.createComponent(
+            HostUnifiedCollectionPageComponent
+        );
+        hostFixture.detectChanges();
+        await hostFixture.whenStable();
+        hostFixture.detectChanges();
+
+        expect(
+            hostFixture.nativeElement.querySelector('.resume-probe')
+                ?.textContent
+        ).toContain('2001');
+        expect(
+            hostFixture.componentInstance.pageComponent?.selectedDetailSeriesResume()
+                ?.episodeNumber
+        ).toBe(1);
+        hostFixture.destroy();
+    });
+
+    it('redirects cross-provider detail selections with the resume target intact', async () => {
+        const originalUrl = router.url;
+        router.url = '/workspace/stalker/stalker-7/favorites';
+        try {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            router.navigate.mockClear();
+
+            const seriesResume = {
+                seriesXtreamId: 103,
+                contentXtreamId: 2001,
+                seasonNumber: 2,
+                episodeNumber: 1,
+            };
+            fixture.componentInstance.selectedDetailSeriesResume.set(
+                seriesResume
+            );
+            fixture.componentInstance.selectedDetailItem.set({
+                uid: 'xtream::xtream-1::series:103',
+                name: 'Resume Series',
+                contentType: 'series',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                xtreamId: 103,
+                categoryId: 3,
+            } satisfies UnifiedCollectionItem);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(router.navigate).toHaveBeenCalledWith(
+                ['/workspace', 'global-favorites'],
+                {
+                    state: {
+                        [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
+                            item: expect.objectContaining({ xtreamId: 103 }),
+                            seriesResume,
+                        },
+                    },
+                }
+            );
+            expect(
+                fixture.componentInstance.selectedDetailItem()
+            ).toBeNull();
+        } finally {
+            router.url = originalUrl;
+        }
+    });
+
     it('restores collection scope and selected content type from history state', async () => {
         setRouteParams({ id: 'playlist-1' });
         playlistsLoaded.set(true);
+        fixture.destroy();
         window.history.replaceState(
             {
                 [COLLECTION_VIEW_STATE_KEY]: {

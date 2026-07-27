@@ -6,6 +6,7 @@ import {
     Injectable,
     Signal,
     signal,
+    untracked,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
@@ -31,6 +32,8 @@ import {
     resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
+import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
+import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 
 export type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;
@@ -55,6 +58,7 @@ export class SerialDetailsPlaybackService {
     );
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly resumeTarget = inject(XTREAM_SERIES_RESUME_TARGET);
 
     private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(
         null
@@ -62,12 +66,12 @@ export class SerialDetailsPlaybackService {
     private readonly currentPlaylistId = computed(
         () => this.xtreamStore.currentPlaylist()?.id ?? ''
     );
+    private readonly playbackPositionState =
+        new SerialDetailsPlaybackPositionState();
     private lastSaveTime = 0;
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
-    readonly episodePlaybackPositions = signal<
-        Map<number, PlaybackPositionData>
-    >(new Map());
+    readonly episodePlaybackPositions = this.playbackPositionState.positions;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
 
@@ -129,6 +133,27 @@ export class SerialDetailsPlaybackService {
             this.activeEpisodeId.set(null);
         });
 
+        effect(() => {
+            const target = this.resumeTarget();
+            const selectedItem = this.selectedItem();
+            const playlistId = this.currentPlaylistId();
+
+            if (!target || !selectedItem || !playlistId) {
+                return;
+            }
+
+            const episode = this.playbackPositionState.takeResumeEpisode({
+                playlistId,
+                selectedItem,
+                target,
+            });
+            if (!episode) {
+                return;
+            }
+
+            untracked(() => this.playEpisode(episode));
+        });
+
         const unsubscribePositionUpdates =
             this.playbackPositionBridge.onPlaybackPositionUpdate(
                 (data: PlaybackPositionData) => {
@@ -143,7 +168,7 @@ export class SerialDetailsPlaybackService {
                         return;
                     }
 
-                    this.updateEpisodePlaybackPosition(data);
+                    this.playbackPositionState.update(data);
                 }
             ) ?? null;
 
@@ -160,7 +185,7 @@ export class SerialDetailsPlaybackService {
     /** Clears all playback state when switching to another series. */
     resetForNewSeries(): void {
         this.closeInlinePlayer();
-        this.episodePlaybackPositions.set(new Map());
+        this.playbackPositionState.reset();
         this.openingEpisodeId.set(null);
         this.activeEpisodeId.set(null);
     }
@@ -257,13 +282,21 @@ export class SerialDetailsPlaybackService {
             playback.contentInfo.playlistId,
             position
         );
-        this.updateEpisodePlaybackPosition(position);
+        this.playbackPositionState.update(position);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
+        void this.playbackPositionState.recordExternalLaunch(
             request.playback,
-            request.player
+            this.portalPlayer.openExternalPlayback(
+                request.playback,
+                request.player
+            ),
+            (playlistId, position) =>
+                this.playbackPositions.savePlaybackPosition(
+                    playlistId,
+                    position
+                )
         );
     }
 
@@ -280,7 +313,7 @@ export class SerialDetailsPlaybackService {
                 playlistId,
                 request.nextPosition
             );
-            this.updateEpisodePlaybackPosition(request.nextPosition);
+            this.playbackPositionState.update(request.nextPosition);
             return;
         }
 
@@ -289,23 +322,19 @@ export class SerialDetailsPlaybackService {
             request.contentXtreamId,
             'episode'
         );
-        this.removeEpisodePlaybackPosition(request.contentXtreamId);
+        this.playbackPositionState.remove(request.contentXtreamId);
     }
 
     async loadSeriesPlaybackPositions(
         playlistId: string,
         seriesXtreamId: number
     ): Promise<void> {
-        const positions =
-            await this.playbackPositions.getSeriesPlaybackPositions(
+        return this.playbackPositionState.load(playlistId, seriesXtreamId, () =>
+            this.playbackPositions.getSeriesPlaybackPositions(
                 playlistId,
                 seriesXtreamId
-            );
-        const positionsMap = new Map<number, PlaybackPositionData>();
-        positions.forEach((position) => {
-            positionsMap.set(position.contentXtreamId, position);
-        });
-        this.episodePlaybackPositions.set(positionsMap);
+            )
+        );
     }
 
     private selectedItem(): XtreamSerieDetailsView | null {
@@ -329,7 +358,15 @@ export class SerialDetailsPlaybackService {
         }
 
         this.closeInlinePlayer();
-        void this.portalPlayer.openResolvedPlayback(playback, true);
+        void this.playbackPositionState.recordExternalLaunch(
+            playback,
+            this.portalPlayer.openResolvedPlayback(playback, true),
+            (playlistId, position) =>
+                this.playbackPositions.savePlaybackPosition(
+                    playlistId,
+                    position
+                )
+        );
     }
 
     private getInlineEpisodeState(): SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null {
@@ -351,19 +388,5 @@ export class SerialDetailsPlaybackService {
             fallbackSeasonNumber: playback.contentInfo.seasonNumber,
             fallbackEpisodeNumber: playback.contentInfo.episodeNumber,
         });
-    }
-
-    private updateEpisodePlaybackPosition(
-        position: PlaybackPositionData
-    ): void {
-        const updated = new Map(this.episodePlaybackPositions());
-        updated.set(position.contentXtreamId, position);
-        this.episodePlaybackPositions.set(updated);
-    }
-
-    private removeEpisodePlaybackPosition(contentXtreamId: number): void {
-        const updated = new Map(this.episodePlaybackPositions());
-        updated.delete(contentXtreamId);
-        this.episodePlaybackPositions.set(updated);
     }
 }

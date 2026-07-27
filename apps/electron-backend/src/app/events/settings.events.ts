@@ -1,6 +1,8 @@
 import { ipcMain } from 'electron';
 import { normalizeExternalPlayerArguments } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 import {
+    EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
     store,
@@ -16,7 +18,10 @@ export default class SettingsEvents {
 }
 
 ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
-    console.log('Received SETTINGS_UPDATE with data:', arg);
+    console.log(
+        'Received SETTINGS_UPDATE with data:',
+        redactSensitiveData(arg)
+    );
 
     if (arg.mpvPlayerArguments !== undefined) {
         store.set(
@@ -35,6 +40,11 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     // Only set values that are defined
     if (arg.mpvReuseInstance !== undefined) {
         store.set(MPV_REUSE_INSTANCE, arg.mpvReuseInstance);
+    }
+
+    // Applied on the next app start (window sandbox is fixed at creation).
+    if (arg.embeddedMpvFrameCopy !== undefined) {
+        store.set(EMBEDDED_MPV_FRAME_COPY, !!arg.embeddedMpvFrameCopy);
     }
 
     if (arg.vlcReuseInstance !== undefined) {

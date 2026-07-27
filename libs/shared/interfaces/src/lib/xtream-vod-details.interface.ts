@@ -36,6 +36,8 @@ export interface XtreamVodInfo {
     rating_imdb?: string;
     /** Populated by TMDB enrichment; absent in raw provider responses */
     tmdb_cast?: TmdbEnrichedCastMember[];
+    /** Directors (movies) / creators (series) as clickable person chips */
+    tmdb_directors?: TmdbEnrichedCastMember[];
     /** Populated by TMDB enrichment; matched against the catalog in views */
     tmdb_recommendations?: TmdbRecommendation[];
 }

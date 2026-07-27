@@ -141,8 +141,10 @@ describe('EmbeddedMpvSessionController', () => {
         );
 
         expect(electron.prepareEmbeddedMpv).toHaveBeenCalled();
+        // Fractional CSS edges stay unrounded: the main process rounds once,
+        // after converting them to native units.
         expect(electron.createEmbeddedMpvSession).toHaveBeenCalledWith(
-            { x: 11, y: 21, width: 640, height: 360 },
+            { x: 10.6, y: 20.5, width: 640, height: 360 },
             'Example Movie',
             0.7
         );
@@ -220,6 +222,58 @@ describe('EmbeddedMpvSessionController', () => {
 
         expect(controller.session()).toBe(newer);
         expect(controller.sessionId()).toBe('mpv-2');
+    });
+
+    it('delegates track, speed, aspect, and recording commands to the runner', async () => {
+        const commandBridge = {
+            setEmbeddedMpvAudioTrack: jest.fn().mockResolvedValue(null),
+            setEmbeddedMpvSubtitleTrack: jest.fn().mockResolvedValue(null),
+            setEmbeddedMpvSpeed: jest.fn().mockResolvedValue(null),
+            setEmbeddedMpvAspect: jest.fn().mockResolvedValue(null),
+            seekEmbeddedMpv: jest.fn().mockResolvedValue(null),
+            startEmbeddedMpvRecording: jest.fn().mockResolvedValue(
+                createSession({
+                    recording: { active: true, targetPath: '/tmp/rec.ts' },
+                })
+            ),
+            stopEmbeddedMpvRecording: jest
+                .fn()
+                .mockResolvedValue(
+                    createSession({ recording: { active: false } })
+                ),
+        };
+        Object.assign(electron, commandBridge);
+        const controller = TestBed.inject(EmbeddedMpvSessionController);
+        controller.sessionId.set('mpv-1');
+        controller.session.set(createSession());
+
+        await controller.seekTo(75);
+        await controller.setAudioTrack(2);
+        await controller.setSubtitleTrack(-1);
+        await controller.setSpeed(1.5);
+        await controller.setAspect('16:9');
+        const started = await controller.startRecording('/rec', 'Show');
+        const stopped = await controller.stopRecording();
+
+        expect(commandBridge.seekEmbeddedMpv).toHaveBeenCalledWith('mpv-1', 75);
+        expect(commandBridge.setEmbeddedMpvAudioTrack).toHaveBeenCalledWith(
+            'mpv-1',
+            2
+        );
+        expect(commandBridge.setEmbeddedMpvSubtitleTrack).toHaveBeenCalledWith(
+            'mpv-1',
+            -1
+        );
+        expect(commandBridge.setEmbeddedMpvSpeed).toHaveBeenCalledWith(
+            'mpv-1',
+            1.5
+        );
+        expect(commandBridge.setEmbeddedMpvAspect).toHaveBeenCalledWith(
+            'mpv-1',
+            '16:9'
+        );
+        expect(started).toEqual({ active: true, targetPath: '/tmp/rec.ts' });
+        expect(stopped).toEqual({ active: false });
     });
 
     it('forwards playback commands and updates session snapshots', async () => {

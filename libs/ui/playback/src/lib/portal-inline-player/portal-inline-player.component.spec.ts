@@ -1,7 +1,8 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
+import { SettingsStore } from '@iptvnator/services';
 import type { PortalInlinePlayerComponent as PortalInlinePlayerComponentInstance } from './portal-inline-player.component';
 
 jest.unstable_mockModule('video.js', () => ({
@@ -20,6 +21,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 class StubWebPlayerViewComponent {
     readonly streamUrl = input.required<string>();
     readonly title = input('');
+    readonly mediaTitle = input<unknown>(null);
     readonly playback = input<unknown>(null);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
@@ -122,6 +124,78 @@ describe('PortalInlinePlayerComponent', () => {
         expect(events).toEqual(['ended', 'previous', 'next']);
     });
 
+    describe('playerMediaTitle', () => {
+        it('uses the series title with the episode label for episode playback', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/series/1002.mp4',
+                title: 'Episode 2',
+            });
+            fixture.componentRef.setInput('episodeMetadata', {
+                label: 'S01E02',
+                title: 'Episode 2',
+                seasonNumber: 1,
+                episodeNumber: 2,
+            });
+            fixture.componentRef.setInput('seriesTitle', 'Breaking Code');
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toEqual({
+                primary: 'Breaking Code',
+                secondary: 'S01E02',
+            });
+
+            const webPlayer = fixture.debugElement.query(
+                By.directive(StubWebPlayerViewComponent)
+            ).componentInstance as StubWebPlayerViewComponent;
+            expect(webPlayer.mediaTitle()).toEqual({
+                primary: 'Breaking Code',
+                secondary: 'S01E02',
+            });
+        });
+
+        it('falls back to the playback title when no series title is provided', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/series/1002.mp4',
+                title: 'Episode 2',
+            });
+            fixture.componentRef.setInput('episodeMetadata', {
+                label: 'S01E02',
+                seasonNumber: 1,
+                episodeNumber: 2,
+            });
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toEqual({
+                primary: 'Episode 2',
+                secondary: 'S01E02',
+            });
+        });
+
+        it('is a single line for movie playback and ignores the series title', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/vod/1.mp4',
+                title: 'Some Movie',
+            });
+            fixture.componentRef.setInput('seriesTitle', 'Unrelated Series');
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toEqual({
+                primary: 'Some Movie',
+                secondary: null,
+            });
+        });
+
+        it('is null without a playback title', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.test/vod/1.mp4',
+                title: '',
+            });
+            fixture.detectChanges();
+
+            expect(component.playerMediaTitle()).toBeNull();
+        });
+    });
+
     it('emits backClicked (not closed) from the back button in the now-playing bar', () => {
         let backCount = 0;
         let closedCount = 0;
@@ -149,5 +223,167 @@ describe('PortalInlinePlayerComponent', () => {
         backButton.click();
         expect(backCount).toBe(1);
         expect(closedCount).toBe(0);
+    });
+
+    describe('with strip country prefix enabled', () => {
+        beforeEach(async () => {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [
+                    PortalInlinePlayerComponent,
+                    TranslateModule.forRoot(),
+                ],
+                providers: [
+                    {
+                        provide: SettingsStore,
+                        useValue: { stripCountryPrefix: signal(true) },
+                    },
+                ],
+            })
+                .overrideComponent(PortalInlinePlayerComponent, {
+                    remove: {
+                        imports: [WebPlayerViewComponent],
+                    },
+                    add: {
+                        imports: [StubWebPlayerViewComponent],
+                    },
+                })
+                .compileComponents();
+
+            fixture = TestBed.createComponent(PortalInlinePlayerComponent);
+            component = fixture.componentInstance;
+        });
+
+        it('strips the prefix from live playback titles', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'US | CNN',
+                isLive: true,
+            });
+            fixture.detectChanges();
+
+            expect(component.title()).toBe('CNN');
+        });
+
+        it('keeps VOD titles untouched', () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'US | Some Movie',
+            });
+            fixture.detectChanges();
+
+            expect(component.title()).toBe('US | Some Movie');
+        });
+    });
+
+    describe('ambient background fill', () => {
+        async function setup(
+            ambientEnabled: boolean,
+            player = 'videojs'
+        ): Promise<void> {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [
+                    PortalInlinePlayerComponent,
+                    TranslateModule.forRoot(),
+                ],
+                providers: [
+                    {
+                        provide: SettingsStore,
+                        useValue: {
+                            player: signal(player),
+                            playerAmbientMode: signal(ambientEnabled),
+                            stripCountryPrefix: signal(false),
+                        },
+                    },
+                ],
+            })
+                .overrideComponent(PortalInlinePlayerComponent, {
+                    remove: { imports: [WebPlayerViewComponent] },
+                    add: { imports: [StubWebPlayerViewComponent] },
+                })
+                .compileComponents();
+
+            fixture = TestBed.createComponent(PortalInlinePlayerComponent);
+            component = fixture.componentInstance;
+        }
+
+        const ambientEl = () =>
+            fixture.nativeElement.querySelector('.player-shell__ambient');
+
+        it('renders a poster-backed ambient layer for VOD when enabled', async () => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Some Movie',
+                thumbnail: 'https://cdn.example.com/poster.jpg',
+            });
+            fixture.detectChanges();
+
+            const layer = ambientEl() as HTMLElement | null;
+            expect(component.ambientEnabled()).toBe(true);
+            expect(layer).toBeTruthy();
+            expect(layer?.style.getPropertyValue('--ambient-image')).toBe(
+                'url("https://cdn.example.com/poster.jpg")'
+            );
+        });
+
+        it('does not render the ambient layer when the setting is off', async () => {
+            await setup(false);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Some Movie',
+                thumbnail: 'https://cdn.example.com/poster.jpg',
+            });
+            fixture.detectChanges();
+
+            expect(component.ambientEnabled()).toBe(false);
+            expect(ambientEl()).toBeNull();
+        });
+
+        it('skips the ambient layer for live channels and without a poster', async () => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'CNN',
+                thumbnail: 'https://cdn.example.com/logo.png',
+                isLive: true,
+            });
+            fixture.detectChanges();
+            expect(ambientEl()).toBeNull();
+
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'No Poster Movie',
+            });
+            fixture.detectChanges();
+            expect(ambientEl()).toBeNull();
+        });
+
+        it('keeps the ambient layer off for non-web engines like embedded MPV', async () => {
+            await setup(true, 'embedded-mpv');
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Some Movie',
+                thumbnail: 'https://cdn.example.com/poster.jpg',
+            });
+            fixture.detectChanges();
+
+            expect(component.ambientEnabled()).toBe(false);
+            expect(ambientEl()).toBeNull();
+        });
+
+        it('rejects non-http(s) poster URLs to avoid CSS breakout', async () => {
+            await setup(true);
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/movie.mp4',
+                title: 'Sneaky',
+                thumbnail: 'javascript:alert(1)',
+            });
+            fixture.detectChanges();
+
+            expect(component.ambientImageStyle()).toBeNull();
+            expect(ambientEl()).toBeNull();
+        });
     });
 });

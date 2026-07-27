@@ -1,6 +1,7 @@
 import {
     TmdbEnrichedCastMember,
     TmdbRecommendation,
+    TmdbSeriesStatus,
 } from './tmdb.interface';
 
 export interface XtreamSerieDetails {
@@ -26,6 +27,10 @@ export interface XtreamSerieInfo {
     category_id: string;
     /** Populated by TMDB enrichment; absent in raw provider responses */
     tmdb_cast?: TmdbEnrichedCastMember[];
+    /** Directors (movies) / creators (series) as clickable person chips */
+    tmdb_directors?: TmdbEnrichedCastMember[];
+    /** Series production status (token, never a raw TMDB string) */
+    tmdb_status?: TmdbSeriesStatus;
     /** Populated by TMDB enrichment; matched against the catalog in views */
     tmdb_recommendations?: TmdbRecommendation[];
     /** Matched TMDB show id — enables lazy season/episode enrichment */

@@ -49,10 +49,22 @@
             </div>
         </header>
 
-        <div class="player-shell__viewport">
+        <div
+            class="player-shell__viewport"
+            #stageViewport
+            [class.player-shell__viewport--with-rail]="upNextRailVisible()"
+        >
+            @if (ambientEnabled()) {
+                <div
+                    class="player-shell__ambient"
+                    aria-hidden="true"
+                    [style.--ambient-image]="ambientImageStyle()"
+                ></div>
+            }
             <app-web-player-view
                 [streamUrl]="streamUrl()"
                 [title]="title()"
+                [mediaTitle]="playerMediaTitle()"
                 [playback]="playback()"
                 [startTime]="startTime()"
                 [seriesNavigation]="seriesNavigation()"
@@ -64,6 +76,13 @@
                     onExternalFallbackRequested($event)
                 "
             />
+            @if (upNextRailVisible()) {
+                <app-up-next-rail
+                    class="player-shell__rail"
+                    [items]="upNextRailItems()"
+                    (episodeSelected)="onUpNextEpisodeSelected($event)"
+                />
+            }
         </div>
     </section>
 }

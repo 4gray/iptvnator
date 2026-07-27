@@ -73,6 +73,8 @@ export async function getFavorites(db: AppDatabase, playlistId: string) {
             poster_url: schema.content.posterUrl,
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
+            tv_archive: schema.content.tvArchive,
+            tv_archive_duration: schema.content.tvArchiveDuration,
             added_at: schema.favorites.addedAt,
             position: schema.favorites.position,
         })
@@ -117,6 +119,8 @@ function selectGlobalFavoriteRows(
                 : {}),
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
+            tv_archive: schema.content.tvArchive,
+            tv_archive_duration: schema.content.tvArchiveDuration,
             playlist_id: schema.playlists.id,
             playlist_name: schema.playlists.name,
             added_at: schema.favorites.addedAt,
@@ -140,7 +144,7 @@ function selectGlobalFavoriteRows(
 
 export async function reorderGlobalFavorites(
     db: AppDatabase,
-    updates: { content_id: number; position: number }[],
+    updates: { content_id: number; playlist_id: string; position: number }[],
     control?: OperationControl
 ): Promise<{ success: boolean }> {
     if (!Array.isArray(updates) || updates.length === 0) {
@@ -152,20 +156,35 @@ export async function reorderGlobalFavorites(
 
     // Drizzle's .set() doesn't accept a bare Placeholder — wrap it in an
     // sql template so the value resolves to SQL<number> at compile time.
+    // Scope by (contentId, playlistId): the favorites table is
+    // playlist-scoped, so filtering by contentId alone would also rewrite
+    // the position of a same-contentId favorite in another playlist.
     const updateFavoritePosition = db
         .update(schema.favorites)
         .set({ position: sql<number>`${sql.placeholder('position')}` })
-        .where(eq(schema.favorites.contentId, sql.placeholder('contentId')))
+        .where(
+            and(
+                eq(schema.favorites.contentId, sql.placeholder('contentId')),
+                eq(schema.favorites.playlistId, sql.placeholder('playlistId'))
+            )
+        )
         .prepare();
 
     for (const chunk of chunkValues(updates, DEFAULT_BATCH_SIZE)) {
         await checkpointOperation(control);
 
         await db.transaction(() => {
-            for (const { content_id, position } of chunk) {
-                updateFavoritePosition.execute({
+            for (const { content_id, playlist_id, position } of chunk) {
+                // Must be .run() (synchronous), NOT .execute(): on the
+                // better-sqlite3 driver .execute() defers the write to a
+                // resolved promise, which never settles inside this
+                // synchronous transaction callback — the UPDATE would be a
+                // silent no-op and the custom favorites order would never
+                // persist (issue #1137).
+                updateFavoritePosition.run({
                     position,
                     contentId: content_id,
+                    playlistId: playlist_id,
                 });
             }
         });

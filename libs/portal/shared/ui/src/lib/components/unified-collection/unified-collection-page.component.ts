@@ -47,6 +47,7 @@ import {
     routeParamSignal,
     ScopeToggleService,
     STALKER_RETURN_TO_STATE_KEY,
+    SeriesResumeTarget,
     UnifiedCollectionItem,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
@@ -144,6 +145,9 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         this.historyCollectionViewState()?.selectedContentType ?? 'live'
     );
     readonly selectedDetailItem = signal<UnifiedCollectionItem | null>(null);
+    readonly selectedDetailSeriesResume = signal<SeriesResumeTarget | null>(
+        null
+    );
     readonly pendingAutoOpenLiveItem = signal(
         getOpenLiveCollectionItemState(window.history.state)
     );
@@ -157,6 +161,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             return {
                 $implicit: item,
                 item,
+                seriesResume: this.selectedDetailSeriesResume(),
                 close: this.requestCloseDetail,
             };
         }
@@ -360,7 +365,10 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             return;
         }
 
-        const navigation = this.getGlobalCollectionDetailNavigation(item);
+        const navigation = this.getGlobalCollectionDetailNavigation(
+            item,
+            this.selectedDetailSeriesResume()
+        );
         if (!navigation) {
             return;
         }
@@ -761,7 +769,10 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         return !portalType || portalType === item.sourceType;
     }
 
-    private getGlobalCollectionDetailNavigation(item: UnifiedCollectionItem) {
+    private getGlobalCollectionDetailNavigation(
+        item: UnifiedCollectionItem,
+        seriesResume?: SeriesResumeTarget | null
+    ) {
         if (
             item.contentType === 'live' ||
             (item.sourceType !== 'xtream' && item.sourceType !== 'stalker')
@@ -769,16 +780,25 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             return null;
         }
 
-        return buildGlobalCollectionDetailNavigationTarget(this.mode(), item);
+        return buildGlobalCollectionDetailNavigationTarget(
+            this.mode(),
+            item,
+            seriesResume
+        );
     }
 
-    private openInlineDetail(item: UnifiedCollectionItem): void {
+    private openInlineDetail(
+        item: UnifiedCollectionItem,
+        seriesResume?: SeriesResumeTarget | null
+    ): void {
         this.selectedContentType.set(item.contentType);
         this.selectedDetailItem.set(item);
+        this.selectedDetailSeriesResume.set(seriesResume ?? null);
     }
 
     private clearInlineDetail(): void {
         this.selectedDetailItem.set(null);
+        this.selectedDetailSeriesResume.set(null);
         this.autoSelectContentType();
         clearNavigationStateKeys([OPEN_COLLECTION_DETAIL_STATE_KEY]);
     }
@@ -842,12 +862,13 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     private syncDetailFromHistoryState(): void {
-        const detailItem = getOpenCollectionDetailItemState(
+        const detailState = getOpenCollectionDetailItemState(
             window.history.state
-        )?.item;
+        );
+        const detailItem = detailState?.item;
 
         if (detailItem && this.canOpenInlineDetail(detailItem)) {
-            this.openInlineDetail(detailItem);
+            this.openInlineDetail(detailItem, detailState.seriesResume);
             return;
         }
 

@@ -3,7 +3,45 @@
     "reporting": {
         "mergedCoverageDir": "coverage/merged",
         "e2eSummaryDir": "coverage/e2e",
-        "unitCodecovFlag": "unit"
+        "unitCodecovFlag": "unit",
+        "coverageRatchet": {
+            "merged": {
+                "statements": 69.54,
+                "branches": 59.07,
+                "functions": 67.44,
+                "lines": 69.85
+            },
+            "criticalFiles": [
+                {
+                    "path": "apps/electron-backend/src/app/server/http-server.ts",
+                    "statements": {
+                        "minimumCovered": 83,
+                        "minimumPercent": 90.21
+                    }
+                },
+                {
+                    "path": "apps/electron-backend/src/app/events/remote-control.events.ts",
+                    "statements": {
+                        "minimumCovered": 112,
+                        "minimumPercent": 96.55
+                    }
+                },
+                {
+                    "path": "apps/electron-backend/src/app/events/settings.events.ts",
+                    "statements": {
+                        "minimumCovered": 26,
+                        "minimumPercent": 96.29
+                    }
+                },
+                {
+                    "path": "apps/electron-backend/src/app/events/database/downloads.events.ts",
+                    "statements": {
+                        "minimumCovered": 86,
+                        "minimumPercent": 58.5
+                    }
+                }
+            ]
+        }
     },
     "unitCoverage": {
         "description": "Tier A projects collect and trend source coverage. Tier B projects are validated without percentage coverage. Tier C projects are excluded from the source coverage baseline.",
@@ -150,6 +188,13 @@
                 "e2eTags": ["@m3u", "@xtream", "@stalker"]
             },
             {
+                "name": "shared-logging",
+                "root": "libs/shared/logging",
+                "sourceRoot": "libs/shared/logging/src",
+                "validationCommand": "pnpm nx test shared-logging",
+                "e2eTags": ["@electron", "@xtream", "@stalker", "@settings"]
+            },
+            {
                 "name": "m3u-utils",
                 "root": "libs/shared/m3u-utils",
                 "sourceRoot": "libs/shared/m3u-utils/src",
@@ -225,6 +270,18 @@
                 "root": "tools/packaging",
                 "validationCommand": "pnpm nx test packaging",
                 "reason": "Node package identity checks validate generated packaging metadata."
+            },
+            {
+                "name": "release-tools",
+                "root": "tools/release",
+                "validationCommand": "pnpm nx test release-tools",
+                "reason": "Node tests validate release-note parsing, rendering and gate policy; the scripts are release tooling, not shipped source."
+            },
+            {
+                "name": "shared-marketing-fixtures",
+                "root": "libs/shared/marketing-fixtures",
+                "validationCommand": "pnpm nx test shared-marketing-fixtures",
+                "reason": "Screenshot-safe fictional poster catalog shared by both mock servers; the spec asserts catalog order and shape, and percentage coverage over fixture data would not mean anything."
             },
             {
                 "name": "remote-control-web",

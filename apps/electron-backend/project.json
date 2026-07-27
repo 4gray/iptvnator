@@ -12,6 +12,13 @@
                 "command": "node apps/electron-backend/build-worker.js"
             }
         },
+        "build-worker-performance": {
+            "executor": "nx:run-commands",
+            "outputs": ["{workspaceRoot}/dist/apps/electron-backend/workers"],
+            "options": {
+                "command": "node apps/electron-backend/build-worker.js --performance"
+            }
+        },
         "build-embedded-mpv": {
             "executor": "nx:run-commands",
             "cache": false,
@@ -36,7 +43,11 @@
             "inputs": [
                 "production",
                 "^production",
-                "{workspaceRoot}/apps/electron-backend/native/build/Release/**"
+                "{workspaceRoot}/apps/electron-backend/native/build/Release/**",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
             ],
             "options": {
                 "outputPath": "dist/apps/electron-backend",
@@ -52,7 +63,16 @@
                             ".deps/**",
                             "obj.target/**",
                             "**/.deps/**",
-                            "**/obj.target/**"
+                            "**/obj.target/**",
+                            "obj/**",
+                            "**/obj/**",
+                            "**/*.pdb",
+                            "**/*.iobj",
+                            "**/*.ipdb",
+                            "**/*.ilk",
+                            "**/*.exp",
+                            "**/*.lib",
+                            "**/*.dll.a"
                         ]
                     }
                 ]
@@ -68,7 +88,33 @@
                             "with": "apps/electron-backend/src/environments/environment.prod.ts"
                         }
                     ]
+                },
+                "electron-performance": {
+                    "optimization": true,
+                    "extractLicenses": true,
+                    "inspect": false,
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/electron-backend/src/environments/environment.ts",
+                            "with": "apps/electron-backend/src/environments/environment.prod.ts"
+                        }
+                    ]
                 }
+            }
+        },
+        "build-performance": {
+            "dependsOn": [
+                "electron-backend:build-worker-performance",
+                "electron-backend:build-embedded-mpv",
+                {
+                    "projects": ["web", "remote-control-web"],
+                    "target": "build-performance"
+                }
+            ],
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run electron-backend:build:electron-performance --excludeTaskDependencies"
             }
         },
         "build-e2e": {
@@ -89,7 +135,11 @@
             "inputs": [
                 "production",
                 "^production",
-                "{workspaceRoot}/apps/electron-backend/native/build/Release/**"
+                "{workspaceRoot}/apps/electron-backend/native/build/Release/**",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
             ],
             "options": {
                 "outputPath": "dist/apps/electron-backend",
@@ -105,7 +155,16 @@
                             ".deps/**",
                             "obj.target/**",
                             "**/.deps/**",
-                            "**/obj.target/**"
+                            "**/obj.target/**",
+                            "obj/**",
+                            "**/obj/**",
+                            "**/*.pdb",
+                            "**/*.iobj",
+                            "**/*.ipdb",
+                            "**/*.ilk",
+                            "**/*.exp",
+                            "**/*.lib",
+                            "**/*.dll.a"
                         ]
                     }
                 ]
@@ -175,11 +234,27 @@
             }
         },
         "lint": {
-            "command": "eslint \"apps/electron-backend/**/*.ts\""
+            "inputs": [
+                "default",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
+            ],
+            "command": "eslint \"apps/electron-backend/**/*.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/**/*.ts\""
         },
         "test": {
             "executor": "@nx/jest:jest",
             "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
+            ],
             "options": {
                 "jestConfig": "apps/electron-backend/jest.config.ts"
             }

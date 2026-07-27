@@ -5,7 +5,9 @@ settings screen.
 
 ## Entry Points
 
-- UI: `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings.component.ts`
+- UI: `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup-section.component.ts`
+  (embedded in `settings.component.html`), with the file read/handoff in
+  `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup.facade.ts`
 - Backup service: `/Users/4gray/Code/iptvnator/libs/services/src/lib/playlist-backup.service.ts`
 - Manifest types: `/Users/4gray/Code/iptvnator/libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
 - Xtream pending restore storage:
@@ -102,7 +104,9 @@ Only EPG source URLs are backed up at the app-settings level.
 
 ## Import Flow
 
-The settings component hands file contents to `PlaylistBackupService`.
+The settings backup facade (`settings-backup.facade.ts`, driven by
+`settings-backup-section.component.ts`) reads the file (`file.text()`) and
+hands its contents to `PlaylistBackupService.importBackup()`.
 
 The service:
 
@@ -145,6 +149,18 @@ Runtime contract:
     - Xtream refresh actions
     - settings backup import
     - Xtream content initialization
+
+Restore state originates from untrusted sources (user-supplied backup files,
+stale localStorage entries), so every read and write goes through
+`normalizeXtreamPendingRestoreState` (`libs/shared/interfaces`). Entries in
+`hiddenCategories`, `favorites`, and `recentlyViewed` without a usable numeric
+`xtreamId` are dropped rather than restored: backups exported by builds
+affected by issue #1017 contain ID-less hidden-category entries, and matching
+them against category rows would otherwise degrade to a type-only comparison
+that hides every category of that type. Category rows themselves cross the DB
+worker IPC boundary in the snake_case wire shape declared by
+`XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
+their Drizzle rows explicitly to keep that contract true.
 
 Electron restore behavior:
 

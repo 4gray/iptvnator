@@ -1,5 +1,8 @@
 import { app, BrowserWindow, Menu, screen, session, shell } from 'electron';
-import { WINDOW_STATE_CHANGED } from '@iptvnator/shared/interfaces';
+import {
+    ElectronBridgeWindowState,
+    WINDOW_STATE_CHANGED,
+} from '@iptvnator/shared/interfaces';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
@@ -10,6 +13,8 @@ import {
     trace,
 } from './services/debug-trace';
 import { store, WINDOW_BOUNDS } from './services/store.service';
+import { isFrameCopyRuntimeUsable } from './services/embedded-mpv-frame-copy-platform.util';
+import { isEmbeddedMpvFeatureEnabled } from './services/embedded-mpv-runtime-policy.util';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
 const trustedDevRendererHosts = new Set([
@@ -79,10 +84,22 @@ export function isTrustedRendererNavigationUrl(
 }
 
 export function getMainWindowWebPreferences(): Electron.BrowserWindowConstructorOptions['webPreferences'] {
+    // The frame-copy embedded MPV experiment needs the preload script to
+    // load the shm frame-reader native addon, which the renderer sandbox
+    // forbids. Only that opt-in flag relaxes the sandbox; context isolation
+    // and nodeIntegration:false stay on either way, so page code never
+    // gains Node access. Revisit before the engine can become a default.
+    const frameCopyExperiment =
+        isEmbeddedMpvFeatureEnabled() &&
+        ['1', 'true', 'yes', 'on'].includes(
+            (process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY ?? '')
+                .trim()
+                .toLowerCase()
+        ) && isFrameCopyRuntimeUsable();
     return {
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
+        sandbox: !frameCopyExperiment,
         webSecurity: true,
         backgroundThrottling: false,
         preload: join(__dirname, 'main.preload.js'),
@@ -304,21 +321,44 @@ export default class App {
             return;
         }
 
-        const sendWindowState = () => {
+        // Window state is never re-read at event time: on Windows both
+        // isFullScreen() and isMaximized() can still report the
+        // pre-transition value while the matching event fires (notably for
+        // HTML-element fullscreen, i.e. the video player). Since the
+        // renderer replaces both flags on every push and no later event
+        // corrects a stale one, polling left the controls hidden forever
+        // after leaving fullscreen — and, for the companion flag, the
+        // maximize/restore glyph stuck on the wrong icon.
+        //
+        // Instead the state is seeded once here (window creation, so no
+        // transition is in flight) and each event patches only the flag it
+        // names.
+        const state: ElectronBridgeWindowState = {
+            isMaximized: win.isMaximized(),
+            isFullScreen: win.isFullScreen(),
+        };
+
+        const push = (patch: Partial<ElectronBridgeWindowState>) => {
+            Object.assign(state, patch);
+
             if (win.isDestroyed()) {
                 return;
             }
 
-            win.webContents.send(WINDOW_STATE_CHANGED, {
-                isMaximized: win.isMaximized(),
-                isFullScreen: win.isFullScreen(),
-            });
+            // A copy per push: the renderer must not observe later
+            // mutations of the tracked state.
+            win.webContents.send(WINDOW_STATE_CHANGED, { ...state });
         };
 
-        win.on('maximize', sendWindowState);
-        win.on('unmaximize', sendWindowState);
-        win.on('enter-full-screen', sendWindowState);
-        win.on('leave-full-screen', sendWindowState);
+        win.on('maximize', () => push({ isMaximized: true }));
+        win.on('unmaximize', () => push({ isMaximized: false }));
+        // The html variants cover HTML-element fullscreen; not every
+        // platform/trigger emits both pairs, and duplicate pushes with the
+        // same payload are harmless.
+        win.on('enter-full-screen', () => push({ isFullScreen: true }));
+        win.on('enter-html-full-screen', () => push({ isFullScreen: true }));
+        win.on('leave-full-screen', () => push({ isFullScreen: false }));
+        win.on('leave-html-full-screen', () => push({ isFullScreen: false }));
     }
 
     private static initMainWindow() {

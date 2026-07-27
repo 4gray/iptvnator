@@ -1,5 +1,10 @@
 export interface EmbeddedMpvShortcutHandlers {
     isAvailable: () => boolean;
+    /**
+     * While true, arrow keys stop seeking/adjusting volume — an open dock
+     * chip panel owns them for chip navigation instead.
+     */
+    arrowKeysBlocked?: () => boolean;
     onEscape: () => void;
     togglePaused: () => void;
     toggleFullscreen: () => void;
@@ -41,6 +46,8 @@ export class EmbeddedMpvShortcuts {
             return;
         }
 
+        const arrowsBlocked = handlers.arrowKeysBlocked?.() === true;
+
         switch (event.key) {
             case ' ':
             case 'k':
@@ -54,18 +61,30 @@ export class EmbeddedMpvShortcuts {
                 handlers.toggleFullscreen();
                 return;
             case 'ArrowLeft':
+                if (arrowsBlocked) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.seekBy(-5);
                 return;
             case 'ArrowRight':
+                if (arrowsBlocked) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.seekBy(5);
                 return;
             case 'ArrowUp':
+                if (arrowsBlocked) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.adjustVolume(0.05);
                 return;
             case 'ArrowDown':
+                if (arrowsBlocked) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.adjustVolume(-0.05);
                 return;

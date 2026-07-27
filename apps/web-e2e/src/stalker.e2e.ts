@@ -35,6 +35,12 @@ const DEFAULT_MAC = '00:1A:79:00:00:01';
 /** Minimal scenario MAC — 2 categories, 5 items (edge case testing) */
 const MINIMAL_MAC = '00:1A:79:00:00:03';
 
+/** Embedded-series MAC — 50% of VOD items carry an embedded series[] array */
+const EMBEDDED_SERIES_MAC = '00:1A:79:00:00:05';
+
+/** Legacy pagination MAC — portal without get_all_channels support */
+const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -333,6 +339,177 @@ test('@stalker PWA skips bulk EPG across channel switches', async ({
     expect(shortEpgRequests).toHaveLength(0);
 });
 
+test('@stalker ITV full channel list loads via get_all_channels and search covers it', async ({
+    page,
+}) => {
+    await addStalkerPortal(page);
+
+    const allChannelsRequests: string[] = [];
+    page.on('request', (request) => {
+        if (request.url().includes('action=get_all_channels')) {
+            allChannelsRequests.push(request.url());
+        }
+    });
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+
+    // BEFORE any category click (Xtream parity): entering the Live TV section
+    // preloads the full list, so the main area shows the paginated
+    // all-channels grid and the categories already carry count badges.
+    const allItemsGrid = page.locator('app-stalker-itv-all-items');
+    await expect(allItemsGrid.locator('mat-card').first()).toBeVisible({
+        timeout: 20_000,
+    });
+    await expect(
+        allItemsGrid.locator('.mat-mdc-paginator-range-label')
+    ).toContainText('of 320');
+    await expect(categories.nth(0).locator('.item-count')).toHaveText('320', {
+        timeout: 10_000,
+    });
+    await expect(categories.nth(1).locator('.item-count')).toHaveText('40');
+
+    await categories.nth(1).click();
+
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+
+    // Regression for "search only finds the first 14 loaded items": once the
+    // full list is cached, the whole category (40 channels) is available
+    // without scrolling through 14-item pages.
+    await expect(page.locator('.category-subtitle')).toHaveText('40 items', {
+        timeout: 20_000,
+    });
+    await expect.poll(() => allChannelsRequests.length).toBeGreaterThan(0);
+
+    // Regression: switching to another category once the full list is cached
+    // must serve that category from the cache, not get stuck on an empty
+    // skeleton. (The reset-on-category-change effect used to clobber the
+    // synchronously served list.)
+    await categories.nth(2).click();
+    await expect(page.locator('.category-subtitle')).toHaveText('40 items', {
+        timeout: 20_000,
+    });
+    await expect(channels.first()).toBeVisible({ timeout: 10_000 });
+    // No further get_all_channels request — it's served from the session cache.
+    const requestsAfterFirstCategory = allChannelsRequests.length;
+    await categories.nth(3).click();
+    await expect(channels.first()).toBeVisible({ timeout: 10_000 });
+    expect(allChannelsRequests.length).toBe(requestsAfterFirstCategory);
+
+    // Back to the first category for the search assertions below.
+    await categories.nth(1).click();
+    await expect(page.locator('.category-subtitle')).toHaveText('40 items', {
+        timeout: 20_000,
+    });
+
+    // Search a channel from deep in the list (beyond the first 14 items).
+    const deepChannelName = (
+        await channels.nth(30).locator('.channel-name').textContent()
+    )?.trim();
+    expect(deepChannelName).toBeTruthy();
+
+    const searchInput = page.locator('input[type="search"]');
+    await searchInput.fill(deepChannelName as string);
+    await searchInput.press('Enter');
+
+    await expect(
+        page
+            .locator('[data-test-id="channel-item"] .channel-name')
+            .filter({ hasText: deepChannelName as string })
+            .first()
+    ).toBeVisible({ timeout: 10_000 });
+    // The "loaded only" degraded-search hint must be gone in full-list mode.
+    await expect(page.locator('.search-chip--status')).toHaveCount(0);
+});
+
+test('@stalker ITV censored category pages from the portal and hides its badge', async ({
+    page,
+}) => {
+    await addStalkerPortal(page);
+
+    const adultListRequests: string[] = [];
+    page.on('request', (request) => {
+        const url = request.url();
+        if (
+            url.includes('action=get_ordered_list') &&
+            url.includes('type=itv') &&
+            url.includes('genre=1099')
+        ) {
+            adultListRequests.push(url);
+        }
+    });
+
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    // Wait until the full list is cached (a regular category shows its badge).
+    await expect(categories.nth(1).locator('.item-count')).toHaveText('40', {
+        timeout: 20_000,
+    });
+
+    // The censored genre is excluded from get_all_channels, so its real count
+    // is unknown — no badge instead of a misleading "0".
+    const adultCategory = page.locator('.category-item', {
+        hasText: 'For adults',
+    });
+    await expect(adultCategory).toBeVisible();
+    await expect(adultCategory.locator('.item-count')).toHaveCount(0);
+
+    // Clicking it falls back to the legacy paged flow and still shows channels.
+    await adultCategory.click();
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+    await expect.poll(() => adultListRequests.length).toBeGreaterThan(0);
+});
+
+test('@stalker ITV falls back to page crawling on portals without get_all_channels', async ({
+    page,
+}) => {
+    await addStalkerPortal(page, {
+        name: 'Legacy Stalker Portal',
+        mac: LEGACY_PAGINATION_MAC,
+    });
+
+    const allChannelsRequests: string[] = [];
+    const crawlRequests: string[] = [];
+    page.on('request', (request) => {
+        const url = request.url();
+        if (url.includes('action=get_all_channels')) {
+            allChannelsRequests.push(url);
+        }
+        // The full-list crawl pages through ALL genres (genre=*).
+        if (
+            url.includes('action=get_ordered_list') &&
+            url.includes('type=itv') &&
+            (url.includes('genre=*') || url.includes('genre=%2A'))
+        ) {
+            crawlRequests.push(url);
+        }
+    });
+
+    await page.getByRole('link', { name: /live|itv/i }).click();
+    await page.waitForURL(/stalker.*itv/);
+
+    const categories = page.locator('.category-item');
+    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+
+    const channels = page.locator('[data-test-id="channel-item"]');
+    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+
+    // The crawl collects all 6 × 40 channels; the selected category then
+    // shows its full 40 items without manual lazy-load scrolling.
+    await expect(page.locator('.category-subtitle')).toHaveText('40 items', {
+        timeout: 30_000,
+    });
+    await expect.poll(() => allChannelsRequests.length).toBeGreaterThan(0);
+    expect(crawlRequests.length).toBeGreaterThan(1);
+});
+
 test('@stalker mock server reset clears cached state', async ({ request }) => {
     // Generate data for default MAC
     const before = await request.get(
@@ -389,6 +566,115 @@ test('@stalker mock server returns radio categories and stations', async ({
             radio: true,
         })
     );
+});
+
+test('@stalker favorites — embedded-series favorite refreshes newly released episodes', async ({
+    page,
+    request,
+}) => {
+    // Find an embedded-series VOD item in the mock catalog first
+    const listResponse = await request.get(
+        `${MOCK_SERVER}/stalker?action=get_ordered_list&type=vod&category=2001&p=1&macAddress=${EMBEDDED_SERIES_MAC}&JsHttpRequest=1-xml`
+    );
+    const listBody = await listResponse.json();
+    const embeddedItem = listBody.payload.js.data.find(
+        (item: { series?: unknown[] }) =>
+            Array.isArray(item.series) && item.series.length > 0
+    );
+    expect(embeddedItem).toBeDefined();
+    const episodeCount: number = embeddedItem.series.length;
+
+    await addStalkerPortal(page, {
+        name: 'Embedded Series Portal',
+        mac: EMBEDDED_SERIES_MAC,
+    });
+
+    // Open the embedded-series item from its category and favorite it —
+    // this persists a snapshot with the current episode list
+    const categories = page.locator('.category-item');
+    await expect(categories.first()).toBeVisible({ timeout: 10_000 });
+    await categories.nth(1).click();
+    const card = page.getByText(embeddedItem.name).first();
+    await expect(card).toBeVisible({ timeout: 10_000 });
+    await card.click();
+
+    await expect(
+        page.getByRole('heading', {
+            name: `${episodeCount}. Episode ${episodeCount}`,
+            exact: true,
+        })
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Add to favorites' }).click();
+    // Wait for the async favorite persistence before navigating away
+    await expect(
+        page.getByRole('button', { name: 'Remove from favorites' })
+    ).toBeVisible({ timeout: 10_000 });
+
+    // From now on the portal has "released" one more episode: extend
+    // series[] in every search response (the background snapshot refresh
+    // re-fetches the item via a title search)
+    await page.route('**/localhost:3000/stalker**', async (route) => {
+        const originalUrl = new URL(route.request().url());
+        if (!originalUrl.searchParams.get('search')) {
+            await route.fallback();
+            return;
+        }
+
+        const mockUrl = new URL(BACKEND_PROXY);
+        const targetId = originalUrl.searchParams.get('targetId');
+        const providerUrl = targetId
+            ? Buffer.from(targetId, 'base64url').toString()
+            : originalUrl.searchParams.get('url');
+        if (providerUrl) {
+            mockUrl.searchParams.set('url', providerUrl);
+        }
+        originalUrl.searchParams.forEach((value, key) => {
+            if (key === 'targetId') {
+                return;
+            }
+            mockUrl.searchParams.set(key, value);
+        });
+
+        const response = await route.fetch({ url: mockUrl.toString() });
+        const body = await response.json();
+        const rows: { series?: string[] }[] =
+            body?.payload?.js?.data ?? body?.js?.data ?? [];
+        for (const row of rows) {
+            if (Array.isArray(row.series) && row.series.length > 0) {
+                row.series = [
+                    ...row.series,
+                    String(row.series.length + 1),
+                ];
+            }
+        }
+        await route.fulfill({ response, body: JSON.stringify(body) });
+    });
+
+    // Open the item from the Favorites view: the stored snapshot renders
+    // first, then the background refresh patches in the new episode
+    const favoritesUrl = new URL(page.url());
+    favoritesUrl.pathname = favoritesUrl.pathname.replace(
+        /\/vod.*$/,
+        '/favorites'
+    );
+    favoritesUrl.search = '';
+    await page.goto(favoritesUrl.toString());
+
+    const favoriteCard = page.getByText(embeddedItem.name).first();
+    await expect(favoriteCard).toBeVisible({ timeout: 10_000 });
+    await favoriteCard.click();
+
+    // Snapshot episodes are visible immediately…
+    await expect(
+        page.getByRole('heading', { name: '1. Episode 1', exact: true })
+    ).toBeVisible({ timeout: 10_000 });
+    // …and the newly released episode appears after the background refresh
+    await expect(
+        page.getByRole('heading', {
+            name: `${episodeCount + 1}. Episode ${episodeCount + 1}`,
+            exact: true,
+        })
+    ).toBeVisible({ timeout: 10_000 });
 });
 
 test('@stalker series — seasons load for a series item', async ({

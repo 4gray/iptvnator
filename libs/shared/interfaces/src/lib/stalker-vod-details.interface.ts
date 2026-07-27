@@ -1,6 +1,7 @@
 import {
     TmdbEnrichedCastMember,
     TmdbRecommendation,
+    TmdbSeriesStatus,
 } from './tmdb.interface';
 
 /**
@@ -39,6 +40,10 @@ export interface StalkerVodInfo {
     rating_kinopoisk: string;
     /** Populated by TMDB enrichment; absent in raw portal responses */
     tmdb_cast?: TmdbEnrichedCastMember[];
+    /** Directors (movies) / creators (series) as clickable person chips */
+    tmdb_directors?: TmdbEnrichedCastMember[];
+    /** Series production status (token, never a raw TMDB string) */
+    tmdb_status?: TmdbSeriesStatus;
     /** TMDB backdrop URL — Stalker portals never provide one themselves */
     tmdb_backdrop?: string;
     /** YouTube trailer key from TMDB — Stalker portals provide no trailers */

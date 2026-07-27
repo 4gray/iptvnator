@@ -59,7 +59,10 @@ describe('embedded MPV format utilities', () => {
         expect(volumeLabel(0.755)).toBe('Volume 76%');
     });
 
-    it('rounds host bounds and keeps minimum native view dimensions', () => {
+    it('preserves fractional host edges and keeps minimum native view dimensions', () => {
+        // Rounding happens once in the main process, after CSS→native
+        // scaling — pre-rounded edges would drift by up to 1px per scale
+        // factor on scaled displays.
         const host = {
             getBoundingClientRect: () => ({
                 left: 10.4,
@@ -70,8 +73,8 @@ describe('embedded MPV format utilities', () => {
         } as HTMLElement;
 
         expect(measureBounds(host)).toEqual({
-            x: 10,
-            y: 21,
+            x: 10.4,
+            y: 20.6,
             width: 1,
             height: 1,
         });

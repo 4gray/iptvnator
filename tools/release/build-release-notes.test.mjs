@@ -1,0 +1,119 @@
+/**
+ * CLI-level tests for build-release-notes.mjs.
+ *
+ * The script parses its arguments and runs on import, so these drive the real
+ * entry point in a subprocess rather than importing parseArgs directly.
+ */
+
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+import { after, describe, it } from 'node:test';
+
+const workspaceRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../..'
+);
+const CLI = path.join(workspaceRoot, 'tools/release/build-release-notes.mjs');
+const tempDirs = [];
+
+/** A notes directory holding one valid note, so runs have something to render. */
+function makeNotesDir() {
+    const directory = mkdtempSync(path.join(tmpdir(), 'release-cli-'));
+    tempDirs.push(directory);
+
+    writeFileSync(
+        path.join(directory, 'playback-example.md'),
+        '---\ntype: feature\narea: playback\n---\n\nAn example note.\n',
+        'utf8'
+    );
+
+    return directory;
+}
+
+/**
+ * @returns {{ status: number, stdout: string, stderr: string }}
+ */
+function runCli(args) {
+    try {
+        const stdout = execFileSync(process.execPath, [CLI, ...args], {
+            cwd: workspaceRoot,
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        return { status: 0, stdout, stderr: '' };
+    } catch (error) {
+        return {
+            status: error.status ?? 1,
+            stdout: error.stdout ?? '',
+            stderr: error.stderr ?? '',
+        };
+    }
+}
+
+after(() => {
+    for (const directory of tempDirs) {
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
+
+describe('build-release-notes CLI arguments', () => {
+    it('validates a notes directory', () => {
+        const result = runCli(['--validate', '--dir', makeNotesDir()]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /1 release note\(s\) valid\./);
+    });
+
+    it('ignores a bare `--` separator', () => {
+        // pnpm forwards `--` to the script instead of consuming it, so the
+        // npm-style `pnpm run release:notes:validate -- --dir x` reaches us
+        // with the separator still attached.
+        const result = runCli(['--validate', '--', '--dir', makeNotesDir()]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /1 release note\(s\) valid\./);
+    });
+
+    it('ignores a leading `--` separator', () => {
+        const result = runCli(['--', '--validate', '--dir', makeNotesDir()]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /1 release note\(s\) valid\./);
+    });
+
+    it('renders the github body with a version passed after `--`', () => {
+        const result = runCli([
+            '--format',
+            'github',
+            '--',
+            '--version',
+            '0.24.0',
+            '--dir',
+            makeNotesDir(),
+        ]);
+
+        assert.equal(result.status, 0);
+        assert.match(result.stdout, /## Features/);
+        assert.match(result.stdout, /\*\*playback\*\* — An example note\./);
+    });
+
+    it('still rejects a genuinely unknown argument', () => {
+        const result = runCli(['--validate', '--nope']);
+
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /unknown argument: --nope/);
+    });
+
+    it('still rejects a flag whose value is missing', () => {
+        const result = runCli(['--format']);
+
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /--format requires a value/);
+    });
+});

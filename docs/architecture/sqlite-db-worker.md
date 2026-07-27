@@ -56,6 +56,15 @@ Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 2. `apps/electron-backend/src/app/database/operations/content.operations.ts`
 3. `apps/electron-backend/src/app/database/operations/playlist.operations.ts`
 4. `apps/electron-backend/src/app/database/operations/xtream.operations.ts`
+5. `apps/electron-backend/src/app/database/operations/favorites.operations.ts`
+6. `apps/electron-backend/src/app/database/operations/recently-viewed.operations.ts`
+7. `apps/electron-backend/src/app/database/operations/playback-position.operations.ts`
+8. `apps/electron-backend/src/app/database/operations/content-backdrop.operations.ts`
+9. `apps/electron-backend/src/app/database/operations/title-match.operations.ts`
+10. `apps/electron-backend/src/app/database/operations/tmdb.operations.ts`
+11. `apps/electron-backend/src/app/database/operations/epg-mapping.operations.ts`
+
+(plus the shared cancellation helper `operation-control.ts` in the same directory)
 
 ## Worker Architecture
 
@@ -108,6 +117,111 @@ The worker contract lives in
 2. `DbWorkerResponseMessage`
 3. `DbWorkerEventMessage`
 4. `DbOperationEvent`
+
+### Opt-in request performance capture
+
+`IPTVNATOR_PERF_WORKER_PROFILING=1` adds development/test-only performance
+metadata to each database-worker response. It is disabled by default and must
+stay disabled for production launches.
+
+Each enabled request gets a fresh event-loop-delay histogram and records:
+
+- `requestReceivedEpochMs`, `workStartedEpochMs`, `workEndedEpochMs`, and
+  `histogramFlushedEpochMs`
+- `responsePostedEpochMs`, sampled after profiling finalization and immediately
+  before the worker posts the response to main
+- worker-thread CPU user/system microseconds from `process.threadCpuUsage()`
+- event-loop utilization across the exact work interval
+- event-loop-delay max/p95/p99 from the request's own histogram
+- fixed invalid or unavailable reasons whenever a metric cannot be attributed
+
+Histogram arming waits until the histogram has a sample; flushing waits for its
+sample count to advance after work ends. Both waits use condition-based timer
+polling. Each wait stops after 50 ms of observed monotonic time or its bounded
+poll count; arming and flushing have separate caps, and timer scheduling may
+overshoot wall-clock time. A timeout or profiling API failure never replaces
+the business response: timestamps and any independently available CPU/ELU
+metrics remain valid, while event-loop delay is `null` with a fixed reason.
+
+The long-lived database worker still executes concurrent requests without a
+profiling queue. If captures overlap, every overlapping response carries
+`invalidReason: "overlapping-database-worker-requests"` and all attributable
+CPU, ELU, and event-loop-delay values are `null`. This avoids assigning shared
+worker activity to one request while preserving normal worker concurrency.
+`responsePostedEpochMs` remains a separate response boundary: the initial M3U
+benchmark subtracts it from main's response receipt to attribute the
+database-worker-to-main structured-clone proxy without folding that interval
+into worker execution.
+
+Initial M3U import profiling requires exact operation-specific phase pairs:
+
+- `DB_UPSERT_APP_PLAYLIST`: `serialize.playlist`, then `sqlite.write`. The
+  first covers playlist JSON serialization; the second covers the SQLite
+  upsert and its autocommit.
+- `DB_GET_APP_PLAYLIST`: `sqlite.read`, then `deserialize.playlist`. The first
+  covers the awaited single-row SQLite select; the second covers
+  `parseAppPlaylist`, including JSON parsing and persisted-field hydration.
+
+Missing, partial, reordered, or cross-operation phase sequences fail closed.
+Markers carry item counts only and do not scan or copy the payload to compute
+profiling metadata. The import creates no indexes, so there is no separate
+index/transaction-commit phase. Across the upsert and GET requests, the formal
+benchmark reports renderer-to-main, main-to-database-worker,
+database-worker-to-main, and main-to-renderer structured-clone proxies; their
+explicit sum is `ipcStructuredCloneProxyMs`. See
+[M3U Playlist Module Architecture](./m3u-playlist-module.md#initial-url-import-performance-benchmark-electron)
+for the complete cross-process attribution.
+
+Formal initial-import comparison also requires both request-scoped captures in
+every measured run to have coherent event-loop delay, event-loop utilization,
+and worker-thread CPU values with no unavailable or invalid reason. Summary
+validity records the exact expected and valid request counts; nullable metrics
+remain in raw results but cannot be silently omitted from comparison
+distributions.
+
+The main-process benchmark samples the database worker's V8
+`used_heap_size` and `external_memory` independently. Raw output includes a
+valid-sample count for each metric. A peak is numeric only after at least one
+finite, non-negative isolate sample; otherwise it is `null` with a fixed
+unavailability reason. An initialized zero is never used as evidence of a
+successful sample. Formal initial-import comparisons require valid peak
+samples from exactly one database worker in every measured run. Worker RSS is
+not available per thread and remains part of the separately reported Electron
+main-process RSS together with native and SQLite memory.
+
+### Opt-in post-GC heap capture
+
+The same `IPTVNATOR_PERF_WORKER_PROFILING=1` opt-in enables a development/test
+one-shot `performance:collect-post-gc-heap` request. The benchmark transfers a
+dedicated `MessagePort`; the database worker accepts the request only while no
+request performance capture is active, calls exposed `globalThis.gc()`, reads
+its own V8 isolate through `v8.getHeapStatistics()`, posts one result, and
+closes the port. Production launches do not expose GC or send this request.
+
+The response is a strict XOR: either a non-negative
+`postGcHeapUsedBytes` with a `null` reason, or a `null` heap with a fixed
+unavailability reason. Disabled profiling, a busy worker, unavailable GC, and
+capture failure all fail closed without changing the database operation or
+terminating the worker. The performance launcher supplies
+`--js-flags=--expose-gc` to Electron itself; worker `execArgv` remains
+untouched.
+
+The main-process benchmark selects exactly one current-generation database
+worker, waits for its final sampling call, stops its CPU profile, performs the
+explicit-GC probe, and only then takes an optional diagnostic heap snapshot.
+Profile or snapshot failure cannot overwrite an already captured post-GC
+value. Capture stop closes a synchronous cutoff before awaiting profile or
+snapshot work. A database request after that cutoff cannot restart sampling;
+it records `database-worker-activity-after-cutoff` and invalidates the result.
+Missing, multiple, busy, timed-out, or malformed worker captures remain raw
+nullable outcomes and make a database-applicable measured run invalid for
+comparison. A scenario cancelled before its database phase reports the worker
+metric as not applicable rather than manufacturing an idle database request.
+Before a measured generation, the M3U benchmark persists and validates its seed
+capture, then atomically rolls a clean stopping cutoff into the next active
+generation. This closes the otherwise unobservable gap between separate
+stop/start calls: pre-rollover requests remain late and fatal, while
+post-rollover requests are attributed to the new generation.
 
 ### Progress event contract
 
@@ -241,7 +355,20 @@ Xtream-only row shape:
    short first tokens such as `tv` stay anchored to the start of the title, so
    `TV Sport` matches but `Test TV` does not. These short first-token queries
    bypass trigram FTS and use the `idx_content_title` prefix index path because
-   trigram tokenization cannot match 1-2 character terms.
+   trigram tokenization cannot match 1-2 character terms. Punctuation-joined
+   words such as `A&E` or `X-Men` are an exception: tokenization splits them
+   into short fragments, so the intact word is preserved as a "compound word"
+   (`content-search.util.ts`) that additionally matches as an exact substring —
+   a supplemental trigram FTS `MATCH '"a&e"'` query for the Xtream arm (merged
+   and deduped with the prefix-index candidates), intact-word `LIKE` contains
+   patterns for the per-playlist and M3U payload prefilters, and a
+   space-bounded whole-phrase check in the ranking step. All compound arms
+   keep the remaining words of the query as SQL constraints — the FTS
+   supplement AND-s the non-compound tokens as `LIKE` conditions and the
+   `LIKE` prefilters compose per word — so `A&E HD` cannot fill the bounded
+   candidate window with titles that only contain `A&E`. This lets `A&E`
+   find `US: A&E` anywhere in the title while single short tokens stay
+   prefix-anchored (issue #1161).
 6. `excludeHidden` still filters hidden Xtream categories and also filters M3U
    channels whose `group.title` is listed in the playlist payload's
    `hiddenGroupTitles`.
@@ -335,11 +462,15 @@ Current sources:
 Main-process EPG ownership is split across focused event modules:
 
 1. `apps/electron-backend/src/app/events/epg.events.ts` registers EPG IPC
-   handlers and owns freshness/fetch orchestration.
-2. `apps/electron-backend/src/app/events/epg-worker.service.ts` owns EPG
+   handlers and delegates to the modules below.
+2. `apps/electron-backend/src/app/events/epg-fetch.service.ts` owns EPG
+   freshness checks and multi-URL fetch orchestration.
+3. `apps/electron-backend/src/app/events/epg-mapping.service.ts` owns manual
+   EPG channel-mapping resolution and CRUD at the IPC boundary.
+4. `apps/electron-backend/src/app/events/epg-worker.service.ts` owns EPG
    worker creation, renderer progress updates, fetch worker lifecycle, and
    clear-worker lifecycle.
-3. `apps/electron-backend/src/app/events/epg-query.service.ts` owns EPG
+5. `apps/electron-backend/src/app/events/epg-query.service.ts` owns EPG
    channel/program database lookups, metadata resolution, and DB row mapping.
 
 Keep worker lifecycle state out of the IPC registration layer. Add new EPG DB
@@ -496,6 +627,51 @@ A running Electron app keeps using the worker bundle it already loaded at
 startup. This is a common reason a worker fix appears "not working" in manual
 verification even when the source patch is correct.
 
+## Gotchas
+
+### Prepared-statement writes inside a transaction must use `.run()`, not `.execute()`
+
+Drizzle's `PreparedQuery.execute()` on the `better-sqlite3` driver returns a
+**promise** and defers the actual SQL to a microtask. Our bulk writers run their
+statements inside a **synchronous** `db.transaction(() => { ... })` callback,
+which cannot `await`. If the statement is dispatched with `.execute()`, the
+transaction commits before the deferred promise settles, so the write is a
+**silent no-op** — no error, no rows changed.
+
+Always call the synchronous `.run(placeholderValues)` on prepared statements
+executed inside a synchronous transaction callback:
+
+```ts
+// favorites is playlist-scoped: filter by (contentId, playlistId), otherwise
+// a same-contentId favorite in another playlist gets rewritten too.
+const stmt = db
+    .update(schema.favorites)
+    .set({ position: sql<number>`${sql.placeholder('position')}` })
+    .where(
+        and(
+            eq(schema.favorites.contentId, sql.placeholder('contentId')),
+            eq(schema.favorites.playlistId, sql.placeholder('playlistId'))
+        )
+    )
+    .prepare();
+
+db.transaction(() => {
+    for (const { content_id, playlist_id, position } of chunk) {
+        // NOT .execute()
+        stmt.run({ position, contentId: content_id, playlistId: playlist_id });
+    }
+});
+```
+
+This bit `reorderGlobalFavorites` and `removeRecentItemsBatch` (issue #1137):
+custom favorites drag-and-drop order silently never persisted for the
+per-playlist ("this playlist") view. Global ("all playlists") favorites masked
+it because that path also persists an order to the `appState`
+`global-favorites-channel-order-v1` key and re-applies it on read, independent
+of the DB `position` column. The mocked operations specs did not catch it —
+a jest mock records an `.execute()` call the same as a `.run()` call, so the
+regression tests explicitly assert `.run()` is used and `.execute()` is not.
+
 ## Testing
 
 ### Unit coverage added
@@ -631,11 +807,16 @@ CI=1 NX_TASKS_RUNNER_DYNAMIC_OUTPUT=false pnpm nx run electron-backend:build --s
 
 These are intentionally still out of scope for this first cut:
 
-1. request cancellation
-2. moving network-heavy Xtream fetches off the current path
-3. migrating every remaining small SQLite IPC handler to the worker
-4. richer delete progress reporting for bulk destructive operations
-5. repo-wide Angular/Jest cleanup for the currently failing web test baseline
+1. moving network-heavy Xtream fetches off the current path
+2. migrating every remaining small SQLite IPC handler to the worker
+3. richer delete progress reporting for bulk destructive operations
+4. repo-wide Angular/Jest cleanup for the currently failing web test baseline
+
+(Request cancellation, originally listed here, has since shipped — see the
+"Cancellation contract" section above: `DB_CANCEL_OPERATION` in
+`apps/electron-backend/src/app/api/main.preload.ts`, `AbortError` production in
+`database.worker.ts`, and `DatabaseService.cancelOperation` in
+`libs/services/src/lib/database-electron.service.ts`.)
 
 ## Extending The Worker
 

@@ -24,7 +24,8 @@ type GetProfileWithIdentity = (
 ) => Promise<StalkerProfileResponse>;
 
 describe('StalkerSessionService identity payloads', () => {
-    const portalUrl = 'https://portal.example.com/stalker_portal/server/load.php';
+    const portalUrl =
+        'https://portal.example.com/stalker_portal/server/load.php';
     const macAddress = '00:1A:79:AA:BB:CC';
 
     let service: StalkerSessionService;
@@ -54,6 +55,10 @@ describe('StalkerSessionService identity payloads', () => {
         });
 
         service = TestBed.inject(StalkerSessionService);
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
     });
 
     it('omits SN, device IDs, and signatures from get_profile when identity is blank', async () => {
@@ -178,6 +183,34 @@ describe('StalkerSessionService identity payloads', () => {
         const handshakePayload = dataService.sendIpcEvent.mock.calls[0][1];
         expect(handshakePayload.params.action).toBe('handshake');
         expect(handshakePayload.serialNumber).toBe('CUSTOMSN123');
+    });
+
+    it('does not log credentials from portal request errors', async () => {
+        const token = 'stalker-error-token-secret';
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        dataService.sendIpcEvent.mockRejectedValue(
+            new Error(
+                `Request failed: https://portal.example/api?token=${token}&action=get_profile`
+            )
+        );
+
+        await expect(
+            service.getProfile(portalUrl, macAddress, token, {}, 'random-1')
+        ).rejects.toThrow('Request failed');
+
+        const output = consoleError.mock.calls
+            .flatMap((call) =>
+                call.map((value) =>
+                    value instanceof Error
+                        ? `${value.message}\n${value.stack ?? ''}`
+                        : JSON.stringify(value)
+                )
+            )
+            .join('\n');
+        expect(output).not.toContain(token);
+        expect(output).toContain('get_profile');
     });
 
     function lastStalkerPayload(): {

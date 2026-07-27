@@ -75,9 +75,9 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 
 ### Store
 
-**File**: `libs/portal/xtream/data-access/src/lib/stores/xtream.store.ts`
+**File**: `libs/portal/xtream/data-access/src/lib/stores/features/with-content.feature.ts`
 
-Added `reloadCategories()` method to refresh categories from database after visibility changes, ensuring the sidebar updates immediately.
+`reloadCategories()` (exposed on the `XtreamStore` facade via feature composition) refreshes categories from the database after visibility changes, ensuring the sidebar updates immediately.
 
 ## Behavior Notes
 
@@ -133,24 +133,28 @@ apps/electron-backend/src/app/
 libs/services/src/lib/
 └── database-electron.service.ts  # Service methods (with hidden category support)
 
-libs/ui/components/src/lib/recent-playlists/
-└── recent-playlists.component.ts  # Stores hidden categories to localStorage on refresh
+libs/playlist/shared/ui/src/lib/
+├── recent-playlists/
+│   └── recent-playlists.component.ts  # Persists hidden categories (restore state) via XtreamPendingRestoreService on refresh
+└── playlist-refresh-action.service.ts # Same restore-state persistence for the header refresh action
+
+libs/services/src/lib/
+└── xtream-pending-restore.service.ts  # localStorage keyed `xtream-restore-{playlistId}`
+
+libs/workspace/shell/feature/src/lib/
+└── workspace-context-panel/
+    └── workspace-context-panel.component.ts # Tune button; lazy-loads the dialog, calls reloadCategories()
 
 libs/portal/xtream/feature/src/lib/
-├── category-management-dialog/        # Dialog component
-│   ├── category-management-dialog.component.ts
-│   ├── category-management-dialog.component.html
-│   └── category-management-dialog.component.scss
-├── xtream-main-container.component.ts # Added button & dialog
-├── xtream-main-container.component.html
-├── live-stream-layout/
-│   ├── live-stream-layout.component.ts # Added button & dialog
-│   └── live-stream-layout.component.html
+└── category-management-dialog/        # Dialog component
+    ├── category-management-dialog.component.ts
+    ├── category-management-dialog.component.html
+    └── category-management-dialog.component.scss
 
 libs/portal/xtream/data-access/src/lib/
 ├── data-sources/
 │   └── electron-xtream-data-source.ts # Reads/passes hidden categories on save
-└── stores/xtream.store.ts             # Added reloadCategories method
+└── stores/features/with-content.feature.ts # reloadCategories() (exposed on XtreamStore)
 
 apps/web/src/assets/i18n/
 └── en.json                      # Added translation keys

@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "プレイリストの更新に失敗しました。ローカルファイルが利用できなくなっています。ファイルパスを確認するか、プレイリストを再インポートしてください。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "プレイリストの更新に失敗しました。アプリがローカルファイルにアクセスできなくなりました。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "プレイリストの自動更新が完了しませんでした：{{total}} 件中 {{updated}} 件を更新し、{{failed}} 件が失敗しました。",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "プレイリストの自動更新が完了しませんでした：{{total}} 件中 {{updated}} 件を更新し、{{failed}} 件が失敗、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
+            "AUTO_REFRESH_UPDATE_FAILED": "プレイリストの自動更新に失敗しました。{{total}} 件のプレイリストをいずれも更新できませんでした。",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "プレイリストの自動更新：{{total}} 件中 {{updated}} 件を更新し、{{skipped}} 件をスキップしました（URL もファイルパスもありません）。",
             "AUTO_REFRESH_ENABLED": "自動更新が有効です"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "キーを確認",
         "TMDB_TEST_SUCCESS": "キーは有効です — TMDB が正常に応答しました",
         "TMDB_TEST_FAILED": "確認に失敗しました — TMDB がキーを拒否したか、接続できません",
+        "TMDB_CACHE": "メタデータキャッシュ",
+        "TMDB_CACHE_DESCRIPTION": "ダウンロードしたメタデータをローカルに保存し、詳細ページを即座に表示します。消去すると次回アクセス時に再取得します。",
+        "TMDB_CACHE_SIZE": "{{entries}} 件 · {{size}}",
+        "TMDB_CACHE_CLEAR": "キャッシュを消去",
+        "TMDB_CACHE_ERROR": "キャッシュを読み取れません — 再試行してください",
         "TMDB_CREDITS": "メタデータ",
         "TMDB_ATTRIBUTION": "本製品は TMDB API を使用していますが、TMDB による承認または認証を受けたものではありません。",
         "APP_PREFERENCES": "アプリ設定",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "クリア中…",
         "EPG_URL_ERROR": "有効なURLではありません",
         "VIDEO_PLAYER_DESCRIPTION": "デフォルトのビデオプレーヤーを選択",
+        "WEB_PLAYER_SHARED_CONTROLS": "Webプレーヤーの統一コントロール（試験的）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5、Video.js、ArtPlayerでIPTVnator共通のコントロールを使用します。",
+        "PLAYER_AMBIENT_MODE": "プレーヤー周囲のぼかし背景",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "プレーヤーの周囲をぼかしたポスター画像で埋め、通常の黒い枠の代わりに表示します。",
+        "PLAYER_UP_NEXT_RAIL": "「次に再生」エピソードレール",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "ウィンドウ幅が広い場合、シリーズのプレーヤーを左側に配置し、その横に次のエピソードの一覧を表示します。",
         "STREAM_FORMAT_DESCRIPTION": "デフォルトのストリーム形式を選択（Xtream）",
         "LANGUAGE_DESCRIPTION": "アプリケーションの言語を選択",
         "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "デフォルトで字幕を表示/非表示",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "再生中フッターを表示",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "デスクトップでワークスペース下部に外部プレーヤーのステータスバーを表示し続けます。",
+        "STRIP_COUNTRY_PREFIX": "チャンネル名から国名プレフィックスを削除",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "アプリ全体で、ライブチャンネル名から \"US | \" や \"UK - \" のような国／グループのプレフィックスを削除します。",
         "VERSION_DESCRIPTION": "アプリケーションの現在のバージョン",
         "ABOUT_SUBTITLE": "バージョン、プロジェクトのリンク、IPTVnatorをサポートする方法。",
         "EMBEDDED_MPV_NOTICE_TITLE": "組み込みMPVランタイム",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "埋め込みMPV：フレームコピーエンジン（実験的）",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "映像をアプリのキャンバスに描画するため、メニューやダイアログをその上に表示できます。",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "アプリの再起動後に有効になります。"
     },
     "THEMES": {
         "DARK_THEME": "ダーク",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "戻る",
             "RETRY": "再試行",
             "STALLED": "このストリームの開始に予想より時間がかかっています。",
             "PLAYBACK_FAILED": "組み込みMPVでの再生に失敗しました。",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "10秒戻る",
             "FORWARD_10_SECONDS": "10秒進む",
             "LIVE_STREAM": "ライブストリーム",
+            "PLAYBACK_POSITION": "再生位置",
             "MUTE": "ミュート",
             "UNMUTE": "ミュート解除",
             "MUTED": "ミュート中",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "録画を開始できませんでした。",
             "RECORDING_FAILED_TO_STOP": "録画を停止できませんでした。",
             "SAVED_TO": "{{path}}に保存しました",
+            "ENTER_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを開始",
+            "EXIT_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを終了",
             "ENTER_FULLSCREEN": "全画面表示",
             "EXIT_FULLSCREEN": "全画面表示を終了"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "お気に入りから削除",
         "ADD_FAVORITE": "お気に入りに追加",
         "SHOW_DETAILS": "チャンネルの詳細を表示",
+        "MAP_EPG": "EPGチャンネルを割り当て",
         "FAVORITES_UPDATED": "お気に入りが更新されました！",
         "SELECT_CHANNEL_PLAYBACK": "再生を開始するチャンネルを選択してください",
         "SORT_BY": "並び替え",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "表示 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPGチャンネルの割り当て",
+        "SUBTITLE": "「{{channelName}}」のEPGチャンネルを手動で選択します",
+        "SEARCH_PLACEHOLDER": "EPGチャンネルを検索...",
+        "CURRENT_MAPPING": "現在の割り当て",
+        "NO_MAPPING": "EPGの割り当てはありません",
+        "SAVE": "割り当てを保存",
+        "REMOVE": "割り当てを削除",
+        "CLOSE": "閉じる",
+        "NO_RESULTS": "EPGチャンネルが見つかりません",
+        "SEARCH_HINT": "検索するには{{min}}文字以上入力してください",
+        "SAVED": "EPGの割り当てを保存しました",
+        "REMOVED": "EPGの割り当てを削除しました",
+        "SAVE_FAILED": "EPGの割り当てを更新できませんでした"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "はい",
     "NO": "いいえ",
@@ -756,6 +797,8 @@
         "ACTORS": "出演者",
         "DIRECTOR": "監督",
         "SIMILAR": "類似作品",
+        "CREW_JOB_DIRECTOR": "監督",
+        "CREW_JOB_CREATOR": "クリエイター",
         "ACTOR_FILMOGRAPHY": "出演作品",
         "ACTOR_FILTER_ALL": "すべて",
         "ACTOR_SCOPE_THIS_PORTAL": "このポータル",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "ライブラリにあり",
         "ACTOR_SEARCH_IN_PORTAL": "ポータルで検索",
         "ACTOR_BORN": "生年月日:",
+        "ACTOR_DIED": "死去",
+        "SERIES_STATUS_RETURNING": "放送中",
+        "SERIES_STATUS_PLANNED": "企画中",
+        "SERIES_STATUS_IN_PRODUCTION": "製作中",
+        "SERIES_STATUS_ENDED": "完結",
+        "SERIES_STATUS_CANCELED": "打ち切り",
+        "SERIES_STATUS_PILOT": "パイロット",
         "DURATION": "時間",
         "CAST": "キャスト",
         "EPISODE_RUN_TIME": "エピソード再生時間",
@@ -779,6 +829,7 @@
         "RESTART": "最初から再生",
         "CONTINUE_WATCHING": "視聴を再開",
         "PLAY_FIRST_EPISODE": "第1話を再生",
+        "PLAY_EPISODE": "第{{episode}}話を再生",
         "RESUME_EPISODE": "エピソードを再開",
         "PLAY_NEXT_EPISODE": "次のエピソードを再生",
         "SERIES_WATCHED": "シリーズ視聴済み",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "ストリームURLがクリップボードにコピーされました",
         "COPY_STREAM_URL": "ストリームURLをコピー",
         "NOW_PLAYING": "再生中",
+        "UP_NEXT": "次に再生",
         "CLOSE_PLAYER": "プレーヤーを閉じる",
         "ABOUT": "概要",
         "SEASONS_AND_EPISODES": "シーズンとエピソード",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "このコンテンツはこのサーバーでは利用できません",
         "PLAYBACK_ERROR": "再生URLの取得に失敗しました",
         "LOADING_SEASONS": "シーズンを読み込み中...",
+        "LOADING_ALL_CHANNELS": "全チャンネルリストを読み込み中…",
+        "REFRESH_CHANNEL_LIST": "チャンネルリストを更新",
+        "NO_CHANNELS_IN_CATEGORY": "このカテゴリーにチャンネルがありません",
+        "ITEM": "件",
+        "ITEMS": "件",
         "NO_EPISODES": "利用可能なエピソードはありません",
         "ALL_RADIO": "すべてのラジオ"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "ソースのプレイリストが削除されたため、このダウンロードはライブラリで開けなくなりました。",
         "FILE_NOT_FOUND": "このダウンロードファイルはディスク上で見つかりませんでした。",
         "FILE_ACTION_ERROR": "ファイル操作を完了できませんでした。",
+        "ACTION_FAILED": "操作に失敗しました",
+        "PAUSE": "一時停止",
+        "RESUME": "再開",
         "CANCEL": "キャンセル",
         "RETRY": "再試行",
         "REMOVE": "削除",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "ダウンロード中",
             "COMPLETED": "完了",
             "FAILED": "失敗",
-            "CANCELED": "キャンセル済み"
+            "CANCELED": "キャンセル済み",
+            "PAUSED": "一時停止中"
         }
     },
     "REMOTE_CONTROL": {

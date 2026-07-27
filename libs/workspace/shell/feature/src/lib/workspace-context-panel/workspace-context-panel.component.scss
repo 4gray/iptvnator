@@ -177,7 +177,8 @@ app-workspace-context-category-view {
     overflow-x: hidden;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: var(--mat-sys-outline-variant) transparent;
+    scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
+        transparent;
 }
 
 .context-skeleton {

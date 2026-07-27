@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "Échec de l'actualisation de la liste de lecture. Le fichier local n'est plus disponible. Vérifiez le chemin du fichier ou réimportez la liste de lecture.",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "Échec de l'actualisation de la liste de lecture. L'application ne peut plus accéder au fichier local.",
             "AUTO_REFRESH_UPDATE_SUCCESS": "Succès ! Les listes de lecture ont été mises à jour avec succès",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec.",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "Actualisation automatique incomplète : {{updated}} listes de lecture sur {{total}} mises à jour, {{failed}} en échec, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
+            "AUTO_REFRESH_UPDATE_FAILED": "Échec de l'actualisation automatique. Aucune des {{total}} listes de lecture n'a pu être mise à jour.",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "Actualisation automatique des listes de lecture : {{updated}} sur {{total}} mises à jour, {{skipped}} ignorées (aucune URL ni chemin de fichier).",
             "AUTO_REFRESH_ENABLED": "Actualisation automatique activée"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "Vérifier la clé",
         "TMDB_TEST_SUCCESS": "La clé fonctionne — TMDB a répondu avec succès",
         "TMDB_TEST_FAILED": "Échec de la vérification — TMDB a rejeté la clé ou est injoignable",
+        "TMDB_CACHE": "Cache des métadonnées",
+        "TMDB_CACHE_DESCRIPTION": "Les métadonnées téléchargées sont stockées localement pour que les pages de détails s'ouvrent instantanément. Après le vidage, l'application récupérera des données fraîches.",
+        "TMDB_CACHE_SIZE": "{{entries}} entrées · {{size}}",
+        "TMDB_CACHE_CLEAR": "Vider le cache",
+        "TMDB_CACHE_ERROR": "Impossible de lire le cache — réessayez",
         "TMDB_CREDITS": "Métadonnées",
         "TMDB_ATTRIBUTION": "Ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB.",
         "APP_PREFERENCES": "Préférences de l'application",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "Effacement…",
         "EPG_URL_ERROR": "La valeur n'est pas une URL valide",
         "VIDEO_PLAYER_DESCRIPTION": "Sélectionnez le lecteur vidéo par défaut",
+        "WEB_PLAYER_SHARED_CONTROLS": "Commandes unifiées pour les lecteurs web (expérimental)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Utilise les commandes partagées d’IPTVnator dans HTML5, Video.js et ArtPlayer.",
+        "PLAYER_AMBIENT_MODE": "Mode ambiant",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "Remplit l'espace autour du lecteur avec une affiche floue et assombrie au lieu de barres noires simples.",
+        "PLAYER_UP_NEXT_RAIL": "Rail d'épisodes « À suivre »",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Sur les fenêtres larges, ancre le lecteur de séries à gauche et affiche les épisodes à venir à côté.",
         "STREAM_FORMAT_DESCRIPTION": "Sélectionnez le format de flux par défaut (xtream)",
         "LANGUAGE_DESCRIPTION": "Sélectionnez la langue de l'application",
         "THEME_DESCRIPTION": "Sélectionnez le thème visuel de l'application",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Afficher ou masquer les sous-titres par défaut",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Afficher le pied de page de lecture en cours",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Garde la barre d'état du lecteur externe visible en bas de l'espace de travail sur ordinateur.",
+        "STRIP_COUNTRY_PREFIX": "Retirer les préfixes de pays des noms de chaînes",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Supprime les préfixes de pays ou de groupe comme \"US | \" ou \"UK - \" des noms des chaînes en direct dans toute l'application.",
         "VERSION_DESCRIPTION": "Version actuelle de l'application",
         "ABOUT_SUBTITLE": "Version, liens du projet et façons de soutenir IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Runtime MPV intégré",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV : moteur frame-copy (expérimental)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "La vidéo est rendue sur le canevas de l'application, les menus et boîtes de dialogue s'affichent donc au-dessus.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Prend effet après le redémarrage de l'application."
     },
     "THEMES": {
         "DARK_THEME": "Sombre",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "Retour",
             "RETRY": "Réessayer",
             "STALLED": "Ce flux met plus de temps que prévu à démarrer.",
             "PLAYBACK_FAILED": "Échec de la lecture avec MPV intégré.",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "Reculer de 10 secondes",
             "FORWARD_10_SECONDS": "Avancer de 10 secondes",
             "LIVE_STREAM": "Diffusion en direct",
+            "PLAYBACK_POSITION": "Position de lecture",
             "MUTE": "Muet",
             "UNMUTE": "Activer le son",
             "MUTED": "Son coupé",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "L'enregistrement n'a pas pu démarrer.",
             "RECORDING_FAILED_TO_STOP": "L'enregistrement n'a pas pu s'arrêter.",
             "SAVED_TO": "Enregistré dans {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Activer le mode image dans l’image",
+            "EXIT_PICTURE_IN_PICTURE": "Quitter le mode image dans l’image",
             "ENTER_FULLSCREEN": "Passer en plein écran",
             "EXIT_FULLSCREEN": "Quitter le plein écran"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "Retirer des favoris",
         "ADD_FAVORITE": "Ajouter aux favoris",
         "SHOW_DETAILS": "Afficher les détails de la chaîne",
+        "MAP_EPG": "Associer une chaîne EPG",
         "FAVORITES_UPDATED": "Les favoris ont été mis à jour !",
         "SELECT_CHANNEL_PLAYBACK": "Veuillez sélectionner une chaîne pour démarrer la lecture",
         "SORT_BY": "Trier par",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "afficher ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Associer une chaîne EPG",
+        "SUBTITLE": "Sélectionner manuellement une chaîne EPG pour « {{channelName}} »",
+        "SEARCH_PLACEHOLDER": "Rechercher des chaînes EPG...",
+        "CURRENT_MAPPING": "Association actuelle",
+        "NO_MAPPING": "Aucune association EPG définie",
+        "SAVE": "Enregistrer l'association",
+        "REMOVE": "Supprimer l'association",
+        "CLOSE": "Fermer",
+        "NO_RESULTS": "Aucune chaîne EPG trouvée",
+        "SEARCH_HINT": "Saisissez au moins {{min}} caractères pour rechercher",
+        "SAVED": "Association EPG enregistrée",
+        "REMOVED": "Association EPG supprimée",
+        "SAVE_FAILED": "Impossible de mettre à jour l'association EPG"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "Oui",
     "NO": "Non",
@@ -756,6 +797,8 @@
         "ACTORS": "Acteurs",
         "DIRECTOR": "Réalisateur",
         "SIMILAR": "Similaires",
+        "CREW_JOB_DIRECTOR": "Réalisateur",
+        "CREW_JOB_CREATOR": "Créateur",
         "ACTOR_FILMOGRAPHY": "Filmographie",
         "ACTOR_FILTER_ALL": "Tout",
         "ACTOR_SCOPE_THIS_PORTAL": "Ce portail",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "Dans votre bibliothèque",
         "ACTOR_SEARCH_IN_PORTAL": "Rechercher dans le portail",
         "ACTOR_BORN": "Naissance :",
+        "ACTOR_DIED": "Décédé",
+        "SERIES_STATUS_RETURNING": "En cours",
+        "SERIES_STATUS_PLANNED": "Planifiée",
+        "SERIES_STATUS_IN_PRODUCTION": "En production",
+        "SERIES_STATUS_ENDED": "Terminée",
+        "SERIES_STATUS_CANCELED": "Annulée",
+        "SERIES_STATUS_PILOT": "Pilote",
         "DURATION": "Durée",
         "CAST": "Distribution",
         "EPISODE_RUN_TIME": "Durée de l'épisode",
@@ -779,6 +829,7 @@
         "RESTART": "Recommencer",
         "CONTINUE_WATCHING": "Reprendre la lecture",
         "PLAY_FIRST_EPISODE": "Lire le premier épisode",
+        "PLAY_EPISODE": "Lire l'épisode {{episode}}",
         "RESUME_EPISODE": "Reprendre l'épisode",
         "PLAY_NEXT_EPISODE": "Lire l'épisode suivant",
         "SERIES_WATCHED": "Série vue",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "URL du flux copiée dans le presse-papiers",
         "COPY_STREAM_URL": "Copier l'URL du flux",
         "NOW_PLAYING": "En cours de lecture",
+        "UP_NEXT": "À suivre",
         "CLOSE_PLAYER": "Fermer le lecteur",
         "ABOUT": "À propos",
         "SEASONS_AND_EPISODES": "Saisons et épisodes",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "Ce contenu n'est pas disponible sur ce serveur",
         "PLAYBACK_ERROR": "Échec de l'obtention de l'URL de lecture",
         "LOADING_SEASONS": "Chargement des saisons…",
+        "LOADING_ALL_CHANNELS": "Chargement de la liste complète des chaînes…",
+        "REFRESH_CHANNEL_LIST": "Actualiser la liste des chaînes",
+        "NO_CHANNELS_IN_CATEGORY": "Aucune chaîne dans cette catégorie",
+        "ITEM": "élément",
+        "ITEMS": "éléments",
         "NO_EPISODES": "Aucun épisode disponible",
         "ALL_RADIO": "Toutes les radios"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "Ce téléchargement ne peut plus être ouvert dans la bibliothèque car sa liste de lecture source a été supprimée.",
         "FILE_NOT_FOUND": "Ce fichier téléchargé n'est plus disponible sur le disque.",
         "FILE_ACTION_ERROR": "L'action sur le fichier n'a pas pu être effectuée.",
+        "ACTION_FAILED": "Échec de l'action",
+        "PAUSE": "Mettre en pause",
+        "RESUME": "Reprendre",
         "CANCEL": "Annuler",
         "RETRY": "Réessayer",
         "REMOVE": "Supprimer",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "En cours",
             "COMPLETED": "Terminé",
             "FAILED": "Échec",
-            "CANCELED": "Annulé"
+            "CANCELED": "Annulé",
+            "PAUSED": "En pause"
         }
     },
     "REMOTE_CONTROL": {

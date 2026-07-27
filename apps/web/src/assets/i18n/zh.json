@@ -127,6 +127,10 @@
             "PLAYLIST_UPDATE_FILE_NOT_FOUND": "播放列表刷新失败。本地文件已不可用。请检查文件路径或重新导入播放列表。",
             "PLAYLIST_UPDATE_FILE_ACCESS_ERROR": "播放列表刷新失败。应用程序无法再访问该本地文件。",
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放列表已成功更新",
+            "AUTO_REFRESH_UPDATE_PARTIAL": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败。",
+            "AUTO_REFRESH_UPDATE_PARTIAL_WITH_SKIPPED": "播放列表自动刷新未完成：{{total}} 个播放列表中已更新 {{updated}} 个，{{failed}} 个失败，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
+            "AUTO_REFRESH_UPDATE_FAILED": "播放列表自动刷新失败。{{total}} 个播放列表均未更新。",
+            "AUTO_REFRESH_UPDATE_SKIPPED": "播放列表自动刷新：{{total}} 个中已更新 {{updated}} 个，跳过 {{skipped}} 个（没有 URL 或文件路径）。",
             "AUTO_REFRESH_ENABLED": "已启用自动刷新"
         },
         "ADD_PLAYLIST": {
@@ -247,6 +251,11 @@
         "TMDB_TEST_BUTTON": "检查密钥",
         "TMDB_TEST_SUCCESS": "密钥有效 — TMDB 响应成功",
         "TMDB_TEST_FAILED": "检查失败 — TMDB 拒绝了该密钥或无法访问",
+        "TMDB_CACHE": "元数据缓存",
+        "TMDB_CACHE_DESCRIPTION": "已下载的元数据保存在本地，详情页可立即打开。清除后应用会在下次访问时重新获取。",
+        "TMDB_CACHE_SIZE": "{{entries}} 条 · {{size}}",
+        "TMDB_CACHE_CLEAR": "清除缓存",
+        "TMDB_CACHE_ERROR": "无法读取缓存 — 请重试",
         "TMDB_CREDITS": "元数据",
         "TMDB_ATTRIBUTION": "本产品使用 TMDB API，但未获得 TMDB 的认可或认证。",
         "APP_PREFERENCES": "应用偏好",
@@ -296,6 +305,12 @@
         "CLEARING_EPG_DATA": "清除中…",
         "EPG_URL_ERROR": "该值不是有效的 URL",
         "VIDEO_PLAYER_DESCRIPTION": "选择默认视频播放器",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器统一控件（实验性）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共享控件。",
+        "PLAYER_AMBIENT_MODE": "环境背景填充",
+        "PLAYER_AMBIENT_MODE_DESCRIPTION": "用模糊、暗淡的海报填充播放器周围的空白，而不是黑条纹。",
+        "PLAYER_UP_NEXT_RAIL": "「接下来播放」剧集栏",
+        "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "在宽窗口下，将剧集播放器停靠在左侧，并在旁边显示后续剧集。",
         "STREAM_FORMAT_DESCRIPTION": "选择默认的流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "选择应用程序的语言",
         "THEME_DESCRIPTION": "选择应用程序的视觉主题",
@@ -315,6 +330,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "默认显示或隐藏字幕",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "显示「正在播放」底栏",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "在桌面端工作区底部保持外部播放器状态栏可见。",
+        "STRIP_COUNTRY_PREFIX": "移除频道名称中的国家前缀",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "从整个应用中的直播频道名称里移除国家/分组前缀，例如 \"US | \" 或 \"UK - \"。",
         "VERSION_DESCRIPTION": "应用程序的当前版本",
         "ABOUT_SUBTITLE": "版本、项目链接以及支持 IPTVnator 的方式。",
         "EMBEDDED_MPV_NOTICE_TITLE": "嵌入式 MPV 运行时",
@@ -428,7 +445,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "嵌入式 MPV：帧拷贝引擎（实验性）",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "视频渲染到应用画布上，菜单和对话框可以显示在其上方。",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "重启应用后生效。"
     },
     "THEMES": {
         "DARK_THEME": "深色",
@@ -446,6 +466,7 @@
     },
     "EMBEDDED_MPV": {
         "PLAYER": {
+            "BACK": "返回",
             "RETRY": "重试",
             "STALLED": "该流的启动时间超出预期。",
             "PLAYBACK_FAILED": "嵌入式 MPV 播放失败。",
@@ -459,6 +480,7 @@
             "BACK_10_SECONDS": "快退 10 秒",
             "FORWARD_10_SECONDS": "快进 10 秒",
             "LIVE_STREAM": "直播",
+            "PLAYBACK_POSITION": "播放位置",
             "MUTE": "静音",
             "UNMUTE": "取消静音",
             "MUTED": "已静音",
@@ -483,6 +505,8 @@
             "RECORDING_FAILED_TO_START": "录制启动失败。",
             "RECORDING_FAILED_TO_STOP": "录制停止失败。",
             "SAVED_TO": "已保存至 {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "进入画中画",
+            "EXIT_PICTURE_IN_PICTURE": "退出画中画",
             "ENTER_FULLSCREEN": "进入全屏",
             "EXIT_FULLSCREEN": "退出全屏"
         }
@@ -559,6 +583,7 @@
         "REMOVE_FAVORITE": "从收藏夹中删除",
         "ADD_FAVORITE": "添加到收藏",
         "SHOW_DETAILS": "显示频道详情",
+        "MAP_EPG": "映射 EPG 频道",
         "FAVORITES_UPDATED": "收藏夹已更新！",
         "SELECT_CHANNEL_PLAYBACK": "请选择一个频道开始播放",
         "SORT_BY": "排序方式",
@@ -704,6 +729,21 @@
             "GROUP_EXPAND": "展开 ›"
         }
     },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "映射 EPG 频道",
+        "SUBTITLE": "为“{{channelName}}”手动选择 EPG 频道",
+        "SEARCH_PLACEHOLDER": "搜索 EPG 频道...",
+        "CURRENT_MAPPING": "当前映射",
+        "NO_MAPPING": "未设置 EPG 映射",
+        "SAVE": "保存映射",
+        "REMOVE": "移除映射",
+        "CLOSE": "关闭",
+        "NO_RESULTS": "未找到 EPG 频道",
+        "SEARCH_HINT": "输入至少 {{min}} 个字符进行搜索",
+        "SAVED": "EPG 映射已保存",
+        "REMOVED": "EPG 映射已移除",
+        "SAVE_FAILED": "无法更新 EPG 映射"
+    },
     "LANGUAGES": {
         "ARABIC": "العربية",
         "MOROCCAN_ARABIC": "العربية (اللهجة المغربية)",
@@ -722,7 +762,8 @@
         "BELARUSIAN": "Беларуская",
         "POLISH": "Polski",
         "PORTUGUESE": "Português",
-        "GREEK": "Ελληνικά"
+        "GREEK": "Ελληνικά",
+        "HUNGARIAN": "Magyar"
     },
     "YES": "是",
     "NO": "否",
@@ -756,6 +797,8 @@
         "ACTORS": "演员",
         "DIRECTOR": "导演",
         "SIMILAR": "类似影片",
+        "CREW_JOB_DIRECTOR": "导演",
+        "CREW_JOB_CREATOR": "主创",
         "ACTOR_FILMOGRAPHY": "参演作品",
         "ACTOR_FILTER_ALL": "全部",
         "ACTOR_SCOPE_THIS_PORTAL": "当前门户",
@@ -764,6 +807,13 @@
         "ACTOR_IN_LIBRARY": "已在您的媒体库中",
         "ACTOR_SEARCH_IN_PORTAL": "在门户中搜索",
         "ACTOR_BORN": "出生:",
+        "ACTOR_DIED": "逝世",
+        "SERIES_STATUS_RETURNING": "连载中",
+        "SERIES_STATUS_PLANNED": "筹备中",
+        "SERIES_STATUS_IN_PRODUCTION": "制作中",
+        "SERIES_STATUS_ENDED": "已完结",
+        "SERIES_STATUS_CANCELED": "已取消",
+        "SERIES_STATUS_PILOT": "试播",
         "DURATION": "期间",
         "CAST": "投掷",
         "EPISODE_RUN_TIME": "剧集运行时间",
@@ -779,6 +829,7 @@
         "RESTART": "从头开始",
         "CONTINUE_WATCHING": "继续观看",
         "PLAY_FIRST_EPISODE": "播放第一集",
+        "PLAY_EPISODE": "播放第 {{episode}} 集",
         "RESUME_EPISODE": "继续播放本集",
         "PLAY_NEXT_EPISODE": "播放下一集",
         "SERIES_WATCHED": "剧集已看完",
@@ -923,6 +974,7 @@
         "STREAM_URL_COPIED": "流 URL 已复制到剪贴板",
         "COPY_STREAM_URL": "复制流 URL",
         "NOW_PLAYING": "正在播放",
+        "UP_NEXT": "接下来播放",
         "CLOSE_PLAYER": "关闭播放器",
         "ABOUT": "简介",
         "SEASONS_AND_EPISODES": "季与集",
@@ -940,6 +992,11 @@
         "CONTENT_NOT_AVAILABLE": "此服务器上没有此内容",
         "PLAYBACK_ERROR": "获取播放 URL 失败",
         "LOADING_SEASONS": "正在加载季…",
+        "LOADING_ALL_CHANNELS": "正在加载完整频道列表…",
+        "REFRESH_CHANNEL_LIST": "刷新频道列表",
+        "NO_CHANNELS_IN_CATEGORY": "此分类中没有频道",
+        "ITEM": "项",
+        "ITEMS": "项",
         "NO_EPISODES": "没有可用的剧集",
         "ALL_RADIO": "所有广播"
     },
@@ -967,6 +1024,9 @@
         "SOURCE_PLAYLIST_MISSING": "由于源播放列表已被移除，此下载项无法在库中打开。",
         "FILE_NOT_FOUND": "此下载文件已不在磁盘上。",
         "FILE_ACTION_ERROR": "无法完成此文件操作。",
+        "ACTION_FAILED": "操作失败",
+        "PAUSE": "暂停",
+        "RESUME": "继续",
         "CANCEL": "取消",
         "RETRY": "重试",
         "REMOVE": "移除",
@@ -980,7 +1040,8 @@
             "DOWNLOADING": "下载中",
             "COMPLETED": "已完成",
             "FAILED": "失败",
-            "CANCELED": "已取消"
+            "CANCELED": "已取消",
+            "PAUSED": "已暂停"
         }
     },
     "REMOTE_CONTROL": {

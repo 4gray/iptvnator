@@ -8,8 +8,39 @@ import {
 describe('parseXmltvDate', () => {
     it('normalizes XMLTV timestamps with timezone offsets', () => {
         expect(parseXmltvDate('20260415053700 +0000')).toBe(
-            '2026-04-15T05:37:00+00:00'
+            '2026-04-15T05:37:00.000Z'
         );
+    });
+
+    it('converts positive offsets to UTC', () => {
+        expect(parseXmltvDate('20260415053700 +0200')).toBe(
+            '2026-04-15T03:37:00.000Z'
+        );
+    });
+
+    it('converts negative offsets to UTC', () => {
+        expect(parseXmltvDate('20260415053700 -0530')).toBe(
+            '2026-04-15T11:07:00.000Z'
+        );
+    });
+
+    it('keeps the minutes component of zero-hour offsets', () => {
+        expect(parseXmltvDate('20260415053700 +0030')).toBe(
+            '2026-04-15T05:07:00.000Z'
+        );
+        expect(parseXmltvDate('20260415053700 -0030')).toBe(
+            '2026-04-15T06:07:00.000Z'
+        );
+    });
+
+    it('handles half-hour and 45-minute offsets', () => {
+        expect(parseXmltvDate('20260415053700 +0545')).toBe(
+            '2026-04-14T23:52:00.000Z'
+        );
+    });
+
+    it('treats offset-less timestamps as UTC', () => {
+        expect(parseXmltvDate('20260415053700')).toBe('2026-04-15T05:37:00Z');
     });
 });
 

@@ -1,19 +1,30 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
-import { PlaylistActions } from '@iptvnator/m3u-state';
+import { firstValueFrom, take } from 'rxjs';
+import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     DatabaseService,
     DbOperationEvent,
     PlaylistsService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import {
+    SettingsDeleteAllPlaylistsDialogComponent,
+    SettingsDeleteAllPlaylistsDialogData,
+} from './settings-delete-all-playlists-dialog.component';
+import {
+    buildRemoveAllProgressLabel,
+    buildSettingsPlaylistDeleteSummary,
+} from './settings-playlist-summary.utils';
+import { SettingsPlaylistDeleteSummary } from './settings.models';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Injectable()
 export class SettingsPlaylistResetFacade {
     private readonly databaseService = inject(DatabaseService);
+    private readonly matDialog = inject(MatDialog);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
@@ -23,7 +34,59 @@ export class SettingsPlaylistResetFacade {
     readonly isRemovingAllPlaylists = signal(false);
     readonly removeAllProgress = signal<DbOperationEvent | null>(null);
 
-    async removeAllConfirmed(
+    private readonly playlists = this.store.selectSignal(
+        selectAllPlaylistsMeta
+    );
+
+    readonly deleteSummary = computed<SettingsPlaylistDeleteSummary>(() =>
+        buildSettingsPlaylistDeleteSummary(this.playlists())
+    );
+
+    readonly canRemoveAll = computed(
+        () => !this.isRemovingAllPlaylists() && this.deleteSummary().total > 0
+    );
+
+    readonly removeAllProgressLabel = computed(() =>
+        buildRemoveAllProgressLabel({
+            isRemovingAllPlaylists: this.isRemovingAllPlaylists(),
+            progress: this.removeAllProgress(),
+            translate: (key, params) => this.translate.instant(key, params),
+        })
+    );
+
+    /**
+     * Asks for confirmation in a dedicated dialog before wiping every
+     * playlist, so the summary of what is about to be lost is visible.
+     */
+    confirmAndRemoveAll(waitForUiFeedbackFrame: () => Promise<void>): void {
+        if (!this.canRemoveAll()) {
+            return;
+        }
+
+        this.matDialog
+            .open<
+                SettingsDeleteAllPlaylistsDialogComponent,
+                SettingsDeleteAllPlaylistsDialogData,
+                boolean
+            >(SettingsDeleteAllPlaylistsDialogComponent, {
+                autoFocus: false,
+                data: {
+                    summary: this.deleteSummary(),
+                },
+                maxWidth: 'calc(100vw - 32px)',
+                restoreFocus: true,
+                width: '460px',
+            })
+            .afterClosed()
+            .pipe(take(1))
+            .subscribe((confirmed) => {
+                if (confirmed) {
+                    void this.removeAllConfirmed(waitForUiFeedbackFrame);
+                }
+            });
+    }
+
+    private async removeAllConfirmed(
         waitForUiFeedbackFrame: () => Promise<void>
     ): Promise<void> {
         if (this.isRemovingAllPlaylists()) {

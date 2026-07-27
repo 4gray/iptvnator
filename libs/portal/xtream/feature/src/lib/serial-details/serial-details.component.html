@@ -11,6 +11,11 @@
         (closePlayerRequested)="closeInlinePlayer()"
     >
         <ng-template appDetailTags>
+            @if (info.tmdb_status; as status) {
+                <span class="details__tag details__tag--status">{{
+                    seriesStatusLabelKey(status) | translate
+                }}</span>
+            }
             @if (info.releaseDate) {
                 <span class="details__tag">{{
                     info.releaseDate | slice: 0 : 4
@@ -37,7 +42,7 @@
                     <span class="label">{{ 'XTREAM.CAST' | translate }}</span>
                     @if (info.tmdb_cast?.length) {
                         <div class="details__cast-strip">
-                            @for (member of info.tmdb_cast; track member.name) {
+                            @for (member of info.tmdb_cast; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
                                 <span
                                     class="details__cast-chip"
                                     [class.details__cast-chip--clickable]="
@@ -77,12 +82,43 @@
                     }
                 </div>
             }
-            @if (info.director) {
+            @if (info.director || info.tmdb_directors?.length) {
                 <div class="details__meta-item">
-                    <span class="label">{{
-                        'XTREAM.DIRECTOR' | translate
-                    }}</span>
-                    <span class="value">{{ info.director }}</span>
+                    <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+                    @if (info.tmdb_directors?.length) {
+                        <div class="details__cast-strip">
+                            @for (member of info.tmdb_directors; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                                <span
+                                    class="details__cast-chip"
+                                    [class.details__cast-chip--clickable]="
+                                        !!member.tmdbPersonId
+                                    "
+                                    (click)="openActor(member)"
+                                    [title]="member.name"
+                                >
+                                    @if (member.profileUrl) {
+                                        <img
+                                            class="details__cast-avatar"
+                                            [src]="member.profileUrl"
+                                            [alt]="member.name"
+                                            loading="lazy"
+                                        />
+                                    } @else {
+                                        <span
+                                            class="details__cast-avatar details__cast-avatar--fallback"
+                                        >
+                                            {{ member.name.charAt(0) }}
+                                        </span>
+                                    }
+                                    <span class="details__cast-name">{{
+                                        member.name
+                                    }}</span>
+                                </span>
+                            }
+                        </div>
+                    } @else {
+                        <span class="value">{{ info.director }}</span>
+                    }
                 </div>
             }
         </ng-template>
@@ -102,7 +138,10 @@
                     </span>
                     <span class="play-btn__copy">
                         <span class="play-btn__label">
-                            {{ action.labelKey | translate }}
+                            {{
+                                action.labelKey
+                                    | translate: action.labelParams
+                            }}
                         </span>
                         <span class="play-btn__meta">
                             {{ action.episodeLabel }}
@@ -131,7 +170,9 @@
                 detail-player
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
+                [seriesTitle]="item.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
+                [upNextEpisodes]="upNextEpisodes()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (backClicked)="goBack()"
@@ -139,6 +180,7 @@
                 (playbackEnded)="handleInlinePlaybackEnded()"
                 (previousEpisodeRequested)="playPreviousEpisode()"
                 (nextEpisodeRequested)="playNextEpisode()"
+                (upNextEpisodeSelected)="playUpNextEpisode($event)"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "

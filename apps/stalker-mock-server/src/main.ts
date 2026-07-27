@@ -1,13 +1,22 @@
 import http from 'http';
+import { join } from 'node:path';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import portalRouter from './app/routes/portal.route.js';
 import dispatchPortalAction from './app/routes/dispatch.js';
 import { resetAll } from './app/data-store.js';
 import { SCENARIOS } from './app/scenarios.js';
+import {
+    buildRequestOrigin,
+    resolveMarketingPosterUrls,
+} from './app/marketing-poster-url.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
 const app = express();
+const MARKETING_POSTER_DIRECTORY = join(
+    process.cwd(),
+    'apps/xtream-mock-server/public/marketing/poster'
+);
 
 // ---------------------------------------------------------------------------
 // Middleware
@@ -31,9 +40,41 @@ app.use((req, _res, next) => {
     next();
 });
 
+// Marketing fixtures store deployment-neutral asset paths. Resolve them
+// against the public origin of each request, including reverse-proxy headers.
+app.use((req, res, next) => {
+    if (
+        !['get_ordered_list', 'favorites'].includes(
+            String(req.query['action'])
+        )
+    ) {
+        next();
+        return;
+    }
+
+    const sendJson = res.json.bind(res);
+    const requestOrigin = buildRequestOrigin(req);
+
+    res.json = ((body: unknown) =>
+        sendJson(
+            resolveMarketingPosterUrls(body, requestOrigin)
+        )) as Response['json'];
+    next();
+});
+
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
+
+// Serve the shared screenshot-safe poster catalog directly from this process.
+app.use(
+    '/assets/marketing/poster',
+    express.static(MARKETING_POSTER_DIRECTORY, {
+        fallthrough: false,
+        immutable: true,
+        maxAge: '1y',
+    })
+);
 
 // Stalker portal.php endpoint (direct portal protocol, Electron mode)
 app.use('/portal.php', portalRouter);

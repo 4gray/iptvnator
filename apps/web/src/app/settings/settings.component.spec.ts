@@ -1,365 +1,52 @@
-import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import {
-    FormsModule,
-    ReactiveFormsModule,
-    UntypedFormBuilder,
-} from '@angular/forms';
-import { MatCardModule } from '@angular/material/card';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDialog } from '@angular/material/dialog';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { RouterTestingModule } from '@angular/router/testing';
-import {
-    EpgRuntimeBridgeService,
-    EpgService,
-} from '@iptvnator/epg/data-access';
-import { Store } from '@ngrx/store';
-import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { DialogService } from '@iptvnator/ui/components';
-import { MockModule, MockProvider } from 'ng-mocks';
-import {
-    DatabaseService,
-    DataService,
-    PlaylistBackupService,
-    PlaylistsService,
-} from '@iptvnator/services';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
+import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     EmbeddedMpvSupport,
-    ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
-    ElectronBridgeAppUpdateStatus,
-    Language,
     PlaylistMeta,
-    StartupBehavior,
-    StreamFormat,
-    Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
+import { MockStore } from '@ngrx/store/testing';
 import { SettingsComponent } from './settings.component';
-import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
-
-import { signal } from '@angular/core';
-import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import {
-    PlaylistActions,
-    selectAllPlaylistsMeta,
-    selectIsEpgAvailable,
-} from '@iptvnator/m3u-state';
-import { NgxIndexedDBService } from 'ngx-indexed-db';
-import { from, of } from 'rxjs';
-import { ElectronServiceStub } from '../services/electron.service.stub';
-import { SettingsStore } from '../services/settings-store.service';
-import { SettingsService } from '../services/settings.service';
-import { SettingsSectionScrollDirective } from './settings-section-scroll.directive';
+    configureSettingsComponentTestBed,
+    createElectronStub,
+    createEpgBridgeStub,
+    createPlaylistMeta,
+    DEFAULT_SETTINGS,
+    stubSettingsSideEffects,
+} from './test-stubs/settings-test-harness.stub';
 
-const DEFAULT_DASHBOARD_RAILS = {
-    hero: true,
-    continueWatching: true,
-    liveFavorites: true,
-    recentlyWatchedLive: true,
-    favoriteMoviesAndSeries: true,
-    recentSources: true,
-    xtreamRecentlyAdded: true,
-    tmdbTrending: true,
-};
-
-class MatSnackBarStub {
-    open = jest.fn();
-}
-
-export class MockRouter {
-    navigateByUrl(url: string): string {
-        return url;
-    }
-}
-
-const DEFAULT_SETTINGS = {
-    player: VideoPlayer.VideoJs,
-    streamFormat: StreamFormat.AutoStreamFormat,
-    openStreamOnDoubleClick: false,
-    language: Language.ENGLISH,
-    showCaptions: false,
-    showDashboard: true,
-    startupBehavior: StartupBehavior.FirstView,
-    showExternalPlaybackBar: true,
-    theme: Theme.SystemTheme,
-    mpvPlayerPath: '',
-    mpvPlayerArguments: '',
-    mpvReuseInstance: false,
-    vlcPlayerPath: '',
-    vlcPlayerArguments: '',
-    vlcReuseInstance: false,
-    remoteControl: false,
-    remoteControlPort: 8765,
-    epgUrl: [],
-    recordingFolder: '',
-    coverSize: 'medium',
-    dashboardRails: DEFAULT_DASHBOARD_RAILS,
-    preferUploadedEpgOverXtream: false,
-    epgViewMode: 'timeline',
-    tmdb: { enabled: false, apiKey: '' },
-};
-
-const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {
-    currentVersion: '0.22.0',
-    manualDownloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
-    status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle,
-    supportedSelfUpdate: true,
-};
-
-class MockSettingsStore {
-    private _settings = signal(DEFAULT_SETTINGS);
-
-    getSettings = () => this._settings();
-
-    getTrustOptions = () => ({
-        trustedPrivateNetworkEpgUrls:
-            (
-                this._settings() as typeof DEFAULT_SETTINGS & {
-                    trustedPrivateNetworkEpgUrls?: string[];
-                }
-            ).trustedPrivateNetworkEpgUrls ?? [],
-        trustedInsecureTlsHosts:
-            (
-                this._settings() as typeof DEFAULT_SETTINGS & {
-                    trustedInsecureTlsHosts?: string[];
-                }
-            ).trustedInsecureTlsHosts ?? [],
-    });
-
-    loadSettings = jest.fn().mockResolvedValue(undefined);
-
-    updateSettings = jest.fn().mockResolvedValue(undefined);
-
-    // Helper method for tests to modify settings
-    _setSettings(newSettings: Partial<typeof DEFAULT_SETTINGS>) {
-        this._settings.set({
-            ...this._settings(),
-            ...newSettings,
-        });
-    }
-}
-
-class MockSettingsService {
-    getAppVersion = jest.fn().mockReturnValue(from(Promise.resolve('1.0.0')));
-    changeTheme = jest.fn();
-    isVersionOutdated = jest.fn().mockImplementation(
-        (currentVersion: string, latestVersion: string) =>
-            currentVersion.localeCompare(latestVersion, undefined, {
-                numeric: true,
-                sensitivity: 'base',
-            }) < 0
-    );
-}
-
-interface SettingsSectionScrollDirectiveTestApi {
-    getScrollRoot(): HTMLElement | null;
-}
-
-interface SettingsComponentPrivateTestApi {
-    loadAppUpdateStatus(): Promise<void>;
-    matDialog: MatDialog;
-    waitForUiFeedbackFrame(): Promise<void>;
-    waitForAppUpdateStatusRetry(): Promise<void>;
-}
-
+/**
+ * Page-shell behaviour: chrome, the facade lifecycle and the runtime
+ * capabilities that decide which sections and players are offered. Form
+ * editing and saving live in `settings.component.form.spec.ts`, section
+ * scrolling in `settings-section-scroll.directive.spec.ts`, and the
+ * per-section behaviour in the matching `*.facade.spec.ts` files.
+ */
 describe('SettingsComponent', () => {
     let component: SettingsComponent;
     let fixture: ComponentFixture<SettingsComponent>;
-    let electronService: DataService;
     let router: Router;
-    let settingsStore: unknown;
-    let translate: TranslateService;
-    let dialogService: DialogService;
-    let playlistsService: PlaylistsService;
-    let playlistBackupService: PlaylistBackupService;
-    let store: Store;
     let mockStore: MockStore;
-    let databaseService: DatabaseService;
-    let snackBar: MatSnackBarStub;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     const originalElectron = window.electron;
-    const importDate = '2026-04-21T00:00:00.000Z';
-
-    const createPlaylistMeta = (
-        overrides: Partial<PlaylistMeta> = {}
-    ): PlaylistMeta => ({
-        _id: overrides._id ?? 'playlist-id',
-        title: overrides.title ?? 'Playlist',
-        count: overrides.count ?? 10,
-        importDate: overrides.importDate ?? importDate,
-        autoRefresh: overrides.autoRefresh ?? false,
-        ...overrides,
-    });
-
-    const createDialogRef = (result: boolean): ReturnType<MatDialog['open']> =>
-        ({
-            afterClosed: () => of(result),
-        }) as unknown as ReturnType<MatDialog['open']>;
 
     beforeEach(waitForAsync(() => {
-        epgBridge = {
-            clearEpgData: jest.fn().mockResolvedValue({ success: true }),
-            clearEpgDataForSource: jest
-                .fn()
-                .mockResolvedValue({ success: true }),
-            forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
-            supportsDataManagement: true,
-            supportsImport: true,
-        };
-
-        TestBed.configureTestingModule({
-            providers: [
-                UntypedFormBuilder,
-                { provide: SettingsStore, useClass: MockSettingsStore },
-                MockProvider(EpgService, {
-                    fetchEpg: jest.fn(),
-                }),
-                {
-                    provide: EpgRuntimeBridgeService,
-                    useValue: epgBridge,
-                },
-                MockProvider(DialogService, {
-                    openConfirmDialog: jest.fn(),
-                }),
-                MockProvider(MatDialog, {
-                    open: jest.fn(),
-                }),
-                { provide: SettingsService, useClass: MockSettingsService },
-                { provide: MatSnackBar, useClass: MatSnackBarStub },
-                { provide: DataService, useClass: ElectronServiceStub },
-                {
-                    provide: Router,
-                    useClass: MockRouter,
-                },
-                provideMockStore({
-                    selectors: [
-                        { selector: selectAllPlaylistsMeta, value: [] },
-                        { selector: selectIsEpgAvailable, value: false },
-                    ],
-                }),
-                {
-                    provide: NgxIndexedDBService,
-                    useValue: {},
-                },
-                MockProvider(PlaylistsService, {
-                    getAllData: jest.fn().mockReturnValue(of([])),
-                    removeAll: jest.fn(),
-                }),
-                MockProvider(DatabaseService, {
-                    createOperationId: jest
-                        .fn()
-                        .mockReturnValue('delete-all-op'),
-                    deleteAllPlaylists: jest.fn().mockResolvedValue(true),
-                }),
-                MockProvider(PlaylistBackupService, {
-                    exportBackup: jest.fn().mockResolvedValue({
-                        defaultFileName:
-                            'iptvnator-playlist-backup-2026-04-21.json',
-                        json: '{}',
-                        manifest: {
-                            kind: 'iptvnator-playlist-backup',
-                            version: 1,
-                            exportedAt: '2026-04-21T00:00:00.000Z',
-                            includeSecrets: true,
-                            playlists: [],
-                        },
-                    }),
-                    importBackup: jest.fn().mockResolvedValue({
-                        imported: 0,
-                        merged: 0,
-                        skipped: 0,
-                        failed: 0,
-                        errors: [],
-                    }),
-                }),
-            ],
-            imports: [
-                SettingsComponent,
-                HttpClientTestingModule,
-                FormsModule,
-                MockModule(MatSelectModule),
-                MockModule(MatIconModule),
-                MockModule(MatTooltipModule),
-                ReactiveFormsModule,
-                MockModule(RouterTestingModule),
-                MockModule(MatCardModule),
-                MockModule(MatListModule),
-                MockModule(MatFormFieldModule),
-                MockModule(MatCheckboxModule),
-                MockModule(MatDividerModule),
-                TranslateModule.forRoot(),
-            ],
-        }).compileComponents();
+        epgBridge = createEpgBridgeStub();
+        configureSettingsComponentTestBed(epgBridge);
     }));
 
     beforeEach(() => {
-        window.electron = {
-            checkEpgFreshness: jest.fn().mockResolvedValue({
-                freshUrls: [],
-                staleUrls: [],
-            }),
-            clearEpgData: jest.fn().mockResolvedValue({ success: true }),
-            clearEpgDataForSource: jest
-                .fn()
-                .mockResolvedValue({ success: true }),
-            fetchEpg: jest.fn().mockResolvedValue({ success: true }),
-            forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
-            getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
-            getAppUpdateStatus: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
-            getChannelPrograms: jest.fn().mockResolvedValue([]),
-            getEpgChannelsByRange: jest.fn().mockResolvedValue([]),
-            getLocalIpAddresses: jest.fn().mockResolvedValue([]),
-            checkForAppUpdate: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
-            downloadAppUpdate: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
-            installAppUpdate: jest
-                .fn()
-                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
-            onAppUpdateStatusChange: jest.fn(() => jest.fn()),
-            openInMpv: jest.fn(),
-            openInVlc: jest.fn(),
-            platform: 'linux',
-            searchEpgPrograms: jest.fn().mockResolvedValue([]),
-            saveFileDialog: jest.fn().mockResolvedValue('/tmp/backup.json'),
-            setMpvPlayerPath: jest.fn().mockResolvedValue(undefined),
-            setVlcPlayerPath: jest.fn().mockResolvedValue(undefined),
-            updateSettings: jest.fn().mockResolvedValue(undefined),
-            writeFile: jest.fn().mockResolvedValue({ success: true }),
-        } as unknown as typeof window.electron;
+        window.electron = createElectronStub();
 
         fixture = TestBed.createComponent(SettingsComponent);
-        electronService = TestBed.inject(DataService);
-        settingsStore = TestBed.inject(SettingsStore);
         router = TestBed.inject(Router);
-        translate = TestBed.inject(TranslateService);
-        dialogService = TestBed.inject(DialogService);
-        playlistsService = TestBed.inject(PlaylistsService);
-        playlistBackupService = TestBed.inject(PlaylistBackupService);
-        store = TestBed.inject(Store);
         mockStore = TestBed.inject(MockStore);
-        databaseService = TestBed.inject(DatabaseService);
-        snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
 
         component = fixture.componentInstance;
-        component.checkAppVersion = jest.fn();
-        component.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        stubSettingsSideEffects(component);
         fixture.detectChanges();
     });
 
@@ -373,160 +60,46 @@ describe('SettingsComponent', () => {
         fixture.detectChanges();
     }
 
-    function privateApi(
-        settingsComponent: SettingsComponent
-    ): SettingsComponentPrivateTestApi {
-        return settingsComponent as unknown as SettingsComponentPrivateTestApi;
-    }
-
     it('should create and init component', () => {
         expect(component).toBeTruthy();
     });
 
-    it('loads the desktop app update status and subscribes to status pushes', async () => {
-        const pushedStatus: ElectronBridgeAppUpdateStatus = {
-            ...DEFAULT_APP_UPDATE_STATUS,
-            latestVersion: '0.23.0',
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
-        };
+    /**
+     * The facades own the behaviour, but only the component knows when to
+     * start and stop them — so the seam itself needs coverage here.
+     */
+    it('drives the facade lifecycle from the page lifecycle', async () => {
+        fixture.destroy();
 
-        await fixture.whenStable();
-        const statusHandler = (
-            window.electron.onAppUpdateStatusChange as jest.Mock
-        ).mock.calls[0][0] as (status: ElectronBridgeAppUpdateStatus) => void;
-        statusHandler(pushedStatus);
-
-        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
-        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalledTimes(
-            1
+        const lifecycleFixture = TestBed.createComponent(SettingsComponent);
+        const lifecycleComponent = lifecycleFixture.componentInstance;
+        stubSettingsSideEffects(lifecycleComponent);
+        const appUpdateInit = jest.spyOn(lifecycleComponent.appUpdate, 'init');
+        const appUpdateDispose = jest.spyOn(
+            lifecycleComponent.appUpdate,
+            'dispose'
         );
-        expect(component.appUpdateStatus()).toEqual(pushedStatus);
-    });
-
-    it('retries the initial app update status load when IPC handlers are still starting', async () => {
-        const retriedStatus: ElectronBridgeAppUpdateStatus = {
-            ...DEFAULT_APP_UPDATE_STATUS,
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
-            supportedSelfUpdate: false,
-        };
-        await fixture.whenStable();
-        (window.electron.getAppUpdateStatus as jest.Mock)
-            .mockReset()
-            .mockRejectedValueOnce(new Error('No handler registered'))
-            .mockResolvedValueOnce(retriedStatus);
-        jest.spyOn(
-            privateApi(component),
-            'waitForAppUpdateStatusRetry'
-        ).mockResolvedValue(undefined);
-
-        await privateApi(component).loadAppUpdateStatus();
-
-        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(2);
-        expect(component.appUpdateStatus()).toEqual(retriedStatus);
-    });
-
-    it('waits for the desktop app update bridge method before loading status', async () => {
-        const retriedStatus: ElectronBridgeAppUpdateStatus = {
-            ...DEFAULT_APP_UPDATE_STATUS,
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
-            supportedSelfUpdate: false,
-        };
-        await fixture.whenStable();
-        delete (window.electron as Partial<typeof window.electron>)
-            .getAppUpdateStatus;
-        let retryCount = 0;
-        const getStatus = jest.fn().mockResolvedValue(retriedStatus);
-        jest.spyOn(
-            privateApi(component),
-            'waitForAppUpdateStatusRetry'
-        ).mockImplementation(async () => {
-            retryCount += 1;
-
-            if (retryCount === 1) {
-                window.electron.getAppUpdateStatus = getStatus;
-            }
-        });
-
-        await privateApi(component).loadAppUpdateStatus();
-
-        expect(retryCount).toBe(1);
-        expect(getStatus).toHaveBeenCalledTimes(1);
-        expect(component.appUpdateStatus()).toEqual(retriedStatus);
-    });
-
-    it('forwards app update actions to the desktop bridge', async () => {
-        await component.checkForAppUpdate();
-        await component.downloadAppUpdate();
-        await component.installAppUpdate();
-
-        expect(window.electron.checkForAppUpdate).toHaveBeenCalledTimes(1);
-        expect(window.electron.downloadAppUpdate).toHaveBeenCalledTimes(1);
-        expect(window.electron.installAppUpdate).toHaveBeenCalledTimes(1);
-    });
-
-    it('opens the manual release URL from unsupported update status', () => {
-        const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
-        component.appUpdateStatus.set({
-            ...DEFAULT_APP_UPDATE_STATUS,
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
-            supportedSelfUpdate: false,
-        });
-
-        component.openManualAppUpdate();
-
-        expect(openSpy).toHaveBeenCalledWith(
-            DEFAULT_APP_UPDATE_STATUS.manualDownloadUrl,
-            '_blank',
-            'noreferrer'
+        const embeddedMpvLoad = jest.spyOn(
+            lifecycleComponent.embeddedMpv,
+            'load'
         );
-    });
 
-    it('opens release notes dialog for the latest update version', () => {
-        const openSpy = jest
-            .spyOn(privateApi(component).matDialog, 'open')
-            .mockReturnValue(createDialogRef(false));
-        component.appUpdateStatus.set({
-            ...DEFAULT_APP_UPDATE_STATUS,
-            latestVersion: '0.23.0',
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
-        });
+        lifecycleFixture.detectChanges();
+        await lifecycleFixture.whenStable();
 
-        component.openAppUpdateReleaseNotes();
+        expect(appUpdateInit).toHaveBeenCalledTimes(1);
+        expect(lifecycleComponent.appUpdate.checkAppVersion).toHaveBeenCalled();
+        expect(embeddedMpvLoad).toHaveBeenCalled();
+        expect(
+            lifecycleComponent.remoteControl.fetchLocalIpAddresses
+        ).toHaveBeenCalled();
+        // The lifecycle really reaches the desktop bridge, not just the facade
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalled();
+        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalled();
 
-        expect(openSpy).toHaveBeenCalledWith(
-            AppUpdateReleaseNotesDialogComponent,
-            expect.objectContaining({
-                data: {
-                    initialVersion: '0.23.0',
-                },
-            })
-        );
-    });
+        lifecycleFixture.destroy();
 
-    it('opens release notes dialog for the current version when no update is available', () => {
-        const openSpy = jest
-            .spyOn(privateApi(component).matDialog, 'open')
-            .mockReturnValue(createDialogRef(false));
-        component.appUpdateStatus.set({
-            ...DEFAULT_APP_UPDATE_STATUS,
-            latestVersion: '0.21.0',
-            release: {
-                version: '0.21.0',
-            },
-            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
-        });
-
-        component.openAppUpdateReleaseNotes();
-
-        expect(openSpy).toHaveBeenCalledWith(
-            AppUpdateReleaseNotesDialogComponent,
-            expect.objectContaining({
-                data: {
-                    initialVersion: DEFAULT_APP_UPDATE_STATUS.currentVersion,
-                    fallbackToLatest: true,
-                },
-            })
-        );
+        expect(appUpdateDispose).toHaveBeenCalledTimes(1);
     });
 
     it('should render a compact page header outside dialog mode', () => {
@@ -544,10 +117,7 @@ describe('SettingsComponent', () => {
         const dialogFixture = TestBed.createComponent(SettingsComponent);
         const dialogComponent = dialogFixture.componentInstance;
 
-        dialogComponent.checkAppVersion = jest.fn();
-        dialogComponent.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        stubSettingsSideEffects(dialogComponent);
         dialogComponent.isDialog = true;
         dialogFixture.detectChanges();
 
@@ -560,106 +130,30 @@ describe('SettingsComponent', () => {
         ).not.toBeNull();
     });
 
-    it('should scroll the selected navigation target within the workspace viewport', async () => {
-        fixture.destroy();
-        jest.useFakeTimers();
-
-        try {
-            const scrollFixture = TestBed.createComponent(SettingsComponent);
-            const scrollComponent = scrollFixture.componentInstance;
-            const settingsContext = TestBed.inject(SettingsContextService);
-            const originalGetElementById =
-                document.getElementById.bind(document);
-            const scrollTo = jest.fn();
-            const scrollRoot = {
-                scrollTop: 96,
-                clientHeight: 885,
-                scrollHeight: 2469,
-                getBoundingClientRect: () =>
-                    ({
-                        top: 56,
-                    }) as DOMRect,
-                scrollTo,
-            } as unknown as HTMLElement;
-
-            scrollComponent.checkAppVersion = jest.fn();
-            scrollComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
-            scrollFixture.detectChanges();
-            const scrollDirective = scrollFixture.debugElement
-                .query(By.directive(SettingsSectionScrollDirective))
-                .injector.get(SettingsSectionScrollDirective);
-            jest.spyOn(
-                scrollDirective as unknown as SettingsSectionScrollDirectiveTestApi,
-                'getScrollRoot'
-            ).mockReturnValue(scrollRoot);
-
-            const getElementByIdSpy = jest
-                .spyOn(document, 'getElementById')
-                .mockImplementation((id: string) => {
-                    if (id === 'about') {
-                        return {
-                            getBoundingClientRect: () =>
-                                ({
-                                    top: 2050,
-                                    height: 159,
-                                }) as DOMRect,
-                        } as HTMLElement;
-                    }
-
-                    return originalGetElementById(id);
-                });
-
-            await scrollFixture.whenStable();
-            scrollFixture.detectChanges();
-            settingsContext.navigateToSection('about');
-            scrollFixture.detectChanges();
-
-            expect(getElementByIdSpy).toHaveBeenCalledWith('about');
-            expect(scrollTo).toHaveBeenCalledWith({
-                behavior: 'smooth',
-                top: 1488,
-            });
-            expect(settingsContext.pendingScrollTarget()).toBe('about');
-
-            jest.advanceTimersByTime(600);
-
-            expect(settingsContext.pendingScrollTarget()).toBeNull();
-        } finally {
-            jest.useRealTimers();
-        }
+    it('should navigate back to home page', () => {
+        jest.spyOn(router, 'navigateByUrl');
+        component.backToHome();
+        expect(router.navigateByUrl).toHaveBeenCalledWith('/');
     });
 
-    describe('Get and set settings on component init', () => {
-        const settings = {
-            language: Language.GERMAN,
-            player: VideoPlayer.Html5Player,
-            theme: Theme.DarkTheme,
-        };
+    it('enables the global wipe action only once a playlist exists', () => {
+        const deleteButton = () =>
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '.danger-zone__button'
+            ) as HTMLButtonElement | null;
 
-        it('should init default settings if previous config was not saved', async () => {
-            await component.ngOnInit();
-            //expect(settingsStore.loadSettings).toHaveBeenCalled();
-            expect(component.settingsForm.value).toEqual(DEFAULT_SETTINGS);
-        });
+        setPlaylists([]);
 
-        it('should get and apply custom settings', async () => {
-            const mockStore = settingsStore as unknown as MockSettingsStore;
-            mockStore._setSettings({
-                ...DEFAULT_SETTINGS,
-                ...settings,
-            });
+        expect(component.playlistReset.canRemoveAll()).toBe(false);
+        expect(deleteButton()?.disabled).toBe(true);
 
-            component.setSettings();
+        setPlaylists([createPlaylistMeta({ _id: 'm3u-1' })]);
 
-            //expect(settingsStore.loadSettings).toHaveBeenCalled();
-            expect(component.settingsForm.value).toEqual({
-                ...DEFAULT_SETTINGS,
-                ...settings,
-            });
-        });
+        expect(component.playlistReset.canRemoveAll()).toBe(true);
+        expect(deleteButton()?.disabled).toBe(false);
+    });
 
+    describe('Runtime capabilities', () => {
         it('hides the embedded mpv option when the desktop support probe reports unsupported', async () => {
             window.electron = {
                 ...window.electron,
@@ -702,7 +196,47 @@ describe('SettingsComponent', () => {
             }
         );
 
-        it('hides external player path settings when the Electron bridge is incomplete', async () => {
+        it('does not block settings initialization while embedded mpv support is pending', async () => {
+            let resolveSupport:
+                ((value: EmbeddedMpvSupport) => void) | undefined;
+            window.electron = {
+                ...window.electron,
+                getEmbeddedMpvSupport: jest.fn(
+                    () =>
+                        new Promise((resolve) => {
+                            resolveSupport = resolve;
+                        })
+                ),
+            } as unknown as typeof window.electron;
+
+            await expect(component.ngOnInit()).resolves.toBeUndefined();
+
+            expect(component.settingsForm.value).toEqual(DEFAULT_SETTINGS);
+            expect(window.electron.getEmbeddedMpvSupport).toHaveBeenCalled();
+            expect(
+                component
+                    .players()
+                    .some((player) => player.id === VideoPlayer.EmbeddedMpv)
+            ).toBe(false);
+
+            if (!resolveSupport) {
+                throw new Error('Expected embedded MPV support probe to start');
+            }
+
+            resolveSupport({
+                supported: true,
+                platform: 'darwin',
+            });
+            await fixture.whenStable();
+
+            expect(
+                component
+                    .players()
+                    .some((player) => player.id === VideoPlayer.EmbeddedMpv)
+            ).toBe(true);
+        });
+
+        it('hides external player path settings when the Electron bridge is incomplete', () => {
             fixture.destroy();
             epgBridge.supportsImport = false;
             window.electron = {
@@ -715,10 +249,7 @@ describe('SettingsComponent', () => {
                 TestBed.createComponent(SettingsComponent);
             const partialBridgeComponent =
                 partialBridgeFixture.componentInstance;
-            partialBridgeComponent.checkAppVersion = jest.fn();
-            partialBridgeComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
+            stubSettingsSideEffects(partialBridgeComponent);
             partialBridgeFixture.detectChanges();
 
             expect(partialBridgeComponent.isDesktop).toBe(true);
@@ -769,10 +300,7 @@ describe('SettingsComponent', () => {
                 TestBed.createComponent(SettingsComponent);
             const launchOnlyBridgeComponent =
                 launchOnlyBridgeFixture.componentInstance;
-            launchOnlyBridgeComponent.checkAppVersion = jest.fn();
-            launchOnlyBridgeComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
+            stubSettingsSideEffects(launchOnlyBridgeComponent);
             launchOnlyBridgeFixture.detectChanges();
 
             expect(
@@ -793,693 +321,20 @@ describe('SettingsComponent', () => {
             ).toBe(true);
         });
 
-        it('does not block settings initialization while embedded mpv support is pending', async () => {
-            let resolveSupport:
-                | ((value: EmbeddedMpvSupport) => void)
-                | undefined;
+        it('opens the playlist folder picker only when the desktop bridge offers one', async () => {
+            const selectFolder = jest.fn().mockResolvedValue('/tmp/recordings');
             window.electron = {
                 ...window.electron,
-                getEmbeddedMpvSupport: jest.fn(
-                    () =>
-                        new Promise((resolve) => {
-                            resolveSupport = resolve;
-                        })
-                ),
+                selectEmbeddedMpvRecordingFolder: selectFolder,
             } as unknown as typeof window.electron;
 
-            await expect(component.ngOnInit()).resolves.toBeUndefined();
+            await component.selectRecordingFolder();
 
-            expect(component.settingsForm.value).toEqual(DEFAULT_SETTINGS);
-            expect(window.electron.getEmbeddedMpvSupport).toHaveBeenCalled();
-            expect(
-                component
-                    .players()
-                    .some((player) => player.id === VideoPlayer.EmbeddedMpv)
-            ).toBe(false);
-
-            if (!resolveSupport) {
-                throw new Error('Expected embedded MPV support probe to start');
-            }
-
-            resolveSupport({
-                supported: true,
-                platform: 'darwin',
-            });
-            await fixture.whenStable();
-
-            expect(
-                component
-                    .players()
-                    .some((player) => player.id === VideoPlayer.EmbeddedMpv)
-            ).toBe(true);
-        });
-    });
-
-    describe('Version check', () => {
-        const latestVersion = '1.0.0';
-        const currentVersion = '0.1.0';
-
-        beforeEach(() => {
-            const settingsService = TestBed.inject(SettingsService);
-            (settingsService.getAppVersion as jest.Mock).mockReturnValue(
-                of(latestVersion)
+            expect(selectFolder).toHaveBeenCalled();
+            expect(component.settingsForm.value.recordingFolder).toBe(
+                '/tmp/recordings'
             );
-
-            // Add translation mock
-            jest.spyOn(translate, 'instant').mockImplementation((key) => {
-                if (key === 'SETTINGS.NEW_VERSION_AVAILABLE') {
-                    return 'New version available';
-                }
-                if (key === 'SETTINGS.LATEST_VERSION') {
-                    return 'Latest version installed';
-                }
-                return key;
-            });
+            expect(component.settingsForm.dirty).toBe(true);
         });
-
-        it('should return true if version is outdated', () => {
-            jest.spyOn(electronService, 'getAppVersion').mockReturnValue(
-                currentVersion
-            );
-            const isOutdated =
-                component.isCurrentVersionOutdated(latestVersion);
-            expect(isOutdated).toBeTruthy();
-        });
-
-        it('should update notification message if version is outdated', () => {
-            jest.spyOn(translate, 'instant');
-            jest.spyOn(electronService, 'getAppVersion').mockReturnValue(
-                currentVersion
-            );
-            component.showVersionInformation(latestVersion);
-            expect(translate.instant).toHaveBeenCalledWith(
-                'SETTINGS.NEW_VERSION_AVAILABLE'
-            );
-            expect(component.updateMessage).toBe(
-                'New version available: 1.0.0'
-            );
-        });
-    });
-
-    it('disables the global wipe action when there are no playlists', () => {
-        setPlaylists([]);
-
-        const deleteButton = (
-            fixture.nativeElement as HTMLElement
-        ).querySelector('.danger-zone__button') as HTMLButtonElement | null;
-
-        expect(component.canRemoveAllPlaylists()).toBe(false);
-        expect(deleteButton?.disabled).toBe(true);
-    });
-
-    it('opens the dedicated delete-all dialog with the current playlist type summary', () => {
-        setPlaylists([
-            createPlaylistMeta({ _id: 'm3u-1' }),
-            createPlaylistMeta({
-                _id: 'xtream-1',
-                serverUrl: 'http://xtream.example',
-            }),
-            createPlaylistMeta({
-                _id: 'stalker-1',
-                macAddress: '00:11:22:33:44:55',
-            }),
-        ]);
-
-        const openSpy = jest
-            .spyOn(privateApi(component).matDialog, 'open')
-            .mockReturnValue(createDialogRef(false));
-
-        component.removeAll();
-
-        expect(component.playlistDeleteSummary()).toEqual({
-            total: 3,
-            m3u: 1,
-            xtream: 1,
-            stalker: 1,
-        });
-        expect(openSpy).toHaveBeenCalledWith(
-            expect.any(Function),
-            expect.objectContaining({
-                data: {
-                    summary: {
-                        total: 3,
-                        m3u: 1,
-                        xtream: 1,
-                        stalker: 1,
-                    },
-                },
-            })
-        );
-    });
-
-    it('tracks Electron delete-all progress and dispatches store cleanup after success', async () => {
-        setPlaylists([
-            createPlaylistMeta({ _id: 'm3u-1' }),
-            createPlaylistMeta({
-                _id: 'xtream-1',
-                serverUrl: 'http://xtream.example',
-            }),
-        ]);
-
-        const dispatchSpy = jest.spyOn(store, 'dispatch');
-        (databaseService.deleteAllPlaylists as jest.Mock).mockClear();
-        jest.spyOn(privateApi(component).matDialog, 'open').mockReturnValue(
-            createDialogRef(true)
-        );
-        jest.spyOn(translate, 'instant').mockImplementation(
-            (key: string, params?: Record<string, number>) => {
-                if (key === 'SETTINGS.REMOVE_ALL_PROGRESS') {
-                    return `${params?.current}/${params?.total}`;
-                }
-                return key;
-            }
-        );
-        jest.spyOn(
-            privateApi(component),
-            'waitForUiFeedbackFrame'
-        ).mockResolvedValue(undefined);
-
-        let resolveDelete: (value: boolean) => void = () => undefined;
-        (databaseService.deleteAllPlaylists as jest.Mock).mockImplementation(
-            ({
-                onEvent,
-            }: {
-                onEvent?: (event: {
-                    operation: string;
-                    status: string;
-                    current?: number;
-                    total?: number;
-                }) => void;
-            }) => {
-                onEvent?.({
-                    operation: 'delete-all-playlists',
-                    status: 'progress',
-                    current: 3,
-                    total: 7,
-                });
-
-                return new Promise<boolean>((resolve) => {
-                    resolveDelete = resolve;
-                });
-            }
-        );
-
-        component.removeAll();
-        await Promise.resolve();
-        fixture.detectChanges();
-
-        expect(component.isRemovingAllPlaylists()).toBe(true);
-        expect(component.removeAllProgressLabel()).toBe('3/7');
-        expect(databaseService.deleteAllPlaylists).toHaveBeenCalledWith(
-            expect.objectContaining({
-                operationId: 'delete-all-op',
-                onEvent: expect.any(Function),
-            })
-        );
-
-        resolveDelete(true);
-        await fixture.whenStable();
-
-        expect(component.isRemovingAllPlaylists()).toBe(false);
-        expect(component.removeAllProgress()).toBeNull();
-        expect(dispatchSpy).toHaveBeenCalledWith(
-            PlaylistActions.removeAllPlaylists()
-        );
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'SETTINGS.PLAYLISTS_REMOVED',
-            undefined,
-            {
-                duration: 2000,
-                horizontalPosition: 'center',
-                panelClass: ['settings-snackbar'],
-                verticalPosition: 'bottom',
-            }
-        );
-    });
-
-    it('falls back to PlaylistsService.removeAll outside Electron', async () => {
-        fixture.destroy();
-        window.electron = undefined as unknown as typeof window.electron;
-        epgBridge.supportsImport = false;
-
-        const browserFixture = TestBed.createComponent(SettingsComponent);
-        const browserComponent = browserFixture.componentInstance;
-        browserComponent.checkAppVersion = jest.fn();
-        browserComponent.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
-        browserFixture.detectChanges();
-
-        expect(browserComponent.isDesktop).toBe(false);
-        expect(browserComponent.isPwa).toBe(true);
-        expect(browserComponent.supportsEpg).toBe(false);
-        expect(browserComponent.supportsRemoteControl).toBe(false);
-        expect(browserComponent.settingsForm.get('epgUrl')).toBeNull();
-
-        mockStore.overrideSelector(selectAllPlaylistsMeta, [
-            createPlaylistMeta({ _id: 'browser-m3u' }),
-        ]);
-        mockStore.refreshState();
-        browserFixture.detectChanges();
-
-        jest.spyOn(
-            privateApi(browserComponent).matDialog,
-            'open'
-        ).mockReturnValue(createDialogRef(true));
-        jest.spyOn(
-            privateApi(browserComponent),
-            'waitForUiFeedbackFrame'
-        ).mockResolvedValue(undefined);
-        (databaseService.deleteAllPlaylists as jest.Mock).mockClear();
-        (playlistsService.removeAll as jest.Mock).mockClear();
-        (playlistsService.removeAll as jest.Mock).mockReturnValue(
-            of(undefined)
-        );
-        const dispatchSpy = jest.spyOn(store, 'dispatch');
-
-        browserComponent.removeAll();
-        await browserFixture.whenStable();
-
-        expect(playlistsService.removeAll).toHaveBeenCalled();
-        expect(databaseService.deleteAllPlaylists).not.toHaveBeenCalled();
-        expect(dispatchSpy).toHaveBeenCalledWith(
-            PlaylistActions.removeAllPlaylists()
-        );
-    });
-
-    it('shows the save confirmation snackbar at the bottom center with the settings offset class', () => {
-        jest.spyOn(translate, 'instant').mockReturnValue('Settings saved');
-
-        component.applyChangedSettings();
-
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'Settings saved',
-            undefined,
-            {
-                duration: 2000,
-                horizontalPosition: 'center',
-                panelClass: ['settings-snackbar'],
-                verticalPosition: 'bottom',
-            }
-        );
-    });
-
-    it('should force-fetch EPG for a single URL (bypassing freshness cache)', () => {
-        const url = 'http://epg-url-here/data.xml';
-        component.refreshEpg(url);
-        expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(url, {
-            trustedPrivateNetworkEpgUrls: [],
-            trustedInsecureTlsHosts: [],
-        });
-    });
-
-    it('clears EPG data with a busy state and refreshes all sources on success', async () => {
-        let resolveClear: () => void = () => undefined;
-        const clearPromise = new Promise<{ success: boolean }>((resolve) => {
-            resolveClear = () => resolve({ success: true });
-        });
-        (epgBridge.clearEpgData as jest.Mock).mockReturnValue(clearPromise);
-        (dialogService.openConfirmDialog as jest.Mock).mockImplementation(
-            ({ onConfirm }: { onConfirm: () => Promise<void> }) => {
-                void onConfirm();
-            }
-        );
-        const refreshSpy = jest.spyOn(component, 'refreshAllEpg');
-        jest.spyOn(translate, 'instant').mockImplementation((key) => key);
-
-        component.clearEpgData();
-
-        expect(component.isClearingEpgData()).toBe(true);
-        expect(refreshSpy).not.toHaveBeenCalled();
-
-        resolveClear();
-        await fixture.whenStable();
-
-        expect(component.isClearingEpgData()).toBe(false);
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'SETTINGS.EPG_DATA_CLEARED',
-            undefined,
-            expect.objectContaining({ panelClass: ['settings-snackbar'] })
-        );
-        expect(refreshSpy).toHaveBeenCalled();
-    });
-
-    it('shows an export busy state until the backup file has been written', async () => {
-        let resolveExport: (value: {
-            defaultFileName: string;
-            json: string;
-            manifest: {
-                kind: string;
-                version: number;
-                exportedAt: string;
-                includeSecrets: boolean;
-                playlists: never[];
-            };
-        }) => void = () => undefined;
-
-        (playlistBackupService.exportBackup as jest.Mock).mockReturnValueOnce(
-            new Promise((resolve) => {
-                resolveExport = resolve;
-            })
-        );
-
-        const exportPromise = component.exportData();
-
-        expect(component.isExportingData()).toBe(true);
-
-        resolveExport({
-            defaultFileName: 'iptvnator-playlist-backup-2026-04-21.json',
-            json: '{}',
-            manifest: {
-                kind: 'iptvnator-playlist-backup',
-                version: 1,
-                exportedAt: '2026-04-21T00:00:00.000Z',
-                includeSecrets: true,
-                playlists: [],
-            },
-        });
-
-        await exportPromise;
-
-        expect(window.electron.saveFileDialog).toHaveBeenCalledWith(
-            'iptvnator-playlist-backup-2026-04-21.json',
-            [
-                {
-                    extensions: ['json'],
-                    name: 'JSON',
-                },
-            ]
-        );
-        expect(window.electron.writeFile).toHaveBeenCalledWith(
-            '/tmp/backup.json',
-            '{}'
-        );
-        expect(component.isExportingData()).toBe(false);
-    });
-
-    it('falls back to browser backup download when desktop file-save preload is incomplete', async () => {
-        fixture.destroy();
-        const saveFileDialog = jest.fn().mockResolvedValue('/tmp/backup.json');
-        window.electron = {
-            platform: 'linux',
-            saveFileDialog,
-        } as unknown as typeof window.electron;
-
-        const createObjectURL = jest.fn().mockReturnValue('blob:backup');
-        const revokeObjectURL = jest.fn();
-        const originalCreateObjectURL = window.URL.createObjectURL;
-        const originalRevokeObjectURL = window.URL.revokeObjectURL;
-        Object.defineProperty(window.URL, 'createObjectURL', {
-            configurable: true,
-            value: createObjectURL,
-        });
-        Object.defineProperty(window.URL, 'revokeObjectURL', {
-            configurable: true,
-            value: revokeObjectURL,
-        });
-        const clickSpy = jest
-            .spyOn(HTMLAnchorElement.prototype, 'click')
-            .mockImplementation();
-        let partialFileSaveFixture: ComponentFixture<SettingsComponent> | null =
-            null;
-
-        try {
-            partialFileSaveFixture = TestBed.createComponent(SettingsComponent);
-            const partialFileSaveComponent =
-                partialFileSaveFixture.componentInstance;
-            partialFileSaveComponent.checkAppVersion = jest.fn();
-            partialFileSaveComponent.fetchLocalIpAddresses = jest
-                .fn()
-                .mockResolvedValue(undefined);
-            partialFileSaveFixture.detectChanges();
-
-            expect(partialFileSaveComponent.isDesktop).toBe(true);
-            expect(partialFileSaveComponent.supportsDesktopFileSave).toBe(
-                false
-            );
-
-            await partialFileSaveComponent.exportData();
-
-            expect(saveFileDialog).not.toHaveBeenCalled();
-            expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
-            expect(clickSpy).toHaveBeenCalled();
-            expect(revokeObjectURL).toHaveBeenCalledWith('blob:backup');
-        } finally {
-            partialFileSaveFixture?.destroy();
-            clickSpy.mockRestore();
-            Object.defineProperty(window.URL, 'createObjectURL', {
-                configurable: true,
-                value: originalCreateObjectURL,
-            });
-            Object.defineProperty(window.URL, 'revokeObjectURL', {
-                configurable: true,
-                value: originalRevokeObjectURL,
-            });
-        }
-    });
-
-    it('shows a failure snackbar and skips refresh when clearing EPG data rejects', async () => {
-        (epgBridge.clearEpgData as jest.Mock).mockRejectedValueOnce(
-            new Error('boom')
-        );
-        (dialogService.openConfirmDialog as jest.Mock).mockImplementation(
-            ({ onConfirm }: { onConfirm: () => Promise<void> }) => {
-                void onConfirm();
-            }
-        );
-        const refreshSpy = jest.spyOn(component, 'refreshAllEpg');
-        jest.spyOn(translate, 'instant').mockImplementation((key) => key);
-        jest.spyOn(console, 'error').mockImplementation();
-
-        component.clearEpgData();
-        await fixture.whenStable();
-
-        expect(component.isClearingEpgData()).toBe(false);
-        expect(snackBar.open).toHaveBeenCalledWith(
-            'SETTINGS.EPG_DATA_CLEAR_FAILED',
-            undefined,
-            expect.objectContaining({ panelClass: ['settings-snackbar'] })
-        );
-        expect(refreshSpy).not.toHaveBeenCalled();
-    });
-
-    it('should navigate back to home page', () => {
-        jest.spyOn(router, 'navigateByUrl');
-        component.backToHome();
-        expect(router.navigateByUrl).toHaveBeenCalledWith('/');
-    });
-
-    it('updates the selected theme through the general section and marks the form dirty', () => {
-        const darkThemeButton = (
-            fixture.nativeElement as HTMLElement
-        ).querySelector('[data-test-id="DARK_THEME"]') as HTMLButtonElement;
-
-        darkThemeButton.click();
-        fixture.detectChanges();
-
-        expect(component.settingsForm.value.theme).toBe(Theme.DarkTheme);
-        expect(component.settingsForm.dirty).toBeTruthy();
-    });
-
-    it('updates cover size through the general section output', () => {
-        const mockStore = settingsStore as unknown as MockSettingsStore;
-        const largeCoverButton = (
-            fixture.nativeElement as HTMLElement
-        ).querySelector(
-            '[data-test-id="cover-size-large"]'
-        ) as HTMLButtonElement;
-
-        largeCoverButton.click();
-        fixture.detectChanges();
-
-        expect(component.settingsForm.value.coverSize).toBe('large');
-        expect(mockStore.updateSettings).toHaveBeenCalledWith({
-            coverSize: 'large',
-        });
-    });
-
-    it('updates the EPG view mode through the epg section output', () => {
-        const mockStore = settingsStore as unknown as MockSettingsStore;
-        const listButton = (
-            fixture.nativeElement as HTMLElement
-        ).querySelector(
-            '[data-test-id="epg-view-mode-list"]'
-        ) as HTMLButtonElement;
-
-        listButton.click();
-        fixture.detectChanges();
-
-        expect(component.settingsForm.value.epgViewMode).toBe('list');
-        expect(mockStore.updateSettings).toHaveBeenCalledWith({
-            epgViewMode: 'list',
-        });
-    });
-
-    it('renders dashboard controls with the expected defaults', () => {
-        const nativeElement = fixture.nativeElement as HTMLElement;
-
-        expect(
-            nativeElement.querySelector(
-                '[data-test-id="toggle-show-dashboard"]'
-            )
-        ).not.toBeNull();
-        expect(
-            nativeElement.querySelector(
-                '[data-test-id="toggle-dashboard-hero"]'
-            )
-        ).not.toBeNull();
-        expect(
-            nativeElement.querySelector(
-                '[data-test-id="toggle-dashboard-rail-live-favorites"]'
-            )
-        ).not.toBeNull();
-        expect(
-            nativeElement.querySelector(
-                '[data-test-id="toggle-dashboard-rail-recently-watched-live"]'
-            )
-        ).not.toBeNull();
-        expect(
-            nativeElement.querySelector(
-                '[data-test-id="toggle-dashboard-rail-favorite-movies-and-series"]'
-            )
-        ).not.toBeNull();
-        expect(component.settingsForm.value.showDashboard).toBe(true);
-        expect(component.settingsForm.value.dashboardRails).toEqual(
-            DEFAULT_DASHBOARD_RAILS
-        );
-        expect(component.settingsForm.value.startupBehavior).toBe(
-            StartupBehavior.FirstView
-        );
-    });
-
-    it('disables dashboard surface controls when the dashboard is off', async () => {
-        const showDashboard = component.settingsForm.get('showDashboard');
-        const dashboardRails = component.settingsForm.get('dashboardRails');
-
-        showDashboard?.setValue(false);
-        await fixture.whenStable();
-
-        expect(dashboardRails?.disabled).toBe(true);
-        expect(
-            component.settingsForm.get('dashboardRails.hero')?.disabled
-        ).toBe(true);
-        expect(
-            component.settingsForm.get('dashboardRails.continueWatching')
-                ?.disabled
-        ).toBe(true);
-
-        showDashboard?.setValue(true);
-        await fixture.whenStable();
-
-        expect(dashboardRails?.enabled).toBe(true);
-        expect(component.settingsForm.get('dashboardRails.hero')?.enabled).toBe(
-            true
-        );
-    });
-
-    it('should save settings on submit', async () => {
-        const mockStore = settingsStore as unknown as MockSettingsStore;
-        mockStore.updateSettings.mockResolvedValue(undefined);
-        const updateSettings = jest.spyOn(window.electron, 'updateSettings');
-
-        component.onSubmit();
-        await fixture.whenStable();
-
-        expect(mockStore.updateSettings).toHaveBeenCalledWith({
-            ...component.settingsForm.value,
-            trustedPrivateNetworkEpgUrls: [],
-            trustedInsecureTlsHosts: [],
-        });
-        expect(updateSettings).toHaveBeenCalledWith({
-            ...component.settingsForm.value,
-            trustedPrivateNetworkEpgUrls: [],
-            trustedInsecureTlsHosts: [],
-        });
-    });
-
-    it('clears external player paths in Electron when saved as empty', async () => {
-        const mockStore = settingsStore as unknown as MockSettingsStore;
-        mockStore.updateSettings.mockResolvedValue(undefined);
-        const setMpvPlayerPath = jest.spyOn(
-            window.electron,
-            'setMpvPlayerPath'
-        );
-        const setVlcPlayerPath = jest.spyOn(
-            window.electron,
-            'setVlcPlayerPath'
-        );
-
-        component.settingsForm.patchValue({
-            mpvPlayerPath: '',
-            vlcPlayerPath: '',
-        });
-
-        component.onSubmit();
-        await fixture.whenStable();
-
-        expect(setMpvPlayerPath).toHaveBeenCalledWith('');
-        expect(setVlcPlayerPath).toHaveBeenCalledWith('');
-    });
-
-    it('saves external player command-line arguments with the settings payload', async () => {
-        const mockStore = settingsStore as unknown as MockSettingsStore;
-        mockStore.updateSettings.mockResolvedValue(undefined);
-        const updateSettings = jest.spyOn(window.electron, 'updateSettings');
-
-        component.settingsForm.patchValue({
-            mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
-            vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
-        });
-
-        component.onSubmit();
-        await fixture.whenStable();
-
-        expect(mockStore.updateSettings).toHaveBeenCalledWith(
-            expect.objectContaining({
-                mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
-                vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
-            })
-        );
-        expect(updateSettings).toHaveBeenCalledWith(
-            expect.objectContaining({
-                mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
-                vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
-            })
-        );
-    });
-
-    it('preserves saved EPG settings when saving from the web settings form', async () => {
-        fixture.destroy();
-        window.electron = undefined as unknown as typeof window.electron;
-
-        const mockStore = settingsStore as unknown as MockSettingsStore;
-        mockStore._setSettings({
-            epgUrl: ['https://example.com/guide.xml'],
-            preferUploadedEpgOverXtream: true,
-        });
-        mockStore.updateSettings.mockResolvedValue(undefined);
-
-        const webFixture = TestBed.createComponent(SettingsComponent);
-        const webComponent = webFixture.componentInstance;
-        webComponent.checkAppVersion = jest.fn();
-        webComponent.fetchLocalIpAddresses = jest
-            .fn()
-            .mockResolvedValue(undefined);
-        webFixture.detectChanges();
-        await webFixture.whenStable();
-
-        webComponent.settingsForm.patchValue({ theme: Theme.DarkTheme });
-        webComponent.onSubmit();
-        await webFixture.whenStable();
-
-        expect(mockStore.updateSettings).toHaveBeenCalledWith(
-            expect.objectContaining({
-                epgUrl: ['https://example.com/guide.xml'],
-                preferUploadedEpgOverXtream: true,
-                theme: Theme.DarkTheme,
-            })
-        );
-
-        webFixture.destroy();
     });
 });

@@ -15,6 +15,8 @@ export async function getRecentlyViewed(db: AppDatabase) {
             backdrop_url: schema.content.backdropUrl,
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
+            tv_archive: schema.content.tvArchive,
+            tv_archive_duration: schema.content.tvArchiveDuration,
             playlist_id: schema.categories.playlistId,
             playlist_name: schema.playlists.name,
             viewed_at: schema.recentlyViewed.viewedAt,
@@ -58,6 +60,8 @@ export async function getRecentItems(
             backdrop_url: schema.content.backdropUrl,
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
+            tv_archive: schema.content.tvArchive,
+            tv_archive_duration: schema.content.tvArchiveDuration,
             viewed_at: schema.recentlyViewed.viewedAt,
         })
         .from(schema.recentlyViewed)
@@ -177,7 +181,12 @@ export async function removeRecentItemsBatch(
 
     await db.transaction(() => {
         for (const { contentId, playlistId } of items) {
-            stmt.execute({ contentId, playlistId });
+            // .run() (synchronous), NOT .execute(): the better-sqlite3
+            // driver's .execute() defers the write to a resolved promise
+            // that never settles inside this synchronous transaction
+            // callback, so the DELETE would silently do nothing. See the
+            // matching note in favorites.operations.ts (issue #1137).
+            stmt.run({ contentId, playlistId });
         }
     });
 

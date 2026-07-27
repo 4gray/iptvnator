@@ -135,6 +135,14 @@
                 color: #ffd700;
                 border-color: rgba(255, 215, 0, 0.3);
             }
+
+            // Series production status — a state, not a fact about the
+            // title, so it reads quieter than the other tags
+            &--status {
+                text-transform: uppercase;
+                font-size: 0.6875rem;
+                letter-spacing: 0.06em;
+            }
         }
 
         &__meta-item {
@@ -223,6 +231,12 @@
             overflow-x: auto;
             padding-bottom: 8px;
             scrollbar-width: thin;
+            scrollbar-color: color-mix(
+                    in srgb,
+                    var(--app-muted-color) 55%,
+                    transparent
+                )
+                transparent;
         }
 
         &__similar-card {

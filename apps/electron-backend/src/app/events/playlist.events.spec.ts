@@ -1,14 +1,18 @@
 import type {
+    AutoUpdatePlaylistsResult,
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
 } from '@iptvnator/shared/interfaces';
 import {
     AUTO_UPDATE_PLAYLISTS,
+    M3U_IMPORT_PERFORMANCE_PHASE,
+    M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL,
     PLAYLIST_CANCEL_REFRESH,
     PLAYLIST_REFRESH,
     PLAYLIST_REFRESH_EVENT,
 } from '@iptvnator/shared/interfaces';
+import { channel } from 'node:diagnostics_channel';
 import { resolve } from 'node:path';
 
 type IpcHandler = (event: MockIpcEvent, ...args: unknown[]) => Promise<unknown>;
@@ -40,6 +44,8 @@ const mockCreatePlaylistObject = jest.fn();
 const mockGetFilenameFromUrl = jest.fn();
 const mockResolveWorkerRuntimeBootstrap = jest.fn();
 const mockWorkerInstances: MockWorker[] = [];
+const PERF_CAPTURE_ENV = 'IPTVNATOR_PERF_CAPTURE';
+const originalPerformanceCaptureValue = process.env[PERF_CAPTURE_ENV];
 
 jest.mock('electron', () => ({
     app: {
@@ -168,6 +174,11 @@ describe('playlist IPC events', () => {
     });
 
     afterEach(() => {
+        if (originalPerformanceCaptureValue === undefined) {
+            delete process.env[PERF_CAPTURE_ENV];
+        } else {
+            process.env[PERF_CAPTURE_ENV] = originalPerformanceCaptureValue;
+        }
         consoleErrorSpy.mockRestore();
         consoleLogSpy.mockRestore();
         consoleWarnSpy.mockRestore();
@@ -195,6 +206,7 @@ describe('playlist IPC events', () => {
                 httpsAgent: expect.any(Object),
                 maxRedirects: 0,
                 method: 'GET',
+                timeout: 30000,
                 url: 'https://example.test/remote.m3u',
             })
         );
@@ -206,6 +218,101 @@ describe('playlist IPC events', () => {
             'URL'
         );
         expect(result).toEqual(playlist);
+    });
+
+    it('publishes request-scoped URL import phases only through the opt-in internal channel', async () => {
+        process.env[PERF_CAPTURE_ENV] = '1';
+        const body = '#EXTM3U\n#EXTINF:-1,News\nhttps://stream.test/news';
+        const parsedPlaylist = { items: [{ name: 'News' }] };
+        const playlist = createPlaylist({
+            title: 'synthetic-performance.m3u',
+            url: 'http://127.0.0.1:43210/synthetic-performance.m3u',
+        });
+        const events: unknown[] = [];
+        const performanceChannel = channel(
+            M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL
+        );
+        const subscriber = (event: unknown) => events.push(event);
+
+        mockAxiosGet.mockResolvedValue({
+            data: body,
+            headers: {
+                'content-length': String(Buffer.byteLength(body, 'utf8')),
+            },
+        });
+        mockParse.mockReturnValue(parsedPlaylist);
+        mockGetFilenameFromUrl.mockReturnValue('synthetic-performance.m3u');
+        mockCreatePlaylistObject.mockReturnValue(playlist);
+        performanceChannel.subscribe(subscriber);
+
+        try {
+            await expect(
+                getHandler('fetch-playlist-by-url')(
+                    createIpcEvent(),
+                    'http://127.0.0.1:43210/synthetic-performance.m3u'
+                )
+            ).resolves.toBe(playlist);
+        } finally {
+            performanceChannel.unsubscribe(subscriber);
+        }
+
+        expect(
+            events.map((event) => {
+                const marker = event as {
+                    boundary: string;
+                    metadata?: { byteCount?: number; itemCount?: number };
+                    phase: string;
+                    requestId: string;
+                };
+                return {
+                    boundary: marker.boundary,
+                    metadata: marker.metadata,
+                    phase: marker.phase,
+                    requestIdType: typeof marker.requestId,
+                };
+            })
+        ).toEqual([
+            {
+                boundary: 'start',
+                metadata: undefined,
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.DATA_ACQUIRE,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'end',
+                metadata: { byteCount: Buffer.byteLength(body, 'utf8') },
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.DATA_ACQUIRE,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'start',
+                metadata: undefined,
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.PARSE_M3U,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'end',
+                metadata: { itemCount: 1 },
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.PARSE_M3U,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'start',
+                metadata: undefined,
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.NORMALIZE,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'end',
+                metadata: { itemCount: 1 },
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.NORMALIZE,
+                requestIdType: 'string',
+            },
+        ]);
+        expect(
+            new Set(events.map((event) => (event as any).requestId)).size
+        ).toBe(1);
+        expect(JSON.stringify(events)).not.toContain('stream.test');
     });
 
     it('returns null when the open playlist dialog is cancelled', async () => {
@@ -288,31 +395,32 @@ describe('playlist IPC events', () => {
         mockReadFile.mockResolvedValue('#EXTM3U file');
         mockParse.mockReturnValue(parsedPlaylist);
         mockGetFilenameFromUrl.mockReturnValue('list.m3u');
-        mockCreatePlaylistObject
-            .mockReturnValueOnce(
-                createPlaylist({
-                    _id: 'new-url-playlist',
-                    autoRefresh: false,
-                    favorites: [],
-                    title: 'Updated URL playlist',
-                    url: 'https://example.test/list.m3u',
-                })
-            )
-            .mockReturnValueOnce(
-                createPlaylist({
-                    _id: 'new-file-playlist',
-                    autoRefresh: true,
-                    filePath: '/playlists/local.m3u',
-                    title: 'Updated file playlist',
-                })
-            );
-
-        const result = await getHandler(AUTO_UPDATE_PLAYLISTS)(
-            createIpcEvent(),
-            sourcePlaylists
+        // Auto-update refreshes playlists concurrently, so the fixtures are
+        // keyed by source type instead of by call order.
+        mockCreatePlaylistObject.mockImplementation(
+            (_title, _parsed, _source, type) =>
+                type === 'URL'
+                    ? createPlaylist({
+                          _id: 'new-url-playlist',
+                          autoRefresh: false,
+                          favorites: [],
+                          title: 'Updated URL playlist',
+                          url: 'https://example.test/list.m3u',
+                      })
+                    : createPlaylist({
+                          _id: 'new-file-playlist',
+                          autoRefresh: true,
+                          filePath: '/playlists/local.m3u',
+                          title: 'Updated file playlist',
+                      })
         );
 
-        expect(result).toEqual([
+        const result = (await getHandler(AUTO_UPDATE_PLAYLISTS)(
+            createIpcEvent(),
+            sourcePlaylists
+        )) as AutoUpdatePlaylistsResult;
+
+        expect(result.playlists).toEqual([
             expect.objectContaining({
                 _id: 'url-playlist',
                 autoRefresh: true,
@@ -327,11 +435,29 @@ describe('playlist IPC events', () => {
                 title: 'Updated file playlist',
             }),
         ]);
+        expect(result.outcomes).toEqual([
+            {
+                playlistId: 'url-playlist',
+                status: 'updated',
+                title: 'URL playlist',
+            },
+            {
+                playlistId: 'file-playlist',
+                status: 'updated',
+                title: 'File playlist',
+            },
+            {
+                playlistId: 'missing-source',
+                status: 'skipped',
+                title: 'Missing source',
+            },
+        ]);
         expect(mockAxiosGet).toHaveBeenCalledWith(
             expect.objectContaining({
                 httpsAgent: expect.any(Object),
                 maxRedirects: 0,
                 method: 'GET',
+                timeout: 30000,
                 url: 'https://example.test/list.m3u',
             })
         );
@@ -342,6 +468,61 @@ describe('playlist IPC events', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
             'Skipping playlist "Missing source": no URL or file path found'
         );
+    });
+
+    it('reports failed playlists as failed outcomes instead of dropping them silently', async () => {
+        const sourcePlaylists: Playlist[] = [
+            createPlaylist({
+                _id: 'unreachable-playlist',
+                filePath: undefined,
+                title: 'Unreachable playlist',
+                url: 'https://unreachable.test/list.m3u',
+            }),
+            createPlaylist({
+                _id: 'file-playlist',
+                filePath: '/playlists/local.m3u',
+                importDate: '',
+                title: 'File playlist',
+                url: undefined,
+            }),
+        ];
+
+        mockAxiosGet.mockRejectedValue(
+            new Error('timeout of 30000ms exceeded')
+        );
+        mockReadFile.mockResolvedValue('#EXTM3U file');
+        mockParse.mockReturnValue({ items: [{ name: 'Updated' }] });
+        mockCreatePlaylistObject.mockReturnValue(
+            createPlaylist({
+                _id: 'new-file-playlist',
+                filePath: '/playlists/local.m3u',
+                title: 'Updated file playlist',
+            })
+        );
+
+        const result = (await getHandler(AUTO_UPDATE_PLAYLISTS)(
+            createIpcEvent(),
+            sourcePlaylists
+        )) as AutoUpdatePlaylistsResult;
+
+        expect(result.playlists).toEqual([
+            expect.objectContaining({
+                _id: 'file-playlist',
+                title: 'Updated file playlist',
+            }),
+        ]);
+        expect(result.outcomes).toEqual([
+            {
+                playlistId: 'unreachable-playlist',
+                status: 'failed',
+                title: 'Unreachable playlist',
+            },
+            {
+                playlistId: 'file-playlist',
+                status: 'updated',
+                title: 'File playlist',
+            },
+        ]);
     });
 
     it('forwards playlist refresh worker events, resolves successful responses, and cleans up the worker', async () => {
@@ -451,7 +632,94 @@ describe('playlist IPC events', () => {
         expect(worker.terminate).toHaveBeenCalled();
     });
 
-    it('routes refresh cancellation to the active worker and converts worker error responses to Error instances', async () => {
+    it('settles cancellation without waiting for a CPU-bound refresh worker', async () => {
+        const ipcEvent = createIpcEvent();
+        const payload: PlaylistRefreshPayload = {
+            operationId: 'refresh-busy',
+            playlistId: 'playlist-busy',
+            title: 'Busy playlist',
+            filePath: '/playlists/busy.m3u',
+        };
+        const refreshPromise = getHandler(PLAYLIST_REFRESH)(ipcEvent, payload);
+        const worker = mockWorkerInstances[0];
+        let outcome:
+            | { error: unknown; status: 'rejected' }
+            | { status: 'resolved'; value: unknown }
+            | undefined;
+        void refreshPromise.then(
+            (value) => {
+                outcome = { status: 'resolved', value };
+            },
+            (error: unknown) => {
+                outcome = { error, status: 'rejected' };
+            }
+        );
+
+        worker.emit('message', { type: 'ready' });
+        worker.emit('message', {
+            event: {
+                operationId: payload.operationId,
+                phase: 'parsing',
+                playlistId: payload.playlistId,
+                status: 'progress',
+            } satisfies PlaylistRefreshEvent,
+            type: 'event',
+        });
+
+        let finishTermination: ((exitCode: number) => void) | undefined;
+        worker.terminate.mockImplementationOnce(
+            () =>
+                new Promise<number>((resolveTermination) => {
+                    finishTermination = resolveTermination;
+                })
+        );
+        const cancelPromise = getHandler(PLAYLIST_CANCEL_REFRESH)(
+            createIpcEvent(),
+            payload.operationId
+        );
+        await Promise.resolve();
+
+        expect(worker.removeAllListeners).toHaveBeenCalledTimes(1);
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
+        expect(worker.postMessage).toHaveBeenLastCalledWith({
+            operationId: payload.operationId,
+            type: 'cancel',
+        });
+        expect(outcome).toBeUndefined();
+        expect(ipcEvent.sender.send).not.toHaveBeenCalledWith(
+            PLAYLIST_REFRESH_EVENT,
+            expect.objectContaining({ status: 'cancelled' })
+        );
+
+        finishTermination?.(1);
+        await expect(cancelPromise).resolves.toEqual({ success: true });
+        await Promise.resolve();
+
+        expect(outcome).toEqual({
+            status: 'resolved',
+            value: {
+                operationId: payload.operationId,
+                type: 'playlist-refresh-cancelled',
+            },
+        });
+        expect(ipcEvent.sender.send).toHaveBeenLastCalledWith(
+            PLAYLIST_REFRESH_EVENT,
+            {
+                operationId: payload.operationId,
+                phase: 'parsing',
+                playlistId: payload.playlistId,
+                status: 'cancelled',
+            }
+        );
+        await expect(
+            getHandler(PLAYLIST_CANCEL_REFRESH)(
+                createIpcEvent(),
+                payload.operationId
+            )
+        ).resolves.toEqual({ success: false });
+    });
+
+    it('converts playlist refresh worker error responses to Error instances', async () => {
         const payload: PlaylistRefreshPayload = {
             operationId: 'refresh-error',
             playlistId: 'playlist-error',
@@ -463,17 +731,6 @@ describe('playlist IPC events', () => {
             payload
         );
         const worker = mockWorkerInstances[0];
-
-        expect(
-            await getHandler(PLAYLIST_CANCEL_REFRESH)(
-                createIpcEvent(),
-                'refresh-error'
-            )
-        ).toEqual({ success: true });
-        expect(worker.postMessage).toHaveBeenCalledWith({
-            operationId: 'refresh-error',
-            type: 'cancel',
-        });
 
         const rejectedRefresh = expect(refreshPromise).rejects.toMatchObject({
             message: 'Refresh failed',
@@ -492,13 +749,6 @@ describe('playlist IPC events', () => {
         });
 
         await rejectedRefresh;
-
-        expect(
-            await getHandler(PLAYLIST_CANCEL_REFRESH)(
-                createIpcEvent(),
-                'refresh-error'
-            )
-        ).toEqual({ success: false });
     });
 
     it('returns save dialog paths and writes files through the filesystem handler', async () => {
