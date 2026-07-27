@@ -17,6 +17,40 @@ export const PERFORMANCE_WORKER_KIND = {
 export type PerformanceWorkerKind =
     (typeof PERFORMANCE_WORKER_KIND)[keyof typeof PERFORMANCE_WORKER_KIND];
 
+export const WORKER_POST_GC_HEAP_UNAVAILABLE_REASON = {
+    CAPTURE_FAILED: 'capture-failed',
+    DATABASE_WORKER_ACTIVITY_AFTER_CUTOFF:
+        'database-worker-activity-after-cutoff',
+    DATABASE_WORKER_MISSING: 'database-worker-missing',
+    DATABASE_WORKER_NOT_IDLE: 'database-worker-not-idle',
+    DATABASE_WORKER_UNEXPECTED_ACTIVITY: 'database-worker-unexpected-activity',
+    GC_UNAVAILABLE: 'gc-unavailable',
+    INVALID_CAPTURE: 'post-gc-capture-invalid',
+    MULTIPLE_DATABASE_WORKERS: 'multiple-database-workers',
+    PROBE_INVALID_RESPONSE: 'post-gc-probe-invalid-response',
+    PROBE_MESSAGE_ERROR: 'post-gc-probe-message-error',
+    PROBE_NOT_RUN: 'post-gc-probe-not-run',
+    PROBE_PORT_CLOSED: 'post-gc-probe-port-closed',
+    PROBE_POST_FAILED: 'post-gc-probe-post-failed',
+    PROBE_TIMEOUT: 'post-gc-probe-timeout',
+    PROFILING_DISABLED: 'profiling-disabled',
+    WORKER_BUSY: 'worker-busy',
+    WORKER_FORCE_TERMINATED: 'worker-force-terminated-before-gc',
+} as const;
+
+export type WorkerPostGcHeapUnavailableReason =
+    (typeof WORKER_POST_GC_HEAP_UNAVAILABLE_REASON)[keyof typeof WORKER_POST_GC_HEAP_UNAVAILABLE_REASON];
+
+export type WorkerPostGcHeapCapture =
+    | {
+          readonly postGcHeapUnavailableReason: null;
+          readonly postGcHeapUsedBytes: number;
+      }
+    | {
+          readonly postGcHeapUnavailableReason: WorkerPostGcHeapUnavailableReason;
+          readonly postGcHeapUsedBytes: null;
+      };
+
 export interface NumericDistribution {
     readonly count: number;
     readonly max: number | null;
@@ -73,7 +107,7 @@ export interface WorkerRequestPerformanceMetrics {
     readonly workStartedEpochMs: number | null;
 }
 
-export interface WorkerCaptureMetrics {
+export type WorkerCaptureMetrics = {
     readonly cancelPostedEpochMs: number | null;
     readonly cpuSystemMicros: number | null;
     readonly cpuUserMicros: number | null;
@@ -82,16 +116,16 @@ export interface WorkerCaptureMetrics {
     readonly eventLoopUtilization: number | null;
     readonly kind: PerformanceWorkerKind;
     readonly operationId: string | null;
+    readonly ordinal: number;
     readonly peakExternalBytes: number;
     readonly peakHeapUsedBytes: number;
     readonly playlistId: string | null;
-    readonly postGcHeapUsedBytes: number | null;
     readonly profilePath: string | null;
     readonly requests: readonly WorkerRequestPerformanceMetrics[];
     readonly responseEpochMs: number | null;
     readonly snapshotPath: string | null;
     readonly terminatedEpochMs: number | null;
-}
+} & WorkerPostGcHeapCapture;
 
 export interface MainCaptureMetrics {
     readonly cpuProfilePath: string | null;
@@ -199,6 +233,27 @@ export interface CancellationBenchmarkManifest {
     readonly warmupRuns: number;
 }
 
+export interface InvalidDatabaseWorkerPostGcMeasuredRun {
+    readonly databaseWorkerCount: number;
+    readonly reason: string;
+    readonly runId: string;
+}
+
+export interface NotApplicableDatabaseWorkerPostGcMeasuredRun {
+    readonly reason: 'operation-cancelled-before-database-phase';
+    readonly runId: string;
+}
+
+export interface DatabaseWorkerPostGcValidity {
+    readonly applicableMeasuredRunCount: number;
+    readonly invalidMeasuredRuns: readonly InvalidDatabaseWorkerPostGcMeasuredRun[];
+    readonly measuredRunCount: number;
+    readonly notApplicableMeasuredRuns: readonly NotApplicableDatabaseWorkerPostGcMeasuredRun[];
+    readonly validForBenchmark: boolean;
+    readonly validForComparison: boolean;
+    readonly validMeasuredRunCount: number;
+}
+
 export interface CancellationBenchmarkSummary {
     readonly cancellationEffectRate: number;
     readonly iterations: readonly CancellationIterationResult[];
@@ -251,5 +306,8 @@ export interface CancellationBenchmarkSummary {
         readonly uiSettlementToPaintMs: NumericDistribution;
         readonly unresponsiveEvents: number;
         readonly visibleTotalMs: NumericDistribution;
+    };
+    readonly validity: {
+        readonly databaseWorkerPostGc: DatabaseWorkerPostGcValidity;
     };
 }

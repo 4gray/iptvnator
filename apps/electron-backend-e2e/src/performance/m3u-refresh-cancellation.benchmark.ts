@@ -35,10 +35,12 @@ import {
     createCancellationBenchmarkSummary,
     createCancellationIterationResult,
 } from './m3u-refresh-cancellation-report';
+import { validateDiagnosticPlaylistWorkerCapture } from './diagnostic-playlist-worker-capture';
 import { assertPerformanceArtifactCapacity } from './performance-artifact-preflight';
 import {
     installMainCapture,
     readMainCaptureStatus,
+    rolloverMainCapture,
     startMainCapture,
     stopMainCapture,
 } from './m3u-refresh-main-capture';
@@ -135,6 +137,33 @@ export async function runM3uRefreshCancellationBenchmark(): Promise<void> {
     const summary = createCancellationBenchmarkSummary(manifest, iterations);
     await writeJson(join(config.outputDirectory, 'manifest.json'), manifest);
     await writeJson(join(config.outputDirectory, 'summary.json'), summary);
+    const diagnosticIteration = iterations.find(
+        (iteration) => iteration.kind === PERFORMANCE_ITERATION_KIND.DIAGNOSTIC
+    );
+    if (!diagnosticIteration) {
+        throw new Error('Diagnostic iteration is missing');
+    }
+    if (!diagnosticIteration.cancellationEffectObserved) {
+        throw new Error(
+            'Cancellation effect was not observed in the diagnostic run'
+        );
+    }
+    await validateDiagnosticPlaylistWorkerCapture(
+        diagnosticIteration.main,
+        join(config.outputDirectory, diagnosticIteration.runId)
+    );
+    if (summary.cancellationEffectRate !== 1) {
+        throw new Error(
+            `Cancellation effect was not observed in every measured run: ${summary.cancellationEffectRate}`
+        );
+    }
+    if (!summary.validity.databaseWorkerPostGc.validForBenchmark) {
+        throw new Error(
+            `Database worker post-GC capture is invalid: ${JSON.stringify(
+                summary.validity.databaseWorkerPostGc.invalidMeasuredRuns
+            )}`
+        );
+    }
     console.log(
         `[performance] completed: ${join(
             config.outputDirectory,
@@ -179,6 +208,12 @@ async function runIteration(
         await assertRendererCdpTarget(app.mainWindow);
         app.mainWindow.setDefaultTimeout(120_000);
         await installMainCapture(app.electronApp);
+        const rendererWindowIdentity = await resolveRendererWindowIdentity(app);
+        await startMainCapture(app.electronApp, {
+            diagnostic: false,
+            outputDirectory: iterationDirectory,
+            rendererWindowIdentity,
+        });
         await seedPlaylist(app.mainWindow, server.resourceUrl);
         await waitForSeedSettlement(app);
         server.serveLargeFixture();
@@ -195,12 +230,20 @@ async function runIteration(
 
         const diagnostic =
             definition.kind === PERFORMANCE_ITERATION_KIND.DIAGNOSTIC;
-        const rendererWindowIdentity = await resolveRendererWindowIdentity(app);
-        await startMainCapture(app.electronApp, {
+        const seedRollover = await rolloverMainCapture(app.electronApp, {
             diagnostic,
             outputDirectory: iterationDirectory,
             rendererWindowIdentity,
         });
+        await writeJson(
+            join(iterationDirectory, 'seed-main-capture.json'),
+            seedRollover.completedCapture
+        );
+        if (!seedRollover.nextCaptureStarted) {
+            throw new Error(
+                `Seed capture could not atomically arm the measured generation: ${seedRollover.nextCaptureUnavailableReason}`
+            );
+        }
         const renderer = await startRendererCapture(app.mainWindow, {
             diagnostic,
             outputDirectory: iterationDirectory,
@@ -287,11 +330,17 @@ async function seedPlaylist(page: Page, playlistUrl: string): Promise<void> {
 async function waitForSeedSettlement(app: LaunchedElectronApp): Promise<void> {
     await expect
         .poll(
-            async () =>
-                (await readMainCaptureStatus(app.electronApp)).databasePending,
+            async () => {
+                const status = await readMainCaptureStatus(app.electronApp);
+                return (
+                    status.databaseRequests > 0 &&
+                    status.databaseUpsertsCompleted > 0 &&
+                    status.databasePending === 0
+                );
+            },
             { timeout: 120_000 }
         )
-        .toBe(0);
+        .toBe(true);
     await waitForTwoAnimationFrames(app.mainWindow);
 }
 

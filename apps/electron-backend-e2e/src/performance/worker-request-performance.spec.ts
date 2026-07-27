@@ -12,6 +12,7 @@ import {
     type WorkerRequestPerformanceMetrics,
 } from './m3u-refresh-cancellation-contract';
 import {
+    type MainCaptureGenerationTransport,
     normalizeWorkerRequestPerformanceOutcome,
     selectMainCaptureGeneration,
 } from './worker-request-performance';
@@ -217,7 +218,6 @@ test('main capture retains raw request identity, timestamps, metrics, and reason
     );
 
     assert.match(source, /requestPerformance: \[\]/);
-    assert.match(source, /record\.requestPerformance\.length > 0/);
     assert.match(source, /record\.requestPerformance\.map/);
     assert.match(source, /operationId: request\.identity\.operationId/);
     assert.match(source, /identity: request\.identity/);
@@ -292,6 +292,53 @@ test('capture-generation selection excludes a pre-start seed worker', () => {
     );
     assert.equal(selected.workers[0]?.operationId, 'measured-cancel-operation');
     assert.equal(selected.workers[0]?.terminatedEpochMs, 2_100);
+});
+
+test('fails closed for incoherent worker post-GC metrics at the Electron boundary', () => {
+    const invalidOutcomes = [
+        {
+            postGcHeapUnavailableReason: 'gc-unavailable',
+            postGcHeapUsedBytes: 100,
+        },
+        {
+            postGcHeapUnavailableReason: null,
+            postGcHeapUsedBytes: null,
+        },
+        {
+            postGcHeapUnavailableReason: null,
+            postGcHeapUsedBytes: -1,
+        },
+        {
+            postGcHeapUnavailableReason: 'unknown-reason',
+            postGcHeapUsedBytes: null,
+        },
+    ] as const;
+
+    for (const outcome of invalidOutcomes) {
+        const selected = selectMainCaptureGeneration({
+            captureGeneration: 3,
+            metrics: measuredIteration([]).main,
+            workers: [
+                {
+                    captureGeneration: 3,
+                    metrics: {
+                        ...databaseWorker([]),
+                        ...outcome,
+                    },
+                    requests: [],
+                },
+            ],
+        } as unknown as MainCaptureGenerationTransport);
+        const worker = selected.workers[0] as WorkerCaptureMetrics & {
+            readonly postGcHeapUnavailableReason: string | null;
+        };
+
+        assert.equal(worker.postGcHeapUsedBytes, null);
+        assert.equal(
+            worker.postGcHeapUnavailableReason,
+            'post-gc-capture-invalid'
+        );
+    }
 });
 
 test('raw outcomes retain missing and malformed captures while summaries exclude their null metrics', () => {

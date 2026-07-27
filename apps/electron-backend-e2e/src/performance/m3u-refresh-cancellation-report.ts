@@ -19,6 +19,7 @@ import {
     nonNegativeDifference,
     summarizeNumbers,
 } from './performance-statistics';
+import { assessDatabaseWorkerPostGcValidity } from './database-worker-post-gc-validity';
 
 export function createCancellationIterationResult(input: {
     readonly kind: CancellationIterationResult['kind'];
@@ -305,6 +306,10 @@ export function createCancellationBenchmarkSummary(
             visibleTotalMs: summarizeNumbers(
                 measured.map((iteration) => iteration.phases.visibleTotalMs)
             ),
+        }),
+        validity: Object.freeze({
+            databaseWorkerPostGc:
+                assessDatabaseWorkerPostGcValidity(iterations),
         }),
     });
 }

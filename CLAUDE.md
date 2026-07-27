@@ -142,7 +142,7 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
 - `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted preload IPC phase markers for refresh/DB benchmark correlation; benchmark tooling sets it explicitly, and production launches must leave it unset
-- `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker timestamps, thread CPU, event-loop utilization, and event-loop delay metrics in database and playlist-refresh responses; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
+- `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker timestamps, thread CPU, event-loop utilization, and event-loop delay metrics in database and playlist-refresh responses, plus the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
 
 Settings, portal request/response, and trace payloads must use
 `@iptvnator/shared/logging` or the redacting portal logger before reaching
@@ -353,10 +353,11 @@ Key patterns:
 - **Factory injection**: `provideXtreamDataSource()` selects Electron or PWA implementation at runtime
 
 Data strategies by environment:
-| Environment | Strategy |
-|-------------|----------|
+
+| Environment  | Strategy                                                |
+| ------------ | ------------------------------------------------------- |
 | **Electron** | DB-first: Check DB → fetch API if missing → cache to DB |
-| **PWA** | API-only: Always fetch from API, store in memory |
+| **PWA**      | API-only: Always fetch from API, store in memory        |
 
 **M3U Playlist Module Architecture**:
 

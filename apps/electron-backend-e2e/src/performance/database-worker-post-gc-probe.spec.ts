@@ -63,10 +63,24 @@ interface ProbeModule {
     createDatabaseWorkerPostGcProbeApi?: () => ProbeApi;
 }
 
+interface ProductionWorkerPostGcModule {
+    DATABASE_WORKER_POST_GC_HEAP_UNAVAILABLE_REASON?: Readonly<
+        Record<string, WorkerUnavailableReason>
+    >;
+}
+
 const probeModulePromise = import(
     new URL('./database-worker-post-gc-probe.ts', import.meta.url).href
 )
     .then((module) => module as ProbeModule)
+    .catch(() => null);
+const productionWorkerPostGcModulePromise = import(
+    new URL(
+        '../../../electron-backend/src/app/workers/database-worker-post-gc-heap.ts',
+        import.meta.url
+    ).href
+)
+    .then((module) => module as ProductionWorkerPostGcModule)
     .catch(() => null);
 
 class FakePort extends EventEmitter implements ProbePort {
@@ -231,12 +245,21 @@ test('serializes the factory and sends the exact one-shot worker request with it
 
 test('preserves every coherent worker-side unavailable result', async () => {
     const api = await restoreSerializableApi();
-    const reasons: readonly WorkerUnavailableReason[] = [
-        'capture-failed',
-        'gc-unavailable',
-        'profiling-disabled',
-        'worker-busy',
-    ];
+    const productionModule = await productionWorkerPostGcModulePromise;
+    assert.ok(productionModule, 'production worker post-GC module must load');
+    const productionReasons =
+        productionModule.DATABASE_WORKER_POST_GC_HEAP_UNAVAILABLE_REASON;
+    assert.ok(productionReasons, 'production worker reasons must be exported');
+    const reasons = Object.values(productionReasons);
+    assert.deepEqual(
+        new Set(reasons),
+        new Set<WorkerUnavailableReason>([
+            'capture-failed',
+            'gc-unavailable',
+            'profiling-disabled',
+            'worker-busy',
+        ])
+    );
 
     for (const unavailableReason of reasons) {
         const harness = createProbeHarness();

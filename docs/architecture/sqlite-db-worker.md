@@ -147,6 +147,40 @@ profiling queue. If captures overlap, every overlapping response carries
 CPU, ELU, and event-loop-delay values are `null`. This avoids assigning shared
 worker activity to one request while preserving normal worker concurrency.
 
+### Opt-in post-GC heap capture
+
+The same `IPTVNATOR_PERF_WORKER_PROFILING=1` opt-in enables a development/test
+one-shot `performance:collect-post-gc-heap` request. The benchmark transfers a
+dedicated `MessagePort`; the database worker accepts the request only while no
+request performance capture is active, calls exposed `globalThis.gc()`, reads
+its own V8 isolate through `v8.getHeapStatistics()`, posts one result, and
+closes the port. Production launches do not expose GC or send this request.
+
+The response is a strict XOR: either a non-negative
+`postGcHeapUsedBytes` with a `null` reason, or a `null` heap with a fixed
+unavailability reason. Disabled profiling, a busy worker, unavailable GC, and
+capture failure all fail closed without changing the database operation or
+terminating the worker. The performance launcher supplies
+`--js-flags=--expose-gc` to Electron itself; worker `execArgv` remains
+untouched.
+
+The main-process benchmark selects exactly one current-generation database
+worker, waits for its final sampling call, stops its CPU profile, performs the
+explicit-GC probe, and only then takes an optional diagnostic heap snapshot.
+Profile or snapshot failure cannot overwrite an already captured post-GC
+value. Capture stop closes a synchronous cutoff before awaiting profile or
+snapshot work. A database request after that cutoff cannot restart sampling;
+it records `database-worker-activity-after-cutoff` and invalidates the result.
+Missing, multiple, busy, timed-out, or malformed worker captures remain raw
+nullable outcomes and make a database-applicable measured run invalid for
+comparison. A scenario cancelled before its database phase reports the worker
+metric as not applicable rather than manufacturing an idle database request.
+Before a measured generation, the M3U benchmark persists and validates its seed
+capture, then atomically rolls a clean stopping cutoff into the next active
+generation. This closes the otherwise unobservable gap between separate
+stop/start calls: pre-rollover requests remain late and fatal, while
+post-rollover requests are attributed to the new generation.
+
 ### Progress event contract
 
 The worker now emits request-scoped events with:
@@ -564,7 +598,8 @@ executed inside a synchronous transaction callback:
 ```ts
 // favorites is playlist-scoped: filter by (contentId, playlistId), otherwise
 // a same-contentId favorite in another playlist gets rewritten too.
-const stmt = db.update(schema.favorites)
+const stmt = db
+    .update(schema.favorites)
     .set({ position: sql<number>`${sql.placeholder('position')}` })
     .where(
         and(

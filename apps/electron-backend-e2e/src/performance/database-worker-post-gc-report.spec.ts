@@ -96,6 +96,30 @@ test('summary includes every database isolate instead of silently taking the fir
         p95: 290,
         p99: 298,
     });
+    assert.deepEqual(
+        (
+            summary as unknown as {
+                readonly validity: {
+                    readonly databaseWorkerPostGc: unknown;
+                };
+            }
+        ).validity.databaseWorkerPostGc,
+        {
+            applicableMeasuredRunCount: 1,
+            invalidMeasuredRuns: [
+                {
+                    databaseWorkerCount: 3,
+                    reason: 'database-worker-unexpected-activity',
+                    runId: 'measured',
+                },
+            ],
+            measuredRunCount: 1,
+            notApplicableMeasuredRuns: [],
+            validForBenchmark: false,
+            validForComparison: false,
+            validMeasuredRunCount: 0,
+        }
+    );
     assert.equal(
         (
             summary.iterations[0]?.main.workers[2] as WorkerCaptureMetrics & {
