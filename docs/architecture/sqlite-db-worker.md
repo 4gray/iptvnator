@@ -184,6 +184,11 @@ operations:
 - `DB_CLEAR_XTREAM_IMPORT_CACHE`:
   `sqlite.xtream-cache-clear.write-transactions`
 - `DB_SEARCH_CONTENT`: `sqlite.search.query`, then `normalize.search-rank`
+- `DB_DELETE_XTREAM_CONTENT`:
+  `sqlite.xtream-delete.collect-user-data`, then
+  `sqlite.xtream-delete.write-transactions`
+- `DB_DELETE_PLAYLIST`: `sqlite.playlist-delete.collect-ids`, then
+  `sqlite.playlist-delete.write-transactions`
 
 Read and query phases cover the exact awaited Drizzle query. Normalization
 phases cover the existing synchronous transforms. The content-write phase is
@@ -193,6 +198,18 @@ commit time. Cache clear similarly uses one aggregate pair around all existing
 content and category chunk loops and transactions, including their JavaScript
 and autocommit overhead. A zero-category cache clear still emits one pair with
 `itemCount: 0` and performs no extra SQL.
+
+The Xtream-delete collection span includes its existing ordered category,
+favorite, recently-viewed, and content-ID work. Its `itemCount` deliberately
+counts only content and category deletion candidates; favorite,
+recently-viewed, and hidden-category user data is timed but is not added to
+that count. The matching write count uses the same deletion-candidate
+definition. Playlist-delete collection counts every collected favorite,
+recently-viewed, playback-position, download, content, and category ID. Its
+write count adds the final playlist row. Both write spans include every
+existing cooperative checkpoint, 100-row transaction, progress callback, and,
+for playlist deletion, the final playlist-row autocommit; they are not exact
+SQLite commit-time measurements.
 
 Successful end markers carry only row/item counts. Error or cancellation still
 closes the active phase without metadata and preserves the original error.
@@ -296,6 +313,15 @@ If a worker operation is canceled:
 
 Cancellation is cooperative and chunk-based. Already committed SQLite batches
 stay committed.
+
+With the exact `IPTVNATOR_PERF_WORKER_PROFILING=1` opt-in, receipt of a cancel
+for a correlated active request also emits a
+`performance-cancel-received` worker diagnostic containing only safe
+operation/request IDs and its epoch. The functional cancellation flag is set
+first, this receipt remains distinct from the later authoritative
+`cancelled` event, and `DatabaseWorkerClient` ignores it without settling or
+exposing the pending request. Disabled profiling performs no receipt clock or
+transport work, and `DatabaseWorkerClient.cancel()` remains fire-and-return.
 
 ## Renderer Contract
 

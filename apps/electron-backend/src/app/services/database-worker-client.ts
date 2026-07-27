@@ -194,7 +194,13 @@ export class DatabaseWorkerClient {
                     requestId: message.requestId,
                 });
             }
-            this.pendingRequests.get(message.requestId)?.onEvent?.(message.event);
+            this.pendingRequests
+                .get(message.requestId)
+                ?.onEvent?.(message.event);
+            return;
+        }
+
+        if (message.type === 'performance-cancel-received') {
             return;
         }
 

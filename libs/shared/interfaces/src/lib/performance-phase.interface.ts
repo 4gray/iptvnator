@@ -47,9 +47,16 @@ export const XTREAM_DATABASE_PERFORMANCE_PHASE = {
     SQLITE_CONTENT_CATEGORY_MAP_READ: 'sqlite.content.category-map-read',
     SQLITE_CONTENT_READ: 'sqlite.content.read',
     SQLITE_CONTENT_WRITE_TRANSACTIONS: 'sqlite.content.write-transactions',
+    SQLITE_PLAYLIST_DELETE_COLLECT_IDS: 'sqlite.playlist-delete.collect-ids',
+    SQLITE_PLAYLIST_DELETE_WRITE_TRANSACTIONS:
+        'sqlite.playlist-delete.write-transactions',
     SQLITE_SEARCH_QUERY: 'sqlite.search.query',
     SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS:
         'sqlite.xtream-cache-clear.write-transactions',
+    SQLITE_XTREAM_DELETE_COLLECT_USER_DATA:
+        'sqlite.xtream-delete.collect-user-data',
+    SQLITE_XTREAM_DELETE_WRITE_TRANSACTIONS:
+        'sqlite.xtream-delete.write-transactions',
 } as const;
 
 export type XtreamDatabasePerformancePhase =

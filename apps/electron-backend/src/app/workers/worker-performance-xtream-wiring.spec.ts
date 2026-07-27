@@ -31,6 +31,12 @@ describe('Xtream database performance phase wiring', () => {
             'clearXtreamImportCache',
         ],
         ['DB_SEARCH_CONTENT', 'DB_GLOBAL_SEARCH', 'searchContent'],
+        ['DB_DELETE_PLAYLIST', 'DB_GET_APP_STATE', 'deletePlaylist'],
+        [
+            'DB_DELETE_XTREAM_CONTENT',
+            'DB_RESTORE_XTREAM_USER_DATA',
+            'deleteXtreamContent',
+        ],
     ])('passes the optional adapter through %s', (operation, next, call) => {
         const branch = readCase(executeRequestSource, operation, next);
 

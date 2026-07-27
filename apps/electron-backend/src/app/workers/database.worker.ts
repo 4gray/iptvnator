@@ -108,6 +108,7 @@ import {
     handleDatabaseWorkerPostGcHeapRequest,
     isDatabaseWorkerPostGcHeapRequest,
 } from './database-worker-post-gc-heap';
+import { publishDatabaseWorkerCancelReceipt } from './database-worker-cancel-receipt';
 
 const loggerLabel = '[DB Worker]';
 const batchDelayMs = Number.parseInt(
@@ -117,6 +118,7 @@ const batchDelayMs = Number.parseInt(
 
 type ActiveOperationState = {
     cancelled: boolean;
+    performanceRequestId?: string;
 };
 
 type PreRegisteredActiveOperation = {
@@ -703,6 +705,8 @@ async function executeRequest(
                 playlistId: string;
                 operationId?: string;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
             return executeTrackedOperation(
                 {
@@ -720,7 +724,8 @@ async function executeRequest(
                     const result = await deletePlaylist(
                         db,
                         payload.playlistId,
-                        controller.control
+                        controller.control,
+                        capturePhase
                     );
 
                     controller.emitCompleted({
@@ -815,6 +820,8 @@ async function executeRequest(
                 playlistId: string;
                 operationId?: string;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
             return executeTrackedOperation(
                 {
@@ -832,7 +839,8 @@ async function executeRequest(
                     const result = await deleteXtreamContent(
                         db,
                         payload.playlistId,
-                        controller.control
+                        controller.control,
+                        capturePhase
                     );
 
                     controller.emitCompleted({
@@ -1080,6 +1088,13 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
         const activeOperation = activeOperations.get(message.operationId);
         if (activeOperation) {
             activeOperation.cancelled = true;
+            if (activeOperation.performanceRequestId !== undefined) {
+                publishDatabaseWorkerCancelReceipt(
+                    message.operationId,
+                    activeOperation.performanceRequestId,
+                    postMessage
+                );
+            }
         }
         return;
     }
@@ -1091,6 +1106,10 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             performanceCapture = startWorkerPerformanceCapture({
                 requestId: message.requestId,
             });
+            if (performanceCapture && preRegisteredOperation) {
+                preRegisteredOperation.state.performanceRequestId =
+                    message.requestId;
+            }
             registerDatabaseWorkerPerformanceCapture(
                 activePerformanceCaptures,
                 performanceCapture
