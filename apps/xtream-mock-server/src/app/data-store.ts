@@ -8,8 +8,18 @@ import {
     RawEpgListing,
     RawLiveStream,
 } from './generators/live.generator.js';
-import { generateVodStreams, generateVodDetails, RawVodStream, RawVodDetails } from './generators/vod.generator.js';
-import { generateSeriesItems, generateSeriesInfo, RawSeriesItem, RawSeriesInfo } from './generators/series.generator.js';
+import {
+    generateVodStreams,
+    generateVodDetails,
+    RawVodStream,
+    RawVodDetails,
+} from './generators/vod.generator.js';
+import {
+    generateSeriesItems,
+    generateSeriesInfo,
+    RawSeriesItem,
+    RawSeriesInfo,
+} from './generators/series.generator.js';
 import { RawCategory } from './generators/categories.generator.js';
 import {
     buildMarketingPortalFixture,
@@ -40,18 +50,19 @@ const seriesInfoCache = new Map<string, RawSeriesInfo>();
 
 function generatePortalData(username: string, password: string): PortalData {
     const scenario = getScenario(username, password);
-
     if (scenario.performanceFixture === 'catalog-100k') {
         return {
             scenario,
             ...buildPerformancePortalFixture(),
         };
     }
-
     faker.seed(scenario.seed);
-
-    const { categoryCount, itemsPerCategory, seasonsPerSeries, episodesPerSeason } = scenario;
-
+    const {
+        categoryCount,
+        itemsPerCategory,
+        seasonsPerSeries,
+        episodesPerSeason,
+    } = scenario;
     if (scenario.marketingFixture) {
         const marketingFixture = buildMarketingPortalFixture();
         for (const s of marketingFixture.seriesItems) {
@@ -67,22 +78,18 @@ function generatePortalData(username: string, password: string): PortalData {
                 );
             }
         }
-
         return {
             scenario,
             ...marketingFixture,
         };
     }
-
     let liveCategories = generateCategories('live', categoryCount.live);
     const vodCategories = generateCategories('vod', categoryCount.vod);
     const seriesCategories = generateCategories('series', categoryCount.series);
-
     const epgListingsByStreamId = new Map<number, RawEpgListing[]>();
     let liveStreams = generateLiveStreams(liveCategories, itemsPerCategory);
     const vodStreams = generateVodStreams(vodCategories, itemsPerCategory);
     const seriesItems = generateSeriesItems(seriesCategories, itemsPerCategory);
-
     if (scenario.epgFixture === 'timezone-focus') {
         const timezoneFixture = buildTimezoneFixture();
         liveCategories = timezoneFixture.liveCategories;
@@ -91,7 +98,6 @@ function generatePortalData(username: string, password: string): PortalData {
             epgListingsByStreamId.set(streamId, listings);
         });
     }
-
     // Pre-populate series info cache
     if (!scenario.deferSeriesDetails) {
         for (const s of seriesItems) {
@@ -104,7 +110,6 @@ function generatePortalData(username: string, password: string): PortalData {
             }
         }
     }
-
     return {
         scenario,
         liveCategories,
@@ -125,11 +130,15 @@ export function getPortalData(username: string, password: string): PortalData {
     return portalCache.get(key)!;
 }
 
-export function getVodDetails(username: string, password: string, vodId: number): RawVodDetails | null {
+export function getVodDetails(
+    username: string,
+    password: string,
+    vodId: number
+): RawVodDetails | null {
     const cacheKey = detailCacheKey(username, password, vodId);
     if (!vodDetailsCache.has(cacheKey)) {
         const data = getPortalData(username, password);
-        const stream = data.vodStreams.find(v => v.stream_id === vodId);
+        const stream = data.vodStreams.find((v) => v.stream_id === vodId);
         if (!stream) return null;
         if (data.scenario.vodDetailsFixture === 'empty-metadata') {
             vodDetailsCache.set(cacheKey, { info: [] });
@@ -147,11 +156,15 @@ export function getVodDetails(username: string, password: string, vodId: number)
     return vodDetailsCache.get(cacheKey) ?? null;
 }
 
-export function getSeriesInfo(username: string, password: string, seriesId: number): RawSeriesInfo | null {
+export function getSeriesInfo(
+    username: string,
+    password: string,
+    seriesId: number
+): RawSeriesInfo | null {
     const cacheKey = detailCacheKey(username, password, seriesId);
     if (!seriesInfoCache.has(cacheKey)) {
         const data = getPortalData(username, password);
-        const series = data.seriesItems.find(s => s.series_id === seriesId);
+        const series = data.seriesItems.find((s) => s.series_id === seriesId);
         if (!series) return null;
         seriesInfoCache.set(
             cacheKey,
@@ -219,7 +232,11 @@ export function getDetailCacheCardinalityForTesting(): Readonly<{
     };
 }
 
-function detailCacheKey(username: string, password: string, itemId: number): string {
+function detailCacheKey(
+    username: string,
+    password: string,
+    itemId: number
+): string {
     return `${username}:${password}:${itemId}`;
 }
 
@@ -298,42 +315,48 @@ function buildTimezoneNewsEpg(streamId: number): RawEpgListing[] {
         {
             id: `${streamId}-past`,
             title: 'Earlier Bulletin',
-            description: 'Past schedule item used to anchor current-program detection.',
+            description:
+                'Past schedule item used to anchor current-program detection.',
             startTimestamp: roundedNow - 75 * 60,
             stopTimestamp: roundedNow - 15 * 60,
         },
         {
             id: `${streamId}-current`,
             title: 'Global Headlines',
-            description: 'Current program for list-row and detail EPG assertions.',
+            description:
+                'Current program for list-row and detail EPG assertions.',
             startTimestamp: roundedNow - 15 * 60,
             stopTimestamp: roundedNow + 15 * 60,
         },
         {
             id: `${streamId}-next`,
             title: 'Market Wrap',
-            description: 'Immediate next program for short-EPG preview assertions.',
+            description:
+                'Immediate next program for short-EPG preview assertions.',
             startTimestamp: roundedNow + 15 * 60,
             stopTimestamp: roundedNow + 45 * 60,
         },
         {
             id: `${streamId}-later`,
             title: 'Overnight Update',
-            description: 'Later same-day program for selected-channel list coverage.',
+            description:
+                'Later same-day program for selected-channel list coverage.',
             startTimestamp: roundedNow + 45 * 60,
             stopTimestamp: roundedNow + 75 * 60,
         },
         {
             id: `${streamId}-boundary-1`,
             title: 'Late Edition',
-            description: 'Boundary program spanning UTC midnight for timezone edge cases.',
+            description:
+                'Boundary program spanning UTC midnight for timezone edge cases.',
             startTimestamp: nextUtcMidnight - 30 * 60,
             stopTimestamp: nextUtcMidnight + 30 * 60,
         },
         {
             id: `${streamId}-boundary-2`,
             title: 'After Midnight',
-            description: 'Post-midnight program used for next-day navigation checks.',
+            description:
+                'Post-midnight program used for next-day navigation checks.',
             startTimestamp: nextUtcMidnight + 30 * 60,
             stopTimestamp: nextUtcMidnight + 90 * 60,
         },
