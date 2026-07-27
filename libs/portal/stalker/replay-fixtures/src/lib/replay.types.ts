@@ -34,10 +34,17 @@ export interface ReplayPartsNode {
     parts: Array<ReplayLiteralPart | ReplayRefNode>;
 }
 
+export interface ReplayOriginUrlUserInfo {
+    username: ReplayTemplateString;
+    password?: ReplayTemplateString;
+}
+
 export interface ReplayOriginUrlNode {
     kind: 'origin-url';
     origin: string;
     path: string;
+    userInfo?: ReplayOriginUrlUserInfo;
+    query?: Record<string, ReplayTemplateString | ReplayTemplateString[]>;
 }
 
 export type ReplayTemplateString =

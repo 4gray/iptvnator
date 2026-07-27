@@ -1,5 +1,6 @@
 /* eslint-disable max-lines, @typescript-eslint/no-non-null-assertion -- Replay lifecycle contracts share one typed scenario harness whose asserted values are created in the same test. */
 import {
+    REPLAY_MAX_PENDING_BARRIER_BYTES,
     REPLAY_MAX_REQUESTS,
     REPLAY_RUN_HARD_LIFETIME_MS,
     REPLAY_RUN_INACTIVITY_MS,
@@ -7,6 +8,7 @@ import {
 import {
     createReplayRun,
     ReplayFinalizeResult,
+    ReplayRun,
     ReplayRunError,
 } from './replay-run.js';
 import {
@@ -470,6 +472,29 @@ describe('ReplayRun lifecycle and ledger', () => {
         run.dispose();
     });
 
+    it('falls through a saturated unordered matcher to an eligible identical matcher', async () => {
+        const first = replayExpectation('first');
+        const second = replayExpectation('second');
+        first.request.query.exact = { action: 'shared' };
+        second.request.query.exact = { action: 'shared' };
+        const run = createReplayRun(replayFixture([first, second]), {
+            runId: 'unordered-saturation',
+        });
+
+        await run.request(observedRequest('shared'));
+        await run.request(observedRequest('shared'));
+
+        expect(run.finalize()).toMatchObject({
+            ok: true,
+            ledger: {
+                operationCounts: { first: 1, second: 1 },
+                mismatchCounts: {},
+                terminalState: 'complete',
+            },
+        });
+        run.dispose();
+    });
+
     it('erases symbols and rejects requests after disposal', async () => {
         const run = createReplayRun(
             replayFixture([replayExpectation('profile')]),
@@ -523,6 +548,154 @@ describe('ReplayRun lifecycle and ledger', () => {
             run.request(observedRequest('repeat'))
         ).rejects.toMatchObject({ code: 'request-limit-exceeded' });
         run.dispose();
+    });
+});
+
+describe('ReplayRun scheduled expiry and retained-byte defense', () => {
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('expires and rejects a held barrier after inactivity without another API call', async () => {
+        jest.useFakeTimers({ now: 1_000 });
+        const run = createReplayRun(
+            replayFixture(
+                [replayExpectation('held'), replayExpectation('never')],
+                {
+                    barrier: {
+                        name: 'inactivity-expiry',
+                        releaseWhenMatched: 2,
+                    },
+                }
+            ),
+            { runId: 'scheduled-inactivity' }
+        );
+
+        try {
+            const pending = run.request(observedRequest('held'));
+            const outcome = pending.then(
+                () => undefined,
+                (error: ReplayRunError) => error
+            );
+            expect(jest.getTimerCount()).toBe(1);
+
+            await jest.advanceTimersByTimeAsync(REPLAY_RUN_INACTIVITY_MS);
+
+            await expect(outcome).resolves.toMatchObject({
+                code: 'run-expired',
+            });
+            expect(run.getLedger().mismatchCounts).toEqual({
+                'run-expired': 1,
+            });
+            expect(jest.getTimerCount()).toBe(0);
+        } finally {
+            run.dispose();
+        }
+    });
+
+    it('enforces the scheduled hard lifetime while activity keeps resetting inactivity', async () => {
+        jest.useFakeTimers({ now: 10_000 });
+        const repeated = replayExpectation('repeat', { min: 6, max: 6 });
+        const never = replayExpectation('never');
+        const run = createReplayRun(
+            replayFixture([repeated, never], {
+                barrier: {
+                    name: 'hard-expiry',
+                    releaseWhenMatched: 7,
+                },
+            }),
+            { runId: 'scheduled-hard-expiry' }
+        );
+
+        try {
+            const pending = [run.request(observedRequest('repeat'))];
+            const settled = pending.map((request) =>
+                request.then(
+                    () => ({ status: 'fulfilled' as const }),
+                    (reason: ReplayRunError) => ({
+                        status: 'rejected' as const,
+                        reason,
+                    })
+                )
+            );
+            expect(jest.getTimerCount()).toBe(1);
+            for (let index = 1; index < 6; index += 1) {
+                await jest.advanceTimersByTimeAsync(
+                    REPLAY_RUN_INACTIVITY_MS - 1
+                );
+                const request = run.request(observedRequest('repeat'));
+                pending.push(request);
+                settled.push(
+                    request.then(
+                        () => ({ status: 'fulfilled' as const }),
+                        (reason: ReplayRunError) => ({
+                            status: 'rejected' as const,
+                            reason,
+                        })
+                    )
+                );
+            }
+            await jest.advanceTimersByTimeAsync(
+                REPLAY_RUN_HARD_LIFETIME_MS -
+                    5 * (REPLAY_RUN_INACTIVITY_MS - 1)
+            );
+
+            expect(await Promise.all(settled)).toEqual(
+                Array.from({ length: 6 }, () =>
+                    expect.objectContaining({
+                        status: 'rejected',
+                        reason: expect.objectContaining({
+                            code: 'run-expired',
+                        }),
+                    })
+                )
+            );
+            expect(jest.getTimerCount()).toBe(0);
+        } finally {
+            run.dispose();
+        }
+    });
+
+    it('rejects a barrier that exceeds the runtime retained-byte cap', async () => {
+        const repeated = replayExpectation('large', {
+            min: 2,
+            max: 2,
+            responseBody: {
+                kind: 'generated',
+                byteLength: REPLAY_MAX_PENDING_BARRIER_BYTES / 2,
+                byte: 97,
+            },
+        });
+        const run = new ReplayRun(
+            replayFixture([repeated], {
+                barrier: {
+                    name: 'runtime-cap',
+                    releaseWhenMatched: 2,
+                },
+            }),
+            { runId: 'runtime-barrier-cap' }
+        );
+        const first = run.request(observedRequest('large'));
+        const firstOutcome = first.then(
+            () => undefined,
+            (error: ReplayRunError) => error
+        );
+
+        try {
+            await expect(
+                run.request(observedRequest('large'))
+            ).rejects.toMatchObject({
+                code: 'pending-barrier-bytes-exceeded',
+            });
+            expect(run.getLedger().mismatchCounts).toEqual({
+                'pending-barrier-bytes-exceeded': 1,
+            });
+        } finally {
+            run.dispose();
+        }
+        await expect(firstOutcome).resolves.toMatchObject({
+            code: 'run-disposed',
+        });
     });
 });
 

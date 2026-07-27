@@ -1,4 +1,6 @@
+/* eslint-disable max-lines -- Replay lifecycle, expiry, matching, and retained-response accounting form one security-sensitive state machine. */
 import {
+    REPLAY_MAX_PENDING_BARRIER_BYTES,
     REPLAY_MAX_REQUESTS,
     REPLAY_RUN_HARD_LIFETIME_MS,
     REPLAY_RUN_INACTIVITY_MS,
@@ -7,7 +9,10 @@ import {
     matchReplayRequest,
     ReplayMismatchCode,
 } from './replay-request-matcher.js';
-import { renderReplayResponse } from './replay-response.js';
+import {
+    renderReplayResponse,
+    replayRenderedResponseByteLength,
+} from './replay-response.js';
 import { parseReplayFixture } from './replay-schema.js';
 import { createReplayRunId, ReplaySymbolTable } from './replay-symbols.js';
 import {
@@ -21,6 +26,7 @@ export type ReplayRunErrorCode =
     | ReplayMismatchCode
     | 'unexpected-request'
     | 'cardinality-exceeded'
+    | 'pending-barrier-bytes-exceeded'
     | 'request-limit-exceeded'
     | 'run-expired'
     | 'run-finalized'
@@ -64,7 +70,17 @@ export interface CreateReplayRunOptions {
     runId?: string;
     now?: () => number;
     originUrls?: Readonly<Record<string, string>>;
+    onExpired?: () => void;
 }
+
+export type ReplayNetworkMismatchCode =
+    | 'invalid-replay-route'
+    | 'invalid-request-method'
+    | 'invalid-request-body'
+    | 'request-body-too-large'
+    | 'request-body-timeout'
+    | 'response-send-failed'
+    | 'replay-internal-error';
 
 interface PendingBarrierResponse {
     response: ReplayRenderedResponse;
@@ -86,6 +102,7 @@ export class ReplayRun {
     private readonly symbols: ReplaySymbolTable;
     private readonly now: () => number;
     private readonly originUrls: Readonly<Record<string, string>>;
+    private readonly onExpired?: () => void;
     private readonly createdAt: number;
     private lastActivityAt: number;
     private phaseIndex = 0;
@@ -95,6 +112,8 @@ export class ReplayRun {
     private readonly operationCounts = new Map<string, number>();
     private readonly mismatchCounts = new Map<string, number>();
     private readonly pendingBarrierResponses: PendingBarrierResponse[] = [];
+    private pendingBarrierBytes = 0;
+    private expiryTimer?: ReturnType<typeof setTimeout>;
     private barrierReleased = false;
     private hadUnexpectedRequest = false;
     private expectedEndpointReached = false;
@@ -109,6 +128,7 @@ export class ReplayRun {
         this.runId = options.runId ?? createReplayRunId();
         this.now = options.now ?? Date.now;
         this.originUrls = options.originUrls ?? {};
+        this.onExpired = options.onExpired;
         this.createdAt = this.now();
         this.lastActivityAt = this.createdAt;
         this.state = fixture.initialState;
@@ -118,6 +138,7 @@ export class ReplayRun {
                 this.expectationCounts.set(expectation.id, 0);
             }
         }
+        this.scheduleExpiry();
     }
 
     getGeneratedInputs(): Readonly<Record<string, string>> {
@@ -151,6 +172,7 @@ export class ReplayRun {
         }
         this.requestCount += 1;
         this.lastActivityAt = this.now();
+        this.scheduleExpiry();
 
         const match = this.findMatch(observed);
         if (match === undefined) {
@@ -185,6 +207,17 @@ export class ReplayRun {
         const barrier = phase?.barrier;
 
         if (barrier !== undefined && !this.barrierReleased) {
+            const responseBytes =
+                replayRenderedResponseByteLength(response);
+            if (
+                this.pendingBarrierBytes + responseBytes >
+                REPLAY_MAX_PENDING_BARRIER_BYTES
+            ) {
+                return this.rejectUnexpected(
+                    'pending-barrier-bytes-exceeded'
+                );
+            }
+            this.pendingBarrierBytes += responseBytes;
             const held = new Promise<ReplayRenderedResponse>(
                 (resolve, reject) => {
                     this.pendingBarrierResponses.push({
@@ -202,6 +235,7 @@ export class ReplayRun {
             if (phaseMatches >= barrier.releaseWhenMatched) {
                 this.barrierReleased = true;
                 const pending = this.pendingBarrierResponses.splice(0);
+                this.pendingBarrierBytes = 0;
                 pending.forEach((item) => item.resolve(item.response));
             }
             this.advanceCompletedPhase();
@@ -267,11 +301,41 @@ export class ReplayRun {
             return;
         }
         this.disposed = true;
+        this.clearExpiryTimer();
         const pending = this.pendingBarrierResponses.splice(0);
+        this.pendingBarrierBytes = 0;
         pending.forEach((item) =>
             item.reject(new ReplayRunError('run-disposed'))
         );
         this.symbols.clear();
+    }
+
+    recordNetworkFailure(
+        code: ReplayNetworkMismatchCode,
+        requestAlreadyCounted = false
+    ): void {
+        if (
+            this.disposed ||
+            this.finalizedResult !== undefined ||
+            this.expired
+        ) {
+            return;
+        }
+        this.expireIfNeeded();
+        if (this.expired) {
+            return;
+        }
+        if (!requestAlreadyCounted) {
+            if (this.requestCount >= REPLAY_MAX_REQUESTS) {
+                this.recordMismatch('request-limit-exceeded');
+                return;
+            }
+            this.requestCount += 1;
+        }
+        this.lastActivityAt = this.now();
+        this.scheduleExpiry();
+        this.hadUnexpectedRequest = true;
+        this.recordMismatch(code);
     }
 
     private assertActive(): void {
@@ -293,11 +357,54 @@ export class ReplayRun {
             current - this.lastActivityAt >= REPLAY_RUN_INACTIVITY_MS
         ) {
             this.expired = true;
+            this.clearExpiryTimer();
             this.recordMismatch('run-expired');
             const pending = this.pendingBarrierResponses.splice(0);
+            this.pendingBarrierBytes = 0;
             pending.forEach((item) =>
                 item.reject(new ReplayRunError('run-expired'))
             );
+            try {
+                this.onExpired?.();
+            } catch {
+                // Expiry remains authoritative even if listener cleanup fails.
+            }
+        } else {
+            this.scheduleExpiry();
+        }
+    }
+
+    private scheduleExpiry(): void {
+        this.clearExpiryTimer();
+        if (
+            this.disposed ||
+            this.expired
+        ) {
+            return;
+        }
+        const current = this.now();
+        const delay = Math.max(
+            0,
+            Math.min(
+                this.createdAt +
+                    REPLAY_RUN_HARD_LIFETIME_MS -
+                    current,
+                this.lastActivityAt +
+                    REPLAY_RUN_INACTIVITY_MS -
+                    current
+            )
+        );
+        this.expiryTimer = setTimeout(() => {
+            this.expiryTimer = undefined;
+            this.expireIfNeeded();
+        }, delay);
+        this.expiryTimer.unref?.();
+    }
+
+    private clearExpiryTimer(): void {
+        if (this.expiryTimer !== undefined) {
+            clearTimeout(this.expiryTimer);
+            this.expiryTimer = undefined;
         }
     }
 
@@ -307,7 +414,11 @@ export class ReplayRun {
             return [];
         }
         if (phase.mode === 'unordered') {
-            return phase.expectations;
+            return phase.expectations.filter(
+                (expectation) =>
+                    (this.expectationCounts.get(expectation.id) ?? 0) <
+                    expectation.cardinality.max
+            );
         }
         const next = phase.expectations.find(
             (expectation) =>
@@ -351,7 +462,11 @@ export class ReplayRun {
     }
 
     private rejectUnexpected(
-        code: ReplayMismatchCode | 'unexpected-request' | 'cardinality-exceeded'
+        code:
+            | ReplayMismatchCode
+            | 'unexpected-request'
+            | 'cardinality-exceeded'
+            | 'pending-barrier-bytes-exceeded'
     ): never {
         this.hadUnexpectedRequest = true;
         this.recordMismatch(code);

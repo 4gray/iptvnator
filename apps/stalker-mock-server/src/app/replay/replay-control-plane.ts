@@ -38,6 +38,7 @@ export const REPLAY_CONTROL_MAX_BODY_BYTES = 64 * 1024;
 const CONTROL_ERROR_CODE = {
     BODY_TOO_LARGE: 'control-body-too-large',
     BODY_TIMEOUT: 'control-body-timeout',
+    CLOSING: 'control-closing',
     ENDPOINT_NOT_FOUND: 'endpoint-not-found',
     FIXTURE_INVALID: 'fixture-invalid',
     FIXTURE_NOT_ALLOWED: 'fixture-not-allowed',
@@ -120,6 +121,40 @@ function isWithinRoot(root: string, candidate: string): boolean {
     );
 }
 
+interface StableFixtureMetadata {
+    dev: number;
+    ino: number;
+    mode: number;
+    nlink: number;
+    size: number;
+    mtimeMs: number;
+    ctimeMs: number;
+    isFile(): boolean;
+}
+
+function isAllowedFixtureMetadata(stats: StableFixtureMetadata): boolean {
+    return (
+        stats.isFile() &&
+        stats.nlink === 1 &&
+        stats.size <= REPLAY_MAX_FIXTURE_BYTES
+    );
+}
+
+function hasSameFixtureMetadata(
+    left: StableFixtureMetadata,
+    right: StableFixtureMetadata
+): boolean {
+    return (
+        left.dev === right.dev &&
+        left.ino === right.ino &&
+        left.mode === right.mode &&
+        left.nlink === right.nlink &&
+        left.size === right.size &&
+        left.mtimeMs === right.mtimeMs &&
+        left.ctimeMs === right.ctimeMs
+    );
+}
+
 async function readBoundedFixture(handle: FileHandle): Promise<string> {
     const chunks: Buffer[] = [];
     const readBuffer = Buffer.alloc(64 * 1024);
@@ -161,7 +196,7 @@ export class RepositoryReplayFixtureRepository
             const requestedStats = await lstat(requestedPath);
             if (
                 requestedStats.isSymbolicLink() ||
-                !requestedStats.isFile()
+                !isAllowedFixtureMetadata(requestedStats)
             ) {
                 throw new ReplayFixtureRepositoryError(
                     'fixture-not-allowed'
@@ -176,21 +211,36 @@ export class RepositoryReplayFixtureRepository
 
             const handle = await open(
                 requestedPath,
-                fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW
+                fsConstants.O_RDONLY |
+                    fsConstants.O_NOFOLLOW |
+                    fsConstants.O_NONBLOCK
             );
             try {
-                const stats = await handle.stat();
+                const statsBeforeRead = await handle.stat();
                 if (
-                    !stats.isFile() ||
-                    stats.size > REPLAY_MAX_FIXTURE_BYTES ||
-                    stats.dev !== requestedStats.dev ||
-                    stats.ino !== requestedStats.ino
+                    !isAllowedFixtureMetadata(statsBeforeRead) ||
+                    !hasSameFixtureMetadata(
+                        requestedStats,
+                        statsBeforeRead
+                    )
                 ) {
                     throw new ReplayFixtureRepositoryError(
                         'fixture-not-allowed'
                     );
                 }
                 const text = await readBoundedFixture(handle);
+                const statsAfterRead = await handle.stat();
+                if (
+                    !isAllowedFixtureMetadata(statsAfterRead) ||
+                    !hasSameFixtureMetadata(
+                        statsBeforeRead,
+                        statsAfterRead
+                    )
+                ) {
+                    throw new ReplayFixtureRepositoryError(
+                        'fixture-not-allowed'
+                    );
+                }
                 return parseReplayFixtureText(text);
             } finally {
                 await handle.close();
@@ -503,121 +553,139 @@ export async function startReplayControlPlane(
     }
     const runs = new Map<string, ReplayServerRun>();
     let expectedHost = '';
+    let closing = false;
+    const inFlightHandlers = new Set<Promise<void>>();
 
-    const server = http.createServer(async (request, response) => {
-        try {
-            if (request.headers.host !== expectedHost) {
-                throw new ReplayControlError(
-                    CONTROL_ERROR_CODE.INVALID_HOST,
-                    400
-                );
-            }
-            const capabilityHeader =
-                request.headers[REPLAY_CONTROL_CAPABILITY_HEADER];
-            if (
-                Array.isArray(capabilityHeader) ||
-                !capabilityMatches(capabilityHeader, capability)
-            ) {
-                throw new ReplayControlError(
-                    CONTROL_ERROR_CODE.INVALID_CAPABILITY,
-                    403
-                );
-            }
-            const actionPath = requestPath(request);
-            if (
-                actionPath !== CREATE_PATH &&
-                actionPath !== FINALIZE_PATH &&
-                actionPath !== DISPOSE_PATH
-            ) {
-                throw new ReplayControlError(
-                    CONTROL_ERROR_CODE.ENDPOINT_NOT_FOUND,
-                    404
-                );
-            }
-            if (request.method !== 'POST') {
-                throw new ReplayControlError(
-                    CONTROL_ERROR_CODE.METHOD_NOT_ALLOWED,
-                    405
-                );
-            }
-            const body = await parseJsonBody(
-                request,
-                requestBodyTimeoutMs
-            );
-
-            if (actionPath === CREATE_PATH) {
-                const fixtureId = readFixtureId(body);
-                let fixture: ReplayFixtureV1;
-                try {
-                    fixture = await repository.loadFixture(fixtureId);
-                } catch (error) {
-                    if (
-                        error instanceof ReplayFixtureRepositoryError &&
-                        error.code === 'fixture-not-allowed'
-                    ) {
-                        throw new ReplayControlError(
-                            CONTROL_ERROR_CODE.FIXTURE_NOT_ALLOWED,
-                            404
-                        );
-                    }
-                    if (
-                        error instanceof ReplayFixtureRepositoryError &&
-                        error.code === 'fixture-invalid'
-                    ) {
-                        throw new ReplayControlError(
-                            CONTROL_ERROR_CODE.FIXTURE_INVALID,
-                            422
-                        );
-                    }
-                    throw error;
-                }
-                const run = await createReplayServerRun(fixture);
-                if (runs.has(run.runId)) {
-                    await run.dispose();
+    const server = http.createServer((request, response) => {
+        const handler = (async (): Promise<void> => {
+            try {
+                if (closing) {
                     throw new ReplayControlError(
-                        CONTROL_ERROR_CODE.INTERNAL,
-                        500
+                        CONTROL_ERROR_CODE.CLOSING,
+                        503
                     );
                 }
-                runs.set(run.runId, run);
-                sendJson(response, 201, {
-                    runId: run.runId,
-                    entryUrl: run.entryUrl,
-                    origins: run.originUrls,
-                    inputs: run.generatedInputs,
-                });
-                return;
-            }
-
-            const runId = readRunId(body);
-            const run = runs.get(runId);
-            if (run === undefined) {
-                throw new ReplayControlError(
-                    CONTROL_ERROR_CODE.RUN_NOT_FOUND,
-                    404
+                if (request.headers.host !== expectedHost) {
+                    throw new ReplayControlError(
+                        CONTROL_ERROR_CODE.INVALID_HOST,
+                        400
+                    );
+                }
+                const capabilityHeader =
+                    request.headers[REPLAY_CONTROL_CAPABILITY_HEADER];
+                if (
+                    Array.isArray(capabilityHeader) ||
+                    !capabilityMatches(capabilityHeader, capability)
+                ) {
+                    throw new ReplayControlError(
+                        CONTROL_ERROR_CODE.INVALID_CAPABILITY,
+                        403
+                    );
+                }
+                const actionPath = requestPath(request);
+                if (
+                    actionPath !== CREATE_PATH &&
+                    actionPath !== FINALIZE_PATH &&
+                    actionPath !== DISPOSE_PATH
+                ) {
+                    throw new ReplayControlError(
+                        CONTROL_ERROR_CODE.ENDPOINT_NOT_FOUND,
+                        404
+                    );
+                }
+                if (request.method !== 'POST') {
+                    throw new ReplayControlError(
+                        CONTROL_ERROR_CODE.METHOD_NOT_ALLOWED,
+                        405
+                    );
+                }
+                const body = await parseJsonBody(
+                    request,
+                    requestBodyTimeoutMs
                 );
-            }
-            if (actionPath === FINALIZE_PATH) {
-                sendJson(response, 200, run.finalize());
-                return;
-            }
 
-            await run.dispose();
-            runs.delete(runId);
-            sendJson(response, 200, { disposed: true });
-        } catch (error) {
-            if (!request.complete) {
-                request.resume();
+                if (actionPath === CREATE_PATH) {
+                    const fixtureId = readFixtureId(body);
+                    let fixture: ReplayFixtureV1;
+                    try {
+                        fixture = await repository.loadFixture(fixtureId);
+                    } catch (error) {
+                        if (
+                            error instanceof ReplayFixtureRepositoryError &&
+                            error.code === 'fixture-not-allowed'
+                        ) {
+                            throw new ReplayControlError(
+                                CONTROL_ERROR_CODE.FIXTURE_NOT_ALLOWED,
+                                404
+                            );
+                        }
+                        if (
+                            error instanceof ReplayFixtureRepositoryError &&
+                            error.code === 'fixture-invalid'
+                        ) {
+                            throw new ReplayControlError(
+                                CONTROL_ERROR_CODE.FIXTURE_INVALID,
+                                422
+                            );
+                        }
+                        throw error;
+                    }
+                    const run = await createReplayServerRun(fixture);
+                    if (runs.has(run.runId)) {
+                        await run.dispose();
+                        throw new ReplayControlError(
+                            CONTROL_ERROR_CODE.INTERNAL,
+                            500
+                        );
+                    }
+                    runs.set(run.runId, run);
+                    sendJson(response, 201, {
+                        runId: run.runId,
+                        entryUrl: run.entryUrl,
+                        origins: run.originUrls,
+                        inputs: run.generatedInputs,
+                    });
+                    return;
+                }
+
+                const runId = readRunId(body);
+                const run = runs.get(runId);
+                if (run === undefined) {
+                    throw new ReplayControlError(
+                        CONTROL_ERROR_CODE.RUN_NOT_FOUND,
+                        404
+                    );
+                }
+                if (actionPath === FINALIZE_PATH) {
+                    sendJson(response, 200, run.finalize());
+                    return;
+                }
+
+                await run.dispose();
+                runs.delete(runId);
+                sendJson(response, 200, { disposed: true });
+            } catch (error) {
+                if (!request.complete) {
+                    request.resume();
+                }
+                if (error instanceof ReplayControlError) {
+                    sendControlError(response, error);
+                } else {
+                    sendControlError(
+                        response,
+                        new ReplayControlError(
+                            CONTROL_ERROR_CODE.INTERNAL,
+                            500
+                        )
+                    );
+                }
             }
-            if (error instanceof ReplayControlError) {
-                sendControlError(response, error);
-            } else {
-                sendControlError(
-                    response,
-                    new ReplayControlError(CONTROL_ERROR_CODE.INTERNAL, 500)
-                );
-            }
-        }
+        })();
+        inFlightHandlers.add(handler);
+        void handler.then(
+            () => inFlightHandlers.delete(handler),
+            () => inFlightHandlers.delete(handler)
+        );
     });
 
     const port = await listen(server);
@@ -628,11 +696,13 @@ export async function startReplayControlPlane(
         url,
         close: () => {
             closePromise ??= (async () => {
+                closing = true;
+                await closeServer(server);
+                await Promise.all([...inFlightHandlers]);
                 await Promise.all(
                     [...runs.values()].map((run) => run.dispose())
                 );
                 runs.clear();
-                await closeServer(server);
             })();
             return closePromise;
         },

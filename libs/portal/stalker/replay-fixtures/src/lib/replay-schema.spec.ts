@@ -3,6 +3,8 @@ import {
     REPLAY_MAX_EXPECTATIONS,
     REPLAY_MAX_FIXTURE_BYTES,
     REPLAY_MAX_GENERATED_BODY_BYTES,
+    REPLAY_MAX_ORIGINS,
+    REPLAY_MAX_PENDING_BARRIER_BYTES,
     REPLAY_MAX_PHASES,
     REPLAY_MAX_REQUESTS,
     REPLAY_RUN_HARD_LIFETIME_MS,
@@ -227,6 +229,30 @@ describe('replay fixture schema v1', () => {
                     kind: 'origin-url',
                     origin: 'auth',
                     path: '/login',
+                    userInfo: {
+                        username: {
+                            kind: 'ref',
+                            symbol: 'credential',
+                        },
+                        password: {
+                            kind: 'generate',
+                            symbol: 'redirect-password',
+                            valueKind: 'credential',
+                        },
+                    },
+                    query: {
+                        username: {
+                            kind: 'ref',
+                            symbol: 'credential',
+                        },
+                        token: [
+                            {
+                                kind: 'ref',
+                                symbol: 'token',
+                            },
+                            'synthetic-second-value',
+                        ],
+                    },
                 },
             ],
         };
@@ -243,8 +269,53 @@ describe('replay fixture schema v1', () => {
                 kind: 'origin-url',
                 origin: 'auth',
                 path: '/login',
+                userInfo: {
+                    username: {
+                        kind: 'ref',
+                        symbol: 'credential',
+                    },
+                    password: {
+                        kind: 'generate',
+                        symbol: 'redirect-password',
+                        valueKind: 'credential',
+                    },
+                },
+                query: {
+                    username: {
+                        kind: 'ref',
+                        symbol: 'credential',
+                    },
+                    token: [
+                        {
+                            kind: 'ref',
+                            symbol: 'token',
+                        },
+                        'synthetic-second-value',
+                    ],
+                },
             },
         ]);
+    });
+
+    it.each([
+        ['leading OWS', ' \t//external.invalid/path'],
+        ['trailing OWS', '/landing '],
+        ['control characters', '/landing\u0000'],
+        ['backslash authority', '\\\\external.invalid/path'],
+        ['scheme-relative authority', '//external.invalid/path'],
+        ['absolute scheme', 'HTTP://external.invalid/path'],
+        ['parent dot segment', '../landing'],
+        ['encoded parent dot segment', '%2e%2e/landing'],
+    ])('rejects a literal Location containing %s', (_label, location) => {
+        const value = fixture();
+        const response = (
+            (value['phases'] as Record<string, unknown>[])[0]![
+                'expectations'
+            ] as Record<string, unknown>[]
+        )[0]!['response'] as Record<string, unknown>;
+        response['headers'] = { location: [location] };
+
+        expectSchemaCode(value, 'invalid-redirect-location');
     });
 
     it('rejects unknown or free-form absolute redirect origins', () => {
@@ -459,10 +530,12 @@ describe('replay fixture schema v1', () => {
 describe('replay fixture limits', () => {
     it('owns the exact runtime limits', () => {
         expect(REPLAY_MAX_FIXTURE_BYTES).toBe(1024 * 1024);
+        expect(REPLAY_MAX_ORIGINS).toBe(8);
         expect(REPLAY_MAX_PHASES).toBe(128);
         expect(REPLAY_MAX_EXPECTATIONS).toBe(512);
         expect(REPLAY_MAX_REQUESTS).toBe(512);
         expect(REPLAY_MAX_GENERATED_BODY_BYTES).toBe(16 * 1024 * 1024);
+        expect(REPLAY_MAX_PENDING_BARRIER_BYTES).toBe(32 * 1024 * 1024);
         expect(REPLAY_RUN_HARD_LIFETIME_MS).toBe(10 * 60 * 1000);
         expect(REPLAY_RUN_INACTIVITY_MS).toBe(2 * 60 * 1000);
     });
@@ -543,5 +616,108 @@ describe('replay fixture limits', () => {
             byte: 0,
         };
         expectSchemaCode(value, 'generated-body-too-large');
+    });
+
+    it('accepts eight named origins and rejects a ninth', () => {
+        const value = fixture();
+        value['origins'] = Object.fromEntries(
+            Array.from({ length: 8 }, (_, index) => [`origin-${index}`, {}])
+        );
+        value['entry'] = { origin: 'origin-0', path: '/c/' };
+        value['expectedEndpoint'] = {
+            origin: 'origin-0',
+            path: '/portal.php',
+        };
+        for (const phase of value['phases'] as Record<string, unknown>[]) {
+            for (const item of phase['expectations'] as Record<
+                string,
+                unknown
+            >[]) {
+                item['origin'] = 'origin-0';
+            }
+        }
+
+        expect(() => parseReplayFixture(value)).not.toThrow();
+        (value['origins'] as Record<string, unknown>)['origin-8'] = {};
+        expectSchemaCode(value, 'too-many-origins');
+    });
+
+    it('rejects a barrier whose generated responses can retain more than 32 MiB', () => {
+        const value = fixture();
+        const phase = (value['phases'] as Record<string, unknown>[])[0]!;
+        phase['barrier'] = {
+            name: 'oversized-generated-barrier',
+            releaseWhenMatched: 3,
+        };
+        phase['expectations'] = Array.from({ length: 3 }, (_, index) =>
+            expectation(
+                `generated-${index}`,
+                { kind: 'absent' },
+                {
+                    kind: 'generated',
+                    byteLength: 16 * 1024 * 1024,
+                    byte: index,
+                }
+            )
+        );
+
+        expectSchemaCode(value, 'pending-barrier-too-large');
+    });
+
+    it('counts regular response bodies and headers in the pending barrier budget', () => {
+        const value = fixture();
+        const phase = (value['phases'] as Record<string, unknown>[])[0]!;
+        const repeated = expectation(
+            'regular-response',
+            { kind: 'absent' },
+            {
+                kind: 'text',
+                value: 'x'.repeat(192 * 1024),
+            }
+        );
+        repeated['cardinality'] = { min: 128, max: 128 };
+        (
+            repeated['response'] as Record<string, unknown>
+        )['headers'] = {
+            'x-replay-padding': ['y'.repeat(96 * 1024)],
+        };
+        phase['barrier'] = {
+            name: 'oversized-regular-barrier',
+            releaseWhenMatched: 128,
+        };
+        phase['expectations'] = [repeated];
+
+        expectSchemaCode(value, 'pending-barrier-too-large');
+    });
+
+    it('counts JSON escaping expansion in the pending barrier budget', () => {
+        const value = fixture();
+        const phase = (value['phases'] as Record<string, unknown>[])[0]!;
+        const repeated = expectation(
+            'escaped-json-response',
+            { kind: 'absent' },
+            {
+                kind: 'json',
+                value: {
+                    payload: {
+                        kind: 'parts',
+                        parts: [
+                            {
+                                kind: 'literal',
+                                value: '\u0001'.repeat(150 * 1024),
+                            },
+                        ],
+                    },
+                },
+            }
+        );
+        repeated['cardinality'] = { min: 40, max: 40 };
+        phase['barrier'] = {
+            name: 'escaped-json-barrier',
+            releaseWhenMatched: 40,
+        };
+        phase['expectations'] = [repeated];
+
+        expectSchemaCode(value, 'pending-barrier-too-large');
     });
 });

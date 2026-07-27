@@ -5,6 +5,8 @@ import {
     REPLAY_MAX_EXPECTATIONS,
     REPLAY_MAX_FIXTURE_BYTES,
     REPLAY_MAX_GENERATED_BODY_BYTES,
+    REPLAY_MAX_ORIGINS,
+    REPLAY_MAX_PENDING_BARRIER_BYTES,
     REPLAY_MAX_PHASES,
     REPLAY_MAX_REQUESTS,
     REPLAY_SCHEMA_VERSION,
@@ -47,6 +49,16 @@ const SAFE_ORIGIN = /^[a-z][a-z0-9-]{0,31}$/;
 const LOWER_CASE_HEADER = /^[a-z0-9!#$%&'*+.^_`|~-]+$/;
 const JSONP_CALLBACK = /^[A-Za-z_$][A-Za-z0-9_$]{0,63}$/;
 const FREE_FORM_INTERPOLATION = /\$\{|{{|<%|%\{/;
+const LOCATION_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const MAX_RENDERED_SYMBOL_BYTES = 128;
+const MAX_RENDERED_ORIGIN_BASE_BYTES = 256;
+
+function hasLocationControlOrBackslash(value: string): boolean {
+    return [...value].some((character) => {
+        const code = character.charCodeAt(0);
+        return character === '\\' || code <= 31 || code === 127;
+    });
+}
 
 function issue(
     context: ValidationContext,
@@ -703,6 +715,204 @@ function validateRequestBody(
     return false;
 }
 
+function hasParentLocationSegment(value: string): boolean {
+    const path = value.split(/[?#]/, 1)[0] ?? '';
+    return path.split('/').some((segment) => {
+        try {
+            return decodeURIComponent(segment) === '..';
+        } catch {
+            return true;
+        }
+    });
+}
+
+function validateLiteralLocation(
+    value: unknown,
+    path: string,
+    context: ValidationContext
+): value is string {
+    if (
+        typeof value !== 'string' ||
+        value.startsWith(' ') ||
+        value.startsWith('\t') ||
+        value.endsWith(' ') ||
+        value.endsWith('\t') ||
+        hasLocationControlOrBackslash(value) ||
+        LOCATION_SCHEME.test(value) ||
+        value.startsWith('//') ||
+        hasParentLocationSegment(value)
+    ) {
+        issue(
+            context,
+            'invalid-redirect-location',
+            path,
+            'Literal redirects must be clean same-origin relative references without parent traversal.'
+        );
+        return false;
+    }
+
+    try {
+        const resolved = new URL(value, 'http://replay.invalid/request');
+        if (
+            resolved.origin !== 'http://replay.invalid' ||
+            resolved.username.length > 0 ||
+            resolved.password.length > 0
+        ) {
+            throw new Error('cross-origin redirect');
+        }
+    } catch {
+        issue(
+            context,
+            'invalid-redirect-location',
+            path,
+            'Literal redirect is not a safe same-origin relative reference.'
+        );
+        return false;
+    }
+    return true;
+}
+
+function validateOriginUrlQuery(
+    value: unknown,
+    path: string,
+    context: ValidationContext
+): boolean {
+    if (!isRecord(value)) {
+        issue(
+            context,
+            'invalid-redirect-location',
+            path,
+            'Named-origin query fields must be an object.'
+        );
+        return false;
+    }
+
+    let valid = true;
+    for (const [name, queryValue] of Object.entries(value)) {
+        if (
+            name.length === 0 ||
+            name.length > 256 ||
+            hasLocationControlOrBackslash(name) ||
+            FREE_FORM_INTERPOLATION.test(name)
+        ) {
+            issue(
+                context,
+                'invalid-redirect-location',
+                `${path}.${name}`,
+                'Named-origin query keys must be bounded literal names.'
+            );
+            valid = false;
+            continue;
+        }
+        const values = Array.isArray(queryValue) ? queryValue : [queryValue];
+        if (values.length === 0) {
+            issue(
+                context,
+                'invalid-redirect-location',
+                `${path}.${name}`,
+                'Named-origin query arrays cannot be empty.'
+            );
+            valid = false;
+            continue;
+        }
+        values.forEach((item, index) => {
+            valid =
+                validateTemplateString(
+                    item,
+                    `${path}.${name}[${index}]`,
+                    context,
+                    true
+                ) && valid;
+        });
+    }
+    return valid;
+}
+
+function validateOriginUrlNode(
+    value: Record<string, unknown>,
+    path: string,
+    context: ValidationContext,
+    origins: Set<string>
+): boolean {
+    if (
+        !hasExactKeys(value, [
+            'kind',
+            'origin',
+            'path',
+            'userInfo',
+            'query',
+        ])
+    ) {
+        issue(
+            context,
+            'invalid-redirect-location',
+            path,
+            'Named-origin URL node contains unknown fields.'
+        );
+        return false;
+    }
+
+    let valid = true;
+    if (
+        typeof value['origin'] !== 'string' ||
+        !origins.has(value['origin'])
+    ) {
+        issue(
+            context,
+            'unknown-origin',
+            `${path}.origin`,
+            'Redirect origin must reference a declared named origin.'
+        );
+        valid = false;
+    }
+    valid =
+        validatePath(value['path'], `${path}.path`, context) &&
+        valid;
+
+    if (value['userInfo'] !== undefined) {
+        const userInfo = value['userInfo'];
+        if (
+            !isRecord(userInfo) ||
+            !hasExactKeys(userInfo, ['username', 'password']) ||
+            !Object.prototype.hasOwnProperty.call(userInfo, 'username')
+        ) {
+            issue(
+                context,
+                'invalid-redirect-location',
+                `${path}.userInfo`,
+                'Named-origin user info requires a typed username and optional password.'
+            );
+            valid = false;
+        } else {
+            valid =
+                validateTemplateString(
+                    userInfo['username'],
+                    `${path}.userInfo.username`,
+                    context,
+                    true
+                ) && valid;
+            if (userInfo['password'] !== undefined) {
+                valid =
+                    validateTemplateString(
+                        userInfo['password'],
+                        `${path}.userInfo.password`,
+                        context,
+                        true
+                    ) && valid;
+            }
+        }
+    }
+    if (value['query'] !== undefined) {
+        valid =
+            validateOriginUrlQuery(
+                value['query'],
+                `${path}.query`,
+                context
+            ) && valid;
+    }
+    return valid;
+}
+
 function validateResponseHeaders(
     value: unknown,
     path: string,
@@ -741,10 +951,7 @@ function validateResponseHeaders(
                 isRecord(headerValue) &&
                 headerValue['kind'] === 'origin-url'
             ) {
-                if (
-                    name !== 'location' ||
-                    !hasExactKeys(headerValue, ['kind', 'origin', 'path'])
-                ) {
+                if (name !== 'location') {
                     issue(
                         context,
                         'invalid-redirect-location',
@@ -754,38 +961,17 @@ function validateResponseHeaders(
                     valid = false;
                     return;
                 }
-                if (
-                    typeof headerValue['origin'] !== 'string' ||
-                    !origins.has(headerValue['origin'])
-                ) {
-                    issue(
-                        context,
-                        'unknown-origin',
-                        `${headerPath}.origin`,
-                        'Redirect origin must reference a declared named origin.'
-                    );
-                    valid = false;
-                }
                 valid =
-                    validatePath(
-                        headerValue['path'],
-                        `${headerPath}.path`,
-                        context
+                    validateOriginUrlNode(
+                        headerValue,
+                        headerPath,
+                        context,
+                        origins
                     ) && valid;
                 return;
             }
             if (name === 'location') {
-                if (
-                    typeof headerValue !== 'string' ||
-                    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(headerValue) ||
-                    headerValue.startsWith('//')
-                ) {
-                    issue(
-                        context,
-                        'invalid-redirect-location',
-                        headerPath,
-                        'Cross-origin redirects require a typed named-origin URL node.'
-                    );
+                if (!validateLiteralLocation(headerValue, headerPath, context)) {
                     valid = false;
                     return;
                 }
@@ -937,6 +1123,265 @@ function validateResponse(
         validateResponseBody(value['body'], `${path}.body`, context) &&
         valid
     );
+}
+
+function boundedByteSum(left: number, right: number): number {
+    return Math.min(
+        REPLAY_MAX_PENDING_BARRIER_BYTES + 1,
+        left + right
+    );
+}
+
+function renderedTemplateStringUpperBound(value: unknown): number {
+    if (typeof value === 'string') {
+        return Buffer.byteLength(value);
+    }
+    if (!isRecord(value)) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    if (value['kind'] === 'generate' || value['kind'] === 'ref') {
+        return MAX_RENDERED_SYMBOL_BYTES;
+    }
+    if (value['kind'] !== 'parts' || !Array.isArray(value['parts'])) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    return value['parts'].reduce<number>((total, part) => {
+        if (
+            isRecord(part) &&
+            part['kind'] === 'literal' &&
+            typeof part['value'] === 'string'
+        ) {
+            return boundedByteSum(total, Buffer.byteLength(part['value']));
+        }
+        return boundedByteSum(total, MAX_RENDERED_SYMBOL_BYTES);
+    }, 0);
+}
+
+function renderedJsonStringUpperBound(value: unknown): number {
+    if (typeof value === 'string') {
+        return Math.max(0, Buffer.byteLength(JSON.stringify(value)) - 2);
+    }
+    if (!isRecord(value)) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    if (value['kind'] === 'generate' || value['kind'] === 'ref') {
+        return MAX_RENDERED_SYMBOL_BYTES * 6;
+    }
+    if (value['kind'] !== 'parts' || !Array.isArray(value['parts'])) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    return value['parts'].reduce<number>((total, part) => {
+        if (
+            isRecord(part) &&
+            part['kind'] === 'literal' &&
+            typeof part['value'] === 'string'
+        ) {
+            return boundedByteSum(
+                total,
+                Math.max(
+                    0,
+                    Buffer.byteLength(JSON.stringify(part['value'])) - 2
+                )
+            );
+        }
+        return boundedByteSum(total, MAX_RENDERED_SYMBOL_BYTES * 6);
+    }, 0);
+}
+
+function renderedTemplateJsonUpperBound(
+    value: unknown,
+    depth = 0
+): number {
+    if (depth > 64) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    if (
+        value === null ||
+        typeof value === 'boolean' ||
+        typeof value === 'number' ||
+        typeof value === 'string'
+    ) {
+        return Buffer.byteLength(JSON.stringify(value));
+    }
+    if (Array.isArray(value)) {
+        return value.reduce(
+            (total, item, index) =>
+                boundedByteSum(
+                    boundedByteSum(total, index === 0 ? 0 : 1),
+                    renderedTemplateJsonUpperBound(item, depth + 1)
+                ),
+            2
+        );
+    }
+    if (!isRecord(value)) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    if (
+        value['kind'] === 'generate' ||
+        value['kind'] === 'ref' ||
+        value['kind'] === 'parts'
+    ) {
+        return boundedByteSum(
+            renderedJsonStringUpperBound(value),
+            2
+        );
+    }
+    return Object.entries(value).reduce(
+        (total, [key, item], index) => {
+            const keyBytes = Buffer.byteLength(JSON.stringify(key));
+            const valueBytes = renderedTemplateJsonUpperBound(
+                item,
+                depth + 1
+            );
+            return boundedByteSum(
+                boundedByteSum(
+                    boundedByteSum(total, index === 0 ? 0 : 1),
+                    keyBytes + 1
+                ),
+                valueBytes
+            );
+        },
+        2
+    );
+}
+
+function renderedOriginUrlUpperBound(value: Record<string, unknown>): number {
+    let total = MAX_RENDERED_ORIGIN_BASE_BYTES;
+    total = boundedByteSum(
+        total,
+        typeof value['path'] === 'string'
+            ? Buffer.byteLength(value['path']) * 3
+            : REPLAY_MAX_PENDING_BARRIER_BYTES + 1
+    );
+    if (isRecord(value['userInfo'])) {
+        total = boundedByteSum(
+            total,
+            renderedTemplateStringUpperBound(value['userInfo']['username']) *
+                3 +
+                2
+        );
+        if (value['userInfo']['password'] !== undefined) {
+            total = boundedByteSum(
+                total,
+                renderedTemplateStringUpperBound(
+                    value['userInfo']['password']
+                ) *
+                    3 +
+                    1
+            );
+        }
+    }
+    if (isRecord(value['query'])) {
+        for (const [name, queryValue] of Object.entries(value['query'])) {
+            const values = Array.isArray(queryValue)
+                ? queryValue
+                : [queryValue];
+            for (const item of values) {
+                total = boundedByteSum(
+                    total,
+                    (Buffer.byteLength(name) +
+                        renderedTemplateStringUpperBound(item)) *
+                        3 +
+                        2
+                );
+            }
+        }
+    }
+    return total;
+}
+
+function renderedHeaderValueUpperBound(value: unknown): number {
+    return isRecord(value) && value['kind'] === 'origin-url'
+        ? renderedOriginUrlUpperBound(value)
+        : renderedTemplateStringUpperBound(value);
+}
+
+function renderedResponseUpperBound(expectation: unknown): number {
+    if (!isRecord(expectation) || !isRecord(expectation['response'])) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    const response = expectation['response'];
+    let total = 0;
+    if (isRecord(response['headers'])) {
+        for (const [name, values] of Object.entries(response['headers'])) {
+            if (!Array.isArray(values)) {
+                return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+            }
+            for (const value of values) {
+                total = boundedByteSum(
+                    total,
+                    Buffer.byteLength(name) +
+                        renderedHeaderValueUpperBound(value) +
+                        4
+                );
+            }
+        }
+    }
+
+    const body = response['body'];
+    if (!isRecord(body)) {
+        return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+    switch (body['kind']) {
+        case 'empty':
+            return total;
+        case 'generated':
+            return boundedByteSum(
+                total,
+                typeof body['byteLength'] === 'number'
+                    ? body['byteLength']
+                    : REPLAY_MAX_PENDING_BARRIER_BYTES + 1
+            );
+        case 'text':
+            return boundedByteSum(
+                total,
+                renderedTemplateStringUpperBound(body['value'])
+            );
+        case 'json':
+            return boundedByteSum(
+                total,
+                renderedTemplateJsonUpperBound(body['value'])
+            );
+        case 'jsonp':
+            return boundedByteSum(
+                total,
+                (typeof body['callback'] === 'string'
+                    ? Buffer.byteLength(body['callback'])
+                    : REPLAY_MAX_PENDING_BARRIER_BYTES + 1) +
+                    renderedTemplateJsonUpperBound(body['value']) +
+                    3
+            );
+        default:
+            return REPLAY_MAX_PENDING_BARRIER_BYTES + 1;
+    }
+}
+
+function pendingBarrierUpperBound(
+    expectations: unknown[],
+    releaseWhenMatched: number
+): number {
+    const responseSizes: number[] = [];
+    for (const expectation of expectations) {
+        if (
+            !isRecord(expectation) ||
+            !isRecord(expectation['cardinality']) ||
+            !Number.isInteger(expectation['cardinality']['max'])
+        ) {
+            continue;
+        }
+        const cardinality = Math.min(
+            expectation['cardinality']['max'] as number,
+            REPLAY_MAX_REQUESTS
+        );
+        const responseSize = renderedResponseUpperBound(expectation);
+        for (let index = 0; index < cardinality; index += 1) {
+            responseSizes.push(responseSize);
+        }
+    }
+    responseSizes.sort((left, right) => right - left);
+    return responseSizes
+        .slice(0, releaseWhenMatched)
+        .reduce(boundedByteSum, 0);
 }
 
 function validateExpectation(
@@ -1186,6 +1631,14 @@ function validateFixture(value: unknown): ReplayFixtureV1 {
             'At least one named origin is required.'
         );
     } else {
+        if (Object.keys(value['origins']).length > REPLAY_MAX_ORIGINS) {
+            issue(
+                context,
+                'too-many-origins',
+                '$.origins',
+                'Scenario exceeds the eight-origin listener limit.'
+            );
+        }
         for (const [name, origin] of Object.entries(value['origins'])) {
             if (!SAFE_ORIGIN.test(name)) {
                 issue(
@@ -1413,6 +1866,24 @@ function validateFixture(value: unknown): ReplayFixtureV1 {
                         'invalid-barrier',
                         `${phasePath}.barrier`,
                         'Barrier threshold must be reachable by minimum cardinality.'
+                    );
+                }
+                if (
+                    isRecord(barrier) &&
+                    Number.isInteger(barrier['releaseWhenMatched']) &&
+                    (barrier['releaseWhenMatched'] as number) >= 1 &&
+                    (barrier['releaseWhenMatched'] as number) <=
+                        REPLAY_MAX_REQUESTS &&
+                    pendingBarrierUpperBound(
+                        phase['expectations'],
+                        barrier['releaseWhenMatched'] as number
+                    ) > REPLAY_MAX_PENDING_BARRIER_BYTES
+                ) {
+                    issue(
+                        context,
+                        'pending-barrier-too-large',
+                        `${phasePath}.barrier`,
+                        'Barrier can retain more than the bounded pending-response budget.'
                     );
                 }
             }

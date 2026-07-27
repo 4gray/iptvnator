@@ -9,7 +9,9 @@ import {
 export type ReplayOriginUrlMap = Readonly<Record<string, string>>;
 
 export class ReplayResponseError extends Error {
-    constructor(readonly code: 'unknown-origin-url') {
+    constructor(
+        readonly code: 'unknown-origin-url' | 'invalid-origin-url'
+    ) {
         super(`Replay response rejected: ${code}.`);
         this.name = 'ReplayResponseError';
     }
@@ -33,7 +35,60 @@ function renderHeaderValue(
     if (originUrl === undefined) {
         throw new ReplayResponseError('unknown-origin-url');
     }
-    return `${originUrl}${value.path}`;
+    try {
+        const base = new URL(originUrl);
+        const target = new URL(base.href);
+        target.pathname = `${base.pathname}${value.path}`;
+        target.search = '';
+        target.hash = '';
+        if (
+            target.origin !== base.origin ||
+            !target.pathname.startsWith(`${base.pathname}/`)
+        ) {
+            throw new Error('named-origin path escaped its run prefix');
+        }
+        if (value.userInfo !== undefined) {
+            target.username = symbols.resolveString(
+                value.userInfo.username
+            );
+            target.password =
+                value.userInfo.password === undefined
+                    ? ''
+                    : symbols.resolveString(value.userInfo.password);
+        }
+        for (const [name, queryValue] of Object.entries(
+            value.query ?? {}
+        )) {
+            const values = Array.isArray(queryValue)
+                ? queryValue
+                : [queryValue];
+            for (const item of values) {
+                target.searchParams.append(
+                    name,
+                    symbols.resolveString(item)
+                );
+            }
+        }
+        return target.href;
+    } catch (error) {
+        if (error instanceof ReplayResponseError) {
+            throw error;
+        }
+        throw new ReplayResponseError('invalid-origin-url');
+    }
+}
+
+export function replayRenderedResponseByteLength(
+    response: ReplayRenderedResponse
+): number {
+    let total = response.body.byteLength;
+    for (const [name, values] of Object.entries(response.headers)) {
+        for (const value of values) {
+            total +=
+                Buffer.byteLength(name) + Buffer.byteLength(value) + 4;
+        }
+    }
+    return total;
 }
 
 export function renderReplayResponse(

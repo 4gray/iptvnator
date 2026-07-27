@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- The control-plane security boundary is clearer as explicit wire-level cases. */
 import {
+    link,
     mkdtemp,
     mkdir,
     rm,
@@ -428,6 +429,10 @@ describe('replay fixture repository allowlist', () => {
             outsidePath,
             path.join(repositoryRoot, 'authentication', 'escape.json')
         );
+        await link(
+            outsidePath,
+            path.join(repositoryRoot, 'authentication', 'hardlink.json')
+        );
         const repository = new RepositoryReplayFixtureRepository(
             repositoryRoot
         );
@@ -449,6 +454,11 @@ describe('replay fixture repository allowlist', () => {
             code: 'fixture-not-allowed',
         });
         await expect(
+            repository.loadFixture('authentication/hardlink')
+        ).rejects.toMatchObject({
+            code: 'fixture-not-allowed',
+        });
+        await expect(
             repository.loadFixture('authentication/missing')
         ).rejects.toMatchObject({
             code: 'fixture-not-allowed',
@@ -457,6 +467,42 @@ describe('replay fixture repository allowlist', () => {
 });
 
 describe('replay control-plane lifecycle and public response', () => {
+    it('waits for an in-flight create and disposes the run before close resolves', async () => {
+        let releaseFixture!: () => void;
+        let markLoadStarted!: () => void;
+        const fixtureReleased = new Promise<void>((resolve) => {
+            releaseFixture = resolve;
+        });
+        const loadStarted = new Promise<void>((resolve) => {
+            markLoadStarted = resolve;
+        });
+        const control = await startReplayControlPlane({
+            capability: TEST_CAPABILITY,
+            repository: {
+                async loadFixture(): Promise<ReplayFixtureV1> {
+                    markLoadStarted();
+                    await fixtureReleased;
+                    return replayFixture();
+                },
+            },
+        });
+
+        const creating = authorizedRequest(control.url, 'create', {
+            fixtureId: 'authentication/deferred',
+        });
+        await loadStarted;
+        const closing = control.close();
+        releaseFixture();
+
+        const created = await creating;
+        expect(created.status).toBe(201);
+        const entryUrl = (created.body as { entryUrl: string }).entryUrl;
+        await closing;
+
+        await expect(fetch(entryUrl)).rejects.toThrow();
+        await expect(control.close()).resolves.toBeUndefined();
+    });
+
     it('returns only opaque routing and filtered public inputs, then finalizes and disposes the run', async () => {
         const control = await startReplayControlPlane({
             capability: TEST_CAPABILITY,

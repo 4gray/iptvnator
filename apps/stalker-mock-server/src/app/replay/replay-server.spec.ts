@@ -4,7 +4,10 @@ import {
     createReplayServerRun,
     ReplayServerRun,
 } from './replay-server.js';
-import { REPLAY_MAX_REQUEST_BODY_BYTES } from './replay.constants.js';
+import {
+    REPLAY_MAX_REQUEST_BODY_BYTES,
+    REPLAY_RUN_INACTIVITY_MS,
+} from './replay.constants.js';
 import {
     ReplayExpectation,
     ReplayFixtureV1,
@@ -281,16 +284,23 @@ describe('ReplayServerRun redirects and wire preservation', () => {
         await Promise.all(activeRuns.splice(0).map((run) => run.dispose()));
     });
 
-    it('keeps an absolute-path redirect on the same synthetic run origin', async () => {
+    it('resolves a relative redirect under the same synthetic run prefix', async () => {
         const redirect = expectation('redirect', {
             path: '/entry',
             response: {
                 status: 302,
-                headers: { location: ['/landing'] },
+                headers: { location: ['landing?from=relative'] },
                 body: { kind: 'empty' },
             },
         });
-        const landing = expectation('landing', { path: '/landing' });
+        const landing = expectation('landing', {
+            path: '/landing',
+            query: {
+                exact: { from: 'relative' },
+                present: [],
+                absent: [],
+            },
+        });
         const run = await createReplayServerRun(
             fixture(orderedPhases([redirect, landing]), {
                 entry: { origin: 'portal', path: '/entry' },
@@ -302,7 +312,9 @@ describe('ReplayServerRun redirects and wire preservation', () => {
 
         const first = await fetch(run.entryUrl, { redirect: 'manual' });
         const location = first.headers.get('location');
-        expect(location).toBe(`${run.originUrls['portal']}/landing`);
+        expect(location).toBe(
+            `${run.originUrls['portal']}/landing?from=relative`
+        );
         expect(new URL(location!).origin).toBe(
             new URL(run.entryUrl).origin
         );
@@ -311,7 +323,7 @@ describe('ReplayServerRun redirects and wire preservation', () => {
         expect(run.finalize().ok).toBe(true);
     });
 
-    it('renders a typed named-origin redirect as a real cross-origin absolute URL', async () => {
+    it('renders typed user-info and auth query fields on a named-origin redirect', async () => {
         const redirect = expectation('redirect', {
             path: '/entry',
             response: {
@@ -322,6 +334,27 @@ describe('ReplayServerRun redirects and wire preservation', () => {
                             kind: 'origin-url',
                             origin: 'auth',
                             path: '/login',
+                            userInfo: {
+                                username: {
+                                    kind: 'ref',
+                                    symbol: 'username',
+                                },
+                                password: {
+                                    kind: 'ref',
+                                    symbol: 'password',
+                                },
+                            },
+                            query: {
+                                login: {
+                                    kind: 'ref',
+                                    symbol: 'username',
+                                },
+                                auth: {
+                                    kind: 'generate',
+                                    symbol: 'redirect-auth',
+                                    valueKind: 'token',
+                                },
+                            },
                         },
                     ],
                 },
@@ -331,12 +364,38 @@ describe('ReplayServerRun redirects and wire preservation', () => {
         const login = expectation('login', {
             origin: 'auth',
             path: '/login',
+            query: {
+                exact: {
+                    login: {
+                        kind: 'ref',
+                        symbol: 'username',
+                    },
+                    auth: {
+                        kind: 'ref',
+                        symbol: 'redirect-auth',
+                    },
+                },
+                present: [],
+                absent: [],
+            },
         });
         const run = await createReplayServerRun(
             fixture(orderedPhases([redirect, login]), {
                 origins: { portal: {}, auth: {} },
                 entry: { origin: 'portal', path: '/entry' },
                 expectedEndpoint: { origin: 'auth', path: '/login' },
+                symbols: [
+                    {
+                        kind: 'generate',
+                        symbol: 'username',
+                        valueKind: 'credential',
+                    },
+                    {
+                        kind: 'generate',
+                        symbol: 'password',
+                        valueKind: 'credential',
+                    },
+                ],
             }),
             { runId: 'run-cross-origin' }
         );
@@ -344,12 +403,25 @@ describe('ReplayServerRun redirects and wire preservation', () => {
 
         const first = await fetch(run.entryUrl, { redirect: 'manual' });
         const location = first.headers.get('location');
-        expect(location).toBe(`${run.originUrls['auth']}/login`);
-        expect(new URL(location!).origin).not.toBe(
+        const target = new URL(location!);
+        expect(`${target.origin}${target.pathname}`).toBe(
+            `${new URL(run.originUrls['auth']!).origin}${
+                new URL(run.originUrls['auth']!).pathname
+            }/login`
+        );
+        expect(target.origin).not.toBe(
             new URL(run.entryUrl).origin
         );
+        expect(target.username).toBe(run.generatedInputs['username']);
+        expect(target.password).toBe(run.generatedInputs['password']);
+        expect(target.searchParams.get('login')).toBe(
+            run.generatedInputs['username']
+        );
+        expect(target.searchParams.get('auth')).toMatch(
+            /^test-token-[0-9a-f]+$/
+        );
 
-        await fetch(location!);
+        await rawRequest(location!);
         expect(run.finalize().ok).toBe(true);
     });
 
@@ -426,6 +498,83 @@ describe('ReplayServerRun redirects and wire preservation', () => {
             'one',
             'two',
         ]);
+        expect(run.finalize().ok).toBe(true);
+    });
+
+    it('preserves constructor and __proto__ fields through query, headers, cookies, and form parsing', async () => {
+        const exactQuery = Object.fromEntries([
+            ['constructor', 'query-constructor'],
+            ['__proto__', 'query-prototype'],
+        ]);
+        const exactHeaders = Object.fromEntries([
+            ['constructor', 'header-constructor'],
+            ['__proto__', 'header-prototype'],
+        ]);
+        const exactCookies = Object.fromEntries([
+            ['constructor', 'cookie-constructor'],
+            ['__proto__', 'cookie-prototype'],
+        ]);
+        const exactForm = Object.fromEntries([
+            ['constructor', 'form-constructor'],
+            ['__proto__', 'form-prototype'],
+        ]);
+        const request = expectation('prototype-fields', {
+            method: 'POST',
+            path: '/request',
+            query: {
+                exact: exactQuery,
+                present: [],
+                absent: [],
+            },
+            headers: {
+                exact: exactHeaders,
+                present: [],
+                absent: [],
+            },
+            cookies: {
+                exact: exactCookies,
+                present: [],
+                absent: [],
+                attributes: {},
+            },
+            body: {
+                kind: 'form',
+                exact: exactForm,
+                present: [],
+                absent: [],
+            },
+        });
+        const run = await createReplayServerRun(
+            fixture(orderedPhases([request]), {
+                entry: { origin: 'portal', path: '/request' },
+                expectedEndpoint: {
+                    origin: 'portal',
+                    path: '/request',
+                },
+            }),
+            { runId: 'run-prototype-fields' }
+        );
+        activeRuns.push(run);
+        const headers = Object.fromEntries([
+            ['content-type', 'application/x-www-form-urlencoded'],
+            ['constructor', 'header-constructor'],
+            ['__proto__', 'header-prototype'],
+            [
+                'cookie',
+                'constructor=cookie-constructor; __proto__=cookie-prototype',
+            ],
+        ]);
+
+        const response = await rawRequest(
+            `${run.entryUrl}?constructor=query-constructor&__proto__=query-prototype`,
+            {
+                method: 'POST',
+                headers,
+                body: 'constructor=form-constructor&__proto__=form-prototype',
+            }
+        );
+
+        expect(response.status).toBe(200);
         expect(run.finalize().ok).toBe(true);
     });
 
@@ -520,6 +669,12 @@ describe('ReplayServerRun redirects and wire preservation', () => {
                 error: { code: 'invalid-request-body' },
             }),
         });
+        expect(run.finalize()).toMatchObject({
+            ok: false,
+            ledger: {
+                mismatchCounts: { 'invalid-request-body': 1 },
+            },
+        });
     });
 
     it('requires duplicate cookie names to be matched through the raw repeated-header boundary', async () => {
@@ -587,6 +742,12 @@ describe('ReplayServerRun redirects and wire preservation', () => {
         expect(JSON.parse(response.body)).toEqual({
             error: { code: 'request-body-too-large' },
         });
+        expect(run.finalize()).toMatchObject({
+            ok: false,
+            ledger: {
+                mismatchCounts: { 'request-body-too-large': 1 },
+            },
+        });
     });
 
     it('rejects a chunked body as soon as it crosses the cap without waiting for request end', async () => {
@@ -619,6 +780,12 @@ describe('ReplayServerRun redirects and wire preservation', () => {
             body: JSON.stringify({
                 error: { code: 'request-body-too-large' },
             }),
+        });
+        expect(run.finalize()).toMatchObject({
+            ok: false,
+            ledger: {
+                mismatchCounts: { 'request-body-too-large': 1 },
+            },
         });
         stream.request.destroy();
     });
@@ -655,11 +822,205 @@ describe('ReplayServerRun redirects and wire preservation', () => {
                 error: { code: 'request-body-timeout' },
             }),
         });
+        expect(run.finalize()).toMatchObject({
+            ok: false,
+            ledger: {
+                mismatchCounts: { 'request-body-timeout': 1 },
+            },
+        });
         stream.request.destroy();
+    });
+
+    it('records a wrong-route request after a successful expected request', async () => {
+        const run = await createReplayServerRun(
+            fixture(
+                orderedPhases([
+                    expectation('expected', { path: '/expected' }),
+                ]),
+                {
+                    entry: { origin: 'portal', path: '/expected' },
+                }
+            ),
+            { runId: 'run-wrong-route' }
+        );
+        activeRuns.push(run);
+
+        await expect(fetch(run.entryUrl)).resolves.toMatchObject({
+            status: 200,
+        });
+        const outside = new URL(run.entryUrl);
+        outside.pathname = '/outside-replay-prefix';
+        const response = await rawRequest(outside.href);
+
+        expect(response).toMatchObject({
+            status: 404,
+            body: JSON.stringify({
+                error: { code: 'invalid-replay-route' },
+            }),
+        });
+        expect(run.finalize()).toMatchObject({
+            ok: false,
+            issues: expect.arrayContaining([
+                expect.objectContaining({ code: 'unexpected-request' }),
+            ]),
+            ledger: {
+                operationCounts: { expected: 1 },
+                mismatchCounts: { 'invalid-replay-route': 1 },
+                terminalState: 'state-1',
+            },
+        });
+    });
+
+    it('records a disallowed HTTP method as unexpected network traffic', async () => {
+        const run = await createReplayServerRun(
+            fixture(
+                orderedPhases([
+                    expectation('expected', { path: '/expected' }),
+                ]),
+                {
+                    entry: { origin: 'portal', path: '/expected' },
+                }
+            ),
+            { runId: 'run-invalid-method' }
+        );
+        activeRuns.push(run);
+
+        const response = await rawRequest(run.entryUrl, {
+            method: 'TRACE',
+        });
+
+        expect(response).toMatchObject({
+            status: 405,
+            body: JSON.stringify({
+                error: { code: 'invalid-request-method' },
+            }),
+        });
+        expect(run.finalize()).toMatchObject({
+            ok: false,
+            issues: expect.arrayContaining([
+                expect.objectContaining({ code: 'unexpected-request' }),
+            ]),
+            ledger: {
+                mismatchCounts: { 'invalid-request-method': 1 },
+            },
+        });
+    });
+
+    it('records a deterministic response-send failure without double-counting the request', async () => {
+        const request = expectation('invalid-response', {
+            path: '/request',
+            response: {
+                status: 200,
+                headers: {
+                    'x-invalid': ['line-one\r\nline-two'],
+                },
+                body: { kind: 'empty' },
+            },
+        });
+        const run = await createReplayServerRun(
+            fixture(orderedPhases([request]), {
+                entry: { origin: 'portal', path: '/request' },
+                expectedEndpoint: {
+                    origin: 'portal',
+                    path: '/request',
+                },
+            }),
+            { runId: 'run-response-send-failure' }
+        );
+        activeRuns.push(run);
+
+        const response = await rawRequest(run.entryUrl);
+
+        expect(response).toMatchObject({
+            status: 500,
+            body: JSON.stringify({
+                error: { code: 'response-send-failed' },
+            }),
+        });
+        expect(run.finalize()).toMatchObject({
+            ok: false,
+            ledger: {
+                operationCounts: { 'invalid-response': 1 },
+                mismatchCounts: { 'response-send-failed': 1 },
+                terminalState: 'state-1',
+            },
+        });
     });
 });
 
 describe('ReplayServerRun lifecycle', () => {
+    it('expires a held request and closes its listener without another control call', async () => {
+        const realSetImmediate = setImmediate;
+        jest.useFakeTimers({ now: 25_000 });
+        let run: ReplayServerRun | undefined;
+        try {
+            const held = expectation('held', { path: '/held' });
+            const never = expectation('never', { path: '/never' });
+            run = await createReplayServerRun(
+                fixture(
+                    [
+                        {
+                            name: 'expiring-barrier',
+                            state: 'start',
+                            nextState: 'complete',
+                            mode: 'unordered',
+                            barrier: {
+                                name: 'two-requests',
+                                releaseWhenMatched: 2,
+                            },
+                            expectations: [held, never],
+                        },
+                    ],
+                    {
+                        entry: { origin: 'portal', path: '/held' },
+                        expectedEndpoint: {
+                            origin: 'portal',
+                            path: '/held',
+                        },
+                    }
+                ),
+                { runId: 'run-scheduled-expiry' }
+            );
+            const heldResponse = rawRequest(run.entryUrl, {
+                headers: { connection: 'close' },
+            });
+            const heldOutcome = heldResponse.then(
+                (response) => response,
+                (error: Error) => error
+            );
+            for (let attempt = 0; attempt < 100; attempt += 1) {
+                if (run.getLedger().operationCounts['held'] === 1) {
+                    break;
+                }
+                await new Promise<void>((resolve) =>
+                    realSetImmediate(resolve)
+                );
+            }
+            expect(run.getLedger().operationCounts['held']).toBe(1);
+
+            await jest.advanceTimersByTimeAsync(
+                REPLAY_RUN_INACTIVITY_MS
+            );
+
+            await expect(heldOutcome).resolves.toMatchObject({
+                status: 410,
+                body: JSON.stringify({
+                    error: { code: 'run-expired' },
+                }),
+            });
+            await expect(rawRequest(run.entryUrl)).rejects.toThrow();
+            expect(run.finalize()).toMatchObject({
+                ok: false,
+                issues: expect.arrayContaining([
+                    expect.objectContaining({ code: 'run-expired' }),
+                ]),
+            });
+        } finally {
+            await run?.dispose();
+            jest.useRealTimers();
+        }
+    });
+
     it('disposal rejects held barriers and closes every listener', async () => {
         const held = expectation('held', { path: '/held' });
         const never = expectation('never', { path: '/never' });

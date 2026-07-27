@@ -4,6 +4,8 @@ import http, {
     IncomingMessage,
     Server,
     ServerResponse,
+    validateHeaderName,
+    validateHeaderValue,
 } from 'node:http';
 import { AddressInfo } from 'node:net';
 import {
@@ -43,6 +45,7 @@ const NETWORK_ERROR_CODE = {
     INVALID_ROUTE: 'invalid-replay-route',
     REQUEST_BODY_TOO_LARGE: 'request-body-too-large',
     REQUEST_BODY_TIMEOUT: 'request-body-timeout',
+    RESPONSE_SEND_FAILED: 'response-send-failed',
 } as const;
 
 type ReplayNetworkErrorCode =
@@ -51,7 +54,8 @@ type ReplayNetworkErrorCode =
 class ReplayNetworkError extends Error {
     constructor(
         readonly code: ReplayNetworkErrorCode,
-        readonly status: number
+        readonly status: number,
+        readonly requestAlreadyCounted = false
     ) {
         super(`Replay network request rejected: ${code}.`);
         this.name = 'ReplayNetworkError';
@@ -84,14 +88,25 @@ function sendError(
     status: number,
     code: string
 ): void {
+    if (response.destroyed) {
+        return;
+    }
+    if (response.headersSent) {
+        response.destroy();
+        return;
+    }
     const body = Buffer.from(JSON.stringify({ error: { code } }));
-    response.writeHead(status, {
-        'content-type': 'application/json',
-        'content-length': String(body.byteLength),
-        'cache-control': 'no-store',
-        connection: 'close',
-    });
-    response.end(body);
+    try {
+        response.writeHead(status, {
+            'content-type': 'application/json',
+            'content-length': String(body.byteLength),
+            'cache-control': 'no-store',
+            connection: 'close',
+        });
+        response.end(body);
+    } catch {
+        response.destroy();
+    }
 }
 
 function statusForRunError(error: ReplayRunError): number {
@@ -121,7 +136,15 @@ function requestPath(
     if (requestUrl === undefined) {
         throw new ReplayNetworkError(NETWORK_ERROR_CODE.INVALID_ROUTE, 404);
     }
-    const url = new URL(requestUrl, 'http://replay.invalid');
+    let url: URL;
+    try {
+        url = new URL(requestUrl, 'http://replay.invalid');
+    } catch {
+        throw new ReplayNetworkError(
+            NETWORK_ERROR_CODE.INVALID_ROUTE,
+            404
+        );
+    }
     const path =
         url.pathname === routePrefix
             ? '/'
@@ -135,7 +158,7 @@ function requestPath(
 }
 
 function repeatedQuery(url: URL): Record<string, string[]> {
-    const query: Record<string, string[]> = {};
+    const query = Object.create(null) as Record<string, string[]>;
     for (const [name, value] of url.searchParams) {
         (query[name] ??= []).push(value);
     }
@@ -143,7 +166,7 @@ function repeatedQuery(url: URL): Record<string, string[]> {
 }
 
 function repeatedHeaders(request: IncomingMessage): Record<string, string[]> {
-    const headers: Record<string, string[]> = {};
+    const headers = Object.create(null) as Record<string, string[]>;
     for (let index = 0; index < request.rawHeaders.length; index += 2) {
         const name = request.rawHeaders[index]?.toLowerCase();
         const value = request.rawHeaders[index + 1];
@@ -162,7 +185,10 @@ function parseCookies(
         : headers.cookie === undefined
           ? []
           : [headers.cookie];
-    const cookies: Record<string, ReplayObservedCookie> = {};
+    const cookies = Object.create(null) as Record<
+        string,
+        ReplayObservedCookie
+    >;
     const duplicateNames = new Set<string>();
     for (const header of cookieHeaders) {
         for (const pair of header.split(';')) {
@@ -342,7 +368,7 @@ function parseBody(
         }
     }
     if (type === 'application/x-www-form-urlencoded') {
-        const value: Record<string, string> = {};
+        const value = Object.create(null) as Record<string, string>;
         for (const [name, fieldValue] of new URLSearchParams(text)) {
             value[name] = fieldValue;
         }
@@ -370,18 +396,107 @@ async function observeRequest(
     };
 }
 
+function staysWithinRunPrefix(target: URL, originUrl: string): boolean {
+    const declared = new URL(originUrl);
+    return (
+        target.origin === declared.origin &&
+        (target.pathname === declared.pathname ||
+            target.pathname.startsWith(`${declared.pathname}/`))
+    );
+}
+
+function hasControlOrBackslash(value: string): boolean {
+    return [...value].some((character) => {
+        const code = character.charCodeAt(0);
+        return character === '\\' || code <= 31 || code === 127;
+    });
+}
+
+function hasParentLocationSegment(value: string): boolean {
+    const pathPart = value.split(/[?#]/, 1)[0] ?? '';
+    return pathPart.split('/').some((segment) => {
+        try {
+            return decodeURIComponent(segment).toLowerCase() === '..';
+        } catch {
+            return true;
+        }
+    });
+}
+
+function routeLocation(
+    value: string,
+    currentOriginUrl: string,
+    requestUrl: string | undefined,
+    originUrls: Readonly<Record<string, string>>
+): string {
+    if (
+        value.trim() !== value ||
+        hasControlOrBackslash(value) ||
+        hasParentLocationSegment(value)
+    ) {
+        throw new ReplayNetworkError(
+            NETWORK_ERROR_CODE.RESPONSE_SEND_FAILED,
+            500,
+            true
+        );
+    }
+    try {
+        const currentBase = new URL(currentOriginUrl);
+        let target: URL;
+        if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) {
+            target = new URL(value);
+        } else if (value.startsWith('//')) {
+            throw new Error('scheme-relative location');
+        } else if (value.startsWith('/')) {
+            const relative = new URL(value, currentBase.origin);
+            target = new URL(currentBase.href);
+            target.pathname = `${currentBase.pathname}${relative.pathname}`;
+            target.search = relative.search;
+            target.hash = relative.hash;
+        } else {
+            const incoming = new URL(
+                requestUrl ?? `${currentBase.pathname}/`,
+                currentBase.origin
+            );
+            target = new URL(value, incoming);
+        }
+        if (
+            !Object.values(originUrls).some((originUrl) =>
+                staysWithinRunPrefix(target, originUrl)
+            )
+        ) {
+            throw new Error('location escaped declared run origins');
+        }
+        return target.href;
+    } catch (error) {
+        if (error instanceof ReplayNetworkError) {
+            throw error;
+        }
+        throw new ReplayNetworkError(
+            NETWORK_ERROR_CODE.RESPONSE_SEND_FAILED,
+            500,
+            true
+        );
+    }
+}
+
 function routedHeaders(
     response: ReplayRenderedResponse,
-    currentOriginUrl: string
+    currentOriginUrl: string,
+    requestUrl: string | undefined,
+    originUrls: Readonly<Record<string, string>>
 ): Record<string, string[]> {
     return Object.fromEntries(
         Object.entries(response.headers).map(([name, values]) => [
             name,
             name === 'location'
                 ? values.map((value) =>
-                      value.startsWith('/')
-                          ? `${currentOriginUrl}${value}`
-                          : value
+                      routeLocation(
+                          value,
+                          currentOriginUrl,
+                          requestUrl,
+                          originUrls
+                      )
                   )
                 : values,
         ])
@@ -391,13 +506,35 @@ function routedHeaders(
 function sendReplayResponse(
     response: ServerResponse,
     replay: ReplayRenderedResponse,
-    currentOriginUrl: string
+    currentOriginUrl: string,
+    requestUrl: string | undefined,
+    originUrls: Readonly<Record<string, string>>
 ): void {
-    response.writeHead(
-        replay.status,
-        routedHeaders(replay, currentOriginUrl)
-    );
-    response.end(replay.body);
+    try {
+        const headers = routedHeaders(
+            replay,
+            currentOriginUrl,
+            requestUrl,
+            originUrls
+        );
+        for (const [name, values] of Object.entries(headers)) {
+            validateHeaderName(name);
+            for (const value of values) {
+                validateHeaderValue(name, value);
+            }
+        }
+        response.writeHead(replay.status, headers);
+        response.end(replay.body);
+    } catch (error) {
+        if (error instanceof ReplayNetworkError) {
+            throw error;
+        }
+        throw new ReplayNetworkError(
+            NETWORK_ERROR_CODE.RESPONSE_SEND_FAILED,
+            500,
+            true
+        );
+    }
 }
 
 async function listen(server: Server): Promise<number> {
@@ -450,8 +587,15 @@ export async function createReplayServerRun(
         runId
     )}`;
     const listeners: ReplayListener[] = [];
-    const originUrls: Record<string, string> = {};
+    const originUrls = Object.create(null) as Record<string, string>;
     const runtime: { run?: ReplayRun } = {};
+    let closeListenersPromise: Promise<void> | undefined;
+    const closeListeners = (): Promise<void> => {
+        closeListenersPromise ??= Promise.all(
+            listeners.map(({ server }) => closeServer(server))
+        ).then(() => undefined);
+        return closeListenersPromise;
+    };
 
     try {
         for (const origin of Object.keys(fixture.origins)) {
@@ -482,10 +626,16 @@ export async function createReplayServerRun(
                     sendReplayResponse(
                         response,
                         rendered,
-                        currentOriginUrl
+                        currentOriginUrl,
+                        request.url,
+                        originUrls
                     );
                 } catch (error) {
                     if (error instanceof ReplayNetworkError) {
+                        runtime.run?.recordNetworkFailure(
+                            error.code,
+                            error.requestAlreadyCounted
+                        );
                         sendError(response, error.status, error.code);
                     } else if (error instanceof ReplayRunError) {
                         sendError(
@@ -494,6 +644,9 @@ export async function createReplayServerRun(
                             error.code
                         );
                     } else {
+                        runtime.run?.recordNetworkFailure(
+                            NETWORK_ERROR_CODE.INTERNAL
+                        );
                         sendError(
                             response,
                             500,
@@ -517,6 +670,9 @@ export async function createReplayServerRun(
         runId,
         now: options.now,
         originUrls,
+        onExpired: () => {
+            void closeListeners().catch(() => undefined);
+        },
     });
     runtime.run = run;
 
@@ -531,9 +687,7 @@ export async function createReplayServerRun(
         dispose: () => {
             disposePromise ??= (async () => {
                 run.dispose();
-                await Promise.all(
-                    listeners.map(({ server }) => closeServer(server))
-                );
+                await closeListeners();
             })();
             return disposePromise;
         },
