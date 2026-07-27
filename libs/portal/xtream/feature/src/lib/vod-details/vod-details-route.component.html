@@ -190,6 +190,19 @@
                     </span>
                 </button>
             }
+            @if (multiSource.hasAlternatives()) {
+                <app-vod-sources-chip
+                    [sources]="multiSource.sources()"
+                    [title]="multiSourceTitle()"
+                    [matchKind]="multiSource.matchKind()"
+                    [count]="multiSource.alternativeCount()"
+                    [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
+                    (playRequested)="playFromSource($event)"
+                    (pinRequested)="pinSource($event)"
+                    (checkRequested)="checkSource($event)"
+                    (autoFailoverToggled)="setAutoFailover($event)"
+                />
+            }
             @if (!isFavorite()) {
                 <button class="favorite-btn" (click)="toggleFavorite()">
                     <mat-icon>add</mat-icon>
@@ -236,12 +249,44 @@
                     </button>
                 }
             }
+            @if (activeSourceCaption(); as caption) {
+                <p class="source-caption">
+                    <span class="source-caption__label">
+                        {{ 'PORTALS.MULTI_SOURCE.PLAYING_FROM' | translate }}
+                    </span>
+                    <span class="source-caption__source">{{
+                        caption.source
+                    }}</span>
+                    @if (multiSource.hasAlternatives()) {
+                        <span class="source-caption__extra">
+                            @if (caption.alternativeCount === 1) {
+                                {{
+                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE'
+                                        | translate
+                                }}
+                            } @else {
+                                {{
+                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
+                                        | translate
+                                            : { count: caption.alternativeCount }
+                                }}
+                            }
+                        </span>
+                    }
+                </p>
+            }
         </ng-template>
 
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
                 detail-player
                 [playback]="playback"
+                [alternativeSources]="multiSource.alternatives()"
+                [allSources]="multiSource.sources()"
+                (alternativeSourceRequested)="playFromSource($event)"
+                (sourcePinRequested)="pinSource($event)"
+                (sourceCheckRequested)="checkSource($event)"
+                (playbackFailed)="onPlaybackFailed()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (backClicked)="goBack()"

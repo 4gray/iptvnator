@@ -1,0 +1,94 @@
+<div class="source-row" [class.source-row--active]="source().isActive">
+    <span class="source-row__monogram" aria-hidden="true">{{
+        monogram()
+    }}</span>
+
+    <div class="source-row__info">
+        <div class="source-row__name-line">
+            <span class="source-row__name" [title]="displayLabel()">{{
+                displayLabel()
+            }}</span>
+            @if (source().isActive) {
+                <span class="source-row__badge">{{
+                    'PORTALS.MULTI_SOURCE.PLAYING' | translate
+                }}</span>
+            }
+        </div>
+
+        <div class="source-row__tags">
+            @for (tag of tags(); track tag.id) {
+                <span
+                    class="source-tag"
+                    [class.source-tag--ok]="tag.tone === 'ok'"
+                    [class.source-tag--warn]="tag.tone === 'warn'"
+                    [class.source-tag--bad]="tag.tone === 'bad'"
+                >
+                    @if (tag.spinner) {
+                        <span
+                            class="source-tag__spinner"
+                            aria-hidden="true"
+                        ></span>
+                    } @else if (tag.icon) {
+                        <mat-icon class="source-tag__icon">{{
+                            tag.icon
+                        }}</mat-icon>
+                    }
+                    @if (tag.prefix) {
+                        <span class="source-tag__prefix">{{ tag.prefix }}</span>
+                    }
+                    @if (tag.labelKey) {
+                        <span>{{ tag.labelKey | translate }}</span>
+                    } @else {
+                        <span>{{ tag.text }}</span>
+                    }
+                    @if (tag.suffix) {
+                        <span class="source-tag__suffix">{{ tag.suffix }}</span>
+                    }
+                </span>
+            }
+            @if (showCheckChip()) {
+                <button
+                    type="button"
+                    class="source-tag source-tag--action"
+                    (click)="onCheck($event)"
+                    [matTooltip]="
+                        'PORTALS.MULTI_SOURCE.CHECK_TOOLTIP' | translate
+                    "
+                    [attr.aria-label]="
+                        'PORTALS.MULTI_SOURCE.CHECK_TOOLTIP' | translate
+                    "
+                >
+                    <mat-icon class="source-tag__icon">refresh</mat-icon>
+                    <span>{{ 'PORTALS.MULTI_SOURCE.CHECK' | translate }}</span>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="source-row__actions">
+        @if (showPin()) {
+            <button
+                type="button"
+                class="source-row__action"
+                [class.is-active]="source().isPinned"
+                [attr.aria-pressed]="source().isPinned"
+                (click)="onPin($event)"
+                [matTooltip]="pinLabelKey() | translate"
+                [attr.aria-label]="pinLabelKey() | translate"
+            >
+                <mat-icon>push_pin</mat-icon>
+            </button>
+        }
+        <button
+            type="button"
+            class="source-row__action source-row__action--play"
+            (click)="onPlay($event)"
+            [matTooltip]="'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate"
+            [attr.aria-label]="
+                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate
+            "
+        >
+            <mat-icon>play_arrow</mat-icon>
+        </button>
+    </div>
+</div>

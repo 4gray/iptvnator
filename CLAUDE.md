@@ -252,7 +252,7 @@ This is an Nx monorepo with the following structure:
     - **portal/stalker/{data-access,feature}** - StalkerStore and routed Stalker components
     - **portal/catalog/feature** - Portal catalog UI
     - **portal/downloads/feature** - Download manager UI
-    - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
+    - **portal/shared/{data-access,ui,util}** - Cross-portal shared code (incl. the VOD multi-source discovery/resolve/ranking layer in `data-access/src/lib/multi-source/`)
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/logging** - Dependency-free structured redaction for diagnostic logs
@@ -598,6 +598,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `downloads` - Download manager state
     - `appState` - Key-value app state (also tracks one-off data migrations)
     - `tmdbMetadata` - TMDB enrichment cache (details payloads + search match resolutions, keyed by media type/lookup key/language)
+    - `vodSourcePins` (`vod_source_pins`) - VOD multi-source per-movie preferred playlist, keyed by a portal-agnostic match key (defined in `vod-source-pins.schema.ts`, re-exported by `schema.ts`)
 - **Connection**: `libs/shared/database/src/lib/connection.ts`
     - `createTables()` auto-creates tables on init (`CREATE TABLE IF NOT EXISTS`)
     - Provides full read-write access for `electron-backend` and a read-only mode
@@ -816,6 +817,18 @@ engine` (restart required) or
 - Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → first) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream) or TMDB (Stalker)
 - Dashboard hero/Continue Watching clicks for an Xtream series carry a one-shot resume target through the global-recent inline-detail handoff; after series metadata and playback positions load, the exact saved episode starts at its stored position. A failed positions load leaves the target unconsumed and the handoff detail-only, so a transient storage error never starts the episode from the beginning. Ordinary global-recent grid clicks remain detail-only.
 - See `docs/architecture/embedded-inline-playback.md` ("Two-State Detail Layout")
+
+**VOD Multi-Source** (alternative sources for a movie):
+
+- Finds the same movie in the user's other imported playlists and adds a "Sources N" chip to the Xtream VOD action row (only when ≥1 alternative exists), plus a `.source-caption` line reporting where playback is coming from. The chip opens a 460px anchored `MatMenu` popover (`libs/ui/components/src/lib/vod-sources/`), reused unchanged on the playback-error screen.
+- Scope v1 is **Xtream ↔ Xtream, movies only, Electron only**. Stalker never reaches the `content` table and M3U is a JSON blob whose search forces `content_type:'live'`; both are additive later since `VodSourceCandidate.portalType` already carries all three. In the PWA every entry point is gated off by a bridge `typeof` check and the chip renders nothing.
+- **Metadata provenance is the core contract.** Every field is `{value, provenance}` where `api`/`probe` are facts (plain tag), `parsed` is a title-regex guess (tag prefixed `~`, warn colour), and absent renders **no tag at all** plus a `check` chip. `factualOnly()` in `vod-source-metadata.util.ts` is the only accessor allowed for ranking/failover, so guesses are structurally unable to influence a decision. `VodSourceProbeStatus` separates `fail` (contacted and refused) from `unknown` (timed out / blocked / no capability) — an unchecked source is never shown as offline. Quality is derived from pixel **width** because letterboxing crops height.
+- Discovery (`DB_FIND_TITLE_SOURCES`, trigram FTS over `content_title_fts`) is lazy and returns only what the `content` table can prove. Resolution is deferred to click/pin/check because `content` stores no `container_extension` and `constructVodUrl` returns `''` without one — each alternative costs a live `get_vod_info` against the foreign playlist's credentials.
+- Switching = one `inlinePlayback.set({...next, startTime})`, never null-then-set, so the player and engine survive and re-seek. The carried position is read *before* the 15s persistence throttle, and `VodDetailsPlaybackService` uses a one-shot `resumeSettled` latch so a resuming engine's `timeupdate` at ~0 cannot overwrite the resume point.
+- Pins are keyed portal-agnostically (`tmdb:{id}` else `title:{base}:{year}`, `vod_source_pins` table); lookups pass every alias most-trusted-first so a late TMDB id does not orphan a title-keyed pin.
+- Auto-failover is `Settings.vodAutoFailover`, **opt-in and off by default**, web engines only. Each source is tried at most once per session (`triedSourceIds` only grows), so it terminates structurally. The switch is never silent: the toast names the new playlist, offers Undo, and warns "dub may differ" only when both sides state an audio track as fact.
+- HEAD probe reuses the main-process handler extracted to `apps/electron-backend/src/app/events/stream-probe.ts` (`STREAM_PROBE_URL`; `XTREAM_PROBE_URL` still delegates there for catchup). No ffprobe — the binary is not bundled.
+- See `docs/architecture/vod-multi-source.md`
 
 **Radio Player**:
 

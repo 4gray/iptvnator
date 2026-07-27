@@ -1,0 +1,277 @@
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+:host {
+    display: block;
+
+    // Feature-specific status colours. Light theme is the default (no
+    // .dark-theme class on body); the dark overrides follow, mirroring the
+    // pattern in libs/ui/styles/_detail-view.scss. The handoff's dark values
+    // are far too light on a white surface, so light theme uses darker
+    // equivalents that clear ~4.5:1 against the tinted tag background.
+    --vod-source-ok-fg: #15803d;
+    --vod-source-ok-bg: rgba(21, 128, 61, 0.1);
+    --vod-source-warn-fg: #b45309;
+    --vod-source-warn-bg: rgba(180, 83, 9, 0.1);
+    --vod-source-bad-fg: #b91c1c;
+    --vod-source-bad-bg: rgba(185, 28, 28, 0.1);
+}
+
+:host-context(.dark-theme) {
+    --vod-source-ok-fg: #4ade80;
+    --vod-source-ok-bg: rgba(74, 222, 128, 0.1);
+    --vod-source-warn-fg: #ffcf99;
+    --vod-source-warn-bg: rgba(255, 207, 153, 0.1);
+    --vod-source-bad-fg: #ff9aa6;
+    --vod-source-bad-bg: rgba(255, 91, 110, 0.1);
+}
+
+.source-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    box-sizing: border-box;
+    transition:
+        background 0.15s ease,
+        outline-color 0.15s ease;
+
+    &:hover {
+        background: var(--app-card-hover-bg);
+    }
+
+    &--active,
+    &--active:hover {
+        background: var(--app-selection-surface);
+        outline: 1px solid var(--app-selection-color);
+        outline-offset: -1px;
+    }
+}
+
+.source-row__monogram {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    // Concentric with the row: outer 10px radius minus 3px inset.
+    border-radius: 7px;
+    display: grid;
+    place-items: center;
+    background: var(--app-card-hover-bg);
+    color: var(--app-eyebrow-color);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+}
+
+.source-row__info {
+    flex: 1;
+    min-width: 0;
+    // One line, not three: the name takes what it needs, the tags sit on the
+    // horizontal space that was previously empty. Roughly halves row height,
+    // which doubles how many sources fit without touching the panel size.
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.source-row__name-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    // Shrinks before the tags do — the status tags are the deciding
+    // information, the label only has to stay recognizable.
+    flex: 1 1 auto;
+}
+
+.source-row__name {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--app-on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.source-row__badge {
+    flex: none;
+    font-family: $font-mono;
+    font-weight: 600;
+    font-size: 9px;
+    line-height: 1.3;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--app-selection-color);
+    background: color-mix(in srgb, var(--app-selection-color) 12%, transparent);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.source-row__tags {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    // Never wrap to a second line; overflowing tags are clipped from the left
+    // so the trailing status tag (the one that matters) always stays visible.
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+.source-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    font-family: $font-mono;
+    font-weight: 500;
+    font-size: 10.5px;
+    line-height: 1.5;
+    border-radius: 4px;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+    color: var(--app-eyebrow-color);
+    background: var(--app-card-hover-bg);
+    white-space: nowrap;
+
+    &--ok {
+        color: var(--vod-source-ok-fg);
+        background: var(--vod-source-ok-bg);
+    }
+
+    &--warn {
+        color: var(--vod-source-warn-fg);
+        background: var(--vod-source-warn-bg);
+    }
+
+    &--bad {
+        color: var(--vod-source-bad-fg);
+        background: var(--vod-source-bad-bg);
+    }
+
+    // The one tag the user can act on: no fill, dashed edge, so an unknown
+    // never reads as a value.
+    &--action {
+        border: 1px dashed var(--app-widget-border);
+        background: transparent;
+        color: var(--app-eyebrow-color);
+        cursor: pointer;
+        transition:
+            color 0.15s ease,
+            border-color 0.15s ease,
+            background 0.15s ease;
+
+        &:hover {
+            color: var(--app-on-surface);
+            border-color: var(--app-selection-color);
+            background: color-mix(
+                in srgb,
+                var(--app-selection-color) 8%,
+                transparent
+            );
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--app-selection-color);
+            outline-offset: 2px;
+        }
+    }
+}
+
+.source-tag__icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    line-height: 12px;
+}
+
+.source-tag__spinner {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+    animation: vod-source-spin 0.7s linear infinite;
+}
+
+@keyframes vod-source-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .source-tag__spinner {
+        animation-duration: 2.4s;
+    }
+}
+
+.source-row__actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.source-row__action {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--app-widget-border);
+    background: transparent;
+    color: var(--app-eyebrow-color);
+    cursor: pointer;
+    transition:
+        color 0.15s ease,
+        background 0.15s ease,
+        border-color 0.15s ease;
+
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+    }
+
+    &:hover {
+        color: var(--app-on-surface);
+        background: var(--app-card-hover-bg);
+    }
+
+    &.is-active {
+        color: var(--app-selection-color);
+        border-color: var(--app-selection-color);
+        background: color-mix(
+            in srgb,
+            var(--app-selection-color) 12%,
+            transparent
+        );
+    }
+
+    &--play {
+        border-color: transparent;
+        background: var(--app-selection-color);
+        color: var(--mat-sys-on-primary, #fff);
+
+        &:hover {
+            background: color-mix(
+                in srgb,
+                var(--app-selection-color) 86%,
+                var(--app-on-surface)
+            );
+            color: var(--mat-sys-on-primary, #fff);
+        }
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 2px;
+    }
+}

@@ -36,10 +36,16 @@ pnpm run serve:marketing-demo:web
 | `epg`       | `epg`       | EPG fixture            | 2         | 1        | 1           | 3         | active   |
 | `emptyvod`  | `emptyvod`  | empty VOD metadata     | 2         | 2        | 2           | 5         | active   |
 | `marketing` | `marketing` | fictional release demo | 4         | 4        | 4           | curated   | active   |
+| `multisrc1` | `multisrc1` | multi-source portal A  | 1         | 2        | 1           | 5         | active   |
+| `multisrc2` | `multisrc2` | multi-source portal B  | 1         | 2        | 1           | 5         | active   |
 | `expired`   | `expired`   | expired account        | 4         | 4        | 4           | 10        | Expired  |
 | `inactive`  | `inactive`  | disabled account       | 4         | 4        | 4           | 10        | Disabled |
 
 Any other credential pair is auto-generated using a hash of `username:password` as the faker seed (6 categories, 30 items each, active account).
+
+`multisrc1` and `multisrc2` deliberately share one faker seed, so both portals
+generate an identical catalog. That overlap is what the VOD multi-source E2E
+needs — the same movie present in two different playlists.
 
 ---
 

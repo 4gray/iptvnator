@@ -27,6 +27,19 @@
                     </h3>
                 </div>
                 <div class="player-shell__actions">
+                    @if (allSources().length > 1) {
+                        <app-vod-sources-chip
+                            class="player-shell__sources"
+                            [sources]="allSources()"
+                            [count]="alternativeSources().length"
+                            [resumeLabel]="sourcesResumeLabel()"
+                            (playRequested)="
+                                alternativeSourceRequested.emit($event)
+                            "
+                            (pinRequested)="sourcePinRequested.emit($event)"
+                            (checkRequested)="sourceCheckRequested.emit($event)"
+                        />
+                    }
                     <button
                         mat-button
                         type="button"
@@ -68,6 +81,11 @@
                 [playback]="playback()"
                 [startTime]="startTime()"
                 [seriesNavigation]="seriesNavigation()"
+                [alternativeSources]="alternativeSources()"
+                (alternativeSourceRequested)="
+                    alternativeSourceRequested.emit($event)
+                "
+                (playbackFailed)="playbackFailed.emit($event)"
                 (timeUpdate)="onTimeUpdate($event)"
                 (playbackEnded)="onPlaybackEnded()"
                 (previousEpisodeRequested)="onPreviousEpisodeRequested()"

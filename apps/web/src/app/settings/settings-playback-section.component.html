@@ -133,6 +133,26 @@
         </div>
     }
 
+    @if (supportsVodMultiSource()) {
+        <div class="setting-item" data-test-id="vod-auto-failover-setting">
+            <div class="setting-item__meta">
+                <h4>
+                    {{ 'SETTINGS.VOD_AUTO_FAILOVER' | translate }}
+                </h4>
+                <p>
+                    {{ 'SETTINGS.VOD_AUTO_FAILOVER_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    [aria-label]="'SETTINGS.VOD_AUTO_FAILOVER' | translate"
+                    formControlName="vodAutoFailover"
+                    data-test-id="vod-auto-failover-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
+    }
+
     @if (supportsManagedExternalPlayers() && isExternalPlayerSelected()) {
         <div
             class="setting-item"

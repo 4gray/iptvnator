@@ -50,6 +50,18 @@ const tmdbCacheEntry = {
     tmdbId: 603,
     payload: '{"id":603}',
 };
+const vodSourceRequest = {
+    title: 'The Matrix',
+    year: 1999,
+    excludePlaylistId: playlistId,
+};
+const vodSourceMatchKeys = ['tmdb:603', 'title:the matrix:1999'];
+const vodSourcePin = {
+    matchKey: 'tmdb:603',
+    playlistId,
+    contentId: 42,
+    portalType: 'xtream',
+};
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
@@ -387,6 +399,30 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [[['The Matrix', 'Inception']][0]],
         channel: 'DB_MATCH_TITLES',
         forwardedArgs: [['The Matrix', 'Inception']],
+    },
+    {
+        method: 'dbFindTitleSources',
+        args: [vodSourceRequest],
+        channel: 'DB_FIND_TITLE_SOURCES',
+        forwardedArgs: [vodSourceRequest],
+    },
+    {
+        method: 'dbGetVodSourcePin',
+        args: [vodSourceMatchKeys],
+        channel: 'DB_GET_VOD_SOURCE_PIN',
+        forwardedArgs: [vodSourceMatchKeys],
+    },
+    {
+        method: 'dbSetVodSourcePin',
+        args: [vodSourcePin],
+        channel: 'DB_SET_VOD_SOURCE_PIN',
+        forwardedArgs: [vodSourcePin],
+    },
+    {
+        method: 'dbClearVodSourcePin',
+        args: [vodSourceMatchKeys],
+        channel: 'DB_CLEAR_VOD_SOURCE_PIN',
+        forwardedArgs: [vodSourceMatchKeys],
     },
 ];
 

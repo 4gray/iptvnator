@@ -31,6 +31,18 @@ const tmdbCacheEntry = {
     tmdbId: 603,
     payload: '{"id":603}',
 };
+const vodSourceRequest = {
+    title: 'The Matrix',
+    year: 1999,
+    excludePlaylistId: playlistId,
+};
+const vodSourceMatchKeys = ['tmdb:603', 'title:the matrix:1999'];
+const vodSourcePin = {
+    matchKey: 'tmdb:603',
+    playlistId,
+    contentId: 42,
+    portalType: 'xtream',
+};
 
 export const workerIpcContractCases: WorkerIpcContractCase[] = [
     {
@@ -337,5 +349,25 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_MATCH_TITLES',
         args: [['The Matrix', 'Inception']],
         payload: { titles: ['The Matrix', 'Inception'] },
+    },
+    {
+        operation: 'DB_FIND_TITLE_SOURCES',
+        args: [vodSourceRequest],
+        payload: { request: vodSourceRequest },
+    },
+    {
+        operation: 'DB_GET_VOD_SOURCE_PIN',
+        args: [vodSourceMatchKeys],
+        payload: { matchKeys: vodSourceMatchKeys },
+    },
+    {
+        operation: 'DB_SET_VOD_SOURCE_PIN',
+        args: [vodSourcePin],
+        payload: { pin: vodSourcePin },
+    },
+    {
+        operation: 'DB_CLEAR_VOD_SOURCE_PIN',
+        args: [vodSourceMatchKeys],
+        payload: { matchKeys: vodSourceMatchKeys },
     },
 ];

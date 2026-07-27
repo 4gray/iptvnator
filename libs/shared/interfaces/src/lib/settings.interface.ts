@@ -96,6 +96,16 @@ export interface Settings {
      * missing values mean enabled. Only affects the built-in web players.
      */
     playerUpNextRail?: boolean;
+    /**
+     * When a movie fails to play and the same film exists in another imported
+     * playlist, switch to it automatically instead of showing the error.
+     *
+     * Off by default and deliberately opt-in: another source can carry a
+     * different dub or cut, so switching is never silent — the toast always
+     * announces it and offers an undo. Each source is tried at most once per
+     * session, so this cannot loop.
+     */
+    vodAutoFailover?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;

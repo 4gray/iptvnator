@@ -20,6 +20,7 @@ import { Router } from '@angular/router';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import { Language, StreamFormat } from '@iptvnator/shared/interfaces';
 import { BUILD_COMMIT } from '../../environments/build-commit';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
@@ -104,6 +105,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private readonly settingsCtx = inject(SettingsContextService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly vodSourceDiscovery = inject(VodSourceDiscoveryService);
     private readonly matDialog = inject(MatDialog);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
@@ -129,6 +131,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.runtime.supportsManagedExternalPlayers;
     readonly supportsExternalPlayerPathSettings =
         this.runtime.supportsExternalPlayerPathSettings;
+    readonly supportsVodMultiSource = this.vodSourceDiscovery.isAvailable;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
 
     readonly activeSection = this.settingsCtx.activeSection;

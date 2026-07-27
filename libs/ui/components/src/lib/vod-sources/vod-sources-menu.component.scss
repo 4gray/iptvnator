@@ -1,0 +1,220 @@
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+:host {
+    display: block;
+}
+
+// Self-sufficient surface: the popover body is also dropped straight into the
+// playback error screen, where there is no menu panel to supply a background.
+.sources-menu {
+    box-sizing: border-box;
+    padding: 8px;
+    border-radius: 14px;
+    background: var(--app-widget-bg, #161a22);
+    outline: 1px solid var(--app-widget-border, rgba(255, 255, 255, 0.08));
+    color: var(--app-on-surface);
+}
+
+.sources-menu__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px 10px;
+}
+
+.sources-menu__title {
+    margin: 0;
+    min-width: 0;
+    // Reads as the panel's heading. Previously it sat at the same weight and
+    // size as the hint and the action beside it, so all three scanned as
+    // column headers over the list.
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--app-on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sources-menu__hint {
+    flex: none;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--app-eyebrow-color);
+}
+
+.sources-menu__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    // Compact rows mean this now shows ~9 sources instead of ~3. Viewport-aware
+    // so a short window still gets a usable list rather than a clipped one.
+    max-height: min(56vh, 460px);
+    overflow-y: auto;
+}
+
+.sources-menu__footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px 8px;
+    border-top: 1px solid var(--app-widget-border);
+    margin-top: 4px;
+    font-size: 11.5px;
+    color: var(--app-eyebrow-color);
+}
+
+.sources-menu__footer-label {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.sources-menu__toggle {
+    flex: none;
+    margin-left: auto;
+}
+
+.sources-menu__check-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 999px;
+    background: none;
+    color: var(--app-eyebrow-color);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--app-card-hover-bg);
+        color: var(--app-on-surface);
+    }
+
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+        line-height: 14px;
+    }
+}
+
+.sources-menu__filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 12px 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--app-widget-border);
+    // Concentric with the row radius one level in.
+    border-radius: 8px;
+    background: var(--app-card-hover-bg);
+
+    &:focus-within {
+        border-color: var(--app-selection-color);
+    }
+}
+
+.sources-menu__filter-icon {
+    flex: none;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    color: var(--app-eyebrow-color);
+}
+
+.sources-menu__filter-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    outline: none;
+    color: var(--app-on-surface);
+    font: inherit;
+    font-size: 12.5px;
+
+    &::placeholder {
+        color: var(--app-eyebrow-color);
+    }
+}
+
+.sources-menu__empty {
+    margin: 0;
+    padding: 18px 12px;
+    text-align: center;
+    color: var(--app-eyebrow-color);
+    font-size: 12.5px;
+}
+
+// Controls live on their own line, below the heading, so nothing in the header
+// can be mistaken for a column label.
+.sources-menu__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px 10px;
+}
+
+.sources-menu__toolbar .sources-menu__filter {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.sources-menu__toolbar .sources-menu__check-all {
+    flex: none;
+    margin-left: auto;
+}
+
+.sources-menu__variants-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    // Aligned under the row's info block, past the monogram, so it reads as
+    // belonging to the row above rather than as a list item of its own.
+    margin: 0 0 2px 48px;
+    padding: 2px 8px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--app-eyebrow-color);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--app-card-hover-bg);
+        color: var(--app-on-surface);
+    }
+
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+        line-height: 14px;
+    }
+}
+
+.sources-menu__variants {
+    // A left rail is the cheapest way to show these belong to the row above
+    // without nesting another card inside the panel.
+    margin: 0 0 4px 20px;
+    padding-left: 12px;
+    border-left: 1px solid var(--app-widget-border, rgba(255, 255, 255, 0.08));
+}
+
+.sources-menu__variant-label {
+    display: block;
+    padding: 2px 10px 0;
+    color: var(--app-eyebrow-color);
+    font-size: 10.5px;
+    font-family: $font-mono;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

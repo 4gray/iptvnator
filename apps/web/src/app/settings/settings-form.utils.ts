@@ -34,6 +34,7 @@ export function createSettingsForm(
         webPlayerSharedControls: false,
         playerAmbientMode: false,
         playerUpNextRail: true,
+        vodAutoFailover: false,
         ...(supportsEpg
             ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
             : {}),
@@ -121,6 +122,7 @@ export function createSettingsFromFormValue(
         webPlayerSharedControls: value.webPlayerSharedControls ?? false,
         playerAmbientMode: value.playerAmbientMode ?? false,
         playerUpNextRail: value.playerUpNextRail ?? true,
+        vodAutoFailover: value.vodAutoFailover ?? false,
         streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
         language: value.language ?? Language.ENGLISH,

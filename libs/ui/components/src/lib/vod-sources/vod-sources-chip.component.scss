@@ -1,0 +1,78 @@
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+
+:host {
+    display: inline-block;
+}
+
+.sources-chip {
+    // Layout plus a full reset of the UA button appearance. The surface itself
+    // is supplied by whichever bar hosts the chip, because "looks like its
+    // neighbours" means something different in the hero than in the player.
+    // Without the reset, a host that sets no background gets Chromium's grey
+    // `buttonface` default instead of nothing.
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    cursor: pointer;
+    font: inherit;
+
+    // Tactile press, matching the rest of the action row.
+    &:active {
+        transform: scale(0.985);
+    }
+}
+
+.sources-chip__icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    color: var(--app-eyebrow-color);
+}
+
+.sources-chip__count {
+    font-family: $font-mono;
+    font-weight: 700;
+    font-size: 11px;
+    line-height: 1.3;
+    border-radius: 999px;
+    padding: 2px 8px;
+    color: var(--app-selection-color);
+    background: color-mix(in srgb, var(--app-selection-color) 12%, transparent);
+}
+
+.sources-chip__caret {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    color: var(--app-eyebrow-color);
+    transition: transform 0.14s ease-out;
+
+    &.is-open {
+        transform: rotate(180deg);
+    }
+}
+
+
+
+// The popover surface. Width lives here, on an element we fully own, instead
+// of being fought out with Material's 280px menu cap.
+.sources-chip__panel {
+    display: block;
+    width: 620px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
+    border-radius: 14px;
+    // Opaque here as well as on the inner surface: a CDK overlay floats over
+    // arbitrary page content, so a missing background is not a cosmetic bug —
+    // it makes the whole panel unreadable.
+    background: var(--app-widget-bg, #161a22);
+}

@@ -446,7 +446,11 @@
     }
 
     ::ng-deep .favorite-btn,
-    ::ng-deep .download-btn {
+    ::ng-deep .download-btn,
+    // The sources chip is a peer secondary action, so it wears the same
+    // surface, height and radius. Without this it reads as a link floating
+    // between three solid buttons.
+    ::ng-deep app-vod-sources-chip .sources-chip {
         @include detail-actions.secondary-action-button;
     }
 

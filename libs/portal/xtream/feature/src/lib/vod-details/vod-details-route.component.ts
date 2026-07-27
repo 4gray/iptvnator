@@ -20,6 +20,7 @@ import {
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     PortalDetailShellComponent,
+    VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -36,6 +37,7 @@ import {
 } from '@iptvnator/services';
 import {
     getXtreamVodInfo,
+    playlistDisplayLabel,
     normalizeTitleKeys,
     TmdbEnrichedCastMember,
     XtreamCategory,
@@ -53,6 +55,8 @@ import {
     hasUsableXtreamVodMetadata,
 } from './vod-details-fallback.util';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
+import { VodMultiSourceHostService } from './vod-multi-source-host.service';
+import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -61,7 +65,7 @@ import { VodDetailsPlaybackService } from './vod-details-playback.service';
         './vod-details-route.component.scss',
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    providers: [VodDetailsPlaybackService],
+    providers: [VodDetailsPlaybackService, VodMultiSourceHostService],
     imports: [
         DetailActionsTemplateDirective,
         DetailMetaTemplateDirective,
@@ -72,6 +76,7 @@ import { VodDetailsPlaybackService } from './vod-details-playback.service';
         SlicePipe,
         TranslateModule,
         PortalInlinePlayerComponent,
+        VodSourcesChipComponent,
     ],
 })
 export class VodDetailsRouteComponent implements OnInit, OnDestroy {
@@ -85,6 +90,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly playback = inject(VodDetailsPlaybackService);
+    /** Alternative sources for this movie in the user's other playlists */
+    readonly multiSource = inject(VodMultiSourceHostService);
     private readonly logger = createLogger('VodDetailsRoute');
     /** `playlistId:vodId` of the last initialized detail view */
     private readonly lastInitKey = signal<string | null>(null);
@@ -172,6 +179,21 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             ) ?? null
         );
     });
+    /** Movie identity for multi-source discovery; null until a title exists */
+    private readonly multiSourceMovie = computed(() =>
+        resolveVodMultiSourceMovie({
+            playlistId: this.xtreamStore.currentPlaylist()?.id,
+            // `title` is the alias the Xtream data source actually writes
+            // (createPlaylist maps name -> title), so reading only `name`
+            // would fall back to the raw playlist UUID in the sources list.
+            playlistName:
+                this.xtreamStore.currentPlaylist()?.name ??
+                this.xtreamStore.currentPlaylist()?.title,
+            vodId: this.selectedVodId(),
+            vodInfo: this.selectedVodInfo(),
+            catalogItem: this.selectedCatalogItem(),
+        })
+    );
     readonly selectedVodInfo = computed(() => {
         const item = this.selectedItem();
         return item && hasUsableXtreamVodMetadata(item)
@@ -287,6 +309,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.playback.bind({
             vodId: this.selectedVodId,
             vodInfo: this.selectedVodInfo,
+        });
+        this.multiSource.bind({
+            // Route every switch through the same inline-vs-external fork a
+            // normal Play uses, so the two paths cannot drift apart.
+            startPlayback: (playback) =>
+                this.playback.startResolvedPlayback(playback),
+            movie: this.multiSourceMovie,
         });
 
         // Initializes on first render and RE-initializes when the route
@@ -418,10 +447,101 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.playback.closeInlinePlayer();
     }
 
+    /** Title shown in the sources popover header. */
+    readonly multiSourceTitle = computed(
+        () => this.multiSourceMovie()?.title ?? ''
+    );
+
+    /** The ".srcbar" caption under the action row: where this is playing from. */
+    readonly activeSourceCaption = computed(() => {
+        const active = this.multiSource.sources().find((s) => s.isActive);
+        if (!active) {
+            return null;
+        }
+
+        // Only FACTS reach the caption. A guessed quality would read as a
+        // claim about the stream the user is watching right now.
+        const facts = [
+            active.quality?.provenance !== 'parsed'
+                ? active.quality?.value
+                : null,
+            active.container?.provenance !== 'parsed'
+                ? active.container?.value
+                : null,
+        ].filter(Boolean);
+
+        return {
+            // Never the raw playlist name: it is routinely the pasted URL,
+            // credentials and all, and this line sits in the open on every
+            // screenshot of the detail page.
+            source: [
+                playlistDisplayLabel(active.playlistName, active.playlistId),
+                ...facts,
+            ].join(' · '),
+            alternativeCount: this.multiSource.alternativeCount(),
+        };
+    });
+
+    playFromSource(sourceId: string): void {
+        void this.multiSource.play(sourceId);
+    }
+
+    pinSource(sourceId: string): void {
+        void this.multiSource.togglePin(sourceId);
+    }
+
+    checkSource(sourceId: string): void {
+        void this.multiSource.check(sourceId);
+    }
+
+    setAutoFailover(enabled: boolean): void {
+        this.settingsStore.updateSettings({ vodAutoFailover: enabled });
+    }
+
+    /**
+     * A source failed. With auto-failover on we move to the best untried
+     * source and ANNOUNCE it; otherwise the player's own error overlay — which
+     * is already showing the alternatives — is left to do its job.
+     */
+    async onPlaybackFailed(): Promise<void> {
+        const notice = await this.multiSource.failover();
+        if (!notice) {
+            return;
+        }
+
+        this.snackBar
+            .open(
+                this.translateService.instant(
+                    'PORTALS.MULTI_SOURCE.SWITCHED_TO',
+                    { playlist: notice.playlistName }
+                ) +
+                    (notice.audioMayDiffer
+                        ? ` — ${this.translateService.instant(
+                              'PORTALS.MULTI_SOURCE.SWITCH_AUDIO_WARNING'
+                          )}`
+                        : ''),
+                this.translateService.instant('PORTALS.MULTI_SOURCE.UNDO'),
+                { duration: 10000 }
+            )
+            .onAction()
+            .subscribe(() => this.undoFailover());
+    }
+
+    /** Return to the source that was playing before the automatic switch. */
+    private undoFailover(): void {
+        const previousId = this.multiSource.previousSourceId();
+        if (previousId) {
+            void this.multiSource.play(previousId);
+        }
+    }
+
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
+        // Ahead of the service's 15s persistence throttle, so a source switch
+        // resumes from where playback actually is rather than up to 15s back.
+        this.multiSource.reportPosition(event.currentTime);
         this.playback.handleInlineTimeUpdate(event);
     }
 

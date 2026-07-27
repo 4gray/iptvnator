@@ -53,6 +53,8 @@ export class VodDetailsPlaybackService {
         null
     );
     private lastSaveTime = 0;
+    /** Cleared on every start; latches once playback reaches startTime. */
+    private resumeSettled = false;
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
@@ -274,6 +276,7 @@ export class VodDetailsPlaybackService {
     closeInlinePlayer(): void {
         this.inlinePlayback.set(null);
         this.lastSaveTime = 0;
+        this.resumeSettled = false;
     }
 
     handleInlineTimeUpdate(event: {
@@ -282,6 +285,19 @@ export class VodDetailsPlaybackService {
     }): void {
         const playback = this.inlinePlayback();
         if (!playback?.contentInfo) return;
+
+        // A resuming engine can emit timeupdates at ~0 before it finishes
+        // seeking to startTime. Writing one would overwrite the very position
+        // we are resuming from — which a source switch would then inherit.
+        //
+        // This is a one-shot latch, not a filter: once playback has reached
+        // the resume point the guard is done, so a deliberate seek backwards
+        // is still saved normally.
+        if (!this.resumeSettled) {
+            const startTime = playback.startTime ?? 0;
+            if (startTime > 0 && event.currentTime < startTime - 5) return;
+            this.resumeSettled = true;
+        }
 
         const now = Date.now();
         if (now - this.lastSaveTime <= 15000) return;
@@ -324,8 +340,22 @@ export class VodDetailsPlaybackService {
         });
     }
 
+    /**
+     * The single inline-vs-external fork. Public so multi-source can switch
+     * the playing source through exactly the same path a normal Play takes —
+     * a second, parallel start path is how the two drift apart.
+     *
+     * For an inline switch this is a single `.set()` on a signal the host
+     * template already renders through `@if`, so the player component and its
+     * engine survive and simply re-seek to `playback.startTime`.
+     */
+    startResolvedPlayback(playback: ResolvedPortalPlayback): void {
+        this.startPlayback(playback);
+    }
+
     private startPlayback(playback: ResolvedPortalPlayback): void {
         this.lastSaveTime = 0;
+        this.resumeSettled = false;
         if (this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);
             return;

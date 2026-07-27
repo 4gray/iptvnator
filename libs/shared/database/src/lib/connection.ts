@@ -301,6 +301,18 @@ const CREATE_TABLE_STATEMENTS = [
       updated_at TEXT DEFAULT (datetime('now'))
   )`,
     `CREATE INDEX IF NOT EXISTS idx_epg_channel_mappings_playlist ON epg_channel_mappings(playlist_id)`,
+    // VOD multi-source pins — the per-movie preferred playlist. Keyed by a
+    // portal-agnostic match key, since the same film has a different provider
+    // id in every portal.
+    `CREATE TABLE IF NOT EXISTS vod_source_pins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      match_key TEXT NOT NULL UNIQUE,
+      playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+      content_id INTEGER NOT NULL,
+      portal_type TEXT NOT NULL CHECK (portal_type IN ('xtream', 'stalker', 'm3u')),
+      updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+    `CREATE INDEX IF NOT EXISTS idx_vod_source_pins_playlist ON vod_source_pins(playlist_id)`,
     // Playback Positions table
     `CREATE TABLE IF NOT EXISTS playback_positions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

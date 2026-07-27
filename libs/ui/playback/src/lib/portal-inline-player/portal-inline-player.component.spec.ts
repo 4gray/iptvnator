@@ -25,8 +25,11 @@ class StubWebPlayerViewComponent {
     readonly playback = input<unknown>(null);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
+    readonly alternativeSources = input<unknown[]>([]);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly externalFallbackRequested = output<unknown>();
+    readonly alternativeSourceRequested = output<string>();
+    readonly playbackFailed = output<unknown>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();

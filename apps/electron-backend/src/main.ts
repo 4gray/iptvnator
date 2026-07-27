@@ -29,6 +29,7 @@ import { registerStaticHeaderShims } from './app/services/request-header-overrid
 import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
+import { registerStreamProbeHandlers } from './app/events/stream-probe';
 import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
 import {
@@ -144,6 +145,7 @@ export default class Main {
         SettingsEvents.bootstrapSettingsEvents();
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();
+        registerStreamProbeHandlers();
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();

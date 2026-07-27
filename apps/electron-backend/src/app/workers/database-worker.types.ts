@@ -56,6 +56,10 @@ export const DB_WORKER_OPERATIONS = [
     'DB_GET_TMDB_CACHE_STATS',
     'DB_CLEAR_TMDB_METADATA',
     'DB_MATCH_TITLES',
+    'DB_FIND_TITLE_SOURCES',
+    'DB_GET_VOD_SOURCE_PIN',
+    'DB_SET_VOD_SOURCE_PIN',
+    'DB_CLEAR_VOD_SOURCE_PIN',
 ] as const;
 
 export type DbWorkerOperation = (typeof DB_WORKER_OPERATIONS)[number];

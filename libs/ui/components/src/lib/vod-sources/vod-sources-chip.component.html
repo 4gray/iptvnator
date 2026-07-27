@@ -1,0 +1,49 @@
+<button
+    type="button"
+    class="sources-chip"
+    [class.sources-chip--open]="isOpen()"
+    cdkOverlayOrigin
+    #trigger="cdkOverlayOrigin"
+    (click)="toggle()"
+    [attr.aria-expanded]="isOpen()"
+    [attr.aria-label]="'PORTALS.MULTI_SOURCE.OPEN_SOURCES' | translate"
+>
+    <mat-icon class="sources-chip__icon">video_library</mat-icon>
+    <span class="sources-chip__label">{{
+        'PORTALS.MULTI_SOURCE.SOURCES' | translate
+    }}</span>
+    <span class="sources-chip__count">{{ displayCount() }}</span>
+    <mat-icon class="sources-chip__caret" [class.is-open]="isOpen()"
+        >expand_more</mat-icon
+    >
+</button>
+
+<!-- CDK Overlay rather than MatMenu: this is a rich panel, not a list of menu
+     items, and Material's menu caps its width at 280px in a way that fought
+     every override. Here the width is simply ours. -->
+<ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="trigger"
+    [cdkConnectedOverlayOpen]="isOpen()"
+    [cdkConnectedOverlayHasBackdrop]="true"
+    cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+    [cdkConnectedOverlayPositions]="overlayPositions"
+    [cdkConnectedOverlayViewportMargin]="16"
+    (backdropClick)="close()"
+    (detach)="close()"
+    (overlayKeydown)="onOverlayKeydown($event)"
+>
+    <app-vod-sources-menu
+        class="sources-chip__panel"
+        [sources]="sources()"
+        [title]="title()"
+        [matchKind]="matchKind()"
+        [autoFailoverEnabled]="autoFailoverEnabled()"
+        [resumeLabel]="resumeLabel()"
+        [showPin]="showPin()"
+        (playRequested)="onPlay($event)"
+        (pinRequested)="onPin($event)"
+        (checkRequested)="onCheck($event)"
+        (autoFailoverToggled)="autoFailoverToggled.emit($event)"
+    />
+</ng-template>

@@ -127,6 +127,36 @@
                 </div>
             }
 
+            @if (alternativeSources().length > 0) {
+                <div
+                    class="web-player-diagnostic__alternatives"
+                    data-test-id="playback-alternative-sources"
+                >
+                    <h3 class="web-player-diagnostic__alternatives-title">
+                        {{
+                            'PORTALS.MULTI_SOURCE.TRY_ANOTHER_SOURCE'
+                                | translate
+                        }}
+                    </h3>
+                    @for (source of visibleAlternatives(); track source.id) {
+                        <app-vod-source-row
+                            [source]="source"
+                            [showPin]="false"
+                            (playRequested)="alternativeSourceRequested.emit($event)"
+                        />
+                    }
+                    @if (hiddenAlternativeCount() > 0) {
+                        <p class="web-player-diagnostic__alternatives-more">
+                            {{
+                                'PORTALS.MULTI_SOURCE.MORE_SOURCES'
+                                    | translate
+                                        : { count: hiddenAlternativeCount() }
+                            }}
+                        </p>
+                    }
+                </div>
+            }
+
             @if (canShowExternalFallbackActions()) {
                 <div
                     class="web-player-diagnostic__player-actions"

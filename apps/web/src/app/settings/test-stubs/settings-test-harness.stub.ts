@@ -80,6 +80,7 @@ export const DEFAULT_SETTINGS = {
     webPlayerSharedControls: false,
     playerAmbientMode: false,
     playerUpNextRail: true,
+    vodAutoFailover: false,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,

@@ -32,6 +32,10 @@ import {
 } from './portal-playback.interface';
 import { PortalDebugEvent } from './portal-debug.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
+import {
+    VodSourceCandidateRow,
+    VodSourcePin,
+} from './vod-source.interface';
 import { Settings } from './settings.interface';
 import {
     TmdbCacheEntry,
@@ -254,8 +258,17 @@ export interface ElectronBridgeXtreamCancelResult extends ElectronBridgeResult {
 }
 
 export interface ElectronBridgeXtreamProbeResult {
+    /**
+     * HTTP status, or 0 when no response was obtained.
+     *
+     * 0 covers a timeout and a URL rejected by the redirect-safety policy as
+     * well as a dead host, so it means "could not check" — never "offline".
+     */
     status: number;
     url: string;
+    /** Round-trip time; present whenever the request completed either way. */
+    latencyMs?: number;
+    error?: string;
 }
 
 export interface ElectronBridgeEpgFetchResult extends ElectronBridgeResult {
@@ -672,6 +685,11 @@ export interface ElectronBridgeApi {
         url: string,
         method?: 'GET' | 'HEAD'
     ) => Promise<ElectronBridgeXtreamProbeResult>;
+    /** Generic stream reachability probe (VOD multi-source availability) */
+    probeStreamUrl: (
+        url: string,
+        method?: 'GET' | 'HEAD'
+    ) => Promise<ElectronBridgeXtreamProbeResult>;
     refreshPlaylist: (
         payload: PlaylistRefreshPayload
     ) => Promise<Playlist | PlaylistRefreshCancelledResult>;
@@ -849,6 +867,18 @@ export interface ElectronBridgeApi {
     >;
     /** Cross-playlist title matching (actor page "All portals" scope) */
     dbMatchTitles: (titles: string[]) => Promise<CatalogTitleMatch[]>;
+    /** VOD multi-source: the same movie in the user's other Xtream playlists */
+    dbFindTitleSources: (request: {
+        title: string;
+        year?: number | null;
+        excludePlaylistId?: string | null;
+    }) => Promise<VodSourceCandidateRow[]>;
+    /** Per-movie pinned source; keys are passed most-trusted first */
+    dbGetVodSourcePin: (matchKeys: string[]) => Promise<VodSourcePin | null>;
+    dbSetVodSourcePin: (pin: VodSourcePin) => Promise<ElectronBridgeResult>;
+    dbClearVodSourcePin: (
+        matchKeys: string[]
+    ) => Promise<ElectronBridgeResult>;
     onChannelChange?: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => () => void;

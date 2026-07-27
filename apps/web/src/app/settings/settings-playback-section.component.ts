@@ -51,6 +51,11 @@ export class SettingsPlaybackSectionComponent {
     readonly frameCopyActive = input(false);
     readonly supportsManagedExternalPlayers = input(false);
     readonly supportsExternalPlayerPathSettings = input(false);
+    /**
+     * Cross-playlist movie matching is Electron-only, so the auto-failover
+     * toggle would control nothing in the PWA.
+     */
+    readonly supportsVodMultiSource = input(false);
     readonly selectRecordingFolder = output<void>();
 
     isWebPlayerSelected(): boolean {

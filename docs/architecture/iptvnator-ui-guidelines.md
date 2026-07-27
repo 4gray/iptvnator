@@ -51,15 +51,26 @@ These tokens are the base for interactive emphasis:
 - `--app-selection-border`
 - `--app-selection-glow`
 
-Use Material surface tokens for neutral surfaces:
+Use the app's own surface tokens for neutral surfaces (defined for both themes
+in `apps/web/src/m3-theme.scss`):
 
-- `--mat-sys-surface`
-- `--mat-sys-surface-container-low`
-- `--mat-sys-surface-container`
-- `--mat-sys-surface-container-high`
-- `--mat-sys-outline-variant`
-- `--mat-sys-on-surface`
-- `--mat-sys-on-surface-variant`
+- `--app-shell-bg` / `--app-rail-bg` / `--app-header-bg` / `--app-content-bg`
+- `--app-widget-bg` / `--app-widget-header-bg` — panels and popovers
+- `--app-card-hover-bg` — raised or hovered rows
+- `--app-widget-border` / `--app-rail-border` — hairlines
+- `--app-on-surface` — primary text
+- `--app-eyebrow-color` — secondary/muted text
+
+**Do not reach for `--mat-sys-*` surface tokens.** Angular Material's system
+tokens are *not* emitted globally in this app — only `--mat-sys-on-surface`
+exists. `var(--mat-sys-surface-container-high)` and friends resolve to nothing,
+which usually goes unnoticed because the surrounding Material component
+supplies its own default and masks it. Outside a Material component — a CDK
+overlay, a projected panel — the same reference silently produces a fully
+transparent, unreadable surface.
+
+If a `--mat-sys-*` token is genuinely needed, always give it a real fallback:
+`var(--mat-sys-on-primary, #fff)`.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 
