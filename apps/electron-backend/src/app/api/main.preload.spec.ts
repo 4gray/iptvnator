@@ -15,6 +15,7 @@ import {
     dbPreloadCases,
     epgPreloadCases,
     operationId,
+    stalkerSessionPreloadCases,
 } from './main.preload.spec-data';
 
 type ExposedElectronApi = ElectronBridgeApi &
@@ -120,6 +121,49 @@ describe('main preload DB IPC contract', () => {
             );
         }
     );
+
+    it.each(stalkerSessionPreloadCases)(
+        '$method invokes $channel with the expected arguments',
+        async ({ method, args, channel, forwardedArgs }) => {
+            const api = getExposedApi();
+
+            await callExposedApiMethod(api, method, args);
+
+            expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+                channel,
+                ...forwardedArgs
+            );
+        }
+    );
+
+    it('keeps Stalker session IPC narrow while preserving the legacy request bridge', async () => {
+        const api = getExposedApi();
+        const legacyPayload = {
+            macAddress: '00:1A:79:00:00:01',
+            params: {
+                action: 'get_profile',
+            },
+            url: 'https://portal.example/server/load.php',
+        };
+
+        expect(
+            Object.keys(api)
+                .filter((method) => method.startsWith('stalkerSession'))
+                .sort()
+        ).toEqual([
+            'stalkerSessionContinue',
+            'stalkerSessionControl',
+            'stalkerSessionOpen',
+            'stalkerSessionRequest',
+        ]);
+
+        await api.stalkerRequest(legacyPayload);
+
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'STALKER_REQUEST',
+            legacyPayload
+        );
+    });
 
     it('forwards scoped user-agent override arguments', async () => {
         const api = getExposedApi();

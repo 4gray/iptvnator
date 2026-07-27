@@ -2,9 +2,9 @@ import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 
 type ElectronBridgeMethodName = Extract<
     {
-        [K in keyof ElectronBridgeApi]: ElectronBridgeApi[K] extends (
-            ...args: never[]
-        ) => unknown
+        [K in keyof ElectronBridgeApi]: NonNullable<
+            ElectronBridgeApi[K]
+        > extends (...args: never[]) => unknown
             ? K
             : never;
     }[keyof ElectronBridgeApi],
@@ -50,6 +50,105 @@ const tmdbCacheEntry = {
     tmdbId: 603,
     payload: '{"id":603}',
 };
+
+export const stalkerSessionPreloadCases: PreloadInvokeCase[] = [
+    {
+        method: 'stalkerSessionOpen',
+        args: [
+            {
+                descriptor: {
+                    connectionMode: 'provisional',
+                    macAddress: '00:1A:79:00:00:01',
+                    playlistRef: 'playlist-1',
+                    profilePreset: {
+                        id: 'mag250-public-5_1-minimal-v1',
+                        version: 1,
+                    },
+                    provisionalReason: 'import',
+                    sourceUrl: 'https://portal.example/c/',
+                },
+            },
+        ],
+        channel: 'STALKER_SESSION_OPEN',
+        forwardedArgs: [
+            {
+                descriptor: {
+                    connectionMode: 'provisional',
+                    macAddress: '00:1A:79:00:00:01',
+                    playlistRef: 'playlist-1',
+                    profilePreset: {
+                        id: 'mag250-public-5_1-minimal-v1',
+                        version: 1,
+                    },
+                    provisionalReason: 'import',
+                    sourceUrl: 'https://portal.example/c/',
+                },
+            },
+        ],
+    },
+    {
+        method: 'stalkerSessionContinue',
+        args: [
+            {
+                challengeRef: 'opaque-challenge',
+                response: {
+                    approved: true,
+                    kind: 'origin-approval',
+                },
+            },
+        ],
+        channel: 'STALKER_SESSION_CONTINUE',
+        forwardedArgs: [
+            {
+                challengeRef: 'opaque-challenge',
+                response: {
+                    approved: true,
+                    kind: 'origin-approval',
+                },
+            },
+        ],
+    },
+    {
+        method: 'stalkerSessionRequest',
+        args: [
+            {
+                leaseRef: 'opaque-lease',
+                operation: 'get-ordered-list',
+                parameters: {
+                    category: '10',
+                    page: 1,
+                },
+            },
+        ],
+        channel: 'STALKER_SESSION_REQUEST',
+        forwardedArgs: [
+            {
+                leaseRef: 'opaque-lease',
+                operation: 'get-ordered-list',
+                parameters: {
+                    category: '10',
+                    page: 1,
+                },
+            },
+        ],
+    },
+    {
+        method: 'stalkerSessionControl',
+        args: [
+            {
+                action: 'activate',
+                leaseRef: 'opaque-lease',
+            },
+        ],
+        channel: 'STALKER_SESSION_CONTROL',
+        forwardedArgs: [
+            {
+                action: 'activate',
+                leaseRef: 'opaque-lease',
+            },
+        ],
+    },
+];
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {

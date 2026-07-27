@@ -6,6 +6,10 @@ import {
     APP_UPDATE_GET_STATUS,
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
+    STALKER_SESSION_CONTINUE,
+    STALKER_SESSION_CONTROL,
+    STALKER_SESSION_OPEN,
+    STALKER_SESSION_REQUEST,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     attachEmbeddedMpvFrameView,
@@ -551,6 +555,14 @@ const electronApi: ElectronBridgeApi = {
         serialNumber?: string;
         requestId?: string;
     }) => ipcRenderer.invoke('STALKER_REQUEST', payload),
+    stalkerSessionOpen: (request) =>
+        ipcRenderer.invoke(STALKER_SESSION_OPEN, request),
+    stalkerSessionContinue: (request) =>
+        ipcRenderer.invoke(STALKER_SESSION_CONTINUE, request),
+    stalkerSessionRequest: (request) =>
+        ipcRenderer.invoke(STALKER_SESSION_REQUEST, request),
+    stalkerSessionControl: (request) =>
+        ipcRenderer.invoke(STALKER_SESSION_CONTROL, request),
     xtreamRequest: (payload: {
         url: string;
         params: Record<string, string>;
