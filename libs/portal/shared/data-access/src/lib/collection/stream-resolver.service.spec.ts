@@ -10,7 +10,10 @@ import {
     DataService,
     PlaylistsService,
 } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
+import {
+    Playlist,
+    STALKER_SESSION_APPLICATION_OPERATIONS,
+} from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     ResolvedLiveCollectionDetail,
@@ -23,7 +26,14 @@ describe('StreamResolverService', () => {
     let xtreamApi: { getShortEpg: jest.Mock };
     let xtreamUrl: { constructLiveUrl: jest.Mock };
     let dataService: { sendIpcEvent: jest.Mock };
-    let stalkerSession: { makeAuthenticatedRequest: jest.Mock };
+    let stalkerSession: {
+        supportsTypedSessions: jest.Mock;
+        getLeaseRef: jest.Mock;
+        open: jest.Mock;
+        request: jest.Mock;
+        requestForPlaylist: jest.Mock;
+        makeAuthenticatedRequest: jest.Mock;
+    };
     let epgBridge: Partial<EpgRuntimeBridgeService>;
 
     beforeEach(() => {
@@ -40,6 +50,11 @@ describe('StreamResolverService', () => {
             sendIpcEvent: jest.fn(),
         };
         stalkerSession = {
+            supportsTypedSessions: jest.fn().mockReturnValue(true),
+            getLeaseRef: jest.fn(),
+            open: jest.fn(),
+            request: jest.fn(),
+            requestForPlaylist: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
         };
         epgBridge = {
@@ -640,6 +655,65 @@ describe('StreamResolverService', () => {
                 }),
             })
         );
+    });
+
+    it('returns the opaque full-portal playback context without renderer auth metadata', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                title: 'Full Stalker',
+                count: 0,
+                importDate: '2026-07-27T00:00:00.000Z',
+                lastUsage: '',
+                autoRefresh: false,
+                portalUrl: 'https://stalker.example.com/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+                userAgent: 'renderer-user-agent',
+                referrer: 'https://stalker.example.com/c/',
+                origin: 'https://stalker.example.com',
+            } satisfies Playlist)
+        );
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            streamUrl: 'https://cdn.example.com/live/77.m3u8',
+            playbackContextRef: 'opaque-playback-context',
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::77',
+            name: 'Full Stalker Live',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Full Stalker',
+            stalkerId: '77',
+            stalkerCmd: 'ffmpeg http://stalker/live/77',
+        } satisfies UnifiedCollectionItem);
+
+        expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'stalker-1',
+                isFullStalkerPortal: true,
+            }),
+            STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+            {
+                command: 'ffmpeg http://stalker/live/77',
+                contentType: 'itv',
+            }
+        );
+        expect(stalkerSession.request).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(playback).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://cdn.example.com/live/77.m3u8',
+                playbackContextRef: 'opaque-playback-context',
+                isLive: true,
+            })
+        );
+        expect(playback).not.toHaveProperty('headers');
+        expect(playback).not.toHaveProperty('userAgent');
+        expect(playback).not.toHaveProperty('referer');
+        expect(playback).not.toHaveProperty('origin');
     });
 
     it('uses direct Stalker radio HTTP commands without create_link', async () => {

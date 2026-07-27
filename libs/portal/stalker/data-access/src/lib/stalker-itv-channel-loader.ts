@@ -35,6 +35,10 @@ interface StalkerChannelListResponse {
         data?: unknown;
         total_items?: number | string;
         max_page_items?: number | string;
+        total_pages?: number | string;
+        total?: number | string;
+        pageSize?: number | string;
+        totalPages?: number | string;
     };
 }
 
@@ -112,7 +116,12 @@ async function crawlOrderedPages(
     onProgress: (loaded: number, total: number) => void,
     logger: StalkerItvLoadLogger
 ): Promise<StalkerItvLoadOutcome> {
-    const firstResponse = await fetchOrderedPageWithRetry(deps, playlist, 1, logger);
+    const firstResponse = await fetchOrderedPageWithRetry(
+        deps,
+        playlist,
+        1,
+        logger
+    );
     if (firstResponse === null) {
         return 'error';
     }
@@ -124,14 +133,31 @@ async function crawlOrderedPages(
         return 'unsupported';
     }
 
+    const pageSize =
+        toPositiveInt(
+            firstResponse?.js?.max_page_items ?? firstResponse?.js?.pageSize
+        ) ??
+        (firstPage.length || FALLBACK_PAGE_SIZE);
+    const declaredTotal = toPositiveInt(
+        firstResponse?.js?.total_items ?? firstResponse?.js?.total
+    );
+    const declaredTotalPages = toPositiveInt(
+        firstResponse?.js?.total_pages ?? firstResponse?.js?.totalPages
+    );
     const totalItems = Math.min(
-        toPositiveInt(firstResponse?.js?.total_items) ?? firstPage.length,
+        declaredTotal ??
+            (declaredTotalPages
+                ? declaredTotalPages * pageSize
+                : firstPage.length),
         MAX_CHANNELS
     );
-    const pageSize =
-        toPositiveInt(firstResponse?.js?.max_page_items) ??
-        (firstPage.length || FALLBACK_PAGE_SIZE);
-    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const totalPages = Math.max(
+        1,
+        Math.min(
+            declaredTotalPages ?? Math.ceil(totalItems / pageSize),
+            Math.ceil(MAX_CHANNELS / pageSize)
+        )
+    );
 
     const items: unknown[] = [];
     const seen = new Set<string>();

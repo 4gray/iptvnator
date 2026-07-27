@@ -6,7 +6,11 @@ import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
-import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    STALKER_SESSION_APPLICATION_OPERATIONS,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerPlayer } from './with-stalker-player.feature';
 
@@ -54,6 +58,9 @@ const TestPlayerStore = signalStore(
         },
     }),
     withMethods((store) => ({
+        setCurrentPlaylist(playlist: PlaylistMeta) {
+            patchState(store, { currentPlaylist: playlist });
+        },
         setSelectedContentType(type: 'vod' | 'series' | 'itv' | 'radio') {
             patchState(store, { selectedContentType: type });
         },
@@ -83,6 +90,15 @@ describe('withStalkerPlayer', () => {
     let ngrxStore: {
         dispatch: jest.Mock;
     };
+    let stalkerSession: {
+        supportsTypedSessions: jest.Mock;
+        getLeaseRef: jest.Mock;
+        open: jest.Mock;
+        request: jest.Mock;
+        requestForPlaylist: jest.Mock;
+        makeAuthenticatedRequest: jest.Mock;
+        getCachedToken: jest.Mock;
+    };
 
     beforeEach(() => {
         dataService = {
@@ -95,6 +111,15 @@ describe('withStalkerPlayer', () => {
         };
         ngrxStore = {
             dispatch: jest.fn(),
+        };
+        stalkerSession = {
+            supportsTypedSessions: jest.fn().mockReturnValue(true),
+            getLeaseRef: jest.fn(),
+            open: jest.fn(),
+            request: jest.fn(),
+            requestForPlaylist: jest.fn(),
+            makeAuthenticatedRequest: jest.fn(),
+            getCachedToken: jest.fn(),
         };
 
         TestBed.configureTestingModule({
@@ -113,10 +138,7 @@ describe('withStalkerPlayer', () => {
                 },
                 {
                     provide: StalkerSessionService,
-                    useValue: {
-                        getCachedToken: jest.fn(),
-                        makeAuthenticatedRequest: jest.fn(),
-                    },
+                    useValue: stalkerSession,
                 },
                 {
                     provide: MatSnackBar,
@@ -283,5 +305,54 @@ describe('withStalkerPlayer', () => {
                 thumbnail: 'jazz.png',
             })
         );
+    });
+
+    it('uses an opaque playback context for full-portal ITV without renderer auth headers', async () => {
+        store.setCurrentPlaylist({
+            ...PLAYLIST,
+            isFullStalkerPortal: true,
+            userAgent: 'renderer-user-agent',
+            referrer: 'https://portal.example/referrer',
+            origin: 'https://portal.example',
+        });
+        store.setSelectedContentType('itv');
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            streamUrl: 'https://cdn.example/live.m3u8',
+            playbackContextRef: 'opaque-playback-context',
+        });
+
+        const playback = await store.resolveItvPlayback({
+            id: 'itv-1',
+            cmd: 'ffmpeg http://portal.example/live/1',
+            name: 'Full Portal Live',
+        });
+
+        expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: PLAYLIST._id,
+                isFullStalkerPortal: true,
+                lastUsage: '',
+            }),
+            STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+            {
+                command: 'ffmpeg http://portal.example/live/1',
+                contentType: 'itv',
+            }
+        );
+        expect(stalkerSession.request).not.toHaveBeenCalled();
+        expect(stalkerSession.getCachedToken).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(playback).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://cdn.example/live.m3u8',
+                playbackContextRef: 'opaque-playback-context',
+                title: 'Full Portal Live',
+                isLive: true,
+            })
+        );
+        expect(playback).not.toHaveProperty('headers');
+        expect(playback).not.toHaveProperty('userAgent');
+        expect(playback).not.toHaveProperty('referer');
+        expect(playback).not.toHaveProperty('origin');
     });
 });

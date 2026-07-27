@@ -30,6 +30,7 @@ import {
     dispatchStalkerPlaylistMetaUpdate,
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
+    fetchStalkerPlayback,
     fetchStalkerPlaybackLink,
     normalizeStalkerPlaybackCommand,
     shouldResolveMovieFileId,
@@ -178,7 +179,7 @@ export function withStalkerPlayer() {
                         }
                     }
 
-                    const streamUrl = await fetchStalkerPlaybackLink(
+                    const playbackLink = await fetchStalkerPlayback(
                         requestDeps,
                         {
                             playlist,
@@ -197,13 +198,20 @@ export function withStalkerPlayer() {
                         normalizeStalkerEntityIdAsNumber(item?.id) ?? 0;
 
                     return {
-                        streamUrl,
+                        streamUrl: playbackLink.streamUrl,
                         title: title ?? '',
                         thumbnail,
                         startTime,
-                        userAgent: playlist.userAgent,
-                        referer: playlist.referrer,
-                        origin: playlist.origin,
+                        ...(playbackLink.playbackContextRef
+                            ? {
+                                  playbackContextRef:
+                                      playbackLink.playbackContextRef,
+                              }
+                            : {
+                                  userAgent: playlist.userAgent,
+                                  referer: playlist.referrer,
+                                  origin: playlist.origin,
+                              }),
                         contentInfo: {
                             playlistId: playlist._id,
                             contentXtreamId:
@@ -230,7 +238,7 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    const streamUrl = await fetchStalkerPlaybackLink(
+                    const playbackLink = await fetchStalkerPlayback(
                         requestDeps,
                         {
                             playlist,
@@ -241,18 +249,6 @@ export function withStalkerPlayer() {
                         }
                     );
 
-                    const token = stalkerSession.getCachedToken(playlist._id);
-                    const headers = buildStalkerExternalPlaybackHeaders(
-                        playlist,
-                        token,
-                        streamUrl
-                    );
-                    const crossOriginStream = isCrossOriginStalkerStream(
-                        playlist,
-                        streamUrl
-                    );
-                    const portalOrigin = getStalkerPortalOrigin(playlist);
-
                     recordRecentlyViewed(
                         item,
                         item.cmd,
@@ -260,11 +256,32 @@ export function withStalkerPlayer() {
                         item.o_name || item.name || item.title
                     );
 
-                    return {
-                        streamUrl,
+                    const playback: ResolvedPortalPlayback = {
+                        streamUrl: playbackLink.streamUrl,
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
                         isLive: true,
+                    };
+                    if (playbackLink.playbackContextRef) {
+                        return {
+                            ...playback,
+                            playbackContextRef: playbackLink.playbackContextRef,
+                        };
+                    }
+
+                    const headers = buildStalkerExternalPlaybackHeaders(
+                        playlist,
+                        undefined,
+                        playbackLink.streamUrl
+                    );
+                    const crossOriginStream = isCrossOriginStalkerStream(
+                        playlist,
+                        playbackLink.streamUrl
+                    );
+                    const portalOrigin = getStalkerPortalOrigin(playlist);
+
+                    return {
+                        ...playback,
                         headers,
                         userAgent:
                             headers['User-Agent'] ||
@@ -292,11 +309,14 @@ export function withStalkerPlayer() {
                     }
 
                     let streamUrl = normalizeStalkerPlaybackCommand(item.cmd);
+                    let playbackContextRef:
+                        | ResolvedPortalPlayback['playbackContextRef']
+                        | undefined;
                     if (
                         !streamUrl.startsWith('http://') &&
                         !streamUrl.startsWith('https://')
                     ) {
-                        streamUrl = await fetchStalkerPlaybackLink(
+                        const playbackLink = await fetchStalkerPlayback(
                             requestDeps,
                             {
                                 playlist,
@@ -306,6 +326,8 @@ export function withStalkerPlayer() {
                                 forcedContentType: 'radio',
                             }
                         );
+                        streamUrl = playbackLink.streamUrl;
+                        playbackContextRef = playbackLink.playbackContextRef;
                     }
 
                     if (!streamUrl) {
@@ -323,9 +345,13 @@ export function withStalkerPlayer() {
                         streamUrl,
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
-                        userAgent: playlist.userAgent,
-                        referer: playlist.referrer,
-                        origin: playlist.origin,
+                        ...(playbackContextRef
+                            ? { playbackContextRef }
+                            : {
+                                  userAgent: playlist.userAgent,
+                                  referer: playlist.referrer,
+                                  origin: playlist.origin,
+                              }),
                     };
                 };
 

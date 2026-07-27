@@ -19,7 +19,6 @@ import {
     PlaybackPositionData,
     Playlist,
     ResolvedPortalPlayback,
-    STALKER_REQUEST,
     StalkerPortalActions,
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
@@ -55,6 +54,7 @@ import {
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
+import { executeStalkerSearchRequest } from './stalker-search-request.utils';
 
 interface StalkerFilter {
     key: StalkerSearchContentType;
@@ -191,30 +191,15 @@ export class StalkerSearchComponent {
                 ...(contentType === 'vod' ? { genre: '0' } : {}),
             };
 
-            // Full portals need the handshake token. The persisted flag can
-            // be missing on the active-playlist meta object, so fall back
-            // to URL detection — otherwise the portal answers
-            // "Authorization failed." and the search looks empty.
-            const isFullPortal =
-                (playlist as Playlist).isFullStalkerPortal ??
-                this.stalkerSession.isFullStalkerPortal(portalUrl);
-
-            const response = isFullPortal
-                ? await this.stalkerSession.makeAuthenticatedRequest<StalkerSearchResponse>(
-                      {
-                          ...(playlist as Playlist),
-                          isFullStalkerPortal: true,
-                      },
-                      requestParams
-                  )
-                : await this.dataService.sendIpcEvent<StalkerSearchResponse>(
-                      STALKER_REQUEST,
-                      {
-                          url: portalUrl,
-                          macAddress,
-                          params: requestParams,
-                      }
-                  );
+            const response =
+                await executeStalkerSearchRequest<StalkerSearchResponse>(
+                    {
+                        dataService: this.dataService,
+                        stalkerSession: this.stalkerSession,
+                    },
+                    playlist as Playlist,
+                    requestParams
+                );
             const items = response.js?.data || [];
             return items.map((item: StalkerVodSource) =>
                 this.processItemUrls(item, portalUrl)

@@ -1,8 +1,14 @@
-import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    STALKER_REQUEST,
+    STALKER_SESSION_APPLICATION_OPERATIONS,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
+    fetchStalkerPlayback,
     fetchStalkerPlaybackLink,
     shouldResolveMovieFileId,
 } from './stalker-player-request.utils';
@@ -18,17 +24,34 @@ const PLAYLIST = {
     isFullStalkerPortal: false,
 } as PlaylistMeta;
 
+const FULL_PLAYLIST = {
+    ...PLAYLIST,
+    isFullStalkerPortal: true,
+} as PlaylistMeta;
+
 describe('stalker-player-request.utils', () => {
     let dataService: {
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
-    let stalkerSession: Pick<StalkerSessionService, 'makeAuthenticatedRequest'>;
+    let stalkerSession: {
+        supportsTypedSessions: jest.Mock;
+        getLeaseRef: jest.Mock;
+        open: jest.Mock;
+        request: jest.Mock;
+        requestForPlaylist: jest.Mock;
+        makeAuthenticatedRequest: jest.Mock;
+    };
 
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn(),
         };
         stalkerSession = {
+            supportsTypedSessions: jest.fn().mockReturnValue(true),
+            getLeaseRef: jest.fn(),
+            open: jest.fn(),
+            request: jest.fn(),
+            requestForPlaylist: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
         };
     });
@@ -51,25 +74,132 @@ describe('stalker-player-request.utils', () => {
             }
         );
 
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({
-                url: PLAYLIST.portalUrl,
-                macAddress: PLAYLIST.macAddress,
-                params: expect.objectContaining({
-                    action: StalkerPortalActions.CreateLink,
-                    cmd: '/media/source.mpg',
-                    type: 'vod',
-                    series: '3',
-                    download: '0',
-                    disable_ad: '0',
-                    JsHttpRequest: '1-xml',
-                }),
-            })
-        );
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(STALKER_REQUEST, {
+            url: PLAYLIST.portalUrl,
+            macAddress: PLAYLIST.macAddress,
+            params: {
+                action: StalkerPortalActions.CreateLink,
+                cmd: '/media/source.mpg',
+                type: 'vod',
+                series: '3',
+                download: '0',
+                disable_ad: '0',
+                JsHttpRequest: '1-xml',
+            },
+        });
         expect(streamUrl).toBe(
             'http://demo.example/stalker_portal/media/video_77.mpg'
         );
+    });
+
+    it('uses the playlist-aware typed facade and returns the opaque playback context', async () => {
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            streamUrl: '/media/video_77.mpg',
+            playbackContextRef: 'playback-context-1',
+        });
+
+        const playback = await fetchStalkerPlayback(
+            {
+                dataService: dataService as never,
+                stalkerSession:
+                    stalkerSession as unknown as StalkerSessionService,
+            },
+            {
+                playlist: FULL_PLAYLIST,
+                selectedContentType: 'series',
+                cmd: '/media/source.mpg',
+                series: 3,
+            }
+        );
+
+        expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ...FULL_PLAYLIST,
+                lastUsage: '',
+            }),
+            STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+            {
+                contentType: 'episode',
+                command: '/media/source.mpg',
+                episodeNumber: 3,
+            }
+        );
+        expect(stalkerSession.getLeaseRef).not.toHaveBeenCalled();
+        expect(stalkerSession.open).not.toHaveBeenCalled();
+        expect(stalkerSession.request).not.toHaveBeenCalled();
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(playback).toEqual({
+            streamUrl: 'http://demo.example/stalker_portal/media/video_77.mpg',
+            playbackContextRef: 'playback-context-1',
+        });
+    });
+
+    it('keeps a full-portal PWA request on the exact legacy IPC payload', async () => {
+        stalkerSession.supportsTypedSessions.mockReturnValue(false);
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: {
+                cmd: 'ffmpeg https://cdn.example/live.m3u8',
+            },
+        });
+
+        await expect(
+            fetchStalkerPlayback(
+                {
+                    dataService: dataService as never,
+                    stalkerSession:
+                        stalkerSession as unknown as StalkerSessionService,
+                },
+                {
+                    playlist: FULL_PLAYLIST,
+                    selectedContentType: 'itv',
+                    cmd: 'ffmpeg http://portal/live/1',
+                }
+            )
+        ).resolves.toEqual({
+            streamUrl: 'https://cdn.example/live.m3u8',
+        });
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(STALKER_REQUEST, {
+            url: FULL_PLAYLIST.portalUrl,
+            macAddress: FULL_PLAYLIST.macAddress,
+            params: {
+                action: StalkerPortalActions.CreateLink,
+                cmd: 'ffmpeg http://portal/live/1',
+                type: 'itv',
+                disable_ad: '0',
+                download: '0',
+                JsHttpRequest: '1-xml',
+            },
+        });
+        expect(stalkerSession.requestForPlaylist).not.toHaveBeenCalled();
+        expect(stalkerSession.getLeaseRef).not.toHaveBeenCalled();
+        expect(stalkerSession.open).not.toHaveBeenCalled();
+        expect(stalkerSession.request).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when a full-session create-link omits the opaque context', async () => {
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            streamUrl: 'https://cdn.example/live.m3u8',
+        });
+
+        await expect(
+            fetchStalkerPlayback(
+                {
+                    dataService: dataService as never,
+                    stalkerSession:
+                        stalkerSession as unknown as StalkerSessionService,
+                },
+                {
+                    playlist: FULL_PLAYLIST,
+                    selectedContentType: 'itv',
+                    cmd: 'ffmpeg http://portal/live/1',
+                }
+            )
+        ).rejects.toThrow('stalker-playback-context-missing');
+
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(stalkerSession.request).not.toHaveBeenCalled();
     });
 
     it('detects file-id fallback candidates and reads the movie file id', async () => {
@@ -111,6 +241,39 @@ describe('stalker-player-request.utils', () => {
                 }),
             })
         );
+    });
+
+    it('keeps the full-portal movie file lookup on typed CatalogItems', async () => {
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            items: [{ id: 77, contentType: 'vod' }],
+        });
+
+        await expect(
+            fetchStalkerMovieFileId(
+                {
+                    dataService: dataService as never,
+                    stalkerSession:
+                        stalkerSession as unknown as StalkerSessionService,
+                },
+                FULL_PLAYLIST,
+                '22'
+            )
+        ).resolves.toBe('77');
+
+        expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: FULL_PLAYLIST._id,
+                lastUsage: '',
+            }),
+            STALKER_SESSION_APPLICATION_OPERATIONS.CatalogItems,
+            {
+                contentType: 'vod',
+                itemId: '22',
+                page: 1,
+            }
+        );
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
     it('returns a localized expire date string from account info', async () => {

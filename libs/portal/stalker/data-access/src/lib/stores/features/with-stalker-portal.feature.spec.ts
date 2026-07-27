@@ -34,9 +34,14 @@ describe('withStalkerPortal', () => {
     let runtime: {
         supportsStalkerPlaylistSqliteSync: boolean;
     };
+    let dataService: {
+        sendIpcEvent: jest.Mock;
+    };
     let stalkerSession: {
         ensureToken: jest.Mock;
         setActiveWatchdogPlaylist: jest.Mock;
+        supportsTypedSessions: jest.Mock;
+        makeAuthenticatedRequest: jest.Mock;
     };
 
     beforeEach(() => {
@@ -53,9 +58,14 @@ describe('withStalkerPortal', () => {
         runtime = {
             supportsStalkerPlaylistSqliteSync: true,
         };
+        dataService = {
+            sendIpcEvent: jest.fn(),
+        };
         stalkerSession = {
             ensureToken: jest.fn(),
             setActiveWatchdogPlaylist: jest.fn(),
+            supportsTypedSessions: jest.fn().mockReturnValue(true),
+            makeAuthenticatedRequest: jest.fn(),
         };
 
         TestBed.configureTestingModule({
@@ -63,9 +73,7 @@ describe('withStalkerPortal', () => {
                 TestPortalStore,
                 {
                     provide: DataService,
-                    useValue: {
-                        sendIpcEvent: jest.fn(),
-                    },
+                    useValue: dataService,
                 },
                 {
                     provide: RuntimeCapabilitiesService,
@@ -92,12 +100,7 @@ describe('withStalkerPortal', () => {
             url: 'http://demo.example/stalker_portal/server/load.php',
             type: 'stalker',
         });
-        expect(stalkerSession.setActiveWatchdogPlaylist).toHaveBeenCalledWith(
-            expect.objectContaining({
-                macAddress: '00:1A:79:00:00:01',
-                portalUrl: 'http://demo.example/stalker_portal/server/load.php',
-            })
-        );
+        expect(stalkerSession.setActiveWatchdogPlaylist).not.toHaveBeenCalled();
     });
 
     it('does not touch SQLite when the Electron bridge is partial', async () => {
@@ -110,20 +113,45 @@ describe('withStalkerPortal', () => {
     });
 
     it('sends Stalker requests through DataService without requiring the SQLite bridge', async () => {
-        const dataService = TestBed.inject(DataService) as unknown as {
-            sendIpcEvent: jest.Mock;
-        };
         dataService.sendIpcEvent.mockResolvedValue({ js: { data: [] } });
 
         await store.makeStalkerRequest(PLAYLIST, { action: 'get_profile' });
 
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            STALKER_REQUEST,
-            expect.objectContaining({
-                macAddress: '00:1A:79:00:00:01',
-                params: { action: 'get_profile' },
-                url: 'http://demo.example/stalker_portal/server/load.php',
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(STALKER_REQUEST, {
+            macAddress: '00:1A:79:00:00:01',
+            params: { action: 'get_profile' },
+            url: 'http://demo.example/stalker_portal/server/load.php',
+        });
+        expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+    });
+
+    it('routes a full portal request through the typed session facade', async () => {
+        const fullPlaylist = {
+            ...PLAYLIST,
+            isFullStalkerPortal: true,
+        };
+        const response = { js: [{ id: 'vod' }] };
+        stalkerSession.makeAuthenticatedRequest.mockResolvedValue(response);
+
+        await expect(
+            store.makeStalkerRequest(fullPlaylist, {
+                action: 'get_categories',
+                type: 'vod',
             })
+        ).resolves.toBe(response);
+
+        expect(stalkerSession.makeAuthenticatedRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ...fullPlaylist,
+                lastUsage: '',
+            }),
+            {
+                action: 'get_categories',
+                type: 'vod',
+            }
         );
+        expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 });

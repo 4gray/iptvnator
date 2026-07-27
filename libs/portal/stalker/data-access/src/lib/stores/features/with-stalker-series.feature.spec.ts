@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { DataService, TmdbEnrichmentService } from '@iptvnator/services';
-import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    STALKER_SESSION_APPLICATION_OPERATIONS,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerSelection } from './with-stalker-selection.feature';
 import { withStalkerSeries } from './with-stalker-series.feature';
@@ -77,10 +81,26 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
     let dataService: {
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
+    let stalkerSession: {
+        supportsTypedSessions: jest.Mock;
+        getLeaseRef: jest.Mock;
+        open: jest.Mock;
+        request: jest.Mock;
+        requestForPlaylist: jest.Mock;
+        makeAuthenticatedRequest: jest.Mock;
+    };
 
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn().mockResolvedValue({ js: [] }),
+        };
+        stalkerSession = {
+            supportsTypedSessions: jest.fn().mockReturnValue(true),
+            getLeaseRef: jest.fn(),
+            open: jest.fn(),
+            request: jest.fn(),
+            requestForPlaylist: jest.fn(),
+            makeAuthenticatedRequest: jest.fn(),
         };
 
         TestBed.configureTestingModule({
@@ -89,9 +109,7 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
                 { provide: DataService, useValue: dataService },
                 {
                     provide: StalkerSessionService,
-                    useValue: {
-                        makeAuthenticatedRequest: jest.fn(),
-                    },
+                    useValue: stalkerSession,
                 },
                 {
                     provide: TmdbEnrichmentService,
@@ -220,5 +238,58 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         await flushResources();
 
         expect(seriesRequestCalls(dataService.sendIpcEvent)).toHaveLength(1);
+    });
+
+    it('uses the explicit typed VOD-series seasons operation for a full portal', async () => {
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            seasons: [
+                {
+                    id: '11:1',
+                    number: 1,
+                    isSeason: true,
+                    videoId: '11',
+                    title: 'Season 1',
+                },
+            ],
+        });
+        store.setCurrentPlaylist({
+            ...PLAYLIST,
+            isFullStalkerPortal: true,
+        });
+        store.setSelectedContentType('vod');
+        store.setSelectedItem({
+            id: '11',
+            name: 'VOD series',
+            is_series: '1',
+        });
+
+        await waitForCondition(
+            () => stalkerSession.requestForPlaylist.mock.calls.length > 0
+        );
+        await flushResources();
+
+        expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: PLAYLIST._id,
+                isFullStalkerPortal: true,
+                lastUsage: '',
+            }),
+            STALKER_SESSION_APPLICATION_OPERATIONS.SeriesSeasons,
+            {
+                contentType: 'vod',
+                seriesId: '11',
+            }
+        );
+        expect(stalkerSession.request).not.toHaveBeenCalled();
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(store.getVodSeriesSeasonsResource()).toEqual([
+            expect.objectContaining({
+                id: '11:1',
+                is_season: true,
+                season_number: '1',
+                video_id: '11',
+            }),
+        ]);
     });
 });

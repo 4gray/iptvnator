@@ -1,13 +1,18 @@
 import { DataService } from '@iptvnator/services';
 import {
     PlaylistMeta,
+    STALKER_SESSION_APPLICATION_OPERATIONS,
+    StalkerPlaybackContextRef,
     StalkerPortalActions,
     StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerContentType } from '../stalker-store.contracts';
-import { executeStalkerRequest } from './stalker-request.utils';
+import {
+    executeStalkerRequest,
+    toStalkerSessionPlaylist,
+} from './stalker-request.utils';
 
 export interface StalkerPlayerResponse {
     js?: {
@@ -23,6 +28,11 @@ export interface StalkerPlayerResponse {
 export interface StalkerPlayerRequestDeps {
     dataService: DataService;
     stalkerSession: StalkerSessionService;
+}
+
+export interface StalkerPlaybackLink {
+    streamUrl: string;
+    playbackContextRef?: StalkerPlaybackContextRef;
 }
 
 export interface StalkerPlayableItemLike extends StalkerPortalItem {
@@ -116,6 +126,12 @@ export function shouldResolveMovieFileId(
     );
 }
 
+/**
+ * String-only compatibility path retained for downloads. Playback callers
+ * must use {@link fetchStalkerPlayback} so the opaque context reaches native
+ * playback. Authenticated full-portal downloads need a separate main-owned
+ * download-context contract before this compatibility method can be removed.
+ */
 export async function fetchStalkerPlaybackLink(
     deps: StalkerPlayerRequestDeps,
     options: {
@@ -126,8 +142,49 @@ export async function fetchStalkerPlaybackLink(
         forcedContentType?: StalkerContentType;
     }
 ): Promise<string> {
+    return (await fetchStalkerPlayback(deps, options)).streamUrl;
+}
+
+export async function fetchStalkerPlayback(
+    deps: StalkerPlayerRequestDeps,
+    options: {
+        playlist: PlaylistMeta;
+        selectedContentType: StalkerContentType;
+        cmd: string;
+        series?: number;
+        forcedContentType?: StalkerContentType;
+    }
+): Promise<StalkerPlaybackLink> {
     const contentType =
         options.forcedContentType ?? options.selectedContentType;
+    if (
+        options.playlist.isFullStalkerPortal &&
+        supportsTypedSessions(deps.stalkerSession)
+    ) {
+        const isEpisode = options.series !== undefined;
+        const payload = await deps.stalkerSession.requestForPlaylist(
+            toStalkerSessionPlaylist(options.playlist),
+            STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+            {
+                contentType: isEpisode ? 'episode' : contentType,
+                command: options.cmd,
+                ...(isEpisode
+                    ? { episodeNumber: options.series as number }
+                    : {}),
+            }
+        );
+        if (!payload.playbackContextRef) {
+            throw new Error('stalker-playback-context-missing');
+        }
+
+        return normalizePlaybackLink(
+            options.playlist.portalUrl ?? '',
+            options.cmd,
+            payload.streamUrl,
+            payload.playbackContextRef
+        );
+    }
+
     const response = await executeStalkerRequest<StalkerPlayerResponse>(
         deps,
         options.playlist,
@@ -146,17 +203,41 @@ export async function fetchStalkerPlaybackLink(
         throw new Error(response.js.error);
     }
 
-    const streamUrl = resolveStalkerPlaybackUrl(
+    return normalizePlaybackLink(
         options.playlist.portalUrl ?? '',
         options.cmd,
         response.js?.cmd ?? ''
     );
+}
 
+function normalizePlaybackLink(
+    portalUrl: string,
+    originalCmd: string,
+    responseCmd: string,
+    playbackContextRef?: StalkerPlaybackContextRef
+): StalkerPlaybackLink {
+    const streamUrl = resolveStalkerPlaybackUrl(
+        portalUrl,
+        originalCmd,
+        responseCmd
+    );
     if (!streamUrl) {
         throw new Error('nothing_to_play');
     }
 
-    return streamUrl;
+    return {
+        streamUrl,
+        ...(playbackContextRef ? { playbackContextRef } : {}),
+    };
+}
+
+function supportsTypedSessions(stalkerSession: StalkerSessionService): boolean {
+    const probe = (
+        stalkerSession as Partial<
+            Pick<StalkerSessionService, 'supportsTypedSessions'>
+        >
+    ).supportsTypedSessions;
+    return typeof probe !== 'function' || probe.call(stalkerSession);
 }
 
 export async function fetchStalkerMovieFileId(
@@ -164,6 +245,23 @@ export async function fetchStalkerMovieFileId(
     playlist: PlaylistMeta,
     movieId: string
 ): Promise<string | null> {
+    if (
+        playlist.isFullStalkerPortal &&
+        supportsTypedSessions(deps.stalkerSession)
+    ) {
+        const result = await deps.stalkerSession.requestForPlaylist(
+            toStalkerSessionPlaylist(playlist),
+            STALKER_SESSION_APPLICATION_OPERATIONS.CatalogItems,
+            {
+                contentType: 'vod',
+                itemId: movieId,
+                page: 1,
+            }
+        );
+        const fileId = result.items[0]?.id;
+        return fileId == null ? null : String(fileId);
+    }
+
     const response = await executeStalkerRequest<StalkerPlayerResponse>(
         deps,
         playlist,

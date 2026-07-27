@@ -9,7 +9,11 @@ import {
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { DataService } from '@iptvnator/services';
-import { StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    STALKER_SESSION_APPLICATION_OPERATIONS,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import {
     StalkerSeason,
     StalkerVodSeriesEpisode,
@@ -23,6 +27,8 @@ import {
     sortByNumericValue,
     sortEpisodesByNumber,
     sortVodSeriesSeasonsByNumber,
+    StalkerRequestDeps,
+    toStalkerSessionPlaylist,
 } from '../utils';
 
 /**
@@ -70,6 +76,55 @@ function toMovieId(value: unknown): string {
     }
 
     return raw.includes(':') ? raw.split(':')[0] : raw;
+}
+
+async function fetchVodSeriesSeasons(
+    deps: StalkerRequestDeps,
+    playlist: PlaylistMeta,
+    seriesId: string | number
+): Promise<StalkerVodSeriesSeason[]> {
+    if (
+        playlist.isFullStalkerPortal &&
+        supportsTypedSessions(deps.stalkerSession)
+    ) {
+        const result = await deps.stalkerSession.requestForPlaylist(
+            toStalkerSessionPlaylist(playlist),
+            STALKER_SESSION_APPLICATION_OPERATIONS.SeriesSeasons,
+            {
+                contentType: 'vod',
+                seriesId,
+            }
+        );
+
+        return result.seasons.map((season) => ({
+            id: String(season.id),
+            video_id: String(season.videoId ?? seriesId),
+            season_number: String(season.number),
+            ...(season.title ? { name: season.title } : {}),
+            ...(season.isSeason !== undefined
+                ? { is_season: season.isSeason }
+                : {}),
+        }));
+    }
+
+    const response = await executeStalkerRequest<
+        StalkerSeriesResponse<StalkerVodSeriesSeason>
+    >(deps, playlist, {
+        action: StalkerPortalActions.GetOrderedList,
+        type: 'vod',
+        movie_id: seriesId,
+        p: '1',
+    });
+    return extractSeriesItems(response);
+}
+
+function supportsTypedSessions(stalkerSession: StalkerSessionService): boolean {
+    const probe = (
+        stalkerSession as Partial<
+            Pick<StalkerSessionService, 'supportsTypedSessions'>
+        >
+    ).supportsTypedSessions;
+    return typeof probe !== 'function' || probe.call(stalkerSession);
 }
 
 export function withStalkerSeries() {
@@ -163,16 +218,11 @@ export function withStalkerSeries() {
                                 return [];
                             }
 
-                            const response = await executeStalkerRequest<
-                                StalkerSeriesResponse<StalkerVodSeriesSeason>
-                            >(requestDeps, currentPlaylist, {
-                                action: StalkerPortalActions.GetOrderedList,
-                                type: 'vod',
-                                movie_id: selectedItem.id,
-                                p: '1',
-                            });
-
-                            const seasonItems = extractSeriesItems(response);
+                            const seasonItems = await fetchVodSeriesSeasons(
+                                requestDeps,
+                                currentPlaylist,
+                                selectedItem.id
+                            );
                             if (seasonItems.length === 0) {
                                 logger.debug(
                                     'vodSeriesSeasonsResource - no response data'

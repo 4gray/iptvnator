@@ -10,23 +10,22 @@ import {
     EpgProgram,
     Playlist,
     ResolvedPortalPlayback,
-    STALKER_REQUEST,
     StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
 import {
     XtreamApiService,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
+import {
+    executeStalkerRequest,
+    fetchStalkerPlayback,
+    StalkerSessionService,
+} from '@iptvnator/portal/stalker/data-access';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 
 type PlaylistWithChannels = Playlist & {
     readonly playlist?: { readonly items?: Channel[] };
 };
-
-interface StalkerCreateLinkResponse {
-    readonly js?: { readonly cmd?: string };
-}
 
 interface StalkerEpgEntry {
     readonly id?: string | number;
@@ -336,36 +335,41 @@ export class StreamResolverService {
         }
 
         const contentType = item.radio === 'true' ? 'radio' : 'itv';
-        const params = {
-            action: StalkerPortalActions.CreateLink,
-            cmd: item.stalkerCmd ?? '',
-            type: contentType,
-            disable_ad: '0',
-            download: '0',
-            JsHttpRequest: '1-xml',
+        const requestPlaylist: Playlist = {
+            _id: item.playlistId,
+            title: item.playlistName,
+            count: 0,
+            autoRefresh: false,
+            importDate: '',
+            lastUsage: '',
+            ...playlist,
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal:
+                playlist?.isFullStalkerPortal ??
+                this.stalkerSession.isFullStalkerPortal(portalUrl),
         };
-
-        let response: StalkerCreateLinkResponse | undefined;
-        if (playlist?.isFullStalkerPortal && playlist) {
-            response = await this.stalkerSession.makeAuthenticatedRequest(
-                playlist,
-                params
-            );
-        } else {
-            response = await this.dataService.sendIpcEvent(STALKER_REQUEST, {
-                url: portalUrl,
-                macAddress,
-                params,
-            });
-        }
-
-        const rawCmd = response?.js?.cmd ?? '';
+        const playbackLink = await fetchStalkerPlayback(
+            {
+                dataService: this.dataService,
+                stalkerSession: this.stalkerSession,
+            },
+            {
+                playlist: requestPlaylist,
+                selectedContentType: contentType,
+                forcedContentType: contentType,
+                cmd: item.stalkerCmd ?? '',
+            }
+        );
 
         return {
-            streamUrl: this.normalizeStalkerCmd(rawCmd),
+            streamUrl: playbackLink.streamUrl,
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: item.radio === 'true' ? undefined : true,
+            ...(playbackLink.playbackContextRef
+                ? { playbackContextRef: playbackLink.playbackContextRef }
+                : {}),
         };
     }
 
@@ -939,19 +943,14 @@ export class StreamResolverService {
             size: String(size),
         };
 
-        let response: StalkerEpgResponse;
-        if (playlist.isFullStalkerPortal) {
-            response = await this.stalkerSession.makeAuthenticatedRequest(
-                playlist,
-                params
-            );
-        } else {
-            response = await this.dataService.sendIpcEvent(STALKER_REQUEST, {
-                url: playlist.portalUrl,
-                macAddress: playlist.macAddress,
-                params,
-            });
-        }
+        const response = await executeStalkerRequest<StalkerEpgResponse>(
+            {
+                dataService: this.dataService,
+                stalkerSession: this.stalkerSession,
+            },
+            playlist,
+            params
+        );
 
         const epgData = Array.isArray(response?.js)
             ? response.js
