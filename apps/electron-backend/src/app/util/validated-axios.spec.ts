@@ -297,6 +297,313 @@ describe('requestWithValidatedRedirects', () => {
         await expect(resolvePinnedAddress(1)).resolves.toBe('142.250.191.110');
     });
 
+    it('runs narrow hooks in exact validated-hop order and collects redirects before preparing the next hop', async () => {
+        const events: string[] = [];
+        const resolveHostname = jest.fn(async (hostname: string) => {
+            events.push(`validate:${hostname}`);
+            return ['93.184.216.34'];
+        });
+        axiosMock
+            .mockImplementationOnce(async (config) => {
+                events.push(`axios:${config.url}:${config.headers['x-hop']}`);
+                return {
+                    status: 302,
+                    headers: { location: '/next' },
+                };
+            })
+            .mockImplementationOnce(async (config) => {
+                events.push(`axios:${config.url}:${config.headers['x-hop']}`);
+                return {
+                    status: 200,
+                    headers: {},
+                    data: 'ok',
+                };
+            });
+
+        await requestWithValidatedRedirects(
+            'https://example.com/start',
+            {
+                method: 'GET',
+                redirectHooks: {
+                    prepareHeaders: async (hop) => {
+                        events.push(`prepare:${hop.url}:${hop.method}`);
+                        return {
+                            ...hop.headers,
+                            'x-hop': new URL(hop.url).pathname,
+                        };
+                    },
+                    collectResponse: async (response) => {
+                        events.push(
+                            `collect:${response.url}:${response.status}`
+                        );
+                    },
+                    beforeValidatedRedirect: async (redirect) => {
+                        events.push(
+                            `before:${redirect.fromUrl}->${redirect.toUrl}:${redirect.method}`
+                        );
+                    },
+                },
+            },
+            { resolveHostname }
+        );
+
+        expect(events).toEqual([
+            'validate:example.com',
+            'prepare:https://example.com/start:GET',
+            'axios:https://example.com/start:/start',
+            'collect:https://example.com/start:302',
+            'validate:example.com',
+            'before:https://example.com/start->https://example.com/next:GET',
+            'prepare:https://example.com/next:GET',
+            'axios:https://example.com/next:/next',
+            'collect:https://example.com/next:200',
+        ]);
+    });
+
+    it('does not pass redirect hook internals to Axios', async () => {
+        axiosMock.mockResolvedValueOnce({
+            status: 200,
+            headers: {},
+            data: 'ok',
+        });
+        const redirectHooks = {
+            prepareHeaders: jest.fn(async (hop) => hop.headers),
+        };
+
+        await requestWithValidatedRedirects(
+            'https://example.com/start',
+            { method: 'GET', redirectHooks },
+            { resolveHostname: publicResolver }
+        );
+
+        expect(axiosMock.mock.calls[0][0]).not.toHaveProperty(
+            'redirectHooks'
+        );
+    });
+
+    it('prepares each hop from an isolated header snapshot', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: { location: '/next' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: 'ok',
+            });
+        const observedBaseHeaders: string[][] = [];
+
+        await requestWithValidatedRedirects(
+            'https://example.com/start',
+            {
+                headers: { 'x-values': ['base'] },
+                method: 'GET',
+                redirectHooks: {
+                    prepareHeaders: (hop) => {
+                        const values = hop.headers['x-values'] as string[];
+                        observedBaseHeaders.push([...values]);
+                        values.push(new URL(hop.url).pathname);
+                        return hop.headers;
+                    },
+                },
+            },
+            { resolveHostname: publicResolver }
+        );
+
+        expect(observedBaseHeaders).toEqual([['base'], ['base']]);
+        expect(axiosMock.mock.calls[0][0].headers['x-values']).toEqual([
+            'base',
+            '/start',
+        ]);
+        expect(axiosMock.mock.calls[1][0].headers['x-values']).toEqual([
+            'base',
+            '/next',
+        ]);
+    });
+
+    it('does not let response collection rewrite the validated redirect target', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: { location: '/validated' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: 'ok',
+            });
+
+        await requestWithValidatedRedirects(
+            'https://example.com/start',
+            {
+                method: 'GET',
+                redirectHooks: {
+                    collectResponse: (response) => {
+                        response.headers.location = '/tampered';
+                    },
+                },
+            },
+            { resolveHostname: publicResolver }
+        );
+
+        expect(axiosMock.mock.calls[1][0].url).toBe(
+            'https://example.com/validated'
+        );
+    });
+
+    it('collects a rejected HTTP response before propagating the Axios failure', async () => {
+        const rejected = {
+            response: {
+                status: 401,
+                headers: { 'set-cookie': ['session=synthetic; Path=/'] },
+            },
+        };
+        const collectResponse = jest.fn();
+        axiosMock.mockRejectedValueOnce(rejected);
+
+        await expect(
+            requestWithValidatedRedirects(
+                'https://example.com/start',
+                {
+                    method: 'GET',
+                    redirectHooks: { collectResponse },
+                },
+                { resolveHostname: publicResolver }
+            )
+        ).rejects.toBe(rejected);
+
+        expect(collectResponse).toHaveBeenCalledWith({
+            headers: {
+                'set-cookie': ['session=synthetic; Path=/'],
+            },
+            method: 'GET',
+            status: 401,
+            url: 'https://example.com/start',
+        });
+    });
+
+    it('allows a validated cross-origin redirect to pause before target preparation or contact', async () => {
+        class RedirectPause extends Error {}
+
+        const pause = new RedirectPause('approval-required');
+        const resolveHostname = jest.fn(async (hostname: string) =>
+            hostname === 'example.com'
+                ? ['93.184.216.34']
+                : ['142.250.191.110']
+        );
+        const prepareHeaders = jest.fn(async (hop) => hop.headers);
+        const collectResponse = jest.fn(async () => undefined);
+        const beforeValidatedRedirect = jest.fn(async () => {
+            throw pause;
+        });
+        axiosMock.mockResolvedValueOnce({
+            status: 302,
+            headers: { location: 'https://target.example/landing' },
+        });
+
+        await expect(
+            requestWithValidatedRedirects(
+                'https://example.com/start',
+                {
+                    method: 'GET',
+                    redirectHooks: {
+                        beforeValidatedRedirect,
+                        collectResponse,
+                        prepareHeaders,
+                    },
+                },
+                { resolveHostname }
+            )
+        ).rejects.toBe(pause);
+
+        expect(resolveHostname).toHaveBeenNthCalledWith(1, 'example.com');
+        expect(resolveHostname).toHaveBeenNthCalledWith(
+            2,
+            'target.example'
+        );
+        expect(collectResponse).toHaveBeenCalledTimes(1);
+        expect(beforeValidatedRedirect).toHaveBeenCalledWith({
+            crossOrigin: true,
+            fromUrl: 'https://example.com/start',
+            method: 'GET',
+            status: 302,
+            toUrl: 'https://target.example/landing',
+        });
+        expect(prepareHeaders).toHaveBeenCalledTimes(1);
+        expect(axiosMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        {
+            location: '/same',
+            name: 'same target',
+            startUrl: 'https://example.com/same',
+        },
+        {
+            location: '#two',
+            name: 'fragment-only target',
+            startUrl: 'https://example.com/same#one',
+        },
+    ])(
+        'rejects a repeated $name before another contact',
+        async ({ location, startUrl }) => {
+            const beforeValidatedRedirect = jest.fn();
+            const prepareHeaders = jest.fn(async (hop) => hop.headers);
+            axiosMock.mockResolvedValueOnce({
+                status: 302,
+                headers: { location },
+            });
+
+            await expect(
+                requestWithValidatedRedirects(
+                    startUrl,
+                    {
+                        method: 'GET',
+                        redirectHooks: {
+                            beforeValidatedRedirect,
+                            prepareHeaders,
+                        },
+                    },
+                    { resolveHostname: publicResolver }
+                )
+            ).rejects.toMatchObject({
+                message: expect.stringMatching(/redirect loop/i),
+                status: 502,
+            });
+
+            expect(beforeValidatedRedirect).not.toHaveBeenCalled();
+            expect(prepareHeaders).toHaveBeenCalledTimes(1);
+            expect(axiosMock).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('allows a same-target POST redirect when its effective method rewrites to GET', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: { location: '/submit#result' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: 'ok',
+            });
+
+        await requestWithValidatedRedirects(
+            'https://example.com/submit',
+            { data: { value: 1 }, method: 'POST' },
+            { resolveHostname: publicResolver }
+        );
+
+        expect(axiosMock).toHaveBeenCalledTimes(2);
+        expect(axiosMock.mock.calls[1][0]).toMatchObject({
+            data: undefined,
+            method: 'GET',
+            url: 'https://example.com/submit#result',
+        });
+    });
+
     it('removes sensitive headers when a redirect changes origin', async () => {
         axiosMock
             .mockResolvedValueOnce({

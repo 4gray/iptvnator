@@ -2,6 +2,7 @@ import axios, {
     AxiosRequestConfig,
     AxiosResponse,
     RawAxiosRequestHeaders,
+    RawAxiosResponseHeaders,
 } from 'axios';
 import type { LookupAddress } from 'node:dns';
 import { Agent as HttpAgent } from 'node:http';
@@ -10,6 +11,7 @@ import { isIP, LookupFunction } from 'node:net';
 import {
     RemoteUrlPolicy,
     UnsafeUrlError,
+    ValidatedRemoteUrl,
     validateRemoteUrl,
 } from '../events/url-safety';
 
@@ -25,12 +27,72 @@ export interface ValidatedRequestAgentFactory {
     createHttpsAgent?(lookup?: LookupFunction, url?: URL): HttpsAgent;
 }
 
+export interface ValidatedAxiosPrepareHeadersContext {
+    readonly headers: RawAxiosRequestHeaders;
+    readonly method: string;
+    readonly url: string;
+}
+
+export interface ValidatedAxiosResponseContext {
+    readonly headers: RawAxiosResponseHeaders;
+    readonly method: string;
+    readonly status: number;
+    readonly url: string;
+}
+
+export interface ValidatedAxiosRedirectContext {
+    readonly crossOrigin: boolean;
+    readonly fromUrl: string;
+    readonly method: string;
+    readonly status: number;
+    readonly toUrl: string;
+}
+
+export interface ValidatedAxiosRedirectHooks {
+    beforeValidatedRedirect?(
+        redirect: ValidatedAxiosRedirectContext
+    ): Promise<void> | void;
+    collectResponse?(
+        response: ValidatedAxiosResponseContext
+    ): Promise<void> | void;
+    prepareHeaders?(
+        hop: ValidatedAxiosPrepareHeadersContext
+    ):
+        | AxiosRequestConfig['headers']
+        | Promise<AxiosRequestConfig['headers']>;
+}
+
 export type ValidatedAxiosRequestConfig = Omit<
     AxiosRequestConfig,
     'httpAgent' | 'httpsAgent'
 > & {
     agentFactory?: ValidatedRequestAgentFactory;
+    redirectHooks?: ValidatedAxiosRedirectHooks;
 };
+
+function copyRequestHeaders(
+    headers: AxiosRequestConfig['headers']
+): RawAxiosRequestHeaders {
+    if (!headers) {
+        return {};
+    }
+
+    const source =
+        typeof (headers as { toJSON?: () => RawAxiosRequestHeaders })
+            .toJSON === 'function'
+            ? (
+                  headers as {
+                      toJSON: () => RawAxiosRequestHeaders;
+                  }
+              ).toJSON()
+            : headers;
+    return Object.fromEntries(
+        Object.entries(source).map(([name, value]) => [
+            name,
+            Array.isArray(value) ? [...value] : value,
+        ])
+    );
+}
 
 function copyHeadersWithoutSensitiveValues(
     headers: AxiosRequestConfig['headers']
@@ -39,15 +101,7 @@ function copyHeadersWithoutSensitiveValues(
         return headers;
     }
 
-    const source =
-        typeof (headers as { toJSON?: () => RawAxiosRequestHeaders }).toJSON ===
-        'function'
-            ? (
-                  headers as {
-                      toJSON: () => RawAxiosRequestHeaders;
-                  }
-              ).toJSON()
-            : headers;
+    const source = copyRequestHeaders(headers);
     const sanitized: RawAxiosRequestHeaders = {};
 
     for (const [name, value] of Object.entries(source)) {
@@ -57,6 +111,19 @@ function copyHeadersWithoutSensitiveValues(
     }
 
     return sanitized;
+}
+
+function copyResponseHeaders(
+    headers: AxiosResponse['headers']
+): RawAxiosResponseHeaders {
+    const source =
+        typeof headers.toJSON === 'function' ? headers.toJSON() : headers;
+    return Object.fromEntries(
+        Object.entries(source).map(([name, value]) => [
+            name,
+            Array.isArray(value) ? [...value] : value,
+        ])
+    );
 }
 
 function createPinnedLookup(addresses: readonly string[]): LookupFunction {
@@ -95,7 +162,11 @@ function pinRequestToValidatedAddresses(
     url: URL,
     addresses: readonly string[] | undefined
 ): AxiosRequestConfig {
-    const { agentFactory, ...axiosConfig } = config;
+    const {
+        agentFactory,
+        redirectHooks: _redirectHooks,
+        ...axiosConfig
+    } = config;
     if (!addresses) {
         if (url.protocol === 'https:' && agentFactory?.createHttpsAgent) {
             return {
@@ -159,6 +230,87 @@ function getRedirectValidationPolicy(
     };
 }
 
+function effectiveRequestMethod(method: string | undefined): string {
+    return method?.toUpperCase() || 'GET';
+}
+
+function canonicalVisitedTarget(url: URL, method: string): string {
+    const canonicalUrl = new URL(url);
+    canonicalUrl.hash = '';
+    return `${method} ${canonicalUrl.toString()}`;
+}
+
+function rememberValidatedTarget(
+    visitedTargets: Set<string>,
+    target: URL,
+    method: string
+): void {
+    const key = canonicalVisitedTarget(target, method);
+    if (visitedTargets.has(key)) {
+        throw new UnsafeUrlError('Redirect loop detected', 502);
+    }
+    visitedTargets.add(key);
+}
+
+async function prepareHopConfig(
+    config: ValidatedAxiosRequestConfig,
+    validatedUrl: URL,
+    method: string
+): Promise<ValidatedAxiosRequestConfig> {
+    const prepareHeaders = config.redirectHooks?.prepareHeaders;
+    if (!prepareHeaders) {
+        return config;
+    }
+
+    const headers = await prepareHeaders({
+        headers: copyRequestHeaders(config.headers),
+        method,
+        url: validatedUrl.toString(),
+    });
+    return {
+        ...config,
+        headers,
+    };
+}
+
+async function collectHopResponse(
+    hooks: ValidatedAxiosRedirectHooks | undefined,
+    response: AxiosResponse<unknown>,
+    validatedUrl: URL,
+    method: string
+): Promise<void> {
+    await hooks?.collectResponse?.({
+        headers: copyResponseHeaders(response.headers),
+        method,
+        status: response.status,
+        url: validatedUrl.toString(),
+    });
+}
+
+function rejectedAxiosResponse(
+    error: unknown
+): AxiosResponse<unknown> | undefined {
+    if (
+        typeof error !== 'object' ||
+        error === null ||
+        !('response' in error)
+    ) {
+        return undefined;
+    }
+
+    const response = error.response;
+    if (
+        typeof response !== 'object' ||
+        response === null ||
+        typeof Reflect.get(response, 'status') !== 'number' ||
+        typeof Reflect.get(response, 'headers') !== 'object' ||
+        Reflect.get(response, 'headers') === null
+    ) {
+        return undefined;
+    }
+    return response as AxiosResponse<unknown>;
+}
+
 /**
  * Runs an Axios request while validating the initial URL and every redirect.
  * Redirects are followed manually so each target passes through the same
@@ -177,17 +329,27 @@ export async function requestWithValidatedRedirects<T = unknown>(
     let requestConfig = { ...config };
     let initialOrigin: string | undefined;
     let initialAddresses: readonly string[] | undefined;
+    let pendingValidatedTarget: ValidatedRemoteUrl | undefined;
+    const visitedTargets = new Set<string>();
 
     for (let redirectCount = 0; ; redirectCount += 1) {
-        const validatedTarget = await validateRemoteUrl(
-            currentUrl,
-            getRedirectValidationPolicy(currentUrl, initialOrigin, policy)
-        );
+        const validatedTarget =
+            pendingValidatedTarget ??
+            (await validateRemoteUrl(
+                currentUrl,
+                getRedirectValidationPolicy(currentUrl, initialOrigin, policy)
+            ));
+        pendingValidatedTarget = undefined;
         const validatedUrl = validatedTarget.url;
         const isInitialRequest = !initialOrigin;
         if (isInitialRequest) {
             initialOrigin = validatedUrl.origin;
             initialAddresses = validatedTarget.addresses;
+            rememberValidatedTarget(
+                visitedTargets,
+                validatedUrl,
+                effectiveRequestMethod(requestConfig.method)
+            );
         }
         const addresses =
             !isInitialRequest &&
@@ -196,18 +358,45 @@ export async function requestWithValidatedRedirects<T = unknown>(
             validatedUrl.origin === initialOrigin
                 ? initialAddresses
                 : validatedTarget.addresses;
-        const pinnedConfig = pinRequestToValidatedAddresses(
+        const method = effectiveRequestMethod(requestConfig.method);
+        const hopConfig = await prepareHopConfig(
             requestConfig,
+            validatedUrl,
+            method
+        );
+        const pinnedConfig = pinRequestToValidatedAddresses(
+            hopConfig,
             validatedUrl,
             addresses
         );
-        const response = await axios<T>({
-            ...pinnedConfig,
-            maxRedirects: 0,
-            url: validatedUrl.toString(),
-            validateStatus: (status) =>
-                REDIRECT_STATUSES.has(status) || originalValidateStatus(status),
-        });
+        let response: AxiosResponse<T>;
+        try {
+            response = await axios<T>({
+                ...pinnedConfig,
+                maxRedirects: 0,
+                url: validatedUrl.toString(),
+                validateStatus: (status) =>
+                    REDIRECT_STATUSES.has(status) ||
+                    originalValidateStatus(status),
+            });
+        } catch (error) {
+            const rejectedResponse = rejectedAxiosResponse(error);
+            if (rejectedResponse) {
+                await collectHopResponse(
+                    requestConfig.redirectHooks,
+                    rejectedResponse,
+                    validatedUrl,
+                    method
+                );
+            }
+            throw error;
+        }
+        await collectHopResponse(
+            requestConfig.redirectHooks,
+            response,
+            validatedUrl,
+            method
+        );
 
         if (!REDIRECT_STATUSES.has(response.status)) {
             return response;
@@ -225,7 +414,6 @@ export async function requestWithValidatedRedirects<T = unknown>(
         }
 
         const nextUrl = new URL(location, validatedUrl);
-        const method = requestConfig.method?.toUpperCase();
         const shouldRewriteToGet =
             (response.status === 303 && method !== 'HEAD') ||
             ((response.status === 301 || response.status === 302) &&
@@ -254,6 +442,25 @@ export async function requestWithValidatedRedirects<T = unknown>(
             };
         }
 
-        currentUrl = nextUrl.toString();
+        const nextMethod = effectiveRequestMethod(requestConfig.method);
+        const nextTarget = await validateRemoteUrl(
+            nextUrl.toString(),
+            getRedirectValidationPolicy(
+                nextUrl.toString(),
+                initialOrigin,
+                policy
+            )
+        );
+        rememberValidatedTarget(visitedTargets, nextTarget.url, nextMethod);
+        await requestConfig.redirectHooks?.beforeValidatedRedirect?.({
+            crossOrigin: nextTarget.url.origin !== validatedUrl.origin,
+            fromUrl: validatedUrl.toString(),
+            method: nextMethod,
+            status: response.status,
+            toUrl: nextTarget.url.toString(),
+        });
+
+        currentUrl = nextTarget.url.toString();
+        pendingValidatedTarget = nextTarget;
     }
 }
