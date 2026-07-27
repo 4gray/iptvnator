@@ -24,10 +24,12 @@ import SettingsEvents from './app/events/settings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
+import StalkerSessionEvents from './app/events/stalker-session.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
 import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
+import { stalkerSessionManager } from './app/services/stalker-session/stalker-session-runtime';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
@@ -142,6 +144,9 @@ export default class Main {
         SharedEvents.bootstrapSharedEvents();
         PlayerEvents.bootstrapPlayerEvents();
         SettingsEvents.bootstrapSettingsEvents();
+        StalkerSessionEvents.bootstrapStalkerSessionEvents(
+            stalkerSessionManager
+        );
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();
         DatabaseEvents.bootstrapDatabaseEvents();
@@ -209,6 +214,8 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
         shutdownEmbeddedMpv();
         shutdownMpvSession();
         shutdownVlcSession();
-        void databaseWorkerClient.shutdown();
+        void stalkerSessionManager
+            .destroyAll()
+            .finally(() => databaseWorkerClient.shutdown());
     });
 });
