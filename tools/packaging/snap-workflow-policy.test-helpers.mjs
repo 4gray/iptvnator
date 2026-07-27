@@ -21,7 +21,7 @@ const BUILD_ACTION_ALLOWLIST = Object.freeze([
     'actions/setup-node@v4',
     'actions/upload-artifact@v7',
     'pnpm/action-setup@v4',
-    'softprops/action-gh-release@v2',
+    'softprops/action-gh-release@v3',
 ]);
 const VERIFY_JOB_ID = 'verify-snap';
 const PUBLISH_JOB_ID = 'publish-snap';
