@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "MPV または VLC の再生を開始する前に、チャンネル行をダブルクリックする必要があります。",
         "LANGUAGE": "言語",
         "SETTINGS_SAVED": "成功！設定が保存されました。",
+        "SETTINGS_SAVE_FAILED": "設定を保存できませんでした。アプリを再起動すると変更は失われます。",
+        "SETTINGS_LOAD_FAILED": "保存された設定を読み込めませんでした。既定値を表示しています。アプリが二重に起動していないか確認してください。",
         "THEME": "視覚テーマ",
         "SHOW_CAPTIONS": "字幕を表示",
         "SHOW_DASHBOARD": "ダッシュボードを表示",

@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Requiere doble clic en las filas de canales antes de iniciar la reproducción con MPV o VLC.",
         "LANGUAGE": "Idioma",
         "SETTINGS_SAVED": "¡Completado! La configuración se guardó.",
+        "SETTINGS_SAVE_FAILED": "No se pudo guardar la configuración. Los cambios se perderán al reiniciar la aplicación.",
+        "SETTINGS_LOAD_FAILED": "No se pudo cargar la configuración guardada: se muestran los valores predeterminados. Asegúrate de que no haya otra copia de la aplicación abierta.",
         "THEME": "Tema visual",
         "SHOW_CAPTIONS": "Mostrar subtítulos",
         "SHOW_DASHBOARD": "Mostrar panel",

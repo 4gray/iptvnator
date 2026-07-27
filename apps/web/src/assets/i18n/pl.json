@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Wymagaj podwójnego kliknięcia wiersza kanału przed rozpoczęciem odtwarzania w MPV lub VLC.",
         "LANGUAGE": "Język",
         "SETTINGS_SAVED": "Sukces! Konfiguracja została zapisana.",
+        "SETTINGS_SAVE_FAILED": "Nie udało się zapisać ustawień. Zmiany zostaną utracone po ponownym uruchomieniu aplikacji.",
+        "SETTINGS_LOAD_FAILED": "Nie udało się wczytać zapisanych ustawień — wyświetlane są wartości domyślne. Upewnij się, że aplikacja nie jest już uruchomiona.",
         "THEME": "Motyw wizualny",
         "SHOW_CAPTIONS": "Pokaż napisy",
         "SHOW_DASHBOARD": "Pokaż pulpit",

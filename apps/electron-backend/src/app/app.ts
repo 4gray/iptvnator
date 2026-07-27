@@ -216,6 +216,9 @@ export default class App {
     // Keep a global reference of the window object, if you don't, the window will
     // be closed automatically when the JavaScript object is garbage collected.
     static mainWindow: Electron.BrowserWindow | null = null;
+    private static readonly mainWindowListeners: Array<
+        (mainWindow: Electron.BrowserWindow) => void
+    > = [];
     static application: Electron.App;
     static BrowserWindow;
     private static loadedMainWindow: Electron.BrowserWindow | null = null;
@@ -268,15 +271,58 @@ export default class App {
         }
     }
 
-    private static onActivate() {
-        // On macOS it's common to re-create a window in the app when the
-        // dock icon is clicked and there are no other windows open.
+    /**
+     * Registers a listener that needs the current main window, and re-runs it
+     * whenever a new one is created.
+     *
+     * The main window is not created once per process: on macOS the window can
+     * be closed and rebuilt (dock `activate`, or a second launch handed over by
+     * the single-instance guard) while the process lives on. Anything that
+     * caches the window — `download-broadcast`'s module-level reference, for
+     * one — would otherwise keep pointing at a destroyed window and silently
+     * stop delivering to the renderer. Fires immediately when a window already
+     * exists, so callers registering after startup do not miss the first one.
+     */
+    static onMainWindowCreated(
+        listener: (mainWindow: Electron.BrowserWindow) => void
+    ): void {
+        App.mainWindowListeners.push(listener);
+
+        if (App.mainWindow && !App.mainWindow.isDestroyed()) {
+            listener(App.mainWindow);
+        }
+    }
+
+    private static notifyMainWindowCreated(
+        mainWindow: Electron.BrowserWindow
+    ): void {
+        for (const listener of App.mainWindowListeners) {
+            listener(mainWindow);
+        }
+    }
+
+    /**
+     * Brings the app back to a windowed state, re-creating the main window if
+     * it is gone.
+     *
+     * On macOS closing the last window deliberately keeps the process alive
+     * (`onWindowAllClosed`), so this is the recovery path for both the dock
+     * `activate` event and a second launch that the single-instance guard
+     * hands over to this process.
+     */
+    static ensureMainWindow() {
         if (App.mainWindow === null) {
             App.onReady();
         }
         if (App.rendererLoadingEnabled) {
             App.startMainWindowLoad();
         }
+    }
+
+    private static onActivate() {
+        // On macOS it's common to re-create a window in the app when the
+        // dock icon is clicked and there are no other windows open.
+        App.ensureMainWindow();
     }
 
     private static handleRendererNavigation(
@@ -383,6 +429,7 @@ export default class App {
         App.mainWindow.setMenu(null);
         attachWindowTrace(App.mainWindow);
         App.attachWindowStateEvents(App.mainWindow);
+        App.notifyMainWindowCreated(App.mainWindow);
         if (!savedWindowBounds) {
             App.mainWindow.center();
         }

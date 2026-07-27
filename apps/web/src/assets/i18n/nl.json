@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Vereist een dubbelklik op kanaalrijen voordat MPV- of VLC-weergave start.",
         "LANGUAGE": "Taal",
         "SETTINGS_SAVED": "Succes! De instellingen zijn opgeslagen.",
+        "SETTINGS_SAVE_FAILED": "De instellingen konden niet worden opgeslagen. Je wijzigingen gaan verloren bij het herstarten van de app.",
+        "SETTINGS_LOAD_FAILED": "De opgeslagen instellingen konden niet worden geladen — er worden standaardwaarden getoond. Controleer of de app niet al draait.",
         "THEME": "Visueel thema",
         "SHOW_CAPTIONS": "Ondertiteling weergeven",
         "SHOW_DASHBOARD": "Dashboard tonen",

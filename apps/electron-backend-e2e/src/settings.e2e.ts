@@ -10,6 +10,7 @@ import {
     expect,
     goToDashboard,
     importM3uPlaylistFromNativeDialog,
+    launchCompetingElectronInstance,
     launchElectronApp,
     LaunchedElectronApp,
     m3uFixturePath,
@@ -142,6 +143,70 @@ test.describe('Electron Settings', () => {
             });
         } finally {
             await closeElectronApp(app);
+        }
+    });
+
+    test('@settings @persistence @electron refuses a second instance so it cannot break settings storage', async ({
+        dataDir,
+    }) => {
+        const runningApp = await launchElectronApp(dataDir);
+
+        try {
+            const competing = await launchCompetingElectronInstance(dataDir);
+
+            expect(
+                {
+                    exitCode: competing.exitCode,
+                    signal: competing.signal,
+                    timedOut: competing.timedOut,
+                },
+                competing.stderr
+            ).toEqual({ exitCode: 0, signal: null, timedOut: false });
+            // The running instance keeps its window and its storage lock.
+            expect(runningApp.electronApp.windows().length).toBeGreaterThan(0);
+            await expect(runningApp.mainWindow.locator('body')).toBeVisible();
+        } finally {
+            await closeElectronApp(runningApp);
+        }
+
+        // The lock is released on exit, so a later launch starts normally.
+        const relaunch = await launchElectronApp(dataDir);
+        await closeElectronApp(relaunch);
+    });
+
+    test('@settings @electron re-opens a window when a second launch arrives with none open', async ({
+        dataDir,
+    }) => {
+        // Only macOS keeps the process alive after its last window closes;
+        // elsewhere `window-all-closed` quits and the next launch is a plain
+        // cold start.
+        test.skip(
+            process.platform !== 'darwin',
+            'macOS-only windowless-process behaviour'
+        );
+        const runningApp = await launchElectronApp(dataDir);
+
+        try {
+            await runningApp.electronApp.evaluate(({ BrowserWindow }) => {
+                for (const window of BrowserWindow.getAllWindows()) {
+                    window.close();
+                }
+            });
+            await expect
+                .poll(() => runningApp.electronApp.windows().length)
+                .toBe(0);
+
+            const recreatedWindow =
+                runningApp.electronApp.waitForEvent('window');
+            const competing = await launchCompetingElectronInstance(dataDir);
+
+            expect(competing.timedOut).toBe(false);
+            expect(competing.exitCode).toBe(0);
+            // Without this the guard would quit the launch into nothing and
+            // leave the user staring at no window at all.
+            await expect((await recreatedWindow).locator('body')).toBeVisible();
+        } finally {
+            await closeElectronApp(runningApp);
         }
     });
 

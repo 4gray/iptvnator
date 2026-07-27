@@ -10,6 +10,7 @@ import {
     Theme,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
+import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 import {
@@ -33,6 +34,7 @@ export class SettingsFormFacade {
     private readonly formBuilder = inject(FormBuilder);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsService = inject(SettingsService);
+    private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly translate = inject(TranslateService);
 
@@ -53,8 +55,14 @@ export class SettingsFormFacade {
     }
 
     /** Waits for the persisted settings to be available */
-    loadSettings(): Promise<void> {
-        return this.settingsStore.loadSettings();
+    async loadSettings(): Promise<void> {
+        await this.settingsStore.loadSettings();
+
+        if (this.settingsStore.storageFailure() === 'load') {
+            // The form is about to show defaults that are not the user's saved
+            // values — say so instead of letting them look genuine.
+            this.settingsSnackbar.storageFailure('load');
+        }
     }
 
     /**
@@ -97,7 +105,9 @@ export class SettingsFormFacade {
         }
 
         this.patchAndMarkDirty({ coverSize }, 'coverSize');
-        void this.settingsStore.updateSettings({ coverSize });
+        this.settingsStore.updateSettings({ coverSize }).catch(() => {
+            this.settingsSnackbar.storageFailure('save');
+        });
     }
 
     selectEpgViewMode(epgViewMode: EpgViewMode): void {
@@ -106,7 +116,9 @@ export class SettingsFormFacade {
         }
 
         this.patchAndMarkDirty({ epgViewMode }, 'epgViewMode');
-        void this.settingsStore.updateSettings({ epgViewMode });
+        this.settingsStore.updateSettings({ epgViewMode }).catch(() => {
+            this.settingsSnackbar.storageFailure('save');
+        });
     }
 
     setRecordingFolder(recordingFolder: string): void {

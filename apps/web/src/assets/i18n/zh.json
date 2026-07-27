@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "在 MPV 或 VLC 开始播放前，要求双击频道行。",
         "LANGUAGE": "语言",
         "SETTINGS_SAVED": "配置已成功保存",
+        "SETTINGS_SAVE_FAILED": "无法保存设置。重启应用后所做的更改将会丢失。",
+        "SETTINGS_LOAD_FAILED": "无法加载已保存的设置，正在显示默认值。请确认没有重复运行的应用实例。",
         "THEME": "主题",
         "SHOW_CAPTIONS": "显示字幕",
         "SHOW_DASHBOARD": "显示仪表盘",
