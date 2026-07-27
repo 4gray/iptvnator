@@ -1,48 +1,85 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import type { Request, Response } from 'express';
 import * as dataStore from '../data-store.js';
+import { dispatchAction } from '../routes/dispatch.js';
 import { getScenario } from '../scenarios.js';
 
 jest.mock('@faker-js/faker', () => {
+    let accessEnabled = false;
     const fixedDate = new Date('2020-01-01T00:00:00.000Z');
     const fixedText = 'Fixture value';
-
+    const deterministicFaker = {
+        seed: jest.fn(),
+        company: {
+            name: () => fixedText,
+            catchPhrase: () => fixedText,
+        },
+        date: {
+            past: () => fixedDate,
+            recent: () => fixedDate,
+        },
+        location: { country: () => fixedText },
+        lorem: {
+            paragraph: () => fixedText,
+            sentence: () => fixedText,
+            words: () => fixedText,
+        },
+        music: {
+            genre: () => fixedText,
+            songName: () => fixedText,
+        },
+        number: {
+            int: ({ min = 0 }: { min?: number }) => min,
+        },
+        person: { fullName: () => fixedText },
+    };
     return {
-        faker: {
-            seed: jest.fn(),
-            company: {
-                name: () => fixedText,
-                catchPhrase: () => fixedText,
+        faker: new Proxy(deterministicFaker, {
+            get(target, property, receiver) {
+                if (!accessEnabled) {
+                    throw new Error(
+                        `Performance fixture accessed Faker.${String(property)}`
+                    );
+                }
+                return Reflect.get(target, property, receiver);
             },
-            date: {
-                past: () => fixedDate,
-                recent: () => fixedDate,
-            },
-            location: { country: () => fixedText },
-            lorem: {
-                paragraph: () => fixedText,
-                sentence: () => fixedText,
-                words: () => fixedText,
-            },
-            music: {
-                genre: () => fixedText,
-                songName: () => fixedText,
-            },
-            number: {
-                int: ({ min = 0 }: { min?: number }) => min,
-            },
-            person: { fullName: () => fixedText },
+        }),
+        setFakerAccessForTesting(enabled: boolean) {
+            accessEnabled = enabled;
         },
     };
 });
-
 const [USERNAME, PASSWORD] = ['performance', 'performance'];
 const LOOPBACK_ORIGIN = 'http://127.0.0.1:3211';
 jest.setTimeout(30_000);
-
-function serializePerformancePortal(): string {
-    const data = dataStore.getPortalData(USERNAME, PASSWORD);
-    return JSON.stringify({
+type PortalData = ReturnType<typeof dataStore.getPortalData>;
+type DispatchResult = {
+    body: unknown;
+    jsonCalls: number;
+    statusCode: number;
+};
+let initialPortal!: PortalData;
+function setFakerAccess(enabled: boolean): void {
+    const fakerModule = jest.requireMock('@faker-js/faker') as {
+        setFakerAccessForTesting(value: boolean): void;
+    };
+    fakerModule.setFakerAccessForTesting(enabled);
+}
+function withGenericFaker(run: () => void): void {
+    setFakerAccess(true);
+    try {
+        run();
+    } finally {
+        dataStore.resetAll();
+        setFakerAccess(false);
+    }
+}
+function portalFingerprint(data: PortalData): {
+    byteCount: number;
+    sha256: string;
+} {
+    const serialized = JSON.stringify({
         scenario: data.scenario,
         liveCategories: data.liveCategories,
         vodCategories: data.vodCategories,
@@ -52,17 +89,32 @@ function serializePerformancePortal(): string {
         seriesItems: data.seriesItems,
         epgListingsByStreamId: [...data.epgListingsByStreamId.entries()],
     });
-}
-
-function rebuildFingerprint(): { byteCount: number; sha256: string } {
-    dataStore.resetAll();
-    const serialized = serializePerformancePortal();
     return {
         byteCount: Buffer.byteLength(serialized),
         sha256: createHash('sha256').update(serialized).digest('hex'),
     };
 }
-
+function dispatch(query: Record<string, string>): DispatchResult {
+    let body: unknown;
+    let jsonCalls = 0;
+    let statusCode = 200;
+    const response = {
+        json(value: unknown) {
+            body = value;
+            jsonCalls += 1;
+            return response;
+        },
+        status(value: number) {
+            statusCode = value;
+            return response;
+        },
+    };
+    dispatchAction(
+        { query } as unknown as Request,
+        response as unknown as Response
+    );
+    return { body, jsonCalls, statusCode };
+}
 function expectLocalOrEmpty(values: string[]): void {
     for (const value of values) {
         expect(value === '' || value.startsWith(`${LOOPBACK_ORIGIN}/`)).toBe(
@@ -70,7 +122,6 @@ function expectLocalOrEmpty(values: string[]): void {
         );
     }
 }
-
 function expectOneThousandItemsPerCategory(
     items: ReadonlyArray<{ category_id: number | string }>
 ): void {
@@ -83,6 +134,14 @@ function expectOneThousandItemsPerCategory(
 }
 
 describe('performance Xtream fixture', () => {
+    beforeAll(() => {
+        dataStore.resetAll();
+        initialPortal = dataStore.getPortalData(USERNAME, PASSWORD);
+    });
+    afterAll(() => {
+        dataStore.resetAll();
+        setFakerAccess(false);
+    });
     it('selects the committed performance scenario', () => {
         expect(getScenario(USERNAME, PASSWORD)).toMatchObject({
             name: 'performance-100k',
@@ -100,62 +159,80 @@ describe('performance Xtream fixture', () => {
     });
 
     it('contains exactly 100 categories and 100,000 catalog items', () => {
-        const data = dataStore.getPortalData(USERNAME, PASSWORD);
-
         expect([
-            data.liveCategories.length,
-            data.vodCategories.length,
-            data.seriesCategories.length,
+            initialPortal.liveCategories.length,
+            initialPortal.vodCategories.length,
+            initialPortal.seriesCategories.length,
         ]).toEqual([60, 20, 20]);
-        expect(data.liveStreams).toHaveLength(60_000);
-        expect(data.vodStreams).toHaveLength(20_000);
-        expect(data.seriesItems).toHaveLength(20_000);
-        expectOneThousandItemsPerCategory(data.liveStreams);
-        expectOneThousandItemsPerCategory(data.vodStreams);
-        expectOneThousandItemsPerCategory(data.seriesItems);
+        expect(initialPortal.liveStreams).toHaveLength(60_000);
+        expect(initialPortal.vodStreams).toHaveLength(20_000);
+        expect(initialPortal.seriesItems).toHaveLength(20_000);
+        expectOneThousandItemsPerCategory(initialPortal.liveStreams);
+        expectOneThousandItemsPerCategory(initialPortal.vodStreams);
+        expectOneThousandItemsPerCategory(initialPortal.seriesItems);
     });
 
     it('uses unique item IDs and valid category references', () => {
-        const data = dataStore.getPortalData(USERNAME, PASSWORD);
         const itemIds = [
-            ...data.liveStreams.map((item) => item.stream_id),
-            ...data.vodStreams.map((item) => item.stream_id),
-            ...data.seriesItems.map((item) => item.series_id),
+            ...initialPortal.liveStreams.map((item) => item.stream_id),
+            ...initialPortal.vodStreams.map((item) => item.stream_id),
+            ...initialPortal.seriesItems.map((item) => item.series_id),
         ];
         const liveCategoryIds = new Set(
-            data.liveCategories.map((category) => category.category_id)
+            initialPortal.liveCategories.map((item) => item.category_id)
         );
         const vodCategoryIds = new Set(
-            data.vodCategories.map((category) => category.category_id)
+            initialPortal.vodCategories.map((item) => item.category_id)
         );
         const seriesCategoryIds = new Set(
-            data.seriesCategories.map((category) => category.category_id)
+            initialPortal.seriesCategories.map((item) => item.category_id)
         );
-
         expect(new Set(itemIds).size).toBe(100_000);
         expect(
-            data.liveStreams.every((item) =>
+            initialPortal.liveStreams.every((item) =>
                 liveCategoryIds.has(item.category_id)
             )
         ).toBe(true);
         expect(
-            data.vodStreams.every((item) =>
+            initialPortal.vodStreams.every((item) =>
                 vodCategoryIds.has(item.category_id)
             )
         ).toBe(true);
         expect(
-            data.seriesItems.every((item) =>
+            initialPortal.seriesItems.every((item) =>
                 seriesCategoryIds.has(String(item.category_id))
             )
         ).toBe(true);
     });
 
-    it('rebuilds to the identical byte count and SHA-256', () => {
-        expect(rebuildFingerprint()).toEqual(rebuildFingerprint());
+    it('rebuilds a distinct portal to the identical byte count and SHA-256', () => {
+        const source = readFileSync(
+            `${__dirname}/performance.generator.ts`,
+            'utf8'
+        );
+        expect(source).not.toMatch(
+            /@faker-js\/faker|\bfaker\b|Date\.now|Math\.random/
+        );
+        const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => {
+            throw new Error('performance fixture used Date.now');
+        });
+        const mathRandom = jest.spyOn(Math, 'random').mockImplementation(() => {
+            throw new Error('performance fixture used Math.random');
+        });
+        try {
+            const firstFingerprint = portalFingerprint(initialPortal);
+            dataStore.resetAll();
+            const rebuiltPortal = dataStore.getPortalData(USERNAME, PASSWORD);
+
+            expect(rebuiltPortal).not.toBe(initialPortal);
+            expect(portalFingerprint(rebuiltPortal)).toEqual(firstFingerprint);
+        } finally {
+            dateNow.mockRestore();
+            mathRandom.mockRestore();
+        }
     });
 
     it('keeps catalog and detail URL fields local-only', () => {
-        dataStore.resetAll();
         const data = dataStore.getPortalData(USERNAME, PASSWORD);
         const vodDetails = dataStore.getVodDetails(
             USERNAME,
@@ -215,106 +292,97 @@ describe('performance Xtream fixture', () => {
         ]);
     });
 
-    it('uses the fixed fixture epoch for catalog timestamps', () => {
-        const data = dataStore.getPortalData(USERNAME, PASSWORD);
+    it('uses numeric fixed-epoch semantics for catalog timestamps', () => {
+        const firstSeries = initialPortal.seriesItems[0];
 
-        expect(data.liveStreams[0].added).toBe('1767225600');
-        expect(data.vodStreams[0].added).toBe('1767225600');
-        expect(data.seriesItems[0].last_modified).toBe('2026-01-01');
+        expect(initialPortal.liveStreams[0].added).toBe('1767225600');
+        expect(initialPortal.vodStreams[0].added).toBe('1767225600');
+        expect(
+            initialPortal.seriesItems.every((item) =>
+                /^\d+$/.test(item.last_modified)
+            )
+        ).toBe(true);
+        expect(firstSeries.last_modified).toBe('1767225600');
+        expect(
+            new Date(Number(firstSeries.last_modified) * 1_000).toISOString()
+        ).toBe('2026-01-01T00:00:00.000Z');
+        expect(firstSeries.releaseDate).toBe('2026-01-01');
     });
 
-    it('does not consult the runtime clock or random source', () => {
-        const generatorSource = readFileSync(
-            `${__dirname}/performance.generator.ts`,
-            'utf8'
-        );
-        expect(generatorSource).not.toMatch(
-            /@faker-js\/faker|\bfaker\b|Date\.now|Math\.random/
-        );
-        const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => {
-            throw new Error('performance fixture used Date.now');
-        });
-        const mathRandom = jest.spyOn(Math, 'random').mockImplementation(() => {
-            throw new Error('performance fixture used Math.random');
-        });
-
-        try {
-            dataStore.resetAll();
-            const data = dataStore.getPortalData(USERNAME, PASSWORD);
-            dataStore.getVodDetails(
-                USERNAME,
-                PASSWORD,
-                data.vodStreams[0].stream_id
-            );
-            dataStore.getSeriesInfo(
-                USERNAME,
-                PASSWORD,
-                data.seriesItems[0].series_id
-            );
-        } finally {
-            dateNow.mockRestore();
-            mathRandom.mockRestore();
-        }
-    });
-
-    it('does not eagerly materialize series details and builds one lazily', () => {
+    it('keeps account-info lazy and materializes one series detail through dispatch', () => {
         dataStore.resetAll();
-        const data = dataStore.getPortalData(USERNAME, PASSWORD);
-        const seriesId = data.seriesItems[0].series_id;
+        const accountResult = dispatch({
+            action: 'get_account_info',
+            username: USERNAME,
+            password: PASSWORD,
+        });
 
+        expect([accountResult.statusCode, accountResult.jsonCalls]).toEqual([
+            200, 1,
+        ]);
+        expect(
+            (accountResult.body as { user_info?: { username?: string } })
+                .user_info?.username
+        ).toBe(USERNAME);
         expect(dataStore.getDetailCacheCardinalityForTesting()).toEqual({
             vodDetails: 0,
             seriesInfo: 0,
         });
-        dataStore.getSeriesInfo(USERNAME, PASSWORD, seriesId);
-        expect(dataStore.getDetailCacheCardinalityForTesting()).toEqual({
-            vodDetails: 0,
-            seriesInfo: 1,
-        });
-        expect(
-            dataStore.getSeriesInfo(USERNAME, PASSWORD, seriesId)
-        ).not.toBeNull();
-        expect(dataStore.getDetailCacheCardinalityForTesting()).toEqual({
-            vodDetails: 0,
-            seriesInfo: 1,
-        });
-    });
 
-    it('keys VOD details by portal and stream ID', () => {
-        dataStore.resetAll();
-        const emptyVod = dataStore.getPortalData('emptyvod', 'emptyvod')
-            .vodStreams[0];
-
-        expect(
-            dataStore.getVodDetails('emptyvod', 'emptyvod', emptyVod.stream_id)
-                ?.info
-        ).toEqual([]);
-        expect(
-            dataStore.getVodDetails('user1', 'pass1', emptyVod.stream_id)?.info
-        ).not.toEqual([]);
-        expect(dataStore.getDetailCacheCardinalityForTesting().vodDetails).toBe(
-            2
-        );
-    });
-
-    it('keys series details by portal and series ID', () => {
-        dataStore.resetAll();
-        const sharedSeriesId = dataStore.getPortalData('minimal', 'minimal')
+        const seriesId = dataStore.getPortalData(USERNAME, PASSWORD)
             .seriesItems[0].series_id;
-        const minimalInfo = dataStore.getSeriesInfo(
-            'minimal',
-            'minimal',
-            sharedSeriesId
-        );
-        const defaultInfo = dataStore.getSeriesInfo(
-            'user1',
-            'pass1',
-            sharedSeriesId
-        );
+        const seriesResult = dispatch({
+            action: 'get_series_info',
+            username: USERNAME,
+            password: PASSWORD,
+            series_id: String(seriesId),
+        });
+        const seriesBody = seriesResult.body as {
+            seasons?: unknown[];
+            episodes?: Record<string, unknown[]>;
+        };
 
-        expect(minimalInfo?.seasons).toHaveLength(1);
-        expect(defaultInfo?.seasons).toHaveLength(3);
-        expect(minimalInfo?.episodes['1']).toHaveLength(3);
-        expect(defaultInfo?.episodes['1']).toHaveLength(8);
+        expect([seriesResult.statusCode, seriesResult.jsonCalls]).toEqual([
+            200, 1,
+        ]);
+        expect(seriesBody.seasons).toHaveLength(1);
+        expect(seriesBody.episodes?.['1']).toHaveLength(1);
+        expect(dataStore.getDetailCacheCardinalityForTesting()).toEqual({
+            vodDetails: 0,
+            seriesInfo: 1,
+        });
+    });
+
+    it('keys VOD and series details by both username and password', () => {
+        withGenericFaker(() => {
+            dataStore.resetAll();
+            const portals = [
+                ['emptyvod', 'emptyvod'],
+                ['emptyvod', 'alternate'],
+                ['alternate', 'emptyvod'],
+            ] as const;
+            const firstPortal = dataStore.getPortalData(...portals[0]);
+            const vodId = firstPortal.vodStreams[0].stream_id;
+            const seriesId = firstPortal.seriesItems[0].series_id;
+            const vodDetails = portals.map(([username, password]) =>
+                dataStore.getVodDetails(username, password, vodId)
+            );
+            const seriesDetails = portals.map(([username, password]) =>
+                dataStore.getSeriesInfo(username, password, seriesId)
+            );
+            expect(vodDetails[0]?.info).toEqual([]);
+            expect(
+                vodDetails.slice(1).every((item) => !Array.isArray(item?.info))
+            ).toBe(true);
+            expect(seriesDetails.map((item) => item?.seasons.length)).toEqual([
+                2, 3, 3,
+            ]);
+            expect(
+                seriesDetails.map((item) => item?.episodes['1'].length)
+            ).toEqual([4, 8, 8]);
+            expect(
+                dataStore.getDetailCacheCardinalityForTesting().vodDetails
+            ).toBe(3);
+        });
     });
 });

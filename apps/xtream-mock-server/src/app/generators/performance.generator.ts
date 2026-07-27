@@ -261,7 +261,7 @@ function buildSeriesItems(categories: RawCategory[]): RawSeriesItem[] {
                 director: `Performance Director ${formatIndex(index)}`,
                 genre: `Performance Genre ${index % 10}`,
                 releaseDate: dateFromIndex(index),
-                last_modified: dateFromIndex(index, 30),
+                last_modified: addedFromIndex(index),
                 rating: rating.toFixed(1),
                 rating_5based: Number((rating / 2).toFixed(1)),
                 backdrop_path: [],
