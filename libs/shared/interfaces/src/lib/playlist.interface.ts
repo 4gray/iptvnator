@@ -1,5 +1,11 @@
 import { PlaylistRecentlyViewedItem } from './playlist-recently-viewed.interface';
 import { StalkerPortalItem } from './stalker-portal-item.interface';
+import type {
+    StalkerSessionIdentityOverrides,
+    StalkerSessionProfilePreset,
+    StalkerSessionRequestRecipe,
+    StalkerSessionTransportConfiguration,
+} from './stalker-session.interface';
 
 /**
  * An interface that describe the possible states of the playlist update/refresh process
@@ -51,6 +57,22 @@ export interface Playlist {
     password?: string;
     macAddress?: string;
     portalUrl?: string;
+    /** User-entered Stalker source URL; endpoint discovery starts here. */
+    stalkerSourceUrl?: string;
+    /** Last verified landing URL used for Referer behavior. */
+    stalkerLandingUrl?: string;
+    /** Last verified request recipe; treated as a revalidated hint. */
+    stalkerRequestRecipe?: StalkerSessionRequestRecipe;
+    /** Version of the classifier that established stalkerRequestRecipe. */
+    stalkerRecipeClassifierVersion?: number;
+    /** Selected coherent Stalker identity preset. */
+    stalkerProfilePreset?: StalkerSessionProfilePreset;
+    /** Explicit user-owned identity values; blank fields remain absent. */
+    stalkerIdentityOverrides?: StalkerSessionIdentityOverrides;
+    /** Explicit non-secret transport/profile presentation overrides. */
+    stalkerTransportConfiguration?: StalkerSessionTransportConfiguration;
+    /** ISO timestamp of the last complete, successful endpoint verification. */
+    stalkerLastVerifiedAt?: string;
     recentlyViewed?: PlaylistRecentlyViewedItem[];
     /** Indicates if this is a full stalker portal URL (e.g., /stalker_portal/c) requiring handshake authentication */
     isFullStalkerPortal?: boolean;
