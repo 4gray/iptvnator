@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import type { VodSourcePin } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 
 /**
  * Persistence for the per-movie pinned source ("play this film from here").
@@ -32,7 +33,10 @@ export class VodSourcePinService {
         try {
             return await window.electron.dbGetVodSourcePin(matchKeys);
         } catch (error) {
-            console.warn('Reading the pinned VOD source failed:', error);
+            console.warn(
+                'Reading the pinned VOD source failed:',
+                redactSensitiveData(error)
+            );
             return null;
         }
     }
@@ -46,7 +50,10 @@ export class VodSourcePinService {
             const result = await window.electron.dbSetVodSourcePin(pin);
             return result?.success === true;
         } catch (error) {
-            console.warn('Pinning the VOD source failed:', error);
+            console.warn(
+                'Pinning the VOD source failed:',
+                redactSensitiveData(error)
+            );
             return false;
         }
     }
@@ -62,7 +69,10 @@ export class VodSourcePinService {
             const result = await window.electron.dbClearVodSourcePin(matchKeys);
             return result?.success === true;
         } catch (error) {
-            console.warn('Unpinning the VOD source failed:', error);
+            console.warn(
+                'Unpinning the VOD source failed:',
+                redactSensitiveData(error)
+            );
             return false;
         }
     }

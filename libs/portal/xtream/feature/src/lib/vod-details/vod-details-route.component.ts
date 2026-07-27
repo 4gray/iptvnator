@@ -305,10 +305,39 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         });
     });
 
+    /**
+     * The alternative the player is on, in playback's terms — null while the
+     * route's own source is playing, which the matcher already recognises.
+     */
+    private readonly activeAlternativeSource = computed(() => {
+        const active = this.multiSource.sources().find((s) => s.isActive);
+        const routePlaylistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!active || active.playlistId === routePlaylistId) {
+            return null;
+        }
+
+        return {
+            playlistId: active.playlistId,
+            contentXtreamId: active.contentId,
+            contentType: 'vod' as const,
+        };
+    });
+
     constructor() {
         this.playback.bind({
             vodId: this.selectedVodId,
             vodInfo: this.selectedVodInfo,
+            activeSource: this.activeAlternativeSource,
+        });
+
+        // Nothing reports a live position until the player emits its first
+        // timeupdate, so a switch made straight off the Resume button would
+        // otherwise resolve at zero and restart the film.
+        effect(() => {
+            const position = this.playback.vodPlaybackPosition();
+            if (position) {
+                this.multiSource.seedResumePosition(position.positionSeconds);
+            }
         });
         this.multiSource.bind({
             // Route every switch through the same inline-vs-external fork a
@@ -409,6 +438,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     async onPrimaryAction(vodItem: XtreamVodDetails | null): Promise<void> {
+        // When the button reads Stop, it stops. Consulting the pin first would
+        // make the control do the opposite of what it says — launching a
+        // second player while the first keeps running.
+        if (this.playback.isExternalStopAction()) {
+            this.playback.onPrimaryAction(vodItem);
+            return;
+        }
+
         // A pinned source is an explicit "play this movie from here", so it
         // outranks the playlist the route happens to be on. Falls through to
         // the normal path when nothing is pinned or the pin cannot resolve.

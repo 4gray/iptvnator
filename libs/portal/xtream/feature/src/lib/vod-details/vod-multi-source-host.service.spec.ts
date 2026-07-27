@@ -265,6 +265,55 @@ describe('VodMultiSourceHostService', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
+    it('resumes the pinned source from the stored position', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+
+        // What the route knows after loading playback positions. Nothing has
+        // played yet, so no timeupdate has reported anything — and the button
+        // the user is about to press says "Resume".
+        service.seedResumePosition(2538);
+
+        await expect(service.playPinnedSource()).resolves.toBe(true);
+
+        expect(resolver.resolve).toHaveBeenCalledWith(
+            expect.objectContaining({ id: ALT_TWO.id }),
+            { startTime: 2538 }
+        );
+    });
+
+    it('does not show a pin the database refused to store', async () => {
+        await loadMovie([ALT_TWO]);
+        pins.set.mockResolvedValue(false);
+
+        await service.togglePin(ALT_TWO.id);
+
+        // The icon promises the preference survives reopening the movie. A
+        // write that failed makes that a lie, so the row must not change.
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
+    });
+
+    it('keeps the pin when clearing it fails', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
+
+        pins.clear.mockResolvedValue(false);
+        await service.togglePin(ALT_TWO.id);
+
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
+    });
+
     it('leaves Play alone when nothing is pinned', async () => {
         await loadMovie([ALT_TWO]);
 

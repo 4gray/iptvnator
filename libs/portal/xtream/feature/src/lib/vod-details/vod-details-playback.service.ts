@@ -30,6 +30,13 @@ export interface VodDetailsPlaybackBindings {
     vodId: Signal<number>;
     /** Usable metadata of the selected VOD, if any */
     vodInfo: Signal<XtreamVodInfo | null>;
+    /**
+     * The source actually playing when it is NOT the route's own — supplied by
+     * multi-source. An external player launched for an alternative carries
+     * that playlist's ids, so without this the session belongs to no page and
+     * its Stop button never appears.
+     */
+    activeSource?: Signal<PlayerContentInfo | null>;
 }
 
 /**
@@ -74,15 +81,23 @@ export class VodDetailsPlaybackService {
         }
 
         const contentInfo = session.contentInfo;
-        if (
-            contentInfo.playlistId !== playlistId ||
-            contentInfo.contentType !== 'vod' ||
-            contentInfo.contentXtreamId !== vodId
-        ) {
+        if (contentInfo.contentType !== 'vod') {
             return null;
         }
 
-        return session;
+        // This page owns the session when it launched the route's own stream —
+        // or the alternative it switched to, whose ids belong to the other
+        // playlist entirely.
+        const active = this.bindings()?.activeSource?.();
+        const isRouteStream =
+            contentInfo.playlistId === playlistId &&
+            contentInfo.contentXtreamId === vodId;
+        const isActiveSource =
+            !!active &&
+            contentInfo.playlistId === active.playlistId &&
+            contentInfo.contentXtreamId === active.contentXtreamId;
+
+        return isRouteStream || isActiveSource ? session : null;
     });
     readonly externalPrimaryLabel = computed(() => {
         const session = this.matchedExternalPlayback();

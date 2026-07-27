@@ -121,10 +121,9 @@ export class VodMultiSourceHostService {
     /** Alternative STREAMS — what the "Sources N" chip counts. */
     readonly alternativeCount = computed(() => this.alternatives().length);
     /**
-     * Alternative PLAYLISTS. One playlist listing the film three times is one
-     * other place to watch it, and the popover already groups those three
-     * under that single playlist — so "also found in N other playlists" has to
-     * count portals, not copies, or it contradicts the list it opens.
+     * Alternative PLAYLISTS. The popover groups one playlist's three copies
+     * under that playlist, so "also found in N other playlists" must count
+     * portals, not copies, or it contradicts the list it opens.
      */
     readonly alternativePlaylistCount = computed(
         () => new Set(this.alternatives().map((s) => s.playlistId)).size
@@ -330,9 +329,13 @@ export class VodMultiSourceHostService {
         return this.controller.isExhausted();
     }
 
-    /** Feeds the live player position; called ahead of the persist throttle. */
+    /** The live position, fed ahead of the persist throttle. */
     reportPosition(seconds: number): void {
         this.controller.setResumeSeconds(seconds);
+    }
+    /** The stored position, standing in until the player reports its own. */
+    seedResumePosition(seconds: number): void {
+        this.controller.seedResumeSeconds(seconds);
     }
 
     private async switchTo(

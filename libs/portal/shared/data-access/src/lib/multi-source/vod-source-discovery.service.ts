@@ -4,6 +4,7 @@ import type {
     VodSourceCandidateRow,
     VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import { parseTitleMetadata } from './vod-source-metadata.util';
 
 /**
@@ -34,6 +35,8 @@ export interface VodSourceDiscoveryResult {
 
 @Injectable({ providedIn: 'root' })
 export class VodSourceDiscoveryService {
+    private readonly logger = createLogger('VodSourceDiscovery');
+
     get isAvailable(): boolean {
         return (
             typeof window !== 'undefined' &&
@@ -65,7 +68,7 @@ export class VodSourceDiscoveryService {
                 matchKind: 'title-year',
             };
         } catch (error) {
-            console.warn('VOD source discovery failed:', error);
+            this.logger.warn('VOD source discovery failed:', error);
             return empty;
         }
     }

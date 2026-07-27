@@ -118,6 +118,22 @@ export class VodMultiSourceController {
         }
     }
 
+    /**
+     * Seed from the PERSISTED position, so a switch made before playback ever
+     * started still resumes.
+     *
+     * Nothing reports a live position until the player emits its first
+     * timeupdate, so until then this is zero — and "Resume" through a pinned
+     * source would silently restart the film. Deliberately one-way: once a
+     * live position exists it wins, because the stored one lags it by up to
+     * the persistence throttle and applying it would visibly rewind.
+     */
+    seedResumeSeconds(seconds: number) {
+        if (this.resumeSeconds <= 0) {
+            this.setResumeSeconds(seconds);
+        }
+    }
+
     getResumeSeconds(): number {
         return this.resumeSeconds;
     }

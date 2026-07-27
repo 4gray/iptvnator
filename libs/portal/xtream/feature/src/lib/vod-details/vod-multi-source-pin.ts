@@ -41,31 +41,32 @@ export async function writePin(
         return false;
     }
 
-    await pins.set({
+    // The write can fail — no bridge, or the DB refused it. Reporting success
+    // then would show a pin the next visit does not have.
+    return pins.set({
         matchKey,
         playlistId: candidate.playlistId,
         contentId: candidate.contentId,
         portalType: candidate.portalType,
     });
-    return true;
 }
 
 /** Clears every alias, so unpinning is not undone by a stale row. */
 export async function erasePin(
     pins: Pick<VodSourcePinService, 'clear'>,
     matchKeys: readonly string[]
-): Promise<void> {
-    if (matchKeys.length > 0) {
-        await pins.clear([...matchKeys]);
-    }
+): Promise<boolean> {
+    return matchKeys.length > 0 ? pins.clear([...matchKeys]) : false;
 }
 
 /**
  * Pin or unpin `candidate`, and report the id the controller should now hold.
  *
  * `undefined` means the toggle did not happen at all — no key to store it
- * under, no such row, or the write failed — and the caller must leave the
- * current pin exactly as it was rather than showing one that was not saved.
+ * under, no such row, or the write did not land — and the caller must leave
+ * the current pin exactly as it was rather than showing one that was not
+ * saved. A pin the database refused is worse than no pin: the icon promises
+ * the preference will be there next time, and it will not be.
  */
 export async function togglePinnedSource(
     pins: Pick<VodSourcePinService, 'set' | 'clear'>,
@@ -78,8 +79,7 @@ export async function togglePinnedSource(
     }
 
     if (isPinned) {
-        await erasePin(pins, matchKeys);
-        return null;
+        return (await erasePin(pins, matchKeys)) ? null : undefined;
     }
 
     if (!candidate) {

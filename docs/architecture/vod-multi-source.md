@@ -125,6 +125,11 @@ landed is stored under its title key and prefers a `tmdb:` key afterwards;
 reading both means the id arriving later does not orphan the pin, and unpinning
 clears every alias so a stale row cannot resurrect it.
 
+The row only changes once the write lands. A pin the database refused is worse
+than no pin at all — the icon promises the preference will be there next time,
+and it will not be — so `togglePinnedSource` reports "nothing happened" and the
+controller is left exactly as it was.
+
 ### Rediscovery vs. a new session
 
 Two keys, deliberately, because the host has two different questions to answer
@@ -214,6 +219,13 @@ Three details make the position survive:
   a switch changes the key. The resolved playback carries the **new** source's
   `contentInfo`, and that source's row takes over.
 
+The position also has to exist *before* anything plays. Nothing reports a live
+one until the first `timeupdate`, so a pinned source started straight off the
+Resume button would resolve at zero and restart the film. The controller is
+therefore seeded from the persisted position (`seedResumeSeconds`), one-way:
+once a live position exists it wins, because the stored one lags it by up to
+the save throttle and applying it would visibly rewind.
+
 A resuming engine can emit a `timeupdate` at ~0 before it finishes seeking.
 `VodDetailsPlaybackService` guards this with a one-shot `resumeSettled` latch —
 a filter would have broken deliberate seek-backwards. `handleInlineTimeUpdate`
@@ -258,6 +270,22 @@ audio track as fact. Two guesses, or a guess against a fact, stay silent.
 Web engines only (HTML5/hls.js, Video.js, ArtPlayer). Embedded MPV suppresses
 shared diagnostics and owns its own error block; external MPV/VLC are
 fire-and-forget with no error channel back.
+
+## External players and an alternative source
+
+A switch goes through the same inline-vs-external fork a normal Play takes, so
+with MPV or VLC configured the alternative opens in the external player — and
+that session carries the OTHER playlist's ids. `matchedExternalPlayback` would
+disown it: the primary button never became Stop, stopping found no session, and
+another click opened a second player. The page therefore claims a session that
+matches either the route's own stream or the alternative multi-source says is
+active (`VodDetailsPlaybackBindings.activeSource`).
+
+Stop then has to win over the pin. The primary action consults the pin first —
+that is what makes "make this the main source" decide where playback starts —
+but when a session is already running the same button reads Stop, and doing
+anything other than stopping would launch a second player while the first kept
+going.
 
 ## PWA
 

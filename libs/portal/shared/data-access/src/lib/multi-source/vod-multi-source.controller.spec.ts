@@ -197,6 +197,26 @@ describe('VodMultiSourceController', () => {
 
             expect(controller.getResumeSeconds()).toBe(2538);
         });
+
+        it('seeds from the stored position before playback reports one', () => {
+            // Switching straight off the Resume button happens before any
+            // timeupdate, so without this the movie restarts.
+            const controller = controllerWith('a');
+            controller.seedResumeSeconds(2538);
+
+            expect(controller.getResumeSeconds()).toBe(2538);
+        });
+
+        it('never lets the stored position override the live one', () => {
+            const controller = controllerWith('a');
+            controller.setResumeSeconds(2560);
+
+            // The persisted value lags the live one by up to the save
+            // throttle; applying it would visibly rewind the switch.
+            controller.seedResumeSeconds(2538);
+
+            expect(controller.getResumeSeconds()).toBe(2560);
+        });
     });
 
     describe('source state', () => {

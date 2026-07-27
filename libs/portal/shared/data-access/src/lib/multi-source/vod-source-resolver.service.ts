@@ -10,6 +10,7 @@ import type {
     ResolvedPortalPlayback,
     VodSourceCandidate,
 } from '@iptvnator/shared/interfaces';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import { applyApiMetadata } from './vod-source-metadata.util';
 
 /**
@@ -33,6 +34,10 @@ export interface ResolvedVodSource {
 
 @Injectable({ providedIn: 'root' })
 export class VodSourceResolverService {
+    // Redacting: a failed `get_vod_info` carries the foreign playlist's
+    // URL, and Xtream puts the username and password in that query string.
+    private readonly logger = createLogger('VodSourceResolver');
+
     /**
      * The Xtream chain is resolved LAZILY, never at construction.
      *
@@ -153,7 +158,7 @@ export class VodSourceResolverService {
             }
             return playlist;
         } catch (error) {
-            console.warn('Loading the alternative playlist failed:', error);
+            this.logger.warn('Loading the alternative playlist failed:', error);
             return null;
         }
     }
@@ -196,7 +201,7 @@ export class VodSourceResolverService {
                 },
             };
         } catch (error) {
-            console.warn('Reading alternative VOD details failed:', error);
+            this.logger.warn('Reading alternative VOD details failed:', error);
 
             // The portal is unreachable right now, but a container learned on
             // a previous visit is still valid — enough to build a URL and let

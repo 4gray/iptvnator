@@ -48,6 +48,8 @@ describe('VodDetailsRouteComponent', () => {
     const addRecentItem = jest.fn();
     const downloads = signal([]);
     const getPlaybackPosition = jest.fn().mockResolvedValue(null);
+    const activeSession = signal<unknown>(null);
+    const closeSession = jest.fn();
 
     beforeEach(async () => {
         const consoleDebug = console.debug.bind(console);
@@ -91,6 +93,8 @@ describe('VodDetailsRouteComponent', () => {
         constructVodStreamUrl.mockClear();
         addRecentItem.mockClear();
         getPlaybackPosition.mockClear();
+        activeSession.set(null);
+        closeSession.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [VodDetailsRouteComponent],
@@ -161,10 +165,7 @@ describe('VodDetailsRouteComponent', () => {
                 },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: {
-                        activeSession: signal(null),
-                        closeSession: jest.fn(),
-                    },
+                    useValue: { activeSession, closeSession },
                 },
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
@@ -296,6 +297,33 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback"]')
         ).toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+    });
+
+    it('stops the external player when the button says Stop', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        activeSession.set({
+            player: 'mpv',
+            status: 'playing',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+
+        const component = fixture.componentInstance;
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+        expect(component.isExternalStopAction()).toBe(true);
+
+        await component.onPrimaryAction({} as XtreamVodDetails);
+
+        // Consulting the pin first would launch a second player while the
+        // first keeps running — the control doing the opposite of its label.
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(closeSession).toHaveBeenCalled();
     });
 
     it('holds the resume point until the engine has seeked to it', () => {

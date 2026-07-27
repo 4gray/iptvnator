@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import type { VodSourceProbeResult } from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
 
 /**
  * On-demand stream reachability checks via the Electron main process.
@@ -97,7 +98,9 @@ export class StreamProbeService {
                 probedAt: new Date().toISOString(),
             };
         } catch (error) {
-            console.warn('Stream probe failed:', error);
+            // The probed URL is a stream URL, and Xtream builds those out
+            // of the username and password — never log one raw.
+            console.warn('Stream probe failed:', redactSensitiveData(error));
             result = { status: 'unknown' };
         }
 
