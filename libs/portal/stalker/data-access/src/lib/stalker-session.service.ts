@@ -48,12 +48,22 @@ export const STALKER_SESSION_BRIDGE = new InjectionToken<
     providedIn: 'root',
 });
 
-type StalkerSessionNonSuccessOutcome =
+export type StalkerSessionNonSuccessOutcome =
     | StalkerSessionConnectionOutcome
     | Exclude<
           StalkerSessionRequestOutcome<StalkerSessionApplicationOperation>,
           { kind: 'success' }
       >;
+
+export interface StalkerSessionRecoveryRequest {
+    readonly playlist: Playlist;
+    readonly outcome: StalkerSessionNonSuccessOutcome;
+    readonly trigger: 'open' | 'request';
+}
+
+export type StalkerSessionRecoveryHandler = (
+    request: StalkerSessionRecoveryRequest
+) => Promise<boolean>;
 
 export class StalkerSessionOutcomeError extends Error {
     constructor(readonly outcome: StalkerSessionNonSuccessOutcome) {
@@ -97,6 +107,11 @@ export class StalkerSessionService {
         string,
         Promise<StalkerSessionConnectionOutcome>
     >();
+    private readonly recoveryByPlaylistRef = new Map<
+        string,
+        Promise<boolean>
+    >();
+    private recoveryHandler: StalkerSessionRecoveryHandler | undefined;
 
     supportsTypedSessions(): boolean {
         return this.bridge !== undefined;
@@ -110,6 +125,17 @@ export class StalkerSessionService {
 
     getLeaseRef(playlistRef: string): StalkerSessionLeaseRef | undefined {
         return this.leaseByPlaylistRef.get(playlistRef);
+    }
+
+    registerRecoveryHandler(
+        handler: StalkerSessionRecoveryHandler
+    ): () => void {
+        this.recoveryHandler = handler;
+        return () => {
+            if (this.recoveryHandler === handler) {
+                this.recoveryHandler = undefined;
+            }
+        };
     }
 
     async open(
@@ -268,7 +294,11 @@ export class StalkerSessionService {
     ): Promise<T> {
         const adapted = adaptLegacyStalkerRequest(parameters);
         const leaseRef = await this.resolveLease(playlist);
-        const result = await this.executeAdaptedRequest(leaseRef, adapted);
+        const result = await this.executeAdaptedRequest(
+            playlist,
+            leaseRef,
+            adapted
+        );
         return result as T;
     }
 
@@ -282,6 +312,15 @@ export class StalkerSessionService {
 
         const outcome = await this.open(playlist);
         if (outcome.kind !== 'ready' || outcome.recipe !== 'full-session') {
+            if (
+                this.isRecoverable(outcome) &&
+                (await this.recover(playlist, outcome, 'open'))
+            ) {
+                const recoveredLease = this.getLeaseRef(playlist._id);
+                if (recoveredLease !== undefined) {
+                    return recoveredLease;
+                }
+            }
             throw new StalkerSessionOutcomeError(outcome);
         }
         return outcome.leaseRef;
@@ -311,20 +350,74 @@ export class StalkerSessionService {
     }
 
     private async executeAdaptedRequest(
+        playlist: Playlist,
         leaseRef: StalkerSessionLeaseRef,
         adaptedRequest: StalkerAdaptedRequest
     ): Promise<unknown> {
-        const outcome = await this.request({
+        let outcome = await this.request({
             leaseRef,
             operation: adaptedRequest.operation,
             parameters: adaptedRequest.parameters,
         } as StalkerSessionRequest);
+        if (
+            outcome.kind !== 'success' &&
+            this.isRecoverable(outcome) &&
+            (await this.recover(playlist, outcome, 'request'))
+        ) {
+            const recoveredLease = this.getLeaseRef(playlist._id);
+            if (recoveredLease !== undefined) {
+                outcome = await this.request({
+                    leaseRef: recoveredLease,
+                    operation: adaptedRequest.operation,
+                    parameters: adaptedRequest.parameters,
+                } as StalkerSessionRequest);
+            }
+        }
         if (outcome.kind !== 'success') {
             throw new StalkerSessionOutcomeError(outcome);
         }
         return mapStalkerSessionResultToLegacyResponse(
             outcome.operation,
             outcome.payload
+        );
+    }
+
+    private recover(
+        playlist: Playlist,
+        outcome: StalkerSessionNonSuccessOutcome,
+        trigger: StalkerSessionRecoveryRequest['trigger']
+    ): Promise<boolean> {
+        const active = this.recoveryByPlaylistRef.get(playlist._id);
+        if (active !== undefined) {
+            return active;
+        }
+        const handler = this.recoveryHandler;
+        if (handler === undefined) {
+            return Promise.resolve(false);
+        }
+        const recovery = Promise.resolve(
+            handler({
+                outcome,
+                playlist,
+                trigger,
+            })
+        ).finally(() => {
+            if (this.recoveryByPlaylistRef.get(playlist._id) === recovery) {
+                this.recoveryByPlaylistRef.delete(playlist._id);
+            }
+        });
+        this.recoveryByPlaylistRef.set(playlist._id, recovery);
+        return recovery;
+    }
+
+    private isRecoverable(
+        outcome: StalkerSessionNonSuccessOutcome
+    ): boolean {
+        return (
+            outcome.kind === 'origin-approval-required' ||
+            outcome.kind === 'credentials-required' ||
+            (outcome.kind === 'failure' &&
+                outcome.reason === 'principal-transition-required')
         );
     }
 

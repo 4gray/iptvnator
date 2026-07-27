@@ -59,6 +59,12 @@ const PROVISIONAL_READY: StalkerSessionConnectionOutcome = {
     requestId: 'request-provisional-1',
 };
 
+const RECONNECTED_READY: StalkerSessionConnectionOutcome = {
+    ...READY,
+    leaseRef: 'opaque-lease-2',
+    requestId: 'request-reconnected-1',
+};
+
 function createBridge(): jest.Mocked<StalkerSessionBridge> {
     return {
         stalkerSessionContinue: jest.fn(),
@@ -373,6 +379,177 @@ describe('StalkerSessionService', () => {
             })
         ).rejects.toEqual(new StalkerSessionOutcomeError(failure));
         expect(bridge.stalkerSessionRequest).not.toHaveBeenCalled();
+    });
+
+    it('lets the route recover a principal transition and reissues the original operation exactly once', async () => {
+        const transition: StalkerSessionRequestOutcome = {
+            kind: 'failure',
+            reason: 'principal-transition-required',
+            requestId: 'request-transition-1',
+            retryable: false,
+            stage: 'refreshing',
+        };
+        bridge.stalkerSessionOpen
+            .mockResolvedValueOnce(READY)
+            .mockResolvedValueOnce(RECONNECTED_READY);
+        bridge.stalkerSessionRequest
+            .mockResolvedValueOnce(transition)
+            .mockResolvedValueOnce({
+                kind: 'success',
+                operation:
+                    STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
+                payload: {
+                    items: [{ id: '7', name: 'Movies' }],
+                },
+                requestId: 'request-categories-retried',
+            });
+        const recover = jest.fn(async () => {
+            await service.open(PLAYLIST, {
+                connectionMode: 'provisional',
+                provisionalReason: 'migration',
+            });
+            return true;
+        });
+        service.registerRecoveryHandler(recover);
+
+        await expect(
+            service.makeAuthenticatedRequest(PLAYLIST, {
+                action: 'get_categories',
+                type: 'vod',
+            })
+        ).resolves.toEqual({
+            js: [{ id: '7', title: 'Movies' }],
+        });
+
+        expect(recover).toHaveBeenCalledWith({
+            outcome: transition,
+            playlist: PLAYLIST,
+            trigger: 'request',
+        });
+        expect(bridge.stalkerSessionRequest).toHaveBeenCalledTimes(2);
+        expect(bridge.stalkerSessionRequest.mock.calls[1][0]).toMatchObject({
+            leaseRef: 'opaque-lease-2',
+            operation:
+                STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
+        });
+    });
+
+    it('joins concurrent route recovery while preserving one retry per original operation', async () => {
+        const transition: StalkerSessionRequestOutcome = {
+            kind: 'failure',
+            reason: 'principal-transition-required',
+            requestId: 'request-transition-concurrent',
+            retryable: false,
+            stage: 'refreshing',
+        };
+        bridge.stalkerSessionOpen.mockResolvedValue(READY);
+        bridge.stalkerSessionRequest
+            .mockResolvedValueOnce(transition)
+            .mockResolvedValueOnce(transition)
+            .mockResolvedValue({
+                kind: 'success',
+                operation:
+                    STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
+                payload: { items: [] },
+                requestId: 'request-categories-retried',
+            });
+        let resolveRecovery!: (value: boolean) => void;
+        const recovery = new Promise<boolean>((resolve) => {
+            resolveRecovery = resolve;
+        });
+        const recover = jest.fn(() => recovery);
+        service.registerRecoveryHandler(recover);
+
+        const first = service.makeAuthenticatedRequest(PLAYLIST, {
+            action: 'get_categories',
+            type: 'vod',
+        });
+        const second = service.makeAuthenticatedRequest(PLAYLIST, {
+            action: 'get_categories',
+            type: 'vod',
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+        resolveRecovery(true);
+
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            { js: [] },
+            { js: [] },
+        ]);
+        expect(recover).toHaveBeenCalledTimes(1);
+        expect(bridge.stalkerSessionRequest).toHaveBeenCalledTimes(4);
+    });
+
+    it('lets the route continue a first-open credential challenge before the application request', async () => {
+        const challenge: StalkerSessionConnectionOutcome = {
+            attemptNumber: 1,
+            challengeRef: 'opaque-challenge-route-1',
+            kind: 'credentials-required',
+            requestId: 'request-open-challenge',
+            savedCredentialsRejected: true,
+        };
+        bridge.stalkerSessionOpen.mockResolvedValue(challenge);
+        bridge.stalkerSessionContinue.mockResolvedValue(READY);
+        bridge.stalkerSessionRequest.mockResolvedValue({
+            kind: 'success',
+            operation:
+                STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
+            payload: { items: [] },
+            requestId: 'request-after-route-recovery',
+        });
+        const recover = jest.fn(async () => {
+            await service.continue(PLAYLIST._id, {
+                challengeRef: challenge.challengeRef,
+                response: {
+                    kind: 'credentials',
+                    password: 'entered-password',
+                    username: 'entered-user',
+                },
+            });
+            return true;
+        });
+        service.registerRecoveryHandler(recover);
+
+        await expect(
+            service.makeAuthenticatedRequest(PLAYLIST, {
+                action: 'get_categories',
+                type: 'vod',
+            })
+        ).resolves.toEqual({ js: [] });
+
+        expect(recover).toHaveBeenCalledWith({
+            outcome: challenge,
+            playlist: PLAYLIST,
+            trigger: 'open',
+        });
+        expect(bridge.stalkerSessionRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('unregisters only the matching route recovery handler', async () => {
+        const first = jest.fn(async () => true);
+        const second = jest.fn(async () => true);
+        const unregisterFirst = service.registerRecoveryHandler(first);
+        service.registerRecoveryHandler(second);
+
+        unregisterFirst();
+
+        const failure: StalkerSessionConnectionOutcome = {
+            attemptNumber: 1,
+            challengeRef: 'opaque-challenge-active-handler',
+            kind: 'credentials-required',
+            requestId: 'request-active-handler',
+            savedCredentialsRejected: true,
+        };
+        bridge.stalkerSessionOpen.mockResolvedValue(failure);
+
+        await expect(
+            service.makeAuthenticatedRequest(PLAYLIST, {
+                action: 'get_categories',
+                type: 'vod',
+            })
+        ).rejects.toEqual(new StalkerSessionOutcomeError(failure));
+        expect(first).not.toHaveBeenCalled();
+        expect(second).toHaveBeenCalledTimes(1);
     });
 
     it('fails closed when the typed Electron bridge is unavailable', async () => {
