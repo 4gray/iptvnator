@@ -17,6 +17,10 @@ export interface ScenarioConfig {
     vodDetailsFixture?: 'empty-metadata';
     /** Optional fictional release-marketing dataset with local demo artwork. */
     marketingFixture?: true;
+    /** Optional deterministic catalog profile reserved for performance tests. */
+    performanceFixture?: 'catalog-100k';
+    /** Build series details on demand instead of during portal initialization. */
+    deferSeriesDetails?: true;
 }
 
 /**
@@ -58,6 +62,19 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         episodesPerSeason: 10,
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
+    },
+    'performance:performance': {
+        name: 'performance-100k',
+        description: 'Deterministic local-only 100k performance catalog',
+        seed: 91001,
+        categoryCount: { live: 60, vod: 20, series: 20 },
+        itemsPerCategory: 1000,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 1,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        performanceFixture: 'catalog-100k',
+        deferSeriesDetails: true,
     },
     'series:series': {
         name: 'series-heavy',

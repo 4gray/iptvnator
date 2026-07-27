@@ -33,6 +33,14 @@
         },
         "lint": {
             "executor": "@nx/eslint:lint"
+        },
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "apps/xtream-mock-server/jest.config.ts",
+                "tsConfig": "apps/xtream-mock-server/tsconfig.spec.json"
+            }
         }
     }
 }

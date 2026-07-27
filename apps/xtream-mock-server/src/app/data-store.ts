@@ -16,6 +16,11 @@ import {
     buildMarketingSeriesInfo,
     buildMarketingVodDetails,
 } from './generators/marketing.generator.js';
+import {
+    buildPerformancePortalFixture,
+    buildPerformanceSeriesInfo,
+    buildPerformanceVodDetails,
+} from './generators/performance.generator.js';
 import { getScenario, ScenarioConfig } from './scenarios.js';
 
 export interface PortalData {
@@ -30,11 +35,19 @@ export interface PortalData {
 }
 
 const portalCache = new Map<string, PortalData>();
-const vodDetailsCache = new Map<number, RawVodDetails>();
-const seriesInfoCache = new Map<number, RawSeriesInfo>();
+const vodDetailsCache = new Map<string, RawVodDetails>();
+const seriesInfoCache = new Map<string, RawSeriesInfo>();
 
 function generatePortalData(username: string, password: string): PortalData {
     const scenario = getScenario(username, password);
+
+    if (scenario.performanceFixture === 'catalog-100k') {
+        return {
+            scenario,
+            ...buildPerformancePortalFixture(),
+        };
+    }
+
     faker.seed(scenario.seed);
 
     const { categoryCount, itemsPerCategory, seasonsPerSeries, episodesPerSeason } = scenario;
@@ -42,9 +55,10 @@ function generatePortalData(username: string, password: string): PortalData {
     if (scenario.marketingFixture) {
         const marketingFixture = buildMarketingPortalFixture();
         for (const s of marketingFixture.seriesItems) {
-            if (!seriesInfoCache.has(s.series_id)) {
+            const cacheKey = detailCacheKey(username, password, s.series_id);
+            if (!seriesInfoCache.has(cacheKey)) {
                 seriesInfoCache.set(
-                    s.series_id,
+                    cacheKey,
                     buildMarketingSeriesInfo(
                         s,
                         seasonsPerSeries,
@@ -79,9 +93,15 @@ function generatePortalData(username: string, password: string): PortalData {
     }
 
     // Pre-populate series info cache
-    for (const s of seriesItems) {
-        if (!seriesInfoCache.has(s.series_id)) {
-            seriesInfoCache.set(s.series_id, generateSeriesInfo(s, seasonsPerSeries, episodesPerSeason));
+    if (!scenario.deferSeriesDetails) {
+        for (const s of seriesItems) {
+            const cacheKey = detailCacheKey(username, password, s.series_id);
+            if (!seriesInfoCache.has(cacheKey)) {
+                seriesInfoCache.set(
+                    cacheKey,
+                    generateSeriesInfo(s, seasonsPerSeries, episodesPerSeason)
+                );
+            }
         }
     }
 
@@ -106,46 +126,51 @@ export function getPortalData(username: string, password: string): PortalData {
 }
 
 export function getVodDetails(username: string, password: string, vodId: number): RawVodDetails | null {
-    if (!vodDetailsCache.has(vodId)) {
+    const cacheKey = detailCacheKey(username, password, vodId);
+    if (!vodDetailsCache.has(cacheKey)) {
         const data = getPortalData(username, password);
         const stream = data.vodStreams.find(v => v.stream_id === vodId);
         if (!stream) return null;
         if (data.scenario.vodDetailsFixture === 'empty-metadata') {
-            vodDetailsCache.set(vodId, { info: [] });
-            return vodDetailsCache.get(vodId) ?? null;
+            vodDetailsCache.set(cacheKey, { info: [] });
+            return vodDetailsCache.get(cacheKey) ?? null;
         }
         vodDetailsCache.set(
-            vodId,
-            data.scenario.marketingFixture
-                ? buildMarketingVodDetails(stream)
-                : generateVodDetails(stream)
+            cacheKey,
+            data.scenario.performanceFixture === 'catalog-100k'
+                ? buildPerformanceVodDetails(stream)
+                : data.scenario.marketingFixture
+                  ? buildMarketingVodDetails(stream)
+                  : generateVodDetails(stream)
         );
     }
-    return vodDetailsCache.get(vodId) ?? null;
+    return vodDetailsCache.get(cacheKey) ?? null;
 }
 
 export function getSeriesInfo(username: string, password: string, seriesId: number): RawSeriesInfo | null {
-    if (!seriesInfoCache.has(seriesId)) {
+    const cacheKey = detailCacheKey(username, password, seriesId);
+    if (!seriesInfoCache.has(cacheKey)) {
         const data = getPortalData(username, password);
         const series = data.seriesItems.find(s => s.series_id === seriesId);
         if (!series) return null;
-        const scenario = getScenario(username, password);
         seriesInfoCache.set(
-            seriesId,
-            scenario.marketingFixture
-                ? buildMarketingSeriesInfo(
-                      series,
-                      scenario.seasonsPerSeries,
-                      scenario.episodesPerSeason
-                  )
-                : generateSeriesInfo(
-                      series,
-                      scenario.seasonsPerSeries,
-                      scenario.episodesPerSeason
-                  )
+            cacheKey,
+            data.scenario.performanceFixture === 'catalog-100k'
+                ? buildPerformanceSeriesInfo(series)
+                : data.scenario.marketingFixture
+                  ? buildMarketingSeriesInfo(
+                        series,
+                        data.scenario.seasonsPerSeries,
+                        data.scenario.episodesPerSeason
+                    )
+                  : generateSeriesInfo(
+                        series,
+                        data.scenario.seasonsPerSeries,
+                        data.scenario.episodesPerSeason
+                    )
         );
     }
-    return seriesInfoCache.get(seriesId) ?? null;
+    return seriesInfoCache.get(cacheKey) ?? null;
 }
 
 export function getEpgListings(
@@ -181,6 +206,21 @@ export function resetAll(): void {
     portalCache.clear();
     vodDetailsCache.clear();
     seriesInfoCache.clear();
+}
+
+/** Test-only cache sizes; never exposes credential-bearing keys or fixture data. */
+export function getDetailCacheCardinalityForTesting(): Readonly<{
+    vodDetails: number;
+    seriesInfo: number;
+}> {
+    return {
+        vodDetails: vodDetailsCache.size,
+        seriesInfo: seriesInfoCache.size,
+    };
+}
+
+function detailCacheKey(username: string, password: string, itemId: number): string {
+    return `${username}:${password}:${itemId}`;
 }
 
 function buildTimezoneFixture(): Pick<
