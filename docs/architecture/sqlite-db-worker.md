@@ -723,7 +723,10 @@ For deterministic E2E timing, tests may set:
 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS=20
 ```
 
-This delay is test-only and disabled by default.
+This artificial delay is test-only and disabled by default. At the default
+value of `0`, every cancellable batch checkpoint still yields one event-loop
+turn without adding a timer delay. That yield lets the worker receive a queued
+cancel message before starting the next batch.
 
 ### Useful verification commands
 
