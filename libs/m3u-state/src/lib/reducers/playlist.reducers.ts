@@ -39,11 +39,9 @@ export const playlistReducers = [
             detectedEpgUrls:
                 action.playlist.detectedEpgUrls ??
                 currentPlaylist?.detectedEpgUrls,
-            enabledEpgUrls:
-                action.playlist.epgUrls ?? currentPlaylist?.epgUrls,
+            enabledEpgUrls: action.playlist.epgUrls ?? currentPlaylist?.epgUrls,
             manualEpgUrls:
-                action.playlist.manualEpgUrls ??
-                currentPlaylist?.manualEpgUrls,
+                action.playlist.manualEpgUrls ?? currentPlaylist?.manualEpgUrls,
             disabledEpgUrls:
                 action.playlist.disabledEpgUrls ??
                 currentPlaylist?.disabledEpgUrls,
@@ -86,6 +84,18 @@ export const playlistReducers = [
             ),
         };
     }),
+    on(
+        PlaylistActions.stalkerConnectionPersisted,
+        (state, action): PlaylistState => {
+            return {
+                ...state,
+                playlists: playlistsAdapter.setOne(
+                    action.playlist,
+                    state.playlists
+                ),
+            };
+        }
+    ),
     on(PlaylistActions.addManyPlaylists, (state, action): PlaylistState => {
         return {
             ...state,

@@ -160,9 +160,9 @@ describe('playlistReducers', () => {
             })
         );
 
-        expect(
-            nextState.playlists.entities['playlist-1']?.autoRefresh
-        ).toBe(true);
+        expect(nextState.playlists.entities['playlist-1']?.autoRefresh).toBe(
+            true
+        );
     });
 
     it('keeps autoRefresh disabled on playlist refresh when the existing playlist has it disabled', () => {
@@ -194,8 +194,57 @@ describe('playlistReducers', () => {
             })
         );
 
-        expect(
-            nextState.playlists.entities['playlist-1']?.autoRefresh
-        ).toBe(false);
+        expect(nextState.playlists.entities['playlist-1']?.autoRefresh).toBe(
+            false
+        );
+    });
+
+    it('reflects an atomically persisted Stalker connection without triggering another write', () => {
+        const existingPlaylist = {
+            _id: 'stalker-1',
+            autoRefresh: false,
+            count: 0,
+            importDate: '2026-07-27T00:00:00.000Z',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://old.example/server/load.php',
+            stalkerToken: 'legacy-token',
+            title: 'Old Portal',
+        } as PlaylistMeta;
+        const persistedPlaylist = {
+            ...existingPlaylist,
+            portalUrl: 'https://new.example/server/load.php',
+            stalkerLandingUrl: 'https://new.example/c/',
+            stalkerRequestRecipe: 'full-session',
+            stalkerSourceUrl: 'https://new.example/c/',
+            title: 'Connected Portal',
+        } as Playlist;
+        delete persistedPlaylist.stalkerToken;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(
+                existingPlaylist,
+                initialState.playlists
+            ),
+        };
+
+        const nextState = reducer(
+            state,
+            PlaylistActions.stalkerConnectionPersisted({
+                playlist: persistedPlaylist,
+            })
+        );
+
+        expect(nextState.playlists.entities['stalker-1']).toEqual(
+            expect.objectContaining({
+                portalUrl: 'https://new.example/server/load.php',
+                stalkerLandingUrl: 'https://new.example/c/',
+                stalkerRequestRecipe: 'full-session',
+                stalkerSourceUrl: 'https://new.example/c/',
+                title: 'Connected Portal',
+            })
+        );
+        expect(nextState.playlists.entities['stalker-1']).not.toHaveProperty(
+            'stalkerToken'
+        );
     });
 });
