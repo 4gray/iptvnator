@@ -47,7 +47,18 @@ export async function probeSource(
     }
 
     controller.updateSource(resolved.candidate);
-    const result = await deps.probes.probe(resolved.playback.streamUrl);
+    // Probe the way this playlist actually plays: a panel that requires its
+    // own User-Agent, Referer or Origin refuses a bare request, and calling a
+    // working stream unavailable would poison the failover ranking too.
+    const result = await deps.probes.probe(
+        resolved.playback.streamUrl,
+        'HEAD',
+        {
+            userAgent: resolved.playback.userAgent,
+            referer: resolved.playback.referer,
+            origin: resolved.playback.origin,
+        }
+    );
     if (!isCurrent(session)) {
         return;
     }

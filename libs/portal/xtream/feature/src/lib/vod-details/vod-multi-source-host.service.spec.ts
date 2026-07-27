@@ -157,6 +157,24 @@ describe('VodMultiSourceHostService', () => {
         );
     });
 
+    it('never puts a credential-bearing playlist name in the notice', async () => {
+        // Users routinely name a playlist after the URL they pasted, and this
+        // string goes straight into a toast over the video.
+        const leaky = {
+            ...ALT_TWO,
+            playlistName:
+                'http://portal.example.com:8080/get.php?username=alice&password=hunter2',
+        };
+        await loadMovie([leaky]);
+
+        await service.play(leaky.id);
+
+        const notice = service.lastSwitch();
+        expect(notice?.playlistName).not.toContain('hunter2');
+        expect(notice?.playlistName).not.toContain('alice');
+        expect(notice?.playlistName).toBe('portal.example.com:8080');
+    });
+
     it('announces every switch with the target playlist', async () => {
         await loadMovie([ALT_TWO]);
         service.reportPosition(2538);
@@ -259,8 +277,12 @@ describe('VodMultiSourceHostService', () => {
 
         await service.check(ALT_TWO.id);
 
+        // Probed with the playlist's own playback headers, or a panel that
+        // requires them answers 403 and a working source looks dead.
         expect(probes.probe).toHaveBeenCalledWith(
-            `http://${ALT_TWO.playlistId}/${ALT_TWO.contentId}.mkv`
+            `http://${ALT_TWO.playlistId}/${ALT_TWO.contentId}.mkv`,
+            'HEAD',
+            expect.objectContaining({ userAgent: undefined })
         );
         expect(rowFor(ALT_TWO.id)?.probe).toEqual(PROBE_OK);
     });

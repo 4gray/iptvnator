@@ -22,7 +22,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
-describe('VodDetailsRouteComponent', () => {
+/**
+ * What the primary button and the resume point do, as opposed to what the
+ * page renders. Split from the rendering spec to keep both inside the
+ * repository's file-size rule.
+ */
+describe('VodDetailsRouteComponent — playback actions', () => {
     let fixture: ComponentFixture<VodDetailsRouteComponent>;
     let consoleDebugSpy: jest.SpyInstance | undefined;
     let consoleWarnSpy: jest.SpyInstance | undefined;
@@ -206,122 +211,93 @@ describe('VodDetailsRouteComponent', () => {
         consoleWarnSpy?.mockRestore();
     });
 
-    it('renders an informational fallback without playback controls when Xtream returns empty metadata', () => {
-        selectedItem.set({
-            info: [],
-        } as XtreamVodDetails);
-        vodStreams.set([
-            {
-                name: 'Die Kühe sind Los! (2004) DE',
-                stream_id: 650020,
-                stream_icon: 'https://example.com/cows.jpg',
-                added: '1720000000',
-                category_id: '235',
-                container_extension: 'mp4',
-                rating: 6.1,
-                rating_imdb: '6.1',
-            },
-        ]);
-        vodCategories.set([
-            {
-                category_id: '235',
-                category_name: 'DE | DISNEY',
-            },
-        ]);
-
-        fixture.detectChanges();
-
-        const host = fixture.nativeElement as HTMLElement;
-        expect(host.textContent).toContain('Die Kühe sind Los! (2004) DE');
-        expect(
-            host.querySelector('[data-testid="xtream-vod-fallback"]')
-                ?.textContent
-        ).toContain('XTREAM.DETAIL_FALLBACK.NOTE');
-        expect(
-            host.querySelector('[data-testid="xtream-vod-fallback-status"]')
-                ?.textContent
-        ).toContain('XTREAM.DETAIL_FALLBACK.STATUS');
-        expect(host.querySelector('button.play-btn')).toBeNull();
-        expect(host.querySelector('button.favorite-btn')).toBeNull();
-        expect(host.querySelector('button.download-btn')).toBeNull();
-    });
-
-    it('keeps the full Xtream detail view when usable metadata exists', () => {
-        selectedItem.set({
-            info: {
-                kinopoisk_url: '',
-                tmdb_id: 228203,
-                name: 'City of McFarland (2015)',
-                o_name: 'City of McFarland (2015)',
-                cover_big: 'https://example.com/poster-big.jpg',
-                movie_image: 'https://example.com/poster.jpg',
-                releasedate: '2015-02-20',
-                episode_run_time: 129,
-                youtube_trailer: '',
-                director: 'Niki Caro',
-                actors: 'Kevin Costner',
-                cast: 'Kevin Costner',
-                description: 'A populated description',
-                plot: 'A populated plot',
-                age: '',
-                mpaa_rating: '',
-                rating_count_kinopoisk: 0,
-                country: 'English',
-                genre: 'Drama',
-                backdrop_path: ['https://example.com/backdrop.jpg'],
-                duration_secs: 7744,
-                duration: '02:09:04',
-                video: ['H.264'],
-                audio: ['AAC'],
-                bitrate: 6251,
-                rating: 7.455,
-                rating_imdb: '7.455',
-                rating_kinopoisk: '7.455',
-            },
-            movie_data: {
-                stream_id: 678140,
-                name: 'City of McFarland (2015) DE',
-                added: '1750671180',
-                category_id: '235',
-                container_extension: 'mkv',
-                custom_sid: null,
-                direct_source: '',
+    it('stops the external player when the button says Stop', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        activeSession.set({
+            player: 'mpv',
+            status: 'playing',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
             },
         });
 
-        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+        expect(component.isExternalStopAction()).toBe(true);
 
-        const host = fixture.nativeElement as HTMLElement;
-        expect(host.textContent).toContain('City of McFarland (2015)');
-        expect(
-            host.querySelector('[data-testid="xtream-vod-fallback"]')
-        ).toBeNull();
-        expect(host.querySelector('button.play-btn')).not.toBeNull();
+        await component.onPrimaryAction({} as XtreamVodDetails);
+
+        // Consulting the pin first would launch a second player while the
+        // first keeps running — the control doing the opposite of its label.
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(closeSession).toHaveBeenCalled();
     });
 
-    it('renders usable metadata when backdrop_path is absent at runtime', () => {
-        selectedItem.set({
-            info: {
-                name: 'Metadata Without Backdrop',
-                description: 'A populated description',
-                movie_image: 'https://example.com/poster.jpg',
-            },
-            movie_data: {
-                stream_id: 678140,
-                name: 'Metadata Without Backdrop',
-                added: '1750671180',
-                category_id: '235',
-                container_extension: 'mkv',
-                custom_sid: null,
-                direct_source: '',
-            },
-        } as unknown as XtreamVodDetails);
+    it('follows external playback progress, which has no timeupdate', () => {
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        const reported = jest.spyOn(component.multiSource, 'reportPosition');
 
-        expect(() => fixture.detectChanges()).not.toThrow();
+        // MPV/VLC report only through the polled position, so this IS their
+        // live timecode. Treating it as a one-shot seed would freeze the
+        // resume point at the start and rewind a later source switch by
+        // however long the user had been watching.
+        playback.vodPlaybackPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            positionSeconds: 120,
+            durationSeconds: 7744,
+        });
+        fixture.detectChanges();
+        expect(reported).toHaveBeenLastCalledWith(120);
 
-        const hero = fixture.debugElement.query(
-            By.directive(ContentHeroComponent)
-        ).componentInstance as ContentHeroComponent;
-        expect(hero.backdropUrl()).toBeUndefined();
+        playback.vodPlaybackPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            positionSeconds: 3600,
+            durationSeconds: 7744,
+        });
+        fixture.detectChanges();
+        expect(reported).toHaveBeenLastCalledWith(3600);
+    });
+
+    it('holds the resume point until the engine has seeked to it', () => {
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        playback.inlinePlayback.set({
+            streamUrl: 'http://example.com/movie/650020.mp4',
+            title: 'City of McFarland',
+            startTime: 2538,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const reported = jest.spyOn(component.multiSource, 'reportPosition');
+
+        // A resuming engine emits timeupdates at ~0 on its way to 2538. That
+        // is not where the film is, and multi-source must not switch or fail
+        // over back to the beginning because of it.
+        component.handleInlineTimeUpdate({ currentTime: 0.2, duration: 7744 });
+        expect(reported).toHaveBeenLastCalledWith(2538);
+
+        component.handleInlineTimeUpdate({ currentTime: 2540, duration: 7744 });
+        expect(reported).toHaveBeenLastCalledWith(2540);
+
+        // One-shot latch, not a filter: a deliberate seek backwards counts.
+        component.handleInlineTimeUpdate({ currentTime: 12, duration: 7744 });
+        expect(reported).toHaveBeenLastCalledWith(12);
     });
 });

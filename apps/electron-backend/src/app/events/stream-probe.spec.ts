@@ -61,6 +61,51 @@ describe('stream probe', () => {
         expect(request.responseType).toBeUndefined();
     });
 
+    it('probes with the playlist headers the stream needs', async () => {
+        const probeHandler = registeredHandlers.get('STREAM_PROBE_URL');
+        axiosMock.mockImplementation((config: { url?: string }) =>
+            Promise.resolve({ status: 200, headers: {}, config })
+        );
+
+        await probeHandler?.(
+            {},
+            {
+                url: 'http://example.com/movie.mkv',
+                userAgent: 'MyPlayer/2.0',
+                referer: 'http://example.com/',
+                origin: 'http://example.com',
+            }
+        );
+
+        // A panel configured to require these answers 401/403 without them,
+        // and reporting a stream that plays fine as dead is the one thing
+        // this probe must not do.
+        const request = axiosMock.mock.calls[0][0] as {
+            headers?: Record<string, string>;
+        };
+        expect(request.headers?.['User-Agent']).toBe('MyPlayer/2.0');
+        expect(request.headers?.['Referer']).toBe('http://example.com/');
+        expect(request.headers?.['Origin']).toBe('http://example.com');
+    });
+
+    it('keeps its own client User-Agent when the playlist sets none', async () => {
+        const probeHandler = registeredHandlers.get('STREAM_PROBE_URL');
+        axiosMock.mockImplementation((config: { url?: string }) =>
+            Promise.resolve({ status: 200, headers: {}, config })
+        );
+
+        await probeHandler?.(
+            {},
+            { url: 'http://example.com/movie.mkv', userAgent: '   ' }
+        );
+
+        const request = axiosMock.mock.calls[0][0] as {
+            headers?: Record<string, string>;
+        };
+        expect(request.headers?.['User-Agent']).toContain('VLC');
+        expect(request.headers?.['Referer']).toBeUndefined();
+    });
+
     it('follows validated redirects for range GET media probes', async () => {
         const probeHandler = registeredHandlers.get('STREAM_PROBE_URL');
         const destroyProbeBody = jest.fn();

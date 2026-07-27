@@ -51,6 +51,19 @@ export type VodSourceProbeStatus =
      */
     | 'unknown';
 
+/**
+ * Playback headers a playlist requires, carried into the probe.
+ *
+ * A panel configured to demand its own User-Agent, Referer or Origin answers
+ * 401/403 without them, and calling a stream that plays fine "unavailable" is
+ * exactly the confident lie this feature refuses to tell.
+ */
+export interface StreamProbeHeaders {
+    userAgent?: string | null;
+    referer?: string | null;
+    origin?: string | null;
+}
+
 export interface VodSourceProbeResult {
     status: VodSourceProbeStatus;
     /** HTTP status when one was actually received; 0 when none was. */

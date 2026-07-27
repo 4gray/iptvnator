@@ -1,9 +1,10 @@
 import { Injector, runInInjectionContext } from '@angular/core';
+import type { StreamProbeHeaders } from '@iptvnator/shared/interfaces';
 import { StreamProbeService } from './stream-probe.service';
 
 type ProbeFn = jest.Mock<
     Promise<{ status: number; url: string; latencyMs?: number }>,
-    [string, ('GET' | 'HEAD')?]
+    [string, ('GET' | 'HEAD')?, StreamProbeHeaders?]
 >;
 
 /**
@@ -45,9 +46,35 @@ describe('StreamProbeService', () => {
 
         const result = await service.probe('http://x/y.mkv');
 
-        expect(probe).toHaveBeenCalledWith('http://x/y.mkv', 'HEAD');
+        expect(probe).toHaveBeenCalledWith('http://x/y.mkv', 'HEAD', undefined);
         expect(result).toEqual(
             expect.objectContaining({ status: 'ok', latencyMs: 42 })
+        );
+    });
+
+    it('carries the playlist headers into both attempts', async () => {
+        const headers = { userAgent: 'MyPlayer/2.0', referer: 'http://x/' };
+        const probe = jest
+            .fn()
+            .mockResolvedValueOnce({ status: 405, url: 'http://x/y.mkv' })
+            .mockResolvedValueOnce({ status: 200, url: 'http://x/y.mkv' });
+        const service = withBridge(probe as ProbeFn);
+
+        await service.probe('http://x/y.mkv', 'HEAD', headers);
+
+        // The GET retry has to carry them too, or the fallback answers 403
+        // for a stream the first attempt was merely not allowed to HEAD.
+        expect(probe).toHaveBeenNthCalledWith(
+            1,
+            'http://x/y.mkv',
+            'HEAD',
+            headers
+        );
+        expect(probe).toHaveBeenNthCalledWith(
+            2,
+            'http://x/y.mkv',
+            'GET',
+            headers
         );
     });
 
@@ -83,8 +110,18 @@ describe('StreamProbeService', () => {
 
             const result = await service.probe('http://x/y.mkv');
 
-            expect(probe).toHaveBeenNthCalledWith(1, 'http://x/y.mkv', 'HEAD');
-            expect(probe).toHaveBeenNthCalledWith(2, 'http://x/y.mkv', 'GET');
+            expect(probe).toHaveBeenNthCalledWith(
+                1,
+                'http://x/y.mkv',
+                'HEAD',
+                undefined
+            );
+            expect(probe).toHaveBeenNthCalledWith(
+                2,
+                'http://x/y.mkv',
+                'GET',
+                undefined
+            );
             expect(result.status).toBe('ok');
         }
     );

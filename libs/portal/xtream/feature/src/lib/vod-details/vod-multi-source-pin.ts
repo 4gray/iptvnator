@@ -26,46 +26,42 @@ export async function readPin(
 }
 
 /**
- * Persist the pin for `candidate` under EVERY alias of the movie.
+ * Persist the pin for `candidate` under the movie's most-trusted key, having
+ * first cleared every alias it could otherwise be found under.
  *
- * Writing only the most-trusted key would leave the others pointing at
- * whatever was pinned before: reopening the movie before enrichment lands —
- * or when that request fails — reads a lower-trust alias and starts the source
- * the user just replaced. Since lookups accept any alias, every alias has to
- * agree.
+ * Both halves are load-bearing, and each rules out the other's obvious
+ * shortcut:
  *
- * Success is the most-trusted key's: it is the one a later lookup reaches
- * first, and a half-written alias set is no worse than the stale one it
- * replaced (unpinning clears them all regardless).
+ * - Writing ONLY the top key leaves the lower-trust aliases pointing at
+ *   whatever was pinned before, and a reopen that reads one of those —
+ *   because enrichment has not landed yet — starts the source the user just
+ *   replaced. Hence the clear.
+ * - Writing the decision INTO every alias is not the fix either: the yearless
+ *   `title:{base}:` form is shared by every remake, so a known-year pin stored
+ *   there would answer for a different film — pin Dune (2021), open Dune
+ *   (1984) before its year arrives, and it would start the 2021 source. That
+ *   alias stays readable, for genuinely pre-enrichment pins, and unwritten.
  */
 export async function writePin(
-    pins: Pick<VodSourcePinService, 'set'>,
+    pins: Pick<VodSourcePinService, 'set' | 'clear'>,
     matchKeys: readonly string[],
     candidate: VodSourceCandidate
 ): Promise<boolean> {
-    const keys = matchKeys.length
-        ? matchKeys
-        : [buildVodSourceMatchKey(candidate)].filter(
-              (key): key is string => !!key
-          );
-    if (keys.length === 0) {
+    const matchKey = matchKeys[0] ?? buildVodSourceMatchKey(candidate);
+    if (!matchKey) {
         return false;
     }
 
+    await erasePin(pins, matchKeys);
+
     // The write can fail — no bridge, or the DB refused it. Reporting success
     // then would show a pin the next visit does not have.
-    const written = await Promise.all(
-        keys.map((matchKey) =>
-            pins.set({
-                matchKey,
-                playlistId: candidate.playlistId,
-                contentId: candidate.contentId,
-                portalType: candidate.portalType,
-            })
-        )
-    );
-
-    return written[0] === true;
+    return pins.set({
+        matchKey,
+        playlistId: candidate.playlistId,
+        contentId: candidate.contentId,
+        portalType: candidate.portalType,
+    });
 }
 
 /** Clears every alias, so unpinning is not undone by a stale row. */

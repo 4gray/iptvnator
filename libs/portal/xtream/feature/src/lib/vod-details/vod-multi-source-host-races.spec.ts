@@ -177,6 +177,27 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
+    it('waits for a discovery still in flight before giving up', async () => {
+        const slow = createDeferred<{
+            sources: VodSourceCandidate[];
+            matchKind: string;
+        }>();
+        discovery.discover.mockReturnValueOnce(slow.promise);
+        vodAutoFailover.set(true);
+
+        const loading = service.load(MOVIE_A);
+
+        // The stream died faster than the database answered. Concluding
+        // "nowhere to go" here would strand the user on the error screen with
+        // alternatives landing a moment later and nothing left to retry them.
+        const failingOver = service.failover();
+        slow.resolve({ sources: [ALT_TWO], matchKind: 'title-year' });
+        await loading;
+
+        await expect(failingOver).resolves.not.toBeNull();
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
+    });
+
     it('leaves the spinner on the row that is still resolving', async () => {
         await loadMovie([ALT_TWO, ALT_THREE]);
 

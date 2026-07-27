@@ -25,6 +25,17 @@ const PROBE_TIMEOUT_MS = 10000;
 export interface StreamProbePayload {
     url: string;
     method?: 'GET' | 'HEAD';
+    /**
+     * The headers the playlist would actually play this stream with.
+     *
+     * A panel that requires its configured User-Agent, Referer or Origin
+     * answers 401/403 to a request without them — and reporting that as a
+     * dead source would be a lie about a stream that plays fine. Probing the
+     * way playback requests is the only honest check.
+     */
+    userAgent?: string | null;
+    referer?: string | null;
+    origin?: string | null;
 }
 
 export interface StreamProbeResponse {
@@ -50,7 +61,16 @@ export async function runStreamProbe(
         method,
         url: payload.url,
         headers: {
-            'User-Agent': PROBE_CLIENT_USER_AGENT,
+            // The playlist's own User-Agent wins when it has one: the default
+            // below is a guess that merely gets past most WAFs, while that
+            // one is what the server was configured to expect.
+            'User-Agent': payload.userAgent?.trim() || PROBE_CLIENT_USER_AGENT,
+            ...(payload.referer?.trim()
+                ? { Referer: payload.referer.trim() }
+                : {}),
+            ...(payload.origin?.trim()
+                ? { Origin: payload.origin.trim() }
+                : {}),
             // Some servers reject a bare HEAD but answer a tiny ranged GET.
             ...(method === 'GET' ? { Range: 'bytes=0-4095' } : {}),
         },

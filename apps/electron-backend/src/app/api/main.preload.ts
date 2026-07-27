@@ -48,6 +48,7 @@ import type {
     Settings,
     TmdbCacheEntry,
     TmdbCacheMediaType,
+    StreamProbeHeaders,
     VodSourcePin,
     XtreamCategory,
 } from '@iptvnator/shared/interfaces';
@@ -610,8 +611,11 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('XTREAM_CANCEL_SESSION', sessionId),
     xtreamProbeUrl: (url: string, method?: 'GET' | 'HEAD') =>
         ipcRenderer.invoke('XTREAM_PROBE_URL', { url, method }),
-    probeStreamUrl: (url: string, method?: 'GET' | 'HEAD') =>
-        ipcRenderer.invoke('STREAM_PROBE_URL', { url, method }),
+    probeStreamUrl: (
+        url: string,
+        method?: 'GET' | 'HEAD',
+        headers?: StreamProbeHeaders
+    ) => ipcRenderer.invoke('STREAM_PROBE_URL', { url, method, ...headers }),
     refreshPlaylist: (payload: PlaylistRefreshPayload) =>
         ipcRenderer.invoke('PLAYLIST:REFRESH', payload),
     cancelPlaylistRefresh: (operationId: string) =>

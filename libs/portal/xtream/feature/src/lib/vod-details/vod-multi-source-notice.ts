@@ -1,5 +1,8 @@
 import { audioDiffersFactually } from '@iptvnator/portal/shared/data-access';
-import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
+import {
+    playlistDisplayLabel,
+    type VodSourceCandidate,
+} from '@iptvnator/shared/interfaces';
 
 /** What a switch tells the user. Lives with the code that builds it. */
 export interface VodMultiSourceSwitchNotice {
@@ -25,7 +28,13 @@ export function buildSwitchNotice(
     resumeSeconds: number
 ): VodMultiSourceSwitchNotice {
     return {
-        playlistName: candidate.playlistName,
+        // Safe by construction, not by call site: users routinely name a
+        // playlist after the URL they pasted, credentials and all, and this
+        // string goes into a toast that sits over the video.
+        playlistName: playlistDisplayLabel(
+            candidate.playlistName,
+            candidate.playlistId
+        ),
         resumeSeconds,
         audioMayDiffer: audioDiffersFactually(previous, resolved),
         quality: resolved.quality?.value,

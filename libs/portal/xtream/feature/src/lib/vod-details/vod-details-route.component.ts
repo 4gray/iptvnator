@@ -330,14 +330,26 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             activeSource: this.activeAlternativeSource,
         });
 
-        // Nothing reports a live position until the player emits its first
-        // timeupdate, so a switch made straight off the Resume button would
-        // otherwise resolve at zero and restart the film.
         effect(() => {
             const position = this.playback.vodPlaybackPosition();
-            if (position) {
-                this.multiSource.seedResumePosition(position.positionSeconds);
+            if (!position) {
+                return;
             }
+
+            if (this.inlinePlayback()) {
+                // Seeding only: the inline player reports the live timecode
+                // itself, and this stored value lags it by up to the save
+                // throttle — applying it would rewind the switch. Before the
+                // first timeupdate there is nothing to protect, so a switch
+                // made straight off the Resume button still resumes.
+                this.multiSource.seedResumePosition(position.positionSeconds);
+                return;
+            }
+
+            // MPV and VLC have no timeupdate to report; this polled position
+            // IS their live one, so a source switch after an hour in an
+            // external player must not rewind to where it started.
+            this.multiSource.reportPosition(position.positionSeconds);
         });
         this.multiSource.bind({
             // Route every switch through the same inline-vs-external fork a

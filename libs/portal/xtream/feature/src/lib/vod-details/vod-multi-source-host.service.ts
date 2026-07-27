@@ -24,12 +24,10 @@ import {
 import {
     applyDiscoveredSources,
     runFailover,
+    switchToSource,
     type SwitchOutcome,
 } from './vod-multi-source-session';
-import {
-    buildSwitchNotice,
-    type VodMultiSourceSwitchNotice,
-} from './vod-multi-source-notice';
+import type { VodMultiSourceSwitchNotice } from './vod-multi-source-notice';
 import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
@@ -90,6 +88,8 @@ export class VodMultiSourceHostService {
     private switchToken = 0;
     private lastMovieKey: string | null = null;
     private movieIdentity: string | null = null;
+    /** Resolves once the discovery on the way has published its sources. */
+    private loadInFlight: Promise<void> | null = null;
 
     /** True while `session`/`switch` still describe the operation in flight. */
     private isCurrentSwitch(session: number, attempt: number): boolean {
@@ -183,6 +183,18 @@ export class VodMultiSourceHostService {
      * failover a clean tried-set for sources it has already burned.
      */
     async load(movie: VodMultiSourceMovie): Promise<void> {
+        const finished = this.discover(movie);
+        this.loadInFlight = finished;
+        try {
+            await finished;
+        } finally {
+            if (this.loadInFlight === finished) {
+                this.loadInFlight = null;
+            }
+        }
+    }
+
+    private async discover(movie: VodMultiSourceMovie): Promise<void> {
         const token = ++this.discoveryToken;
         const identity = vodMultiSourceSessionKey(movie);
         const sameMovie = identity === this.movieIdentity;
@@ -319,6 +331,12 @@ export class VodMultiSourceHostService {
             return null;
         }
 
+        // A stream can fail faster than the database answers. Concluding
+        // "nowhere to go" against a controller whose discovery has not landed
+        // yet would strand the user on the error screen with alternatives
+        // arriving a moment later and nothing left to retry them.
+        await this.loadInFlight;
+
         const switched = await runFailover(this.controller, (candidate) =>
             this.switchTo(candidate)
         );
@@ -334,60 +352,25 @@ export class VodMultiSourceHostService {
         this.controller.seedResumeSeconds(seconds);
     }
 
-    private async switchTo(
-        candidate: VodSourceCandidate
-    ): Promise<SwitchOutcome> {
-        if (!this.bindings) {
-            return 'superseded';
+    private switchTo(candidate: VodSourceCandidate): Promise<SwitchOutcome> {
+        const bindings = this.bindings;
+        if (!bindings) {
+            return Promise.resolve('superseded');
         }
 
         const session = this.sessionToken;
         const attempt = ++this.switchToken;
-        // Snapshot the controller: `load()` swaps in a fresh one for a new
-        // movie, and the continuation below must never touch that one.
-        const controller = this.controller;
 
-        // Read the LIVE position, not the persisted one: the DB value lags by
-        // up to 15 seconds and switching would visibly rewind.
-        const resumeSeconds = Math.floor(controller.getResumeSeconds());
-
-        const previous = controller.findSource(
-            controller.activeSourceId() ?? ''
-        );
-
-        const resolved = await this.resolver.resolve(candidate, {
-            startTime: resumeSeconds,
+        return switchToSource(candidate, {
+            controller: this.controller,
+            resolve: (target, options) =>
+                this.resolver.resolve(target, options),
+            startPlayback: (playback) => bindings.startPlayback(playback),
+            isCurrent: () => this.isCurrentSwitch(session, attempt),
+            setPreviousSource: (id) => this._previousSourceId.set(id),
+            setNotice: (notice) => this._lastSwitch.set(notice),
+            publish: () => this.publish(),
         });
-        if (!this.isCurrentSwitch(session, attempt)) {
-            // Superseded mid-flight — dropping the result is the whole point.
-            return 'superseded';
-        }
-
-        if (!resolved) {
-            // Mark it tried without making it active: a source we cannot even
-            // build a URL for must not be offered again by failover, but it
-            // never started playing either.
-            controller.markTried(candidate.id);
-            this.publish();
-            return 'unresolvable';
-        }
-
-        controller.updateSource(resolved.candidate);
-        this._previousSourceId.set(previous?.id ?? null);
-        controller.setActiveSource(candidate.id);
-        controller.setResumeSeconds(resumeSeconds);
-        this.bindings.startPlayback(resolved.playback);
-
-        this._lastSwitch.set(
-            buildSwitchNotice(
-                candidate,
-                resolved.candidate,
-                previous,
-                resumeSeconds
-            )
-        );
-        this.publish();
-        return 'switched';
     }
 
     private publish(): void {

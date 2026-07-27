@@ -1,5 +1,8 @@
 import { Injectable } from '@angular/core';
-import type { VodSourceProbeResult } from '@iptvnator/shared/interfaces';
+import type {
+    StreamProbeHeaders,
+    VodSourceProbeResult,
+} from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 
 /**
@@ -43,9 +46,15 @@ export class StreamProbeService {
         return entry.result;
     }
 
+    /**
+     * @param headers what the owning playlist plays this stream with. A panel
+     * that requires them answers 401/403 without them, and a source that plays
+     * fine must never be reported as dead.
+     */
     async probe(
         url: string,
-        method: 'GET' | 'HEAD' = 'HEAD'
+        method: 'GET' | 'HEAD' = 'HEAD',
+        headers?: StreamProbeHeaders
     ): Promise<VodSourceProbeResult> {
         if (!this.isAvailable || !url) {
             // Not "offline" — we are simply unable to find out.
@@ -62,7 +71,7 @@ export class StreamProbeService {
             return pending;
         }
 
-        const request = this.runProbe(url, method).finally(() => {
+        const request = this.runProbe(url, method, headers).finally(() => {
             this.inFlight.delete(url);
         });
         this.inFlight.set(url, request);
@@ -76,19 +85,28 @@ export class StreamProbeService {
 
     private async runProbe(
         url: string,
-        method: 'GET' | 'HEAD'
+        method: 'GET' | 'HEAD',
+        headers?: StreamProbeHeaders
     ): Promise<VodSourceProbeResult> {
         let result: VodSourceProbeResult;
 
         try {
-            let response = await window.electron.probeStreamUrl(url, method);
+            let response = await window.electron.probeStreamUrl(
+                url,
+                method,
+                headers
+            );
 
             // Plenty of stream servers reject HEAD outright yet serve the media
             // happily over GET. Reporting those as unavailable would be a
             // confident lie, so retry once with the ranged GET the main process
             // already supports.
             if (method === 'HEAD' && refusesHeadRequests(response.status)) {
-                response = await window.electron.probeStreamUrl(url, 'GET');
+                response = await window.electron.probeStreamUrl(
+                    url,
+                    'GET',
+                    headers
+                );
             }
 
             result = {

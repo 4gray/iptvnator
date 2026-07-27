@@ -33,6 +33,7 @@ import {
 import { PortalDebugEvent } from './portal-debug.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
 import {
+    StreamProbeHeaders,
     VodSourceCandidateRow,
     VodSourcePin,
 } from './vod-source.interface';
@@ -688,7 +689,9 @@ export interface ElectronBridgeApi {
     /** Generic stream reachability probe (VOD multi-source availability) */
     probeStreamUrl: (
         url: string,
-        method?: 'GET' | 'HEAD'
+        method?: 'GET' | 'HEAD',
+        /** Playback headers the owning playlist requires, when it has any. */
+        headers?: StreamProbeHeaders
     ) => Promise<ElectronBridgeXtreamProbeResult>;
     refreshPlaylist: (
         payload: PlaylistRefreshPayload

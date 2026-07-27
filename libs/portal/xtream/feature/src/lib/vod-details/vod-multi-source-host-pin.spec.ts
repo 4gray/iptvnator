@@ -124,26 +124,27 @@ describe('VodMultiSourceHostService — pinning', () => {
         );
     });
 
-    it('points every alias of the movie at the newly pinned source', async () => {
+    it('retires every stale alias and writes only the canonical key', async () => {
         await loadMovie([ALT_TWO]);
         const matchKeys: string[] = pins.get.mock.calls[0][0];
         expect(matchKeys.length).toBeGreaterThan(1);
 
         await service.togglePin(ALT_TWO.id);
 
-        // Writing only the most-trusted key leaves the others pointing at
-        // whatever was pinned before, and a reopen that reads a lower-trust
-        // alias — because enrichment has not landed yet — starts the source
-        // the user just replaced.
-        expect(pins.set).toHaveBeenCalledTimes(matchKeys.length);
-        for (const matchKey of matchKeys) {
-            expect(pins.set).toHaveBeenCalledWith({
-                matchKey,
-                playlistId: ALT_TWO.playlistId,
-                contentId: ALT_TWO.contentId,
-                portalType: 'xtream',
-            });
-        }
+        // Leaving the other aliases alone would keep them pointing at whatever
+        // was pinned before, and a reopen that reads one — because enrichment
+        // has not landed yet — starts the source the user just replaced.
+        expect(pins.clear).toHaveBeenCalledWith(matchKeys);
+        // But the decision is NOT written back into them: `title:{base}:` is
+        // shared by every remake, so a known-year pin stored there would
+        // answer for a different film.
+        expect(pins.set).toHaveBeenCalledTimes(1);
+        expect(pins.set).toHaveBeenCalledWith({
+            matchKey: matchKeys[0],
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
     });
 
     it('does not show a pin the database refused to store', async () => {
@@ -213,9 +214,8 @@ describe('VodMultiSourceHostService — pinning', () => {
         await service.togglePin(ALT_TWO.id);
 
         expect(pins.clear).toHaveBeenCalledWith(matchKeys);
-        // Unpinning writes nothing further — the pin round-trip is one write
-        // per alias, then a single clear of all of them.
-        expect(pins.set).toHaveBeenCalledTimes(matchKeys.length);
+        // Unpinning writes nothing further.
+        expect(pins.set).toHaveBeenCalledTimes(1);
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
 
         pins.get.mockResolvedValue(pin);

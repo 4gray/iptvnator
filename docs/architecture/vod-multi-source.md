@@ -16,7 +16,7 @@ current source is dead, serves an unsupported codec, or buffers badly.
 | Environment | **Electron only** — the chip renders nothing in the PWA |
 | Auto-failover | Opt-in, **off by default** (`Settings.vodAutoFailover`) |
 | Pin scope | Per movie (a global portal priority is out of scope) |
-| Stream probe | HEAD → reachable + latency. **No codec probing** |
+| Stream probe | HEAD → reachable + latency, sent with the playlist's own playback headers. **No codec probing** |
 
 Stalker never reaches the `content` table (it would need a live authenticated
 `get_ordered_list&search=` per portal), and M3U playlists are stored as a JSON
@@ -128,12 +128,20 @@ pinned under any poorer form of itself:
 | before the TMDB id | `title:{base}:{year}` |
 | before the year too | `title:{base}:` |
 
-`buildVodSourceMatchKeyCandidates` returns all three, most-trusted first, and
-**writes go to every one of them**. Reading every alias is what keeps a late
-TMDB id from orphaning an earlier pin; writing every alias is what stops the
-lower-trust ones from still pointing at the source the user just replaced —
-which a reopen before enrichment lands would then play. Unpinning clears them
-all, so a stale row cannot resurrect it.
+`buildVodSourceMatchKeyCandidates` returns all three, most-trusted first.
+Reading every alias is what keeps a late TMDB id from orphaning an earlier pin.
+
+A write **clears every alias and then stores only the canonical key** — both
+halves matter, and each rules out the other's shortcut:
+
+- Writing only the top key would leave the lower-trust aliases pointing at
+  whatever was pinned before, and a reopen that reads one of those (enrichment
+  has not landed, or its request failed) starts the source the user replaced.
+- Writing the decision *into* every alias is not the fix either: the yearless
+  form is shared by every remake, so a known-year pin stored there would answer
+  for a different film — pin Dune (2021), open Dune (1984) before its year
+  arrives, and it starts the 2021 source. That alias stays readable and
+  unwritten.
 
 The row only changes once the write lands. A pin the database refused is worse
 than no pin at all — the icon promises the preference will be there next time,
@@ -228,6 +236,9 @@ Three details make the position survive:
 - The carried position is the **live** one. `handleInlineTimeUpdate` reports to
   `VodMultiSourceHostService.reportPosition()` *before* the 15-second
   persistence throttle, so a switch does not rewind by up to 15 seconds.
+  External players have no `timeupdate` at all, so for them the polled
+  `playback_positions` value IS the live one and is reported directly —
+  seeding it would freeze the resume point where playback started.
 - It is a single `.set()`, never `null` then set — a null in between would
   destroy the player subtree and lose the engine.
 - `playback_positions` is keyed `(playlistId, contentXtreamId, contentType)`, so
@@ -251,7 +262,11 @@ serves both, because two would eventually disagree.
 
 ## Failover
 
-Only fires when `Settings.vodAutoFailover` is on. Ranking (`pickFailoverTarget`):
+Only fires when `Settings.vodAutoFailover` is on, and it first awaits a
+discovery still in flight — a stream can fail faster than SQLite answers,
+and concluding "nowhere to go" against an empty controller would strand the
+user on the error screen with alternatives landing a moment later.
+Ranking (`pickFailoverTarget`):
 
 1. never tried this session — a **hard filter**, not a preference
 2. probed reachable; probed failing is penalised

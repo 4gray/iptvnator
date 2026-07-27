@@ -1,8 +1,13 @@
 import type { VodMultiSourceController } from '@iptvnator/portal/shared/data-access';
 import type {
+    ResolvedPortalPlayback,
     VodSourceCandidate,
     VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
+import {
+    buildSwitchNotice,
+    type VodMultiSourceSwitchNotice,
+} from './vod-multi-source-notice';
 
 /**
  * Session mechanics for one open movie: how a discovery folds into the state
@@ -69,6 +74,77 @@ export function applyDiscoveredSources(
 
     controller.setSources([current, ...sources], matchKind);
     controller.setActiveSource(switchedTo.id);
+}
+
+/** What `switchToSource` needs from the host, without reaching into it. */
+export interface SwitchDeps {
+    controller: VodMultiSourceController;
+    resolve: (
+        candidate: VodSourceCandidate,
+        options: { startTime: number }
+    ) => Promise<{
+        playback: ResolvedPortalPlayback;
+        candidate: VodSourceCandidate;
+    } | null>;
+    startPlayback: (playback: ResolvedPortalPlayback) => void;
+    /** False once a newer switch, or another movie, owns the screen. */
+    isCurrent: () => boolean;
+    setPreviousSource: (sourceId: string | null) => void;
+    setNotice: (notice: VodMultiSourceSwitchNotice) => void;
+    publish: () => void;
+}
+
+/**
+ * Put one source on screen, carrying the timecode across.
+ *
+ * The controller is taken from `deps` rather than read live, because `load()`
+ * swaps in a fresh one for a new movie and the continuation after the await
+ * must never touch that one.
+ */
+export async function switchToSource(
+    candidate: VodSourceCandidate,
+    deps: SwitchDeps
+): Promise<SwitchOutcome> {
+    const { controller } = deps;
+
+    // The LIVE position, not the persisted one: the stored value lags by up to
+    // the save throttle and switching would visibly rewind.
+    const resumeSeconds = Math.floor(controller.getResumeSeconds());
+    const previous = controller.findSource(controller.activeSourceId() ?? '');
+
+    const resolved = await deps.resolve(candidate, {
+        startTime: resumeSeconds,
+    });
+    if (!deps.isCurrent()) {
+        // Superseded mid-flight — dropping the result is the whole point.
+        return 'superseded';
+    }
+
+    if (!resolved) {
+        // Mark it tried without making it active: a source we cannot even
+        // build a URL for must not be offered again by failover, but it never
+        // started playing either.
+        controller.markTried(candidate.id);
+        deps.publish();
+        return 'unresolvable';
+    }
+
+    controller.updateSource(resolved.candidate);
+    deps.setPreviousSource(previous?.id ?? null);
+    controller.setActiveSource(candidate.id);
+    controller.setResumeSeconds(resumeSeconds);
+    deps.startPlayback(resolved.playback);
+
+    deps.setNotice(
+        buildSwitchNotice(
+            candidate,
+            resolved.candidate,
+            previous,
+            resumeSeconds
+        )
+    );
+    deps.publish();
+    return 'switched';
 }
 
 /**
