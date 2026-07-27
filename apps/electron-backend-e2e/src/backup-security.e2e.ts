@@ -212,6 +212,14 @@ test.describe('Electron playlist backup security acceptance', () => {
                         },
                     },
                     skippedXtream,
+                    {
+                        ...redactedStalker,
+                        connection: { ...redactedStalker.connection },
+                        userState: {
+                            favorites: [],
+                            recentlyViewed: [],
+                        },
+                    },
                 ],
             };
             writeFileSync(
@@ -278,7 +286,7 @@ test.describe('Electron playlist backup security acceptance', () => {
 
             await expect(
                 app.mainWindow.getByText(
-                    'Backup import finished: 0 imported, 1 merged, 1 skipped, 0 failed.'
+                    'Backup import finished: 0 imported, 2 merged, 1 skipped, 0 failed.'
                 )
             ).toBeVisible({ timeout: 15000 });
 
@@ -303,6 +311,32 @@ test.describe('Electron playlist backup security acceptance', () => {
             expect(
                 await readPlaylist(app.mainWindow, SKIPPED_XTREAM_PLAYLIST_ID)
             ).toBeNull();
+
+            const restoredStalker = await readPlaylist(
+                app.mainWindow,
+                STALKER_PLAYLIST_ID
+            );
+            expect(restoredStalker).toMatchObject({
+                _id: STALKER_PLAYLIST_ID,
+                password: STALKER_PASSWORD,
+                stalkerIdentityOverrides: {
+                    deviceId1: 'STRUCTURED-BACKUP-DEVICE-1',
+                    serialNumber: STALKER_STRUCTURED_SERIAL,
+                },
+                username: STALKER_USERNAME,
+            });
+            expect(restoredStalker).not.toHaveProperty('stalkerAccountInfo');
+            expect(restoredStalker).not.toHaveProperty('stalkerLandingUrl');
+            expect(restoredStalker).not.toHaveProperty(
+                'stalkerLastVerifiedAt'
+            );
+            expect(restoredStalker).not.toHaveProperty(
+                'stalkerRecipeClassifierVersion'
+            );
+            expect(restoredStalker).not.toHaveProperty(
+                'stalkerRequestRecipe'
+            );
+            expect(restoredStalker).not.toHaveProperty('stalkerToken');
 
             const allPlaylists = await readAllPlaylists(app.mainWindow);
             expect(allPlaylists).toHaveLength(2);

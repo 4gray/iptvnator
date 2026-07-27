@@ -1215,6 +1215,10 @@ export class PlaylistBackupService {
             ...(hasOwn(entry.connection, 'stalkerSignature2')
                 ? { stalkerSignature2: entry.connection.stalkerSignature2 }
                 : {}),
+            stalkerLandingUrl: undefined,
+            stalkerLastVerifiedAt: undefined,
+            stalkerRecipeClassifierVersion: undefined,
+            stalkerRequestRecipe: undefined,
             stalkerToken: undefined,
             stalkerAccountInfo: undefined,
         };
