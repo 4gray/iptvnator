@@ -67,6 +67,7 @@
         "release:notes:blog": "node tools/release/build-release-notes.mjs --format blog",
         "release:screenshots": "tsx tools/release/capture-release-screenshots.ts",
         "stalker:fixtures:validate": "nx run stalker-fixture-tools:validate",
+        "stalker:fixtures:draft": "tsx --tsconfig tools/stalker-fixtures/tsconfig.json tools/stalker-fixtures/src/cli.ts draft",
         "lint": "nx run-many --target=lint --all",
         "build": "nx build electron-backend"
     },

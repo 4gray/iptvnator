@@ -6,3 +6,6 @@ export {
 } from './lib/fixture-validation-cli';
 export type { FixtureValidationCliErrorCode } from './lib/fixture-validation-cli';
 export * from './lib/fixture-validator';
+export * from './lib/har-reader';
+export * from './lib/har-to-draft';
+export * from './lib/safe-output';
