@@ -1,3 +1,5 @@
+import { isSensitiveKey, redactEmbeddedSensitivePairs } from './sensitive-key';
+
 export const REDACTED_VALUE = '[Redacted]';
 
 const CIRCULAR_VALUE = '[Circular]';
@@ -6,39 +8,6 @@ const DEFAULT_MAX_DEPTH = 6;
 const DEFAULT_MAX_ARRAY_ITEMS = 50;
 const DEFAULT_MAX_OBJECT_KEYS = 50;
 const DEFAULT_MAX_STRING_LENGTH = 2_000;
-
-const SENSITIVE_KEY_NAMES = new Set([
-    'apikey',
-    'auth',
-    'authorization',
-    'cookie',
-    'credentials',
-    'deviceid',
-    'deviceid2',
-    'login',
-    'mac',
-    'macaddress',
-    'mpvplayerarguments',
-    'passwd',
-    'password',
-    'pwd',
-    'secret',
-    'setcookie',
-    'signature',
-    'signature2',
-    'sn',
-    'token',
-    'username',
-    'vlcplayerarguments',
-]);
-
-const SENSITIVE_KEY_SUFFIXES = [
-    'apikey', 'authorization', 'cookie',
-    'deviceid', 'deviceid1', 'deviceid2',
-    'macaddress', 'passwd', 'password', 'prehash',
-    'serialnumber', 'signature', 'signature1', 'signature2',
-    'secret', 'token', 'username',
-];
 
 const XTREAM_CREDENTIAL_PATH_SEGMENTS = new Set([
     'live',
@@ -59,18 +28,6 @@ interface ResolvedRedactionOptions {
     maxArrayItems: number;
     maxObjectKeys: number;
     maxStringLength: number;
-}
-
-function normalizeKey(key: string): string {
-    return key.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function isSensitiveKey(key: string): boolean {
-    const normalized = normalizeKey(key);
-    return (
-        SENSITIVE_KEY_NAMES.has(normalized) ||
-        SENSITIVE_KEY_SUFFIXES.some((suffix) => normalized.endsWith(suffix))
-    );
 }
 
 function resolveOptions(options: RedactionOptions): ResolvedRedactionOptions {
@@ -160,31 +117,13 @@ function redactUrlStrings(
     value: string,
     sanitizeValue: (value: string) => string
 ): string {
-    return value.replace(
-        /[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/giu,
-        (candidate) => {
-            try {
-                return redactUrl(new URL(candidate), sanitizeValue);
-            } catch {
-                return candidate;
-            }
+    return value.replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/giu, (candidate) => {
+        try {
+            return redactUrl(new URL(candidate), sanitizeValue);
+        } catch {
+            return candidate;
         }
-    );
-}
-
-function redactEmbeddedSensitivePairs(value: string): string {
-    const redactedAssignments = value.replace(
-        /\b([a-z][a-z0-9_.-]*)(\s*=\s*)((?:Bearer\s+)?[^&\s,;]+)/giu,
-        (match, key: string, separator: string) =>
-            isSensitiveKey(key)
-                ? `${key}${separator}${REDACTED_VALUE}`
-                : match
-    );
-    return redactedAssignments.replace(
-        /\b([a-z0-9_.-]*(?:api[-_.]?key|auth(?:orization)?|cookie|credentials|device[-_.]?id[12]?|login|mac(?:[-_.]?address)?|passwd|password|prehash|pwd|secret|serial[-_.]?number|set[-_.]?cookie|signature[12]?|sn|token|username))(\s*:\s*)(?:Bearer\s+)?[^;,\r\n]+/giu,
-        (_match, key: string, separator: string) =>
-            `${key}${separator}${REDACTED_VALUE}`
-    );
+    });
 }
 
 function looksLikeSearchParams(value: string): boolean {
@@ -237,7 +176,10 @@ export function redactSensitiveData(
             );
         }
 
-        const redactedText = redactEmbeddedSensitivePairs(input);
+        const redactedText = redactEmbeddedSensitivePairs(
+            input,
+            REDACTED_VALUE
+        );
         return truncateString(
             redactUrlStrings(redactedText, (entry) =>
                 visitString(entry, depth + 1)
@@ -286,9 +228,10 @@ export function redactSensitiveData(
         if (error.stack) {
             const [, ...stackFrames] = error.stack.split('\n');
             output['stack'] = visitString(
-                [`${output['name']}: ${output['message']}`, ...stackFrames].join(
-                    '\n'
-                ),
+                [
+                    `${output['name']}: ${output['message']}`,
+                    ...stackFrames,
+                ].join('\n'),
                 depth + 1
             );
         }
@@ -370,8 +313,7 @@ export function redactSensitiveData(
                     const stringKey = String(key);
                     const redactedKey = visitString(stringKey, depth + 1);
                     entries[redactedKey] =
-                        isSensitiveKey(stringKey) &&
-                        !/[/:?=&]/u.test(stringKey)
+                        isSensitiveKey(stringKey) && !/[/:?=&]/u.test(stringKey)
                             ? REDACTED_VALUE
                             : visit(entry, depth + 1);
                 }
