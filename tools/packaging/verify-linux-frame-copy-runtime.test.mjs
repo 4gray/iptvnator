@@ -13,6 +13,7 @@ import {
     parseVerifierArguments,
     readLinuxArtifactMetadata,
     readElfArchitecture,
+    runBoundedRuntimeProbe,
     runVerifierCommand,
     validateSystemPackageDependencies,
     validateExtractedSnapMetadata,
@@ -117,13 +118,36 @@ test('uses the shared frozen runtime probe resource contract', async () => {
         runtimeProbeContract.RUNTIME_PROBE_MAX_BUFFER_BYTES,
         16 * 1024 * 1024
     );
+    // The packaging check may wait far longer than the app's blocking startup
+    // decision, and repeats only the outcome that says nothing about the
+    // payload.
+    assert.equal(
+        runtimeProbeContract.PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS,
+        15000
+    );
+    assert.equal(
+        runtimeProbeContract.PACKAGE_VERIFICATION_PROBE_MAX_ATTEMPTS,
+        2
+    );
+    const runtimeProbeContractTypes = fs.readFileSync(
+        runtimeProbeContractTypesUrl,
+        'utf8'
+    );
     assert.match(
-        fs.readFileSync(runtimeProbeContractTypesUrl, 'utf8'),
+        runtimeProbeContractTypes,
         /readonly RUNTIME_PROBE_TIMEOUT_MS: 3000/
     );
     assert.match(
-        fs.readFileSync(runtimeProbeContractTypesUrl, 'utf8'),
+        runtimeProbeContractTypes,
         /readonly RUNTIME_PROBE_MAX_BUFFER_BYTES: 16777216/
+    );
+    assert.match(
+        runtimeProbeContractTypes,
+        /readonly PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS: 15000/
+    );
+    assert.match(
+        runtimeProbeContractTypes,
+        /readonly PACKAGE_VERIFICATION_PROBE_MAX_ATTEMPTS: 2/
     );
 
     const verifierSource = fs.readFileSync(verifierUrl, 'utf8');
@@ -134,6 +158,14 @@ test('uses the shared frozen runtime probe resource contract', async () => {
     assert.doesNotMatch(
         verifierSource,
         /const RUNTIME_PROBE_TIMEOUT_MS\s*=\s*3000/
+    );
+    assert.match(
+        verifierSource,
+        /timeout:\s*PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS/
+    );
+    assert.doesNotMatch(
+        verifierSource,
+        /PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS\s*=\s*15000/
     );
 
     const backendContractsSource = fs.readFileSync(
@@ -825,7 +857,7 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
             env: { PATH: '/usr/bin' },
             killSignal: 'SIGKILL',
             maxBuffer: 16 * 1024 * 1024,
-            timeout: 3000,
+            timeout: 15000,
             windowsHide: true,
         });
     } finally {
@@ -996,25 +1028,37 @@ test('excludes only Snap template library roots from Electron isolation checks',
     }
 });
 
-test('rejects helper probes terminated by a signal or hard timeout', () => {
-    for (const probeResult of [
+test('rejects helper probes terminated by a signal or exhausted hard timeouts', () => {
+    for (const { probeResult, expectedAttempts } of [
         {
-            status: null,
-            signal: 'SIGKILL',
-            stdout: '',
-            stderr: '',
+            // An external kill is a real capability verdict, not a flake.
+            probeResult: {
+                status: null,
+                signal: 'SIGKILL',
+                stdout: '',
+                stderr: '',
+            },
+            expectedAttempts: 1,
         },
         {
-            error: Object.assign(new Error('spawnSync helper ETIMEDOUT'), {
-                code: 'ETIMEDOUT',
-            }),
-            status: null,
-            signal: 'SIGKILL',
-            stdout: '',
-            stderr: '',
+            // spawnSync reports a hard timeout as ETIMEDOUT alongside the
+            // SIGKILL it sent; the timeout wins, and a helper that keeps
+            // hanging still fails once the bounded attempts are spent.
+            probeResult: {
+                error: Object.assign(new Error('spawnSync helper ETIMEDOUT'), {
+                    code: 'ETIMEDOUT',
+                }),
+                status: null,
+                signal: 'SIGKILL',
+                stdout: '',
+                stderr: '',
+            },
+            expectedAttempts: 2,
         },
     ]) {
         const fixture = createSystemPayload();
+        const warnings = [];
+        let probeCalls = 0;
         try {
             const errors = verifyExtractedLinuxFrameCopyRuntime({
                 resourceDir: fixture.resourceDir,
@@ -1023,17 +1067,169 @@ test('rejects helper probes terminated by a signal or hard timeout', () => {
                 packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
                 elfInspector: validElfInspector,
                 probeRunner() {
+                    probeCalls += 1;
                     return probeResult;
+                },
+                warn(message) {
+                    warnings.push(message);
                 },
             });
             assert.match(
                 errors.join('\n'),
                 /(?:runtime probe terminated by signal SIGKILL|Unable to execute .*ETIMEDOUT)/
             );
+            assert.equal(probeCalls, expectedAttempts);
+            assert.equal(warnings.length, expectedAttempts - 1);
         } finally {
             fs.rmSync(fixture.root, { recursive: true, force: true });
         }
     }
+});
+
+test('retries one timed-out helper probe and accepts a healthy second attempt', () => {
+    const fixture = createSystemPayload();
+    const probeCalls = [];
+    const warnings = [];
+    try {
+        const errors = verifyExtractedLinuxFrameCopyRuntime({
+            resourceDir: fixture.resourceDir,
+            artifactFormat: 'deb',
+            profileName: 'system',
+            packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
+            elfInspector: validElfInspector,
+            probeRunner(command, args, options) {
+                probeCalls.push({ command, args, options });
+                return probeCalls.length === 1
+                    ? {
+                          error: Object.assign(
+                              new Error('spawnSync helper ETIMEDOUT'),
+                              { code: 'ETIMEDOUT' }
+                          ),
+                          status: null,
+                          signal: 'SIGKILL',
+                          stdout: '',
+                          stderr: '',
+                      }
+                    : successfulProbeRunner();
+            },
+            warn(message) {
+                warnings.push(message);
+            },
+        });
+        assert.deepEqual(errors, []);
+        assert.equal(probeCalls.length, 2);
+        // The retry must repeat the identical bounded launch, never a weaker
+        // one.
+        assert.equal(probeCalls[1].command, probeCalls[0].command);
+        assert.deepEqual(probeCalls[1].args, ['--runtime-probe']);
+        assert.deepEqual(probeCalls[1].options, probeCalls[0].options);
+        assert.equal(probeCalls[1].options.timeout, 15000);
+        assert.equal(warnings.length, 1);
+        assert.match(
+            warnings[0],
+            /timed out after 15000 ms; retrying \(attempt 2 of 2\)/
+        );
+    } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test('never retries helper probe outcomes that judge the payload', () => {
+    for (const { probeResult, expected } of [
+        {
+            probeResult: {
+                error: Object.assign(new Error('spawnSync helper ENOENT'), {
+                    code: 'ENOENT',
+                }),
+                status: null,
+                signal: null,
+                stdout: '',
+                stderr: '',
+            },
+            expected: /Unable to execute .*ENOENT/,
+        },
+        {
+            probeResult: {
+                status: 127,
+                signal: null,
+                stdout: '',
+                stderr: 'libmpv.so.2: cannot open shared object file',
+            },
+            expected: /runtime probe failed with status 127/,
+        },
+        {
+            probeResult: {
+                status: 0,
+                signal: null,
+                stdout: '{"protocol":1,"usable":true,"libmpv":"0.41.0","renderApi":"egl"}\n{"protocol":1}\n',
+                stderr: '',
+            },
+            expected: /must emit exactly one newline-terminated JSON line/,
+        },
+        {
+            probeResult: {
+                status: 0,
+                signal: null,
+                stdout: '{"protocol":2,"usable":true,"libmpv":"0.41.0","renderApi":"egl"}\n',
+                stderr: '',
+            },
+            expected: /did not return protocol 1 usable EGL capability/,
+        },
+    ]) {
+        const fixture = createSystemPayload();
+        const warnings = [];
+        let probeCalls = 0;
+        try {
+            const errors = verifyExtractedLinuxFrameCopyRuntime({
+                resourceDir: fixture.resourceDir,
+                artifactFormat: 'deb',
+                profileName: 'system',
+                packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
+                elfInspector: validElfInspector,
+                probeRunner() {
+                    probeCalls += 1;
+                    return probeResult;
+                },
+                warn(message) {
+                    warnings.push(message);
+                },
+            });
+            assert.match(errors.join('\n'), expected);
+            assert.equal(probeCalls, 1);
+            assert.deepEqual(warnings, []);
+        } finally {
+            fs.rmSync(fixture.root, { recursive: true, force: true });
+        }
+    }
+});
+
+test('bounds timed-out helper probes to the shared attempt contract', () => {
+    const timeoutResult = {
+        error: Object.assign(new Error('spawnSync helper ETIMEDOUT'), {
+            code: 'ETIMEDOUT',
+        }),
+        status: null,
+        signal: 'SIGKILL',
+        stdout: '',
+        stderr: '',
+    };
+    const warnings = [];
+    let probeCalls = 0;
+    const result = runBoundedRuntimeProbe({
+        probeRunner() {
+            probeCalls += 1;
+            return timeoutResult;
+        },
+        helperPath: '/packaged/native/iptvnator_mpv_helper',
+        probeEnvironment: { PATH: '/usr/bin' },
+        warn(message) {
+            warnings.push(message);
+        },
+    });
+    assert.equal(probeCalls, 2);
+    assert.equal(warnings.length, 1);
+    // The exhausted timeout is reported verbatim so the caller still fails.
+    assert.equal(result, timeoutResult);
 });
 
 test('requires exact Snap graphics layouts and plugs used by the app', () => {
