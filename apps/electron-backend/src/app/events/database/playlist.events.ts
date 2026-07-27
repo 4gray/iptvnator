@@ -5,6 +5,7 @@
 
 import { ipcMain } from 'electron';
 import { databaseWorkerClient } from '../../services/database-worker-client';
+import { stalkerSessionManager } from '../../services/stalker-session/stalker-session-runtime';
 import {
     handleWorkerRequest,
     requestWorkerWithEvents,
@@ -56,7 +57,7 @@ ipcMain.handle(
         operationId?: string
     ) => {
         try {
-            return await requestWorkerWithEvents(
+            const result = await requestWorkerWithEvents(
                 event,
                 'DB_DELETE_PLAYLIST',
                 {
@@ -64,6 +65,8 @@ ipcMain.handle(
                     operationId,
                 }
             );
+            await stalkerSessionManager.cleanupPlaylist(playlistId);
+            return result;
         } catch (error) {
             console.error('Error handling DB_DELETE_PLAYLIST:', error);
             throw error;
@@ -75,11 +78,13 @@ ipcMain.handle(
     'DB_DELETE_ALL_PLAYLISTS',
     async (event, operationId?: string) => {
         try {
-            return await requestWorkerWithEvents(
+            const result = await requestWorkerWithEvents(
                 event,
                 'DB_DELETE_ALL_PLAYLISTS',
                 { operationId }
             );
+            await stalkerSessionManager.destroyAll();
+            return result;
         } catch (error) {
             console.error('Error handling DB_DELETE_ALL_PLAYLISTS:', error);
             throw error;
