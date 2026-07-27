@@ -244,7 +244,10 @@ This is an Nx monorepo with the following structure:
     - **playlist/m3u/feature-player** - M3U video player page and `/workspace/playlists/:id` routes
     - **playlist/shared/{ui,util}** - Shared playlist UI and utilities
     - **portal/xtream/{data-access,feature}** - XtreamStore, services, data sources; routed Xtream components
-    - **portal/stalker/{data-access,feature}** - StalkerStore and routed Stalker components
+    - **portal/stalker/protocol** - Pure Stalker endpoint, response,
+      identity-profile, state-machine, and reserved-request policy
+    - **portal/stalker/{data-access,feature}** - Opaque renderer session
+      facade, StalkerStore, connection recovery, and routed Stalker components
     - **portal/catalog/feature** - Portal catalog UI
     - **portal/downloads/feature** - Download manager UI
     - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
@@ -607,7 +610,10 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `playlist.events.ts` - Playlist import/update
     - `epg.events.ts` - EPG IPC registration and freshness/fetch orchestration; worker lifecycle lives in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
     - `xtream.events.ts` - Xtream Codes API
-    - `stalker.events.ts` - Stalker portal API
+    - `stalker.events.ts` - Legacy simple/PWA-compatible Stalker portal API
+    - `stalker-session.events.ts` - Typed full-portal session IPC; the
+      main-process runtime in `services/stalker-session/` owns discovery,
+      cookies, credentials, refresh, watchdogs, and playback authorization
     - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
     - `settings.events.ts` - App settings
     - `electron.events.ts` - App version, etc.
@@ -624,7 +630,14 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 - M3U/M3U8 files (local or URL)
 - Xtream Codes API (`username`, `password`, `serverUrl`)
-- Stalker portal (`macAddress`, `url`)
+- Stalker portal (`macAddress`, source URL): Electron full portals use bounded
+  endpoint discovery, conditional status-2 credentials, a portal-scoped cookie
+  jar, single-flight refresh, and opaque main-owned playback contexts. Explicit
+  stateless portals and the PWA retain the legacy compatibility path. Playlist
+  backups retain portal addresses and MACs but exclude credentials and explicit
+  identity overrides by default; authenticated web playback and downloads
+  remain outside the playback-context consumer contract. Canonical details:
+  `docs/architecture/stalker-portal.md`.
 
 **Video Players**:
 

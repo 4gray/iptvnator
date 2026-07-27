@@ -345,7 +345,14 @@ diagnostic and explicit MPV/VLC fallback.
 
 Portal VOD and episode payloads with `contentInfo` are treated as non-live by the inline players unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. Embedded MPV uses the same live decision rule and shows an unknown duration placeholder for VOD/episode snapshots until MPV reports a finite duration. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
 
-When a diagnostic is actionable in Electron, the diagnostic surface may offer `Open in MPV`, `Open in VLC`, `Copy URL`, technical details, and `Retry`. Web builds only expose copy/help text and retry. MPV/VLC fallback requests carry the original `ResolvedPortalPlayback` payload so headers, referer, origin, user-agent, content metadata, and resume offset stay intact. Retry clears the current diagnostic and rebuilds the active inline player inputs; it does not change the saved player setting.
+When a diagnostic is actionable in Electron, the diagnostic surface may offer
+`Open in MPV`, `Open in VLC`, `Copy URL`, technical details, and `Retry`. Web
+builds only expose copy/help text and retry. MPV/VLC fallback carries the
+original `ResolvedPortalPlayback`. Legacy request metadata remains intact;
+typed Stalker playback carries only `playbackContextRef`, which native-player
+IPC consumes once to obtain main-owned headers. Retry clears the current
+diagnostic and rebuilds the active inline player inputs; it does not change the
+saved player setting.
 
 `PortalPlayer.openExternalPlayback(playback, player)` is the forced external launch API. It sends the playback payload to MPV or VLC regardless of the current saved player setting, so fallback buttons do not mutate preferences.
 
@@ -363,9 +370,27 @@ with spaces safe, and preserves existing settings for users who never configured
 extra arguments.
 
 The arguments apply only when IPTVnator spawns a new external player process. If
-MPV or VLC instance reuse is active and an existing process is reused, subsequent
-streams are loaded through MPV IPC or VLC RC commands and new process arguments
-are not re-applied until a fresh process starts.
+MPV or custom-header-free VLC instance reuse is active and an existing process
+is reused, subsequent streams are loaded through MPV IPC or VLC RC commands and
+new process arguments are not re-applied until a fresh process starts.
+
+For reused MPV processes, every `loadfile` carries file-local `user-agent`,
+`referrer`, and `http-header-fields` values and waits for acknowledgement before
+the next queued source switch. Plain sources send empty file-local values, and
+the initial reusable source is wrapped in MPV's local option scope. Prior
+Authorization/Cookie headers therefore cannot become process defaults or leak
+to the next stream.
+
+VLC RC reuse is restricted to streams whose merged custom-header map is empty.
+Before a launch carrying Authorization/Cookie or any other entry in that map,
+Electron kills any tracked reusable VLC process and starts a fresh untracked
+process with `shell: false`, passing each header as one argv entry.
+Authorization/Cookie values never enter an RC `add` command, so spaces,
+newlines, or VLC-looking input-option text inside such a header value cannot
+become a second RC option or command. Scalar user-agent, referrer, and origin
+settings are not part of this map and remain per-input RC options for reusable
+streams. A per-launch RC port may still be used only for constant
+progress-polling commands when resume tracking is required.
 
 ## Electron External Player Ownership
 
@@ -401,7 +426,11 @@ Current contract:
 - AppImage, deb/rpm, snap, macOS, and Windows keep the existing direct process spawn flow.
 - VLC keeps the current external-session flow in Flatpak, including the RC port used for progress polling.
 - MPV is intentionally reduced in Flatpak: the app does not reuse an existing MPV instance there and does not open the Unix socket bridge used for non-Flatpak progress polling.
-- VLC instance reuse is also gated off in Flatpak. Outside Flatpak the user can opt in via the "Reuse VLC instance" setting; the app then keeps a single tracked VLC process and drives subsequent stream loads through its RC interface (`clear` + `add <url> :http-*`) instead of spawning a new window per click.
+- VLC instance reuse is also gated off in Flatpak. Outside Flatpak the user can
+  opt in via the "Reuse VLC instance" setting; the app keeps a single tracked
+  VLC process only for sources without a custom-header map and drives subsequent
+  eligible stream loads through its RC interface. A source with
+  Authorization/Cookie or another custom header always gets a fresh process.
 
 This keeps non-Flatpak behavior unchanged while allowing Flatpak builds to open host-installed external players.
 
@@ -409,7 +438,7 @@ This keeps non-Flatpak behavior unchanged while allowing Flatpak builds to open 
 
 Shared playback payloads live in:
 
-- `/Users/4gray/Code/iptvnator/libs/shared/interfaces/src/lib/portal-playback.interface.ts`
+- `libs/shared/interfaces/src/lib/portal-playback.interface.ts`
 
 Types introduced:
 
@@ -423,6 +452,7 @@ These provide a single shape for:
 - optional thumbnail and resume start time
 - playback-position metadata
 - optional external-player headers and request metadata
+- optional opaque `playbackContextRef` for native Stalker playback
 
 ## Xtream Behavior
 

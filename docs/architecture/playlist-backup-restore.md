@@ -5,13 +5,13 @@ settings screen.
 
 ## Entry Points
 
-- UI: `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup-section.component.ts`
+- UI: `apps/web/src/app/settings/settings-backup-section.component.ts`
   (embedded in `settings.component.html`), with the file read/handoff in
-  `/Users/4gray/Code/iptvnator/apps/web/src/app/settings/settings-backup.facade.ts`
-- Backup service: `/Users/4gray/Code/iptvnator/libs/services/src/lib/playlist-backup.service.ts`
-- Manifest types: `/Users/4gray/Code/iptvnator/libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
+  `apps/web/src/app/settings/settings-backup.facade.ts`
+- Backup service: `libs/services/src/lib/playlist-backup.service.ts`
+- Manifest types: `libs/shared/interfaces/src/lib/playlist-backup.interface.ts`
 - Xtream pending restore storage:
-  `/Users/4gray/Code/iptvnator/libs/services/src/lib/xtream-pending-restore.service.ts`
+  `libs/services/src/lib/xtream-pending-restore.service.ts`
 
 ## Manifest Contract
 
@@ -29,6 +29,12 @@ Top-level shape:
 
 The manifest is portable across machines because it stores playlist definitions
 and portable user state, while excluding cache-only database content.
+
+`includeSecrets` is an enforced security boundary, not just a UI hint. New
+exports set it to `false` unless the user explicitly opts in. An import that
+declares `includeSecrets: false` but contains gated credential/device fields is
+rejected before writes. Older version-1 manifests that omitted the field retain
+their legacy secret-bearing interpretation for backward compatibility.
 
 ## Export Scope
 
@@ -54,10 +60,10 @@ playlist object graph is not the backup format.
 
 Xtream backups export only connection metadata plus portable user state.
 
-- Connection metadata:
-    - `serverUrl`
-    - `username`
-    - `password`
+- Connection metadata always includes `serverUrl`.
+- Default redacted export adds `credentialsOmitted: true` and contains neither
+  username nor password.
+- Explicit secret export includes `username` and `password`.
 - User state:
     - hidden categories by `{ categoryType, xtreamId }`
     - favorites by `{ contentType, xtreamId, addedAt?, position? }`
@@ -75,16 +81,22 @@ Explicitly excluded:
 Stalker backups export connection metadata plus playlist-scoped favorites/recent
 state.
 
-- Exported connection fields:
+- Required exported connection fields:
     - `portalUrl`
     - `macAddress`
+- Optional non-secret connection fields, exported when present:
+    - original `sourceUrl`
     - `isFullStalkerPortal`
-    - `username`
-    - `password`
+    - profile preset
+    - non-secret transport configuration
     - `userAgent`
     - `referrer`
     - `origin`
-    - serial/device/signature fields when present
+- Explicit secret export additionally includes:
+    - `username`
+    - `password`
+    - structured identity overrides
+    - legacy serial/device/signature fields when present
 - Exported user state:
     - favorites snapshots
     - recently viewed snapshots
@@ -93,7 +105,16 @@ Explicitly excluded:
 
 - `stalkerToken`
 - `stalkerAccountInfo`
+- `stalkerLandingUrl`, `stalkerRequestRecipe`,
+  `stalkerRecipeClassifierVersion`, and `stalkerLastVerifiedAt`
+- live cookies, handshake randoms, leases, challenges, and playback contexts
 - playback positions in v1
+
+Compatibility `portalUrl` remains exported as connection metadata. Restore
+re-resolves from `sourceUrl` when it is present.
+
+The opt-in warning remains necessary even for a redacted backup: portal hosts,
+MAC addresses, and private M3U source URLs can still be sensitive.
 
 ### App Settings
 
@@ -116,12 +137,17 @@ The service:
 4. Upserts playlists into app playlist storage.
 5. Restores provider-specific user state.
 
-Fingerprint rules:
+Base fingerprint rules:
 
 - M3U URL playlists: normalized URL
 - M3U without URL: hash of canonical `rawM3u`
-- Xtream: normalized `serverUrl + username`
-- Stalker: normalized `portalUrl + macAddress`
+- Xtream: normalized server URL, then the exact principal when credentials are
+  present
+- Secret-bearing Stalker: normalized source + MAC + profile + exact effective
+  identity/transport. A matching exported ID is preferred; otherwise exactly
+  one exact username/principal match is required. The password is never part
+  of the fingerprint, so an exported-ID match may patch it. Structured
+  identity/transport wins, with equivalent legacy fields as fallback
 
 If a fingerprint matches an existing playlist:
 
@@ -134,6 +160,31 @@ If no fingerprint matches:
 - create a new playlist
 - reuse `exportedId` only when it is unused
 - otherwise generate a new UUID
+
+Redacted provider entries are deliberately stricter:
+
+- redacted Xtream preserves credentials only when an exact exported-ID/server
+  match has both a usable username and password. Otherwise, including an exact
+  row with an incomplete credential pair, import prompts for credentials,
+  validates the exact submitted values against an active portal response
+  without using the status cache, and can be skipped without creating or
+  overwriting a row. A validated pair patches that exact row instead of
+  creating a duplicate
+- redacted Stalker preserves local credentials only on an exact exported-ID,
+  source, MAC, and profile match; otherwise it creates a credential-less row,
+  which later follows the normal status-2 Stalker connection flow
+- ambiguous legacy Stalker matches create a separate row rather than merging
+  two possible devices/accounts
+
+Restore fields use patch semantics: present values replace, allowed empty
+values clear, and omitted fields preserve the existing value on any merge.
+Redacted entries can merge only under the stricter exact-match rules above, so
+unmatched redacted rows cannot inherit local secrets. The excluded learned
+Stalker fields are an intentional exception: every Stalker restore clears
+`stalkerLandingUrl`, `stalkerRequestRecipe`,
+`stalkerRecipeClassifierVersion`, and `stalkerLastVerifiedAt`, including on a
+matched merge, so the next connection re-resolves and verifies the imported
+definition.
 
 ## Xtream Restore Contract
 
@@ -180,6 +231,10 @@ raw JSON application dump.
 
 - Export filename:
   `iptvnator-playlist-backup-YYYY-MM-DD.json`
+- “Include portal credentials and device identity” is off by default.
+- Import prompts for missing Xtream credentials; the user may validate them or
+  skip that entry. Blank, inactive, expired, and unavailable credentials are
+  rejected before playlist persistence.
 - Import summary reports:
     - imported
     - merged

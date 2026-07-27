@@ -1,14 +1,25 @@
 # Stalker Mock Server
 
-A local mock implementation of the Stalker/Ministra portal API for development and end-to-end testing of IPTVnator.
+A local mock implementation of the Stalker/Ministra portal API for development
+and end-to-end testing of IPTVnator. It has two separate test surfaces:
+
+- the long-running generated catalog server on port `3210`;
+- short-lived, stateful replay listeners used by Electron authentication E2E.
 
 ## Overview
 
-The mock server speaks the same `portal.php` HTTP protocol as a real Stalker portal, generating deterministic fake data using `@faker-js/faker` seeded from the connecting MAC address. This means:
+The mock server speaks the same `portal.php` HTTP protocol as a real Stalker
+portal. Its scenario, IDs, and catalog structure are seeded from the connecting
+MAC address. This means:
 
-- The **same MAC address always returns the same data** (consistent across page refreshes and test runs).
-- **Different MAC addresses produce different datasets** — use predefined scenario MACs for specific test conditions.
-- Data is generated once per MAC on first request and cached in memory for the server's lifetime. **Restart to regenerate.**
+- The **same MAC address stays consistent between reset/restart events** and
+  keeps the same seed-driven structure after regeneration.
+- Ratings, some dates, and current-day EPG are volatile, so regenerated payloads
+  are not byte-for-byte identical.
+- Different MAC addresses have isolated state and seeded catalogs — use
+  predefined scenario MACs for specific test conditions.
+- Data is generated once per MAC on first request and cached until `/reset` or
+  process restart.
 
 ## Quick Start
 
@@ -39,7 +50,7 @@ Then in IPTVnator, add a new Stalker portal:
 | `00:1A:79:00:00:04` | **is-series** | 60% of VOD items have `is_series=1` — tests the Ministra lazy-season flow |
 | `00:1A:79:00:00:05` | **embedded-series** | 50% of VOD items have embedded `series[]` arrays — tests the embedded series flow |
 | `00:1A:79:00:00:06` | **legacy-pagination** | No `get_all_channels` support — tests the paginated `get_ordered_list` crawl fallback for the full ITV channel list |
-| `<any other MAC>` | **auto** | MAC bytes used as seed → deterministic unique dataset |
+| `<any other MAC>` | **auto** | MAC bytes choose the seed for an isolated generated catalog |
 
 ## Configuration
 
@@ -101,6 +112,37 @@ nx e2e web-e2e --grep "@stalker"
 
 The test suite uses `00:1A:79:00:00:01` (default scenario) for most tests, and calls `POST /reset` in `beforeEach` to ensure a clean state between tests.
 
+## Stateful Authentication Replay
+
+Authentication, redirects, cookies, response-classifier edge cases, refresh,
+and custom endpoint layouts use fixtures under `fixtures/replay/`. These
+fixtures are not served by the development listener on port `3210`.
+
+The Electron replay harness starts a capability-protected loopback control
+plane, creates one allowlisted fixture run, and receives distinct ephemeral
+listeners for every named origin. The Electron app receives only synthetic
+portal inputs. Each run must be finalized for exact request cardinality and
+terminal state, then disposed in `finally`.
+
+Validate the complete committed corpus with:
+
+```bash
+pnpm run stalker:fixtures:validate
+pnpm nx test stalker-mock-server
+pnpm nx test stalker-fixture-tools
+```
+
+The local HAR converter is only a draft aid:
+
+```bash
+pnpm run stalker:fixtures:draft -- /absolute/input.har /absolute/output.json
+```
+
+It rejects repository inputs, unsafe files, unknown origins, oversized or
+deep payloads, and secret-like evidence. Never commit real portal URLs,
+credentials, account data, catalogs, artwork, or stream links. Review and
+validate every generated draft before moving it into `fixtures/replay/`.
+
 ## EPG Behavior
 
 The mock server generates a 7-day EPG schedule for every ITV channel using
@@ -121,9 +163,12 @@ See [`docs/architecture/stalker-mock-server.md`](../../docs/architecture/stalker
 
 ```
 apps/stalker-mock-server/
+├── fixtures/replay/                    # Secret-scanned stateful fixtures
 ├── src/
-│   ├── main.ts                            # Express bootstrap
+│   ├── main.ts                         # Generated catalog CLI bootstrap
+│   ├── app.ts                          # Import-safe Express app factory
 │   └── app/
+│       ├── replay/                     # Isolated replay/control-plane runtime
 │       ├── scenarios.ts                   # MAC → scenario config mapping
 │       ├── data-generator.ts              # Seeded faker data generation
 │       ├── data-store.ts                  # Lazy per-MAC in-memory cache

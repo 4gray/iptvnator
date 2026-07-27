@@ -12,8 +12,15 @@ This document describes the design decisions, data flow, and extension points of
 The mock server enables:
 
 1. **Local development** without access to a real Stalker portal
-2. **Playwright E2E testing** with predictable, deterministic data
+2. **Playwright E2E testing** with predictable scenario shapes and stable IDs
 3. **Scenario-based testing** via predefined MAC addresses that map to specific data shapes
+4. **Stateful authentication replay** with exact request order, cookie,
+   redirect, classifier, refresh, and terminal-state assertions
+
+The generated catalog server and authentication replay are deliberately
+separate. Port `3210` remains a convenient long-running development portal.
+Authentication E2E creates isolated ephemeral loopback listeners and never
+shares their state with that server.
 
 ## Key Design Decisions
 
@@ -23,8 +30,12 @@ Per-request random data would break navigation: if category IDs change between c
 
 - Data is generated **once per MAC address** on first request, then cached in memory.
 - `@faker-js/faker` is seeded with the scenario's `seed` value before generation: predefined scenario MACs use fixed seeds from `scenarios.ts`; unknown MACs derive the seed from the MAC via `macToSeed()`.
-- Same MAC → identical data on every server restart.
-- Restart the server to reshuffle all data.
+- The same MAC keeps the same scenario, IDs, and seed-driven catalog structure
+  across regeneration, and the in-memory cache keeps requests internally
+  consistent between `/reset` or process-restart events.
+- A restart is not byte-for-byte deterministic: ratings and some dates use
+  runtime randomness, while EPG is anchored to the current day. Change the
+  scenario seed to intentionally reshuffle the seed-driven fields.
 
 ### MAC Address as Identity
 
@@ -32,7 +43,9 @@ Stalker portals use MAC address as the primary credential. The mock server follo
 
 - Each unique MAC gets its own isolated dataset.
 - Predefined MACs map to specific `ScenarioConfig` shapes (see `src/app/scenarios.ts`).
-- Unknown MACs use the sum of their byte values as a seed, producing unique but deterministic data.
+- Unknown MACs use the sum of their byte values as a seed for their catalog
+  structure. Different MACs still have isolated in-memory state; seed sums can
+  collide, so uniqueness is not promised.
 
 ### In-Memory Only
 
@@ -267,7 +280,50 @@ Playwright waits for both servers to be healthy before starting tests. If either
 
 Each stalker e2e test calls `POST http://localhost:3210/reset` in `beforeEach` to clear in-memory state. This ensures tests don't bleed favorites or other mutable state into each other.
 
-`resetAll()` clears both the generated-content cache and in-memory favorites (`data-store.ts`). Because generation is seed-deterministic, the next request regenerates identical content, so the observable data does not change across resets.
+`resetAll()` clears both the generated-content cache and in-memory favorites
+(`data-store.ts`). The next request regenerates the same seeded IDs and scenario
+shape, but volatile ratings, dates, and current-day EPG may differ. Tests should
+assert the intended structure or behavior rather than byte equality of the full
+payload.
+
+## Authentication Replay Architecture
+
+Replay fixtures live under
+`apps/stalker-mock-server/fixtures/replay/`. A version-1 fixture declares:
+
+- named origins and an entry URL;
+- ordered or unordered phases;
+- exact request method, path, headers, query, cookies, and body expectations;
+- typed generated inputs and exact references to them;
+- request cardinality, barriers, and the required terminal state.
+
+`createReplayServerRun()` binds one ephemeral `127.0.0.1` listener per named
+origin. Every public URL includes a run-specific route prefix, which the
+listener strips before matching. Symbols, cookies, counters, and ledgers are
+isolated per run.
+
+Electron E2E does not call the listeners directly through an ambient global
+server. `withStalkerReplayRun()` starts a process-local control plane whose
+capability is never passed to the app. The control plane accepts only
+repository-allowlisted fixture IDs, exact loopback Host headers, bounded JSON
+bodies, and create/finalize/dispose operations. Finalization verifies exact
+cardinality, barriers, the expected endpoint, and terminal state; the ledger
+contains sanitized operation and mismatch counts only.
+
+Committed fixtures are a security boundary:
+
+- use only generated locally administered MACs, safe credentials, tokens, and
+  cookies;
+- never include real portal origins, accounts, catalogs, artwork, or streams;
+- validate the whole corpus with
+  `pnpm run stalker:fixtures:validate`;
+- run `pnpm nx test stalker-mock-server` and
+  `pnpm nx test stalker-fixture-tools` after schema/runtime changes.
+
+`pnpm run stalker:fixtures:draft -- <absolute-har> <absolute-output>` creates a
+sanitized draft outside the repository. It is not a substitute for review:
+the converter fails closed on unsafe files, repository inputs, unknown origins,
+oversized/deep structures, and secret-like evidence.
 
 ### Recommended Test Structure
 
@@ -292,6 +348,9 @@ test('browse VOD categories', async ({ page }) => {
 
 - **New content types**: Add a new generator function in `data-generator.ts` and a new handler in `handlers/`.
 - **New scenarios**: Add to `SCENARIOS` in `scenarios.ts`.
-- **Stateful session tokens**: `handshake.handler.ts` generates a token from the MAC — extend this to track token expiry for testing re-auth flows.
-- **Error simulation**: Add a special MAC or query param to trigger error responses (e.g. 401, 500) for testing error handling in the Stalker store.
+- **Authentication/session behavior**: Add a validated replay fixture instead
+  of overloading generated scenario MACs or introducing test-only query
+  switches.
+- **Catalog-only errors**: Add a generated scenario only when the behavior
+  belongs to the long-running development portal rather than session replay.
 - **Slow responses**: Add a `MOCK_DELAY_MS` env var and apply it in middleware for testing loading states.

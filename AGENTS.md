@@ -424,8 +424,8 @@ Key files:
   File: `.codex/skills/iptvnator-sqlite-db-worker/SKILL.md`
 
 - `stalker-portal`
-  Repository-specific guidance for Stalker/Ministra catalogs, all three VOD/series modes, cross-surface `is_series` behavior, playback metadata, collections, EPG, and remote control.
-  Use when changing Stalker routes, stores, detail views, playback, favorites/recent activity, EPG, or remote control.
+  Repository-specific guidance for Stalker/Ministra main-owned sessions, catalogs, all three VOD/series modes, cross-surface `is_series` behavior, playback metadata, collections, EPG, and remote control.
+  Use when changing Stalker authentication, routes, stores, detail views, playback, favorites/recent activity, EPG, or remote control.
   File: `.codex/skills/stalker-portal/SKILL.md`
 
 - `xtream-electron`

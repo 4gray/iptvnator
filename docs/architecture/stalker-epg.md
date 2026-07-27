@@ -256,8 +256,12 @@ EPG requests follow the standard Stalker request path:
 | Full Stalker portal   | `StalkerSessionService.makeAuthenticatedRequest()` |
 | Simple Stalker portal | generic IPC request path via Electron              |
 
-No EPG-specific backend transport was needed; the Electron Stalker request
-handler forwards portal params directly.
+No EPG-specific backend transport was needed. On the full-session path,
+renderer-side `adaptLegacyStalkerRequest` first converts the legacy request
+shape into typed `ShortEpg` / `EpgInfo` parameters. Electron main validates
+those typed parameters, and `stalker-operation-adapter` reconstructs the
+allowlisted portal wire request before authenticated transport. Only the
+simple/legacy path forwards portal parameters through generic Electron IPC.
 
 ## Fallback Behavior
 

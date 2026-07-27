@@ -12,6 +12,7 @@ This document describes the Stalker portal implementation in IPTVnator and where
 - [Download Manager](./download-manager.md)
 - [Category Management](./category-management.md)
 - [Stalker Store API Baseline](./stalker-store-api-baseline.md)
+- [Stalker Authentication and Client Compatibility Audit](./stalker-authentication-compatibility-audit.md)
 
 ## Scope
 
@@ -44,12 +45,134 @@ Primary route tree lives in
 
 ## Runtime Architecture
 
-1. Angular Stalker screens call methods/resources in `StalkerStore`.
-2. `StalkerStore` builds request params based on selected content type and current view state.
-3. Requests go through `DataService.sendIpcEvent(STALKER_REQUEST, ...)` or `StalkerSessionService` (full portal auth).
-4. Electron main process handles `STALKER_REQUEST` in
-   `apps/electron-backend/src/app/events/stalker.events.ts`.
-5. Axios calls Stalker `load.php` API with required headers/cookies and returns the raw `response.data` to the renderer; normalization happens in the store feature slices.
+Stalker has two deliberately separate request paths:
+
+1. Electron full portals use `StalkerSessionService`, which exposes only typed
+   application operations and opaque lease/challenge references.
+2. Electron main handles `STALKER_SESSION_OPEN`, `CONTINUE`, `REQUEST`, and
+   `CONTROL` in `stalker-session.events.ts`. `StalkerSessionManager` owns
+   endpoint discovery, the RFC cookie jar, handshake/profile state, credentials,
+   token generations, serialized refresh, watchdogs, and playback contexts.
+3. `stalker-operation-adapter.ts` maps the allowlisted catalog, EPG, search,
+   detail, and `create_link` operations to portal wire parameters. Renderer
+   callers cannot submit raw auth actions or managed auth parameters.
+4. A successful `create_link` returns the stream URL plus a one-use,
+   sender-bound `playbackContextRef`. Embedded MPV and external MPV/VLC IPC
+   consume that reference to obtain main-owned authorization and cookie
+   headers. Built-in web players currently carry but do not consume the
+   reference.
+5. Explicitly simple Electron portals and the PWA keep the legacy
+   `STALKER_REQUEST`/HTTP adapter. They do not acquire a main-owned full
+   session.
+
+The primary ownership points are:
+
+- pure URL, response, identity, state-machine, and request-policy rules:
+  `libs/portal/stalker/protocol/`
+- renderer facade and playlist descriptor mapping:
+  `libs/portal/stalker/data-access/src/lib/stalker-session*.ts`
+- route connection orchestration:
+  `libs/portal/stalker/feature/src/lib/stalker-connection-flow/` and
+  `stalker-workspace-route-session.service.ts`
+- Electron runtime:
+  `apps/electron-backend/src/app/services/stalker-session/`
+- typed IPC registration:
+  `apps/electron-backend/src/app/events/stalker-session.events.ts`
+
+Bearer tokens, handshake randoms, server cookies, credentials, internal session
+keys, and player headers must never be returned through preload, diagnostics,
+or persisted playlist metadata.
+
+## Connection Classification and Persistence
+
+Endpoint discovery starts from a source that may be a root URL, landing
+directory, `portal.php`, `server/load.php`, or a custom prefix. The landing
+request is anonymous. Derived candidates are bounded, de-duplicated, and
+probed sequentially with an isolated jar. A validated handshake plus first
+profile selects `full-session`; only an explicitly unsupported auth shape plus
+a recognized read-only catalog response may select `stateless-mac`.
+
+An origin-changing redirect pauses before identity-bearing traffic and requires
+confirmation showing the exact source and target origins. An explicitly
+entered private or loopback source remains supported. Anonymous discovery
+rejects a public-to-private redirect before the target hop is contacted;
+identity-bearing cross-origin redirects pause before target preparation or
+contact and require explicit approval. Profile status `2` opens the
+username/password challenge; `do_auth` is sent only then, and
+`auth_second_step=1` is sent only after canonical `do_auth` success. Blank
+credentials are never submitted. The three-submission credential budget
+belongs to the whole connection attempt and survives auth-session replacement
+or coordinator epoch changes.
+
+Imports, explicit re-detection, and lazy migration use provisional attempts:
+
+1. resolve and authenticate without mutating the stored playlist;
+2. build a non-secret persistence draft;
+3. atomically save the playlist row;
+4. commit the provisional main-process session;
+5. report Connected and initialize the Stalker store.
+
+Cancel or route navigation discards the provisional attempt. A failed local
+write retains the bounded ready attempt and draft so Save Again can retry
+persistence without repeating discovery or authentication; abandoning the
+retry discards it. Existing route content is not initialized before the
+connection flow is ready. Terminal open, recovery, and lease-activation
+failures keep their stable reason visible in an actionable snackbar; Retry
+performs one explicit re-detection instead of silently exposing the playlist
+or looping in the background.
+
+Response handling is fail-closed. Unknown profile statuses, malformed JSONP,
+valid JSON with an incompatible MIME type, invalid handshake/catalog shapes,
+and ambiguous auth bodies stop as `incompatible-response`; they cannot silently
+downgrade a full portal to stateless mode. Only explicit unsupported endpoint
+statuses (`404`, `405`, and `501`) or a narrowly classified, non-auth,
+plain-HTML endpoint-shape miss with the known Stalker/Ministra landing-shell
+markers advances discovery. Generic HTML/XML, account denials, gateway pages,
+and unknown protection pages remain terminal. An HTML `404` remains eligible
+for the next bounded candidate. A valid API envelope with an incompatible MIME
+type remains fail-closed for ordinary candidates; only a persisted learned
+endpoint may treat a body rejected solely by media type as a stale-hint miss
+and continue bounded discovery.
+
+Persisted compatibility fields are:
+
+- `stalkerSourceUrl`
+- verified `portalUrl` and `stalkerLandingUrl`
+- `stalkerRequestRecipe` and `stalkerRecipeClassifierVersion`
+- `stalkerProfilePreset`
+- explicit `stalkerIdentityOverrides`
+- explicit `stalkerTransportConfiguration`
+- `stalkerLastVerifiedAt`
+- `isFullStalkerPortal` for legacy compatibility
+
+`stalkerToken`, cookies, random values, leases, challenges, and playback
+contexts are never persisted. Saved credentials are loaded through the non-EPG
+database worker as an attempt-scoped candidate only when source, MAC, profile
+preset, effective identity, and effective transport configuration match. They
+become session credentials only after canonical authentication succeeds;
+stateless reclassification clears the stored pair.
+
+Deleting one playlist waits for the database delete and then cleans all
+main-owned attempts, leases, watchdogs, and playback contexts for that playlist.
+Delete-all destroys the complete Stalker session runtime. Failed database
+deletes do not tear down sessions.
+
+A current `stalkerRequestRecipe` plus classifier version is authoritative and
+overrides the legacy `isFullStalkerPortal` hint. Missing or stale recipes are
+classified provisionally. If a current stateless recipe receives `404`, `405`,
+`501`, or an incompatible endpoint envelope, the original operation performs
+one single-flight provisional re-detection, persists and commits the updated
+recipe, then reissues itself once.
+
+## Session Watchdog
+
+Each active full-session principal has one main-process watchdog. Its interval
+prefers a positive profile `timeslot`, then `watchdog_timeout`, defaults to 25
+seconds, clamps to 10 seconds–5 minutes, and applies ±10% jitter. A token
+rejection joins the session's single-flight refresh. Other classified failures
+remain attached to the session and are surfaced on the next request until a
+later successful profile check clears them. Removing the last active lease
+stops the watchdog.
 
 ## Main UI Components
 
@@ -115,24 +238,31 @@ blank fields are not generated or forwarded to `get_profile`.
 
 - User-provided `sn`, `device_id`, `device_id2`, `signature`, and `signature2`
   values are trimmed, persisted under the canonical `stalker*` playlist fields,
-  and reused for initial auth, token refresh, retry auth, normal API requests,
-  and same-origin playback headers.
+  and reused for the `get_profile` / `do_auth` steps of initial auth, token
+  refresh, and retry auth. Full-session catalog requests and same-origin
+  playback receive the session-owned Bearer token and cookies, not these
+  optional identity fields.
 - Empty optional identity fields remain absent. IPTVnator must not generate a
   device ID from the MAC address or duplicate `device_id2` from `device_id1`.
 - The legacy default serial value `BEDACD4569BAF` is treated as absent at
   runtime so older blank imports do not keep sending a synthetic serial number.
 - Playback headers use the same serial normalization, so the legacy default is
-  not sent as `SN` or as a serial-derived `__cfduid`. MAC-only API and
-  playback requests do not synthesize `__cfduid`; when a real serial is
-  present, same-origin playback uses a canonical 32-character `__cfduid`
-  protocol cookie.
+  not sent as `SN` or as a serial-derived `__cfduid`. The main-owned
+  full-session path never synthesizes `__cfduid`; it retains real
+  portal-issued cookies instead. The stateless/simple compatibility path still
+  derives the 32-character value when an explicit serial is present, so it
+  remains a legacy quirk rather than a canonical identity mechanism. The
+  [compatibility audit](./stalker-authentication-compatibility-audit.md)
+  records why it must not be reintroduced into the full-session profile.
 - Generated MAG-like identity remains a future explicit setting. It must not be
   the default because strict portals can bind accounts to the first device
   fingerprint they receive.
-- Stalker workspace routes must initialize `StalkerStore` from a playlist object
-  with an explicit `isFullStalkerPortal` mode. If the active route metadata is a
-  lightweight playlist record without that field, the route session must load the
-  full playlist by id before category/content resources run. Stalker auth
+- Stalker workspace routes may initialize `StalkerStore` directly from active
+  route metadata only when it contains a request recipe produced by the current
+  classifier version. A legacy `isFullStalkerPortal` boolean, even when
+  present, is not enough: the route session must load the full playlist by id
+  and finish any lazy connection migration before category/content resources
+  run. Stalker auth
   metadata is independent from M3U playlist EPG metadata and must not depend on
   M3U-specific EPG fields.
 
@@ -363,6 +493,11 @@ Navigation rule to preserve:
 - Stalker radio favorites/recent items are the exception to VOD/series inline
   detail opening: they are normalized as live items and must open through the
   shared live collection audio-player path.
+- Global live/radio collection playback loads the stored playlist and follows
+  its current request recipe. Eligible legacy or stale Electron records
+  classify single-flight and persist before commit; explicitly simple legacy
+  records remain on the simple adapter. Migrated `create_link` results retain
+  their opaque playback context.
 - VOD-backed series favorites can be displayed in series collections, but detail
   opening must preserve their VOD origin: `is_series=1` favorites set the
   selected content type to `vod` so the lazy Ministra season/episode resources
@@ -403,28 +538,55 @@ snapshot-first + background re-fetch contract:
 ## Backup and Restore
 
 Versioned playlist backups include Stalker connection metadata plus playlist-
-scoped favorites/recent snapshots.
+scoped favorites/recent snapshots. Secret export is off by default.
 
-Exported fields:
+Required exported connection fields:
 
 - `portalUrl`
 - `macAddress`
-- `isFullStalkerPortal`
-- optional `username` / `password`
-- optional request headers (`userAgent`, `referrer`, `origin`)
-- full-portal serial/device/signature fields when present
 - favorites and recently viewed collections
 
-Excluded fields:
+Optional non-secret connection fields are exported when present:
+
+- original `sourceUrl`
+- `isFullStalkerPortal`
+- profile preset and transport configuration
+- legacy request headers (`userAgent`, `referrer`, `origin`)
+
+Exported only after the user explicitly enables credential and explicit
+identity-override export:
+
+- `username` and `password`
+- explicit serial, device IDs, signatures, prehash, API signature, and custom
+  firmware/hardware tuple
+
+Always excluded:
 
 - `stalkerToken`
 - `stalkerAccountInfo`
+- `stalkerLandingUrl`, `stalkerRequestRecipe`,
+  `stalkerRecipeClassifierVersion`, and `stalkerLastVerifiedAt`
+- cookies, handshake randoms, leases, challenges, and playback contexts
 - playback positions in backup v1
+
+Compatibility `portalUrl` remains exported as connection metadata, but restore
+re-resolves from `sourceUrl` when it is present.
 
 Import rule:
 
 - backups restore the saved portal definition and replace the stored
   favorites/recent state for the matched playlist
+- redacted Stalker backups preserve local credentials only for an exact
+  exported-id/source/MAC/profile match; otherwise they create a credential-less
+  row that follows the normal status-2 connection flow
+- secret-bearing Stalker matches normalize source, MAC, profile, and effective
+  identity/transport. A matching exported ID is preferred; otherwise exactly
+  one exact username/principal match is required. Password is never part of
+  the fingerprint, so an exported-ID match may patch it. Structured
+  identity/transport takes precedence, with equivalent legacy
+  serial/device/signature and UA/Referer/Origin fields as fallback
+- every Stalker restore clears learned landing/recipe/classifier/verification
+  fields, including on matched merges
 - a fresh handshake must happen after import for full-portal sessions; imported
   backups never trust a serialized token
 
@@ -465,6 +627,45 @@ Stalker reuses some Xtream UI infrastructure deliberately:
 
 This reduces duplicate UI logic across portal types and keeps compatibility behavior aligned.
 
+The main-owned authenticated playback consumer currently covers Embedded MPV
+and external MPV/VLC. Built-in HTML5, Video.js, and ArtPlayer playback can
+carry the opaque `playbackContextRef` but does not consume it, so streams that
+require header/cookie authorization beyond their URL remain unsupported there.
+The shared download flow likewise uses its older stream-URL contract.
+Authenticated Stalker web playback and downloads remain explicitly deferred
+until those surfaces can consume a main-owned context without exposing or
+persisting headers and cookies.
+
+## Authentication Replay Fixtures
+
+Stateful authentication fixtures live under
+`apps/stalker-mock-server/fixtures/replay/`. A fixture declares named
+loopback origins, ordered or unordered phases, exact request expectations,
+typed generated symbols, cardinality, barriers, and a terminal state. Every
+run is isolated and must be finalized and disposed; the ledger contains only
+sanitized operation and mismatch counts.
+
+The Electron E2E harness starts the replay control plane with a process-local
+capability, requests only repository-allowlisted fixtures, and gives the app
+only synthetic portal inputs. Real portal URLs, credentials, catalogs, stream
+links, and artwork must never be committed as fixtures.
+
+Use:
+
+```bash
+pnpm run stalker:fixtures:validate
+pnpm nx test stalker-mock-server
+pnpm nx test stalker-fixture-tools
+pnpm nx run electron-backend-e2e:e2e-ci--src/stalker-auth.e2e.ts
+pnpm nx run electron-backend-e2e:e2e-ci--src/stalker-route-auth.e2e.ts
+pnpm nx run electron-backend-e2e:e2e-ci--src/backup-security.e2e.ts
+```
+
+The HAR converter is a local draft aid, not a sanitizer of last resort. It
+rejects unsafe paths, oversized/deep inputs, unrecognized origins, and
+secret-like evidence before atomically writing output outside the repository.
+Review and validate every draft before moving it into the fixture tree.
+
 ## Regression Coverage
 
 Focused regression tests for Stalker VOD mode branching and the cross-surface
@@ -485,3 +686,18 @@ Covered scenarios include:
 - Inline and external episode handoffs carry resolved season/episode metadata
 - Dashboard activity classifies `is_series` VOD as series and resolves its
   saved episode position
+
+Session compatibility coverage additionally lives in:
+
+- `portal-stalker-protocol`: URL recipes, response classifiers, auth state,
+  identity revision, and reserved request policy
+- `stalker-mock-server` and `stalker-fixture-tools`: stateful replay,
+  schema/cardinality enforcement, control-plane security, and secret scanning
+- `electron-backend`: redirects/SSRF, cookie ownership, resolver, auth,
+  coordinator, manager, watchdog, playback context, IPC validation, and saved
+  credential lookup
+- `portal-stalker-data-access`, `portal-stalker-feature`, and
+  `playlist-import-feature`: opaque facade, recovery, challenges, lazy route
+  migration, and save-before-commit behavior
+- `services` and `web`: backup exclusion, safe restore matching, and explicit
+  secret-export UX
