@@ -9,7 +9,7 @@
             "continuous": true,
             "executor": "nx:run-commands",
             "options": {
-                "command": "pnpm tsx apps/stalker-mock-server/src/main.ts",
+                "command": "pnpm tsx --tsconfig tsconfig.base.json apps/stalker-mock-server/src/main.ts",
                 "cwd": "{workspaceRoot}",
                 "color": true,
                 "env": {
@@ -22,7 +22,7 @@
             "continuous": true,
             "executor": "nx:run-commands",
             "options": {
-                "command": "pnpm tsx watch apps/stalker-mock-server/src/main.ts",
+                "command": "pnpm tsx watch --tsconfig tsconfig.base.json apps/stalker-mock-server/src/main.ts",
                 "cwd": "{workspaceRoot}",
                 "color": true,
                 "env": {
@@ -44,7 +44,8 @@
             ],
             "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
             "options": {
-                "jestConfig": "apps/stalker-mock-server/jest.config.ts"
+                "jestConfig": "apps/stalker-mock-server/jest.config.ts",
+                "tsConfig": "apps/stalker-mock-server/tsconfig.spec.json"
             }
         }
     }

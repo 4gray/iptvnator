@@ -42,7 +42,6 @@ export default {
     '^shaka-player$': '<rootDir>/src/test-stubs/shaka-player.js',
     '^video.js$': '<rootDir>/src/test-stubs/video-js.js',
     '^rxjs': '<rootDir>/../../node_modules/rxjs/dist/bundles/rxjs.umd.js',
-    '^uuid$': '<rootDir>/../../node_modules/uuid/wrapper.mjs',
   },
   transform: angularEsmPreset.transform,
   transformIgnorePatterns: [],

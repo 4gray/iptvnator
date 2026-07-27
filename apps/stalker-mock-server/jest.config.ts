@@ -12,6 +12,6 @@ export default {
         '^(\\.{1,2}/.*)\\.js$': '$1',
         '^@faker-js/faker$': '<rootDir>/src/test-stubs/faker.ts',
     },
-    moduleFileExtensions: ['ts', 'js'],
+    moduleFileExtensions: ['ts', 'js', 'html'],
     coverageDirectory: '../../coverage/apps/stalker-mock-server',
 };

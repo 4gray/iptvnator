@@ -18,6 +18,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
+import { createRandomId } from '@iptvnator/shared/interfaces';
 import type {
     Playlist,
     StalkerSessionAttemptRef,
@@ -26,7 +27,6 @@ import type {
     StalkerSessionFailureReason,
 } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
-import { v4 as uuid } from 'uuid';
 import { createStalkerImportForm } from './stalker-import-form';
 import {
     applyStalkerReadyOutcome,
@@ -114,7 +114,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
         void this.discardPendingAttempt();
         this.resetConnectionState();
         this.form.reset({
-            _id: uuid(),
+            _id: createRandomId(),
             title: '',
             macAddress: '',
             serialNumber: '',

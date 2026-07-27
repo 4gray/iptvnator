@@ -50,6 +50,7 @@ Then in IPTVnator, add a new Stalker portal:
 | `00:1A:79:00:00:04` | **is-series** | 60% of VOD items have `is_series=1` — tests the Ministra lazy-season flow |
 | `00:1A:79:00:00:05` | **embedded-series** | 50% of VOD items have embedded `series[]` arrays — tests the embedded series flow |
 | `00:1A:79:00:00:06` | **legacy-pagination** | No `get_all_channels` support — tests the paginated `get_ordered_list` crawl fallback for the full ITV channel list |
+| `00:1A:79:00:00:07` | **marketing-demo** | 35 original poster movies with the newest 20 first — safe for screenshots and marketing |
 | `<any other MAC>` | **auto** | MAC bytes choose the seed for an isolated generated catalog |
 
 ## Configuration
@@ -85,7 +86,12 @@ All endpoints are served at `GET /portal.php?action=<action>&...` matching the r
 
 ## Cover Images
 
-Cover images and logos use [Picsum Photos](https://picsum.photos) (e.g. `https://picsum.photos/seed/{id}/300/200`). These are real images served from a CDN — no local setup required, but an internet connection is needed for images to display.
+Generated scenarios use [Picsum Photos](https://picsum.photos) for cover images
+and logos, so they need an internet connection to display artwork. The
+`marketing-demo` scenario instead uses the committed, screenshot-safe poster
+catalog shared with the Xtream mock. Stalker serves those PNGs itself from
+`/assets/marketing/poster/<slug>.png`, so screenshots remain deterministic and
+offline once the repository is checked out.
 
 ## Stream URLs
 

@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 
 const PINNED_CHECKOUT_ACTION =
-    'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5';
+    'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1';
 const PINNED_UPLOAD_ARTIFACT_ACTION =
-    'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02';
+    'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
 const PINNED_DOWNLOAD_ARTIFACT_ACTION =
-    'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093';
+    'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c';
 const PUBLISH_ACTION_ALLOWLIST = Object.freeze([
     PINNED_CHECKOUT_ACTION,
     PINNED_DOWNLOAD_ARTIFACT_ACTION,
@@ -16,10 +16,10 @@ const BUILD_ACTION_ALLOWLIST = Object.freeze([
     'actions/cache/restore@v4',
     'actions/cache/save@v4',
     'actions/cache@v4',
-    'actions/checkout@v4',
-    'actions/download-artifact@v4',
+    'actions/checkout@v7',
+    'actions/download-artifact@v8',
     'actions/setup-node@v4',
-    'actions/upload-artifact@v4',
+    'actions/upload-artifact@v7',
     'pnpm/action-setup@v4',
     'softprops/action-gh-release@v2',
 ]);

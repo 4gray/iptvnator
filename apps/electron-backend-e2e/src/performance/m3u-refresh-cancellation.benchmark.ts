@@ -35,13 +35,17 @@ import {
     createCancellationBenchmarkSummary,
     createCancellationIterationResult,
 } from './m3u-refresh-cancellation-report';
+import { validateDiagnosticPlaylistWorkerCapture } from './diagnostic-playlist-worker-capture';
+import { assertPerformanceArtifactCapacity } from './performance-artifact-preflight';
 import {
     installMainCapture,
     readMainCaptureStatus,
+    rolloverMainCapture,
     startMainCapture,
     stopMainCapture,
 } from './m3u-refresh-main-capture';
 import { startRendererCapture } from './m3u-refresh-renderer-capture';
+import type { RendererWindowIdentity } from './renderer-window-rss-session';
 import {
     createSyntheticM3uFixture,
     SYNTHETIC_M3U_CHANNEL_COUNT,
@@ -133,6 +137,40 @@ export async function runM3uRefreshCancellationBenchmark(): Promise<void> {
     const summary = createCancellationBenchmarkSummary(manifest, iterations);
     await writeJson(join(config.outputDirectory, 'manifest.json'), manifest);
     await writeJson(join(config.outputDirectory, 'summary.json'), summary);
+    const diagnosticIteration = iterations.find(
+        (iteration) => iteration.kind === PERFORMANCE_ITERATION_KIND.DIAGNOSTIC
+    );
+    if (!diagnosticIteration) {
+        throw new Error('Diagnostic iteration is missing');
+    }
+    if (!diagnosticIteration.cancellationEffectObserved) {
+        throw new Error(
+            'Cancellation effect was not observed in the diagnostic run'
+        );
+    }
+    await validateDiagnosticPlaylistWorkerCapture(
+        diagnosticIteration.main,
+        join(config.outputDirectory, diagnosticIteration.runId)
+    );
+    if (summary.cancellationEffectRate !== 1) {
+        throw new Error(
+            `Cancellation effect was not observed in every measured run: ${summary.cancellationEffectRate}`
+        );
+    }
+    if (!summary.validity.rendererRss.validForBenchmark) {
+        throw new Error(
+            `Renderer RSS capture is invalid: ${JSON.stringify(
+                summary.validity.rendererRss.invalidMeasuredRuns
+            )}`
+        );
+    }
+    if (!summary.validity.databaseWorkerPostGc.validForBenchmark) {
+        throw new Error(
+            `Database worker post-GC capture is invalid: ${JSON.stringify(
+                summary.validity.databaseWorkerPostGc.invalidMeasuredRuns
+            )}`
+        );
+    }
     console.log(
         `[performance] completed: ${join(
             config.outputDirectory,
@@ -147,10 +185,11 @@ async function runIteration(
     server: SyntheticServer
 ): Promise<CancellationIterationResult> {
     const iterationDirectory = join(config.outputDirectory, definition.runId);
+    await assertPerformanceArtifactCapacity(iterationDirectory);
+    await mkdir(iterationDirectory, { recursive: false });
     const dataDirectory = await mkdtemp(
         join(tmpdir(), 'iptvnator-m3u-performance-')
     );
-    await mkdir(iterationDirectory, { recursive: false });
     let app: LaunchedElectronApp | null = null;
     let rendererConsoleListener: ((message: ConsoleMessage) => void) | null =
         null;
@@ -160,12 +199,14 @@ async function runIteration(
         server.serveSeedFixture();
         app = await launchElectronApp(dataDirectory, {
             args: [
+                '--js-flags=--expose-gc',
                 '--remote-debugging-address=127.0.0.1',
                 `--remote-debugging-port=${RENDERER_CDP_PORT}`,
                 `--user-data-dir=${join(dataDirectory, 'user-data')}`,
             ],
             env: {
                 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: '0',
+                IPTVNATOR_PERF_CAPTURE: '1',
                 IPTVNATOR_PERF_WORKER_PROFILING: '1',
                 IPTVNATOR_TRACE_RENDERER_CONSOLE:
                     process.env['IPTVNATOR_TRACE_RENDERER_CONSOLE'] ?? '0',
@@ -174,6 +215,12 @@ async function runIteration(
         await assertRendererCdpTarget(app.mainWindow);
         app.mainWindow.setDefaultTimeout(120_000);
         await installMainCapture(app.electronApp);
+        const rendererWindowIdentity = await resolveRendererWindowIdentity(app);
+        await startMainCapture(app.electronApp, {
+            diagnostic: false,
+            outputDirectory: iterationDirectory,
+            rendererWindowIdentity,
+        });
         await seedPlaylist(app.mainWindow, server.resourceUrl);
         await waitForSeedSettlement(app);
         server.serveLargeFixture();
@@ -190,10 +237,20 @@ async function runIteration(
 
         const diagnostic =
             definition.kind === PERFORMANCE_ITERATION_KIND.DIAGNOSTIC;
-        await startMainCapture(app.electronApp, {
+        const seedRollover = await rolloverMainCapture(app.electronApp, {
             diagnostic,
             outputDirectory: iterationDirectory,
+            rendererWindowIdentity,
         });
+        await writeJson(
+            join(iterationDirectory, 'seed-main-capture.json'),
+            seedRollover.completedCapture
+        );
+        if (!seedRollover.nextCaptureStarted) {
+            throw new Error(
+                `Seed capture could not atomically arm the measured generation: ${seedRollover.nextCaptureUnavailableReason}`
+            );
+        }
         const renderer = await startRendererCapture(app.mainWindow, {
             diagnostic,
             outputDirectory: iterationDirectory,
@@ -235,6 +292,28 @@ async function runIteration(
     }
 }
 
+async function resolveRendererWindowIdentity(
+    app: LaunchedElectronApp
+): Promise<RendererWindowIdentity> {
+    const browserWindowHandle = await app.electronApp.browserWindow(
+        app.mainWindow
+    );
+    try {
+        return await browserWindowHandle.evaluate((browserWindow) => {
+            const exactWindow = browserWindow as unknown as {
+                readonly id: number;
+                readonly webContents: { readonly id: number };
+            };
+            return {
+                browserWindowId: exactWindow.id,
+                webContentsId: exactWindow.webContents.id,
+            };
+        });
+    } finally {
+        await browserWindowHandle.dispose();
+    }
+}
+
 async function seedPlaylist(page: Page, playlistUrl: string): Promise<void> {
     await page.getByRole('button', { name: 'Add playlist' }).first().click();
     const dialog = page.locator('mat-dialog-container').last();
@@ -258,11 +337,17 @@ async function seedPlaylist(page: Page, playlistUrl: string): Promise<void> {
 async function waitForSeedSettlement(app: LaunchedElectronApp): Promise<void> {
     await expect
         .poll(
-            async () =>
-                (await readMainCaptureStatus(app.electronApp)).databasePending,
+            async () => {
+                const status = await readMainCaptureStatus(app.electronApp);
+                return (
+                    status.databaseRequests > 0 &&
+                    status.databaseUpsertsCompleted > 0 &&
+                    status.databasePending === 0
+                );
+            },
             { timeout: 120_000 }
         )
-        .toBe(0);
+        .toBe(true);
     await waitForTwoAnimationFrames(app.mainWindow);
 }
 
@@ -362,6 +447,7 @@ async function resolveConfiguration(): Promise<BenchmarkConfiguration> {
     }
     const outputDirectory = join(outputRoot, variant);
     await assertMissing(outputDirectory);
+    await assertPerformanceArtifactCapacity(outputDirectory);
     await mkdir(outputDirectory, { recursive: true });
     return Object.freeze({
         electronVersion: electronPackage.version,

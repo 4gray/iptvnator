@@ -6,10 +6,13 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import {
     AUTO_UPDATE_PLAYLISTS,
+    M3U_IMPORT_PERFORMANCE_PHASE,
+    M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL,
     PLAYLIST_CANCEL_REFRESH,
     PLAYLIST_REFRESH,
     PLAYLIST_REFRESH_EVENT,
 } from '@iptvnator/shared/interfaces';
+import { channel } from 'node:diagnostics_channel';
 import { resolve } from 'node:path';
 
 type IpcHandler = (event: MockIpcEvent, ...args: unknown[]) => Promise<unknown>;
@@ -41,6 +44,8 @@ const mockCreatePlaylistObject = jest.fn();
 const mockGetFilenameFromUrl = jest.fn();
 const mockResolveWorkerRuntimeBootstrap = jest.fn();
 const mockWorkerInstances: MockWorker[] = [];
+const PERF_CAPTURE_ENV = 'IPTVNATOR_PERF_CAPTURE';
+const originalPerformanceCaptureValue = process.env[PERF_CAPTURE_ENV];
 
 jest.mock('electron', () => ({
     app: {
@@ -169,6 +174,11 @@ describe('playlist IPC events', () => {
     });
 
     afterEach(() => {
+        if (originalPerformanceCaptureValue === undefined) {
+            delete process.env[PERF_CAPTURE_ENV];
+        } else {
+            process.env[PERF_CAPTURE_ENV] = originalPerformanceCaptureValue;
+        }
         consoleErrorSpy.mockRestore();
         consoleLogSpy.mockRestore();
         consoleWarnSpy.mockRestore();
@@ -208,6 +218,101 @@ describe('playlist IPC events', () => {
             'URL'
         );
         expect(result).toEqual(playlist);
+    });
+
+    it('publishes request-scoped URL import phases only through the opt-in internal channel', async () => {
+        process.env[PERF_CAPTURE_ENV] = '1';
+        const body = '#EXTM3U\n#EXTINF:-1,News\nhttps://stream.test/news';
+        const parsedPlaylist = { items: [{ name: 'News' }] };
+        const playlist = createPlaylist({
+            title: 'synthetic-performance.m3u',
+            url: 'http://127.0.0.1:43210/synthetic-performance.m3u',
+        });
+        const events: unknown[] = [];
+        const performanceChannel = channel(
+            M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL
+        );
+        const subscriber = (event: unknown) => events.push(event);
+
+        mockAxiosGet.mockResolvedValue({
+            data: body,
+            headers: {
+                'content-length': String(Buffer.byteLength(body, 'utf8')),
+            },
+        });
+        mockParse.mockReturnValue(parsedPlaylist);
+        mockGetFilenameFromUrl.mockReturnValue('synthetic-performance.m3u');
+        mockCreatePlaylistObject.mockReturnValue(playlist);
+        performanceChannel.subscribe(subscriber);
+
+        try {
+            await expect(
+                getHandler('fetch-playlist-by-url')(
+                    createIpcEvent(),
+                    'http://127.0.0.1:43210/synthetic-performance.m3u'
+                )
+            ).resolves.toBe(playlist);
+        } finally {
+            performanceChannel.unsubscribe(subscriber);
+        }
+
+        expect(
+            events.map((event) => {
+                const marker = event as {
+                    boundary: string;
+                    metadata?: { byteCount?: number; itemCount?: number };
+                    phase: string;
+                    requestId: string;
+                };
+                return {
+                    boundary: marker.boundary,
+                    metadata: marker.metadata,
+                    phase: marker.phase,
+                    requestIdType: typeof marker.requestId,
+                };
+            })
+        ).toEqual([
+            {
+                boundary: 'start',
+                metadata: undefined,
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.DATA_ACQUIRE,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'end',
+                metadata: { byteCount: Buffer.byteLength(body, 'utf8') },
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.DATA_ACQUIRE,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'start',
+                metadata: undefined,
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.PARSE_M3U,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'end',
+                metadata: { itemCount: 1 },
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.PARSE_M3U,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'start',
+                metadata: undefined,
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.NORMALIZE,
+                requestIdType: 'string',
+            },
+            {
+                boundary: 'end',
+                metadata: { itemCount: 1 },
+                phase: M3U_IMPORT_PERFORMANCE_PHASE.NORMALIZE,
+                requestIdType: 'string',
+            },
+        ]);
+        expect(
+            new Set(events.map((event) => (event as any).requestId)).size
+        ).toBe(1);
+        expect(JSON.stringify(events)).not.toContain('stream.test');
     });
 
     it('returns null when the open playlist dialog is cancelled', async () => {

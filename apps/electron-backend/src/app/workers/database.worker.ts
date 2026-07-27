@@ -64,6 +64,8 @@ import {
     getAppState,
     getPlaylist,
     setAppState,
+    type AppPlaylistGetPhaseCapture,
+    type AppPlaylistUpsertPhaseCapture,
     updatePlaylist,
     upsertAppPlaylist,
     upsertAppPlaylists,
@@ -90,9 +92,21 @@ import {
 } from '../database/operations/xtream.operations';
 import {
     armWorkerPerformanceCapture,
-    finishWorkerPerformanceCapture,
+    executeWithWorkerPerformanceCapture,
+    registerDatabaseWorkerPerformanceCapture,
+    releaseDatabaseWorkerPerformanceCapture,
+    stampWorkerPerformanceResponsePostedEpoch,
     startWorkerPerformanceCapture,
+    type WorkerPerformanceCapture,
 } from './worker-performance-capture';
+import {
+    captureWorkerPerformancePhase,
+    captureWorkerPerformancePhaseAsync,
+} from './worker-performance-phase';
+import {
+    handleDatabaseWorkerPostGcHeapRequest,
+    isDatabaseWorkerPostGcHeapRequest,
+} from './database-worker-post-gc-heap';
 
 const loggerLabel = '[DB Worker]';
 const batchDelayMs = Number.parseInt(
@@ -102,6 +116,11 @@ const batchDelayMs = Number.parseInt(
 
 type ActiveOperationState = {
     cancelled: boolean;
+};
+
+type PreRegisteredActiveOperation = {
+    operationId: string;
+    state: ActiveOperationState;
 };
 
 type OperationController = {
@@ -129,6 +148,7 @@ type OperationController = {
 };
 
 const activeOperations = new Map<string, ActiveOperationState>();
+const activePerformanceCaptures = new Set<WorkerPerformanceCapture>();
 
 if (!parentPort) {
     throw new Error('Database worker must be started with a parent port');
@@ -178,17 +198,22 @@ async function pauseBetweenBatches(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, batchDelayMs));
 }
 
-function createOperationController(config: {
-    operationId?: string;
-    operation: string;
-    playlistId?: string;
-    requestId: string;
-    cancellable?: boolean;
-}): OperationController {
+function createOperationController(
+    config: {
+        operationId?: string;
+        operation: string;
+        playlistId?: string;
+        requestId: string;
+        cancellable?: boolean;
+    },
+    preRegisteredState?: ActiveOperationState
+): OperationController {
     const { operationId, operation, playlistId, requestId } = config;
     const cancellable = config.cancellable ?? true;
     const activeState =
-        operationId && cancellable ? { cancelled: false } : null;
+        operationId && cancellable
+            ? (preRegisteredState ?? { cancelled: false })
+            : null;
 
     if (operationId && activeState) {
         activeOperations.set(operationId, activeState);
@@ -255,7 +280,10 @@ function createOperationController(config: {
             });
         },
         cleanup: () => {
-            if (operationId) {
+            if (
+                operationId &&
+                activeOperations.get(operationId) === activeState
+            ) {
                 activeOperations.delete(operationId);
             }
         },
@@ -264,9 +292,10 @@ function createOperationController(config: {
 
 async function executeTrackedOperation<TResult>(
     config: Parameters<typeof createOperationController>[0],
-    handler: (controller: OperationController) => Promise<TResult>
+    handler: (controller: OperationController) => Promise<TResult>,
+    preRegisteredState?: ActiveOperationState
 ): Promise<TResult> {
-    const controller = createOperationController(config);
+    const controller = createOperationController(config, preRegisteredState);
 
     try {
         return await handler(controller);
@@ -282,7 +311,54 @@ async function executeTrackedOperation<TResult>(
     }
 }
 
-async function executeRequest(message: DbWorkerRequestMessage) {
+function preRegisterCancellableOperation(
+    message: DbWorkerRequestMessage
+): PreRegisteredActiveOperation | null {
+    switch (message.operation) {
+        case 'DB_SAVE_CONTENT':
+        case 'DB_DELETE_PLAYLIST':
+        case 'DB_DELETE_XTREAM_CONTENT':
+        case 'DB_RESTORE_XTREAM_USER_DATA':
+            break;
+        default:
+            return null;
+    }
+
+    if (
+        typeof message.payload !== 'object' ||
+        message.payload === null ||
+        Array.isArray(message.payload)
+    ) {
+        return null;
+    }
+    const operationId = (message.payload as Record<string, unknown>)[
+        'operationId'
+    ];
+    if (typeof operationId !== 'string' || operationId.length === 0) {
+        return null;
+    }
+
+    const state: ActiveOperationState = { cancelled: false };
+    activeOperations.set(operationId, state);
+    return { operationId, state };
+}
+
+function releasePreRegisteredOperation(
+    operation: PreRegisteredActiveOperation | null
+): void {
+    if (
+        operation &&
+        activeOperations.get(operation.operationId) === operation.state
+    ) {
+        activeOperations.delete(operation.operationId);
+    }
+}
+
+async function executeRequest(
+    message: DbWorkerRequestMessage,
+    preRegisteredState?: ActiveOperationState,
+    performanceCapture: WorkerPerformanceCapture | null = null
+) {
     const db = await getWorkerDatabase();
 
     switch (message.operation) {
@@ -362,11 +438,7 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                 kind?: 'all' | 'vod' | 'series';
                 limit?: number;
                 playlistType?:
-                    | 'xtream'
-                    | 'stalker'
-                    | 'm3u-file'
-                    | 'm3u-text'
-                    | 'm3u-url';
+                    'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
             };
             return getGlobalRecentlyAdded(
                 db,
@@ -413,7 +485,8 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                     });
 
                     return result;
-                }
+                },
+                preRegisteredState
             );
         }
 
@@ -506,9 +579,29 @@ async function executeRequest(message: DbWorkerRequestMessage) {
         }
 
         case 'DB_UPSERT_APP_PLAYLIST': {
+            const capturePhase: AppPlaylistUpsertPhaseCapture | undefined =
+                performanceCapture
+                    ? {
+                          captureAsync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhaseAsync(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                          captureSync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhase(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                      }
+                    : undefined;
             return upsertAppPlaylist(
                 db,
-                message.payload as Record<string, unknown>
+                message.payload as Record<string, unknown>,
+                capturePhase
             );
         }
 
@@ -527,7 +620,26 @@ async function executeRequest(message: DbWorkerRequestMessage) {
 
         case 'DB_GET_APP_PLAYLIST': {
             const payload = message.payload as { playlistId: string };
-            return getAppPlaylist(db, payload.playlistId);
+            const capturePhase: AppPlaylistGetPhaseCapture | undefined =
+                performanceCapture
+                    ? {
+                          captureAsync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhaseAsync(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                          captureSync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhase(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                      }
+                    : undefined;
+            return getAppPlaylist(db, payload.playlistId, capturePhase);
         }
 
         case 'DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS': {
@@ -586,7 +698,8 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                     });
 
                     return result;
-                }
+                },
+                preRegisteredState
             );
         }
 
@@ -695,7 +808,8 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                     });
 
                     return result;
-                }
+                },
+                preRegisteredState
             );
         }
 
@@ -739,7 +853,8 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                     });
 
                     return result;
-                }
+                },
+                preRegisteredState
             );
         }
 
@@ -921,6 +1036,14 @@ async function executeRequest(message: DbWorkerRequestMessage) {
 }
 
 parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
+    if (isDatabaseWorkerPostGcHeapRequest(message)) {
+        handleDatabaseWorkerPostGcHeapRequest(
+            message,
+            activePerformanceCaptures.size === 0
+        );
+        return;
+    }
+
     if (message.type === 'cancel') {
         const activeOperation = activeOperations.get(message.operationId);
         if (activeOperation) {
@@ -929,33 +1052,62 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
         return;
     }
 
-    const performanceCapture = startWorkerPerformanceCapture();
-    await armWorkerPerformanceCapture(performanceCapture);
-    try {
-        const result = await executeRequest(message);
-        const performance =
-            await finishWorkerPerformanceCapture(performanceCapture);
+    const preRegisteredOperation = preRegisterCancellableOperation(message);
+    let performanceCapture: WorkerPerformanceCapture | null = null;
+    const execution = await (async () => {
+        try {
+            performanceCapture = startWorkerPerformanceCapture({
+                requestId: message.requestId,
+            });
+            registerDatabaseWorkerPerformanceCapture(
+                activePerformanceCaptures,
+                performanceCapture
+            );
+            await armWorkerPerformanceCapture(performanceCapture);
+            return await executeWithWorkerPerformanceCapture(
+                performanceCapture,
+                () =>
+                    executeRequest(
+                        message,
+                        preRegisteredOperation?.state,
+                        performanceCapture
+                    )
+            );
+        } finally {
+            releaseDatabaseWorkerPerformanceCapture(
+                activePerformanceCaptures,
+                performanceCapture
+            );
+            releasePreRegisteredOperation(preRegisteredOperation);
+        }
+    })();
+
+    if (execution.success) {
         postMessage({
             type: 'response',
             requestId: message.requestId,
             success: true,
-            result,
-            performance,
+            result: execution.result,
+            performance: stampWorkerPerformanceResponsePostedEpoch(
+                performanceCapture,
+                execution.performance
+            ),
         });
-    } catch (error) {
+    } else {
         console.error(
             loggerLabel,
             `Error handling ${message.operation}:`,
-            error
+            execution.error
         );
-        const performance =
-            await finishWorkerPerformanceCapture(performanceCapture);
         postMessage({
             type: 'response',
             requestId: message.requestId,
             success: false,
-            error: serializeError(error),
-            performance,
+            error: serializeError(execution.error),
+            performance: stampWorkerPerformanceResponsePostedEpoch(
+                performanceCapture,
+                execution.performance
+            ),
         });
     }
 });

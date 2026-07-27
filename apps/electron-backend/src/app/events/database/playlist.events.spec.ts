@@ -1,3 +1,5 @@
+export {};
+
 type IpcHandler = (
     event: MockIpcEvent,
     ...args: unknown[]

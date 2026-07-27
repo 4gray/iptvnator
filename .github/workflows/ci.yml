@@ -29,7 +29,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             # Image pinned by digest (tag 1.7.12). False positives are
             # suppressed in .github/actionlint.yaml; shellcheck runs at
@@ -53,7 +53,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             # The gate scripts are dependency-free Node, so this job skips
             # pnpm install entirely and stays cheap.
@@ -92,7 +92,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
               with:
                   # nx affected needs the merge-base with the PR target branch.
                   fetch-depth: 0
@@ -133,7 +133,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
 
             - name: Install pnpm
               uses: pnpm/action-setup@v4
@@ -167,7 +167,7 @@ jobs:
 
             - name: Upload unit coverage artifact
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: unit-coverage
                   path: |

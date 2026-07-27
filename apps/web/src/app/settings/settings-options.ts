@@ -100,6 +100,33 @@ export const SETTINGS_EMBEDDED_PLAYER_OPTIONS: SettingsPlayerOption[] = [
     },
 ];
 
+export interface SettingsPlayerAvailability {
+    supportsEmbeddedMpv: boolean;
+    supportsManagedExternalPlayers: boolean;
+}
+
+/**
+ * Built-in web players are always offered; the OS-backed ones only show up
+ * when the current runtime can actually launch them.
+ */
+export function buildSettingsPlayerOptions({
+    supportsEmbeddedMpv,
+    supportsManagedExternalPlayers,
+}: SettingsPlayerAvailability): SettingsPlayerOption[] {
+    return [
+        ...SETTINGS_EMBEDDED_PLAYER_OPTIONS,
+        ...(supportsEmbeddedMpv
+            ? [
+                  {
+                      id: VideoPlayer.EmbeddedMpv,
+                      labelKey: 'SETTINGS.PLAYER_EMBEDDED_MPV',
+                  },
+              ]
+            : []),
+        ...(supportsManagedExternalPlayers ? SETTINGS_OS_PLAYER_OPTIONS : []),
+    ];
+}
+
 export interface SettingsSectionVisibility {
     supportsEpg: boolean;
     supportsRemoteControl: boolean;

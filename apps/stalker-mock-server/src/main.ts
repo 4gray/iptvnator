@@ -1,9 +1,57 @@
 import http from 'http';
+import { join } from 'node:path';
+import express, { Response } from 'express';
 import { SCENARIOS } from './app/scenarios.js';
+import {
+    buildRequestOrigin,
+    resolveMarketingPosterUrls,
+} from './app/marketing-poster-url.js';
 import { createStalkerMockApp } from './app.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
-const app = createStalkerMockApp();
+const app = express();
+const MARKETING_POSTER_DIRECTORY = join(
+    process.cwd(),
+    'apps/xtream-mock-server/public/marketing/poster'
+);
+
+// Marketing fixtures store deployment-neutral asset paths. Resolve them
+// against the public origin of each request, including reverse-proxy headers.
+app.use((req, res, next) => {
+    if (
+        !['get_ordered_list', 'favorites'].includes(
+            String(req.query['action'])
+        )
+    ) {
+        next();
+        return;
+    }
+
+    const sendJson = res.json.bind(res);
+    const requestOrigin = buildRequestOrigin(req);
+
+    res.json = ((body: unknown) =>
+        sendJson(
+            resolveMarketingPosterUrls(body, requestOrigin)
+        )) as Response['json'];
+    next();
+});
+
+// ---------------------------------------------------------------------------
+// Routes
+// ---------------------------------------------------------------------------
+
+// Serve the shared screenshot-safe poster catalog directly from this process.
+app.use(
+    '/assets/marketing/poster',
+    express.static(MARKETING_POSTER_DIRECTORY, {
+        fallthrough: false,
+        immutable: true,
+        maxAge: '1y',
+    })
+);
+
+app.use(createStalkerMockApp());
 
 // ---------------------------------------------------------------------------
 // Start
@@ -61,7 +109,7 @@ server.listen(PORT, () => {
     }
     console.log('');
     console.log(
-        '  Any other MAC generates deterministic unique data from MAC bytes.'
+        '  Any other MAC gets an isolated catalog from a MAC-derived seed.'
     );
     console.log(`  Utilities:`);
     console.log(`    GET  http://localhost:${PORT}/health`);

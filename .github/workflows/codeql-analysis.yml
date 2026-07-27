@@ -38,7 +38,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     # Initializes the CodeQL tools for scanning. PR runs analyze the merge
     # commit checked out above (the modern default); JavaScript is

@@ -16,6 +16,7 @@ This file provides guidance to coding agents working in this repository.
 - Use scoped path aliases from `tsconfig.base.json` such as `@iptvnator/services`, `@iptvnator/shared/interfaces`, and `@iptvnator/ui/components`. Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json` so `@nx/enforce-module-boundaries` remains useful for humans and agents.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
+- ESLint enforces `max-lines` on TypeScript files (target under 300, hard maximum 400). Files that predate the rule are baselined in `tools/eslint/max-lines-baseline.mjs`; after splitting a file, regenerate it with `node tools/eslint/generate-max-lines-baseline.mjs`. Never add new files to the baseline — the list must only shrink. A new file that genuinely cannot be split (for example a function serialized into another process) instead carries its own file-wide `/* eslint-disable max-lines -- <why> */`; the generator skips those files, so a justified exemption never lands in the baseline.
 - Repository-specific skills are committed under `.codex/skills/`. Claude Code only discovers skills under `.claude/skills/`, so `release-notes` and `release-cut` are mirrored there and the two copies must be kept in sync; every other entry in `.claude/skills/` is personal and stays gitignored. If an external agent does not support skills, treat those files as concise ownership docs.
 
 ## Documentation After Changes
@@ -84,7 +85,8 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
     - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
     - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
-    - `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only event-loop metrics in database and playlist-refresh worker responses; the performance benchmark sets it automatically, and production launches must leave it unset
+    - `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted preload IPC request/completion markers plus count-only M3U acquire/parse/normalize and renderer store phase capture; renderer wrappers emit only while the benchmark installs its Symbol hook, benchmark tooling sets the flag explicitly, and production launches must leave it unset
+    - `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker receive/work/response-post timestamps, thread CPU, event-loop utilization/delay, count-only playlist serialization/SQLite write/read/deserialization phase events, valid-sample-counted isolate peak memory, and the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
 
 - Settings, portal request/response, and trace payloads must use
   `@iptvnator/shared/logging` or the redacting portal logger before reaching

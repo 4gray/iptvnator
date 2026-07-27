@@ -1,5 +1,5 @@
 import { FormControl, FormGroup, Validators } from '@angular/forms';
-import { v4 as uuid } from 'uuid';
+import { createRandomId } from '@iptvnator/shared/interfaces';
 
 const HTTP_URL_REGEX = /^https?:\/\/[^ "]+$/;
 
@@ -19,7 +19,7 @@ export function createStalkerImportForm(): FormGroup<{
     userAgent: FormControl<string | null>;
 }> {
     return new FormGroup({
-        _id: new FormControl(uuid()),
+        _id: new FormControl(createRandomId()),
         title: new FormControl('', [Validators.required]),
         macAddress: new FormControl('', [Validators.required]),
         serialNumber: new FormControl(''),

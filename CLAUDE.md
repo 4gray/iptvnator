@@ -141,7 +141,8 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow navigation/load lifecycle
 - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
-- `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only event-loop metrics in database and playlist-refresh worker responses; the performance benchmark sets it automatically, and production launches must leave it unset
+- `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted preload IPC request/completion markers plus count-only M3U acquire/parse/normalize and renderer store phase capture; renderer wrappers emit only while the benchmark installs its Symbol hook, benchmark tooling sets the flag explicitly, and production launches must leave it unset
+- `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker receive/work/response-post timestamps, thread CPU, event-loop utilization/delay, count-only playlist serialization/SQLite write/read/deserialization phase events, valid-sample-counted isolate peak memory, and the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
 
 Settings, portal request/response, and trace payloads must use
 `@iptvnator/shared/logging` or the redacting portal logger before reaching
@@ -220,7 +221,11 @@ Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
 rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
 are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
 with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
-Never add new files to the baseline.
+Never add new files to the baseline — the list must only shrink. A new file
+that genuinely cannot be split (for example a function serialized into another
+process) instead carries its own file-wide
+`/* eslint-disable max-lines -- <why> */`; the generator skips those files, so
+a justified exemption never lands in the baseline.
 
 ## Architecture
 
@@ -256,6 +261,7 @@ This is an Nx monorepo with the following structure:
     - **shared/logging** - Dependency-free structured redaction for diagnostic logs
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
+    - **shared/marketing-fixtures** - Provider-neutral fictional movie metadata shared by the Xtream and Stalker marketing mocks
     - **shared/testing** - Shared test helpers
     - **ui/components** - Reusable UI components (incl. channel list)
     - **ui/epg** - EPG UI (timeline ribbon, multi-EPG, progress panel, program dialogs)
@@ -355,10 +361,11 @@ Key patterns:
 - **Factory injection**: `provideXtreamDataSource()` selects Electron or PWA implementation at runtime
 
 Data strategies by environment:
-| Environment | Strategy |
-|-------------|----------|
+
+| Environment  | Strategy                                                |
+| ------------ | ------------------------------------------------------- |
 | **Electron** | DB-first: Check DB → fetch API if missing → cache to DB |
-| **PWA** | API-only: Always fetch from API, store in memory |
+| **PWA**      | API-only: Always fetch from API, store in memory        |
 
 **M3U Playlist Module Architecture**:
 
@@ -608,7 +615,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - **Event handlers**: `apps/electron-backend/src/app/events/`
     - `database.events.ts` - Database CRUD operations
     - `playlist.events.ts` - Playlist import/update
-    - `epg.events.ts` - EPG IPC registration and freshness/fetch orchestration; worker lifecycle lives in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
+    - `epg.events.ts` - EPG IPC registration; freshness/fetch orchestration lives in `epg-fetch.service.ts`, manual channel-mapping resolution and CRUD in `epg-mapping.service.ts`, worker lifecycle in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
     - `xtream.events.ts` - Xtream Codes API
     - `stalker.events.ts` - Legacy simple/PWA-compatible Stalker portal API
     - `stalker-session.events.ts` - Typed full-portal session IPC; the

@@ -205,12 +205,11 @@ export class PlaylistRefreshActionService {
         }
 
         try {
+            const operationId =
+                this.databaseService.createOperationId('playlist-refresh');
             const refreshedPlaylist =
                 await this.playlistRefreshService.refreshPlaylist({
-                    operationId:
-                        this.databaseService.createOperationId(
-                            'playlist-refresh'
-                        ),
+                    operationId,
                     playlistId: item._id,
                     title: item.title,
                     url: item.url,
@@ -228,6 +227,7 @@ export class PlaylistRefreshActionService {
                     },
                     playlistId: item._id,
                     refreshEpg: true,
+                    operationId,
                 })
             );
 

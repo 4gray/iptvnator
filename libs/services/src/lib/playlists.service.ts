@@ -52,7 +52,10 @@ type PlaylistRawItem = {
 type PlaylistStorageElectronApi = {
     dbDeleteAllPlaylists: () => Promise<unknown>;
     dbDeletePlaylist: (playlistId: string) => Promise<unknown>;
-    dbGetAppPlaylist: (playlistId: string) => Promise<Playlist | null>;
+    dbGetAppPlaylist: (
+        playlistId: string,
+        operationId?: string
+    ) => Promise<Playlist | null>;
     dbGetAppPlaylistFavoriteChannels?: (
         playlistId: string
     ) => Promise<M3uFavoriteChannel[]>;
@@ -60,7 +63,10 @@ type PlaylistStorageElectronApi = {
     dbGetAppPlaylists: () => Promise<Playlist[]>;
     dbGetAppState: (key: string) => Promise<string | null>;
     dbSetAppState: (key: string, value: string) => Promise<unknown>;
-    dbUpsertAppPlaylist: (playlist: Playlist) => Promise<unknown>;
+    dbUpsertAppPlaylist: (
+        playlist: Playlist,
+        operationId?: string
+    ) => Promise<unknown>;
     dbUpsertAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
 };
 
@@ -401,14 +407,18 @@ export class PlaylistsService {
         }
     }
 
-    private upsertSqlitePlaylist(playlist: Playlist) {
+    private upsertSqlitePlaylist(playlist: Playlist, operationId?: string) {
         return this.runOnSqlite(async () => {
             const electron = this.electronApi;
             if (!electron) {
                 return playlist;
             }
 
-            await electron.dbUpsertAppPlaylist(playlist);
+            if (operationId === undefined) {
+                await electron.dbUpsertAppPlaylist(playlist);
+            } else {
+                await electron.dbUpsertAppPlaylist(playlist, operationId);
+            }
             return playlist;
         });
     }
@@ -450,9 +460,14 @@ export class PlaylistsService {
         });
     }
 
-    private persistPlaylistMutation(nextPlaylist: Playlist) {
+    private persistPlaylistMutation(
+        nextPlaylist: Playlist,
+        operationId?: string
+    ) {
         if (this.isElectronStorageAvailable) {
-            return firstValueFrom(this.upsertSqlitePlaylist(nextPlaylist));
+            return firstValueFrom(
+                this.upsertSqlitePlaylist(nextPlaylist, operationId)
+            );
         }
 
         return firstValueFrom(
@@ -655,10 +670,14 @@ export class PlaylistsService {
         };
     }
 
-    updatePlaylist(playlistId: string, updatedPlaylist: Playlist) {
+    updatePlaylist(
+        playlistId: string,
+        updatedPlaylist: Playlist,
+        operationId?: string
+    ) {
         return this.serializePlaylistWrite(playlistId, async () => {
             const currentPlaylist = await firstValueFrom(
-                this.getPlaylistById(playlistId)
+                this.getPlaylistById(playlistId, operationId)
             );
             const mergedPlaylist = this.mergeRefreshedPlaylist(
                 currentPlaylist,
@@ -666,17 +685,21 @@ export class PlaylistsService {
                 playlistId
             );
 
-            return this.persistPlaylistMutation(mergedPlaylist);
+            return this.persistPlaylistMutation(mergedPlaylist, operationId);
         });
     }
 
-    getPlaylistById(id: string) {
+    getPlaylistById(id: string, operationId?: string) {
         if (this.isElectronStorageAvailable) {
             return this.runOnSqlite(async () => {
                 const electron = this.electronApi;
-                const playlist = electron
-                    ? await electron.dbGetAppPlaylist(id)
-                    : null;
+                let playlist: Playlist | null = null;
+                if (electron) {
+                    playlist =
+                        operationId === undefined
+                            ? await electron.dbGetAppPlaylist(id)
+                            : await electron.dbGetAppPlaylist(id, operationId);
+                }
                 return playlist
                     ? this.createSqliteFallbackPlaylist(playlist as Playlist)
                     : (undefined as unknown as Playlist);

@@ -16,6 +16,8 @@ The mock server enables:
 3. **Scenario-based testing** via predefined MAC addresses that map to specific data shapes
 4. **Stateful authentication replay** with exact request order, cookie,
    redirect, classifier, refresh, and terminal-state assertions
+5. **Screenshot-safe marketing capture** with committed fictional posters
+   shared with the Xtream mock
 
 The generated catalog server and authentication replay are deliberately
 separate. Port `3210` remains a convenient long-running development portal.
@@ -68,6 +70,11 @@ faker.seed(config.seed)   // scenario seed; unknown MACs: macToSeed(mac)
 │           ├── normal VOD items
 │           ├── is_series=1 items (fraction, Ministra flow)
 │           └── embedded series[] items (fraction)
+│
+├── marketingFixture?             → shared curated VOD catalog
+│     ├── @iptvnator/shared/marketing-fixtures
+│     ├── vod Map<categoryId, item[]>
+│     └── vodOrder[] preserves screenshot catalog order
 │
 └── generateCategories('series', N) → seriesCategories[]
       └── generateSeriesItems()    → series Map<categoryId, item[]>
@@ -232,6 +239,7 @@ interface ScenarioConfig {
   embeddedSeriesFraction: number; // 0–1: fraction of VOD with embedded series[]
   supportsGetAllChannels?: boolean; // default true; false mimics legacy portals
                                     // without the ITV get_all_channels action
+  marketingFixture?: true;          // replace generated VOD with shared posters
 }
 ```
 
@@ -242,6 +250,15 @@ supporting scenarios, `get_all_channels` (`get-all-channels.handler.ts`,
 `type=itv` only) returns the complete ITV channel list in one
 `{ js: { data, total_items } }` response, excluding channels from censored
 (adult) genres.
+
+The `marketing-demo` scenario (`00:1A:79:00:00:07`) replaces faker-generated
+VOD with the 35-movie provider-neutral showcase catalog from
+`@iptvnator/shared/marketing-fixtures`. Its newest 20 movies are returned first
+for the wildcard VOD listing. Fixtures keep deployment-neutral poster paths,
+then the JSON middleware resolves them against the request origin (including
+forwarded host/protocol) as
+`<portal-origin>/assets/marketing/poster/<slug>.png`. `main.ts` serves the
+committed PNG directory directly, so the Xtream server does not need to run.
 
 ### Adding a New Scenario
 

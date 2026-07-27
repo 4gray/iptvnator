@@ -12,6 +12,13 @@
                 "command": "node apps/electron-backend/build-worker.js"
             }
         },
+        "build-worker-performance": {
+            "executor": "nx:run-commands",
+            "outputs": ["{workspaceRoot}/dist/apps/electron-backend/workers"],
+            "options": {
+                "command": "node apps/electron-backend/build-worker.js --performance"
+            }
+        },
         "build-embedded-mpv": {
             "executor": "nx:run-commands",
             "cache": false,
@@ -81,7 +88,33 @@
                             "with": "apps/electron-backend/src/environments/environment.prod.ts"
                         }
                     ]
+                },
+                "electron-performance": {
+                    "optimization": true,
+                    "extractLicenses": true,
+                    "inspect": false,
+                    "sourceMap": true,
+                    "fileReplacements": [
+                        {
+                            "replace": "apps/electron-backend/src/environments/environment.ts",
+                            "with": "apps/electron-backend/src/environments/environment.prod.ts"
+                        }
+                    ]
                 }
+            }
+        },
+        "build-performance": {
+            "dependsOn": [
+                "electron-backend:build-worker-performance",
+                "electron-backend:build-embedded-mpv",
+                {
+                    "projects": ["web", "remote-control-web"],
+                    "target": "build-performance"
+                }
+            ],
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run electron-backend:build:electron-performance --excludeTaskDependencies"
             }
         },
         "build-e2e": {

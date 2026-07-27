@@ -15,6 +15,10 @@ import {
     attachEmbeddedMpvFrameView,
     detachEmbeddedMpvFrameView,
 } from './embedded-mpv-frame-pump';
+import {
+    createPreloadPerformanceCapture,
+    toPreloadPerformanceTargetMethod,
+} from './preload-performance-capture';
 import type {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
@@ -53,6 +57,7 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import {
     DEBUG_TRACE_EVENT_CHANNEL,
+    isPerformanceCaptureEnabled,
     isRendererApiTraceEnabled,
     roundTraceDuration,
     summarizeForTrace,
@@ -77,6 +82,11 @@ const dbSaveContentProgressListeners = new Set<
 >();
 
 const shouldTraceRendererApi = isRendererApiTraceEnabled();
+const shouldCapturePerformance = isPerformanceCaptureEnabled();
+const preloadPerformanceCapture = createPreloadPerformanceCapture(
+    shouldCapturePerformance,
+    (channel, marker) => ipcRenderer.send(channel, marker)
+);
 
 function emitRendererTrace(payload: {
     method: string;
@@ -94,7 +104,7 @@ function emitRendererTrace(payload: {
 }
 
 function wrapElectronApi<T extends object>(api: T): T {
-    if (!shouldTraceRendererApi) {
+    if (!shouldTraceRendererApi && !shouldCapturePerformance) {
         return api;
     }
 
@@ -103,7 +113,9 @@ function wrapElectronApi<T extends object>(api: T): T {
             if (
                 typeof value !== 'function' ||
                 name.startsWith('on') ||
-                name.startsWith('remove')
+                name.startsWith('remove') ||
+                (!shouldTraceRendererApi &&
+                    !toPreloadPerformanceTargetMethod(name))
             ) {
                 return [name, value];
             }
@@ -113,13 +125,20 @@ function wrapElectronApi<T extends object>(api: T): T {
             return [
                 name,
                 (...args: unknown[]) => {
-                    const startedAt =
-                        globalThis.performance?.now?.() ?? Date.now();
-                    emitRendererTrace({
-                        args: summarizeForTrace(args),
-                        method: name,
-                        phase: 'start',
-                    });
+                    const startedAt = shouldTraceRendererApi
+                        ? (globalThis.performance?.now?.() ?? Date.now())
+                        : 0;
+                    if (shouldTraceRendererApi) {
+                        emitRendererTrace({
+                            args: summarizeForTrace(args),
+                            method: name,
+                            phase: 'start',
+                        });
+                    }
+                    const performanceCall = preloadPerformanceCapture.start(
+                        name,
+                        args
+                    );
 
                     try {
                         const result = original(...args);
@@ -131,54 +150,74 @@ function wrapElectronApi<T extends object>(api: T): T {
                         ) {
                             return (result as Promise<unknown>)
                                 .then((resolvedValue) => {
-                                    emitRendererTrace({
-                                        durationMs: roundTraceDuration(
-                                            (globalThis.performance?.now?.() ??
-                                                Date.now()) - startedAt
-                                        ),
-                                        method: name,
-                                        phase: 'success',
-                                        result: summarizeForTrace(
-                                            resolvedValue
-                                        ),
-                                    });
+                                    if (shouldTraceRendererApi) {
+                                        emitRendererTrace({
+                                            durationMs: roundTraceDuration(
+                                                (globalThis.performance?.now?.() ??
+                                                    Date.now()) - startedAt
+                                            ),
+                                            method: name,
+                                            phase: 'success',
+                                            result: summarizeForTrace(
+                                                resolvedValue
+                                            ),
+                                        });
+                                    }
+                                    preloadPerformanceCapture.success(
+                                        performanceCall,
+                                        resolvedValue
+                                    );
                                     return resolvedValue;
                                 })
                                 .catch((error: unknown) => {
-                                    emitRendererTrace({
-                                        durationMs: roundTraceDuration(
-                                            (globalThis.performance?.now?.() ??
-                                                Date.now()) - startedAt
-                                        ),
-                                        error: summarizeForTrace(error),
-                                        method: name,
-                                        phase: 'error',
-                                    });
+                                    if (shouldTraceRendererApi) {
+                                        emitRendererTrace({
+                                            durationMs: roundTraceDuration(
+                                                (globalThis.performance?.now?.() ??
+                                                    Date.now()) - startedAt
+                                            ),
+                                            error: summarizeForTrace(error),
+                                            method: name,
+                                            phase: 'error',
+                                        });
+                                    }
+                                    preloadPerformanceCapture.error(
+                                        performanceCall
+                                    );
                                     throw error;
                                 });
                         }
 
-                        emitRendererTrace({
-                            durationMs: roundTraceDuration(
-                                (globalThis.performance?.now?.() ??
-                                    Date.now()) - startedAt
-                            ),
-                            method: name,
-                            phase: 'success',
-                            result: summarizeForTrace(result),
-                        });
+                        if (shouldTraceRendererApi) {
+                            emitRendererTrace({
+                                durationMs: roundTraceDuration(
+                                    (globalThis.performance?.now?.() ??
+                                        Date.now()) - startedAt
+                                ),
+                                method: name,
+                                phase: 'success',
+                                result: summarizeForTrace(result),
+                            });
+                        }
+                        preloadPerformanceCapture.success(
+                            performanceCall,
+                            result
+                        );
 
                         return result;
                     } catch (error) {
-                        emitRendererTrace({
-                            durationMs: roundTraceDuration(
-                                (globalThis.performance?.now?.() ??
-                                    Date.now()) - startedAt
-                            ),
-                            error: summarizeForTrace(error),
-                            method: name,
-                            phase: 'error',
-                        });
+                        if (shouldTraceRendererApi) {
+                            emitRendererTrace({
+                                durationMs: roundTraceDuration(
+                                    (globalThis.performance?.now?.() ??
+                                        Date.now()) - startedAt
+                                ),
+                                error: summarizeForTrace(error),
+                                method: name,
+                                phase: 'error',
+                            });
+                        }
+                        preloadPerformanceCapture.error(performanceCall);
                         throw error;
                     }
                 },
@@ -551,8 +590,16 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_MAPPING_GET', { channelKey }),
     getEpgMappingsBatch: (channelKeys: string[]) =>
         ipcRenderer.invoke('EPG_MAPPING_GET_BATCH', { channelKeys }),
-    setEpgMapping: (channelKey: string, epgChannelId: string, playlistId?: string) =>
-        ipcRenderer.invoke('EPG_MAPPING_SET', { channelKey, epgChannelId, playlistId }),
+    setEpgMapping: (
+        channelKey: string,
+        epgChannelId: string,
+        playlistId?: string
+    ) =>
+        ipcRenderer.invoke('EPG_MAPPING_SET', {
+            channelKey,
+            epgChannelId,
+            playlistId,
+        }),
     deleteEpgMapping: (channelKey: string) =>
         ipcRenderer.invoke('EPG_MAPPING_DELETE', { channelKey }),
     searchEpgChannels: (searchTerm: string, limit?: number) =>
@@ -600,14 +647,14 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
     dbGetPlaylist: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_PLAYLIST', playlistId),
-    dbUpsertAppPlaylist: (playlist: Playlist) =>
+    dbUpsertAppPlaylist: (playlist: Playlist, _operationId?: string) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLIST', playlist),
     dbUpsertAppPlaylists: (playlists: Playlist[]) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLISTS', playlists),
     dbGetAppPlaylists: () => ipcRenderer.invoke('DB_GET_APP_PLAYLISTS'),
     dbGetAppPlaylistMetas: () =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST_METAS'),
-    dbGetAppPlaylist: (playlistId: string) =>
+    dbGetAppPlaylist: (playlistId: string, _operationId?: string) =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST', playlistId),
     dbGetAppPlaylistFavoriteChannels: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS', playlistId),
