@@ -4,14 +4,25 @@ export const DATABASE_REQUEST_IDENTITY_CAPTURE_STATE_KEY =
     '__iptvnatorM3uRefreshDatabaseRequestIdentityCapture';
 
 export interface DatabaseRequestIdentity {
+    ipcCallId: number | null;
     operationId: string | null;
     operationIdUnavailableReason: string | null;
+    sourceEpochMs: number | null;
+}
+
+export interface PreloadDatabaseSuccessMarker {
+    ipcCallId: number;
+    operation: 'DB_GET_APP_PLAYLIST' | 'DB_UPSERT_APP_PLAYLIST';
+    operationId: string | null;
+    playlistId: string;
+    sourceEpochMs: number;
 }
 
 export interface DatabaseRequestIdentityCaptureApi {
     matchDatabaseRequest(message: unknown): DatabaseRequestIdentity;
     start(): void;
     stop(): void;
+    takeSuccessMarkers(): readonly PreloadDatabaseSuccessMarker[];
 }
 
 interface DatabaseRequestIdentityElectron {
@@ -31,8 +42,10 @@ export function installDatabaseRequestIdentityCaptureInMain(
     interface PendingMarker {
         readonly ipcCallId: number;
         readonly operation: string;
-        readonly operationId: string;
+        readonly operationId: string | null;
+        readonly operationIdUnavailableReason: string | null;
         readonly playlistId: string;
+        readonly sourceEpochMs: number;
     }
     interface PendingRequest {
         readonly identity: DatabaseRequestIdentity;
@@ -58,6 +71,7 @@ export function installDatabaseRequestIdentityCaptureInMain(
     let pendingMarkers: PendingMarker[] = [];
     let pendingRequests: PendingRequest[] = [];
     let quarantinedKeys: QuarantinedKey[] = [];
+    let successMarkers: PreloadDatabaseSuccessMarker[] = [];
 
     const readRecord = (value: unknown): JsonRecord | null =>
         typeof value === 'object' && value !== null
@@ -88,10 +102,36 @@ export function installDatabaseRequestIdentityCaptureInMain(
         candidate.playlistId === playlistId;
     const markAmbiguous = (requests: PendingRequest[]): void => {
         for (const request of requests) {
+            request.identity.ipcCallId = null;
             request.identity.operationId = null;
             request.identity.operationIdUnavailableReason =
                 'preload-performance-marker-ambiguous';
+            request.identity.sourceEpochMs = null;
         }
+    };
+    const unavailableIdentity = (reason: string): DatabaseRequestIdentity => ({
+        ipcCallId: null,
+        operationId: null,
+        operationIdUnavailableReason: reason,
+        sourceEpochMs: null,
+    });
+    const identityFromMarker = (
+        marker: PendingMarker
+    ): DatabaseRequestIdentity => ({
+        ipcCallId: marker.ipcCallId,
+        operationId: marker.operationId,
+        operationIdUnavailableReason: marker.operationIdUnavailableReason,
+        sourceEpochMs: marker.sourceEpochMs,
+    });
+    const applyMarker = (
+        identity: DatabaseRequestIdentity,
+        marker: PendingMarker
+    ): void => {
+        identity.ipcCallId = marker.ipcCallId;
+        identity.operationId = marker.operationId;
+        identity.operationIdUnavailableReason =
+            marker.operationIdUnavailableReason;
+        identity.sourceEpochMs = marker.sourceEpochMs;
     };
     const isQuarantined = (operation: string, playlistId: string): boolean =>
         quarantinedKeys.some((key) => matches(key, operation, playlistId));
@@ -116,32 +156,86 @@ export function installDatabaseRequestIdentityCaptureInMain(
             return;
         }
         const marker = readRecord(input);
+        const correlationState = marker?.['correlationState'];
+        const operation =
+            typeof marker?.['method'] === 'string'
+                ? markerMethodToOperation[marker['method']]
+                : undefined;
+        const operationId = marker?.['operationId'];
+        const playlistId = marker?.['playlistId'];
+        const ipcCallId = marker?.['ipcCallId'];
+        const sourceEpochMs = marker?.['sourceEpochMs'];
+        const validMarkerIdentity =
+            operation !== undefined &&
+            typeof playlistId === 'string' &&
+            playlistId.length > 0 &&
+            Number.isSafeInteger(ipcCallId) &&
+            Number(ipcCallId) >= 1 &&
+            typeof sourceEpochMs === 'number' &&
+            Number.isFinite(sourceEpochMs) &&
+            sourceEpochMs >= 0;
+        if (
+            marker?.['phase'] === 'success' &&
+            (correlationState === 'correlated' ||
+                correlationState === 'uncorrelated') &&
+            marker['invalidReason'] === null &&
+            validMarkerIdentity &&
+            (correlationState !== 'correlated' ||
+                (typeof operationId === 'string' &&
+                    operationId.length > 0))
+        ) {
+            successMarkers.push({
+                ipcCallId: Number(ipcCallId),
+                operation: operation as PreloadDatabaseSuccessMarker['operation'],
+                operationId:
+                    correlationState === 'correlated'
+                        ? String(operationId)
+                        : null,
+                playlistId,
+                sourceEpochMs,
+            });
+            return;
+        }
         if (
             !marker ||
             marker['phase'] !== 'start' ||
-            marker['correlationState'] !== 'correlated' ||
+            (correlationState !== 'correlated' &&
+                correlationState !== 'uncorrelated') ||
             marker['invalidReason'] !== null
         ) {
             return;
         }
-        const operation =
-            typeof marker['method'] === 'string'
-                ? markerMethodToOperation[marker['method']]
-                : undefined;
-        const operationId = marker['operationId'];
-        const playlistId = marker['playlistId'];
-        const ipcCallId = marker['ipcCallId'];
+        const correlatedOperationId =
+            correlationState === 'correlated' &&
+            typeof operationId === 'string' &&
+            operationId.length > 0
+                ? operationId
+                : null;
         if (
             operation === undefined ||
-            typeof operationId !== 'string' ||
-            operationId.length === 0 ||
+            (correlationState === 'correlated' &&
+                correlatedOperationId === null) ||
             typeof playlistId !== 'string' ||
             playlistId.length === 0 ||
             !Number.isSafeInteger(ipcCallId) ||
-            Number(ipcCallId) < 1
+            Number(ipcCallId) < 1 ||
+            typeof sourceEpochMs !== 'number' ||
+            !Number.isFinite(sourceEpochMs) ||
+            sourceEpochMs < 0
         ) {
             return;
         }
+        const pendingMarker: PendingMarker = {
+            ipcCallId: Number(ipcCallId),
+            operation,
+            operationId: correlatedOperationId,
+            operationIdUnavailableReason:
+                correlationState === 'correlated'
+                    ? null
+                    : 'preload-performance-marker-uncorrelated',
+            playlistId,
+            sourceEpochMs,
+        };
 
         if (isQuarantined(operation, playlistId)) {
             return;
@@ -154,8 +248,7 @@ export function installDatabaseRequestIdentityCaptureInMain(
             if (!request) {
                 return;
             }
-            request.identity.operationId = operationId;
-            request.identity.operationIdUnavailableReason = null;
+            applyMarker(request.identity, pendingMarker);
             pendingRequests = pendingRequests.filter(
                 (candidate) => candidate !== request
             );
@@ -166,12 +259,7 @@ export function installDatabaseRequestIdentityCaptureInMain(
             return;
         }
 
-        pendingMarkers.push({
-            ipcCallId: Number(ipcCallId),
-            operation,
-            operationId,
-            playlistId,
-        });
+        pendingMarkers.push(pendingMarker);
         pendingMarkers.sort((left, right) => left.ipcCallId - right.ipcCallId);
     });
 
@@ -189,19 +277,15 @@ export function installDatabaseRequestIdentityCaptureInMain(
                     operation !== 'DB_UPSERT_APP_PLAYLIST') ||
                 playlistId === null
             ) {
-                return {
-                    operationId: null,
-                    operationIdUnavailableReason:
-                        'preload-performance-marker-not-applicable',
-                };
+                return unavailableIdentity(
+                    'preload-performance-marker-not-applicable'
+                );
             }
 
             if (isQuarantined(operation, playlistId)) {
-                return {
-                    operationId: null,
-                    operationIdUnavailableReason:
-                        'preload-performance-marker-ambiguous',
-                };
+                return unavailableIdentity(
+                    'preload-performance-marker-ambiguous'
+                );
             }
             const markerCandidates = pendingMarkers.filter((marker) =>
                 matches(marker, operation, playlistId)
@@ -209,34 +293,25 @@ export function installDatabaseRequestIdentityCaptureInMain(
             if (markerCandidates.length === 1) {
                 const marker = markerCandidates[0];
                 if (!marker) {
-                    return {
-                        operationId: null,
-                        operationIdUnavailableReason:
-                            'preload-performance-marker-missing',
-                    };
+                    return unavailableIdentity(
+                        'preload-performance-marker-missing'
+                    );
                 }
                 pendingMarkers = pendingMarkers.filter(
                     (candidate) => candidate !== marker
                 );
-                return {
-                    operationId: marker.operationId,
-                    operationIdUnavailableReason: null,
-                };
+                return identityFromMarker(marker);
             }
             if (markerCandidates.length > 1) {
                 quarantine(operation, playlistId);
-                return {
-                    operationId: null,
-                    operationIdUnavailableReason:
-                        'preload-performance-marker-ambiguous',
-                };
+                return unavailableIdentity(
+                    'preload-performance-marker-ambiguous'
+                );
             }
 
-            const identity: DatabaseRequestIdentity = {
-                operationId: null,
-                operationIdUnavailableReason:
-                    'preload-performance-marker-missing',
-            };
+            const identity = unavailableIdentity(
+                'preload-performance-marker-missing'
+            );
             pendingRequests.push({
                 identity,
                 operation,
@@ -248,6 +323,7 @@ export function installDatabaseRequestIdentityCaptureInMain(
             pendingMarkers = [];
             pendingRequests = [];
             quarantinedKeys = [];
+            successMarkers = [];
             active = true;
         },
         stop: () => {
@@ -255,6 +331,12 @@ export function installDatabaseRequestIdentityCaptureInMain(
             pendingMarkers = [];
             pendingRequests = [];
             quarantinedKeys = [];
+            successMarkers = [];
+        },
+        takeSuccessMarkers: () => {
+            const captured = Object.freeze([...successMarkers]);
+            successMarkers = [];
+            return captured;
         },
     };
     target[stateKey] = api;

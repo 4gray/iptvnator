@@ -177,6 +177,7 @@ function createFallbackResult(
             WORKER_PERFORMANCE_UNAVAILABLE_REASON.EVENT_LOOP_UTILIZATION_UNAVAILABLE,
         histogramFlushedEpochMs: null,
         invalidReason,
+        ...copyPhaseEvents(capture),
         requestReceivedEpochMs: capture.requestReceivedEpochMs,
         threadCpuSystemMicros: null,
         threadCpuUnavailableReason:
@@ -213,6 +214,7 @@ export function createWorkerPerformanceCaptureResult(
                 capture.eventLoopUtilizationUnavailableReason,
             histogramFlushedEpochMs: capture.histogramFlushedEpochMs,
             invalidReason: capture.invalidReason,
+            ...copyPhaseEvents(capture),
             requestReceivedEpochMs: capture.requestReceivedEpochMs,
             ...threadCpu,
             threadCpuUnavailableReason: capture.threadCpuUnavailableReason,
@@ -223,6 +225,18 @@ export function createWorkerPerformanceCaptureResult(
         };
     } catch {
         return createFallbackResult(capture);
+    }
+}
+
+function copyPhaseEvents(
+    capture: WorkerPerformanceCapture
+): Pick<WorkerPerformanceCaptureResult, 'phaseEvents'> {
+    try {
+        return capture.phaseEvents.length > 0
+            ? { phaseEvents: Object.freeze([...capture.phaseEvents]) }
+            : {};
+    } catch {
+        return {};
     }
 }
 

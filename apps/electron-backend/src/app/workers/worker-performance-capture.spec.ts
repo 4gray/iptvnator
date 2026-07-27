@@ -2,6 +2,7 @@ import {
     WORKER_PERFORMANCE_UNAVAILABLE_REASON,
     armWorkerPerformanceCapture,
     executeWithWorkerPerformanceCapture,
+    stampWorkerPerformanceResponsePostedEpoch,
     startWorkerPerformanceCapture,
 } from './worker-performance-capture';
 import { createFakeRuntime } from './worker-performance-capture.test-harness';
@@ -84,6 +85,34 @@ describe('worker performance capture', () => {
         expect(harness.histogramLifecycle.enableCalls).toBe(1);
         expect(harness.histogramLifecycle.disableCalls).toBe(1);
         expect('reset' in harness.histogram).toBe(false);
+    });
+
+    it('stamps the worker-send boundary only after request profiling has finished', async () => {
+        const harness = createFakeRuntime();
+        const capture = startWorkerPerformanceCapture({
+            enabled: true,
+            runtime: harness.runtime,
+        });
+        await armWorkerPerformanceCapture(capture);
+        const execution = await executeWithWorkerPerformanceCapture(
+            capture,
+            async () => 'result'
+        );
+
+        const stamped = stampWorkerPerformanceResponsePostedEpoch(
+            capture,
+            execution.performance
+        );
+
+        expect(stamped).toMatchObject({
+            histogramFlushedEpochMs: 145,
+            responsePostedEpochMs: 149,
+            workEndedEpochMs: 140,
+        });
+        expect(harness.lifecycle.at(-1)).toBe('epoch:149');
+        expect(
+            stampWorkerPerformanceResponsePostedEpoch(null, undefined)
+        ).toBeUndefined();
     });
 
     it('finishes profiling before returning a rejected execution to worker side effects', async () => {
