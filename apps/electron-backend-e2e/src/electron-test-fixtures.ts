@@ -81,7 +81,13 @@ type ElectronFixtures = {
 };
 
 export type LaunchElectronAppOptions = {
+    /** Electron/Chromium switches — they must precede the entry point. */
     args?: readonly string[];
+    /**
+     * Arguments for the app itself, appended *after* the entry point so they
+     * land in `process.argv` the way a file-association launch does.
+     */
+    appArgs?: readonly string[];
     environmentInheritance?: 'all' | 'runtime-only';
     env?: Record<string, string | undefined>;
     omitEnvKeys?: readonly string[];
@@ -184,10 +190,14 @@ export { expect };
  *
  * Headless Linux CI has no usable sandbox or GPU, and an Electron started
  * without these flags there dies on a signal instead of running — so any
- * helper that spawns the app itself has to use the same list.
+ * helper that spawns the app itself has to use the same list. `appArgs` land
+ * after the entry point, which is where the OS puts an opened file's path.
  */
-function buildElectronLaunchArgs(extraArgs: readonly string[] = []): string[] {
-    const args = [...extraArgs, electronMainPath];
+function buildElectronLaunchArgs(
+    extraArgs: readonly string[] = [],
+    appArgs: readonly string[] = []
+): string[] {
+    const args = [...extraArgs, electronMainPath, ...appArgs];
 
     if (process.platform === 'linux' && process.env['CI']) {
         args.unshift('--no-sandbox', '--disable-gpu');
@@ -207,7 +217,7 @@ export async function launchElectronApp(
     }
     assertPackagedRendererBuildIsElectronSafe();
 
-    const args = buildElectronLaunchArgs(options.args);
+    const args = buildElectronLaunchArgs(options.args, options.appArgs);
 
     const electronApp = await electron.launch({
         args,
@@ -476,11 +486,16 @@ function attachElectronProcessDiagnostics(
  */
 export async function launchCompetingElectronInstance(
     dataDir: string,
-    timeoutMs = 30000
+    options: {
+        /** Arguments for the app itself, e.g. a playlist path to open. */
+        appArgs?: readonly string[];
+        timeoutMs?: number;
+    } = {}
 ): Promise<CompetingElectronInstanceResult> {
+    const { appArgs = [], timeoutMs = 30000 } = options;
     // In a Node context the `electron` package resolves to its binary path.
     const electronBinaryPath = require('electron') as unknown as string;
-    const child = spawn(electronBinaryPath, buildElectronLaunchArgs(), {
+    const child = spawn(electronBinaryPath, buildElectronLaunchArgs([], appArgs), {
         env: {
             ...process.env,
             ELECTRON_IS_DEV: '0',

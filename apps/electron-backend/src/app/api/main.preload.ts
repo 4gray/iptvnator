@@ -6,6 +6,9 @@ import {
     APP_UPDATE_GET_STATUS,
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
+    ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
+    ANNOUNCE_PLAYLIST_OPEN_LISTENER,
+    OPEN_FILE,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     attachEmbeddedMpvFrameView,
@@ -34,6 +37,7 @@ import type {
     ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
     ElectronBridgePlaylistInput,
+    ElectronBridgePlaylistOpenRequest,
     ElectronBridgePlaylistUpsertInput,
     ElectronBridgeRemoteControlCommand,
     ElectronBridgeRemoteControlStatus,
@@ -419,6 +423,20 @@ const electronApi: ElectronBridgeApi = {
     updatePlaylistFromFilePath: (filePath: string, title: string) =>
         ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),
     openPlaylistFromFile: () => ipcRenderer.invoke('open-playlist-from-file'),
+    onPlaylistOpenRequest: (
+        callback: (request: ElectronBridgePlaylistOpenRequest) => void
+    ) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            request: ElectronBridgePlaylistOpenRequest
+        ) => callback(request);
+        ipcRenderer.on(OPEN_FILE, handler);
+        return () => ipcRenderer.off(OPEN_FILE, handler);
+    },
+    announcePlaylistOpenListener: () =>
+        ipcRenderer.invoke(ANNOUNCE_PLAYLIST_OPEN_LISTENER),
+    acknowledgePlaylistOpenRequest: (requestId: string) =>
+        ipcRenderer.invoke(ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST, requestId),
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
     saveFileDialog: (
         defaultPath: string,

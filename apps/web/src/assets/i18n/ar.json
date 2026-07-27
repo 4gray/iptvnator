@@ -151,7 +151,8 @@
             "OR": "أو",
             "CHOOSE_PLAYLIST": "اختر قائمة تشغيل",
             "BROWSE": "تصفح الملفات",
-            "REJECTED": "تم رفض الملف، تنسيق غير مدعوم {{filename}}."
+            "REJECTED": "تم رفض الملف، تنسيق غير مدعوم {{filename}}.",
+            "OPEN_FAILED": "تعذر فتح \"{{filename}}\"."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "رابط قائمة التشغيل (M3U/M3U8)",

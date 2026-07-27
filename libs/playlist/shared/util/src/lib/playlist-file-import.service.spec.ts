@@ -116,4 +116,94 @@ describe('PlaylistFileImportService', () => {
         expect(result).toEqual({ ok: false, reason: 'cancelled' });
         expect(store.dispatch).not.toHaveBeenCalled();
     });
+
+    describe('importFromPath', () => {
+        const playlist = {
+            _id: 'playlist-2',
+            title: 'CLI Source',
+            filename: 'cli-source',
+            count: 1,
+            importDate: '2026-05-04T12:00:00.000Z',
+            lastUsage: '2026-05-04T12:00:00.000Z',
+            autoRefresh: false,
+            filePath: '/tmp/cli-source.m3u',
+            favorites: [],
+            playlist: {
+                items: [],
+            },
+        } as Playlist;
+
+        it('parses an OS-supplied path and adds the playlist', async () => {
+            const updatePlaylistFromFilePath = jest
+                .fn()
+                .mockResolvedValue(playlist);
+            window.electron = {
+                updatePlaylistFromFilePath,
+            } as unknown as typeof window.electron;
+
+            const result = await service.importFromPath(
+                '/tmp/cli-source.m3u',
+                'cli-source.m3u'
+            );
+
+            expect(updatePlaylistFromFilePath).toHaveBeenCalledWith(
+                '/tmp/cli-source.m3u',
+                'cli-source'
+            );
+            expect(result).toEqual({ ok: true, title: 'CLI Source' });
+            expect(store.dispatch).toHaveBeenCalledWith(
+                PlaylistActions.addPlaylist({ playlist })
+            );
+        });
+
+        it('derives the title from the path when no file name is supplied', async () => {
+            const updatePlaylistFromFilePath = jest
+                .fn()
+                .mockResolvedValue(playlist);
+            window.electron = {
+                updatePlaylistFromFilePath,
+            } as unknown as typeof window.electron;
+
+            await service.importFromPath('C:\\Users\\tv\\Weekend.m3u8');
+
+            expect(updatePlaylistFromFilePath).toHaveBeenCalledWith(
+                'C:\\Users\\tv\\Weekend.m3u8',
+                'Weekend'
+            );
+        });
+
+        it('rejects paths that are not playlists without touching the bridge', async () => {
+            const updatePlaylistFromFilePath = jest.fn();
+            window.electron = {
+                updatePlaylistFromFilePath,
+            } as unknown as typeof window.electron;
+
+            const result = await service.importFromPath('/tmp/movie.mkv');
+
+            expect(result).toEqual({ ok: false, reason: 'unsupported' });
+            expect(updatePlaylistFromFilePath).not.toHaveBeenCalled();
+            expect(store.dispatch).not.toHaveBeenCalled();
+        });
+
+        it('reports a read error when the main process cannot parse the file', async () => {
+            window.electron = {
+                updatePlaylistFromFilePath: jest
+                    .fn()
+                    .mockRejectedValue(new Error('ENOENT')),
+            } as unknown as typeof window.electron;
+
+            const result = await service.importFromPath('/tmp/missing.m3u');
+
+            expect(result).toEqual({ ok: false, reason: 'read-error' });
+            expect(store.dispatch).not.toHaveBeenCalled();
+        });
+
+        it('reports a read error outside Electron', async () => {
+            window.electron = undefined as unknown as typeof window.electron;
+
+            const result = await service.importFromPath('/tmp/cli-source.m3u');
+
+            expect(result).toEqual({ ok: false, reason: 'read-error' });
+        });
+    });
 });

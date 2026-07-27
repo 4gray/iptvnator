@@ -151,7 +151,8 @@
             "OR": "or",
             "CHOOSE_PLAYLIST": "click to browse",
             "BROWSE": "Browse files",
-            "REJECTED": "File was rejected, unsupported file format {{filename}}."
+            "REJECTED": "File was rejected, unsupported file format {{filename}}.",
+            "OPEN_FAILED": "Could not open \"{{filename}}\"."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",

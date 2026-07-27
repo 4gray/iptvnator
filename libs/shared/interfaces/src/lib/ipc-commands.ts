@@ -18,7 +18,27 @@ export const PLAYLIST_CANCEL_REFRESH = 'PLAYLIST:CANCEL_REFRESH';
 
 // General
 export const ERROR = 'ERROR';
+/**
+ * Main -> renderer push carrying an `ElectronBridgePlaylistOpenRequest`: a
+ * playlist file the OS asked the app to open, either before the window existed
+ * (first launch with a path argument) or while it was already running (second
+ * launch, macOS `open-file`). This is the only channel requests leave the
+ * main-process queue through.
+ */
 export const OPEN_FILE = 'OPEN_FILE';
+/**
+ * Renderer -> main invoke announcing that an `OPEN_FILE` listener is attached.
+ * Carries no payload: it only tells the queue where to push.
+ */
+export const ANNOUNCE_PLAYLIST_OPEN_LISTENER =
+    'announce-playlist-open-listener';
+/**
+ * Renderer -> main invoke confirming a pushed request was received. Until it
+ * arrives the request stays in the queue, so a renderer that reloads or dies
+ * mid-delivery gets it replayed instead of losing it.
+ */
+export const ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST =
+    'acknowledge-playlist-open-request';
 
 // Views
 export const VIEW_SETTINGS = 'VIEW:SETTINGS';

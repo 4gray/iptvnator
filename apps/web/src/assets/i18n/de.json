@@ -151,7 +151,8 @@
             "OR": "oder",
             "CHOOSE_PLAYLIST": "Playlist auswählen",
             "BROWSE": "Dateien durchsuchen",
-            "REJECTED": "Datei wurde abgelehnt, nicht unterstütztes Dateiformat {{filename}}."
+            "REJECTED": "Datei wurde abgelehnt, nicht unterstütztes Dateiformat {{filename}}.",
+            "OPEN_FAILED": "\"{{filename}}\" konnte nicht geöffnet werden."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "URL der Playlist",

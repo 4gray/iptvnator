@@ -21,13 +21,13 @@ import {
 import {
     AUTO_UPDATE_PLAYLISTS,
     Language,
-    OPEN_FILE,
     Settings,
     STORE_KEY,
     Theme,
     createDevLogger,
 } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
+import { PlaylistOpenRequestService } from './services/playlist-open-request.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 
 const debugAppComponent = createDevLogger('AppComponent');
@@ -59,6 +59,7 @@ export class AppComponent implements OnInit {
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
     private settingsStore = inject(SettingsStore);
+    private playlistOpenRequests = inject(PlaylistOpenRequestService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
 
@@ -72,27 +73,12 @@ export class AppComponent implements OnInit {
             document.body.classList.add('frameless-platform');
         }
 
-        const electronProcess = this.dataService.remote?.process;
-        if (
-            this.dataService.isElectron &&
-            electronProcess &&
-            (electronProcess.platform === 'linux' ||
-                electronProcess.platform === 'win32') &&
-            electronProcess.argv.length > 2
-        ) {
-            const filePath = electronProcess.argv.find(
-                (filepath: string) =>
-                    filepath.endsWith('.m3u') || filepath.endsWith('.m3u8')
-            );
-            if (filePath) {
-                const filePathsArray = filePath.split('/');
-                const fileName = filePathsArray[filePathsArray.length - 1];
-                this.dataService.sendIpcEvent(OPEN_FILE, {
-                    filePath,
-                    fileName,
-                });
-            }
-        }
+        // Playlist files the OS asked us to open (command line argument, file
+        // association, macOS `open-file`) are resolved in the main process and
+        // queued there until the renderer subscribes. Start listening as early
+        // as possible so a first-launch file is not delayed behind app init.
+        this.playlistOpenRequests.start();
+
         effect(() => {
             const size = this.settingsStore.coverSize?.() ?? 'medium';
             document.documentElement.dataset.coverSize = size;
