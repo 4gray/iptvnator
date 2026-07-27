@@ -247,4 +247,102 @@ describe('PlaylistBackupService secret policy', () => {
             service.importBackup(JSON.stringify(manifest))
         ).rejects.toBeInstanceOf(PlaylistBackupError);
     });
+
+    it('keeps old version-1 manifests without includeSecrets importable', async () => {
+        const playlistsService = {
+            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            getAllData: jest.fn(() => of([])),
+            getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
+            handlePlaylistParsing: jest.fn(),
+        };
+        const service = createPlaylistBackupService({ playlistsService });
+        const legacyManifest = {
+            kind: PLAYLIST_BACKUP_KIND,
+            version: PLAYLIST_BACKUP_VERSION,
+            exportedAt: '2026-07-27T00:00:00.000Z',
+            playlists: [
+                {
+                    portalType: 'stalker',
+                    exportedId: 'legacy-stalker',
+                    title: 'Legacy Stalker',
+                    autoRefresh: false,
+                    connection: {
+                        portalUrl: 'https://stalker.example/portal.php',
+                        macAddress: '00:1A:79:AA:BB:CC',
+                        username: 'legacy-user',
+                        password: 'legacy-password',
+                    },
+                    userState: {
+                        favorites: [],
+                        recentlyViewed: [],
+                    },
+                },
+            ],
+        };
+
+        const summary = await service.importBackup(
+            JSON.stringify(legacyManifest)
+        );
+
+        expect(summary.imported).toBe(1);
+        expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                username: 'legacy-user',
+                password: 'legacy-password',
+            })
+        );
+    });
+
+    it('rejects duplicate or blank exported IDs before any restore mutation', async () => {
+        const addPlaylist = jest.fn((playlist: Playlist) => of(playlist));
+        const updateSettings = jest.fn().mockResolvedValue(undefined);
+        const service = createPlaylistBackupService({
+            playlistsService: {
+                addPlaylist,
+                getAllData: jest.fn(() => of([])),
+                getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
+                handlePlaylistParsing: jest.fn(),
+            },
+            settingsStore: {
+                getSettings: jest.fn(() => ({ epgUrl: [] })),
+                updateSettings,
+            },
+        });
+        const baseEntry = {
+            portalType: 'stalker' as const,
+            exportedId: 'duplicate-id',
+            title: 'Stalker',
+            autoRefresh: false,
+            connection: {
+                portalUrl: 'https://stalker.example/portal.php',
+                macAddress: '00:1A:79:AA:BB:CC',
+            },
+            userState: {
+                favorites: [],
+                recentlyViewed: [],
+            },
+        };
+        const duplicateManifest: PlaylistBackupManifestV1 = {
+            kind: PLAYLIST_BACKUP_KIND,
+            version: PLAYLIST_BACKUP_VERSION,
+            exportedAt: '2026-07-27T00:00:00.000Z',
+            includeSecrets: true,
+            settings: { epgUrls: ['https://epg.example/guide.xml'] },
+            playlists: [baseEntry, { ...baseEntry }],
+        };
+
+        await expect(
+            service.importBackup(JSON.stringify(duplicateManifest))
+        ).rejects.toThrow(/duplicate exported playlist IDs/);
+
+        const blankIdManifest = {
+            ...duplicateManifest,
+            playlists: [{ ...baseEntry, exportedId: '   ' }],
+        };
+        await expect(
+            service.importBackup(JSON.stringify(blankIdManifest))
+        ).rejects.toThrow(/required metadata/);
+        expect(addPlaylist).not.toHaveBeenCalled();
+        expect(updateSettings).not.toHaveBeenCalled();
+    });
 });

@@ -35,6 +35,23 @@ export interface PlaylistBackupExportOptions {
     includeSecrets?: boolean;
 }
 
+export interface PlaylistBackupXtreamCredentialsRequest {
+    exportedId: string;
+    title: string;
+    serverUrl: string;
+}
+
+export interface PlaylistBackupXtreamCredentials {
+    username: string;
+    password: string;
+}
+
+export interface PlaylistBackupImportOptions {
+    resolveXtreamCredentials?: (
+        request: PlaylistBackupXtreamCredentialsRequest
+    ) => Promise<PlaylistBackupXtreamCredentials | null>;
+}
+
 export interface PlaylistBackupImportSummary {
     imported: number;
     merged: number;
@@ -100,7 +117,10 @@ export class PlaylistBackupService {
         };
     }
 
-    async importBackup(json: string): Promise<PlaylistBackupImportSummary> {
+    async importBackup(
+        json: string,
+        options: PlaylistBackupImportOptions = {}
+    ): Promise<PlaylistBackupImportSummary> {
         const manifest = this.parseManifest(json);
         const existingPlaylists = await firstValueFrom(
             this.playlistsService.getAllData()
@@ -108,9 +128,6 @@ export class PlaylistBackupService {
         const existingIds = new Set(
             existingPlaylists.map((playlist) => playlist._id)
         );
-        const fingerprintMap =
-            await this.buildExistingFingerprintMap(existingPlaylists);
-        const seenBackupFingerprints = new Set<string>();
         const summary: PlaylistBackupImportSummary = {
             imported: 0,
             merged: 0,
@@ -126,27 +143,29 @@ export class PlaylistBackupService {
                 entry.title || entry.exportedId || entry.portalType;
 
             try {
-                const fingerprint = this.getEntryFingerprint(entry);
-
-                if (seenBackupFingerprints.has(fingerprint)) {
+                const importEntry = await this.resolveImportEntry(
+                    entry,
+                    existingPlaylists,
+                    options
+                );
+                if (importEntry === null) {
                     summary.skipped += 1;
-                    summary.errors.push(
-                        `${entryLabel}: duplicate backup entry skipped`
-                    );
                     continue;
                 }
 
-                seenBackupFingerprints.add(fingerprint);
-
-                const existingMatch = fingerprintMap.get(fingerprint);
+                const existingMatch = await this.findExistingMatch(
+                    importEntry,
+                    existingPlaylists,
+                    manifest.includeSecrets
+                );
                 const targetId = this.resolveTargetPlaylistId(
-                    entry,
+                    importEntry,
                     existingMatch?._id,
                     existingIds
                 );
                 const isMerge = existingMatch != null;
                 const nextPlaylist = await this.buildImportedPlaylist(
-                    entry,
+                    importEntry,
                     targetId,
                     existingMatch ?? null
                 );
@@ -155,15 +174,22 @@ export class PlaylistBackupService {
                     this.playlistsService.addPlaylist(nextPlaylist)
                 );
 
-                if (entry.portalType === 'xtream') {
-                    await this.restoreXtreamEntry(targetId, entry);
+                if (importEntry.portalType === 'xtream') {
+                    await this.restoreXtreamEntry(targetId, importEntry);
                 }
 
                 if (isMerge) {
                     summary.merged += 1;
+                    const index = existingPlaylists.findIndex(
+                        (playlist) => playlist._id === targetId
+                    );
+                    if (index >= 0) {
+                        existingPlaylists[index] = nextPlaylist;
+                    }
                 } else {
                     summary.imported += 1;
                     existingIds.add(targetId);
+                    existingPlaylists.push(nextPlaylist);
                 }
             } catch (error) {
                 summary.failed += 1;
@@ -519,7 +545,12 @@ export class PlaylistBackupService {
             );
         }
 
-        if (!entry.exportedId || !entry.title) {
+        if (
+            typeof entry.exportedId !== 'string' ||
+            entry.exportedId.trim().length === 0 ||
+            typeof entry.title !== 'string' ||
+            entry.title.trim().length === 0
+        ) {
             throw new PlaylistBackupError(
                 'Backup contains a playlist entry without required metadata.'
             );
@@ -593,88 +624,227 @@ export class PlaylistBackupService {
         }
     }
 
-    private async buildExistingFingerprintMap(
-        playlists: Playlist[]
-    ): Promise<Map<string, Playlist>> {
-        const map = new Map<string, Playlist>();
-
-        for (const playlist of playlists) {
-            const portalType = this.getPlaylistPortalType(playlist);
-
-            if (portalType === 'm3u' && !playlist.url) {
-                const rawM3u = await firstValueFrom(
-                    this.playlistsService.getRawPlaylistById(playlist._id)
-                );
-                map.set(this.buildM3uRawFingerprint(rawM3u), playlist);
-                continue;
-            }
-
-            map.set(this.getPlaylistFingerprint(playlist), playlist);
+    private async resolveImportEntry(
+        entry: PlaylistBackupEntry,
+        existingPlaylists: readonly Playlist[],
+        options: PlaylistBackupImportOptions
+    ): Promise<PlaylistBackupEntry | null> {
+        if (
+            entry.portalType !== 'xtream' ||
+            entry.connection.credentialsOmitted !== true
+        ) {
+            return entry;
         }
 
-        return map;
-    }
-
-    private getPlaylistFingerprint(playlist: Playlist): string {
-        const portalType = this.getPlaylistPortalType(playlist);
-
-        switch (portalType) {
-            case 'xtream':
-                return [
-                    'xtream',
-                    this.normalizeUrlIdentity(playlist.serverUrl ?? ''),
-                    this.normalizeIdentityValue(playlist.username ?? ''),
-                ].join('|');
-            case 'stalker':
-                return [
-                    'stalker',
-                    this.normalizeUrlIdentity(
-                        playlist.portalUrl ?? playlist.url ?? ''
-                    ),
-                    this.normalizeIdentityValue(
-                        playlist.macAddress ?? '',
-                        true
-                    ),
-                ].join('|');
-            case 'm3u':
-            default:
-                if (playlist.url) {
-                    return this.buildM3uUrlFingerprint(playlist.url);
-                }
-
-                throw new PlaylistBackupError(
-                    `Unable to fingerprint M3U playlist "${playlist.title}".`
-                );
+        const exactLocalMatch = existingPlaylists.some(
+            (playlist) =>
+                playlist._id === entry.exportedId &&
+                this.getPlaylistPortalType(playlist) === 'xtream' &&
+                this.normalizeUrlIdentity(playlist.serverUrl ?? '') ===
+                    this.normalizeUrlIdentity(entry.connection.serverUrl)
+        );
+        if (exactLocalMatch) {
+            return entry;
         }
+
+        const credentials = await options.resolveXtreamCredentials?.({
+            exportedId: entry.exportedId,
+            serverUrl: entry.connection.serverUrl,
+            title: entry.title,
+        });
+        if (credentials == null) {
+            return null;
+        }
+
+        const username = credentials.username.trim();
+        const password = credentials.password.trim();
+        if (!username || !password) {
+            throw new PlaylistBackupError(
+                'Xtream credentials must include a username and password.'
+            );
+        }
+
+        return {
+            ...entry,
+            connection: {
+                password,
+                serverUrl: entry.connection.serverUrl,
+                username,
+            },
+        };
     }
 
-    private getEntryFingerprint(entry: PlaylistBackupEntry): string {
+    private async findExistingMatch(
+        entry: PlaylistBackupEntry,
+        playlists: readonly Playlist[],
+        includeSecrets: boolean
+    ): Promise<Playlist | null> {
         switch (entry.portalType) {
             case 'xtream':
-                return [
-                    'xtream',
-                    this.normalizeUrlIdentity(entry.connection.serverUrl),
-                    this.normalizeIdentityValue(
-                        entry.connection.username ?? ''
-                    ),
-                ].join('|');
+                return this.findXtreamMatch(entry, playlists);
             case 'stalker':
-                return [
-                    'stalker',
-                    this.normalizeUrlIdentity(entry.connection.portalUrl),
-                    this.normalizeIdentityValue(
-                        entry.connection.macAddress,
-                        true
-                    ),
-                ].join('|');
+                return this.findStalkerMatch(entry, playlists, includeSecrets);
             case 'm3u':
             default:
-                if (entry.source.url) {
-                    return this.buildM3uUrlFingerprint(entry.source.url);
-                }
-
-                return this.buildM3uRawFingerprint(entry.source.rawM3u);
+                return this.findM3uMatch(entry, playlists);
         }
+    }
+
+    private findXtreamMatch(
+        entry: XtreamPlaylistBackupEntry,
+        playlists: readonly Playlist[]
+    ): Playlist | null {
+        const candidates = playlists.filter(
+            (playlist) =>
+                this.getPlaylistPortalType(playlist) === 'xtream' &&
+                this.normalizeUrlIdentity(playlist.serverUrl ?? '') ===
+                    this.normalizeUrlIdentity(entry.connection.serverUrl)
+        );
+
+        if (entry.connection.credentialsOmitted === true) {
+            return (
+                candidates.find(
+                    (playlist) => playlist._id === entry.exportedId
+                ) ?? null
+            );
+        }
+
+        const username = this.normalizeIdentityValue(
+            entry.connection.username ?? ''
+        );
+        const principalMatches = candidates.filter(
+            (playlist) =>
+                this.normalizeIdentityValue(playlist.username ?? '') ===
+                username
+        );
+        return this.chooseUnambiguousMatch(principalMatches, entry.exportedId);
+    }
+
+    private findStalkerMatch(
+        entry: StalkerPlaylistBackupEntry,
+        playlists: readonly Playlist[],
+        includeSecrets: boolean
+    ): Playlist | null {
+        const candidates = playlists.filter(
+            (playlist) => this.getPlaylistPortalType(playlist) === 'stalker'
+        );
+
+        if (!includeSecrets) {
+            return (
+                candidates.find(
+                    (playlist) =>
+                        playlist._id === entry.exportedId &&
+                        this.hasSameStalkerSourceMacAndProfile(entry, playlist)
+                ) ?? null
+            );
+        }
+
+        if (this.isLegacyStalkerBackupEntry(entry)) {
+            const legacyMatches = candidates.filter(
+                (playlist) =>
+                    this.normalizeUrlIdentity(
+                        playlist.portalUrl ?? playlist.url ?? ''
+                    ) ===
+                        this.normalizeUrlIdentity(entry.connection.portalUrl) &&
+                    this.normalizeMacIdentity(playlist.macAddress ?? '') ===
+                        this.normalizeMacIdentity(entry.connection.macAddress)
+            );
+            return legacyMatches.length === 1 ? legacyMatches[0] : null;
+        }
+
+        const identityMatches = candidates.filter(
+            (playlist) =>
+                this.hasSameStalkerSourceMacAndProfile(entry, playlist) &&
+                this.stableObjectIdentity(playlist.stalkerIdentityOverrides) ===
+                    this.stableObjectIdentity(
+                        entry.connection.identityOverrides
+                    )
+        );
+        const exportedIdMatch = identityMatches.find(
+            (playlist) => playlist._id === entry.exportedId
+        );
+        if (exportedIdMatch) {
+            return exportedIdMatch;
+        }
+
+        const principalMatches = identityMatches.filter(
+            (playlist) =>
+                this.normalizeIdentityValue(playlist.username ?? '') ===
+                this.normalizeIdentityValue(entry.connection.username ?? '')
+        );
+        return principalMatches.length === 1 ? principalMatches[0] : null;
+    }
+
+    private async findM3uMatch(
+        entry: M3uPlaylistBackupEntry,
+        playlists: readonly Playlist[]
+    ): Promise<Playlist | null> {
+        const entryFingerprint = entry.source.url
+            ? this.buildM3uUrlFingerprint(entry.source.url)
+            : this.buildM3uRawFingerprint(entry.source.rawM3u);
+        const matches: Playlist[] = [];
+
+        for (const playlist of playlists) {
+            if (this.getPlaylistPortalType(playlist) !== 'm3u') {
+                continue;
+            }
+            const fingerprint = playlist.url
+                ? this.buildM3uUrlFingerprint(playlist.url)
+                : this.buildM3uRawFingerprint(
+                      await firstValueFrom(
+                          this.playlistsService.getRawPlaylistById(playlist._id)
+                      )
+                  );
+            if (fingerprint === entryFingerprint) {
+                matches.push(playlist);
+            }
+        }
+
+        return this.chooseUnambiguousMatch(matches, entry.exportedId);
+    }
+
+    private hasSameStalkerSourceMacAndProfile(
+        entry: StalkerPlaylistBackupEntry,
+        playlist: Playlist
+    ): boolean {
+        const entrySource =
+            entry.connection.sourceUrl ?? entry.connection.portalUrl;
+        const playlistSource =
+            playlist.stalkerSourceUrl ??
+            playlist.portalUrl ??
+            playlist.url ??
+            '';
+        return (
+            this.normalizeUrlIdentity(entrySource) ===
+                this.normalizeUrlIdentity(playlistSource) &&
+            this.normalizeMacIdentity(entry.connection.macAddress) ===
+                this.normalizeMacIdentity(playlist.macAddress ?? '') &&
+            this.stableObjectIdentity(entry.connection.profilePreset) ===
+                this.stableObjectIdentity(playlist.stalkerProfilePreset)
+        );
+    }
+
+    private isLegacyStalkerBackupEntry(
+        entry: StalkerPlaylistBackupEntry
+    ): boolean {
+        return (
+            !hasOwn(entry.connection, 'sourceUrl') &&
+            !hasOwn(entry.connection, 'profilePreset') &&
+            !hasOwn(entry.connection, 'identityOverrides')
+        );
+    }
+
+    private chooseUnambiguousMatch(
+        candidates: readonly Playlist[],
+        exportedId: string
+    ): Playlist | null {
+        const idMatch = candidates.find(
+            (playlist) => playlist._id === exportedId
+        );
+        if (idMatch) {
+            return idMatch;
+        }
+        return candidates.length === 1 ? candidates[0] : null;
     }
 
     private buildM3uUrlFingerprint(url: string): string {
@@ -803,8 +973,12 @@ export class PlaylistBackupService {
             autoRefresh: entry.autoRefresh,
             position: entry.position,
             serverUrl: entry.connection.serverUrl,
-            username: entry.connection.username,
-            password: entry.connection.password,
+            ...(hasOwn(entry.connection, 'username')
+                ? { username: entry.connection.username }
+                : {}),
+            ...(hasOwn(entry.connection, 'password')
+                ? { password: entry.connection.password }
+                : {}),
             favorites: [],
             recentlyViewed: [],
         };
@@ -829,22 +1003,79 @@ export class PlaylistBackupService {
             position: entry.position,
             portalUrl: entry.connection.portalUrl,
             url: entry.connection.portalUrl,
+            ...(hasOwn(entry.connection, 'sourceUrl')
+                ? { stalkerSourceUrl: entry.connection.sourceUrl }
+                : {}),
             macAddress: entry.connection.macAddress,
-            username: entry.connection.username,
-            password: entry.connection.password,
-            userAgent: entry.connection.userAgent,
-            referrer: entry.connection.referrer,
-            origin: entry.connection.origin,
-            isFullStalkerPortal: entry.connection.isFullStalkerPortal,
+            ...(hasOwn(entry.connection, 'username')
+                ? { username: entry.connection.username }
+                : {}),
+            ...(hasOwn(entry.connection, 'password')
+                ? { password: entry.connection.password }
+                : {}),
+            ...(hasOwn(entry.connection, 'userAgent')
+                ? { userAgent: entry.connection.userAgent }
+                : {}),
+            ...(hasOwn(entry.connection, 'referrer')
+                ? { referrer: entry.connection.referrer }
+                : {}),
+            ...(hasOwn(entry.connection, 'origin')
+                ? { origin: entry.connection.origin }
+                : {}),
+            ...(hasOwn(entry.connection, 'isFullStalkerPortal')
+                ? {
+                      isFullStalkerPortal: entry.connection.isFullStalkerPortal,
+                  }
+                : {}),
+            ...(hasOwn(entry.connection, 'profilePreset')
+                ? {
+                      stalkerProfilePreset:
+                          entry.connection.profilePreset === undefined
+                              ? undefined
+                              : { ...entry.connection.profilePreset },
+                  }
+                : {}),
+            ...(hasOwn(entry.connection, 'transportConfiguration')
+                ? {
+                      stalkerTransportConfiguration:
+                          entry.connection.transportConfiguration === undefined
+                              ? undefined
+                              : {
+                                    ...entry.connection.transportConfiguration,
+                                },
+                  }
+                : {}),
+            ...(hasOwn(entry.connection, 'identityOverrides')
+                ? {
+                      stalkerIdentityOverrides:
+                          entry.connection.identityOverrides === undefined
+                              ? undefined
+                              : {
+                                    ...entry.connection.identityOverrides,
+                                },
+                  }
+                : {}),
             favorites: entry.userState.favorites.map((item) => ({ ...item })),
             recentlyViewed: entry.userState.recentlyViewed.map((item) => ({
                 ...item,
             })),
-            stalkerSerialNumber: entry.connection.stalkerSerialNumber,
-            stalkerDeviceId1: entry.connection.stalkerDeviceId1,
-            stalkerDeviceId2: entry.connection.stalkerDeviceId2,
-            stalkerSignature1: entry.connection.stalkerSignature1,
-            stalkerSignature2: entry.connection.stalkerSignature2,
+            ...(hasOwn(entry.connection, 'stalkerSerialNumber')
+                ? {
+                      stalkerSerialNumber: entry.connection.stalkerSerialNumber,
+                  }
+                : {}),
+            ...(hasOwn(entry.connection, 'stalkerDeviceId1')
+                ? { stalkerDeviceId1: entry.connection.stalkerDeviceId1 }
+                : {}),
+            ...(hasOwn(entry.connection, 'stalkerDeviceId2')
+                ? { stalkerDeviceId2: entry.connection.stalkerDeviceId2 }
+                : {}),
+            ...(hasOwn(entry.connection, 'stalkerSignature1')
+                ? { stalkerSignature1: entry.connection.stalkerSignature1 }
+                : {}),
+            ...(hasOwn(entry.connection, 'stalkerSignature2')
+                ? { stalkerSignature2: entry.connection.stalkerSignature2 }
+                : {}),
             stalkerToken: undefined,
             stalkerAccountInfo: undefined,
         };
@@ -1128,6 +1359,23 @@ export class PlaylistBackupService {
     private normalizeIdentityValue(value: string, toLowerCase = false): string {
         const trimmed = value.trim();
         return toLowerCase ? trimmed.toLowerCase() : trimmed;
+    }
+
+    private normalizeMacIdentity(value: string): string {
+        return value.trim().replace(/-/g, ':').toUpperCase();
+    }
+
+    private stableObjectIdentity(value: Readonly<object> | undefined): string {
+        if (value === undefined) {
+            return '';
+        }
+        return JSON.stringify(
+            Object.fromEntries(
+                Object.entries(value)
+                    .filter(([, field]) => field !== undefined)
+                    .sort(([left], [right]) => left.localeCompare(right))
+            )
+        );
     }
 
     private canonicalizeM3u(rawM3u: string): string {

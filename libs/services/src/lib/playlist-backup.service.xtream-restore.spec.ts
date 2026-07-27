@@ -140,8 +140,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
 
         const backup = await service.exportBackup();
 
-        const entry = backup.manifest
-            .playlists[0] as XtreamPlaylistBackupEntry;
+        const entry = backup.manifest.playlists[0] as XtreamPlaylistBackupEntry;
         const expectedHiddenCategories = [
             { categoryType: 'live', xtreamId: 101 },
             { categoryType: 'movies', xtreamId: 201 },
@@ -198,9 +197,8 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         // treated as an authoritative "empty" state: the merge path would
         // unhide every category and delete favorites/recent/positions.
         const manifest = createXtreamManifest([]);
-        delete (
-            manifest.playlists[0] as unknown as { userState?: unknown }
-        ).userState;
+        delete (manifest.playlists[0] as unknown as { userState?: unknown })
+            .userState;
 
         await expect(
             service.importBackup(JSON.stringify(manifest))
@@ -239,5 +237,144 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
             'xtream-1',
             expect.objectContaining({ hiddenCategories: [] })
         );
+    });
+});
+
+describe('PlaylistBackupService redacted Xtream restore', () => {
+    function redactedManifest(): PlaylistBackupManifestV1 {
+        return {
+            kind: PLAYLIST_BACKUP_KIND,
+            version: PLAYLIST_BACKUP_VERSION,
+            exportedAt: '2026-07-27T00:00:00.000Z',
+            includeSecrets: false,
+            playlists: [
+                {
+                    portalType: 'xtream',
+                    exportedId: 'xtream-redacted',
+                    title: 'Redacted Xtream',
+                    autoRefresh: false,
+                    connection: {
+                        credentialsOmitted: true,
+                        serverUrl: 'https://portal.test/base/',
+                    },
+                    userState: {
+                        hiddenCategories: [],
+                        favorites: [],
+                        recentlyViewed: [],
+                        playbackPositions: [],
+                    },
+                },
+            ],
+        };
+    }
+
+    function serviceWith(playlists: Playlist[]) {
+        const playlistsService = {
+            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            getAllData: jest.fn(() => of(playlists)),
+            getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
+            handlePlaylistParsing: jest.fn(),
+        };
+        return {
+            playlistsService,
+            service: createPlaylistBackupService({ playlistsService }),
+        };
+    }
+
+    it('preserves local credentials only for the exact exportedId and normalized server URL', async () => {
+        const local = {
+            _id: 'xtream-redacted',
+            title: 'Local Xtream',
+            count: 1,
+            importDate: '2026-07-01T00:00:00.000Z',
+            lastUsage: '2026-07-01T00:00:00.000Z',
+            autoRefresh: false,
+            serverUrl: 'https://portal.test/base',
+            username: 'local-user',
+            password: 'local-password',
+        } as Playlist;
+        const { playlistsService, service } = serviceWith([local]);
+
+        const summary = await service.importBackup(
+            JSON.stringify(redactedManifest())
+        );
+
+        expect(summary.merged).toBe(1);
+        expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: local._id,
+                username: 'local-user',
+                password: 'local-password',
+            })
+        );
+    });
+
+    it('keeps an unmatched entry in memory for the credential resolver and persists nothing when skipped', async () => {
+        const { playlistsService, service } = serviceWith([]);
+        const resolveXtreamCredentials = jest.fn().mockResolvedValue(null);
+
+        const summary = await service.importBackup(
+            JSON.stringify(redactedManifest()),
+            { resolveXtreamCredentials }
+        );
+
+        expect(resolveXtreamCredentials).toHaveBeenCalledWith({
+            exportedId: 'xtream-redacted',
+            serverUrl: 'https://portal.test/base/',
+            title: 'Redacted Xtream',
+        });
+        expect(summary).toEqual({
+            imported: 0,
+            merged: 0,
+            skipped: 1,
+            failed: 0,
+            errors: [],
+        });
+        expect(playlistsService.addPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('creates the row only after the resolver supplies valid credentials', async () => {
+        const { playlistsService, service } = serviceWith([]);
+
+        const summary = await service.importBackup(
+            JSON.stringify(redactedManifest()),
+            {
+                resolveXtreamCredentials: async () => ({
+                    username: ' restored-user ',
+                    password: ' restored-password ',
+                }),
+            }
+        );
+
+        expect(summary.imported).toBe(1);
+        expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                serverUrl: 'https://portal.test/base/',
+                username: 'restored-user',
+                password: 'restored-password',
+            })
+        );
+    });
+
+    it('rejects blank resolved credentials before creating an unusable row', async () => {
+        const { playlistsService, service } = serviceWith([]);
+
+        const summary = await service.importBackup(
+            JSON.stringify(redactedManifest()),
+            {
+                resolveXtreamCredentials: async () => ({
+                    username: ' ',
+                    password: 'password',
+                }),
+            }
+        );
+
+        expect(summary).toEqual(
+            expect.objectContaining({ failed: 1, imported: 0 })
+        );
+        expect(summary.errors[0]).toContain(
+            'must include a username and password'
+        );
+        expect(playlistsService.addPlaylist).not.toHaveBeenCalled();
     });
 });
