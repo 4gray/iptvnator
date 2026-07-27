@@ -6,12 +6,11 @@ import {
     LEGACY_DEFAULT_STALKER_SERIAL,
     type StalkerSessionConnectionDescriptor,
     type StalkerSessionIdentityOverrides,
+    type StalkerSessionTransportConfiguration,
 } from '@iptvnator/shared/interfaces';
 import type { StalkerAuthCredentials } from './stalker-auth-session';
 
-type SavedPlaylistReader = (
-    playlistRef: string
-) => Promise<unknown>;
+type SavedPlaylistReader = (playlistRef: string) => Promise<unknown>;
 
 const IDENTITY_KEYS = [
     'apiSignature',
@@ -29,6 +28,18 @@ const IDENTITY_KEYS = [
     'videoOutput',
 ] as const satisfies readonly (keyof StalkerSessionIdentityOverrides)[];
 
+const TRANSPORT_KEYS = [
+    'language',
+    'locale',
+    'origin',
+    'originPolicy',
+    'referer',
+    'refererPolicy',
+    'timezone',
+    'userAgent',
+    'xUserAgent',
+] as const satisfies readonly (keyof StalkerSessionTransportConfiguration)[];
+
 export function createStalkerSavedCredentialsLoader(
     readPlaylist: SavedPlaylistReader
 ): (
@@ -39,7 +50,7 @@ export function createStalkerSavedCredentialsLoader(
         if (!isRecord(value) || !matchesDescriptor(value, descriptor)) {
             return undefined;
         }
-        const username = presentString(value['username'])?.trim();
+        const username = presentString(value['username']);
         const password = value['password'];
         if (
             username === undefined ||
@@ -60,12 +71,12 @@ function matchesDescriptor(
     descriptor: StalkerSessionConnectionDescriptor
 ): boolean {
     if (
-        (playlist['type'] !== undefined &&
-            playlist['type'] !== 'stalker') ||
+        (playlist['type'] !== undefined && playlist['type'] !== 'stalker') ||
         !matchesSource(playlist, descriptor.sourceUrl) ||
         !matchesMac(playlist['macAddress'], descriptor.macAddress) ||
         !matchesProfile(playlist['stalkerProfilePreset'], descriptor) ||
-        !matchesIdentity(playlist, descriptor.identityOverrides)
+        !matchesIdentity(playlist, descriptor.identityOverrides) ||
+        !matchesTransport(playlist, descriptor.transportConfiguration)
     ) {
         return false;
     }
@@ -114,8 +125,7 @@ function matchesProfile(
 ): boolean {
     if (value === undefined) {
         return (
-            descriptor.profilePreset.id ===
-                'mag250-public-5_1-minimal-v1' &&
+            descriptor.profilePreset.id === 'mag250-public-5_1-minimal-v1' &&
             descriptor.profilePreset.version === 1
         );
     }
@@ -133,6 +143,17 @@ function matchesIdentity(
     const saved = readSavedIdentity(playlist);
     const descriptor = descriptorIdentity ?? {};
     return IDENTITY_KEYS.every(
+        (key) => saved[key] === presentString(descriptor[key])
+    );
+}
+
+function matchesTransport(
+    playlist: Readonly<Record<string, unknown>>,
+    descriptorTransport: StalkerSessionTransportConfiguration | undefined
+): boolean {
+    const saved = readSavedTransport(playlist);
+    const descriptor = descriptorTransport ?? {};
+    return TRANSPORT_KEYS.every(
         (key) => saved[key] === presentString(descriptor[key])
     );
 }
@@ -157,6 +178,20 @@ function readSavedIdentity(
     });
 }
 
+function readSavedTransport(
+    playlist: Readonly<Record<string, unknown>>
+): StalkerSessionTransportConfiguration {
+    const structured = playlist['stalkerTransportConfiguration'];
+    if (isRecord(structured)) {
+        return copyTransport(structured);
+    }
+    return copyTransport({
+        origin: playlist['origin'],
+        referer: playlist['referrer'],
+        userAgent: playlist['userAgent'],
+    });
+}
+
 function copyIdentity(
     value: Readonly<Record<string, unknown>>
 ): StalkerSessionIdentityOverrides {
@@ -166,6 +201,17 @@ function copyIdentity(
             return present === undefined ? [] : [[key, present]];
         })
     ) as StalkerSessionIdentityOverrides;
+}
+
+function copyTransport(
+    value: Readonly<Record<string, unknown>>
+): StalkerSessionTransportConfiguration {
+    return Object.fromEntries(
+        TRANSPORT_KEYS.flatMap((key) => {
+            const present = presentString(value[key]);
+            return present === undefined ? [] : [[key, present]];
+        })
+    ) as StalkerSessionTransportConfiguration;
 }
 
 function firstPresentString(...values: readonly unknown[]): string | undefined {

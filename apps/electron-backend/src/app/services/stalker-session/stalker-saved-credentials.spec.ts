@@ -42,9 +42,56 @@ describe('createStalkerSavedCredentialsLoader', () => {
 
         await expect(load(DESCRIPTOR)).resolves.toEqual({
             password: 'saved password',
-            username: 'saved-user',
+            username: ' saved-user ',
         });
         expect(readPlaylist).toHaveBeenCalledWith('playlist-1');
+    });
+
+    it.each([
+        'userAgent',
+        'xUserAgent',
+        'referer',
+        'origin',
+        'refererPolicy',
+        'originPolicy',
+        'locale',
+        'language',
+        'timezone',
+    ] as const)(
+        'rejects a %s transport-identity mismatch',
+        async (transportKey) => {
+            const load = createStalkerSavedCredentialsLoader(async () => ({
+                ...SAVED_PLAYLIST,
+                stalkerTransportConfiguration: {
+                    [transportKey]: 'saved-value',
+                },
+            }));
+
+            await expect(load(DESCRIPTOR)).resolves.toBeUndefined();
+        }
+    );
+
+    it('matches legacy transport columns when the structured configuration is absent', async () => {
+        const load = createStalkerSavedCredentialsLoader(async () => ({
+            ...SAVED_PLAYLIST,
+            origin: 'https://portal.example',
+            referrer: 'https://portal.example/c/',
+            userAgent: 'Saved User Agent',
+        }));
+
+        await expect(
+            load({
+                ...DESCRIPTOR,
+                transportConfiguration: {
+                    origin: 'https://portal.example',
+                    referer: 'https://portal.example/c/',
+                    userAgent: 'Saved User Agent',
+                },
+            })
+        ).resolves.toEqual({
+            password: 'saved password',
+            username: ' saved-user ',
+        });
     });
 
     it.each([
@@ -91,10 +138,8 @@ describe('createStalkerSavedCredentialsLoader', () => {
     });
 
     it('matches legacy identity columns when the structured override is absent', async () => {
-        const {
-            stalkerIdentityOverrides: _structured,
-            ...legacyPlaylist
-        } = SAVED_PLAYLIST;
+        const { stalkerIdentityOverrides: _structured, ...legacyPlaylist } =
+            SAVED_PLAYLIST;
         const load = createStalkerSavedCredentialsLoader(async () => ({
             ...legacyPlaylist,
             stalkerDeviceId1: 'DEVICE-1',
@@ -103,7 +148,7 @@ describe('createStalkerSavedCredentialsLoader', () => {
 
         await expect(load(DESCRIPTOR)).resolves.toEqual({
             password: 'saved password',
-            username: 'saved-user',
+            username: ' saved-user ',
         });
     });
 });

@@ -113,6 +113,7 @@ describe('StalkerAuthSession', () => {
     });
 
     it('runs do_auth only after status 2, then sends the second profile with step 1', async () => {
+        const exactUsername = '  confirmed-user  ';
         const { auth, calls } = harness(
             {
                 kind: 'credentials-required',
@@ -126,7 +127,6 @@ describe('StalkerAuthSession', () => {
                 if (request.params?.['action'] === 'get_profile') {
                     return success({
                         js: {
-                            login: 'confirmed-user',
                             status: 0,
                         },
                     });
@@ -140,24 +140,21 @@ describe('StalkerAuthSession', () => {
             kind: 'credentials-required',
         });
         const outcome = await auth.submitCredentials({
-            username: 'confirmed-user',
+            username: exactUsername,
             password: 'confirmed-password',
         });
 
         expect(outcome).toEqual({
-            accountSummary: {
-                name: 'confirmed-user',
-                status: '0',
-            },
+            accountSummary: { status: '0' },
             kind: 'ready',
         });
-        expect(auth.getPrincipalKey()).toBe('confirmed-user');
+        expect(auth.getPrincipalKey()).toBe(exactUsername);
         expect(calls.map((call) => call.params?.['action'])).toEqual([
             'do_auth',
             'get_profile',
         ]);
         expect(calls[0].params).toMatchObject({
-            login: 'confirmed-user',
+            login: exactUsername,
             password: 'confirmed-password',
         });
         expect(calls[1].params?.['auth_second_step']).toBe(1);

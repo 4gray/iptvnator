@@ -127,9 +127,7 @@ export interface StalkerCredentialsDialogResult {
                     {{ 'CANCEL' | translate }}
                 </button>
                 <button mat-flat-button type="submit">
-                    {{
-                        'HOME.STALKER_PORTAL.VALIDATE_CREDENTIALS' | translate
-                    }}
+                    {{ 'HOME.STALKER_PORTAL.VALIDATE_CREDENTIALS' | translate }}
                 </button>
             </mat-dialog-actions>
         </form>
@@ -162,7 +160,7 @@ export class StalkerCredentialsDialogComponent {
         const value = this.form.getRawValue();
         this.dialogRef.close({
             password: value.password,
-            username: value.username.trim(),
+            username: value.username,
         });
     }
 

@@ -108,14 +108,12 @@ describe('Stalker route connection dialogs', () => {
         const component = fixture.componentInstance;
         const password = (
             fixture.nativeElement as HTMLElement
-        ).querySelector<HTMLInputElement>(
-            'input[formControlName="password"]'
-        );
+        ).querySelector<HTMLInputElement>('input[formControlName="password"]');
 
         expect(password?.type).toBe('password');
-        expect(
-            (fixture.nativeElement as HTMLElement).textContent
-        ).toContain('The saved credentials were rejected.');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+            'The saved credentials were rejected.'
+        );
 
         component.passwordVisible.set(true);
         fixture.detectChanges();
@@ -128,7 +126,7 @@ describe('Stalker route connection dialogs', () => {
         component.submit();
         expect(dialogRef.close).toHaveBeenCalledWith({
             password: ' password with spaces ',
-            username: 'replacement-user',
+            username: '  replacement-user  ',
         });
     });
 

@@ -507,10 +507,10 @@ function normalizeCredentials(
     ) {
         return null;
     }
-    const username = value.username.trim();
+    const username = value.username;
     const password = value.password;
     if (
-        username.length === 0 ||
+        username.trim().length === 0 ||
         password.length === 0 ||
         Buffer.byteLength(username, 'utf8') > USERNAME_MAX_BYTES ||
         Buffer.byteLength(password, 'utf8') > PASSWORD_MAX_BYTES
