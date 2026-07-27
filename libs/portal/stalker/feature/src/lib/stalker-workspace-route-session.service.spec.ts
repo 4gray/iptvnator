@@ -6,6 +6,7 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { StalkerConnectionFlowService } from './stalker-connection-flow/stalker-connection-flow.service';
 import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 const PLAYLIST_ID = 'stalker-1';
@@ -30,6 +31,8 @@ const FULL_STALKER_PLAYLIST: PlaylistMeta = {
 async function flushEffects(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
 }
 
 function getStalkerSectionFromUrl(url: string): string | null {
@@ -40,6 +43,7 @@ function getStalkerSectionFromUrl(url: string): string | null {
 
 describe('StalkerWorkspaceRouteSession', () => {
     const routerEvents = new Subject<NavigationEnd>();
+    const connectionReady = new Subject<PlaylistMeta>();
     const activePlaylist = signal<PlaylistMeta | null>(ACTIVE_PLAYLIST);
     const selectedContentType = signal<'vod' | 'itv' | 'series' | 'radio'>(
         'vod'
@@ -65,6 +69,14 @@ describe('StalkerWorkspaceRouteSession', () => {
 
     const playlistsService = {
         getPlaylistById: jest.fn(() => of(ACTIVE_PLAYLIST)),
+    };
+
+    const connectionFlow = {
+        cancel: jest.fn().mockResolvedValue(undefined),
+        connectionReady$: connectionReady.asObservable(),
+        ensureConnected: jest.fn(
+            async (playlist: PlaylistMeta) => playlist
+        ),
     };
 
     const router = {
@@ -99,6 +111,8 @@ describe('StalkerWorkspaceRouteSession', () => {
         stalkerStore.setSelectedContentType.mockClear();
         stalkerStore.setSearchPhrase.mockClear();
         playlistsService.getPlaylistById.mockClear();
+        connectionFlow.cancel.mockClear();
+        connectionFlow.ensureConnected.mockClear();
 
         await TestBed.configureTestingModule({
             providers: [
@@ -119,6 +133,10 @@ describe('StalkerWorkspaceRouteSession', () => {
                     provide: StalkerStore,
                     useValue: stalkerStore,
                 },
+                {
+                    provide: StalkerConnectionFlowService,
+                    useValue: connectionFlow,
+                },
             ],
         });
     });
@@ -132,6 +150,14 @@ describe('StalkerWorkspaceRouteSession', () => {
         expect(stalkerStore.resetCategories).toHaveBeenCalled();
         expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
             ACTIVE_PLAYLIST
+        );
+        expect(connectionFlow.ensureConnected).toHaveBeenCalledWith(
+            ACTIVE_PLAYLIST
+        );
+        expect(
+            connectionFlow.ensureConnected.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+            stalkerStore.setCurrentPlaylist.mock.invocationCallOrder[0]
         );
         expect(stalkerStore.setSelectedContentType).toHaveBeenCalledWith('itv');
         expect(selectedContentType()).toBe('itv');
@@ -196,6 +222,54 @@ describe('StalkerWorkspaceRouteSession', () => {
         await flushEffects();
 
         expect(playlistsService.getPlaylistById).not.toHaveBeenCalled();
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
+    });
+
+    it('does not expose a playlist to catalog resources when connection flow is cancelled', async () => {
+        connectionFlow.ensureConnected.mockResolvedValueOnce(undefined);
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(stalkerStore.setCurrentPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('cancels a provisional route attempt before leaving the Stalker workspace', async () => {
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        router.url = '/workspace/m3u/playlist-2';
+        playlistContext.syncFromUrl.mockReturnValueOnce({
+            inWorkspace: true,
+            playlistId: 'playlist-2',
+            provider: 'm3u',
+            section: null,
+        });
+
+        routerEvents.next(
+            new NavigationEnd(
+                2,
+                `/workspace/stalker/${PLAYLIST_ID}/vod`,
+                router.url
+            )
+        );
+        await flushEffects();
+
+        expect(connectionFlow.cancel).toHaveBeenCalledTimes(1);
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenLastCalledWith(
+            undefined
+        );
+    });
+
+    it('activates a connection completed by Save Again while the route is still current', async () => {
+        connectionFlow.ensureConnected.mockResolvedValueOnce(undefined);
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        connectionReady.next(FULL_STALKER_PLAYLIST);
+        await flushEffects();
+
         expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
             FULL_STALKER_PLAYLIST
         );

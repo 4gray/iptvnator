@@ -222,7 +222,9 @@
             "ADVANCED_IDENTITY_HINT": "Use only values supplied by your provider or an existing registered device. IPTVnator does not invent these values.",
             "USER_AGENT": "Browser User-Agent override (optional)",
             "VALIDATE_CREDENTIALS": "Validate credentials",
-            "SAVE_AGAIN": "Save again"
+            "SAVE_AGAIN": "Save again",
+            "USERNAME": "Username",
+            "PASSWORD": "Password"
         },
         "FILTER_BY_NAME": "依名稱篩選",
         "FILTER_AND_SORT": "篩選與排序",

@@ -222,7 +222,9 @@
             "ADVANCED_IDENTITY_HINT": "Verwenden Sie nur Werte Ihres Anbieters oder eines registrierten Geräts. IPTVnator erfindet diese Werte nicht.",
             "USER_AGENT": "Browser-User-Agent überschreiben (optional)",
             "VALIDATE_CREDENTIALS": "Anmeldedaten prüfen",
-            "SAVE_AGAIN": "Erneut speichern"
+            "SAVE_AGAIN": "Erneut speichern",
+            "USERNAME": "Benutzername",
+            "PASSWORD": "Passwort"
         },
         "FILTER_BY_NAME": "Nach Namen filtern",
         "FILTER_AND_SORT": "Filtern & Sortieren",
