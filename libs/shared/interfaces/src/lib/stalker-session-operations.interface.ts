@@ -72,6 +72,7 @@ export interface StalkerSessionShortEpgParameters {
 
 export interface StalkerSessionEpgInfoParameters {
     fromTimestamp?: number;
+    periodHours?: number;
     toTimestamp?: number;
 }
 
@@ -96,23 +97,47 @@ export interface StalkerSessionCategory {
     id: StalkerSessionEntityId;
     name: string;
     alias?: string;
+    censored?: boolean;
     parentId?: StalkerSessionEntityId;
+}
+
+export interface StalkerSessionCatalogInfo {
+    actors?: string;
+    description?: string;
+    director?: string;
+    genre?: string;
+    movieImage?: string;
+    name?: string;
+    originalName?: string;
+    releaseDate?: string;
+    ratingImdb?: string;
+    ratingKinopoisk?: string;
 }
 
 export interface StalkerSessionCatalogItem {
     id: StalkerSessionEntityId;
     contentType: StalkerSessionContentType;
+    actors?: string;
     name?: string;
     title?: string;
+    originalName?: string;
     description?: string;
+    director?: string;
     command?: string;
     posterUrl?: string;
+    logoUrl?: string;
+    screenshotUrl?: string;
     categoryId?: StalkerSessionEntityId;
     genreId?: StalkerSessionEntityId;
+    videoId?: StalkerSessionEntityId;
+    channelNumber?: number;
+    hasFiles?: boolean;
+    seriesNumbers?: readonly number[];
     year?: number;
     rating?: number;
     durationSeconds?: number;
     isSeries?: boolean;
+    info?: StalkerSessionCatalogInfo;
 }
 
 export interface StalkerSessionCatalogResult {
@@ -130,6 +155,8 @@ export interface StalkerSessionSeason {
     id: StalkerSessionEntityId;
     number: number;
     title?: string;
+    command?: string;
+    episodeNumbers?: readonly number[];
 }
 
 export interface StalkerSessionSeasonsResult {
@@ -145,6 +172,8 @@ export interface StalkerSessionEpisode {
     title?: string;
     command?: string;
     thumbnailUrl?: string;
+    description?: string;
+    durationSeconds?: number;
 }
 
 export interface StalkerSessionEpisodesResult {
@@ -192,10 +221,7 @@ export interface StalkerSessionMainInfoResult {
     account: StalkerSessionAccountSummary;
 }
 
-export interface StalkerSessionOperationContract<
-    Parameters,
-    Result,
-> {
+export interface StalkerSessionOperationContract<Parameters, Result> {
     parameters: Parameters;
     result: Result;
 }
