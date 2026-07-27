@@ -107,14 +107,11 @@ describe('StalkerBaseIdentityCoordinator', () => {
             }
         );
         await Promise.resolve();
-        const mutation = coordinator.runMutation(
-            'principal-a',
-            async () => {
-                order.push('mutation-start');
-                await mutationGate.promise;
-                order.push('mutation-end');
-            }
-        );
+        const mutation = coordinator.runMutation('principal-a', async () => {
+            order.push('mutation-start');
+            await mutationGate.promise;
+            order.push('mutation-end');
+        });
         const laterReader = coordinator.runRead(
             'principal-a',
             ready.snapshot.epoch + 1,
@@ -128,11 +125,7 @@ describe('StalkerBaseIdentityCoordinator', () => {
         readerGate.resolve();
         await reader;
         await Promise.resolve();
-        expect(order).toEqual([
-            'reader-start',
-            'reader-end',
-            'mutation-start',
-        ]);
+        expect(order).toEqual(['reader-start', 'reader-end', 'mutation-start']);
         mutationGate.resolve();
         await mutation;
         await laterReader;
@@ -158,21 +151,13 @@ describe('StalkerBaseIdentityCoordinator', () => {
         const operation = jest.fn();
 
         await expect(
-            coordinator.runRead(
-                'principal-a',
-                first.snapshot.epoch,
-                operation
-            )
+            coordinator.runRead('principal-a', first.snapshot.epoch, operation)
         ).resolves.toEqual({
             kind: 'suspended',
             snapshot: { activePrincipal: 'principal-b', epoch: 2 },
         });
         await expect(
-            coordinator.runRead(
-                'principal-b',
-                first.snapshot.epoch,
-                operation
-            )
+            coordinator.runRead('principal-b', first.snapshot.epoch, operation)
         ).resolves.toEqual({
             kind: 'suspended',
             snapshot: { activePrincipal: 'principal-b', epoch: 2 },
@@ -228,11 +213,7 @@ describe('StalkerBaseIdentityCoordinator', () => {
 
         expect(coordinator.snapshot).toEqual({ epoch: 2 });
         await expect(
-            coordinator.runRead(
-                'principal-a',
-                ready.snapshot.epoch,
-                jest.fn()
-            )
+            coordinator.runRead('principal-a', ready.snapshot.epoch, jest.fn())
         ).resolves.toEqual({
             kind: 'suspended',
             snapshot: { epoch: 2 },
@@ -241,10 +222,7 @@ describe('StalkerBaseIdentityCoordinator', () => {
 
     it('can explicitly enter a no-active-principal transition epoch', async () => {
         const coordinator = new StalkerBaseIdentityCoordinator();
-        await coordinator.runMutation(
-            'principal-a',
-            async () => undefined
-        );
+        await coordinator.runMutation('principal-a', async () => undefined);
 
         const transition = await coordinator.runMutation(
             undefined,
@@ -254,6 +232,25 @@ describe('StalkerBaseIdentityCoordinator', () => {
         expect(transition).toEqual({
             snapshot: { epoch: 2 },
             value: 'transition',
+        });
+    });
+
+    it('installs a principal discovered inside one exclusive mutation without releasing the gate', async () => {
+        const coordinator = new StalkerBaseIdentityCoordinator();
+
+        const result = await coordinator.runDiscoveredPrincipalMutation(
+            async (epoch) => ({
+                principal: 'discovered-principal',
+                value: `authenticated-${epoch}`,
+            })
+        );
+
+        expect(result).toEqual({
+            snapshot: {
+                activePrincipal: 'discovered-principal',
+                epoch: 1,
+            },
+            value: 'authenticated-1',
         });
     });
 });

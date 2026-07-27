@@ -21,6 +21,11 @@ export interface StalkerCoordinatedMutationResult<T> {
     readonly value: T;
 }
 
+export interface StalkerDiscoveredPrincipalMutationValue<T> {
+    readonly principal: string;
+    readonly value: T;
+}
+
 interface ReadWaiter {
     readonly kind: 'read';
     readonly resolve: () => void;
@@ -107,6 +112,31 @@ export class StalkerBaseIdentityCoordinator {
         }
     }
 
+    async runDiscoveredPrincipalMutation<T>(
+        operation: (
+            mutationEpoch: number
+        ) => Promise<StalkerDiscoveredPrincipalMutationValue<T>>
+    ): Promise<StalkerCoordinatedMutationResult<T>> {
+        await this.#acquireWrite();
+        try {
+            if (this.#epoch >= Number.MAX_SAFE_INTEGER) {
+                throw new Error('stalker-coordinator-epoch-exhausted');
+            }
+            this.#epoch += 1;
+            this.#activePrincipal = undefined;
+
+            const result = await operation(this.#epoch);
+            validatePrincipal(result.principal);
+            this.#activePrincipal = result.principal;
+            return {
+                snapshot: this.snapshot,
+                value: result.value,
+            };
+        } finally {
+            this.#releaseWrite();
+        }
+    }
+
     async #acquireRead(): Promise<void> {
         if (!this.#writerActive && this.#waiters.length === 0) {
             this.#activeReaders += 1;
@@ -178,10 +208,7 @@ export class StalkerBaseIdentityCoordinator {
  * single server-side token for the whole origin/MAC pair.
  */
 export class StalkerBaseIdentityCoordinatorPool {
-    readonly #coordinators = new Map<
-        string,
-        StalkerBaseIdentityCoordinator
-    >();
+    readonly #coordinators = new Map<string, StalkerBaseIdentityCoordinator>();
 
     get size(): number {
         return this.#coordinators.size;
