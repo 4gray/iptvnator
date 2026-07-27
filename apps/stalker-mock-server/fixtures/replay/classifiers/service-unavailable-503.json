@@ -1,0 +1,79 @@
+{
+    "description": "Synthetic HTTP 503 response is a retryable service failure.",
+    "entry": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "service-unavailable",
+                    "method": "GET",
+                    "operation": "service-unavailable",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_profile",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "error": "synthetic-unavailable"
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 503
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "service-unavailable",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "classifier-service-unavailable-503",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

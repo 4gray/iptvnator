@@ -1,0 +1,216 @@
+{
+    "description": "Synthetic cookie remains isolated to its issuing origin.",
+    "entry": {
+        "origin": "portal",
+        "path": "/issue"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/return"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "auth": {},
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "portal-cookie",
+                    "method": "GET",
+                    "operation": "portal-cookie",
+                    "origin": "portal",
+                    "path": "/issue",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {
+                            "location": [
+                                {
+                                    "kind": "origin-url",
+                                    "origin": "auth",
+                                    "path": "/check"
+                                }
+                            ],
+                            "set-cookie": [
+                                {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "session="
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "portal-session"
+                                        },
+                                        {
+                                            "kind": "literal",
+                                            "value": "; Path=/; HttpOnly"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "status": 302
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "portal-cookie",
+            "nextState": "cross-origin",
+            "state": "start"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "cross-origin",
+                    "method": "GET",
+                    "operation": "cross-origin",
+                    "origin": "auth",
+                    "path": "/check",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {
+                            "location": [
+                                {
+                                    "kind": "origin-url",
+                                    "origin": "portal",
+                                    "path": "/return"
+                                }
+                            ]
+                        },
+                        "status": 302
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "cross-origin",
+            "nextState": "return",
+            "state": "cross-origin"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "return",
+                    "method": "GET",
+                    "operation": "return",
+                    "origin": "portal",
+                    "path": "/return",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "portal-session"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {},
+                        "status": 204
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "return",
+            "nextState": "complete",
+            "state": "return"
+        }
+    ],
+    "scenarioId": "cookies-session-isolation",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "portal-session",
+            "valueKind": "cookie"
+        }
+    ],
+    "terminalState": "complete"
+}

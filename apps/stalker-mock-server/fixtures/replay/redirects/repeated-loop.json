@@ -1,0 +1,73 @@
+{
+    "description": "Synthetic repeated redirect reaches the bounded loop ceiling.",
+    "entry": {
+        "origin": "portal",
+        "path": "/loop"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/loop"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 3,
+                        "min": 3
+                    },
+                    "id": "bounded-loop",
+                    "method": "GET",
+                    "operation": "bounded-loop",
+                    "origin": "portal",
+                    "path": "/loop",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {
+                            "location": [
+                                "/loop"
+                            ]
+                        },
+                        "status": 302
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "bounded-loop",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "redirect-repeated-loop",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

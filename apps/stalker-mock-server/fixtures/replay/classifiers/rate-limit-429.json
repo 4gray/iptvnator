@@ -1,0 +1,82 @@
+{
+    "description": "Synthetic HTTP 429 response preserves bounded retry evidence.",
+    "entry": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "rate-limit",
+                    "method": "GET",
+                    "operation": "rate-limit",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_profile",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "error": "synthetic-rate-limit"
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ],
+                            "retry-after": [
+                                "3"
+                            ]
+                        },
+                        "status": 429
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "rate-limit",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "classifier-rate-limit-429",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

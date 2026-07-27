@@ -1,0 +1,185 @@
+{
+    "description": "Synthetic direct load endpoint completes handshake and profile through allowlisted JSONP envelopes.",
+    "entry": {
+        "origin": "portal",
+        "path": "/server/load.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/server/load.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "direct-load-handshake",
+                    "method": "GET",
+                    "operation": "direct-load-handshake",
+                    "origin": "portal",
+                    "path": "/server/load.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "handshake",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "callback": "callback",
+                            "kind": "jsonp",
+                            "value": {
+                                "js": {
+                                    "token": {
+                                        "kind": "generate",
+                                        "symbol": "session-token",
+                                        "valueKind": "token"
+                                    }
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/javascript"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "direct-load-profile",
+                    "method": "GET",
+                    "operation": "direct-load-profile",
+                    "origin": "portal",
+                    "path": "/server/load.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "session-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "callback": "callback",
+                            "kind": "jsonp",
+                            "value": {
+                                "js": {
+                                    "id": 1,
+                                    "status": 0
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/javascript"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "direct-load",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "resolver-direct-load-jsonp",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "mac",
+            "valueKind": "mac"
+        }
+    ],
+    "terminalState": "complete"
+}

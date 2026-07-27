@@ -1,0 +1,154 @@
+{
+    "description": "Synthetic cross-origin landing requires explicit approval before use.",
+    "entry": {
+        "origin": "portal",
+        "path": "/c/"
+    },
+    "expectedEndpoint": {
+        "origin": "landing",
+        "path": "/approve"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "landing": {},
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "landing-redirect",
+                    "method": "GET",
+                    "operation": "landing-redirect",
+                    "origin": "portal",
+                    "path": "/c/",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "mac",
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "mac",
+                                "token",
+                                "username",
+                                "password"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {
+                            "location": [
+                                {
+                                    "kind": "origin-url",
+                                    "origin": "landing",
+                                    "path": "/approve"
+                                }
+                            ]
+                        },
+                        "status": 302
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "landing-redirect",
+            "nextState": "approval",
+            "state": "start"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "approved-landing",
+                    "method": "GET",
+                    "operation": "approved-landing",
+                    "origin": "landing",
+                    "path": "/approve",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "mac",
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "mac",
+                                "token",
+                                "username",
+                                "password"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "approval": "synthetic-required"
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "approved-landing",
+            "nextState": "complete",
+            "state": "approval"
+        }
+    ],
+    "scenarioId": "redirect-landing-approval",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

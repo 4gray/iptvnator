@@ -1,0 +1,77 @@
+{
+    "description": "Synthetic HTTP 403 WAF response is distinct from token rejection.",
+    "entry": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "waf-response",
+                    "method": "GET",
+                    "operation": "waf-response",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_profile",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "text",
+                            "value": "Synthetic Web Application Firewall challenge"
+                        },
+                        "headers": {
+                            "content-type": [
+                                "text/html"
+                            ]
+                        },
+                        "status": 403
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "waf-response",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "classifier-waf-403",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

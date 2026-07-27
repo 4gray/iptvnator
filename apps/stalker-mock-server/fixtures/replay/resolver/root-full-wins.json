@@ -1,0 +1,319 @@
+{
+    "description": "Synthetic root discovery records an early stateless candidate but selects the later full-session endpoint.",
+    "entry": {
+        "origin": "portal",
+        "path": "/"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/stalker_portal/server/load.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "root-probe",
+                    "method": "GET",
+                    "operation": "root-probe",
+                    "origin": "portal",
+                    "path": "/",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "mac",
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "device_id",
+                                "device_id2",
+                                "mac",
+                                "password",
+                                "signature",
+                                "signature2",
+                                "sn",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {},
+                        "status": 204
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "root-probe",
+            "nextState": "stateless-candidate",
+            "state": "start"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "stateless-capability",
+                    "method": "GET",
+                    "operation": "stateless-capability",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "action": "get_genres",
+                                "type": "itv"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": [
+                                    {
+                                        "id": "1",
+                                        "title": "Synthetic"
+                                    }
+                                ]
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "stateless-candidate",
+            "nextState": "full-candidate",
+            "state": "stateless-candidate"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "full-handshake",
+                    "method": "GET",
+                    "operation": "full-handshake",
+                    "origin": "portal",
+                    "path": "/stalker_portal/server/load.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "action": "handshake",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "token": {
+                                        "kind": "generate",
+                                        "symbol": "full-token",
+                                        "valueKind": "token"
+                                    }
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "full-profile",
+                    "method": "GET",
+                    "operation": "full-profile",
+                    "origin": "portal",
+                    "path": "/stalker_portal/server/load.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "full-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "username"
+                            ],
+                            "exact": {
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "id": 1,
+                                    "status": 0
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "full-candidate",
+            "nextState": "complete",
+            "state": "full-candidate"
+        }
+    ],
+    "scenarioId": "resolver-root-full-wins",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "mac",
+            "valueKind": "mac"
+        }
+    ],
+    "terminalState": "complete"
+}

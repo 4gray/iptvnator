@@ -1,0 +1,104 @@
+{
+    "description": "Synthetic redirect uses typed generated authentication query fields.",
+    "entry": {
+        "origin": "portal",
+        "path": "/entry"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/entry"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "auth": {},
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "typed-auth-query",
+                    "method": "GET",
+                    "operation": "typed-auth-query",
+                    "origin": "portal",
+                    "path": "/entry",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "username",
+                                "password",
+                                "token"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {
+                            "location": [
+                                {
+                                    "kind": "origin-url",
+                                    "origin": "auth",
+                                    "path": "/login",
+                                    "query": {
+                                        "auth": {
+                                            "kind": "generate",
+                                            "symbol": "redirect-auth",
+                                            "valueKind": "token"
+                                        },
+                                        "login": {
+                                            "kind": "ref",
+                                            "symbol": "username"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "status": 302
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "typed-auth-query",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "redirect-auth-query",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "username",
+            "valueKind": "credential"
+        }
+    ],
+    "terminalState": "complete"
+}

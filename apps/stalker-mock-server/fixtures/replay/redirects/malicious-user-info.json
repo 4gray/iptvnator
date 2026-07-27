@@ -1,0 +1,111 @@
+{
+    "description": "Synthetic redirect carries typed user-info for fail-closed review.",
+    "entry": {
+        "origin": "portal",
+        "path": "/entry"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/entry"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "auth": {},
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "credential-bearing-redirect",
+                    "method": "GET",
+                    "operation": "credential-bearing-redirect",
+                    "origin": "portal",
+                    "path": "/entry",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "username",
+                                "password",
+                                "token"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {
+                            "location": [
+                                {
+                                    "kind": "origin-url",
+                                    "origin": "auth",
+                                    "path": "/login",
+                                    "query": {
+                                        "continue": "synthetic"
+                                    },
+                                    "userInfo": {
+                                        "password": {
+                                            "kind": "ref",
+                                            "symbol": "password"
+                                        },
+                                        "username": {
+                                            "kind": "ref",
+                                            "symbol": "username"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "status": 302
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "credential-bearing-redirect",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "redirect-malicious-user-info",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "username",
+            "valueKind": "credential"
+        },
+        {
+            "kind": "generate",
+            "symbol": "password",
+            "valueKind": "credential"
+        }
+    ],
+    "terminalState": "complete"
+}

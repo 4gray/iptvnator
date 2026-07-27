@@ -1,0 +1,162 @@
+{
+    "description": "Synthetic server cookie cannot shadow the manager-owned MAC through a narrower path.",
+    "entry": {
+        "origin": "portal",
+        "path": "/shadow"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/managed"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "shadow-cookie",
+                    "method": "GET",
+                    "operation": "shadow-cookie",
+                    "origin": "portal",
+                    "path": "/shadow",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "managed-mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "status": "synthetic-managed"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "set-cookie": [
+                                {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "mac="
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "shadow-mac"
+                                        },
+                                        {
+                                            "kind": "literal",
+                                            "value": "; Path=/shadow"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "shadow-cookie",
+            "nextState": "managed-cookie",
+            "state": "start"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "managed-cookie",
+                    "method": "GET",
+                    "operation": "managed-cookie",
+                    "origin": "portal",
+                    "path": "/managed",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "managed-mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {},
+                        "status": 204
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "managed-cookie",
+            "nextState": "complete",
+            "state": "managed-cookie"
+        }
+    ],
+    "scenarioId": "cookies-managed-shadow",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "managed-mac",
+            "valueKind": "mac"
+        },
+        {
+            "kind": "generate",
+            "symbol": "shadow-mac",
+            "valueKind": "mac"
+        }
+    ],
+    "terminalState": "complete"
+}
