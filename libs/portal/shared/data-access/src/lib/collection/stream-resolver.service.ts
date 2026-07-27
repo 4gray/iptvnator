@@ -438,6 +438,10 @@ export class StreamResolverService {
             await this.discardStalkerAttempt(outcome);
             throw new StalkerSessionOutcomeError(outcome);
         }
+        const attemptRef = outcome.attemptRef;
+        if (attemptRef === undefined) {
+            throw new Error('stalker-session-attempt-missing');
+        }
 
         const draft: Playlist = {
             ...playlist,
@@ -460,7 +464,7 @@ export class StreamResolverService {
             );
         } catch (error) {
             await this.stalkerSession
-                .discard(outcome.attemptRef)
+                .discard(attemptRef)
                 .catch(() => undefined);
             throw error;
         }
@@ -472,16 +476,16 @@ export class StreamResolverService {
 
         let promotion;
         try {
-            promotion = await this.stalkerSession.commit(outcome.attemptRef);
+            promotion = await this.stalkerSession.commit(attemptRef);
         } catch {
             await this.stalkerSession
-                .discard(outcome.attemptRef)
+                .discard(attemptRef)
                 .catch(() => undefined);
             throw new Error('stalker-session-promotion-failed');
         }
         if (promotion.kind !== 'success') {
             await this.stalkerSession
-                .discard(outcome.attemptRef)
+                .discard(attemptRef)
                 .catch(() => undefined);
             throw new Error('stalker-session-promotion-failed');
         }
