@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
 import {
     XtreamApiService,
@@ -22,14 +23,20 @@ import {
 
 describe('StreamResolverService', () => {
     let service: StreamResolverService;
-    let playlistsService: { getPlaylistById: jest.Mock };
+    let playlistsService: {
+        getPlaylistById: jest.Mock;
+        persistStalkerConnection: jest.Mock;
+    };
     let xtreamApi: { getShortEpg: jest.Mock };
     let xtreamUrl: { constructLiveUrl: jest.Mock };
     let dataService: { sendIpcEvent: jest.Mock };
+    let store: { dispatch: jest.Mock };
     let stalkerSession: {
         supportsTypedSessions: jest.Mock;
         getLeaseRef: jest.Mock;
         open: jest.Mock;
+        commit: jest.Mock;
+        discard: jest.Mock;
         request: jest.Mock;
         requestForPlaylist: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
@@ -39,6 +46,9 @@ describe('StreamResolverService', () => {
     beforeEach(() => {
         playlistsService = {
             getPlaylistById: jest.fn(),
+            persistStalkerConnection: jest.fn((playlist: Playlist) =>
+                of(playlist)
+            ),
         };
         xtreamApi = {
             getShortEpg: jest.fn(),
@@ -49,10 +59,23 @@ describe('StreamResolverService', () => {
         dataService = {
             sendIpcEvent: jest.fn(),
         };
+        store = {
+            dispatch: jest.fn(),
+        };
         stalkerSession = {
             supportsTypedSessions: jest.fn().mockReturnValue(true),
             getLeaseRef: jest.fn(),
             open: jest.fn(),
+            commit: jest.fn().mockResolvedValue({
+                action: 'commit',
+                kind: 'success',
+                requestId: 'request-commit-1',
+            }),
+            discard: jest.fn().mockResolvedValue({
+                action: 'discard',
+                kind: 'success',
+                requestId: 'request-discard-1',
+            }),
             request: jest.fn(),
             requestForPlaylist: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
@@ -71,6 +94,7 @@ describe('StreamResolverService', () => {
                 { provide: XtreamApiService, useValue: xtreamApi },
                 { provide: XtreamUrlService, useValue: xtreamUrl },
                 { provide: DataService, useValue: dataService },
+                { provide: Store, useValue: store },
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,
@@ -607,6 +631,7 @@ describe('StreamResolverService', () => {
                 portalUrl: 'https://stalker.example.com/portal.php',
                 macAddress: '00:11:22:33:44:55',
                 isFullStalkerPortal: true,
+                stalkerRecipeClassifierVersion: 1,
                 stalkerRequestRecipe: 'stateless-mac',
             } satisfies Partial<Playlist>)
         );
@@ -670,6 +695,7 @@ describe('StreamResolverService', () => {
                 portalUrl: 'https://stalker.example.com/server/load.php',
                 macAddress: '00:11:22:33:44:55',
                 isFullStalkerPortal: false,
+                stalkerRecipeClassifierVersion: 1,
                 stalkerRequestRecipe: 'full-session',
                 userAgent: 'renderer-user-agent',
                 referrer: 'https://stalker.example.com/c/',
@@ -717,6 +743,239 @@ describe('StreamResolverService', () => {
         expect(playback).not.toHaveProperty('userAgent');
         expect(playback).not.toHaveProperty('referer');
         expect(playback).not.toHaveProperty('origin');
+    });
+
+    it('classifies and promotes a legacy full playlist before collection playback', async () => {
+        const legacyPlaylist = {
+            _id: 'stalker-legacy',
+            title: 'Legacy Full Stalker',
+            count: 0,
+            importDate: '2026-07-27T00:00:00.000Z',
+            lastUsage: '',
+            autoRefresh: false,
+            portalUrl: 'https://stalker.example.com/tenant/c/',
+            macAddress: '00:11:22:33:44:55',
+            isFullStalkerPortal: true,
+            stalkerToken: 'legacy-renderer-token',
+        } satisfies Playlist;
+        playlistsService.getPlaylistById.mockReturnValue(of(legacyPlaylist));
+        stalkerSession.open.mockResolvedValue({
+            attemptRef: 'attempt-legacy-collection',
+            capabilities: {
+                authenticatedSession: true,
+                playbackContext: true,
+            },
+            connectionMode: 'provisional',
+            endpoint:
+                'https://stalker.example.com/tenant/server/load.php',
+            kind: 'ready',
+            landingUrl: 'https://stalker.example.com/tenant/c/',
+            leaseRef: 'lease-legacy-collection',
+            persistenceDraft: {
+                isFullStalkerPortal: true,
+                portalUrl:
+                    'https://stalker.example.com/tenant/server/load.php',
+                stalkerLandingUrl:
+                    'https://stalker.example.com/tenant/c/',
+                stalkerLastVerifiedAt: '2026-07-27T12:00:00.000Z',
+                stalkerRecipeClassifierVersion: 1,
+                stalkerRequestRecipe: 'full-session',
+                stalkerSourceUrl:
+                    'https://stalker.example.com/tenant/c/',
+            },
+            provisionalReason: 'migration',
+            recipe: 'full-session',
+            requestId: 'request-legacy-collection',
+        });
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            streamUrl: 'https://cdn.example.com/live/legacy.m3u8',
+            playbackContextRef: 'opaque-legacy-playback-context',
+        });
+        epgBridge.supportsProgramLookup = false;
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-legacy::77',
+            name: 'Legacy Stalker Live',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-legacy',
+            playlistName: 'Legacy Full Stalker',
+            stalkerId: '77',
+            stalkerCmd: 'ffmpeg http://stalker/live/77',
+        } satisfies UnifiedCollectionItem);
+
+        expect(stalkerSession.open).toHaveBeenCalledWith(legacyPlaylist, {
+            connectionMode: 'provisional',
+            provisionalReason: 'migration',
+        });
+        expect(playlistsService.persistStalkerConnection).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'stalker-legacy',
+                isFullStalkerPortal: true,
+                portalUrl:
+                    'https://stalker.example.com/tenant/server/load.php',
+                stalkerRequestRecipe: 'full-session',
+            })
+        );
+        expect(
+            playlistsService.persistStalkerConnection.mock.calls[0]?.[0]
+        ).not.toHaveProperty('stalkerToken');
+        expect(stalkerSession.commit).toHaveBeenCalledWith(
+            'attempt-legacy-collection'
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlist: expect.objectContaining({
+                    stalkerRequestRecipe: 'full-session',
+                }),
+                type: expect.any(String),
+            })
+        );
+        expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'stalker-legacy',
+                stalkerRequestRecipe: 'full-session',
+            }),
+            STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+            {
+                command: 'ffmpeg http://stalker/live/77',
+                contentType: 'itv',
+            }
+        );
+        expect(
+            playlistsService.persistStalkerConnection.mock.invocationCallOrder[0]
+        ).toBeLessThan(stalkerSession.commit.mock.invocationCallOrder[0]);
+        expect(
+            stalkerSession.commit.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+            stalkerSession.requestForPlaylist.mock.invocationCallOrder[0]
+        );
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(playback).toMatchObject({
+            playbackContextRef: 'opaque-legacy-playback-context',
+            streamUrl: 'https://cdn.example.com/live/legacy.m3u8',
+        });
+    });
+
+    it('uses the classified stateless recipe for a legacy collection playlist', async () => {
+        const legacyPlaylist = {
+            _id: 'stalker-legacy-stateless',
+            title: 'Legacy Stalker',
+            count: 0,
+            importDate: '2026-07-27T00:00:00.000Z',
+            lastUsage: '',
+            autoRefresh: false,
+            portalUrl: 'https://stalker.example.com/c/',
+            macAddress: '00:11:22:33:44:55',
+            isFullStalkerPortal: true,
+            username: 'obsolete-user',
+            password: 'obsolete-password',
+        } satisfies Playlist;
+        playlistsService.getPlaylistById.mockReturnValue(of(legacyPlaylist));
+        stalkerSession.open.mockResolvedValue({
+            attemptRef: 'attempt-legacy-stateless',
+            connectionMode: 'provisional',
+            endpoint: 'https://stalker.example.com/portal.php',
+            kind: 'ready',
+            landingUrl: 'https://stalker.example.com/c/',
+            persistenceDraft: {
+                isFullStalkerPortal: false,
+                portalUrl: 'https://stalker.example.com/portal.php',
+                stalkerLandingUrl: 'https://stalker.example.com/c/',
+                stalkerLastVerifiedAt: '2026-07-27T12:00:00.000Z',
+                stalkerRecipeClassifierVersion: 1,
+                stalkerRequestRecipe: 'stateless-mac',
+                stalkerSourceUrl: 'https://stalker.example.com/c/',
+            },
+            provisionalReason: 'migration',
+            recipe: 'stateless-mac',
+            requestId: 'request-legacy-stateless',
+        });
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'ffmpeg https://cdn.example.com/live/stateless.m3u8' },
+        });
+        epgBridge.supportsProgramLookup = false;
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-legacy-stateless::77',
+            name: 'Legacy Stateless Live',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-legacy-stateless',
+            playlistName: 'Legacy Stalker',
+            stalkerId: '77',
+            stalkerCmd: 'ffmpeg http://stalker/live/77',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playlistsService.persistStalkerConnection).toHaveBeenCalledWith(
+            expect.objectContaining({
+                password: '',
+                stalkerRequestRecipe: 'stateless-mac',
+                username: '',
+            })
+        );
+        expect(stalkerSession.commit).toHaveBeenCalledWith(
+            'attempt-legacy-stateless'
+        );
+        expect(stalkerSession.requestForPlaylist).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                params: expect.objectContaining({
+                    action: 'create_link',
+                }),
+                url: 'https://stalker.example.com/portal.php',
+            })
+        );
+        expect(playback.streamUrl).toBe(
+            'https://cdn.example.com/live/stateless.m3u8'
+        );
+    });
+
+    it('discards a legacy collection attempt that requires route-owned credentials', async () => {
+        const legacyPlaylist = {
+            _id: 'stalker-legacy-challenge',
+            title: 'Legacy Full Stalker',
+            count: 0,
+            importDate: '2026-07-27T00:00:00.000Z',
+            lastUsage: '',
+            autoRefresh: false,
+            portalUrl: 'https://stalker.example.com/c/',
+            macAddress: '00:11:22:33:44:55',
+            isFullStalkerPortal: true,
+        } satisfies Playlist;
+        playlistsService.getPlaylistById.mockReturnValue(of(legacyPlaylist));
+        stalkerSession.open.mockResolvedValue({
+            attemptNumber: 1,
+            attemptRef: 'attempt-legacy-challenge',
+            challengeRef: 'challenge-legacy-credentials',
+            kind: 'credentials-required',
+            requestId: 'request-legacy-challenge',
+        });
+
+        await expect(
+            service.resolvePlayback({
+                uid: 'stalker::stalker-legacy-challenge::77',
+                name: 'Legacy Challenged Live',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-legacy-challenge',
+                playlistName: 'Legacy Full Stalker',
+                stalkerId: '77',
+                stalkerCmd: 'ffmpeg http://stalker/live/77',
+            } satisfies UnifiedCollectionItem)
+        ).rejects.toThrow(
+            'stalker-session-outcome:credentials-required'
+        );
+
+        expect(stalkerSession.discard).toHaveBeenCalledWith(
+            'attempt-legacy-challenge'
+        );
+        expect(
+            playlistsService.persistStalkerConnection
+        ).not.toHaveBeenCalled();
+        expect(stalkerSession.requestForPlaylist).not.toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
     it('uses direct Stalker radio HTTP commands without create_link', async () => {

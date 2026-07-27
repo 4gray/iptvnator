@@ -1,7 +1,9 @@
 import { inject, Injectable } from '@angular/core';
+import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
@@ -19,8 +21,10 @@ import {
 import {
     executeStalkerRequest,
     fetchStalkerPlayback,
+    StalkerSessionOutcomeError,
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
+import { STALKER_RECIPE_CLASSIFIER_VERSION } from '@iptvnator/portal/stalker/protocol';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 
 type PlaylistWithChannels = Playlist & {
@@ -58,6 +62,7 @@ export interface ResolvedLiveCollectionDetail {
 @Injectable({ providedIn: 'root' })
 export class StreamResolverService {
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly store = inject(Store);
     private readonly xtreamApi = inject(XtreamApiService);
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
@@ -67,6 +72,10 @@ export class StreamResolverService {
     private readonly portalEpgTimeoutMs = 10000;
     private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
     private readonly xtreamEpgFailureTimestamps = new Map<string, number>();
+    private readonly stalkerRecipeMigrationByPlaylist = new Map<
+        string,
+        Promise<Playlist>
+    >();
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
     private readonly xtreamEpgFailureCooldownMs = 30 * 1000;
 
@@ -335,7 +344,7 @@ export class StreamResolverService {
         }
 
         const contentType = item.radio === 'true' ? 'radio' : 'itv';
-        const requestPlaylist: Playlist = {
+        const unresolvedPlaylist: Playlist = {
             _id: item.playlistId,
             title: item.playlistName,
             count: 0,
@@ -346,6 +355,10 @@ export class StreamResolverService {
             portalUrl,
             macAddress,
         };
+        const requestPlaylist =
+            playlist === undefined
+                ? unresolvedPlaylist
+                : await this.ensureStalkerRequestRecipe(unresolvedPlaylist);
         const playbackLink = await fetchStalkerPlayback(
             {
                 dataService: this.dataService,
@@ -368,6 +381,125 @@ export class StreamResolverService {
                 ? { playbackContextRef: playbackLink.playbackContextRef }
                 : {}),
         };
+    }
+
+    private ensureStalkerRequestRecipe(playlist: Playlist): Promise<Playlist> {
+        if (!this.shouldClassifyStalkerPlaylist(playlist)) {
+            return Promise.resolve(playlist);
+        }
+
+        const active = this.stalkerRecipeMigrationByPlaylist.get(playlist._id);
+        if (active !== undefined) {
+            return active;
+        }
+
+        const migration = this.classifyAndPersistStalkerPlaylist(playlist);
+        this.stalkerRecipeMigrationByPlaylist.set(playlist._id, migration);
+        const clear = () => {
+            if (
+                this.stalkerRecipeMigrationByPlaylist.get(playlist._id) ===
+                migration
+            ) {
+                this.stalkerRecipeMigrationByPlaylist.delete(playlist._id);
+            }
+        };
+        migration.then(clear, clear);
+        return migration;
+    }
+
+    private shouldClassifyStalkerPlaylist(playlist: Playlist): boolean {
+        if (!this.stalkerSession.supportsTypedSessions()) {
+            return false;
+        }
+
+        const hasCurrentRecipe =
+            (playlist.stalkerRequestRecipe === 'full-session' ||
+                playlist.stalkerRequestRecipe === 'stateless-mac') &&
+            playlist.stalkerRecipeClassifierVersion ===
+                STALKER_RECIPE_CLASSIFIER_VERSION;
+        if (hasCurrentRecipe) {
+            return false;
+        }
+
+        return !(
+            playlist.stalkerRequestRecipe === undefined &&
+            playlist.isFullStalkerPortal === false
+        );
+    }
+
+    private async classifyAndPersistStalkerPlaylist(
+        playlist: Playlist
+    ): Promise<Playlist> {
+        const outcome = await this.stalkerSession.open(playlist, {
+            connectionMode: 'provisional',
+            provisionalReason: 'migration',
+        });
+        if (outcome.kind !== 'ready') {
+            await this.discardStalkerAttempt(outcome);
+            throw new StalkerSessionOutcomeError(outcome);
+        }
+
+        const draft: Playlist = {
+            ...playlist,
+            ...outcome.persistenceDraft,
+            portalUrl: outcome.persistenceDraft.portalUrl,
+        };
+        delete draft.stalkerToken;
+        if (
+            outcome.recipe === 'stateless-mac' &&
+            (playlist.username !== undefined || playlist.password !== undefined)
+        ) {
+            draft.username = '';
+            draft.password = '';
+        }
+
+        let persisted: Playlist;
+        try {
+            persisted = await firstValueFrom(
+                this.playlistsService.persistStalkerConnection(draft)
+            );
+        } catch (error) {
+            await this.stalkerSession
+                .discard(outcome.attemptRef)
+                .catch(() => undefined);
+            throw error;
+        }
+        this.store.dispatch(
+            PlaylistActions.stalkerConnectionPersisted({
+                playlist: persisted,
+            })
+        );
+
+        let promotion;
+        try {
+            promotion = await this.stalkerSession.commit(outcome.attemptRef);
+        } catch {
+            await this.stalkerSession
+                .discard(outcome.attemptRef)
+                .catch(() => undefined);
+            throw new Error('stalker-session-promotion-failed');
+        }
+        if (promotion.kind !== 'success') {
+            await this.stalkerSession
+                .discard(outcome.attemptRef)
+                .catch(() => undefined);
+            throw new Error('stalker-session-promotion-failed');
+        }
+
+        return persisted;
+    }
+
+    private async discardStalkerAttempt(
+        outcome: Exclude<
+            Awaited<ReturnType<StalkerSessionService['open']>>,
+            { kind: 'ready' }
+        >
+    ): Promise<void> {
+        if ('attemptRef' in outcome) {
+            await this.stalkerSession
+                .discard(outcome.attemptRef)
+                .catch(() => undefined);
+        }
     }
 
     private buildStalkerRadioChannel(
