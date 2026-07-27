@@ -198,10 +198,6 @@
                             "exact": {
                                 "action": "get_profile",
                                 "auth_second_step": "0",
-                                "random": {
-                                    "kind": "ref",
-                                    "symbol": "challenge"
-                                },
                                 "type": "stb"
                             },
                             "present": []
@@ -356,10 +352,6 @@
                             "exact": {
                                 "action": "get_profile",
                                 "auth_second_step": "1",
-                                "random": {
-                                    "kind": "ref",
-                                    "symbol": "challenge"
-                                },
                                 "type": "stb"
                             },
                             "present": []

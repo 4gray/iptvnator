@@ -534,7 +534,7 @@ describe('replay control-plane lifecycle and public response', () => {
                     ),
                 },
                 inputs: {
-                    mac: expect.stringMatching(/^02(?::[a-f0-9]{2}){5}$/),
+                    mac: expect.stringMatching(/^02(?::[A-F0-9]{2}){5}$/),
                     password: expect.stringMatching(/^test-credential-/),
                     username: expect.stringMatching(/^test-credential-/),
                 },

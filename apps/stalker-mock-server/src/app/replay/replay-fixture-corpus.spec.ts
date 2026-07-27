@@ -36,6 +36,7 @@ const EXPECTED_SCENARIOS = [
     'classifier-waf-403',
     'cookies-managed-shadow',
     'cookies-session-isolation',
+    'e2e-full-session-catalog-playback',
     'redirect-auth-query',
     'redirect-identity-pause',
     'redirect-landing-approval',
