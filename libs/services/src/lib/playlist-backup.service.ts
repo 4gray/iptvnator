@@ -646,7 +646,9 @@ export class PlaylistBackupService {
                 playlist._id === entry.exportedId &&
                 this.getPlaylistPortalType(playlist) === 'xtream' &&
                 this.normalizeUrlIdentity(playlist.serverUrl ?? '') ===
-                    this.normalizeUrlIdentity(entry.connection.serverUrl)
+                    this.normalizeUrlIdentity(entry.connection.serverUrl) &&
+                this.normalizeIdentityValue(playlist.username ?? '') !== '' &&
+                this.normalizeIdentityValue(playlist.password ?? '') !== ''
         );
         if (exactLocalMatch) {
             return entry;
