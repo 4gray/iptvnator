@@ -11,10 +11,13 @@ import {
 } from './ipc-command.class';
 import {
     STALKER_SESSION_APPLICATION_OPERATIONS,
+    type StalkerSessionApplicationOperation,
     type StalkerSessionContinueRequest,
     type StalkerSessionControlRequest,
     type StalkerSessionOpenRequest,
+    type StalkerSessionOperationContractMap,
     type StalkerSessionRequest,
+    type StalkerSessionRequestOutcome,
 } from './stalker-session.interface';
 
 describe('typed IPC commands', () => {
@@ -96,12 +99,47 @@ describe('typed IPC commands', () => {
         const response: IpcCommandResponse<typeof STALKER_SESSION_REQUEST> = {
             kind: 'success',
             operation: STALKER_SESSION_APPLICATION_OPERATIONS.CatalogItems,
-            payload: { js: { data: [] } },
+            payload: { items: [], page: 1, total: 0 },
             requestId: 'request-id',
         };
 
         expect(request.operation).toBe('get-ordered-list');
         expect(response.kind).toBe('success');
+    });
+
+    it('correlates each operation with its request and sanitized result', () => {
+        type MissingOperations = Exclude<
+            StalkerSessionApplicationOperation,
+            keyof StalkerSessionOperationContractMap
+        >;
+        type ExtraOperations = Exclude<
+            keyof StalkerSessionOperationContractMap,
+            StalkerSessionApplicationOperation
+        >;
+        const mapIsExhaustive: [
+            MissingOperations,
+            ExtraOperations,
+        ] extends [never, never]
+            ? true
+            : false = true;
+
+        const mismatchedRequest: StalkerSessionRequest = {
+            leaseRef: 'opaque-lease',
+            operation: STALKER_SESSION_APPLICATION_OPERATIONS.CatalogItems,
+            // @ts-expect-error Catalog requests cannot use EPG parameters.
+            parameters: { channelId: 'channel-1' },
+        };
+        const mismatchedResult: StalkerSessionRequestOutcome = {
+            kind: 'success',
+            operation: STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+            // @ts-expect-error create-link cannot return a catalog collection.
+            payload: { items: [] },
+            requestId: 'request-id',
+        };
+
+        expect(mapIsExhaustive).toBe(true);
+        expect(mismatchedRequest.operation).toBe('get-ordered-list');
+        expect(mismatchedResult.kind).toBe('success');
     });
 
     it('maps STALKER_SESSION_CONTROL to exactly one request and response type', () => {

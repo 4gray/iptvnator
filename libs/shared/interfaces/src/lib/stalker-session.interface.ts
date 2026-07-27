@@ -1,3 +1,12 @@
+import type {
+    StalkerSessionAccountSummary,
+    StalkerSessionApplicationOperation,
+    StalkerSessionOperationParameters,
+    StalkerSessionOperationResult,
+} from './stalker-session-operations.interface';
+
+export * from './stalker-session-operations.interface';
+
 export const STALKER_SESSION_CONNECTION_MODES = {
     PersistedOpen: 'persisted-open',
     Provisional: 'provisional',
@@ -22,24 +31,6 @@ export const STALKER_SESSION_REQUEST_RECIPES = {
 
 export type StalkerSessionRequestRecipe =
     (typeof STALKER_SESSION_REQUEST_RECIPES)[keyof typeof STALKER_SESSION_REQUEST_RECIPES];
-
-export const STALKER_SESSION_APPLICATION_OPERATIONS = {
-    CatalogCategories: 'get-categories',
-    CatalogGenres: 'get-genres',
-    CatalogItems: 'get-ordered-list',
-    CatalogAllChannels: 'get-all-channels',
-    CatalogSearch: 'search',
-    SeriesSeasons: 'get-series-seasons',
-    SeriesEpisodes: 'get-series-episodes',
-    ShortEpg: 'get-short-epg',
-    EpgInfo: 'get-epg-info',
-    CreateLink: 'create-link',
-    Favorites: 'favorites',
-    MainInfo: 'get-main-info',
-} as const;
-
-export type StalkerSessionApplicationOperation =
-    (typeof STALKER_SESSION_APPLICATION_OPERATIONS)[keyof typeof STALKER_SESSION_APPLICATION_OPERATIONS];
 
 export const STALKER_SESSION_CONTROL_ACTIONS = {
     Activate: 'activate',
@@ -178,14 +169,6 @@ export interface StalkerSessionCapabilities {
     playbackContext: boolean;
 }
 
-export interface StalkerSessionAccountSummary {
-    name?: string;
-    status?: string;
-    tariffPlan?: string;
-    accountBalance?: string;
-    expiresAt?: string;
-}
-
 export interface StalkerSessionPersistenceDraft {
     stalkerSourceUrl?: string;
     portalUrl: string;
@@ -251,26 +234,24 @@ export type StalkerSessionConnectionOutcome =
     | StalkerSessionCredentialsRequiredOutcome
     | StalkerSessionFailureOutcome;
 
-export type StalkerSessionParameterValue =
-    | string
-    | number
-    | boolean
-    | null;
+export type StalkerSessionRequest = {
+    [Operation in StalkerSessionApplicationOperation]: {
+        leaseRef: StalkerSessionLeaseRef;
+        operation: Operation;
+        parameters: StalkerSessionOperationParameters<Operation>;
+        requestId?: string;
+    };
+}[StalkerSessionApplicationOperation];
 
-export interface StalkerSessionRequest {
-    leaseRef: StalkerSessionLeaseRef;
-    operation: StalkerSessionApplicationOperation;
-    parameters: Readonly<Record<string, StalkerSessionParameterValue>>;
-    requestId?: string;
-}
-
-export interface StalkerSessionRequestSuccess {
-    kind: 'success';
-    requestId: string;
-    operation: StalkerSessionApplicationOperation;
-    payload: unknown;
-    playbackContextRef?: StalkerPlaybackContextRef;
-}
+export type StalkerSessionRequestSuccess = {
+    [Operation in StalkerSessionApplicationOperation]: {
+        kind: 'success';
+        requestId: string;
+        operation: Operation;
+        payload: StalkerSessionOperationResult<Operation>;
+        playbackContextRef?: StalkerPlaybackContextRef;
+    };
+}[StalkerSessionApplicationOperation];
 
 export type StalkerSessionRequestOutcome =
     | StalkerSessionRequestSuccess
