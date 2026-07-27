@@ -273,6 +273,19 @@ verifies `system`, `portable`, and `flatpak` independently. Every artifact is
 extracted for manifest, mode, package-metadata, ELF-isolation, and helper-probe
 checks. System formats are probed after their declared dependency is installed;
 Snap and Flatpak also require a sandboxed probe where the runner supports it.
+
+`tools/packaging/verify-linux-frame-copy-runtime.mjs` bounds its helper probe at
+`PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS` (15 s), not the application gate's
+`RUNTIME_PROBE_TIMEOUT_MS` (3 s): the short budget exists because the app's
+decision blocks the Electron main process, whereas nothing waits on the
+packaging probe but the CI job's own timeout, and a premature kill would call a
+healthy package broken. A hard timeout is the one outcome that says nothing
+about the payload, so the verifier repeats it up to
+`PACKAGE_VERIFICATION_PROBE_MAX_ATTEMPTS` (2) times with the identical bounded
+launch and announces the retry on stderr. Every other outcome — spawn error,
+signal, nonzero exit, malformed protocol line — stays fail-closed on the first
+attempt, and a helper that keeps hanging still fails once the attempts are
+spent. Both constants live in `runtime-probe-contract.cjs`.
 For a locally installed `--dangerous` Snap, CI explicitly installs and
 connects `mesa-core22` and `gnome-3-28-1804`, verifies both connections, and
 then runs the application-level diagnostic under Xvfb.
