@@ -1,0 +1,77 @@
+{
+    "description": "Synthetic valid JSON labeled as HTML fails closed instead of being compatibility-sniffed.",
+    "entry": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "wrong-mime-json",
+                    "method": "GET",
+                    "operation": "wrong-mime-json",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_profile",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "text",
+                            "value": "{\"js\":{\"status\":0}}"
+                        },
+                        "headers": {
+                            "content-type": [
+                                "text/html"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "wrong-mime-json",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "classifier-wrong-mime-json",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

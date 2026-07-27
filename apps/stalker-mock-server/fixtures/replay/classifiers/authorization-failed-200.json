@@ -1,0 +1,81 @@
+{
+    "description": "Synthetic canonical HTTP 200 authorization failure is explicit token-rejection evidence.",
+    "entry": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "authorization-failed",
+                    "method": "GET",
+                    "operation": "authorization-failed",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_ordered_list",
+                                "type": "vod"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "error": "Authorization failed"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "authorization-failed",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "classifier-authorization-failed-200",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

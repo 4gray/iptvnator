@@ -1,0 +1,81 @@
+{
+    "description": "Synthetic canonical HTTP 403 authorization failure is token-rejection evidence rather than an ambiguous forbidden response.",
+    "entry": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "authorization-failed-forbidden",
+                    "method": "GET",
+                    "operation": "authorization-failed-forbidden",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_ordered_list",
+                                "type": "vod"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "error": "Authorization failed"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 403
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "authorization-failed-forbidden",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "classifier-auth-failed-403",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

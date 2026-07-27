@@ -1,7 +1,12 @@
 /* eslint-disable max-lines -- The committed corpus matrix and its typed deterministic driver form one auditable contract. */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { classifyStalkerDoAuth } from '@iptvnator/portal/stalker/protocol';
+import {
+    classifyStalkerDoAuth,
+    classifyStalkerProfile,
+    classifyStalkerResponseFailure,
+    parseStalkerResponseEnvelope,
+} from '@iptvnator/portal/stalker/protocol';
 import { createReplayRun, type ReplayRun } from './replay-run.js';
 import { parseReplayFixtureText } from './replay-schema.js';
 import type {
@@ -32,10 +37,16 @@ const EXPECTED_SCENARIOS = [
     'authentication-status2-second-step',
     'authentication-three-attempt-limit',
     'classifier-access-denied-200',
+    'classifier-ambiguous-403',
+    'classifier-auth-failed-403',
+    'classifier-authorization-failed-200',
+    'classifier-authorization-failed-near-miss-200',
     'classifier-oversized-response',
+    'classifier-profile-status-strings',
     'classifier-rate-limit-429',
     'classifier-service-unavailable-503',
     'classifier-waf-403',
+    'classifier-wrong-mime-json',
     'cookies-managed-shadow',
     'cookies-session-isolation',
     'e2e-concurrent-catalog-refresh',
@@ -50,6 +61,7 @@ const EXPECTED_SCENARIOS = [
     'resolver-custom-prefix-full',
     'resolver-direct-load-jsonp',
     'resolver-direct-portal-statusless',
+    'resolver-downgrade-protection',
     'resolver-learned-rediscovery',
     'resolver-root-full-wins',
     'resolver-root-landing',
@@ -68,6 +80,31 @@ const RESERVED_EARLY_QUERY_FIELDS = [
 ] as const;
 const RESERVED_EARLY_HEADERS = ['authorization', 'cookie'] as const;
 const RESERVED_EARLY_COOKIES = ['mac', 'session'] as const;
+const UNIT_OWNED_COOKIE_MATRIX = [
+    {
+        contract:
+            'RFC Domain, Path, Secure, HttpOnly, and duplicate-name selection',
+        evidence:
+            'applies RFC domain, path, secure, HttpOnly, and duplicate-name rules',
+        spec: 'apps/electron-backend/src/app/services/stalker-session/stalker-cookie-jar.spec.ts',
+    },
+    {
+        contract: 'cookie expiry against a deterministic clock',
+        evidence: 'honors expiry against an injected clock',
+        spec: 'apps/electron-backend/src/app/services/stalker-session/stalker-cookie-jar.spec.ts',
+    },
+    {
+        contract: 'public-suffix Domain rejection',
+        evidence: 'rejects public-suffix cookies without retaining them',
+        spec: 'apps/electron-backend/src/app/services/stalker-session/stalker-cookie-jar.spec.ts',
+    },
+    {
+        contract: 'redirect-hop cookie collection and rotation',
+        evidence:
+            'prepares and collects the cookie jar on every same-origin hop without flattening Set-Cookie arrays',
+        spec: 'apps/electron-backend/src/app/services/stalker-session/stalker-http-session.spec.ts',
+    },
+] as const;
 
 function collectFixturePaths(directory: string): string[] {
     return readdirSync(directory, { withFileTypes: true })
@@ -594,6 +631,57 @@ function assertAnonymousRequestHasNoReservedSecrets(
     );
 }
 
+function loadFixture(scenarioId: string): ReplayFixtureV1 {
+    for (const fixturePath of collectFixturePaths(FIXTURE_ROOT)) {
+        const fixture = parseReplayFixtureText(
+            readFileSync(fixturePath, 'utf8')
+        );
+        if (fixture.scenarioId === scenarioId) {
+            return fixture;
+        }
+    }
+    throw new Error(`Replay matrix fixture missing: ${scenarioId}.`);
+}
+
+function findExpectation(
+    fixture: ReplayFixtureV1,
+    operation: string
+): ReplayExpectation {
+    const expectation = fixture.phases
+        .flatMap((phase) => phase.expectations)
+        .find((candidate) => candidate.operation === operation);
+    if (expectation === undefined) {
+        throw new Error(
+            `Replay matrix operation missing: ${fixture.scenarioId}/${operation}.`
+        );
+    }
+    return expectation;
+}
+
+function jsonResponseValue(expectation: ReplayExpectation): unknown {
+    if (expectation.response.body.kind !== 'json') {
+        throw new Error(
+            `Replay matrix response is not JSON: ${expectation.operation}.`
+        );
+    }
+    return expectation.response.body.value;
+}
+
+function responseFailureInput(expectation: ReplayExpectation): {
+    readonly httpStatus: number;
+    readonly rawBody?: string;
+    readonly value?: unknown;
+} {
+    const body = expectation.response.body;
+    return {
+        httpStatus: expectation.response.status,
+        ...(body.kind === 'json' ? { value: body.value } : {}),
+        ...(body.kind === 'text' && typeof body.value === 'string'
+            ? { rawBody: body.value }
+            : {}),
+    };
+}
+
 describe('committed replay fixture corpus', () => {
     it('contains the complete Stage-1 scenario matrix', () => {
         const scenarioIds = collectFixturePaths(FIXTURE_ROOT)
@@ -642,6 +730,302 @@ describe('committed replay fixture corpus', () => {
             } finally {
                 run.dispose();
             }
+        }
+    });
+
+    it('binds numeric and string profile statuses to the production classifier matrix', () => {
+        const cases = [
+            {
+                expected: { kind: 'ready', status: 0 },
+                operation: 'full-profile',
+                wireStatus: 0,
+                scenarioId: 'resolver-root-full-wins',
+            },
+            {
+                expected: { kind: 'blocked', status: 1 },
+                operation: 'blocked-profile',
+                wireStatus: 1,
+                scenarioId: 'authentication-blocked-profile',
+            },
+            {
+                expected: { kind: 'credentials-required', status: 2 },
+                operation: 'profile-first',
+                wireStatus: 2,
+                scenarioId: 'authentication-status2-second-step',
+            },
+            {
+                expected: { kind: 'ready', status: 0 },
+                operation: 'profile-string-ready',
+                wireStatus: '0',
+                scenarioId: 'classifier-profile-status-strings',
+            },
+            {
+                expected: { kind: 'blocked', status: 1 },
+                operation: 'profile-string-blocked',
+                wireStatus: '1',
+                scenarioId: 'classifier-profile-status-strings',
+            },
+            {
+                expected: { kind: 'credentials-required', status: 2 },
+                operation: 'profile-string-credentials',
+                wireStatus: '2',
+                scenarioId: 'classifier-profile-status-strings',
+            },
+        ] as const;
+
+        for (const current of cases) {
+            const response = jsonResponseValue(
+                findExpectation(
+                    loadFixture(current.scenarioId),
+                    current.operation
+                )
+            ) as { readonly js?: Readonly<Record<string, unknown>> };
+            expect(response.js?.['status']).toBe(current.wireStatus);
+            expect(classifyStalkerProfile(response)).toMatchObject(
+                current.expected
+            );
+        }
+
+        const stringFixture = loadFixture(
+            'classifier-profile-status-strings'
+        );
+        const ready = jsonResponseValue(
+            findExpectation(stringFixture, 'profile-string-ready')
+        ) as { readonly js: Readonly<Record<string, unknown>> };
+        const blocked = jsonResponseValue(
+            findExpectation(stringFixture, 'profile-string-blocked')
+        ) as { readonly js: Readonly<Record<string, unknown>> };
+        expect([
+            ready.js['store_auth_data_on_stb'],
+            blocked.js['store_auth_data_on_stb'],
+        ]).toEqual([true, false]);
+    });
+
+    it('binds canonical do_auth success, rejection, and near misses to production rules', () => {
+        const cases = [
+            {
+                expected: { kind: 'success' },
+                operation: 'do-auth',
+                scenarioId: 'authentication-status2-second-step',
+            },
+            {
+                expected: { kind: 'credentials-rejected' },
+                operation: 'saved-do-auth',
+                scenarioId: 'authentication-saved-rejected-fresh',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'incompatible-response',
+                },
+                operation: 'do-auth-noncanonical',
+                scenarioId: 'authentication-noncanonical-do-auth',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'incompatible-response',
+                },
+                operation: 'do-auth-noncanonical-string',
+                scenarioId: 'authentication-noncanonical-do-auth-string',
+            },
+        ] as const;
+
+        for (const current of cases) {
+            expect(
+                classifyStalkerDoAuth(
+                    jsonResponseValue(
+                        findExpectation(
+                            loadFixture(current.scenarioId),
+                            current.operation
+                        )
+                    )
+                )
+            ).toEqual(current.expected);
+        }
+    });
+
+    it('binds token, denial, protection, and ambiguous bodies to the production failure taxonomy', () => {
+        const cases = [
+            {
+                expected: { kind: 'token-rejected' },
+                operation: 'authorization-failed',
+                scenarioId: 'classifier-authorization-failed-200',
+            },
+            {
+                expected: { kind: 'token-rejected' },
+                operation: 'authorization-failed-forbidden',
+                scenarioId: 'classifier-auth-failed-403',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'incompatible-response',
+                },
+                operation: 'authorization-failed-near-miss',
+                scenarioId:
+                    'classifier-authorization-failed-near-miss-200',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'account-access-denied',
+                },
+                operation: 'body-denial',
+                scenarioId: 'classifier-access-denied-200',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'portal-protection-blocked',
+                },
+                operation: 'waf-response',
+                scenarioId: 'classifier-waf-403',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'incompatible-response',
+                },
+                operation: 'ambiguous-forbidden',
+                scenarioId: 'classifier-ambiguous-403',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'rate-limited',
+                },
+                operation: 'rate-limit',
+                scenarioId: 'classifier-rate-limit-429',
+            },
+            {
+                expected: {
+                    kind: 'failure',
+                    reason: 'portal-unavailable',
+                },
+                operation: 'service-unavailable',
+                scenarioId: 'classifier-service-unavailable-503',
+            },
+        ] as const;
+
+        for (const current of cases) {
+            const expectation = findExpectation(
+                loadFixture(current.scenarioId),
+                current.operation
+            );
+            expect(
+                classifyStalkerResponseFailure(
+                    responseFailureInput(expectation)
+                )
+            ).toEqual(current.expected);
+        }
+    });
+
+    it('fails closed when valid replay JSON carries an HTML media type', () => {
+        const expectation = findExpectation(
+            loadFixture('classifier-wrong-mime-json'),
+            'wrong-mime-json'
+        );
+        const body = expectation.response.body;
+        const contentType =
+            expectation.response.headers['content-type']?.[0];
+        if (
+            body.kind !== 'text' ||
+            typeof body.value !== 'string' ||
+            typeof contentType !== 'string'
+        ) {
+            throw new Error('Wrong-MIME matrix fixture is malformed.');
+        }
+
+        expect(
+            parseStalkerResponseEnvelope({
+                body: body.value,
+                contentType,
+                maxBodyBytes: 1024,
+            })
+        ).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
+        });
+    });
+
+    it('records portal protection after stateless evidence as a no-downgrade terminal', () => {
+        const fixture = loadFixture('resolver-downgrade-protection');
+        const operations = fixture.phases.flatMap((phase) =>
+            phase.expectations.map((expectation) => expectation.operation)
+        );
+        const unsupported = findExpectation(
+            fixture,
+            'unsupported-handshake'
+        );
+        const stateless = jsonResponseValue(
+            findExpectation(fixture, 'stateless-capability')
+        ) as { readonly js?: unknown };
+        const authenticatedHandshake = jsonResponseValue(
+            findExpectation(fixture, 'authenticated-handshake')
+        ) as {
+            readonly js?: Readonly<Record<string, unknown>>;
+        };
+        const protectedProfile = findExpectation(
+            fixture,
+            'protected-first-profile'
+        );
+
+        expect(operations).toEqual([
+            'root-probe',
+            'unsupported-handshake',
+            'stateless-capability',
+            'authenticated-handshake',
+            'protected-first-profile',
+        ]);
+        expect(
+            classifyStalkerResponseFailure(
+                responseFailureInput(unsupported)
+            )
+        ).toEqual({ kind: 'none' });
+        expect(Array.isArray(stateless.js)).toBe(true);
+        expect(authenticatedHandshake.js?.['token']).toMatchObject({
+            kind: 'generate',
+            valueKind: 'token',
+        });
+        expect(
+            classifyStalkerResponseFailure(
+                responseFailureInput(protectedProfile)
+            )
+        ).toEqual({
+            kind: 'failure',
+            reason: 'portal-protection-blocked',
+        });
+        expect(fixture.phases.at(-1)?.nextState).toBe(
+            fixture.terminalState
+        );
+    });
+
+    it('keeps mutable RFC cookie semantics in production unit coverage while replay owns wire rotation', () => {
+        const rotationFixture = loadFixture(
+            'e2e-full-session-catalog-playback'
+        );
+        const rotatingOperations = ['handshake', 'do-auth', 'catalog-page'];
+        for (const operation of rotatingOperations) {
+            expect(
+                findExpectation(rotationFixture, operation).response.headers[
+                    'set-cookie'
+                ]
+            ).toHaveLength(1);
+        }
+
+        for (const current of UNIT_OWNED_COOKIE_MATRIX) {
+            const specSource = readFileSync(
+                resolve(process.cwd(), current.spec),
+                'utf8'
+            );
+            expect({
+                contract: current.contract,
+                covered: specSource.includes(current.evidence),
+            }).toEqual({
+                contract: current.contract,
+                covered: true,
+            });
         }
     });
 

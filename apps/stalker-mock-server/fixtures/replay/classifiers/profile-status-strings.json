@@ -1,0 +1,194 @@
+{
+    "description": "Synthetic string profile statuses preserve the same ready, blocked, and credential-required meanings as numeric statuses.",
+    "entry": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "profile-string-ready",
+                    "method": "GET",
+                    "operation": "profile-string-ready",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "case": "string-zero",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "id": 1,
+                                    "status": "0",
+                                    "store_auth_data_on_stb": true
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "profile-string-blocked",
+                    "method": "GET",
+                    "operation": "profile-string-blocked",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "case": "string-one",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "block_msg": "Synthetic blocked profile",
+                                    "status": "1",
+                                    "store_auth_data_on_stb": false
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "profile-string-credentials",
+                    "method": "GET",
+                    "operation": "profile-string-credentials",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "case": "string-two",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "credentials_required": true,
+                                    "status": "2"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "profile-status-strings",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "classifier-profile-status-strings",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}
