@@ -102,6 +102,7 @@ import {
 import {
     captureWorkerPerformancePhase,
     captureWorkerPerformancePhaseAsync,
+    createWorkerPerformancePhaseAdapter,
 } from './worker-performance-phase';
 import {
     handleDatabaseWorkerPostGcHeapRequest,
@@ -376,7 +377,14 @@ async function executeRequest(
                 playlistId: string;
                 type: 'live' | 'movies' | 'series';
             };
-            return getCategories(db, payload.playlistId, payload.type);
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
+            return getCategories(
+                db,
+                payload.playlistId,
+                payload.type,
+                capturePhase
+            );
         }
 
         case 'DB_SAVE_CATEGORIES': {
@@ -389,12 +397,15 @@ async function executeRequest(
                 type: 'live' | 'movies' | 'series';
                 hiddenCategoryXtreamIds?: number[];
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
             return saveCategories(
                 db,
                 payload.playlistId,
                 payload.categories,
                 payload.type,
-                payload.hiddenCategoryXtreamIds
+                payload.hiddenCategoryXtreamIds,
+                capturePhase
             );
         }
 
@@ -431,7 +442,14 @@ async function executeRequest(
                 playlistId: string;
                 type: 'live' | 'movie' | 'series';
             };
-            return getContent(db, payload.playlistId, payload.type);
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
+            return getContent(
+                db,
+                payload.playlistId,
+                payload.type,
+                capturePhase
+            );
         }
 
         case 'DB_GET_GLOBAL_RECENTLY_ADDED': {
@@ -456,6 +474,8 @@ async function executeRequest(
                 type: 'live' | 'movie' | 'series';
                 operationId?: string;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
             return executeTrackedOperation(
                 {
@@ -476,7 +496,8 @@ async function executeRequest(
                         payload.playlistId,
                         payload.streams,
                         payload.type,
-                        controller.control
+                        controller.control,
+                        capturePhase
                     );
 
                     controller.emitCompleted({
@@ -496,8 +517,15 @@ async function executeRequest(
                 playlistId: string;
                 type: 'live' | 'movie' | 'series';
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
-            return clearXtreamImportCache(db, payload.playlistId, payload.type);
+            return clearXtreamImportCache(
+                db,
+                payload.playlistId,
+                payload.type,
+                capturePhase
+            );
         }
 
         case 'DB_GET_CONTENT_BY_XTREAM_ID': {
@@ -533,12 +561,15 @@ async function executeRequest(
                 types: string[];
                 excludeHidden?: boolean;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
             return searchContent(
                 db,
                 payload.playlistId,
                 payload.searchTerm,
                 payload.types,
-                payload.excludeHidden
+                payload.excludeHidden,
+                capturePhase
             );
         }
 

@@ -9,6 +9,7 @@ import {
     GlobalSearchResult,
     GlobalSearchResultSource,
     M3uGlobalSearchResult,
+    XTREAM_DATABASE_PERFORMANCE_PHASE,
     getXtreamRecentlyAddedMaxEpochSeconds,
     toXtreamRecentlyAddedEpochSeconds,
     XtreamGlobalSearchResult,
@@ -31,12 +32,15 @@ import {
     shouldUseContentTitleFts,
     shouldUseContentTitlePrefixIndex,
 } from './content-search.util';
+import type { OperationControl } from './operation-control';
+import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 import {
-    checkpointOperation,
-    chunkValues,
-    type OperationControl,
-    reportOperationProgress,
-} from './operation-control';
+    deleteXtreamCacheRows,
+    normalizeXtreamContentValues,
+    rankSearchCandidates,
+    writeXtreamContentValues,
+    type XtreamContentValue,
+} from './xtream-content-operation-steps';
 
 export { scoreSearchTextMatch } from './content-search.util';
 
@@ -673,7 +677,8 @@ export async function hasContent(
 export async function getContent(
     db: AppDatabase,
     playlistId: string,
-    type: 'live' | 'movie' | 'series'
+    type: 'live' | 'movie' | 'series',
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
 ) {
     const baseQuery = db
         .select(selectContentFields())
@@ -689,17 +694,22 @@ export async function getContent(
             )
         );
 
-    return type === 'live'
-        ? baseQuery.orderBy(asc(schema.content.id))
-        : baseQuery.orderBy(desc(schema.content.added));
+    const query =
+        type === 'live'
+            ? baseQuery.orderBy(asc(schema.content.id))
+            : baseQuery.orderBy(desc(schema.content.added));
+
+    return capturePhase
+        ? capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CONTENT_READ,
+              async () => query,
+              (rows) => ({ itemCount: rows.length })
+          )
+        : query;
 }
 
 export type RecentlyAddedPlaylistType =
-    | 'xtream'
-    | 'stalker'
-    | 'm3u-file'
-    | 'm3u-text'
-    | 'm3u-url';
+    'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
 
 export async function getGlobalRecentlyAdded(
     db: AppDatabase,
@@ -796,20 +806,6 @@ function getGlobalRecentlyAddedByType(
         .limit(limit);
 }
 
-type XtreamContentValue = {
-    categoryId: number;
-    title: string;
-    rating: string;
-    added: string;
-    posterUrl: string;
-    epgChannelId?: string | null;
-    tvArchive?: number | null;
-    tvArchiveDuration?: number | null;
-    directSource?: string | null;
-    xtreamId: number;
-    type: 'live' | 'movie' | 'series';
-};
-
 type XtreamContentSource = Record<string, unknown> & {
     category_id?: string | number;
     rating?: string | number;
@@ -898,7 +894,8 @@ export async function saveContent(
     playlistId: string,
     streams: Array<Record<string, unknown>>,
     type: 'live' | 'movie' | 'series',
-    control?: OperationControl
+    control?: OperationControl,
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
 ): Promise<{ success: boolean; count: number }> {
     const dbType =
         type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
@@ -922,7 +919,7 @@ export async function saveContent(
         return { success: true, count: existingContent[0].count };
     }
 
-    const categories = await db
+    const categoriesQuery = db
         .select({
             id: schema.categories.id,
             xtreamId: schema.categories.xtreamId,
@@ -935,49 +932,46 @@ export async function saveContent(
             )
         );
 
-    const categoryMap = new Map(
-        categories.map((category) => [category.xtreamId, category.id])
-    );
+    const categories = capturePhase
+        ? await capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CONTENT_CATEGORY_MAP_READ,
+              async () => categoriesQuery,
+              (rows) => ({ itemCount: rows.length })
+          )
+        : await categoriesQuery;
+    const values = capturePhase
+        ? capturePhase.captureSync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.NORMALIZE_CONTENT,
+              () =>
+                  normalizeXtreamContentValues(
+                      streams,
+                      type,
+                      categories,
+                      toXtreamContentValue
+                  ),
+              (result) => ({ itemCount: result.length })
+          )
+        : normalizeXtreamContentValues(
+              streams,
+              type,
+              categories,
+              toXtreamContentValue
+          );
 
-    const values = streams
-        .map((stream) => toXtreamContentValue(stream, type, categoryMap))
-        .filter((value): value is XtreamContentValue => value !== null);
-
-    const total = values.length;
-    const chunkSize = 100;
-    let totalInserted = 0;
-
-    for (let index = 0; index < values.length; index += chunkSize) {
-        await checkpointOperation(control);
-        const chunk = values.slice(index, index + chunkSize);
-        await db.transaction((tx) => {
-            tx.insert(schema.content)
-                .values(chunk)
-                .onConflictDoNothing({
-                    target: [
-                        schema.content.categoryId,
-                        schema.content.type,
-                        schema.content.xtreamId,
-                    ],
-                })
-                .run();
-        });
-        totalInserted += chunk.length;
-        await reportOperationProgress(control, {
-            phase: 'saving-content',
-            current: totalInserted,
-            total,
-            increment: chunk.length,
-        });
-    }
-
-    return { success: true, count: totalInserted };
+    return capturePhase
+        ? capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CONTENT_WRITE_TRANSACTIONS,
+              () => writeXtreamContentValues(db, values, control),
+              (result) => ({ itemCount: result.count })
+          )
+        : writeXtreamContentValues(db, values, control);
 }
 
 export async function clearXtreamImportCache(
     db: AppDatabase,
     playlistId: string,
-    type: 'live' | 'movie' | 'series'
+    type: 'live' | 'movie' | 'series',
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
 ): Promise<{ success: boolean }> {
     const dbType =
         type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
@@ -994,7 +988,13 @@ export async function clearXtreamImportCache(
 
     const categoryIds = categoryRows.map((category) => category.id);
     if (categoryIds.length === 0) {
-        return { success: true };
+        return capturePhase
+            ? capturePhase.captureAsync(
+                  XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
+                  async () => ({ success: true }),
+                  () => ({ itemCount: 0 })
+              )
+            : { success: true };
     }
 
     const contentRows = await db
@@ -1002,26 +1002,13 @@ export async function clearXtreamImportCache(
         .from(schema.content)
         .where(inArray(schema.content.categoryId, categoryIds));
 
-    for (const chunk of chunkValues(
-        contentRows.map((row) => row.id),
-        100
-    )) {
-        await db.transaction((tx) => {
-            tx.delete(schema.content)
-                .where(inArray(schema.content.id, chunk))
-                .run();
-        });
-    }
-
-    for (const chunk of chunkValues(categoryIds, 100)) {
-        await db.transaction((tx) => {
-            tx.delete(schema.categories)
-                .where(inArray(schema.categories.id, chunk))
-                .run();
-        });
-    }
-
-    return { success: true };
+    return capturePhase
+        ? capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
+              () => deleteXtreamCacheRows(db, contentRows, categoryIds),
+              () => ({ itemCount: contentRows.length + categoryIds.length })
+          )
+        : deleteXtreamCacheRows(db, contentRows, categoryIds);
 }
 
 export async function getContentByXtreamId(
@@ -1057,7 +1044,8 @@ export async function searchContent(
     playlistId: string,
     searchTerm: string,
     types: string[],
-    excludeHidden = false
+    excludeHidden = false,
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
 ) {
     if (!types || types.length === 0 || !normalizeSearchMatchText(searchTerm)) {
         return [];
@@ -1076,7 +1064,7 @@ export async function searchContent(
         conditions.push(eq(schema.categories.hidden, false));
     }
 
-    const candidates = await db
+    const query = db
         .select(selectContentFields())
         .from(schema.content)
         .innerJoin(
@@ -1086,12 +1074,21 @@ export async function searchContent(
         .where(and(...conditions))
         .limit(200);
 
-    return candidates
-        .filter(
-            (item) =>
-                scoreSearchTextMatch(item.title ?? '', searchTerm) !== null
-        )
-        .slice(0, 50);
+    const candidates = capturePhase
+        ? await capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_SEARCH_QUERY,
+              async () => query,
+              (rows) => ({ itemCount: rows.length })
+          )
+        : await query;
+
+    return capturePhase
+        ? capturePhase.captureSync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.NORMALIZE_SEARCH_RANK,
+              () => rankSearchCandidates(candidates, searchTerm),
+              (result) => ({ itemCount: result.length })
+          )
+        : rankSearchCandidates(candidates, searchTerm);
 }
 
 export async function globalSearch(

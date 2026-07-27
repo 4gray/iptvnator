@@ -1,6 +1,6 @@
 import type { EventLoopUtilization } from 'node:perf_hooks';
 import type {
-    AppPlaylistPerformancePhase,
+    DatabaseWorkerPerformancePhase,
     PerformancePhaseEvent,
 } from '@iptvnator/shared/interfaces';
 
@@ -50,7 +50,7 @@ export interface WorkerPerformanceCaptureResult {
     eventLoopUtilizationUnavailableReason: WorkerPerformanceMetricUnavailableReason | null;
     histogramFlushedEpochMs: number | null;
     invalidReason: WorkerPerformanceInvalidReason | null;
-    phaseEvents?: readonly PerformancePhaseEvent<AppPlaylistPerformancePhase>[];
+    phaseEvents?: readonly PerformancePhaseEvent<DatabaseWorkerPerformancePhase>[];
     requestReceivedEpochMs: number;
     responsePostedEpochMs?: number;
     threadCpuSystemMicros: number | null;
@@ -91,7 +91,7 @@ export interface WorkerPerformanceCapture {
     histogramDisabled: boolean;
     histogramFlushedEpochMs: number | null;
     invalidReason: WorkerPerformanceInvalidReason | null;
-    phaseEvents: PerformancePhaseEvent<AppPlaylistPerformancePhase>[];
+    phaseEvents: PerformancePhaseEvent<DatabaseWorkerPerformancePhase>[];
     requestReceivedEpochMs: number;
     requestId: string | null;
     runtime: WorkerPerformanceCaptureRuntime;

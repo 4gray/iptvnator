@@ -1,15 +1,16 @@
 import {
     PERFORMANCE_PHASE_BOUNDARY,
-    type AppPlaylistPerformancePhase,
+    type DatabaseWorkerPerformancePhase,
     type PerformancePhaseEvent,
     type PerformancePhaseMetadata,
 } from '@iptvnator/shared/interfaces';
+import type { DatabaseOperationPerformancePhaseCapture } from '../database/operations/performance-phase-capture';
 import type { WorkerPerformanceCapture } from './worker-performance-capture.model';
 import { safeReadEpochMs } from './worker-performance-capture.runtime';
 
 export function captureWorkerPerformancePhase<TResult>(
     capture: WorkerPerformanceCapture | null,
-    phase: AppPlaylistPerformancePhase,
+    phase: DatabaseWorkerPerformancePhase,
     execute: () => TResult,
     metadata?: (result: TResult) => PerformancePhaseMetadata
 ): TResult {
@@ -55,7 +56,7 @@ export function captureWorkerPerformancePhase<TResult>(
 
 export function captureWorkerPerformancePhaseAsync<TResult>(
     capture: WorkerPerformanceCapture | null,
-    phase: AppPlaylistPerformancePhase,
+    phase: DatabaseWorkerPerformancePhase,
     execute: () => Promise<TResult>,
     metadata?: (result: TResult) => PerformancePhaseMetadata
 ): Promise<TResult> {
@@ -70,7 +71,7 @@ export function captureWorkerPerformancePhaseAsync<TResult>(
 async function captureAsync<TResult>(
     capture: WorkerPerformanceCapture,
     requestId: string,
-    phase: AppPlaylistPerformancePhase,
+    phase: DatabaseWorkerPerformancePhase,
     execute: () => Promise<TResult>,
     metadata?: (result: TResult) => PerformancePhaseMetadata
 ): Promise<TResult> {
@@ -91,9 +92,7 @@ async function captureAsync<TResult>(
             boundary: PERFORMANCE_PHASE_BOUNDARY.END,
             durationMs: safeDuration(endMonotonicMs - startMonotonicMs),
             epochMs: safeReadEpochMs(capture.runtime),
-            metadata: sanitizeMetadata(
-                safelyCreateMetadata(metadata, result)
-            ),
+            metadata: sanitizeMetadata(safelyCreateMetadata(metadata, result)),
             phase,
             requestId,
         });
@@ -162,11 +161,31 @@ function isCount(value: unknown): value is number {
 
 function appendPhaseEvent(
     capture: WorkerPerformanceCapture,
-    event: PerformancePhaseEvent<AppPlaylistPerformancePhase>
+    event: PerformancePhaseEvent<DatabaseWorkerPerformancePhase>
 ): void {
     try {
         capture.phaseEvents.push(event);
     } catch {
         // Phase instrumentation is deliberately fail-neutral.
     }
+}
+
+export function createWorkerPerformancePhaseAdapter(
+    capture: WorkerPerformanceCapture | null
+): DatabaseOperationPerformancePhaseCapture | undefined {
+    if (!capture?.requestId) {
+        return undefined;
+    }
+
+    return {
+        captureAsync: (phase, execute, metadata) =>
+            captureWorkerPerformancePhaseAsync(
+                capture,
+                phase,
+                execute,
+                metadata
+            ),
+        captureSync: (phase, execute, metadata) =>
+            captureWorkerPerformancePhase(capture, phase, execute, metadata),
+    };
 }
