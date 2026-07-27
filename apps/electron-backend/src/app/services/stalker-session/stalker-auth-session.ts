@@ -203,6 +203,7 @@ export class StalkerAuthSession {
             headers: this.authenticatedHeaders(),
             mode: STALKER_HTTP_REQUEST_MODES.IdentityBearing,
             params: {
+                ...doAuthIdentityParameters(this.#identity),
                 action: 'do_auth',
                 JsHttpRequest: '1-xml',
                 login: normalized.username,
@@ -271,9 +272,7 @@ export class StalkerAuthSession {
         }
 
         this.#acceptedCredentials = normalized;
-        this.#principalKey =
-            readNonEmptyString(classifiedProfile.profile['login']) ??
-            normalized.username;
+        this.#principalKey = normalized.username;
         return this.markReady(classifiedProfile.profile);
     }
 
@@ -518,6 +517,27 @@ function normalizeCredentials(
         return null;
     }
     return { password, username };
+}
+
+function doAuthIdentityParameters(
+    identity: StalkerIdentityProfile
+): Readonly<Record<string, string | number>> {
+    const parameters: Record<string, string | number> = {};
+    for (const key of [
+        'api_signature',
+        'device_id',
+        'device_id2',
+        'prehash',
+        'signature',
+        'signature2',
+        'sn',
+    ] as const) {
+        const value = identity.profileParameters[key];
+        if (value !== undefined) {
+            parameters[key] = value;
+        }
+    }
+    return parameters;
 }
 
 function buildReadyOutcome(

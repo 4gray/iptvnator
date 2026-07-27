@@ -175,6 +175,35 @@ describe('PlaylistBackupService Stalker restore safety', () => {
         );
     });
 
+    it('keeps whitespace-distinct Stalker principals as separate rows', async () => {
+        const local = existing({
+            _id: 'local-id',
+            username: ' local-user ',
+        });
+        const { playlistsService, service } = serviceWith([local]);
+        const backup = entry({
+            portalUrl: local.portalUrl as string,
+            sourceUrl: local.stalkerSourceUrl,
+            macAddress: local.macAddress as string,
+            profilePreset: local.stalkerProfilePreset,
+            identityOverrides: local.stalkerIdentityOverrides,
+            username: 'local-user',
+            password: 'replacement-password',
+        });
+
+        const summary = await service.importBackup(
+            JSON.stringify(manifest(backup, true))
+        );
+
+        expect(summary).toMatchObject({ imported: 1, merged: 0 });
+        expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'stalker-backup',
+                username: 'local-user',
+            })
+        );
+    });
+
     it('does not merge an ambiguous legacy portalUrl and MAC pair', async () => {
         const first = existing({
             _id: 'first',

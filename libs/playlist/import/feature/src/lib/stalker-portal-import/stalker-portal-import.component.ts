@@ -19,6 +19,7 @@ import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import type {
     Playlist,
+    StalkerSessionAttemptRef,
     StalkerSessionChallengeRef,
     StalkerSessionConnectionOutcome,
     StalkerSessionFailureReason,
@@ -99,6 +100,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
 
     private runId = 0;
     private provisionalPlaylist: Playlist | null = null;
+    private pendingAttemptRef: StalkerSessionAttemptRef | null = null;
     private pendingChallengeRef: StalkerSessionChallengeRef | null = null;
     private pendingReady: PendingReady | null = null;
     private credentialCandidate: StalkerAcceptedCredentials | undefined;
@@ -107,7 +109,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
 
     clearForm(): void {
         this.runId += 1;
-        void this.discardPendingReady();
+        void this.discardPendingAttempt();
         this.resetConnectionState();
         this.form.reset({
             _id: uuid(),
@@ -128,7 +130,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
 
     ngOnDestroy(): void {
         this.runId += 1;
-        void this.discardPendingReady();
+        void this.discardPendingAttempt();
     }
 
     async addPlaylist(): Promise<void> {
@@ -137,7 +139,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
         }
 
         const runId = ++this.runId;
-        await this.discardPendingReady();
+        await this.discardPendingAttempt();
         this.resetConnectionState();
         this.connectionStage.set('resolving');
 
@@ -264,12 +266,14 @@ export class StalkerPortalImportComponent implements OnDestroy {
                 this.credentialCandidate
             );
             const pending = { outcome, playlist };
+            this.pendingAttemptRef = outcome.attemptRef ?? null;
             this.pendingReady = pending;
             await this.persistAndCommit(pending, runId);
             return;
         }
 
         if (outcome.kind === 'origin-approval-required') {
+            this.pendingAttemptRef = outcome.attemptRef;
             this.pendingChallengeRef = outcome.challengeRef;
             this.pendingOriginApproval.set({
                 finalOrigin: outcome.finalOrigin,
@@ -280,6 +284,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
         }
 
         if (outcome.kind === 'credentials-required') {
+            this.pendingAttemptRef = outcome.attemptRef;
             this.pendingChallengeRef = outcome.challengeRef;
             this.credentialsRequested.set(true);
             this.savedCredentialsRejected.set(
@@ -330,7 +335,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
 
         const attemptRef = pending.outcome.attemptRef;
         if (attemptRef === undefined) {
-            await this.discardPendingReady();
+            await this.discardPendingAttempt();
             this.fail('session-promotion-failed');
             return;
         }
@@ -346,20 +351,25 @@ export class StalkerPortalImportComponent implements OnDestroy {
         }
 
         this.committed = true;
+        this.pendingAttemptRef = null;
         this.pendingReady = null;
         this.connectionStage.set('connected');
         this.addClicked.emit();
     }
 
     private async failPromotion(runId: number): Promise<void> {
-        await this.discardPendingReady();
+        await this.discardPendingAttempt();
         if (runId === this.runId) {
             this.fail('session-promotion-failed');
         }
     }
 
-    private async discardPendingReady(): Promise<void> {
-        const attemptRef = this.pendingReady?.outcome.attemptRef;
+    private async discardPendingAttempt(): Promise<void> {
+        const attemptRef =
+            this.pendingReady?.outcome.attemptRef ??
+            this.pendingAttemptRef ??
+            undefined;
+        this.pendingAttemptRef = null;
         this.pendingReady = null;
         if (attemptRef !== undefined && !this.committed) {
             await this.session.discard(attemptRef).catch(() => undefined);
@@ -385,6 +395,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
 
     private resetConnectionState(): void {
         this.provisionalPlaylist = null;
+        this.pendingAttemptRef = null;
         this.pendingChallengeRef = null;
         this.pendingReady = null;
         this.credentialCandidate = undefined;

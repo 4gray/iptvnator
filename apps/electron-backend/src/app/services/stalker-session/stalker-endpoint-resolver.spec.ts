@@ -349,4 +349,41 @@ describe('StalkerEndpointResolver', () => {
             'https://portal.test/server/load.php',
         ]);
     });
+
+    it('ignores an unapproved cross-origin learned endpoint before sending identity', async () => {
+        const harness = createHarness((request) => {
+            if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                return success({}, { finalUrl: request.url });
+            }
+            if (request.params?.['action'] === 'handshake') {
+                return success(
+                    { js: { token: 'same-origin-token' } },
+                    { finalUrl: request.url }
+                );
+            }
+            return success({ js: { status: 0 } }, { finalUrl: request.url });
+        });
+
+        const outcome = await harness.resolver.resolve({
+            descriptor: descriptor({
+                learnedEndpointHint:
+                    'https://unapproved.example/server/load.php',
+            }),
+            transport,
+        });
+
+        expect(outcome).toMatchObject({
+            endpoint: 'https://portal.test/server/load.php',
+            kind: 'full-session',
+        });
+        expect(
+            harness.calls
+                .filter(
+                    (request) =>
+                        request.mode ===
+                        STALKER_HTTP_REQUEST_MODES.IdentityBearing
+                )
+                .map((request) => request.url)
+        ).not.toContain('https://unapproved.example/server/load.php');
+    });
 });

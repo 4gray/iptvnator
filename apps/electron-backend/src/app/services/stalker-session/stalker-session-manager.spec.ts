@@ -24,6 +24,7 @@ import type {
 } from './stalker-auth-session';
 import type {
     StalkerEndpointFullSessionOutcome,
+    StalkerEndpointResolverInput,
     StalkerEndpointResolverOutcome,
 } from './stalker-endpoint-resolver';
 import type {
@@ -222,7 +223,7 @@ function harness(
 ) {
     const auths = [...(options.auths ?? [new FakeAuth()])];
     const resolverOutcomes = [...(options.resolverOutcomes ?? [full()])];
-    const resolve = jest.fn(async () => {
+    const resolve = jest.fn(async (_input: StalkerEndpointResolverInput) => {
         const outcome = resolverOutcomes.shift();
         if (!outcome) {
             throw new Error('unexpected-resolver-call');
@@ -310,6 +311,64 @@ function deferred<T>() {
 }
 
 describe('StalkerSessionManager', () => {
+    it('restarts approved cross-origin discovery at the target without changing the persisted source', async () => {
+        const originalSource = 'https://portal.test/customer/c/';
+        const approvedLanding =
+            'https://approved.test/redirected/c/?tenant=one';
+        const { manager, resolve } = harness({
+            auths: [new FakeAuth()],
+            resolverOutcomes: [
+                {
+                    finalOrigin: 'https://approved.test',
+                    kind: 'origin-approval-required',
+                    landingUrl: approvedLanding,
+                    sourceOrigin: 'https://portal.test',
+                },
+                {
+                    ...full('https://approved.test/server/load.php'),
+                    landingUrl: approvedLanding,
+                },
+            ],
+        });
+
+        const challenge = await manager.open(1, {
+            descriptor: descriptor('approved-redirect', 'persisted-open', {
+                learnedEndpointHint:
+                    'https://unapproved-hint.test/server/load.php',
+                sourceUrl: originalSource,
+            }),
+        });
+        expect(challenge).toMatchObject({
+            finalOrigin: 'https://approved.test',
+            kind: 'origin-approval-required',
+            sourceOrigin: 'https://portal.test',
+        });
+        if (challenge.kind !== 'origin-approval-required') {
+            throw new Error('expected-origin-challenge');
+        }
+
+        const ready = await manager.continue(1, {
+            challengeRef: challenge.challengeRef,
+            response: {
+                approved: true,
+                kind: 'origin-approval',
+            },
+        });
+
+        expectFullReady(ready);
+        expect(resolve).toHaveBeenCalledTimes(2);
+        expect(resolve.mock.calls[0][0].descriptor.sourceUrl).toBe(
+            originalSource
+        );
+        expect(resolve.mock.calls[1][0].descriptor).toMatchObject({
+            sourceUrl: approvedLanding,
+        });
+        expect(resolve.mock.calls[1][0].descriptor.learnedEndpointHint).toBe(
+            undefined
+        );
+        expect(ready.persistenceDraft.stalkerSourceUrl).toBe(originalSource);
+    });
+
     it('derives opaque canonical keys from endpoint, MAC, identity revision, and confirmed principal only', async () => {
         const activate = jest.fn();
         const watchdog: StalkerSessionWatchdogLike = {
@@ -650,6 +709,7 @@ describe('StalkerSessionManager', () => {
             descriptor: descriptor('credentials'),
         });
         expect(challenge).toMatchObject({
+            attemptRef: expect.any(String),
             kind: 'credentials-required',
             attemptNumber: 1,
         });

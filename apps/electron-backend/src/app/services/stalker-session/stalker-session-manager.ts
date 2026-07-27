@@ -221,6 +221,7 @@ interface AttemptRecord {
     previousSessions: Set<SessionRecord>;
     ready?: AttemptReady;
     readonly ref: string;
+    resolutionSourceUrl?: string;
     readonly senderId: number;
     state: 'authenticating' | 'challenge' | 'ready';
     readonly transport: StalkerTransportConfig;
@@ -280,6 +281,7 @@ interface SessionRecord {
     readonly leases: Set<string>;
     principal: string;
     refreshPromise?: Promise<RefreshResult>;
+    resolutionSourceUrl?: string;
     readonly coordinator: StalkerBaseIdentityCoordinator;
     transport: StalkerTransportConfig;
     watchdogIntervalSeconds?: number;
@@ -516,7 +518,21 @@ export class StalkerSessionManager {
                     false
                 );
             }
+            const resolutionSourceUrl = approvedResolutionSourceUrl(
+                consumed.challenge.finalOrigin,
+                consumed.challenge.landingPath
+            );
+            if (resolutionSourceUrl === undefined) {
+                await this.#terminateAttempt(attempt, true);
+                return failure(
+                    requestId,
+                    STALKER_SESSION_FAILURE_REASONS.InvalidIdentityInput,
+                    'awaiting-origin-approval',
+                    false
+                );
+            }
             attempt.approvedOrigins.add(consumed.challenge.finalOrigin);
+            attempt.resolutionSourceUrl = resolutionSourceUrl;
             attempt.coordinator = this.#coordinatorPool.get(
                 consumed.challenge.finalOrigin,
                 attempt.descriptor.macAddress
@@ -896,7 +912,7 @@ export class StalkerSessionManager {
                         );
                         const resolved = await this.#resolver.resolve({
                             approvedOrigins: [...attempt.approvedOrigins],
-                            descriptor: attempt.descriptor,
+                            descriptor: resolutionDescriptor(attempt),
                             transport: attempt.transport,
                         });
                         if (resolved.kind !== 'full-session') {
@@ -1176,6 +1192,7 @@ export class StalkerSessionManager {
         this.#refreshAttemptExpiry(attempt);
         if (challenge.kind === 'origin-approval') {
             return {
+                attemptRef: attempt.ref,
                 challengeRef,
                 finalOrigin: challenge.finalOrigin,
                 kind: 'origin-approval-required',
@@ -1185,6 +1202,7 @@ export class StalkerSessionManager {
         }
         return {
             attemptNumber: challenge.attemptNumber,
+            attemptRef: attempt.ref,
             challengeRef,
             kind: 'credentials-required',
             requestId,
@@ -1312,6 +1330,9 @@ export class StalkerSessionManager {
             landingUrl: ready.landingUrl,
             leases: new Set<string>(),
             principal: ready.principal,
+            ...(attempt.resolutionSourceUrl === undefined
+                ? {}
+                : { resolutionSourceUrl: attempt.resolutionSourceUrl }),
             transport: attempt.transport,
             ...(ready.watchdogIntervalSeconds === undefined
                 ? {}
@@ -1581,6 +1602,9 @@ export class StalkerSessionManager {
             lastIdentityRevision: session.identityRevision,
             previousSessions: new Set(),
             ref: '',
+            ...(session.resolutionSourceUrl === undefined
+                ? {}
+                : { resolutionSourceUrl: session.resolutionSourceUrl }),
             senderId: -1,
             state: 'authenticating',
             transport: session.transport,
@@ -1662,6 +1686,11 @@ export class StalkerSessionManager {
                 landingUrl: progress.landingUrl,
                 leases: new Set<string>(),
                 principal: progress.principal,
+                ...(session.resolutionSourceUrl === undefined
+                    ? {}
+                    : {
+                          resolutionSourceUrl: session.resolutionSourceUrl,
+                      }),
                 transport: session.transport,
                 ...(progress.watchdogIntervalSeconds === undefined
                     ? {}
@@ -1779,6 +1808,7 @@ export class StalkerSessionManager {
         attempt.lastEndpoint = session.endpoint;
         attempt.lastIdentityRevision = session.identityRevision;
         attempt.lastLandingUrl = session.landingUrl;
+        attempt.resolutionSourceUrl = session.resolutionSourceUrl;
         this.#attempts.set(attempt.ref, attempt);
         this.#scheduleExpiryCleanup();
         return this.#issueChallenge(
@@ -2636,6 +2666,55 @@ function landingPath(url: string): string {
         return `${parsed.pathname}${parsed.search}`;
     } catch {
         return '/';
+    }
+}
+
+function approvedResolutionSourceUrl(
+    finalOrigin: string,
+    path: string
+): string | undefined {
+    try {
+        const parsedOrigin = new URL(finalOrigin);
+        if (
+            parsedOrigin.origin !== finalOrigin ||
+            (parsedOrigin.protocol !== 'http:' &&
+                parsedOrigin.protocol !== 'https:')
+        ) {
+            return undefined;
+        }
+        const target = normalizeStalkerSourceUrl(
+            new URL(path, `${finalOrigin}/`).toString()
+        );
+        return new URL(target).origin === finalOrigin ? target : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function resolutionDescriptor(
+    attempt: AttemptRecord
+): StalkerSessionConnectionDescriptor {
+    if (attempt.resolutionSourceUrl === undefined) {
+        return attempt.descriptor;
+    }
+    const learnedEndpointHint = attempt.descriptor.learnedEndpointHint;
+    const sameOriginHint =
+        learnedEndpointHint !== undefined &&
+        sameOrigin(learnedEndpointHint, attempt.resolutionSourceUrl)
+            ? learnedEndpointHint
+            : undefined;
+    return {
+        ...attempt.descriptor,
+        learnedEndpointHint: sameOriginHint,
+        sourceUrl: attempt.resolutionSourceUrl,
+    };
+}
+
+function sameOrigin(left: string, right: string): boolean {
+    try {
+        return new URL(left).origin === new URL(right).origin;
+    } catch {
+        return false;
     }
 }
 

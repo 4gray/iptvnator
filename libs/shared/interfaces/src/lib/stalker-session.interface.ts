@@ -137,14 +137,12 @@ export interface StalkerSessionConnectionDescriptorBase {
     transportConfiguration?: StalkerSessionTransportConfiguration;
 }
 
-export interface StalkerSessionPersistedConnectionDescriptor
-    extends StalkerSessionConnectionDescriptorBase {
+export interface StalkerSessionPersistedConnectionDescriptor extends StalkerSessionConnectionDescriptorBase {
     connectionMode: 'persisted-open';
     provisionalReason?: never;
 }
 
-export interface StalkerSessionProvisionalConnectionDescriptor
-    extends StalkerSessionConnectionDescriptorBase {
+export interface StalkerSessionProvisionalConnectionDescriptor extends StalkerSessionConnectionDescriptorBase {
     connectionMode: 'provisional';
     provisionalReason: StalkerSessionProvisionalReason;
 }
@@ -218,7 +216,10 @@ export interface StalkerSessionFullReadyOutcomeBase {
 
 export type StalkerSessionFullReadyOutcome =
     StalkerSessionFullReadyOutcomeBase &
-        (StalkerSessionPersistedReadyState | StalkerSessionProvisionalReadyState);
+        (
+            | StalkerSessionPersistedReadyState
+            | StalkerSessionProvisionalReadyState
+        );
 
 export interface StalkerSessionStatelessReadyOutcomeBase {
     kind: 'ready';
@@ -231,11 +232,15 @@ export interface StalkerSessionStatelessReadyOutcomeBase {
 
 export type StalkerSessionStatelessReadyOutcome =
     StalkerSessionStatelessReadyOutcomeBase &
-        (StalkerSessionPersistedReadyState | StalkerSessionProvisionalReadyState);
+        (
+            | StalkerSessionPersistedReadyState
+            | StalkerSessionProvisionalReadyState
+        );
 
 export interface StalkerSessionOriginApprovalRequiredOutcome {
     kind: 'origin-approval-required';
     requestId: string;
+    attemptRef: StalkerSessionAttemptRef;
     challengeRef: StalkerSessionChallengeRef;
     sourceOrigin: string;
     finalOrigin: string;
@@ -244,6 +249,7 @@ export interface StalkerSessionOriginApprovalRequiredOutcome {
 export interface StalkerSessionCredentialsRequiredOutcome {
     kind: 'credentials-required';
     requestId: string;
+    attemptRef: StalkerSessionAttemptRef;
     challengeRef: StalkerSessionChallengeRef;
     attemptNumber: number;
     savedCredentialsRejected?: boolean;
@@ -266,8 +272,8 @@ export type StalkerSessionConnectionOutcome =
     | StalkerSessionFailureOutcome;
 
 export type StalkerSessionRequest<
-    Operation extends
-        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+    Operation extends StalkerSessionApplicationOperation =
+        StalkerSessionApplicationOperation,
 > = {
     [CurrentOperation in Operation]: {
         leaseRef: StalkerSessionLeaseRef;
@@ -277,8 +283,8 @@ export type StalkerSessionRequest<
 }[Operation];
 
 export type StalkerSessionRequestSuccess<
-    Operation extends
-        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+    Operation extends StalkerSessionApplicationOperation =
+        StalkerSessionApplicationOperation,
 > = {
     [CurrentOperation in Operation]: {
         kind: 'success';
@@ -289,8 +295,8 @@ export type StalkerSessionRequestSuccess<
 }[Operation];
 
 export type StalkerSessionRequestOutcome<
-    Operation extends
-        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+    Operation extends StalkerSessionApplicationOperation =
+        StalkerSessionApplicationOperation,
 > =
     | StalkerSessionRequestSuccess<Operation>
     | StalkerSessionOriginApprovalRequiredOutcome

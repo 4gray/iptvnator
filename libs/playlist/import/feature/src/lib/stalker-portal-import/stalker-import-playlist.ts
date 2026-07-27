@@ -81,7 +81,7 @@ export function buildProvisionalStalkerPlaylist(
 export function readStalkerCredentialCandidate(
     form: Pick<StalkerImportFormValue, 'password' | 'username'>
 ): StalkerAcceptedCredentials | undefined {
-    const username = optional(form.username);
+    const username = exactOptionalPrincipal(form.username);
     if (username === undefined) {
         return undefined;
     }
@@ -89,6 +89,10 @@ export function readStalkerCredentialCandidate(
         password: form.password ?? '',
         username,
     };
+}
+
+function exactOptionalPrincipal(value: string | null): string | undefined {
+    return value === null || value.trim().length === 0 ? undefined : value;
 }
 
 export function applyStalkerReadyOutcome(

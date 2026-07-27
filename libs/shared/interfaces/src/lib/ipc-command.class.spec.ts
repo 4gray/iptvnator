@@ -37,6 +37,7 @@ describe('typed IPC commands', () => {
             },
         } satisfies StalkerSessionOpenRequest;
         const response: IpcCommandResponse<typeof STALKER_SESSION_OPEN> = {
+            attemptRef: 'opaque-attempt',
             challengeRef: 'opaque-origin-challenge',
             finalOrigin: 'https://target.test',
             kind: 'origin-approval-required',
@@ -157,10 +158,10 @@ describe('typed IPC commands', () => {
             keyof StalkerSessionOperationContractMap,
             StalkerSessionApplicationOperation
         >;
-        const mapIsExhaustive: [
-            MissingOperations,
-            ExtraOperations,
-        ] extends [never, never]
+        const mapIsExhaustive: [MissingOperations, ExtraOperations] extends [
+            never,
+            never,
+        ]
             ? true
             : false = true;
 

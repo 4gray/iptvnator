@@ -769,8 +769,7 @@ export class PlaylistBackupService {
 
         const principalMatches = identityMatches.filter(
             (playlist) =>
-                this.normalizeIdentityValue(playlist.username ?? '') ===
-                this.normalizeIdentityValue(entry.connection.username ?? '')
+                (playlist.username ?? '') === (entry.connection.username ?? '')
         );
         return principalMatches.length === 1 ? principalMatches[0] : null;
     }

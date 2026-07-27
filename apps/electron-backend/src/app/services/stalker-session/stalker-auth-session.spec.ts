@@ -36,7 +36,10 @@ function success(
 }
 
 function resolved(
-    profile: Exclude<StalkerNormalizedProfileResult, { kind: 'failure' }>
+    profile: Exclude<StalkerNormalizedProfileResult, { kind: 'failure' }>,
+    identity: Parameters<typeof createStalkerIdentityProfile>[0] = {
+        macAddress: '00:1A:79:AA:BB:CC',
+    }
 ): StalkerEndpointFullSessionOutcome {
     return {
         cookieJar: new StalkerCookieJar({
@@ -47,8 +50,9 @@ function resolved(
         endpoint: 'https://portal.test/server/load.php',
         handshakeRandom: 'random-one',
         identity: createStalkerIdentityProfile({
+            ...identity,
             handshakeRandom: 'random-one',
-            macAddress: '00:1A:79:AA:BB:CC',
+            macAddress: identity.macAddress,
             referer: 'https://portal.test/c/',
         }),
         kind: 'full-session',
@@ -63,7 +67,8 @@ function harness(
     profile: Exclude<StalkerNormalizedProfileResult, { kind: 'failure' }>,
     responder: (
         request: StalkerHttpRequest
-    ) => StalkerHttpRequestOutcome | Promise<StalkerHttpRequestOutcome>
+    ) => StalkerHttpRequestOutcome | Promise<StalkerHttpRequestOutcome>,
+    identity?: Parameters<typeof createStalkerIdentityProfile>[0]
 ) {
     const calls: StalkerHttpRequest[] = [];
     const dependencies: StalkerAuthSessionDependencies = {
@@ -76,7 +81,7 @@ function harness(
     };
     return {
         auth: new StalkerAuthSession(
-            resolved(profile),
+            resolved(profile, identity),
             transport,
             dependencies
         ),
@@ -127,6 +132,7 @@ describe('StalkerAuthSession', () => {
                 if (request.params?.['action'] === 'get_profile') {
                     return success({
                         js: {
+                            login: 'portal-display-login',
                             status: 0,
                         },
                     });
@@ -145,7 +151,10 @@ describe('StalkerAuthSession', () => {
         });
 
         expect(outcome).toEqual({
-            accountSummary: { status: '0' },
+            accountSummary: {
+                name: 'portal-display-login',
+                status: '0',
+            },
             kind: 'ready',
         });
         expect(auth.getPrincipalKey()).toBe(exactUsername);
@@ -162,6 +171,49 @@ describe('StalkerAuthSession', () => {
             (calls[0] as { headers?: Record<string, string> }).headers
                 ?.Authorization
         ).toBe('Bearer token-secret');
+        expect(calls[0].params).not.toHaveProperty('device_id');
+        expect(calls[0].params).not.toHaveProperty('device_id2');
+    });
+
+    it('forwards configured device identity unchanged only on the status-two do_auth branch', async () => {
+        const { auth, calls } = harness(
+            {
+                kind: 'credentials-required',
+                profile: { status: 2 },
+                status: 2,
+            },
+            (request) =>
+                request.params?.['action'] === 'do_auth'
+                    ? success({ js: true })
+                    : success({ js: { status: 0 } }),
+            {
+                deviceId1: ' configured-device-one ',
+                deviceId2: 'configured-device-two',
+                macAddress: '00:1A:79:AA:BB:CC',
+                prehash: 'configured-prehash',
+                serialNumber: 'configured-serial',
+                signature1: 'configured-signature',
+                signature2: 'configured-signature-two',
+            }
+        );
+
+        await auth.start();
+        await auth.submitCredentials({
+            password: 'password',
+            username: 'user',
+        });
+
+        expect(calls[0].params).toMatchObject({
+            action: 'do_auth',
+            device_id: ' configured-device-one ',
+            device_id2: 'configured-device-two',
+            login: 'user',
+            password: 'password',
+            prehash: 'configured-prehash',
+            signature: 'configured-signature',
+            signature2: 'configured-signature-two',
+            sn: 'configured-serial',
+        });
     });
 
     it('marks rejected saved credentials and accepts a fresh bounded submission', async () => {

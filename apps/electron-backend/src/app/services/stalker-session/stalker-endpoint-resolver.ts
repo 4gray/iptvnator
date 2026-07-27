@@ -130,6 +130,7 @@ export class StalkerEndpointResolver {
     ): Promise<StalkerEndpointResolverOutcome> {
         const sourceUrl = normalizeStalkerSourceUrl(input.descriptor.sourceUrl);
         const sourceOrigin = new URL(sourceUrl).origin;
+        const approvedOrigins = normalizeApprovedOrigins(input.approvedOrigins);
         const anonymousJar = this.createCookieJar();
         const landingSession = this.createHttpSession(
             anonymousJar,
@@ -163,7 +164,6 @@ export class StalkerEndpointResolver {
             landingOutcome.result.finalUrl
         );
         const finalOrigin = new URL(landingUrl).origin;
-        const approvedOrigins = normalizeApprovedOrigins(input.approvedOrigins);
         if (finalOrigin !== sourceOrigin && !approvedOrigins.has(finalOrigin)) {
             return {
                 finalOrigin,
@@ -176,7 +176,8 @@ export class StalkerEndpointResolver {
         const identity = buildIdentity(input.descriptor, landingUrl);
         const candidates = buildCandidates(
             landingUrl,
-            input.descriptor.learnedEndpointHint
+            input.descriptor.learnedEndpointHint,
+            approvedOrigins
         );
         let statelessFallback: string | undefined;
 
@@ -376,14 +377,22 @@ function withHandshakeRandom(
 
 function buildCandidates(
     landingUrl: string,
-    learnedEndpointHint: string | undefined
+    learnedEndpointHint: string | undefined,
+    approvedOrigins: ReadonlySet<string>
 ): readonly string[] {
+    const landingOrigin = new URL(landingUrl).origin;
     const candidates = [
         ...(learnedEndpointHint === undefined
             ? []
             : [normalizeStalkerSourceUrl(learnedEndpointHint)]),
         ...deriveStalkerEndpointCandidates(landingUrl),
-    ];
+    ].filter((candidate) => {
+        const candidateOrigin = new URL(candidate).origin;
+        return (
+            candidateOrigin === landingOrigin ||
+            approvedOrigins.has(candidateOrigin)
+        );
+    });
     return deduplicateAndLimitStalkerEndpointCandidates(candidates).slice(
         0,
         STALKER_ENDPOINT_CANDIDATE_LIMIT

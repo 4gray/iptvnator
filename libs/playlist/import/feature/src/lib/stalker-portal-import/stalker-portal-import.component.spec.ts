@@ -208,6 +208,7 @@ describe('StalkerPortalImportComponent', () => {
 
     it('shows exact cross-origin approval and continues the same challenge', async () => {
         session.open.mockResolvedValueOnce({
+            attemptRef: 'attempt-origin-1',
             challengeRef: 'challenge-origin-1',
             finalOrigin: 'https://redirected.example',
             kind: 'origin-approval-required',
@@ -243,6 +244,7 @@ describe('StalkerPortalImportComponent', () => {
     it('reveals credentials only after status 2 and persists only accepted values', async () => {
         session.open.mockResolvedValueOnce({
             attemptNumber: 1,
+            attemptRef: 'attempt-credentials-1',
             challengeRef: 'challenge-credentials-1',
             kind: 'credentials-required',
             requestId: 'request-credentials-1',
@@ -257,7 +259,7 @@ describe('StalkerPortalImportComponent', () => {
 
         component.form.patchValue({
             password: 'accepted-password',
-            username: 'accepted-user',
+            username: '  accepted-user  ',
         });
         await component.submitCredentials();
 
@@ -266,13 +268,13 @@ describe('StalkerPortalImportComponent', () => {
             response: {
                 kind: 'credentials',
                 password: 'accepted-password',
-                username: 'accepted-user',
+                username: '  accepted-user  ',
             },
         });
         expect(playlists.persistStalkerConnection.mock.calls[0][0]).toEqual(
             expect.objectContaining({
                 password: 'accepted-password',
-                username: 'accepted-user',
+                username: '  accepted-user  ',
             })
         );
         expect(component.connectionStage()).toBe('connected');
@@ -281,12 +283,14 @@ describe('StalkerPortalImportComponent', () => {
     it('retains form values after rejected credentials without overwriting storage', async () => {
         session.open.mockResolvedValueOnce({
             attemptNumber: 1,
+            attemptRef: 'attempt-credentials-1',
             challengeRef: 'challenge-credentials-1',
             kind: 'credentials-required',
             requestId: 'request-credentials-1',
         });
         session.continue.mockResolvedValueOnce({
             attemptNumber: 2,
+            attemptRef: 'attempt-credentials-1',
             challengeRef: 'challenge-credentials-2',
             kind: 'credentials-required',
             requestId: 'request-credentials-2',
@@ -381,6 +385,25 @@ describe('StalkerPortalImportComponent', () => {
         await Promise.resolve();
 
         expect(session.discard).toHaveBeenCalledWith('attempt-import-1');
+        expect(component.connectionStage()).toBe('idle');
+    });
+
+    it('discards a challenge-stage attempt when the form is cleared', async () => {
+        session.open.mockResolvedValueOnce({
+            attemptNumber: 1,
+            attemptRef: 'attempt-awaiting-credentials',
+            challengeRef: 'challenge-awaiting-credentials',
+            kind: 'credentials-required',
+            requestId: 'request-awaiting-credentials',
+        });
+        await component.addPlaylist();
+
+        component.clearForm();
+        await Promise.resolve();
+
+        expect(session.discard).toHaveBeenCalledWith(
+            'attempt-awaiting-credentials'
+        );
         expect(component.connectionStage()).toBe('idle');
     });
 
