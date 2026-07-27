@@ -3,6 +3,7 @@ import type {
     Playlist,
     PlaylistRefreshPayload,
     PreloadPerformanceMarker,
+    XtreamPreloadPerformanceMarker,
 } from '@iptvnator/shared/interfaces';
 
 export const PRELOAD_ENVIRONMENT = {
@@ -31,6 +32,7 @@ export interface PreloadPerformanceHarness {
     getApi: () => ExposedElectronApi;
     getMarkers: () => PreloadPerformanceMarker[];
     getSentPayloads: <T>(channel: string) => T[];
+    getXtreamMarkers: () => XtreamPreloadPerformanceMarker[];
     ipcRenderer: MockIpcRenderer;
     load: (environment?: PreloadEnvironment) => Promise<void>;
 }
@@ -130,6 +132,10 @@ export function createPreloadPerformanceHarness(): PreloadPerformanceHarness {
                 'IPTVNATOR_PERF_CAPTURE_MARKER'
             ),
         getSentPayloads,
+        getXtreamMarkers: () =>
+            getSentPayloads<XtreamPreloadPerformanceMarker>(
+                'IPTVNATOR_XTREAM_PERF_CAPTURE_MARKER'
+            ),
         ipcRenderer,
         load: async (environment = {}) => {
             jest.resetModules();
