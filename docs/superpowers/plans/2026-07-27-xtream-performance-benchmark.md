@@ -391,10 +391,19 @@ Every success, error, and abort path must close its phase exactly once.
 
 - [ ] **Step 4: Keep debug-copy overhead explicit**
 
-Imports normally pass a session ID but no portal-debug request ID. Record
-portal-debug sanitize/send as `N/A: request-debug-capture-not-active` when that
-remains true. If a diagnostic request ID is present, instrument redaction/send
-separately; never fold that development-only copy into production acquisition.
+Electron imports always create a portal-debug request ID, but performance
+builds use the production environment and disable portal-debug sanitize/send
+before the payload is copied. Record that work as
+`N/A: production-debug-send-disabled`; do not infer that the request ID is
+absent. If a future diagnostic build enables the send path, instrument
+redaction/send separately and never fold that development-only copy into
+production acquisition.
+
+`ElectronService.forwardXtreamRequest()` also posts the full returned payload
+through `window.postMessage()` after the preload call completes. Keep that
+second renderer clone unchanged until a baseline proves it is the selected
+bottleneck; attribute it through the preload-end to store-marker gap and the
+renderer CPU profile.
 
 - [ ] **Step 5: Run focused backend tests and lint**
 
@@ -442,6 +451,7 @@ sqlite.content.read
 sqlite.content.category-map-read
 normalize.content
 sqlite.content.write-transactions
+sqlite.xtream-cache-clear.write-transactions
 sqlite.xtream-delete.collect-user-data
 sqlite.xtream-delete.write-transactions
 sqlite.playlist-delete.collect-ids
@@ -453,6 +463,12 @@ normalize.search-rank
 Wrap the complete batch loop in one aggregate `write-transactions` span;
 metadata reports total items. This avoids ambiguous repeated phase pairs.
 Tests must state that the span includes all transaction commits.
+
+Cancellation cleanup runs `DB_CLEAR_XTREAM_IMPORT_CACHE` after an aborted
+import. Measure its complete delete loops with the dedicated cache-clear phase
+instead of hiding that work in the request envelope or mislabelling it as a
+content-save phase. Synthetic benchmark fixtures keep favorites/recent data
+empty, so restore-user-data remains explicitly `N/A: no-user-data`.
 
 Require a dev-only `performance-cancel-received` worker message containing only
 operation/request IDs and epoch. It must not change
