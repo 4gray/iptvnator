@@ -162,6 +162,10 @@ describe('StalkerEndpointResolver', () => {
                 (request) => request.params?.['action'] === 'handshake'
             )
         ).toHaveLength(1);
+        const handshakeRequest = harness.calls.find(
+            (request) => request.params?.['action'] === 'handshake'
+        );
+        expect(handshakeRequest?.params).not.toHaveProperty('token');
         const profileRequest = harness.calls.find(
             (request) => request.params?.['action'] === 'get_profile'
         );

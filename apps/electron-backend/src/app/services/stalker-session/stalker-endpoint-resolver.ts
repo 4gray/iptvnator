@@ -245,7 +245,6 @@ export class StalkerEndpointResolver {
             params: {
                 action: 'handshake',
                 JsHttpRequest: '1-xml',
-                token: '',
                 type: 'stb',
             },
             url: input.endpoint,
