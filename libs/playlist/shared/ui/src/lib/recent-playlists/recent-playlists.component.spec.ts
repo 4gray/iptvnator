@@ -468,6 +468,11 @@ describe('RecentPlaylistsComponent busy state', () => {
         const item = createPlaylistMeta({ _id: 'playlist-refresh-success-1' });
         let confirmPromise: Promise<void> | undefined;
         const executionOrder: string[] = [];
+        const performanceEvents: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => {
+            performanceEvents.push(event);
+            executionOrder.push(event.boundary);
+        });
         const dateNowSpy = jest
             .spyOn(Date, 'now')
             .mockReturnValue(1712145600000);
@@ -556,7 +561,38 @@ describe('RecentPlaylistsComponent busy state', () => {
             'xtreams',
             item._id,
         ]);
-        expect(executionOrder).toEqual(['setItem', 'dispatch', 'navigate']);
+        expect(executionOrder).toEqual([
+            'setItem',
+            'start',
+            'dispatch',
+            'end',
+            'navigate',
+        ]);
+        expect(performanceEvents).toHaveLength(2);
+        expect(performanceEvents[0]?.phaseId).toBe(
+            performanceEvents[1]?.phaseId
+        );
+        expect(
+            performanceEvents.map(({ boundary, metadata, outcome, phase }) => ({
+                boundary,
+                metadata,
+                outcome,
+                phase,
+            }))
+        ).toEqual([
+            {
+                boundary: 'start',
+                metadata: { items: 1 },
+                outcome: undefined,
+                phase: 'store.xtream-refresh-meta',
+            },
+            {
+                boundary: 'end',
+                metadata: { items: 1 },
+                outcome: 'success',
+                phase: 'store.xtream-refresh-meta',
+            },
+        ]);
 
         setItemSpy.mockRestore();
         dateNowSpy.mockRestore();

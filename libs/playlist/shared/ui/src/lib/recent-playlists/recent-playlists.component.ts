@@ -408,10 +408,15 @@ export class RecentPlaylistsComponent {
                     });
 
                     // Update the timestamp in NgRx / IndexedDB
-                    this.store.dispatch(
-                        PlaylistActions.updatePlaylistMeta({
-                            playlist: { ...item, updateDate },
-                        })
+                    measureRendererPerformancePhase(
+                        RENDERER_PERFORMANCE_PHASE.XTREAM_REFRESH_META,
+                        () =>
+                            this.store.dispatch(
+                                PlaylistActions.updatePlaylistMeta({
+                                    playlist: { ...item, updateDate },
+                                })
+                            ),
+                        () => ({ items: 1 })
                     );
 
                     // Navigate to the playlist to trigger re-import
