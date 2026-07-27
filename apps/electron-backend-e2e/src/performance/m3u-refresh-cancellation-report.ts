@@ -9,6 +9,7 @@ import type {
     NumericDistribution,
     PerformanceWorkerKind,
     RendererCaptureMetrics,
+    RendererRssValidity,
     WorkerRequestPerformanceMetrics,
 } from './m3u-refresh-cancellation-contract';
 import {
@@ -310,7 +311,52 @@ export function createCancellationBenchmarkSummary(
         validity: Object.freeze({
             databaseWorkerPostGc:
                 assessDatabaseWorkerPostGcValidity(iterations),
+            rendererRss: assessRendererRssValidity(iterations),
         }),
+    });
+}
+
+function assessRendererRssValidity(
+    iterations: readonly CancellationIterationResult[]
+): RendererRssValidity {
+    const measured = iterations.filter(
+        (iteration) => iteration.kind === PERFORMANCE_ITERATION_KIND.MEASURED
+    );
+    const invalidMeasuredRuns: RendererRssValidity['invalidMeasuredRuns'][number][] =
+        [];
+    let validMeasuredRunCount = 0;
+
+    for (const iteration of measured) {
+        const rss = iteration.main.rendererWindow.rss;
+        if (
+            rss.identity !== null &&
+            Number.isSafeInteger(rss.peakRssBytes) &&
+            Number(rss.peakRssBytes) > 0 &&
+            rss.unavailableReason === null &&
+            rss.missingSampleCount === 0 &&
+            Number.isSafeInteger(rss.validSampleCount) &&
+            rss.validSampleCount > 0
+        ) {
+            validMeasuredRunCount += 1;
+            continue;
+        }
+
+        invalidMeasuredRuns.push({
+            missingSampleCount: rss.missingSampleCount,
+            reason: rss.unavailableReason ?? 'renderer-rss-capture-invalid',
+            runId: iteration.runId,
+            validSampleCount: rss.validSampleCount,
+        });
+    }
+
+    const valid =
+        measured.length > 0 && validMeasuredRunCount === measured.length;
+    return Object.freeze({
+        invalidMeasuredRuns: Object.freeze(invalidMeasuredRuns),
+        measuredRunCount: measured.length,
+        validForBenchmark: valid,
+        validForComparison: valid,
+        validMeasuredRunCount,
     });
 }
 

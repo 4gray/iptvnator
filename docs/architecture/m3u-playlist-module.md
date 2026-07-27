@@ -129,7 +129,10 @@ one exact `app.getAppMetrics()` PID and creation time, while responsive and
 unresponsive events come only from that window. Identity changes, missing or
 ambiguous process metrics, and invalid working-set values fail closed with a
 raw reason and nullable RSS; summaries exclude unavailable RSS instead of
-reporting zero. Each worker response retains a raw
+reporting zero. Formal runs also list every invalid measured capture under
+`summary.validity.rendererRss` and fail after persisting the raw summary unless
+all measured iterations contribute one valid exact-window RSS value. Each
+worker response retains a raw
 request-scoped record containing request/operation identity, received/work/flush
 timestamps, thread CPU, event-loop utilization, event-loop delay, and fixed
 unavailability or invalid reasons. Missing or malformed profiling metadata

@@ -157,6 +157,13 @@ export async function runM3uRefreshCancellationBenchmark(): Promise<void> {
             `Cancellation effect was not observed in every measured run: ${summary.cancellationEffectRate}`
         );
     }
+    if (!summary.validity.rendererRss.validForBenchmark) {
+        throw new Error(
+            `Renderer RSS capture is invalid: ${JSON.stringify(
+                summary.validity.rendererRss.invalidMeasuredRuns
+            )}`
+        );
+    }
     if (!summary.validity.databaseWorkerPostGc.validForBenchmark) {
         throw new Error(
             `Database worker post-GC capture is invalid: ${JSON.stringify(

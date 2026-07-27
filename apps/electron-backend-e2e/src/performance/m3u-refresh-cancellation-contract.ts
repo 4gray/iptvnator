@@ -1,4 +1,7 @@
-import type { RendererProcessRssCapture } from './renderer-process-rss-capture';
+import type {
+    RendererProcessRssCapture,
+    RendererProcessRssUnavailableReason,
+} from './renderer-process-rss-capture';
 
 export const PERFORMANCE_ITERATION_KIND = {
     DIAGNOSTIC: 'diagnostic',
@@ -254,6 +257,22 @@ export interface DatabaseWorkerPostGcValidity {
     readonly validMeasuredRunCount: number;
 }
 
+export interface InvalidRendererRssMeasuredRun {
+    readonly missingSampleCount: number;
+    readonly reason:
+        RendererProcessRssUnavailableReason | 'renderer-rss-capture-invalid';
+    readonly runId: string;
+    readonly validSampleCount: number;
+}
+
+export interface RendererRssValidity {
+    readonly invalidMeasuredRuns: readonly InvalidRendererRssMeasuredRun[];
+    readonly measuredRunCount: number;
+    readonly validForBenchmark: boolean;
+    readonly validForComparison: boolean;
+    readonly validMeasuredRunCount: number;
+}
+
 export interface CancellationBenchmarkSummary {
     readonly cancellationEffectRate: number;
     readonly iterations: readonly CancellationIterationResult[];
@@ -309,5 +328,6 @@ export interface CancellationBenchmarkSummary {
     };
     readonly validity: {
         readonly databaseWorkerPostGc: DatabaseWorkerPostGcValidity;
+        readonly rendererRss: RendererRssValidity;
     };
 }

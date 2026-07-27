@@ -1,5 +1,6 @@
 /* eslint-disable playwright/expect-expect -- These are Node assertion-based performance contract tests. */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -13,7 +14,8 @@ import type { RendererProcessRssCapture } from './renderer-process-rss-capture';
 function measuredIteration(
     rss: RendererProcessRssCapture,
     responsiveEvents: number,
-    unresponsiveEvents: number
+    unresponsiveEvents: number,
+    runId: string
 ): CancellationIterationResult {
     return {
         cancellationEffectObserved: true,
@@ -51,7 +53,7 @@ function measuredIteration(
                 longTasksMs: [],
             },
         },
-        runId: 'measured',
+        runId,
     } as unknown as CancellationIterationResult;
 }
 
@@ -71,19 +73,24 @@ test('summary uses only exact target-window RSS and scoped responsiveness events
                     validSampleCount: 3,
                 },
                 1,
-                2
+                2,
+                'run-01'
             ),
             measuredIteration(
                 {
-                    identity: null,
+                    identity: {
+                        creationTime: 1_721_234_567_890,
+                        pid: 43,
+                    },
                     missingSampleCount: 1,
                     peakRssBytes: null,
                     unavailableReason:
-                        'renderer-process-metric-missing-at-start',
-                    validSampleCount: 0,
+                        'renderer-process-metric-missing-during-capture',
+                    validSampleCount: 2,
                 },
                 3,
-                4
+                4,
+                'run-02'
             ),
         ]
     );
@@ -99,4 +106,48 @@ test('summary uses only exact target-window RSS and scoped responsiveness events
     });
     assert.equal(summary.measured.responsiveEvents, 4);
     assert.equal(summary.measured.unresponsiveEvents, 6);
+    assert.deepEqual(
+        (
+            summary as unknown as {
+                readonly validity: {
+                    readonly rendererRss: unknown;
+                };
+            }
+        ).validity.rendererRss,
+        {
+            invalidMeasuredRuns: [
+                {
+                    missingSampleCount: 1,
+                    reason: 'renderer-process-metric-missing-during-capture',
+                    runId: 'run-02',
+                    validSampleCount: 2,
+                },
+            ],
+            measuredRunCount: 2,
+            validForBenchmark: false,
+            validForComparison: false,
+            validMeasuredRunCount: 1,
+        }
+    );
+});
+
+test('benchmark preserves raw artifacts before rejecting incomplete renderer RSS', () => {
+    const source = readFileSync(
+        new URL('./m3u-refresh-cancellation.benchmark.ts', import.meta.url),
+        'utf8'
+    );
+    const summaryWrite = source.indexOf(
+        "writeJson(join(config.outputDirectory, 'summary.json'), summary)"
+    );
+    const validityGuard = source.indexOf(
+        'summary.validity.rendererRss.validForBenchmark'
+    );
+
+    assert.ok(summaryWrite >= 0, 'summary artifact write must exist');
+    assert.ok(validityGuard >= 0, 'renderer RSS validity guard must exist');
+    assert.ok(
+        summaryWrite < validityGuard,
+        'raw summary must be durable before the renderer RSS guard fails'
+    );
+    assert.match(source, /Renderer RSS capture is invalid/);
 });
