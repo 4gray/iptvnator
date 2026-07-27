@@ -59,6 +59,7 @@ export * from './lib/stalker-item.normalizer';
 export * from './lib/stalker-identity.utils';
 export * from './lib/stalker-portal-item.interface';
 export * from './lib/stalker-serial-details.interface';
+export * from './lib/stalker-session.interface';
 export * from './lib/stalker-vod-details.interface';
 
 // Unified VOD details (discriminated union + adapters)

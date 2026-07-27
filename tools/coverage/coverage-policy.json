@@ -115,6 +115,13 @@
                 "e2eTags": ["@stalker"]
             },
             {
+                "name": "portal-stalker-protocol",
+                "root": "libs/portal/stalker/protocol",
+                "sourceRoot": "libs/portal/stalker/protocol/src",
+                "validationCommand": "pnpm nx test portal-stalker-protocol",
+                "e2eTags": ["@stalker"]
+            },
+            {
                 "name": "portal-stalker-feature",
                 "root": "libs/portal/stalker/feature",
                 "sourceRoot": "libs/portal/stalker/feature/src",

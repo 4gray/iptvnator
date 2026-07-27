@@ -61,6 +61,9 @@
             "@iptvnator/portal/stalker/data-access": [
                 "libs/portal/stalker/data-access/src/index.ts"
             ],
+            "@iptvnator/portal/stalker/protocol": [
+                "libs/portal/stalker/protocol/src/index.ts"
+            ],
             "@iptvnator/portal/xtream/feature": [
                 "libs/portal/xtream/feature/src/index.ts"
             ],

@@ -1,5 +1,6 @@
 import { ChannelDrm } from './channel-drm.interface';
 import { PlaybackPositionData } from './playback-position.interface';
+import type { StalkerPlaybackContextRef } from './stalker-session.interface';
 
 export interface PlayerContentInfo extends Omit<
     PlaybackPositionData,
@@ -19,5 +20,6 @@ export interface ResolvedPortalPlayback {
     userAgent?: string;
     referer?: string;
     origin?: string;
+    playbackContextRef?: StalkerPlaybackContextRef;
     drm?: ChannelDrm;
 }

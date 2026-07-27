@@ -1,0 +1,20 @@
+{
+    "name": "portal-stalker-protocol",
+    "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/portal/stalker/protocol/src",
+    "projectType": "library",
+    "tags": ["scope:portal", "domain:stalker", "type:util"],
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/portal/stalker/protocol/jest.config.ts",
+                "tsConfig": "libs/portal/stalker/protocol/tsconfig.spec.json"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

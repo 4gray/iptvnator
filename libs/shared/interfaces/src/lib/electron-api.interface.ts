@@ -34,6 +34,15 @@ import { PortalDebugEvent } from './portal-debug.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
 import { Settings } from './settings.interface';
 import {
+    StalkerSessionConnectionOutcome,
+    StalkerSessionContinueRequest,
+    StalkerSessionControlOutcome,
+    StalkerSessionControlRequest,
+    StalkerSessionOpenRequest,
+    StalkerSessionRequest,
+    StalkerSessionRequestOutcome,
+} from './stalker-session.interface';
+import {
     TmdbCacheEntry,
     TmdbCacheMediaType,
     TmdbCacheStats,
@@ -662,6 +671,18 @@ export interface ElectronBridgeApi {
     stalkerRequest: (
         payload: ElectronBridgeStalkerRequestPayload
     ) => Promise<Record<string, unknown>>;
+    stalkerSessionOpen?: (
+        request: StalkerSessionOpenRequest
+    ) => Promise<StalkerSessionConnectionOutcome>;
+    stalkerSessionContinue?: (
+        request: StalkerSessionContinueRequest
+    ) => Promise<StalkerSessionConnectionOutcome>;
+    stalkerSessionRequest?: (
+        request: StalkerSessionRequest
+    ) => Promise<StalkerSessionRequestOutcome>;
+    stalkerSessionControl?: (
+        request: StalkerSessionControlRequest
+    ) => Promise<StalkerSessionControlOutcome>;
     xtreamRequest: (
         payload: ElectronBridgeXtreamRequestPayload
     ) => Promise<ElectronBridgeXtreamResponse>;
