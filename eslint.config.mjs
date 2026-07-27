@@ -60,6 +60,13 @@ export default [
                             ],
                         },
                         {
+                            sourceTag: 'type:tool',
+                            onlyDependOnLibsWithTags: [
+                                'type:tool',
+                                'type:util',
+                            ],
+                        },
+                        {
                             sourceTag: 'type:website',
                             onlyDependOnLibsWithTags: ['type:ui', 'type:util'],
                         },

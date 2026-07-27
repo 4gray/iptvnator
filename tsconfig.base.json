@@ -64,6 +64,18 @@
             "@iptvnator/portal/stalker/protocol": [
                 "libs/portal/stalker/protocol/src/index.ts"
             ],
+            "@iptvnator/portal/stalker/replay-fixtures": [
+                "libs/portal/stalker/replay-fixtures/src/index.ts"
+            ],
+            "@iptvnator/portal/stalker/replay-fixtures/constants": [
+                "libs/portal/stalker/replay-fixtures/src/lib/replay.constants.ts"
+            ],
+            "@iptvnator/portal/stalker/replay-fixtures/schema": [
+                "libs/portal/stalker/replay-fixtures/src/lib/replay-schema.ts"
+            ],
+            "@iptvnator/portal/stalker/replay-fixtures/types": [
+                "libs/portal/stalker/replay-fixtures/src/lib/replay.types.ts"
+            ],
             "@iptvnator/portal/xtream/feature": [
                 "libs/portal/xtream/feature/src/index.ts"
             ],

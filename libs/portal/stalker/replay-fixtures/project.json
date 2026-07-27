@@ -1,0 +1,20 @@
+{
+    "name": "portal-stalker-replay-fixtures",
+    "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/portal/stalker/replay-fixtures/src",
+    "projectType": "library",
+    "tags": ["scope:portal", "domain:stalker", "type:util"],
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/portal/stalker/replay-fixtures/jest.config.ts",
+                "tsConfig": "libs/portal/stalker/replay-fixtures/tsconfig.spec.json"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}
