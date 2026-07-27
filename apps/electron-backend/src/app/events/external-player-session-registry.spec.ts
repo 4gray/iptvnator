@@ -47,6 +47,32 @@ describe('ExternalPlayerSessionRegistry', () => {
         expect(registry.getActiveSessionId()).toBeNull();
     });
 
+    it('still closes the session when the player fails to close', async () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        const failure = new Error('player already exited');
+        const close = jest.fn().mockRejectedValue(failure);
+        const session = registry.beginSession({
+            player: 'mpv',
+            title: 'Example',
+            streamUrl: 'https://example.com/video.m3u8',
+        });
+
+        registry.attachCloser(session.id, close);
+
+        const closed = await registry.closeSession(session.id);
+
+        expect(closed?.status).toBe('closed');
+        expect(closed?.canClose).toBe(false);
+        expect(registry.getActiveSessionId()).toBeNull();
+        // The reason must survive: the old `return` inside `finally` dropped it.
+        expect(warn).toHaveBeenCalledWith(
+            `Failed to close external player session ${session.id}:`,
+            failure
+        );
+
+        warn.mockRestore();
+    });
+
     it('marks runtime failures as errors without clearing the active id', () => {
         const session = registry.beginSession({
             player: 'mpv',

@@ -663,32 +663,41 @@ export class EmbeddedMpvNativeService {
                 lastRecording = undefined;
             }
             addon.disposeSession(sessionId);
-        } finally {
-            this.sessions.delete(sessionId);
-            this.pollFailuresLogged.delete(sessionId);
-            const payload: EmbeddedMpvSession = {
-                id: session.id,
-                title: session.title,
-                streamUrl: session.streamUrl,
-                status: 'closed',
-                positionSeconds: 0,
-                durationSeconds: null,
-                volume: 1,
-                audioTracks: [],
-                selectedAudioTrackId: null,
-                subtitleTracks: [],
-                selectedSubtitleTrackId: null,
-                playbackSpeed: 1,
-                aspectOverride: 'no',
-                recording: this.createClosedRecordingState(lastRecording),
-                startedAt: session.startedAt,
-                updatedAt: new Date().toISOString(),
-            };
-            this.sendSessionUpdate(payload);
-            this.stopPollingIfIdle();
-            this.updatePowerBlocker();
-            return payload;
+        } catch (error) {
+            // Teardown below must run even when the native session is already
+            // gone — `shutdown()` disposes every session in turn and must not
+            // stop at the first failure. A `return` inside `finally` achieved
+            // that but also swallowed the reason, so log it instead.
+            console.warn(
+                `Failed to dispose embedded mpv session ${sessionId}:`,
+                error
+            );
         }
+
+        this.sessions.delete(sessionId);
+        this.pollFailuresLogged.delete(sessionId);
+        const payload: EmbeddedMpvSession = {
+            id: session.id,
+            title: session.title,
+            streamUrl: session.streamUrl,
+            status: 'closed',
+            positionSeconds: 0,
+            durationSeconds: null,
+            volume: 1,
+            audioTracks: [],
+            selectedAudioTrackId: null,
+            subtitleTracks: [],
+            selectedSubtitleTrackId: null,
+            playbackSpeed: 1,
+            aspectOverride: 'no',
+            recording: this.createClosedRecordingState(lastRecording),
+            startedAt: session.startedAt,
+            updatedAt: new Date().toISOString(),
+        };
+        this.sendSessionUpdate(payload);
+        this.stopPollingIfIdle();
+        this.updatePowerBlocker();
+        return payload;
     }
 
     shutdown(): void {
@@ -979,6 +988,9 @@ export class EmbeddedMpvNativeService {
 
     private sanitizeRecordingFileName(title: string): string {
         const normalized = title
+            // Stripping control characters is precisely what a filename
+            // sanitizer must do, so the rule does not apply here.
+            // eslint-disable-next-line no-control-regex
             .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
             .replace(/\s+/g, ' ')
             .trim();

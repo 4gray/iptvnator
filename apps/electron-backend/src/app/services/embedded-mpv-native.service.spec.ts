@@ -493,7 +493,11 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             addon.createSession.mockReturnValueOnce('s-zoom');
             addon.getSessionSnapshot.mockReturnValue(snapshot('loading'));
 
-            service.createSession({ x: 0, y: 0, width: 100, height: 100 }, '', 1);
+            service.createSession(
+                { x: 0, y: 0, width: 100, height: 100 },
+                '',
+                1
+            );
 
             expect(addon.createSession).toHaveBeenCalledWith(
                 expect.any(Buffer),
@@ -1111,5 +1115,34 @@ describe('EmbeddedMpvNativeService power blocker', () => {
                 },
             })
         );
+    });
+
+    it('completes teardown when the native dispose throws', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        const failure = new Error('native session already gone');
+        startSession('s-throws', snapshot('playing'));
+        addon.disposeSession.mockImplementationOnce(() => {
+            throw failure;
+        });
+
+        // A `return` inside `finally` used to swallow this, so `shutdown()`
+        // could not tell a failed dispose from a clean one.
+        const disposed = service.disposeSession('s-throws');
+
+        expect(disposed?.id).toBe('s-throws');
+        expect(disposed?.status).toBe('closed');
+        expect(mainWindowSendMock).toHaveBeenLastCalledWith(
+            'EMBEDDED_MPV_SESSION_UPDATE',
+            expect.objectContaining({ id: 's-throws', status: 'closed' })
+        );
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to dispose embedded mpv session s-throws:',
+            failure
+        );
+
+        // The session is gone, so a second dispose finds nothing.
+        expect(service.disposeSession('s-throws')).toBeNull();
+
+        warn.mockRestore();
     });
 });

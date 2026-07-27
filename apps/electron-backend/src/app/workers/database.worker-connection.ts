@@ -15,17 +15,14 @@ import {
     trace,
 } from '../services/debug-trace';
 
-let Database: typeof BetterSqlite3;
 let drizzleFactory:
-    | (typeof import('drizzle-orm/better-sqlite3'))['drizzle']
-    | undefined;
+    (typeof import('drizzle-orm/better-sqlite3'))['drizzle'] | undefined;
 
 const nativeModuleSearchPaths = [
     ...getWorkerDataNativeModuleSearchPaths(workerData),
     ...getNativeModuleSearchPaths({
-        resourcesPath: (
-            process as NodeJS.Process & { resourcesPath?: string }
-        ).resourcesPath,
+        resourcesPath: (process as NodeJS.Process & { resourcesPath?: string })
+            .resourcesPath,
     }),
 ];
 
@@ -50,14 +47,13 @@ function getDrizzleFactory(): (typeof import('drizzle-orm/better-sqlite3'))['dri
     // Require drizzle only after native lookup paths have been registered.
     // Its better-sqlite3 driver resolves the native package at module load time.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    drizzleFactory = require('drizzle-orm/better-sqlite3').drizzle as (
-        typeof import('drizzle-orm/better-sqlite3')
-    )['drizzle'];
+    drizzleFactory = require('drizzle-orm/better-sqlite3')
+        .drizzle as (typeof import('drizzle-orm/better-sqlite3'))['drizzle'];
 
     return drizzleFactory;
 }
 
-Database = loadBetterSqlite3();
+const Database: typeof BetterSqlite3 = loadBetterSqlite3();
 
 let db: AppDatabase | null = null;
 let sqlite: BetterSqlite3.Database | null = null;

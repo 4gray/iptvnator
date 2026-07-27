@@ -128,10 +128,18 @@ export class ExternalPlayerSessionRegistry {
             return null;
         }
 
+        // The session must end up closed even if the player is already gone,
+        // but a `return` inside `finally` would also swallow the reason — so
+        // catch it explicitly and surface it.
         try {
             await runtime.close?.();
-        } finally {
-            return this.markClosed(id);
+        } catch (error) {
+            console.warn(
+                `Failed to close external player session ${id}:`,
+                error
+            );
         }
+
+        return this.markClosed(id);
     }
 }
