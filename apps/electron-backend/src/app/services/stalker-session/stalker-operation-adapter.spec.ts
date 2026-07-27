@@ -197,6 +197,49 @@ describe('stalker-operation-adapter', () => {
         });
     });
 
+    it('preserves the distinct VOD-series season request shape', () => {
+        const mapped = mapRemote(
+            STALKER_SESSION_APPLICATION_OPERATIONS.SeriesSeasons,
+            {
+                contentType: 'vod',
+                seriesId: '51',
+            }
+        );
+
+        expect(mapped.parameters).toEqual({
+            action: 'get_ordered_list',
+            JsHttpRequest: '1-xml',
+            movie_id: '51',
+            p: 1,
+            type: 'vod',
+        });
+        expect(
+            mapped.mapResult({
+                js: {
+                    data: [
+                        {
+                            id: 'season-2',
+                            is_season: '1',
+                            name: 'Season 2',
+                            season_number: '2',
+                            video_id: '51',
+                        },
+                    ],
+                },
+            })
+        ).toEqual({
+            seasons: [
+                {
+                    id: 'season-2',
+                    isSeason: true,
+                    number: 2,
+                    title: 'Season 2',
+                    videoId: '51',
+                },
+            ],
+        });
+    });
+
     it('normalizes catalog pages through an allowlist and drops secret-shaped raw fields', () => {
         const mapped = mapRemote(
             STALKER_SESSION_APPLICATION_OPERATIONS.CatalogItems,

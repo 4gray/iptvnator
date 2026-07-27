@@ -148,10 +148,12 @@ export function mapStalkerSessionResultToLegacyResponse<
                 js: seasons.seasons.map((season) =>
                     compact({
                         id: season.id,
+                        is_season: season.isSeason,
                         season_number: season.number,
                         name: season.title,
                         cmd: season.command,
                         series: season.episodeNumbers,
+                        video_id: season.videoId,
                     })
                 ),
             };

@@ -365,8 +365,10 @@ describe('mapStalkerSessionResultToLegacyResponse', () => {
                             command: '/series/42',
                             episodeNumbers: [3, 4],
                             id: '42:2',
+                            isSeason: true,
                             number: 2,
                             title: 'Season 2',
+                            videoId: '42',
                         },
                     ],
                 }
@@ -376,9 +378,11 @@ describe('mapStalkerSessionResultToLegacyResponse', () => {
                 {
                     cmd: '/series/42',
                     id: '42:2',
+                    is_season: true,
                     name: 'Season 2',
                     season_number: 2,
                     series: [3, 4],
+                    video_id: '42',
                 },
             ],
         });

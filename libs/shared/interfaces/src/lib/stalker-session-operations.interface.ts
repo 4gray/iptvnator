@@ -58,6 +58,7 @@ export interface StalkerSessionSearchParameters {
 
 export interface StalkerSessionSeriesSeasonsParameters {
     seriesId: StalkerSessionEntityId;
+    contentType?: 'series' | 'vod';
 }
 
 export interface StalkerSessionSeriesEpisodesParameters {
@@ -156,6 +157,8 @@ export interface StalkerSessionCategoriesResult {
 export interface StalkerSessionSeason {
     id: StalkerSessionEntityId;
     number: number;
+    isSeason?: boolean;
+    videoId?: StalkerSessionEntityId;
     title?: string;
     command?: string;
     episodeNumbers?: readonly number[];

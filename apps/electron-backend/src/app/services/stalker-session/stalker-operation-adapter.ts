@@ -163,13 +163,19 @@ function mapSearch<Operation extends StalkerSessionApplicationOperation>(
 function mapSeasons<Operation extends StalkerSessionApplicationOperation>(
     parameters: StalkerSessionOperationParameters<Operation>
 ): StalkerMappedOperation<Operation> {
-    const seriesId = readEntityId(readRecord(parameters)['seriesId']);
+    const record = readRecord(parameters);
+    const seriesId = readEntityId(record['seriesId']);
+    const contentType =
+        record['contentType'] === undefined
+            ? 'series'
+            : readContentType(record['contentType'], ['series', 'vod']);
     return remote(
         {
             action: 'get_ordered_list',
             JsHttpRequest: JS_HTTP_REQUEST,
             movie_id: seriesId,
-            type: 'series',
+            ...(contentType === 'vod' ? { p: 1 } : {}),
+            type: contentType,
         },
         mapSeasonResult
     );
@@ -410,9 +416,11 @@ function mapSeasonResult(value: unknown): StalkerSessionSeasonsResult {
                 number,
                 command: optionalString(record['cmd']),
                 episodeNumbers: readNumberArray(record['series']),
+                isSeason: optionalBoolean(record['is_season']),
                 title:
                     optionalString(record['name']) ??
                     optionalString(record['title']),
+                videoId: optionalEntityId(record['video_id']),
             }),
         ];
     });
