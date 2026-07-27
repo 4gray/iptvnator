@@ -73,6 +73,14 @@ export function isCpuProfile(value: unknown): boolean {
     return elapsed > 0;
 }
 
+export function readCpuProfileDurationMicros(value: unknown): number | null {
+    if (!isCpuProfile(value)) {
+        return null;
+    }
+    const profile = value as Record<string, number>;
+    return profile['endTime'] - profile['startTime'];
+}
+
 export function isHeapSnapshot(value: unknown): boolean {
     if (
         !isRecord(value) ||

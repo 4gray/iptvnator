@@ -174,10 +174,17 @@ export function createXtreamIpcMarkerCapture(
                 }
             }
             timeline.push({
+                ...(call
+                    ? {
+                          action: call.marker.action,
+                          categoryType: call.marker.categoryType,
+                          contentType: call.marker.contentType,
+                          ipcCallId: call.marker.ipcCallId,
+                      }
+                    : {}),
                 boundary,
                 durationMs: durationMs as number | null,
                 epochMs,
-                ...(call ? { ipcCallId: call.marker.ipcCallId } : {}),
                 phase,
                 requestId,
                 type: 'xtream-main-phase',

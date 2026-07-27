@@ -92,13 +92,22 @@ describe('Xtream main phase correlation', () => {
             .stop()
             .timeline.filter(({ type }) => type === 'xtream-main-phase');
         assert.deepEqual(
-            mainEvents.map(({ ipcCallId, requestId }) => ({
+            mainEvents.map(({ action, ipcCallId, requestId }) => ({
+                action,
                 ipcCallId,
                 requestId,
             })),
             [
-                { ipcCallId: 1, requestId: 'xtream-mock1-1' },
-                { ipcCallId: 1, requestId: 'xtream-mock1-1' },
+                {
+                    action: XtreamCodeActions.GetLiveCategories,
+                    ipcCallId: 1,
+                    requestId: 'xtream-mock1-1',
+                },
+                {
+                    action: XtreamCodeActions.GetLiveCategories,
+                    ipcCallId: 1,
+                    requestId: 'xtream-mock1-1',
+                },
             ]
         );
         assert.equal(

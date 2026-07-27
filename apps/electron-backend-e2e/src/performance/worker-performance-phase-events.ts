@@ -6,6 +6,7 @@ import {
     type PerformancePhaseEvent,
     type PerformancePhaseMetadata,
 } from '@iptvnator/shared/interfaces';
+import { fitsPerformanceDurationEnvelope } from './performance-phase-duration-envelope';
 import { parseXtreamWorkerPerformancePhaseEvents } from './xtream-worker-phase-events';
 
 const PHASE_SEQUENCES = {
@@ -88,6 +89,18 @@ export function parseWorkerPerformancePhaseEvents(
             (boundary === 'end' && !isFiniteNonNegativeNumber(durationMs)) ||
             metadata === null ||
             (parsed.length > 0 && parsed[0]?.requestId !== requestId)
+        ) {
+            return null;
+        }
+        const phaseStart = parsed[parsed.length - 1];
+        if (
+            boundary === 'end' &&
+            (!phaseStart ||
+                !fitsPerformanceDurationEnvelope(
+                    Number(durationMs),
+                    workStartedEpochMs,
+                    workEndedEpochMs
+                ))
         ) {
             return null;
         }

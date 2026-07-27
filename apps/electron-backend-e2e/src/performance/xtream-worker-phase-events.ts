@@ -4,6 +4,7 @@ import {
     type PerformancePhaseMetadata,
     type XtreamDatabasePerformancePhase,
 } from '@iptvnator/shared/interfaces';
+import { fitsPerformanceDurationEnvelope } from './performance-phase-duration-envelope';
 
 const PHASE_SEQUENCES = {
     DB_CLEAR_XTREAM_IMPORT_CACHE: [
@@ -106,6 +107,18 @@ export function parseXtreamWorkerPerformancePhaseEvents(
                 metadata?.itemCount === undefined) ||
             metadata === null ||
             (parsed.length > 0 && parsed[0]?.requestId !== requestId)
+        ) {
+            return null;
+        }
+        const phaseStart = parsed[parsed.length - 1];
+        if (
+            boundary === 'end' &&
+            (!phaseStart ||
+                !fitsPerformanceDurationEnvelope(
+                    Number(durationMs),
+                    workStartedEpochMs,
+                    workEndedEpochMs
+                ))
         ) {
             return null;
         }
