@@ -1,86 +1,9 @@
 import http from 'http';
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import portalRouter from './app/routes/portal.route.js';
-import dispatchPortalAction from './app/routes/dispatch.js';
-import { resetAll } from './app/data-store.js';
 import { SCENARIOS } from './app/scenarios.js';
+import { createStalkerMockApp } from './app.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
-const app = express();
-
-// ---------------------------------------------------------------------------
-// Middleware
-// ---------------------------------------------------------------------------
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Log every request
-app.use((req, _res, next) => {
-    const action = req.query['action'] ?? '-';
-    const mac =
-        (req.headers['cookie'] ?? '')
-            .split(';')
-            .find((c) => c.trim().startsWith('mac='))
-            ?.split('=')[1]
-            ?.trim() ?? (req.query['macAddress'] as string) ?? 'no-mac';
-    console.log(
-        `[${new Date().toISOString()}] ${req.method} ${req.path} action=${action} mac=${mac}`
-    );
-    next();
-});
-
-// ---------------------------------------------------------------------------
-// Routes
-// ---------------------------------------------------------------------------
-
-// Stalker portal.php endpoint (direct portal protocol, Electron mode)
-app.use('/portal.php', portalRouter);
-
-/**
- * CORS proxy compatibility endpoint — mirrors the IPTVnator backend API shape:
- *   GET /stalker?url=<portal_url>&macAddress=<mac>&action=<action>&...
- *   → { payload: <stalker_response> }
- *
- * The IPTVnator PWA sends Stalker requests to AppConfig.BACKEND_URL/stalker.
- * Playwright tests redirect those calls to this endpoint using page.route(),
- * so no app code changes are required.
- */
-app.get('/stalker', (req: Request, res: Response) => {
-    const { macAddress, url: _url, ...rest } = req.query as Record<string, string>;
-    const mac = macAddress ?? '00:1a:79:00:00:01';
-
-    // Build a lightweight synthetic request. We need a fresh object with mutable
-    // `query` and a Cookie header containing the MAC for the handler helpers.
-    const syntheticReq = {
-        query: rest,
-        headers: { cookie: `mac=${mac}` },
-        params: {},
-    } as unknown as Request;
-
-    // Capture the JSON response and wrap it in the proxy envelope { payload: ... }
-    let captured: unknown;
-    const syntheticRes = {
-        json: (data: unknown) => {
-            captured = data;
-        },
-    } as unknown as Response;
-
-    dispatchPortalAction(syntheticReq, syntheticRes);
-    res.json({ payload: captured });
-});
-
-// Health check
-app.get('/health', (_req: Request, res: Response) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Reset all in-memory data (useful between Playwright test runs)
-app.post('/reset', (_req: Request, res: Response) => {
-    resetAll();
-    res.json({ status: 'reset', timestamp: new Date().toISOString() });
-});
+const app = createStalkerMockApp();
 
 // ---------------------------------------------------------------------------
 // Start
@@ -115,7 +38,9 @@ process.on('unhandledRejection', (reason) => {
 // When Nx (or any process manager) closes stdin, prevent auto-exit.
 // The HTTP server handle is what keeps the process alive.
 process.stdin.resume();
-process.stdin.on('end', () => { /* ignore stdin close */ });
+process.stdin.on('end', () => {
+    /* ignore stdin close */
+});
 
 server.listen(PORT, () => {
     const divider = '─'.repeat(62);
@@ -135,9 +60,13 @@ server.listen(PORT, () => {
         );
     }
     console.log('');
-    console.log('  Any other MAC generates deterministic unique data from MAC bytes.');
+    console.log(
+        '  Any other MAC generates deterministic unique data from MAC bytes.'
+    );
     console.log(`  Utilities:`);
     console.log(`    GET  http://localhost:${PORT}/health`);
-    console.log(`    POST http://localhost:${PORT}/reset    (clears favorites + cache)`);
+    console.log(
+        `    POST http://localhost:${PORT}/reset    (clears favorites + cache)`
+    );
     console.log(`${divider}\n`);
 });

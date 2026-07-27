@@ -247,6 +247,12 @@
                 "reason": "Node tests validate release-note parsing, rendering and gate policy; the scripts are release tooling, not shipped source."
             },
             {
+                "name": "stalker-mock-server",
+                "root": "apps/stalker-mock-server",
+                "validationCommand": "pnpm nx test stalker-mock-server",
+                "reason": "Stateful Stalker replay behavior is validated by focused contract tests; percentage coverage is not a shipped-source quality signal."
+            },
+            {
                 "name": "remote-control-web",
                 "root": "apps/remote-control-web",
                 "validationCommand": "pnpm nx build remote-control-web",
@@ -269,11 +275,6 @@
             {
                 "name": "xtream-mock-server",
                 "root": "apps/xtream-mock-server",
-                "reason": "Validated through Playwright API and user-flow tests unless mock behavior changes directly."
-            },
-            {
-                "name": "stalker-mock-server",
-                "root": "apps/stalker-mock-server",
                 "reason": "Validated through Playwright API and user-flow tests unless mock behavior changes directly."
             },
             {
