@@ -1,6 +1,15 @@
 import { audioDiffersFactually } from '@iptvnator/portal/shared/data-access';
 import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
-import type { VodMultiSourceSwitchNotice } from './vod-multi-source-host.service';
+
+/** What a switch tells the user. Lives with the code that builds it. */
+export interface VodMultiSourceSwitchNotice {
+    playlistName: string;
+    resumeSeconds: number;
+    /** Both sides state an audio track AS FACT and those facts differ. */
+    audioMayDiffer: boolean;
+    quality?: string;
+    container?: string;
+}
 
 /**
  * Builds what the user is told after a switch.

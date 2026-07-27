@@ -151,24 +151,32 @@ the same film. Off the screen is not, so `applyDiscoveredSources` keeps it as a
 row and leaves it active; a caption naming a playlist that is not streaming
 anything would be a lie about the one thing this feature exists to state.
 
-## The candidate window
+## What the queries are allowed to miss
 
-Both queries take a bounded number of rows, so what fills that window decides
-whether an alternative is findable at all:
+A source that exists but is never read is indistinguishable, to the user, from
+one that does not exist — the chip simply does not appear. So:
 
 - **The current playlist is excluded in SQL**, not afterwards. It routinely
   lists a film in several categories, and those rows would otherwise spend the
-  budget before a single other playlist was read.
-- **Short titles scan on a word boundary.** The trigram tokenizer cannot index
-  tokens under three characters, so "Up", "It" or "Us" produce an empty `MATCH`
-  and fall back to a scan. A substring scan matches "Titanic" and "The Italian
-  Job" for "It", and enough of those sorted by title push the real film out of
-  the window — so the scan asks for the token as a word
-  (`' ' || LOWER(title) || ' ' GLOB '*[^a-z0-9]it[^a-z0-9]*'`), orders by title
-  length (a match is the title plus decoration: "IT (2017) 1080p"), and gets a
-  wider budget than the relevance-ranked FTS path. Like the `LIKE` it replaces
-  it compares ASCII-lowercased text, so a non-ASCII short title is no better and
-  no worse served than before.
+  FTS window before a single other playlist was read.
+- **Short titles scan on a word boundary, and take no window at all.** The
+  trigram tokenizer cannot index tokens under three characters, so "Up", "It"
+  or "Us" produce an empty `MATCH` and fall back to a scan. A substring scan
+  matches "Titanic" and "The Italian Job" for "It", so the scan asks for the
+  token as a word
+  (`' ' || LOWER(title) || ' ' GLOB '*[^a-z0-9]it[^a-z0-9]*'`) and orders by
+  title length (a match is the title plus decoration: "IT (2017) 1080p").
+
+  The FTS path keeps its 60-row window because it ranks by relevance — the best
+  rows are the ones it keeps. A scan cannot rank, so a window there would
+  silently decide which valid sources the user may see, and it would not even
+  buy anything: the GLOB cannot use an index, so SQLite reads every row either
+  way and a `LIMIT` saves transfer, not work. What bounds the scan instead is
+  its predicate — reaching it means the movie's entire title is one or two
+  characters, and only films carrying that exact word come back.
+
+  Like the `LIKE` it replaces it compares ASCII-lowercased text, so a non-ASCII
+  short title is no better and no worse served than before.
 
 Both remain necessary-not-sufficient filters: the two-tier normalized
 confirmation still runs afterwards, so the looser query never admits "Upgrade"

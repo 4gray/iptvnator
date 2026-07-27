@@ -26,7 +26,10 @@ import {
     runFailover,
     type SwitchOutcome,
 } from './vod-multi-source-session';
-import { buildSwitchNotice } from './vod-multi-source-notice';
+import {
+    buildSwitchNotice,
+    type VodMultiSourceSwitchNotice,
+} from './vod-multi-source-notice';
 import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
@@ -60,14 +63,7 @@ export interface VodMultiSourceBindings {
     movie: Signal<VodMultiSourceMovie | null>;
 }
 
-export interface VodMultiSourceSwitchNotice {
-    playlistName: string;
-    resumeSeconds: number;
-    /** Both sides state an audio track AS FACT and those facts differ. */
-    audioMayDiffer: boolean;
-    quality?: string;
-    container?: string;
-}
+export type { VodMultiSourceSwitchNotice };
 
 @Injectable()
 export class VodMultiSourceHostService {
@@ -149,10 +145,8 @@ export class VodMultiSourceHostService {
     /**
      * Wire the host's playback seam and start watching the movie on screen.
      *
-     * The effect lives here rather than in the route component because it is
-     * this service's own lifecycle: the router REUSES the detail component for
-     * detail-to-detail navigation, so a new movie must fully reset the session
-     * — above all the tried-source set that makes failover terminate.
+     * The effect lives here rather than in the route component because what it
+     * guards is this service's own lifecycle — see `load()`.
      */
     bind(bindings: VodMultiSourceBindings): void {
         this.bindings = bindings;
@@ -161,10 +155,9 @@ export class VodMultiSourceHostService {
             const movie = bindings.movie();
             if (!movie) {
                 // Navigating away empties the identity before the next movie's
-                // `load()` runs. Bumping the session here — not only in
-                // `load()` — closes the window in which a resolution still in
-                // flight for the PREVIOUS movie would pass the staleness guard
-                // and start its playback over the page the user is leaving.
+                // `load()` runs, so bumping here — not only there — closes the
+                // window in which a resolution still in flight for the
+                // PREVIOUS movie would start playing over the page being left.
                 this.discoveryToken++;
                 this.sessionToken++;
                 return;
@@ -279,6 +272,7 @@ export class VodMultiSourceHostService {
 
     /** Pin or unpin this source as the movie's preferred one. */
     async togglePin(sourceId: string): Promise<void> {
+        const session = this.sessionToken;
         const isPinned = this._sources().some(
             (source) => source.id === sourceId && source.isPinned
         );
@@ -289,10 +283,16 @@ export class VodMultiSourceHostService {
             isPinned
         );
 
-        if (pinned !== undefined) {
-            this.controller.setPinnedSource(pinned);
-            this.publish();
+        // The write is an IPC round-trip, and another movie can own the screen
+        // by the time it returns. Committing then would apply THIS film's
+        // answer to THAT film's controller — an unpin would clear the pin it
+        // just loaded, and its Play button would stop honouring it.
+        if (pinned === undefined || session !== this.sessionToken) {
+            return;
         }
+
+        this.controller.setPinnedSource(pinned);
+        this.publish();
     }
 
     /** User-triggered availability check for one row. */

@@ -22,14 +22,6 @@ import type { AppDatabase } from '../database.types';
 
 const CANDIDATE_LIMIT = 60;
 
-/**
- * The scan path gets its own, wider window. FTS ranks by relevance, so the
- * real match is near the top of its 60; the scan can only order by title, and
- * its predicate is a word-boundary match rather than an equality — several
- * genuinely different films can share the token ("It Follows", "Bring It On").
- */
-const SCAN_CANDIDATE_LIMIT = 200;
-
 /** A row as it comes back from SQLite, before match confirmation. */
 interface TitleSourceRow {
     content_id: number;
@@ -82,12 +74,19 @@ function excludePlaylistClause(
  * handful of titles FTS structurally cannot serve.
  *
  * The predicate is a WORD-boundary match, not a substring one: `LIKE '%it%'`
- * matches "Titanic" and "The Italian Job", so alphabetically earlier noise
- * could fill the window and push the real "It" out of it. Padding both sides
- * lets one GLOB pattern cover the start, middle and end of the title at once.
- * Rows come back shortest-title-first because a matching title is the base
- * plus decoration ("IT (2017) 1080p"), so the true matches sort ahead of the
- * longer films that merely contain the word.
+ * matches "Titanic" and "The Italian Job", so noise could crowd out the real
+ * "It" entirely. Padding both sides lets one GLOB pattern cover the start,
+ * middle and end of the title at once.
+ *
+ * And it takes NO row limit, unlike the FTS path. FTS ranks by relevance, so
+ * a window keeps the best rows; a scan can only order by title, so a window
+ * silently decides which valid sources the user is allowed to see. It is also
+ * a false economy — the GLOB cannot use an index, so SQLite reads every row
+ * either way and a `LIMIT` saves only transfer. What bounds this instead is
+ * the predicate: reaching here means the movie's whole title is one or two
+ * characters, and only films carrying that exact word come back. Rows arrive
+ * shortest-title-first because a match is the title plus decoration
+ * ("IT (2017) 1080p").
  *
  * Still a necessary-not-sufficient filter — `normalizeTitleKeys` below is what
  * confirms a match. Like the `LIKE` it replaces, it compares ASCII-lowercased
@@ -116,7 +115,6 @@ function scanCandidateQuery(base: string, excludePlaylist: SQL) {
         AND ' ' || LOWER(c.title) || ' ' GLOB ${wordMatch}
         ${excludePlaylist}
         ORDER BY LENGTH(c.title), c.title
-        LIMIT ${SCAN_CANDIDATE_LIMIT}
     `;
 }
 

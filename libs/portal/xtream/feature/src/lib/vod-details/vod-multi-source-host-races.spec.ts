@@ -177,6 +177,37 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
+    it('drops a pin change whose movie was navigated away from', async () => {
+        const pinFor = (candidate: VodSourceCandidate) => ({
+            matchKey: 'title:the matrix:1999',
+            playlistId: candidate.playlistId,
+            contentId: candidate.contentId,
+            portalType: 'xtream',
+        });
+
+        pins.get.mockResolvedValue(pinFor(ALT_TWO));
+        await loadMovie([ALT_TWO]);
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
+
+        const slow = createDeferred<boolean>();
+        pins.clear.mockReturnValueOnce(slow.promise);
+        const pending = service.togglePin(ALT_TWO.id);
+
+        // Another movie opens — with a pin of its own — before the clear
+        // comes back.
+        pins.get.mockResolvedValue(pinFor(ALT_THREE));
+        await loadMovie([ALT_TWO, ALT_THREE], MOVIE_B);
+
+        slow.resolve(true);
+        await pending;
+
+        // The late unpin belongs to the film the user left. Applying it here
+        // would clear the pin this movie just loaded, and its Play action
+        // would silently stop starting from the preferred source.
+        expect(rowFor(ALT_THREE.id)?.isPinned).toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
+    });
+
     it('drops a probe result whose movie was navigated away from', async () => {
         await loadMovie([ALT_TWO]);
 

@@ -71,13 +71,12 @@ describe('title-sources.operations', () => {
             );
         });
 
-        it('scans on a word boundary, shortest first, in a wider window', async () => {
+        it('scans on a word boundary, shortest first, and never truncates', async () => {
             // A substring scan for "It" matches "Titanic" and "The Italian
-            // Job"; 60 of those sorted by title can push the real "It" out of
-            // the window, and discovery then reports no sources at all. The
-            // scan therefore asks for the token as a WORD, orders by title
-            // length (a match is the title plus decoration: "IT (2017)"), and
-            // gets a wider budget than the relevance-ranked FTS path.
+            // Job"; capped and sorted by title, those can push the real "It"
+            // out of the result set and discovery reports no sources at all.
+            // The scan therefore asks for the token as a WORD and orders by
+            // title length (a match is the title plus decoration).
             const scan = createDbMock([]);
             await findTitleSources(scan.db, { title: 'It' });
             const scanQuery = compiledQuery(scan.all);
@@ -86,14 +85,14 @@ describe('title-sources.operations', () => {
             expect(scanQuery.sql).not.toContain('LIKE ?');
             expect(scanQuery.params).toContain('*[^a-z0-9]it[^a-z0-9]*');
             expect(scanQuery.sql).toContain('ORDER BY LENGTH(c.title)');
+            // No window at all: unlike FTS this cannot rank, so a limit would
+            // silently decide which valid sources the user may see — and the
+            // GLOB reads every row regardless, so it would not even save work.
+            expect(scanQuery.sql).not.toContain('LIMIT');
 
             const fts = createDbMock([]);
             await findTitleSources(fts.db, { title: 'Dune' });
-            const [scanLimit] = scanQuery.params.slice(-1) as number[];
-            const [ftsLimit] = compiledQuery(fts.all).params.slice(
-                -1
-            ) as number[];
-            expect(scanLimit).toBeGreaterThan(ftsLimit);
+            expect(compiledQuery(fts.all).sql).toContain('LIMIT');
         });
 
         it('does not offer a scan hit whose title merely contains the query', async () => {
@@ -244,8 +243,10 @@ describe('title-sources.operations', () => {
             const scanQuery = compiledQuery(scan.all);
             expect(scanQuery.sql).toContain('cat.playlist_id <> ?');
             expect(scanQuery.params).toContain('playlist-1');
+            // The scan takes no window, so the cost it saves here is the rows
+            // read rather than the rows kept.
             expect(scanQuery.sql.indexOf('cat.playlist_id <> ?')).toBeLessThan(
-                scanQuery.sql.indexOf('LIMIT')
+                scanQuery.sql.indexOf('ORDER BY')
             );
         });
 
