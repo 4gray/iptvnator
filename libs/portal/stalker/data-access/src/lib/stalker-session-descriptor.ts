@@ -55,9 +55,7 @@ export function mapPlaylistToStalkerSessionConnection(
         playlistRef,
         profilePreset: mapProfilePreset(playlist.stalkerProfilePreset),
         sourceUrl,
-        ...(learnedEndpointHint === undefined
-            ? {}
-            : { learnedEndpointHint }),
+        ...(learnedEndpointHint === undefined ? {} : { learnedEndpointHint }),
         ...(identityOverrides === undefined ? {} : { identityOverrides }),
         ...(transportConfiguration === undefined
             ? {}
@@ -115,9 +113,7 @@ function mapTransportConfiguration(
     playlist: Playlist
 ): StalkerSessionTransportConfiguration | undefined {
     if (playlist.stalkerTransportConfiguration !== undefined) {
-        return copyPresentStringValues(
-            playlist.stalkerTransportConfiguration
-        );
+        return copyPresentStringValues(playlist.stalkerTransportConfiguration);
     }
 
     return copyPresentStringValues({
@@ -128,13 +124,13 @@ function mapTransportConfiguration(
 }
 
 function copyPresentStringValues<T extends object>(source: T): T | undefined {
-    const result = Object.fromEntries(
-        Object.entries(source).filter(
-            ([, value]) =>
-                typeof value === 'string' && value.trim().length > 0
-        )
-    ) as T;
-    return Object.keys(result).length > 0 ? result : undefined;
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(source)) {
+        if (typeof value === 'string' && value.trim().length > 0) {
+            result[key] = value;
+        }
+    }
+    return Object.keys(result).length > 0 ? (result as T) : undefined;
 }
 
 function mapSavedCredentials(

@@ -1,5 +1,9 @@
 import { DataService } from '@iptvnator/services';
-import { Playlist, PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import {
+    Playlist,
+    PlaylistMeta,
+    STALKER_REQUEST,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 
 export interface StalkerRequestDeps {
@@ -19,7 +23,10 @@ export async function executeStalkerRequest<T>(
     playlist: PlaylistMeta,
     params: Record<string, string | number>
 ): Promise<T> {
-    if (playlist.isFullStalkerPortal) {
+    if (
+        playlist.isFullStalkerPortal &&
+        supportsTypedSessions(deps.stalkerSession)
+    ) {
         return deps.stalkerSession.makeAuthenticatedRequest<T>(
             toStalkerSessionPlaylist(playlist),
             params
@@ -31,4 +38,13 @@ export async function executeStalkerRequest<T>(
         macAddress: playlist.macAddress,
         params,
     });
+}
+
+function supportsTypedSessions(stalkerSession: StalkerSessionService): boolean {
+    const probe = (
+        stalkerSession as Partial<
+            Pick<StalkerSessionService, 'supportsTypedSessions'>
+        >
+    ).supportsTypedSessions;
+    return typeof probe !== 'function' || probe.call(stalkerSession);
 }
