@@ -470,6 +470,9 @@ function normalizeProtocolOutcome(
         return failure(STALKER_FAILURE_REASONS.IncompatibleResponse, false);
     }
     if (parsed.kind === 'unparsed') {
+        if (isBenignHtmlEndpointMiss(outcome.result, parsed.rawBody)) {
+            return { kind: 'miss' };
+        }
         return failure(
             parsed.reason,
             parsed.reason !== STALKER_FAILURE_REASONS.IncompatibleResponse
@@ -520,6 +523,25 @@ function parseTransportEnvelope(
     return parsed.kind === 'parsed'
         ? { kind: 'parsed', rawBody, value: parsed.value }
         : { kind: 'unparsed', rawBody, reason: parsed.reason };
+}
+
+function isBenignHtmlEndpointMiss(
+    result: StalkerTransportResult<Uint8Array>,
+    rawBody: string | undefined
+): boolean {
+    const mediaType = result.contentType
+        ?.split(';', 1)[0]
+        ?.trim()
+        .toLowerCase();
+    if (mediaType !== 'text/html' && mediaType !== 'application/xhtml+xml') {
+        return false;
+    }
+    const prefix = rawBody?.trimStart().slice(0, 64).toLowerCase() ?? '';
+    return (
+        prefix.startsWith('<!doctype html') ||
+        prefix.startsWith('<html') ||
+        prefix.startsWith('<?xml')
+    );
 }
 
 function boundedNonEmptyString(value: unknown): string | undefined {

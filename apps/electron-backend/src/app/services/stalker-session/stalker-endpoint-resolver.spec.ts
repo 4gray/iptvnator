@@ -335,6 +335,60 @@ describe('StalkerEndpointResolver', () => {
         ).toHaveLength(1);
     });
 
+    it('advances after a benign HTML endpoint-shape miss and promotes the next valid endpoint', async () => {
+        const harness = createHarness((request) => {
+            const action = request.params?.['action'];
+            if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                return success({}, { finalUrl: request.url });
+            }
+            if (
+                request.url.endsWith('/server/load.php') &&
+                action === 'handshake'
+            ) {
+                return rawSuccess(
+                    '<!doctype html><html><body>Portal landing</body></html>',
+                    {
+                        contentType: 'text/html; charset=utf-8',
+                        finalUrl: request.url,
+                    }
+                );
+            }
+            if (action === 'handshake') {
+                return success(
+                    { js: { token: 'html-fallback-token' } },
+                    { finalUrl: request.url }
+                );
+            }
+            if (action === 'get_profile') {
+                return success(
+                    { js: { status: 0 } },
+                    { finalUrl: request.url }
+                );
+            }
+            throw new Error('Unexpected request');
+        });
+
+        const outcome = await harness.resolver.resolve({
+            descriptor: descriptor(),
+            transport,
+        });
+
+        expect(outcome).toMatchObject({
+            endpoint: 'https://portal.test/portal.php',
+            kind: 'full-session',
+        });
+        expect(
+            harness.calls.filter(
+                (request) => request.params?.['action'] === 'handshake'
+            )
+        ).toHaveLength(2);
+        expect(
+            harness.calls.some(
+                (request) => request.params?.['action'] === 'get_genres'
+            )
+        ).toBe(false);
+    });
+
     it('continues after early stateless evidence so a later full endpoint wins', async () => {
         const harness = createHarness((request) => {
             const action = request.params?.['action'];
@@ -479,13 +533,19 @@ describe('StalkerEndpointResolver', () => {
                     handshakeUrls.push(request.url);
                 }
                 if (request.url.includes('/learned/')) {
-                    return success(
-                        {},
-                        {
-                            finalUrl: request.url,
-                            status: unsupportedStatus,
-                        }
-                    );
+                    return unsupportedStatus === 404
+                        ? rawSuccess('<html><body>Not found</body></html>', {
+                              contentType: 'text/html',
+                              finalUrl: request.url,
+                              status: unsupportedStatus,
+                          })
+                        : success(
+                              {},
+                              {
+                                  finalUrl: request.url,
+                                  status: unsupportedStatus,
+                              }
+                          );
                 }
                 if (action === 'handshake') {
                     return success(
