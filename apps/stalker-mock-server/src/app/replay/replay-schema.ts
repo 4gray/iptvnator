@@ -706,7 +706,8 @@ function validateRequestBody(
 function validateResponseHeaders(
     value: unknown,
     path: string,
-    context: ValidationContext
+    context: ValidationContext,
+    origins: Set<string>
 ): boolean {
     if (!isRecord(value)) {
         issue(
@@ -735,10 +736,64 @@ function validateResponseHeaders(
             continue;
         }
         values.forEach((headerValue, index) => {
+            const headerPath = `${path}.${name}[${index}]`;
+            if (
+                isRecord(headerValue) &&
+                headerValue['kind'] === 'origin-url'
+            ) {
+                if (
+                    name !== 'location' ||
+                    !hasExactKeys(headerValue, ['kind', 'origin', 'path'])
+                ) {
+                    issue(
+                        context,
+                        'invalid-redirect-location',
+                        headerPath,
+                        'Named-origin URL nodes are valid only as Location values.'
+                    );
+                    valid = false;
+                    return;
+                }
+                if (
+                    typeof headerValue['origin'] !== 'string' ||
+                    !origins.has(headerValue['origin'])
+                ) {
+                    issue(
+                        context,
+                        'unknown-origin',
+                        `${headerPath}.origin`,
+                        'Redirect origin must reference a declared named origin.'
+                    );
+                    valid = false;
+                }
+                valid =
+                    validatePath(
+                        headerValue['path'],
+                        `${headerPath}.path`,
+                        context
+                    ) && valid;
+                return;
+            }
+            if (name === 'location') {
+                if (
+                    typeof headerValue !== 'string' ||
+                    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(headerValue) ||
+                    headerValue.startsWith('//')
+                ) {
+                    issue(
+                        context,
+                        'invalid-redirect-location',
+                        headerPath,
+                        'Cross-origin redirects require a typed named-origin URL node.'
+                    );
+                    valid = false;
+                    return;
+                }
+            }
             valid =
                 validateTemplateString(
                     headerValue,
-                    `${path}.${name}[${index}]`,
+                    headerPath,
                     context,
                     true
                 ) && valid;
@@ -843,7 +898,8 @@ function validateResponseBody(
 function validateResponse(
     value: unknown,
     path: string,
-    context: ValidationContext
+    context: ValidationContext,
+    origins: Set<string>
 ): boolean {
     if (
         !isRecord(value) ||
@@ -872,7 +928,12 @@ function validateResponse(
         valid = false;
     }
     return (
-        validateResponseHeaders(value['headers'], `${path}.headers`, context) &&
+        validateResponseHeaders(
+            value['headers'],
+            `${path}.headers`,
+            context,
+            origins
+        ) &&
         validateResponseBody(value['body'], `${path}.body`, context) &&
         valid
     );
@@ -967,7 +1028,8 @@ function validateExpectation(
         validateFieldMatchers(
             value['request']['query'],
             `${path}.request.query`,
-            context
+            context,
+            { allowArrays: true }
         );
         validateFieldMatchers(
             value['request']['headers'],
@@ -987,7 +1049,12 @@ function validateExpectation(
         );
     }
 
-    validateResponse(value['response'], `${path}.response`, context);
+    validateResponse(
+        value['response'],
+        `${path}.response`,
+        context,
+        origins
+    );
 
     let cardinalityMinimum = 0;
     if (

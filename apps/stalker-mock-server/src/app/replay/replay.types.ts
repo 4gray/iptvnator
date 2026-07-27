@@ -34,11 +34,21 @@ export interface ReplayPartsNode {
     parts: Array<ReplayLiteralPart | ReplayRefNode>;
 }
 
+export interface ReplayOriginUrlNode {
+    kind: 'origin-url';
+    origin: string;
+    path: string;
+}
+
 export type ReplayTemplateString =
     | string
     | ReplayGenerateNode
     | ReplayRefNode
     | ReplayPartsNode;
+
+export type ReplayResponseHeaderValue =
+    | ReplayTemplateString
+    | ReplayOriginUrlNode;
 
 export type ReplayTemplateValue =
     | ReplayJsonPrimitive
@@ -80,7 +90,9 @@ export interface ReplayCookieMatchers extends ReplayFieldMatchers<ReplayTemplate
 }
 
 export interface ReplayRequestMatcher {
-    query: ReplayFieldMatchers<ReplayTemplateString>;
+    query: ReplayFieldMatchers<
+        ReplayTemplateString | ReplayTemplateString[]
+    >;
     headers: ReplayFieldMatchers<ReplayTemplateString | ReplayTemplateString[]>;
     cookies: ReplayCookieMatchers;
     body: ReplayRequestBodyMatcher;
@@ -99,7 +111,7 @@ export type ReplayResponseBody =
 
 export interface ReplayResponseDefinition {
     status: number;
-    headers: Record<string, ReplayTemplateString[]>;
+    headers: Record<string, ReplayResponseHeaderValue[]>;
     body: ReplayResponseBody;
 }
 

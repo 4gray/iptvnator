@@ -204,6 +204,79 @@ describe('replay fixture schema v1', () => {
         });
     });
 
+    it('accepts repeated exact query values and a declared typed named-origin redirect', () => {
+        const value = fixture();
+        const firstExpectation = (
+            (value['phases'] as Record<string, unknown>[])[0]![
+                'expectations'
+            ] as Record<string, unknown>[]
+        )[0]!;
+        const request = firstExpectation['request'] as Record<string, unknown>;
+        request['query'] = {
+            exact: { repeated: ['one', 'two'] },
+            present: [],
+            absent: [],
+        };
+        const response = firstExpectation['response'] as Record<
+            string,
+            unknown
+        >;
+        response['headers'] = {
+            location: [
+                {
+                    kind: 'origin-url',
+                    origin: 'auth',
+                    path: '/login',
+                },
+            ],
+        };
+
+        const parsed = parseReplayFixture(value);
+
+        expect(
+            parsed.phases[0]?.expectations[0]?.request.query.exact['repeated']
+        ).toEqual(['one', 'two']);
+        expect(
+            parsed.phases[0]?.expectations[0]?.response.headers['location']
+        ).toEqual([
+            {
+                kind: 'origin-url',
+                origin: 'auth',
+                path: '/login',
+            },
+        ]);
+    });
+
+    it('rejects unknown or free-form absolute redirect origins', () => {
+        const unknownOrigin = fixture();
+        const unknownResponse = (
+            (unknownOrigin['phases'] as Record<string, unknown>[])[0]![
+                'expectations'
+            ] as Record<string, unknown>[]
+        )[0]!['response'] as Record<string, unknown>;
+        unknownResponse['headers'] = {
+            location: [
+                {
+                    kind: 'origin-url',
+                    origin: 'undeclared',
+                    path: '/login',
+                },
+            ],
+        };
+        expectSchemaCode(unknownOrigin, 'unknown-origin');
+
+        const literalOrigin = fixture();
+        const literalResponse = (
+            (literalOrigin['phases'] as Record<string, unknown>[])[0]![
+                'expectations'
+            ] as Record<string, unknown>[]
+        )[0]!['response'] as Record<string, unknown>;
+        literalResponse['headers'] = {
+            location: ['http://127.0.0.1:1234/login'],
+        };
+        expectSchemaCode(literalOrigin, 'invalid-redirect-location');
+    });
+
     it.each([
         ['unknown response', { kind: 'binary', value: 'x' }],
         ['empty response with data', { kind: 'empty', value: null }],

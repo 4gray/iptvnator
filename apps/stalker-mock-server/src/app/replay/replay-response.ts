@@ -1,17 +1,52 @@
 import { ReplaySymbolTable } from './replay-symbols.js';
 import {
+    ReplayOriginUrlNode,
     ReplayRenderedResponse,
     ReplayResponseDefinition,
+    ReplayResponseHeaderValue,
 } from './replay.types.js';
+
+export type ReplayOriginUrlMap = Readonly<Record<string, string>>;
+
+export class ReplayResponseError extends Error {
+    constructor(readonly code: 'unknown-origin-url') {
+        super(`Replay response rejected: ${code}.`);
+        this.name = 'ReplayResponseError';
+    }
+}
+
+function isOriginUrlNode(
+    value: ReplayResponseHeaderValue
+): value is ReplayOriginUrlNode {
+    return typeof value !== 'string' && value.kind === 'origin-url';
+}
+
+function renderHeaderValue(
+    value: ReplayResponseHeaderValue,
+    symbols: ReplaySymbolTable,
+    originUrls: ReplayOriginUrlMap
+): string {
+    if (!isOriginUrlNode(value)) {
+        return symbols.resolveString(value);
+    }
+    const originUrl = originUrls[value.origin];
+    if (originUrl === undefined) {
+        throw new ReplayResponseError('unknown-origin-url');
+    }
+    return `${originUrl}${value.path}`;
+}
 
 export function renderReplayResponse(
     response: ReplayResponseDefinition,
-    symbols: ReplaySymbolTable
+    symbols: ReplaySymbolTable,
+    originUrls: ReplayOriginUrlMap = {}
 ): ReplayRenderedResponse {
     const headers = Object.fromEntries(
         Object.entries(response.headers).map(([name, values]) => [
             name,
-            values.map((value) => symbols.resolveString(value)),
+            values.map((value) =>
+                renderHeaderValue(value, symbols, originUrls)
+            ),
         ])
     );
 

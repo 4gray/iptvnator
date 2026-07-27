@@ -63,6 +63,7 @@ export type ReplayFinalizeResult =
 export interface CreateReplayRunOptions {
     runId?: string;
     now?: () => number;
+    originUrls?: Readonly<Record<string, string>>;
 }
 
 interface PendingBarrierResponse {
@@ -84,6 +85,7 @@ export class ReplayRun {
 
     private readonly symbols: ReplaySymbolTable;
     private readonly now: () => number;
+    private readonly originUrls: Readonly<Record<string, string>>;
     private readonly createdAt: number;
     private lastActivityAt: number;
     private phaseIndex = 0;
@@ -106,6 +108,7 @@ export class ReplayRun {
     ) {
         this.runId = options.runId ?? createReplayRunId();
         this.now = options.now ?? Date.now;
+        this.originUrls = options.originUrls ?? {};
         this.createdAt = this.now();
         this.lastActivityAt = this.createdAt;
         this.state = fixture.initialState;
@@ -175,7 +178,8 @@ export class ReplayRun {
 
         const response = renderReplayResponse(
             match.expectation.response,
-            this.symbols
+            this.symbols,
+            this.originUrls
         );
         const phase = this.fixture.phases[this.phaseIndex];
         const barrier = phase?.barrier;
