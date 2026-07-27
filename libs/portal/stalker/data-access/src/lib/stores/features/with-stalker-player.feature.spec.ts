@@ -11,6 +11,7 @@ import {
     STALKER_SESSION_APPLICATION_OPERATIONS,
     StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
+import { STALKER_RECIPE_CLASSIFIER_VERSION } from '@iptvnator/portal/stalker/protocol';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerPlayer } from './with-stalker-player.feature';
 
@@ -311,6 +312,8 @@ describe('withStalkerPlayer', () => {
         store.setCurrentPlaylist({
             ...PLAYLIST,
             isFullStalkerPortal: true,
+            stalkerRecipeClassifierVersion: STALKER_RECIPE_CLASSIFIER_VERSION,
+            stalkerRequestRecipe: 'full-session',
             userAgent: 'renderer-user-agent',
             referrer: 'https://portal.example/referrer',
             origin: 'https://portal.example',

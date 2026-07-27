@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
+import { STALKER_RECIPE_CLASSIFIER_VERSION } from '@iptvnator/portal/stalker/protocol';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import { PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
@@ -130,6 +131,8 @@ describe('withStalkerPortal', () => {
         const fullPlaylist = {
             ...PLAYLIST,
             isFullStalkerPortal: true,
+            stalkerRecipeClassifierVersion: STALKER_RECIPE_CLASSIFIER_VERSION,
+            stalkerRequestRecipe: 'full-session' as const,
         };
         const response = { js: [{ id: 'vod' }] };
         stalkerSession.makeAuthenticatedRequest.mockResolvedValue(response);

@@ -1,4 +1,5 @@
 import { DataService } from '@iptvnator/services';
+import { STALKER_RECIPE_CLASSIFIER_VERSION } from '@iptvnator/portal/stalker/protocol';
 import {
     PlaylistMeta,
     STALKER_REQUEST,
@@ -109,6 +110,9 @@ describe('loadFullItvChannelList', () => {
                 {
                     ...PLAYLIST,
                     isFullStalkerPortal: true,
+                    stalkerRecipeClassifierVersion:
+                        STALKER_RECIPE_CLASSIFIER_VERSION,
+                    stalkerRequestRecipe: 'full-session',
                 },
                 jest.fn(),
                 {
@@ -119,20 +123,21 @@ describe('loadFullItvChannelList', () => {
         ).resolves.toBe('error');
 
         expect(sendIpcEvent).not.toHaveBeenCalled();
-        expect(makeAuthenticatedRequest.mock.calls.map(([, params]) => params))
-            .toEqual([
-                {
-                    action: StalkerPortalActions.GetAllChannels,
-                    type: 'itv',
-                },
-                {
-                    action: StalkerPortalActions.GetOrderedList,
-                    category: '*',
-                    genre: '*',
-                    p: 1,
-                    sortby: 'number',
-                    type: 'itv',
-                },
-            ]);
+        expect(
+            makeAuthenticatedRequest.mock.calls.map(([, params]) => params)
+        ).toEqual([
+            {
+                action: StalkerPortalActions.GetAllChannels,
+                type: 'itv',
+            },
+            {
+                action: StalkerPortalActions.GetOrderedList,
+                category: '*',
+                genre: '*',
+                p: 1,
+                sortby: 'number',
+                type: 'itv',
+            },
+        ]);
     });
 });
