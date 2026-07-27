@@ -13,7 +13,6 @@
                 "cwd": "{workspaceRoot}",
                 "color": true,
                 "env": {
-                    "PORT": "3211",
                     "NODE_ENV": "development"
                 }
             }
@@ -26,7 +25,6 @@
                 "cwd": "{workspaceRoot}",
                 "color": true,
                 "env": {
-                    "PORT": "3211",
                     "NODE_ENV": "development"
                 }
             }

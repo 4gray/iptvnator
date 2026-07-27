@@ -38,9 +38,11 @@ pnpm nx run xtream-mock-server:serve
 ```
 
 When enabled, every `/__control/*` request requires the exact
-`x-iptvnator-performance-token` header. The server refuses non-loopback binds
-and an empty token. The control routes do not exist when the flag is absent or
-is any value other than `1`.
+`x-iptvnator-performance-token` header, including `OPTIONS` preflight
+requests. The server refuses non-loopback binds and an empty token. The control
+routes do not exist when the flag is absent or is any value other than `1`.
+The Nx serve targets preserve an explicit shell `PORT`; when it is omitted, the
+server parser still defaults to `3211`.
 
 Prepare the fixed synthetic fixture before starting a capture:
 
@@ -74,13 +76,18 @@ Rules match the exact tuple
 counted independently per tuple without `occurrence`, so parallel category
 arrival order cannot change which rule matches. Empty Xtream actions are
 recorded as `get_account_info`; unknown actions are recorded only as `unknown`.
-The state never includes the token, credentials, raw URL/query, response
-payloads, titles, or catalog arrays.
+Numeric category IDs use canonical decimal spelling: signs, whitespace,
+leading zeroes, non-decimal notation, and unsafe integers are rejected. The
+state never includes the token, credentials, raw URL/query, response payloads,
+titles, or catalog arrays.
 
 `reset` with mode `observations` clears rules, occurrences, held requests, and
 the ledger while preserving the prepared manifest and epoch. Mode `all` also
 clears fixture caches and the prepared manifest, then increments the epoch.
-Held clients are settled during either reset.
+Held clients are settled during either reset. The legacy unauthenticated
+`POST /reset` returns `410` in performance mode so it cannot invalidate fixture
+caches without also invalidating the prepared control manifest; use the
+token-authenticated control reset instead.
 
 JSON bodies are strict and limited to 16 KiB. A state epoch accepts at most 32
 rules; the ledger retains 128 entries, and occurrence state has 512 slots for

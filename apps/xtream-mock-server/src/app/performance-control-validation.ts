@@ -143,6 +143,9 @@ export function isAllowedPerformanceCategory(
     if (categoryId === 'all') return true;
     if (!/^\d+$/.test(categoryId)) return false;
     const numericId = Number(categoryId);
+    if (!Number.isSafeInteger(numericId) || categoryId !== String(numericId)) {
+        return false;
+    }
     if (action === 'get_live_streams') {
         return numericId >= 91_101 && numericId <= 91_160;
     }

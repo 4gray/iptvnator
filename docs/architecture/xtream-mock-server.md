@@ -113,10 +113,12 @@ The control plane is absent by default. It is mounted only when
 `IPTVNATOR_XTREAM_MOCK_CONTROL=1`; startup then requires a non-empty
 `IPTVNATOR_XTREAM_MOCK_CONTROL_TOKEN` and a literal loopback `HOST`
 (`127.0.0.1` or `::1`). Every `/__control/*` request must carry that exact value
-in `x-iptvnator-performance-token`. Configuration is validated before the HTTP
-listener opens. Normal development mode preserves the legacy wildcard bind
-when `HOST` is unset; control mode instead defaults to `127.0.0.1` and rejects
-an explicitly configured non-loopback host.
+in `x-iptvnator-performance-token`, including `OPTIONS` preflight requests.
+Configuration is validated before the HTTP listener opens. Normal development
+mode preserves the legacy wildcard bind when `HOST` is unset; control mode
+instead defaults to `127.0.0.1` and rejects an explicitly configured
+non-loopback host. The Nx serve targets do not pin `PORT`, so an explicit shell
+value reaches the parser; its no-value default remains `3211`.
 
 Use a dedicated port rather than the normal `3211` E2E server:
 
@@ -191,6 +193,10 @@ Barrier and delay rules have an ID plus the exact match tuple:
 `get_account_info`; the dispatcher's legacy `get_simple_date_table` alias is
 allowlisted. Occurrences are counted per tuple excluding occurrence, so
 parallel requests for different categories cannot consume each other's rule.
+Numeric category IDs must use canonical decimal spelling. Signs, whitespace,
+leading zeroes, non-decimal notation, unsafe integers, and values outside the
+closed scenario ranges are rejected; invalid incoming aliases collapse to the
+single `all` observation identity and cannot expand the bounded state map.
 Rules are one-shot and match before dispatch or JSON serialization. Barrier
 lifecycle is `arrived → blocked → responded|aborted`; delay lifecycle is
 `arrived → delayed → responded|aborted`. Real request abort events release held
@@ -210,6 +216,11 @@ eviction or counter restart; an unexpected overflow fails closed. IDs,
 scenarios, transports, actions, categories, occurrences, and delays
 (`0..5000` ms) use closed validation. Duplicate IDs/matches and already-past
 occurrences fail closed.
+
+The legacy unauthenticated `POST /reset` remains available in normal mode. It
+returns `410` while the control plane is enabled, preventing cache invalidation
+that would leave the controller's prepared manifest stale. Performance runs
+must use the token-authenticated `/__control/reset`.
 
 Barriers and delays exist for deterministic coordination and smoke tests only.
 Formal performance captures must prove that both rule sets are empty and must

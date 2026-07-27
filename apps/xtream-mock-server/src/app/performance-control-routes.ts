@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
+import cors from 'cors';
 import express, {
     type ErrorRequestHandler,
     type NextFunction,
@@ -27,6 +28,7 @@ export function installPerformanceControlRoutes(
 ): void {
     const router = express.Router();
     router.use(authorize(token));
+    router.use(cors());
     router.use(
         express.json({
             limit: PERFORMANCE_CONTROL_LIMITS.jsonBytes,

@@ -52,10 +52,10 @@ export function createXtreamMockApp(
         ? new XtreamPerformanceController()
         : undefined;
 
-    app.use(cors());
     if (controller && options.control) {
         installPerformanceControlRoutes(app, controller, options.control.token);
     }
+    app.use(cors());
     app.use(express.json());
 
     app.get('/health', (_request, response) => {
@@ -66,6 +66,12 @@ export function createXtreamMockApp(
         });
     });
     app.post('/reset', (_request, response) => {
+        if (controlEnabled) {
+            response
+                .status(410)
+                .json({ error: 'use-performance-control-reset' });
+            return;
+        }
         resetAll();
         response.json({ status: 'reset' });
     });
