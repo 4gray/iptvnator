@@ -129,6 +129,10 @@ export type CompetingElectronInstanceResult = {
 
 const competingInstanceStderrLimit = 4000;
 
+const dataDirPrefix = 'iptvnator-electron-e2e-';
+// Long enough that a directory this old cannot belong to a running suite.
+const orphanDataDirMaxAgeMs = 24 * 60 * 60 * 1000;
+
 /**
  * Removes a run's data directory, tolerating handles the OS has not released
  * yet.
@@ -152,10 +156,55 @@ function removeDataDir(dataDir: string): void {
     }
 }
 
+/**
+ * Best-effort sweep of data directories abandoned by earlier runs.
+ *
+ * `removeDataDir` gives up after its retries, and nothing collects the leftover
+ * on our behalf: Windows never clears %TEMP% on process exit, and the Unix
+ * equivalents only run on a schedule. Without this, every teardown that loses
+ * the race leaks a database and user-data tree on a developer machine or a
+ * long-lived self-hosted runner, invisibly, while CI stays green.
+ *
+ * Only clearly stale directories are touched. This repo is routinely checked
+ * out into several worktrees at once, so a concurrent suite's directory must
+ * never be collected out from under it.
+ */
+function reapOrphanedDataDirs(): void {
+    const now = Date.now();
+    let entries: string[];
+    try {
+        entries = readdirSync(tmpdir());
+    } catch {
+        return;
+    }
+
+    for (const entry of entries) {
+        if (!entry.startsWith(dataDirPrefix)) {
+            continue;
+        }
+
+        const candidate = join(tmpdir(), entry);
+        try {
+            if (now - statSync(candidate).mtimeMs < orphanDataDirMaxAgeMs) {
+                continue;
+            }
+            rmSync(candidate, { force: true, recursive: true, maxRetries: 3 });
+        } catch {
+            // Still locked, or owned by another user — leave it for next time.
+        }
+    }
+}
+
+let reapedOrphanedDataDirs = false;
+
 export const test = base.extend<ElectronFixtures>({
     dataDir: async ({ browserName }, use) => {
         void browserName;
-        const dataDir = mkdtempSync(join(tmpdir(), 'iptvnator-electron-e2e-'));
+        if (!reapedOrphanedDataDirs) {
+            reapedOrphanedDataDirs = true;
+            reapOrphanedDataDirs();
+        }
+        const dataDir = mkdtempSync(join(tmpdir(), dataDirPrefix));
 
         await use(dataDir);
 
@@ -1703,9 +1752,7 @@ export async function expectWorkspaceSearchStatus(
 }
 
 /** The degraded-search hint chip must be absent (e.g. complete local search). */
-export async function expectNoWorkspaceSearchStatus(
-    page: Page
-): Promise<void> {
+export async function expectNoWorkspaceSearchStatus(page: Page): Promise<void> {
     await expect(
         page.locator('app-workspace-shell-header .search-chip--status')
     ).toHaveCount(0);
