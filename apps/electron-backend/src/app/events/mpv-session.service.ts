@@ -45,6 +45,7 @@ export interface OpenExternalPlayerRequest {
 let mpvProcess: ChildProcess | null = null;
 let mpvSocketPath: string | null = null;
 let positionPollingInterval: NodeJS.Timeout | null = null;
+let mpvReuseOperationQueue: Promise<void> = Promise.resolve();
 
 function getMpvPath(options: PlayerPathOptions = {}): string {
     return (
@@ -182,6 +183,17 @@ function sendMpvCommand(
     });
 }
 
+function enqueueMpvReuseOperation<T>(
+    operation: () => Promise<T>
+): Promise<T> {
+    const queuedOperation = mpvReuseOperationQueue.then(operation);
+    mpvReuseOperationQueue = queuedOperation.then(
+        () => undefined,
+        () => undefined
+    );
+    return queuedOperation;
+}
+
 function killStoredMpvProcess(reason: string): void {
     if (!mpvProcess || mpvProcess.killed) {
         return;
@@ -283,36 +295,42 @@ export async function openMpvPlayer({
         ) {
             traceExternalPlayer('reuse existing mpv instance');
             try {
-                if (effectiveUserAgent) {
+                await enqueueMpvReuseOperation(async () => {
                     await sendMpvCommand('set_property', [
                         'user-agent',
-                        effectiveUserAgent,
+                        effectiveUserAgent ?? '',
                     ]);
-                }
-                if (effectiveReferer) {
                     await sendMpvCommand('set_property', [
                         'referrer',
-                        effectiveReferer,
+                        effectiveReferer ?? '',
                     ]);
-                }
-                if (headerFields.length > 0) {
                     await sendMpvCommand('set_property', [
                         'http-header-fields',
                         headerFields.join(','),
                     ]);
-                }
 
-                const loadFileArgs: Array<string | number> = [url, 'replace'];
-                const loadFileOptions: string[] = [];
+                    const loadFileArgs: Array<string | number> = [
+                        url,
+                        'replace',
+                    ];
+                    const loadFileOptions: string[] = [];
 
-                if (title) {
-                    loadFileOptions.push(`force-media-title=${title}`);
-                }
-                if (loadFileOptions.length > 0) {
-                    loadFileArgs.push(-1, loadFileOptions.join(','));
-                }
+                    if (title) {
+                        loadFileOptions.push(`force-media-title=${title}`);
+                    }
+                    if (loadFileOptions.length > 0) {
+                        loadFileArgs.push(-1, loadFileOptions.join(','));
+                    }
 
-                await sendMpvCommand('loadfile', loadFileArgs);
+                    await sendMpvCommand('loadfile', loadFileArgs);
+
+                    if (startTime) {
+                        await sendMpvCommand('seek', [
+                            String(startTime),
+                            'absolute',
+                        ]);
+                    }
+                });
                 traceExternalPlayer('loaded new url in existing mpv instance');
 
                 externalPlayerSessions.attachCloser(session.id, async () => {
@@ -324,13 +342,6 @@ export async function openMpvPlayer({
                         }
                     }
                 });
-
-                if (startTime) {
-                    await sendMpvCommand('seek', [
-                        String(startTime),
-                        'absolute',
-                    ]);
-                }
 
                 if (contentInfo) {
                     startPositionPolling(
