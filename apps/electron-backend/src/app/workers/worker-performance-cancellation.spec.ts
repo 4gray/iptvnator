@@ -82,6 +82,9 @@ function mockPerformanceCapture(
         ),
         registerDatabaseWorkerPerformanceCapture: jest.fn(),
         releaseDatabaseWorkerPerformanceCapture: jest.fn(),
+        stampWorkerPerformanceResponsePostedEpoch: jest.fn(
+            (_capture: unknown, performance: unknown) => performance
+        ),
         startWorkerPerformanceCapture: jest.fn(() => ({})),
     }));
 }

@@ -128,6 +128,8 @@ Each enabled request gets a fresh event-loop-delay histogram and records:
 
 - `requestReceivedEpochMs`, `workStartedEpochMs`, `workEndedEpochMs`, and
   `histogramFlushedEpochMs`
+- `responsePostedEpochMs`, sampled after profiling finalization and immediately
+  before the worker posts the response to main
 - worker-thread CPU user/system microseconds from `process.threadCpuUsage()`
 - event-loop utilization across the exact work interval
 - event-loop-delay max/p95/p99 from the request's own histogram
@@ -146,6 +148,46 @@ profiling queue. If captures overlap, every overlapping response carries
 `invalidReason: "overlapping-database-worker-requests"` and all attributable
 CPU, ELU, and event-loop-delay values are `null`. This avoids assigning shared
 worker activity to one request while preserving normal worker concurrency.
+`responsePostedEpochMs` remains a separate response boundary: the initial M3U
+benchmark subtracts it from main's response receipt to attribute the
+database-worker-to-main structured-clone proxy without folding that interval
+into worker execution.
+
+Initial M3U import profiling requires exact operation-specific phase pairs:
+
+- `DB_UPSERT_APP_PLAYLIST`: `serialize.playlist`, then `sqlite.write`. The
+  first covers playlist JSON serialization; the second covers the SQLite
+  upsert and its autocommit.
+- `DB_GET_APP_PLAYLIST`: `sqlite.read`, then `deserialize.playlist`. The first
+  covers the awaited single-row SQLite select; the second covers
+  `parseAppPlaylist`, including JSON parsing and persisted-field hydration.
+
+Missing, partial, reordered, or cross-operation phase sequences fail closed.
+Markers carry item counts only and do not scan or copy the payload to compute
+profiling metadata. The import creates no indexes, so there is no separate
+index/transaction-commit phase. Across the upsert and GET requests, the formal
+benchmark reports renderer-to-main, main-to-database-worker,
+database-worker-to-main, and main-to-renderer structured-clone proxies; their
+explicit sum is `ipcStructuredCloneProxyMs`. See
+[M3U Playlist Module Architecture](./m3u-playlist-module.md#initial-url-import-performance-benchmark-electron)
+for the complete cross-process attribution.
+
+Formal initial-import comparison also requires both request-scoped captures in
+every measured run to have coherent event-loop delay, event-loop utilization,
+and worker-thread CPU values with no unavailable or invalid reason. Summary
+validity records the exact expected and valid request counts; nullable metrics
+remain in raw results but cannot be silently omitted from comparison
+distributions.
+
+The main-process benchmark samples the database worker's V8
+`used_heap_size` and `external_memory` independently. Raw output includes a
+valid-sample count for each metric. A peak is numeric only after at least one
+finite, non-negative isolate sample; otherwise it is `null` with a fixed
+unavailability reason. An initialized zero is never used as evidence of a
+successful sample. Formal initial-import comparisons require valid peak
+samples from exactly one database worker in every measured run. Worker RSS is
+not available per thread and remains part of the separately reported Electron
+main-process RSS together with native and SQLite memory.
 
 ### Opt-in post-GC heap capture
 

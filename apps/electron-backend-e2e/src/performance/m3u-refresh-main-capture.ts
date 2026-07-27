@@ -1,5 +1,9 @@
 /* eslint-disable max-lines -- The injected main-process protocol must remain self-contained for Playwright serialization. */
 import type { ElectronApplication } from '@playwright/test';
+import {
+    M3U_IMPORT_PERFORMANCE_PHASE,
+    M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL,
+} from '@iptvnator/shared/interfaces';
 
 import {
     DATABASE_REQUEST_IDENTITY_CAPTURE_STATE_KEY,
@@ -58,6 +62,7 @@ export interface MainCaptureStartOptions {
 }
 
 export interface MainCaptureStatus {
+    readonly databaseGetsCompleted: number;
     readonly databasePending: number;
     readonly databaseRequests: number;
     readonly databaseUpsertsCompleted: number;
@@ -65,6 +70,7 @@ export interface MainCaptureStatus {
     readonly playlistResponsesFailed: number;
     readonly playlistResponses: number;
     readonly playlistResponsesSucceeded: number;
+    readonly preloadSuccessMarkers: number;
 }
 
 export interface MainCaptureRolloverResult {
@@ -101,6 +107,9 @@ export async function installMainCapture(
             createRendererProcessRssCaptureApi.toString(),
         rendererWindowRssSessionApiFactorySource:
             createRendererWindowRssSessionApi.toString(),
+        m3uImportPerformancePhaseEventChannel:
+            M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL,
+        m3uImportPerformancePhases: Object.values(M3U_IMPORT_PERFORMANCE_PHASE),
         stateKey: MAIN_CAPTURE_STATE_KEY,
         workerTerminationGenerationApiFactorySource:
             createWorkerTerminationGenerationApi.toString(),
@@ -158,12 +167,14 @@ export async function installMainCapture(
             cpuLast: WorkerCpuUsage | null;
             elu: number | null;
             eluStart: WorkerElu | null;
+            externalMemorySampleCount: number;
             externalPeak: number;
             finalized: boolean;
             finalizationKey: object;
             finalizationTimedOut: boolean;
             finalizing: Promise<void> | null;
             heapPeak: number;
+            heapUsedSampleCount: number;
             kind: 'database.worker' | 'playlist-refresh.worker';
             operationId: string | null;
             ordinal: number;
@@ -185,12 +196,19 @@ export async function installMainCapture(
             worker: InstrumentedWorker;
         }
         interface TimelineRecord {
+            readonly boundary?: 'end' | 'start';
+            readonly byteCount?: number;
+            readonly durationMs?: number | null;
             readonly epochMs: number;
+            readonly ipcCallId?: number;
+            readonly itemCount?: number;
             readonly operation?: string;
             readonly operationId?: string;
+            readonly phase?: string;
             readonly playlistId?: string;
             readonly requestId?: string;
             readonly success?: boolean;
+            readonly sourceEpochMs?: number;
             readonly type: string;
         }
 
@@ -245,6 +263,9 @@ export async function installMainCapture(
         const inspector = runtimeProcess.getBuiltinModule(
             'node:inspector'
         ) as typeof import('node:inspector');
+        const diagnosticsChannel = runtimeProcess.getBuiltinModule(
+            'node:diagnostics_channel'
+        ) as typeof import('node:diagnostics_channel');
         const path = runtimeProcess.getBuiltinModule(
             'node:path'
         ) as typeof import('node:path');
@@ -307,6 +328,60 @@ export async function installMainCapture(
                 state.timeline.push({ epochMs: nowEpochMs(), ...record });
             }
         };
+        const m3uImportPhases = new Set<string>(
+            input.m3uImportPerformancePhases
+        );
+        diagnosticsChannel
+            .channel(input.m3uImportPerformancePhaseEventChannel)
+            .subscribe((incoming: unknown) => {
+                if (!state.active && !state.stopping) {
+                    return;
+                }
+                if (typeof incoming !== 'object' || incoming === null) {
+                    return;
+                }
+                const event = incoming as JsonRecord;
+                const boundary = event['boundary'];
+                const durationMs = event['durationMs'];
+                const epochMs = event['epochMs'];
+                const metadata =
+                    typeof event['metadata'] === 'object' &&
+                    event['metadata'] !== null
+                        ? (event['metadata'] as JsonRecord)
+                        : null;
+                const phase = event['phase'];
+                const requestId = event['requestId'];
+                if (
+                    (boundary !== 'start' && boundary !== 'end') ||
+                    typeof epochMs !== 'number' ||
+                    !Number.isFinite(epochMs) ||
+                    typeof phase !== 'string' ||
+                    !m3uImportPhases.has(phase) ||
+                    typeof requestId !== 'string' ||
+                    requestId.length === 0 ||
+                    (boundary === 'start' && durationMs !== null) ||
+                    (boundary === 'end' &&
+                        (typeof durationMs !== 'number' ||
+                            !Number.isFinite(durationMs) ||
+                            durationMs < 0))
+                ) {
+                    return;
+                }
+                const byteCount = metadata?.['byteCount'];
+                const itemCount = metadata?.['itemCount'];
+                state.timeline.push({
+                    boundary,
+                    ...(isCount(byteCount) ? { byteCount } : {}),
+                    durationMs: durationMs as number | null,
+                    epochMs,
+                    ...(isCount(itemCount) ? { itemCount } : {}),
+                    phase,
+                    requestId,
+                    type: 'm3u-import-phase',
+                });
+            });
+        const isCount = (value: unknown): value is number =>
+            Number.isSafeInteger(value) && Number(value) >= 0;
         const classifyRequest = (
             message: JsonRecord
         ): 'database.worker' | 'playlist-refresh.worker' | null => {
@@ -348,12 +423,14 @@ export async function installMainCapture(
                 cpuLast: null,
                 elu: null,
                 eluStart: null,
+                externalMemorySampleCount: 0,
                 externalPeak: 0,
                 finalized: false,
                 finalizationKey: {},
                 finalizationTimedOut: false,
                 finalizing: null,
                 heapPeak: 0,
+                heapUsedSampleCount: 0,
                 kind,
                 operationId: null,
                 ordinal: nextWorkerOrdinal,
@@ -400,8 +477,10 @@ export async function installMainCapture(
                         record.responseEpochMs = responseEpochMs;
                         record.requestPerformance.push({
                             identity: {
+                                ipcCallId: null,
                                 operationId: record.operationId,
                                 operationIdUnavailableReason: null,
+                                sourceEpochMs: null,
                             },
                             operation: null,
                             performanceCapture: message['performance'] ?? null,
@@ -466,14 +545,30 @@ export async function installMainCapture(
                 try {
                     const stats = await record.worker.getHeapStatistics?.();
                     if (stats) {
-                        record.heapPeak = Math.max(
-                            record.heapPeak,
-                            Number(stats.used_heap_size ?? 0)
-                        );
-                        record.externalPeak = Math.max(
-                            record.externalPeak,
-                            Number(stats.external_memory ?? 0)
-                        );
+                        const heapUsedSample = stats.used_heap_size;
+                        if (
+                            typeof heapUsedSample === 'number' &&
+                            Number.isFinite(heapUsedSample) &&
+                            heapUsedSample >= 0
+                        ) {
+                            record.heapUsedSampleCount += 1;
+                            record.heapPeak = Math.max(
+                                record.heapPeak,
+                                heapUsedSample
+                            );
+                        }
+                        const externalMemorySample = stats.external_memory;
+                        if (
+                            typeof externalMemorySample === 'number' &&
+                            Number.isFinite(externalMemorySample) &&
+                            externalMemorySample >= 0
+                        ) {
+                            record.externalMemorySampleCount += 1;
+                            record.externalPeak = Math.max(
+                                record.externalPeak,
+                                externalMemorySample
+                            );
+                        }
                     }
                     const cpu = await record.worker.cpuUsage?.();
                     if (cpu) {
@@ -504,12 +599,14 @@ export async function installMainCapture(
             record.cpuLast = null;
             record.elu = null;
             record.eluStart = null;
+            record.externalMemorySampleCount = 0;
             record.externalPeak = 0;
             record.finalized = false;
             record.finalizationKey = {};
             record.finalizationTimedOut = false;
             record.finalizing = null;
             record.heapPeak = 0;
+            record.heapUsedSampleCount = 0;
             record.operationId = null;
             record.pendingCount = 0;
             record.playlistId = null;
@@ -863,8 +960,10 @@ export async function installMainCapture(
                                           value
                                       )
                                     : {
+                                          ipcCallId: null,
                                           operationId: payloadOperationId,
                                           operationIdUnavailableReason: null,
+                                          sourceEpochMs: null,
                                       };
                             record.pendingCount += 1;
                             dbRequests.set(value['requestId'], {
@@ -874,11 +973,14 @@ export async function installMainCapture(
                                 record,
                             });
                             recordTimeline({
+                                ipcCallId: identity.ipcCallId ?? undefined,
                                 operation: value['operation'],
                                 operationId: identity.operationId ?? undefined,
                                 playlistId:
                                     readDatabasePlaylistId(value) ?? undefined,
                                 requestId: value['requestId'],
+                                sourceEpochMs:
+                                    identity.sourceEpochMs ?? undefined,
                                 type: 'db-request',
                             });
                         }
@@ -1052,6 +1154,12 @@ export async function installMainCapture(
 
         const api = {
             status: (): MainCaptureStatus => ({
+                databaseGetsCompleted: state.timeline.filter(
+                    (entry) =>
+                        entry['type'] === 'db-response' &&
+                        entry['operation'] === 'DB_GET_APP_PLAYLIST' &&
+                        entry['success'] === true
+                ).length,
                 databasePending: dbRequests.size,
                 databaseRequests: state.timeline.filter(
                     (entry) => entry['type'] === 'db-request'
@@ -1081,6 +1189,8 @@ export async function installMainCapture(
                         entry['type'] === 'playlist-response' &&
                         entry['success'] === true
                 ).length,
+                preloadSuccessMarkers:
+                    databaseRequestIdentityCapture.successMarkerCount(),
             }),
             start: async (options: MainCaptureStartOptions): Promise<void> => {
                 databaseWorkerPostGcCutoffApi.beginCapture();
@@ -1092,6 +1202,18 @@ export async function installMainCapture(
                 databaseWorkerPostGcCutoffApi.beginStop();
                 state.stopping = true;
                 state.active = false;
+                for (const marker of databaseRequestIdentityCapture.takeSuccessMarkers()) {
+                    state.timeline.push({
+                        epochMs: marker.sourceEpochMs,
+                        ipcCallId: marker.ipcCallId,
+                        operation: marker.operation,
+                        operationId: marker.operationId ?? undefined,
+                        playlistId: marker.playlistId,
+                        sourceEpochMs: marker.sourceEpochMs,
+                        success: true,
+                        type: 'preload-performance-success',
+                    });
+                }
                 databaseRequestIdentityCapture.stop();
                 if (state.sampleTimer) {
                     clearInterval(state.sampleTimer);
@@ -1230,11 +1352,28 @@ export async function installMainCapture(
                                     ? record.cpuLast.user - record.cpuFirst.user
                                     : null,
                             eventLoopUtilization: record.elu,
+                            externalMemorySampleCount:
+                                record.externalMemorySampleCount,
+                            heapUsedSampleCount: record.heapUsedSampleCount,
                             kind: record.kind,
                             operationId: record.operationId,
                             ordinal: record.ordinal,
-                            peakExternalBytes: record.externalPeak,
-                            peakHeapUsedBytes: record.heapPeak,
+                            peakExternalBytes:
+                                record.externalMemorySampleCount > 0
+                                    ? record.externalPeak
+                                    : null,
+                            peakExternalUnavailableReason:
+                                record.externalMemorySampleCount > 0
+                                    ? null
+                                    : 'worker-external-memory-samples-missing',
+                            peakHeapUsedBytes:
+                                record.heapUsedSampleCount > 0
+                                    ? record.heapPeak
+                                    : null,
+                            peakHeapUsedUnavailableReason:
+                                record.heapUsedSampleCount > 0
+                                    ? null
+                                    : 'worker-heap-used-samples-missing',
                             playlistId: record.playlistId,
                             postGcHeapUnavailableReason:
                                 record.postGcHeapUnavailableReason,
@@ -1245,6 +1384,7 @@ export async function installMainCapture(
                             terminatedEpochMs: record.terminatedEpochMs,
                         },
                         requests: record.requestPerformance.map((request) => ({
+                            ipcCallId: request.identity.ipcCallId,
                             operation: request.operation,
                             operationId: request.identity.operationId,
                             operationIdUnavailableReason:
@@ -1253,6 +1393,7 @@ export async function installMainCapture(
                             playlistId: request.playlistId,
                             requestId: request.requestId,
                             responseEpochMs: request.responseEpochMs,
+                            sourceEpochMs: request.identity.sourceEpochMs,
                             success: request.success,
                         })),
                     }));

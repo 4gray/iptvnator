@@ -56,6 +56,95 @@ There is intentionally **no URL validation** (upstream removed it in 0.15.0): an
 
 The behavioral contract is guarded by `apps/web/src/app/iptv-playlist-parser.contract.spec.ts` (jest maps the module to the real parser source) and by the fork's own test suite.
 
+## Initial URL Import Performance Benchmark (Electron)
+
+The Electron E2E project has a deterministic initial-import benchmark for
+10,000-, 50,000-, and 100,000-channel M3U playlists. It uses only generated
+fixtures served by an ephemeral `127.0.0.1` HTTP server; provider URLs,
+credentials, and playlist data must never be used. Each formal scenario runs
+one warm-up, five measured iterations, and one diagnostic iteration in a fresh
+Electron process and data directory:
+
+```bash
+perf_output="$PWD/dist/performance/$(date -u +%Y%m%dT%H%M%SZ)-m3u-import"
+IPTVNATOR_PERF_OUTPUT_DIR="$perf_output" \
+IPTVNATOR_PERF_VARIANT=baseline \
+pnpm nx run electron-backend-e2e:benchmark-m3u-import
+```
+
+Use a new output directory and `IPTVNATOR_PERF_VARIANT=after` for the identical
+post-change run. Formal runs require a clean worktree and record the commit,
+source-state hash, runtime, and exact fixture identity. A development smoke run
+uses one warm-up, one measured iteration, and one diagnostic iteration per
+size:
+
+```bash
+IPTVNATOR_PERF_OUTPUT_DIR="$PWD/dist/performance/<timestamp>-m3u-import-smoke" \
+IPTVNATOR_PERF_VARIANT=smoke \
+IPTVNATOR_PERF_SMOKE=1 \
+pnpm nx run electron-backend-e2e:benchmark-m3u-import
+```
+
+Smoke runs may use a dirty worktree and validate only the harness; they cannot
+support a performance claim. If another local application owns port 9222, smoke
+only may set `IPTVNATOR_PERF_CDP_PORT` to an unused loopback port; formal runs
+fail closed unless CDP uses `127.0.0.1:9222`. Raw captures and JSON results stay
+under the gitignored `dist/performance/` tree; preflight rejects a symbolic
+link in any existing output-path component before creating artifacts. Headline
+distributions contain only the five measured runs: warm-up and diagnostic
+profiles are never mixed into them.
+
+The benchmark attributes these non-additive intervals:
+
+| Field | Boundary |
+| --- | --- |
+| `dataAcquireMs` | loopback response acquisition |
+| `m3uParsingMs` | parser call |
+| `normalizationMs` | parsed-item normalization |
+| `mainToRendererCloneProxyMs` | sum of normalized import-result delivery plus the upsert and GET main-response-to-preload-success legs |
+| `storeImportDispatchMs` | renderer import dispatch |
+| `rendererToMainCloneProxyMs` | sum of the upsert and GET preload-source-to-main-request legs |
+| `mainToDatabaseWorkerCloneProxyMs` | sum of the upsert and GET main-request-to-worker-receive legs |
+| `playlistSerializationMs` | database-worker playlist JSON serialization |
+| `sqliteWriteMs` | SQLite upsert, including its autocommit |
+| `sqliteReadMs` | SQLite read of the newly persisted playlist |
+| `playlistDeserializationMs` | database-worker `parseAppPlaylist`, including playlist JSON parsing |
+| `databaseWorkerToMainCloneProxyMs` | sum of the upsert and GET worker-response-post-to-main-response legs |
+| `storePublishChannelsMs` | renderer channel publication |
+| `angularRenderingMs` | publication end to the terminal two-frame paint proof |
+
+`ipcStructuredCloneProxyMs` is the explicit sum of the four directional proxy
+fields. Each directional field can combine the applicable initial-result,
+upsert, and `DB_GET_APP_PLAYLIST` legs. The worker stamps
+`responsePostedEpochMs` after request profiling is finalized and immediately
+before each response is posted; the database-worker-to-main proxy ends when
+main receives that response. These fields are attribution aids, not an additive
+waterfall: scheduler work and gaps can remain inside total wall time, and a
+proxy can include response construction, dispatch overhead, and structured
+clone work. Initial import does not create indexes; `indexAndCommitMs` is
+therefore `N/A` with
+`indexes-not-created-during-import;sqlite-autocommit-included-in-sqlite-write`.
+
+Instrumentation is development-only, opt-in, fail-neutral, and count-only. It
+must not scan or log playlist payloads to generate metadata. Renderer
+long-task, frame-gap, and heartbeat samples are clipped to the measured
+operation boundary. Main capture stops only after the upsert and route-reload
+GET responses plus both asynchronous preload success markers have arrived, so
+return-clone attribution cannot race capture shutdown. Formal comparison fails
+closed after writing raw results if exact-window renderer RSS, database-worker
+peak heap/external samples, or the database worker's explicit post-GC heap is
+missing or incoherent. Both initial-import database requests in every measured
+run must also contain coherent event-loop delay, event-loop utilization, and
+thread-CPU metrics; the validity record exposes the exact expected and valid
+request counts rather than silently dropping nullable samples. An iteration
+failure idempotently stops renderer timers, closes trace listeners/output, and
+starts best-effort probe/session teardown without waiting on a wedged renderer
+before Electron is closed. A partial capture-start failure performs the same
+rollback before it escapes to the benchmark lifecycle.
+Diagnostic artifacts require separate renderer, main, and database-worker CPU
+profiles plus renderer/main/database-worker heap snapshots and a Chromium
+trace; raw profiles remain ignored.
+
 ## Playlist Refresh And Startup Auto-Update (Electron)
 
 Two paths re-download an M3U playlist from its original source:

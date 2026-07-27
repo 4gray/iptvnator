@@ -20,6 +20,10 @@ import {
     XTREAM_RESPONSE,
     XtreamCodeActions,
 } from '@iptvnator/shared/interfaces';
+import {
+    measureRendererPerformancePhase,
+    RENDERER_PERFORMANCE_PHASE,
+} from '@iptvnator/shared/logging';
 import { AppConfig } from '../../environments/environment';
 import { buildAutoUpdatePlaylistsFeedback } from './auto-update-playlists-feedback';
 import {
@@ -316,11 +320,15 @@ export class ElectronService extends DataService {
                 this.settingsStore.getTrustOptions()
             )
             .then((result) => {
-                this.store.dispatch(
-                    PlaylistActions.handleAddingPlaylistByUrl({
-                        isTemporary: !!payload?.isTemporary,
-                        playlist: result,
-                    })
+                measureRendererPerformancePhase(
+                    RENDERER_PERFORMANCE_PHASE.M3U_IMPORT_DISPATCH,
+                    () =>
+                        this.store.dispatch(
+                            PlaylistActions.handleAddingPlaylistByUrl({
+                                isTemporary: !!payload?.isTemporary,
+                                playlist: result,
+                            })
+                        )
                 );
             })
             .catch((error: unknown) => {

@@ -32,6 +32,8 @@ import {
     fetchPlaylistFromUrl,
 } from './playlist-source';
 import { PlaylistWriteAuthorizer } from './playlist-write-authorization';
+import { createM3uImportPerformanceCapture } from './playlist-import-performance';
+import { isPerformanceCaptureEnabled } from '../services/debug-trace';
 
 export default class PlaylistEvents {
     static bootstrapPlaylistEvents(): Electron.IpcMain {
@@ -95,7 +97,11 @@ ipcMain.handle(
         options?: ElectronBridgeTrustOptions
     ) => {
         try {
+            const performanceCapture = createM3uImportPerformanceCapture({
+                enabled: isPerformanceCaptureEnabled(),
+            });
             return await fetchPlaylistFromUrl(url, title, {
+                performanceCapture,
                 trustedInsecureTlsHosts: options?.trustedInsecureTlsHosts,
             });
         } catch (error) {

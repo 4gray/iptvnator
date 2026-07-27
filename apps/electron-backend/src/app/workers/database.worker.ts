@@ -64,6 +64,8 @@ import {
     getAppState,
     getPlaylist,
     setAppState,
+    type AppPlaylistGetPhaseCapture,
+    type AppPlaylistUpsertPhaseCapture,
     updatePlaylist,
     upsertAppPlaylist,
     upsertAppPlaylists,
@@ -93,9 +95,14 @@ import {
     executeWithWorkerPerformanceCapture,
     registerDatabaseWorkerPerformanceCapture,
     releaseDatabaseWorkerPerformanceCapture,
+    stampWorkerPerformanceResponsePostedEpoch,
     startWorkerPerformanceCapture,
     type WorkerPerformanceCapture,
 } from './worker-performance-capture';
+import {
+    captureWorkerPerformancePhase,
+    captureWorkerPerformancePhaseAsync,
+} from './worker-performance-phase';
 import {
     handleDatabaseWorkerPostGcHeapRequest,
     isDatabaseWorkerPostGcHeapRequest,
@@ -349,7 +356,8 @@ function releasePreRegisteredOperation(
 
 async function executeRequest(
     message: DbWorkerRequestMessage,
-    preRegisteredState?: ActiveOperationState
+    preRegisteredState?: ActiveOperationState,
+    performanceCapture: WorkerPerformanceCapture | null = null
 ) {
     const db = await getWorkerDatabase();
 
@@ -430,11 +438,7 @@ async function executeRequest(
                 kind?: 'all' | 'vod' | 'series';
                 limit?: number;
                 playlistType?:
-                    | 'xtream'
-                    | 'stalker'
-                    | 'm3u-file'
-                    | 'm3u-text'
-                    | 'm3u-url';
+                    'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
             };
             return getGlobalRecentlyAdded(
                 db,
@@ -575,9 +579,29 @@ async function executeRequest(
         }
 
         case 'DB_UPSERT_APP_PLAYLIST': {
+            const capturePhase: AppPlaylistUpsertPhaseCapture | undefined =
+                performanceCapture
+                    ? {
+                          captureAsync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhaseAsync(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                          captureSync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhase(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                      }
+                    : undefined;
             return upsertAppPlaylist(
                 db,
-                message.payload as Record<string, unknown>
+                message.payload as Record<string, unknown>,
+                capturePhase
             );
         }
 
@@ -596,7 +620,26 @@ async function executeRequest(
 
         case 'DB_GET_APP_PLAYLIST': {
             const payload = message.payload as { playlistId: string };
-            return getAppPlaylist(db, payload.playlistId);
+            const capturePhase: AppPlaylistGetPhaseCapture | undefined =
+                performanceCapture
+                    ? {
+                          captureAsync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhaseAsync(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                          captureSync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhase(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                      }
+                    : undefined;
+            return getAppPlaylist(db, payload.playlistId, capturePhase);
         }
 
         case 'DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS': {
@@ -1013,7 +1056,9 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
     let performanceCapture: WorkerPerformanceCapture | null = null;
     const execution = await (async () => {
         try {
-            performanceCapture = startWorkerPerformanceCapture();
+            performanceCapture = startWorkerPerformanceCapture({
+                requestId: message.requestId,
+            });
             registerDatabaseWorkerPerformanceCapture(
                 activePerformanceCaptures,
                 performanceCapture
@@ -1021,7 +1066,12 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             await armWorkerPerformanceCapture(performanceCapture);
             return await executeWithWorkerPerformanceCapture(
                 performanceCapture,
-                () => executeRequest(message, preRegisteredOperation?.state)
+                () =>
+                    executeRequest(
+                        message,
+                        preRegisteredOperation?.state,
+                        performanceCapture
+                    )
             );
         } finally {
             releaseDatabaseWorkerPerformanceCapture(
@@ -1038,7 +1088,10 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             requestId: message.requestId,
             success: true,
             result: execution.result,
-            performance: execution.performance,
+            performance: stampWorkerPerformanceResponsePostedEpoch(
+                performanceCapture,
+                execution.performance
+            ),
         });
     } else {
         console.error(
@@ -1051,7 +1104,10 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             requestId: message.requestId,
             success: false,
             error: serializeError(execution.error),
-            performance: execution.performance,
+            performance: stampWorkerPerformanceResponsePostedEpoch(
+                performanceCapture,
+                execution.performance
+            ),
         });
     }
 });

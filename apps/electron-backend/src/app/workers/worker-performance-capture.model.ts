@@ -1,4 +1,8 @@
 import type { EventLoopUtilization } from 'node:perf_hooks';
+import type {
+    AppPlaylistPerformancePhase,
+    PerformancePhaseEvent,
+} from '@iptvnator/shared/interfaces';
 
 export const WORKER_PERFORMANCE_INVALID_REASON = {
     OVERLAPPING_DATABASE_WORKER_REQUESTS:
@@ -46,7 +50,9 @@ export interface WorkerPerformanceCaptureResult {
     eventLoopUtilizationUnavailableReason: WorkerPerformanceMetricUnavailableReason | null;
     histogramFlushedEpochMs: number | null;
     invalidReason: WorkerPerformanceInvalidReason | null;
+    phaseEvents?: readonly PerformancePhaseEvent<AppPlaylistPerformancePhase>[];
     requestReceivedEpochMs: number;
+    responsePostedEpochMs?: number;
     threadCpuSystemMicros: number | null;
     threadCpuUnavailableReason: WorkerPerformanceMetricUnavailableReason | null;
     threadCpuUserMicros: number | null;
@@ -65,6 +71,7 @@ export interface WorkerPerformanceCaptureRuntime {
 
 export interface WorkerPerformanceCaptureOptions {
     enabled?: boolean;
+    requestId?: string;
     runtime?: WorkerPerformanceCaptureRuntime;
 }
 
@@ -84,7 +91,9 @@ export interface WorkerPerformanceCapture {
     histogramDisabled: boolean;
     histogramFlushedEpochMs: number | null;
     invalidReason: WorkerPerformanceInvalidReason | null;
+    phaseEvents: PerformancePhaseEvent<AppPlaylistPerformancePhase>[];
     requestReceivedEpochMs: number;
+    requestId: string | null;
     runtime: WorkerPerformanceCaptureRuntime;
     threadCpuEnd: NodeJS.CpuUsage | null;
     threadCpuStart: NodeJS.CpuUsage | null;
