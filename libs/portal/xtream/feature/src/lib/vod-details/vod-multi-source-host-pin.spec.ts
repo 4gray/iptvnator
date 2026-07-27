@@ -19,6 +19,7 @@ import {
     CURRENT_A_ID,
     MOVIE_A,
     PROBE_OK,
+    createDeferred,
     resolveWith,
 } from './vod-multi-source-host.fixtures';
 
@@ -172,6 +173,32 @@ describe('VodMultiSourceHostService — pinning', () => {
         await service.togglePin(ALT_TWO.id);
 
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
+    });
+
+    it('waits for the stored pin before letting Play fall through', async () => {
+        const slow = createDeferred<{
+            sources: VodSourceCandidate[];
+            matchKind: string;
+        }>();
+        discovery.discover.mockReturnValueOnce(slow.promise);
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+
+        const loading = service.load(MOVIE_A);
+
+        // Play pressed while the lookup is still out. Answering "nothing is
+        // pinned" here would start the route's own source and make a persisted
+        // preference depend on worker latency.
+        const playing = service.playPinnedSource();
+        slow.resolve({ sources: [ALT_TWO], matchKind: 'title-year' });
+        await loading;
+
+        await expect(playing).resolves.toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
     it('leaves Play alone when nothing is pinned', async () => {

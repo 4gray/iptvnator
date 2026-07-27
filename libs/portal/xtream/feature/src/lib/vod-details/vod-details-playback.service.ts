@@ -68,37 +68,51 @@ export class VodDetailsPlaybackService {
 
     readonly matchedExternalPlayback = computed(() => {
         const session = this.externalPlayback.activeSession();
-        const vodId = this.bindings()?.vodId();
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
 
         if (
             !session?.contentInfo ||
-            !playlistId ||
+            !this.xtreamStore.currentPlaylist()?.id ||
             session.status === 'error' ||
             session.status === 'closed'
         ) {
             return null;
         }
 
-        const contentInfo = session.contentInfo;
-        if (contentInfo.contentType !== 'vod') {
-            return null;
+        return this.ownsContent(session.contentInfo) ? session : null;
+    });
+
+    /**
+     * Whether this page owns the content an external session or a position
+     * update refers to.
+     *
+     * Multi-source can put playback on a movie in ANOTHER playlist, and its
+     * session ids and position rows then carry that playlist's identity. One
+     * predicate for both consumers: when they disagree, the page shows a Stop
+     * button for a session whose progress it is throwing away.
+     */
+    private ownsContent(
+        info:
+            | {
+                  playlistId?: string;
+                  contentXtreamId?: number;
+                  contentType?: string;
+              }
+            | undefined
+    ): boolean {
+        // An absent playlist id must never match an absent current playlist.
+        if (!info?.playlistId || info.contentType !== 'vod') {
+            return false;
         }
 
-        // This page owns the session when it launched the route's own stream —
-        // or the alternative it switched to, whose ids belong to the other
-        // playlist entirely.
         const active = this.bindings()?.activeSource?.();
-        const isRouteStream =
-            contentInfo.playlistId === playlistId &&
-            contentInfo.contentXtreamId === vodId;
-        const isActiveSource =
-            !!active &&
-            contentInfo.playlistId === active.playlistId &&
-            contentInfo.contentXtreamId === active.contentXtreamId;
-
-        return isRouteStream || isActiveSource ? session : null;
-    });
+        return (
+            (info.playlistId === this.xtreamStore.currentPlaylist()?.id &&
+                info.contentXtreamId === this.bindings()?.vodId()) ||
+            (!!active &&
+                info.playlistId === active.playlistId &&
+                info.contentXtreamId === active.contentXtreamId)
+        );
+    }
     readonly externalPrimaryLabel = computed(() => {
         const session = this.matchedExternalPlayback();
         if (!session) {
@@ -160,18 +174,13 @@ export class VodDetailsPlaybackService {
         const unsubscribePositionUpdates =
             this.playbackPositionBridge.onPlaybackPositionUpdate(
                 (data: PlaybackPositionData) => {
-                    const playlistId = this.xtreamStore.currentPlaylist()?.id;
-                    const vodId = this.bindings()?.vodId();
-
-                    if (
-                        data.contentType !== 'vod' ||
-                        data.playlistId !== playlistId ||
-                        data.contentXtreamId !== vodId
-                    ) {
-                        return;
+                    // An external player running an ALTERNATIVE reports under
+                    // that playlist's ids. Dropping those updates would leave
+                    // the resume point at wherever playback started, and a
+                    // later switch would rewind the whole session.
+                    if (this.ownsContent(data)) {
+                        this.vodPlaybackPosition.set(data);
                     }
-
-                    this.vodPlaybackPosition.set(data);
                 }
             ) ?? null;
 

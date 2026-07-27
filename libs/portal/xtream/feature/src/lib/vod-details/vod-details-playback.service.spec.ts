@@ -7,7 +7,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
-import type { PlayerContentInfo } from '@iptvnator/shared/interfaces';
+import type {
+    PlaybackPositionData,
+    PlayerContentInfo,
+} from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 
 /**
@@ -22,6 +25,8 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     const ROUTE_VOD_ID = 650020;
 
     let service: VodDetailsPlaybackService;
+    /** The bridge callback the service registers at construction. */
+    let positionListener: ((data: PlaybackPositionData) => void) | undefined;
     const activeSession = signal<unknown>(null);
     const activeSource = signal<PlayerContentInfo | null>(null);
 
@@ -40,6 +45,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     beforeEach(() => {
         activeSession.set(null);
         activeSource.set(null);
+        positionListener = undefined;
 
         TestBed.configureTestingModule({
             providers: [
@@ -72,9 +78,12 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 {
                     provide: PlaybackPositionRuntimeBridgeService,
                     useValue: {
-                        onPlaybackPositionUpdate: jest
-                            .fn()
-                            .mockReturnValue(() => undefined),
+                        onPlaybackPositionUpdate: (
+                            listener: (data: PlaybackPositionData) => void
+                        ) => {
+                            positionListener = listener;
+                            return () => undefined;
+                        },
                     },
                 },
             ],
@@ -128,5 +137,44 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         // No active alternative: the switch was undone, so that session is
         // no longer this page's to stop.
         expect(service.matchedExternalPlayback()).toBeNull();
+    });
+
+    describe('position updates from the bridge', () => {
+        function emit(playlistId: string, contentXtreamId: number, at: number) {
+            positionListener?.({
+                playlistId,
+                contentXtreamId,
+                contentType: 'vod',
+                positionSeconds: at,
+                durationSeconds: 7744,
+            });
+        }
+
+        it('takes the route stream’s progress', () => {
+            emit(ROUTE_PLAYLIST, ROUTE_VOD_ID, 120);
+
+            expect(service.vodPlaybackPosition()?.positionSeconds).toBe(120);
+        });
+
+        it('takes the progress of the alternative it switched to', () => {
+            activeSource.set({
+                playlistId: 'playlist-2',
+                contentXtreamId: 991,
+                contentType: 'vod',
+            });
+
+            // An external player running an alternative reports under THAT
+            // playlist's ids. Dropping these leaves the resume point where
+            // playback started, and a later switch rewinds the whole session.
+            emit('playlist-2', 991, 3600);
+
+            expect(service.vodPlaybackPosition()?.positionSeconds).toBe(3600);
+        });
+
+        it('ignores progress for a movie this page is not showing', () => {
+            emit('playlist-3', 12345, 900);
+
+            expect(service.vodPlaybackPosition()).toBeNull();
+        });
     });
 });

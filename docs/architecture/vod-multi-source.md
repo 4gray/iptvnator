@@ -263,9 +263,13 @@ serves both, because two would eventually disagree.
 ## Failover
 
 Only fires when `Settings.vodAutoFailover` is on, and it first awaits a
-discovery still in flight — a stream can fail faster than SQLite answers,
-and concluding "nowhere to go" against an empty controller would strand the
-user on the error screen with alternatives landing a moment later.
+discovery still in flight — a stream can fail faster than SQLite answers, and
+concluding "nowhere to go" against an empty controller would strand the user on
+the error screen with alternatives landing a moment later. `stillOwnsScreen()`
+does that wait and then re-checks the session, because the user can navigate
+during it and the controller afterwards may belong to a different film; the
+pinned-Play path takes the same wait, or a persisted pin would lose to worker
+latency.
 Ranking (`pickFailoverTarget`):
 
 1. never tried this session — a **hard filter**, not a preference
@@ -310,6 +314,12 @@ disown it: the primary button never became Stop, stopping found no session, and
 another click opened a second player. The page therefore claims a session that
 matches either the route's own stream or the alternative multi-source says is
 active (`VodDetailsPlaybackBindings.activeSource`).
+
+`ownsContent()` answers that question once, for both consumers: the session
+matcher AND the playback-position bridge. They cannot be allowed to disagree —
+a page that shows a Stop button for a session whose progress it discards keeps
+the resume point at wherever playback began, so a switch an hour later rewinds
+the whole session.
 
 Stop then has to win over the pin. The primary action consults the pin first —
 that is what makes "make this the main source" decide where playback starts —

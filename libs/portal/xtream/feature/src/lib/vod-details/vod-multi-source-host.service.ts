@@ -258,8 +258,27 @@ export class VodMultiSourceHostService {
      * nothing pinned to honour, leaving the caller's own Play path in charge.
      */
     async playPinnedSource(): Promise<boolean> {
+        // The pin arrives with discovery. Concluding "nothing is pinned"
+        // before the lookup returns would start the route's own source and
+        // make the persisted preference a coin toss on worker latency.
+        if (!(await this.stillOwnsScreen())) {
+            return false;
+        }
+
         const pinnedId = this.pendingPinnedSourceId();
         return pinnedId ? this.play(pinnedId) : false;
+    }
+
+    /**
+     * Wait for a discovery still in flight, then say whether this film is
+     * still the one on screen. Both callers touch the controller afterwards,
+     * and the user can navigate during the wait — acting then would answer
+     * one film's question with another film's sources.
+     */
+    private async stillOwnsScreen(): Promise<boolean> {
+        const session = this.sessionToken;
+        await this.loadInFlight;
+        return session === this.sessionToken;
     }
 
     /** Play from a specific source once; does not change the pin. */
@@ -335,7 +354,9 @@ export class VodMultiSourceHostService {
         // "nowhere to go" against a controller whose discovery has not landed
         // yet would strand the user on the error screen with alternatives
         // arriving a moment later and nothing left to retry them.
-        await this.loadInFlight;
+        if (!(await this.stillOwnsScreen())) {
+            return null;
+        }
 
         const switched = await runFailover(this.controller, (candidate) =>
             this.switchTo(candidate)

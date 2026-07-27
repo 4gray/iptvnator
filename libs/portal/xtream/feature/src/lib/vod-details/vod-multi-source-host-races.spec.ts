@@ -198,6 +198,30 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
+    it('abandons a failover whose movie was left during the wait', async () => {
+        const slow = createDeferred<{
+            sources: VodSourceCandidate[];
+            matchKind: string;
+        }>();
+        discovery.discover.mockReturnValueOnce(slow.promise);
+        vodAutoFailover.set(true);
+
+        const loadingA = service.load(MOVIE_A);
+        const failingOver = service.failover();
+
+        // The user navigates while A's discovery is still out. Running against
+        // whatever controller is current afterwards would answer A's playback
+        // failure by starting one of B's alternatives.
+        await loadMovie([ALT_TWO, ALT_THREE], MOVIE_B);
+        startPlayback.mockClear();
+
+        slow.resolve({ sources: [ALT_TWO], matchKind: 'title-year' });
+        await loadingA;
+
+        await expect(failingOver).resolves.toBeNull();
+        expect(startPlayback).not.toHaveBeenCalled();
+    });
+
     it('leaves the spinner on the row that is still resolving', async () => {
         await loadMovie([ALT_TWO, ALT_THREE]);
 
