@@ -67,7 +67,7 @@ export async function handleGetEpgMapping(
 ): Promise<EpgMappingRecord | null> {
     try {
         const db = await getDatabase();
-        return getEpgMapping(db, channelKey);
+        return await getEpgMapping(db, channelKey);
     } catch {
         return null;
     }
@@ -96,7 +96,7 @@ export async function handleSetEpgMapping(
 ): Promise<{ success: boolean }> {
     try {
         const db = await getDatabase();
-        return setEpgMapping(db, channelKey, epgChannelId, playlistId);
+        return await setEpgMapping(db, channelKey, epgChannelId, playlistId);
     } catch {
         return { success: false };
     }
@@ -107,7 +107,7 @@ export async function handleDeleteEpgMapping(
 ): Promise<{ success: boolean }> {
     try {
         const db = await getDatabase();
-        return deleteEpgMapping(db, channelKey);
+        return await deleteEpgMapping(db, channelKey);
     } catch {
         return { success: false };
     }
@@ -123,7 +123,7 @@ export async function handleSearchEpgChannels(
 
     try {
         const db = await getDatabase();
-        return searchEpgChannels(db, searchTerm, limit);
+        return await searchEpgChannels(db, searchTerm, limit);
     } catch {
         return [];
     }
