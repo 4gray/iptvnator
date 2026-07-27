@@ -172,6 +172,13 @@ explicit sum is `ipcStructuredCloneProxyMs`. See
 [M3U Playlist Module Architecture](./m3u-playlist-module.md#initial-url-import-performance-benchmark-electron)
 for the complete cross-process attribution.
 
+Formal initial-import comparison also requires both request-scoped captures in
+every measured run to have coherent event-loop delay, event-loop utilization,
+and worker-thread CPU values with no unavailable or invalid reason. Summary
+validity records the exact expected and valid request counts; nullable metrics
+remain in raw results but cannot be silently omitted from comparison
+distributions.
+
 The main-process benchmark samples the database worker's V8
 `used_heap_size` and `external_memory` independently. Raw output includes a
 valid-sample count for each metric. A peak is numeric only after at least one

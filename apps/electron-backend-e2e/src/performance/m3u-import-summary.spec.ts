@@ -155,3 +155,81 @@ it('summarizes measured runs only while preserving per-process memory boundaries
         /m3u-import-summary-schedule-invalid/
     );
 });
+
+it('fails comparison when any measured worker request omits mandatory event-loop or CPU metrics', () => {
+    const completeMain = createCompleteTestMainCapture();
+    const databaseWorker = completeMain.workers[0];
+    const get = databaseWorker?.requests[1];
+    assert.ok(databaseWorker);
+    assert.ok(get);
+    const invalidMain = {
+        ...completeMain,
+        workers: [
+            {
+                ...databaseWorker,
+                requests: [
+                    databaseWorker.requests[0],
+                    {
+                        ...get,
+                        eventLoopDelay: null,
+                        eventLoopDelayUnavailableReason:
+                            'event-loop-delay-capture-unavailable',
+                        histogramFlushedEpochMs: null,
+                    },
+                ],
+            },
+        ],
+    };
+    const warmup = createM3uImportIterationResult({
+        channelCount: TEST_M3U_CHANNEL_COUNT,
+        fixtureBytes: TEST_M3U_FIXTURE_BYTES,
+        kind: PERFORMANCE_ITERATION_KIND.WARMUP,
+        main: createCompleteTestMainCapture(),
+        renderer: createCompleteTestRendererCapture(),
+        runId: 'warmup-01',
+        scenarioId: 'm3u-import-10k',
+    });
+    const measured = createM3uImportIterationResult({
+        channelCount: TEST_M3U_CHANNEL_COUNT,
+        fixtureBytes: TEST_M3U_FIXTURE_BYTES,
+        kind: PERFORMANCE_ITERATION_KIND.MEASURED,
+        main: invalidMain,
+        renderer: createCompleteTestRendererCapture(),
+        runId: 'run-01',
+        scenarioId: 'm3u-import-10k',
+    });
+    const diagnostic = createM3uImportIterationResult({
+        channelCount: TEST_M3U_CHANNEL_COUNT,
+        fixtureBytes: TEST_M3U_FIXTURE_BYTES,
+        kind: PERFORMANCE_ITERATION_KIND.DIAGNOSTIC,
+        main: createCompleteTestMainCapture(),
+        renderer: createCompleteTestRendererCapture(),
+        runId: 'diagnostic',
+        scenarioId: 'm3u-import-10k',
+    });
+    const summary = createM3uImportBenchmarkSummary(
+        createTestM3uImportManifest(),
+        [warmup, measured, diagnostic]
+    );
+
+    assert.equal(
+        summary.validity.databaseWorkerRequestMetrics.validForComparison,
+        false
+    );
+    assert.equal(
+        summary.validity.databaseWorkerRequestMetrics.expectedRequestCount,
+        2
+    );
+    assert.equal(
+        summary.validity.databaseWorkerRequestMetrics.validRequestCount,
+        1
+    );
+    assert.equal(
+        summary.measured.databaseWorkerGetEventLoopDelayP95Ms.count,
+        0
+    );
+    assert.throws(
+        () => assertM3uImportComparisonValidity(summary),
+        /Database worker request metrics are invalid/
+    );
+});

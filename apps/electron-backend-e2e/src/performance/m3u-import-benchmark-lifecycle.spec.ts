@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
+    assertM3uImportOutputPathHasNoSymlinks,
     assertM3uImportSourceState,
     M3U_IMPORT_RENDERER_CDP_PORT,
     resolveM3uImportRendererCdpPort,
@@ -73,6 +76,40 @@ describe('initial M3U import benchmark lifecycle', () => {
         );
     });
 
+    it('rejects an existing output ancestor symlink before artifact creation', async () => {
+        const fixtureRoot = await mkdtemp(
+            join(tmpdir(), 'iptvnator-m3u-output-path-')
+        );
+        const repositoryRoot = join(fixtureRoot, 'repository');
+        const performanceRoot = join(
+            repositoryRoot,
+            'dist',
+            'performance'
+        );
+        const outside = join(fixtureRoot, 'outside');
+        await mkdir(performanceRoot, { recursive: true });
+        await mkdir(outside);
+        await symlink(outside, join(performanceRoot, 'redirect'));
+
+        try {
+            await assert.rejects(
+                assertM3uImportOutputPathHasNoSymlinks(
+                    repositoryRoot,
+                    join(performanceRoot, 'redirect', 'run')
+                ),
+                /Performance output path contains a symbolic link/
+            );
+            await assert.doesNotReject(
+                assertM3uImportOutputPathHasNoSymlinks(
+                    repositoryRoot,
+                    join(performanceRoot, 'ordinary', 'run')
+                )
+            );
+        } finally {
+            await rm(fixtureRoot, { force: true, recursive: true });
+        }
+    });
+
     it('keeps formal CDP capture on 9222 while allowing an isolated smoke port', () => {
         assert.equal(
             resolveM3uImportRendererCdpPort(false, undefined),
@@ -121,5 +158,26 @@ describe('initial M3U import benchmark lifecycle', () => {
         assert.match(source, /status\.databaseUpsertsCompleted\s*===\s*1/);
         assert.match(source, /status\.databaseGetsCompleted\s*===\s*1/);
         assert.match(source, /status\.databasePending\s*===\s*0/);
+    });
+
+    it('always disposes renderer capture before closing Electron on iteration failure', () => {
+        const source = readFileSync(
+            resolve(
+                process.cwd(),
+                'src/performance/m3u-import.benchmark.ts'
+            ),
+            'utf8'
+        );
+        const runIteration = source.indexOf('async function runIteration');
+        const finallyBlock = source.indexOf('} finally {', runIteration);
+        const rendererDispose = source.indexOf(
+            'await renderer.dispose()',
+            finallyBlock
+        );
+        const appClose = source.indexOf('await closeElectronApp(app)', finallyBlock);
+
+        assert.ok(finallyBlock > runIteration);
+        assert.ok(rendererDispose > finallyBlock);
+        assert.ok(appClose > rendererDispose);
     });
 });

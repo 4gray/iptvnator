@@ -31,7 +31,10 @@ import {
     type M3uImportBenchmarkSummary,
     type M3uImportIterationResult,
 } from './m3u-import-summary';
-import { startM3uImportRendererCapture } from './m3u-import-renderer-capture';
+import {
+    startM3uImportRendererCapture,
+    type RunningM3uImportRendererCapture,
+} from './m3u-import-renderer-capture';
 import {
     installMainCapture,
     readMainCaptureStatus,
@@ -142,6 +145,13 @@ export function assertM3uImportComparisonValidity(
             )}`
         );
     }
+    if (!summary.validity.databaseWorkerRequestMetrics.validForComparison) {
+        throw new Error(
+            `Database worker request metrics are invalid for comparison: ${JSON.stringify(
+                summary.validity.databaseWorkerRequestMetrics.invalidRequests
+            )}`
+        );
+    }
 }
 
 async function runIteration(
@@ -158,6 +168,7 @@ async function runIteration(
         join(tmpdir(), 'iptvnator-m3u-import-performance-')
     );
     let app: LaunchedElectronApp | null = null;
+    let renderer: RunningM3uImportRendererCapture | null = null;
 
     try {
         await assertTcpPortAvailable(config.rendererCdpPort);
@@ -186,7 +197,7 @@ async function runIteration(
         const requestsBefore = server.requestCount();
         const diagnostic =
             definition.kind === PERFORMANCE_ITERATION_KIND.DIAGNOSTIC;
-        const renderer = await startM3uImportRendererCapture(app.mainWindow, {
+        renderer = await startM3uImportRendererCapture(app.mainWindow, {
             diagnostic,
             outputDirectory: iterationDirectory,
             playlistTitle: `Synthetic M3U import ${definition.channelCount}`,
@@ -229,6 +240,14 @@ async function runIteration(
         await writeJson(join(iterationDirectory, 'result.json'), result);
         return result;
     } finally {
+        if (renderer) {
+            await renderer.dispose().catch((error: unknown) => {
+                console.error(
+                    '[performance] Renderer capture cleanup failed',
+                    error
+                );
+            });
+        }
         if (app) {
             await closeElectronApp(app).catch((error: unknown) => {
                 console.error('[performance] Electron cleanup failed', error);

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer as createTcpServer } from 'node:net';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
@@ -63,6 +63,10 @@ export async function resolveM3uImportBenchmarkConfiguration(): Promise<M3uImpor
     if (typeof electronPackage.version !== 'string') {
         throw new Error('Unable to resolve the Electron runtime version');
     }
+    await assertM3uImportOutputPathHasNoSymlinks(
+        workspaceRoot,
+        layout.outputRoot
+    );
     await assertMissing(layout.variantDirectory);
     await assertPerformanceArtifactCapacity(layout.variantDirectory);
     await mkdir(layout.variantDirectory, { recursive: true });
@@ -100,6 +104,36 @@ export function resolveM3uImportOutputLayout(
         throw new Error('IPTVNATOR_PERF_VARIANT is invalid');
     }
     return Object.freeze({ outputRoot, variantDirectory });
+}
+
+export async function assertM3uImportOutputPathHasNoSymlinks(
+    repositoryRoot: string,
+    outputRoot: string
+): Promise<void> {
+    const root = resolve(repositoryRoot);
+    const output = resolve(outputRoot);
+    if (!isStrictDescendant(root, output)) {
+        throw new Error('Performance output path escapes the repository');
+    }
+    const components = relative(root, output).split(sep);
+    let current = root;
+
+    for (const component of ['', ...components]) {
+        current = component === '' ? current : join(current, component);
+        try {
+            const stats = await lstat(current);
+            if (stats.isSymbolicLink()) {
+                throw new Error(
+                    `Performance output path contains a symbolic link: ${current}`
+                );
+            }
+        } catch (error) {
+            if (isMissingPath(error)) {
+                return;
+            }
+            throw error;
+        }
+    }
 }
 
 export function assertM3uImportSourceState(
@@ -254,4 +288,13 @@ async function assertMissing(path: string): Promise<void> {
         return;
     }
     throw new Error(`Performance output already exists: ${path}`);
+}
+
+function isMissingPath(error: unknown): boolean {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT'
+    );
 }

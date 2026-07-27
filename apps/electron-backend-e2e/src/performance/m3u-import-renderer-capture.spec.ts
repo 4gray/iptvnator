@@ -377,8 +377,13 @@ test('fails closed when any terminal proof or the probe itself is missing', asyn
 test('clears the harness heap sampler even when the renderer probe is missing', () => {
     const source = readSource(captureUrl);
     assert.ok(source);
-    assert.match(
-        source,
-        /try \{\s*probe = await stopM3uImportRendererProbe\(page\);[\s\S]*finally \{\s*clearInterval\(heapSampleTimer\)/
+    const backgroundStop = source.indexOf(
+        'await stopBackgroundWork()',
+        source.indexOf('const stopCapture')
     );
+    const probeStop = source.indexOf('probe = await stopProbe()', backgroundStop);
+
+    assert.match(source, /clearInterval\(heapSampleTimer\)/);
+    assert.ok(backgroundStop >= 0);
+    assert.ok(probeStop > backgroundStop);
 });

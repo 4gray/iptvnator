@@ -25,6 +25,10 @@ import {
 } from './database-worker-peak-memory-validity';
 import { assessDatabaseWorkerPostGcValidity } from './database-worker-post-gc-validity';
 import {
+    assessDatabaseWorkerRequestMetricsValidity,
+    type DatabaseWorkerRequestMetricsValidity,
+} from './database-worker-request-metrics-validity';
+import {
     assessRendererRssValidity,
     type RendererRssValidity,
 } from './renderer-rss-validity';
@@ -140,6 +144,7 @@ export interface M3uImportBenchmarkSummary {
     readonly validity: {
         readonly databaseWorkerPeakMemory: DatabaseWorkerPeakMemoryValidity;
         readonly databaseWorkerPostGc: DatabaseWorkerPostGcValidity;
+        readonly databaseWorkerRequestMetrics: DatabaseWorkerRequestMetricsValidity;
         readonly rendererRss: RendererRssValidity;
     };
 }
@@ -390,6 +395,8 @@ export function createM3uImportBenchmarkSummary(
                 assessDatabaseWorkerPeakMemoryValidity(iterations),
             databaseWorkerPostGc:
                 assessDatabaseWorkerPostGcValidity(iterations),
+            databaseWorkerRequestMetrics:
+                assessDatabaseWorkerRequestMetricsValidity(iterations),
             rendererRss: assessRendererRssValidity(iterations),
         }),
     });
