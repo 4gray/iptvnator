@@ -1,5 +1,5 @@
+import type { StalkerSessionApplicationOperation } from '@iptvnator/shared/interfaces';
 import {
-    STALKER_APPLICATION_OPERATIONS,
     STALKER_CONNECTION_STAGES,
     STALKER_FAILURE_REASONS,
     STALKER_PROFILE_RESULT_KINDS,
@@ -19,7 +19,7 @@ export type StalkerProfileResultKind =
     (typeof STALKER_PROFILE_RESULT_KINDS)[keyof typeof STALKER_PROFILE_RESULT_KINDS];
 
 export type StalkerApplicationOperation =
-    (typeof STALKER_APPLICATION_OPERATIONS)[keyof typeof STALKER_APPLICATION_OPERATIONS];
+    StalkerSessionApplicationOperation;
 
 export interface StalkerNormalizedProfileReady {
     kind: typeof STALKER_PROFILE_RESULT_KINDS.Ready;

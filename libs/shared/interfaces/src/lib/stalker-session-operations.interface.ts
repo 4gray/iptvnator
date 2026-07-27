@@ -27,6 +27,7 @@ export type StalkerSessionContentType =
     (typeof STALKER_SESSION_CONTENT_TYPES)[keyof typeof STALKER_SESSION_CONTENT_TYPES];
 
 export type StalkerSessionEntityId = string | number;
+export type StalkerPlaybackContextRef = string;
 export type StalkerSessionNoParameters = Readonly<Record<string, never>>;
 
 export interface StalkerSessionCategoryParameters {
@@ -165,7 +166,7 @@ export interface StalkerSessionEpgResult {
 
 export interface StalkerSessionCreateLinkResult {
     streamUrl: string;
-    playbackContextRef?: string;
+    playbackContextRef?: StalkerPlaybackContextRef;
     title?: string;
     thumbnail?: string | null;
     isLive?: boolean;

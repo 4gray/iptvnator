@@ -10,6 +10,7 @@ import type {
     StalkerSessionControlOutcome,
     StalkerSessionControlRequest,
     StalkerSessionOpenRequest,
+    StalkerSessionApplicationOperation,
     StalkerSessionRequest,
     StalkerSessionRequestOutcome,
 } from './stalker-session.interface';
@@ -34,16 +35,30 @@ export interface IpcCommandContractMap {
 }
 
 export type IpcCommandId = keyof IpcCommandContractMap;
-export type IpcCommandRequest<Command extends IpcCommandId> =
-    IpcCommandContractMap[Command]['request'];
-export type IpcCommandResponse<Command extends IpcCommandId> =
-    IpcCommandContractMap[Command]['response'];
+export type IpcCommandRequest<
+    Command extends IpcCommandId,
+    Operation extends
+        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+> = Command extends typeof STALKER_SESSION_REQUEST
+    ? StalkerSessionRequest<Operation>
+    : IpcCommandContractMap[Command]['request'];
+export type IpcCommandResponse<
+    Command extends IpcCommandId,
+    Operation extends
+        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+> = Command extends typeof STALKER_SESSION_REQUEST
+    ? StalkerSessionRequestOutcome<Operation>
+    : IpcCommandContractMap[Command]['response'];
 
-export class IpcCommand<Command extends IpcCommandId> {
+export class IpcCommand<
+    Command extends IpcCommandId,
+    Operation extends
+        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+> {
     constructor(
         public readonly id: Command,
         public readonly callback: (
-            payload: IpcCommandResponse<Command>
+            payload: IpcCommandResponse<Command, Operation>
         ) => void
     ) {
         this.id = id;

@@ -1,9 +1,16 @@
+import { STALKER_SESSION_APPLICATION_OPERATIONS } from '@iptvnator/shared/interfaces';
 import {
     STALKER_APPLICATION_OPERATIONS,
     validateStalkerApplicationRequest,
 } from './stalker-request-policy';
 
 describe('Stalker application request policy', () => {
+    it('uses the shared operation allowlist as its single source of truth', () => {
+        expect(STALKER_APPLICATION_OPERATIONS).toBe(
+            STALKER_SESSION_APPLICATION_OPERATIONS
+        );
+    });
+
     it.each(['handshake', 'get_profile', 'do_auth'])(
         'rejects the raw auth action %s',
         (operation) => {

@@ -55,21 +55,6 @@ export const STALKER_PROFILE_RESULT_KINDS = {
     Failure: 'failure',
 } as const;
 
-export const STALKER_APPLICATION_OPERATIONS = {
-    CatalogCategories: 'get-categories',
-    CatalogGenres: 'get-genres',
-    CatalogItems: 'get-ordered-list',
-    CatalogAllChannels: 'get-all-channels',
-    CatalogSearch: 'search',
-    SeriesSeasons: 'get-series-seasons',
-    SeriesEpisodes: 'get-series-episodes',
-    ShortEpg: 'get-short-epg',
-    EpgInfo: 'get-epg-info',
-    CreateLink: 'create-link',
-    Favorites: 'favorites',
-    MainInfo: 'get-main-info',
-} as const;
-
 export const STALKER_RESERVED_REQUEST_PARAMETERS = [
     'action',
     'api_signature',

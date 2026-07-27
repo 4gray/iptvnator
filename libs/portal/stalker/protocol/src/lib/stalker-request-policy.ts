@@ -1,10 +1,11 @@
+import { STALKER_SESSION_APPLICATION_OPERATIONS } from '@iptvnator/shared/interfaces';
 import {
-    STALKER_APPLICATION_OPERATIONS,
     STALKER_MANAGED_REQUEST_HEADERS,
     STALKER_RESERVED_REQUEST_PARAMETERS,
 } from './stalker-protocol.constants';
 
-export { STALKER_APPLICATION_OPERATIONS };
+export const STALKER_APPLICATION_OPERATIONS =
+    STALKER_SESSION_APPLICATION_OPERATIONS;
 
 interface StalkerApplicationRequestInput {
     operation: string;

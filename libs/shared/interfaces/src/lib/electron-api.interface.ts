@@ -35,6 +35,7 @@ import { CatalogTitleMatch } from './catalog-title-match.interface';
 import { Settings } from './settings.interface';
 import {
     StalkerSessionConnectionOutcome,
+    StalkerSessionApplicationOperation,
     StalkerSessionContinueRequest,
     StalkerSessionControlOutcome,
     StalkerSessionControlRequest,
@@ -677,9 +678,11 @@ export interface ElectronBridgeApi {
     stalkerSessionContinue?: (
         request: StalkerSessionContinueRequest
     ) => Promise<StalkerSessionConnectionOutcome>;
-    stalkerSessionRequest?: (
-        request: StalkerSessionRequest
-    ) => Promise<StalkerSessionRequestOutcome>;
+    stalkerSessionRequest?: <
+        Operation extends StalkerSessionApplicationOperation,
+    >(
+        request: StalkerSessionRequest<Operation>
+    ) => Promise<StalkerSessionRequestOutcome<Operation>>;
     stalkerSessionControl?: (
         request: StalkerSessionControlRequest
     ) => Promise<StalkerSessionControlOutcome>;

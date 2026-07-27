@@ -1,17 +1,31 @@
 import { STALKER_ENDPOINT_CANDIDATE_LIMIT } from './stalker-protocol.constants';
 
 const CREDENTIAL_QUERY_KEYS = new Set([
+    'access_token',
     'api_signature',
+    'auth',
+    'auth_second_step',
     'authorization',
+    'bearer',
+    'cookie',
+    'credentials',
     'device_id',
+    'device_id1',
     'device_id2',
     'login',
     'mac',
+    'not_valid_token',
     'password',
     'prehash',
+    'random',
+    'refresh_token',
     'serial',
+    'serial_number',
+    'session',
+    'session_id',
     'signature',
     'signature2',
+    'sn',
     'token',
     'username',
 ]);
@@ -33,6 +47,7 @@ export function normalizeStalkerSourceUrl(sourceUrl: string): string {
     }
 
     if (
+        hasAuthorityUserInfo(sourceUrl) ||
         (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
         parsed.username ||
         parsed.password ||
@@ -43,6 +58,23 @@ export function normalizeStalkerSourceUrl(sourceUrl: string): string {
 
     parsed.hash = '';
     return parsed.toString();
+}
+
+function hasAuthorityUserInfo(sourceUrl: string): boolean {
+    const trimmed = sourceUrl.trim();
+    const schemeSeparator = trimmed.indexOf('://');
+    if (schemeSeparator === -1) {
+        return false;
+    }
+    const authorityStart = schemeSeparator + 3;
+    const authorityEndOffset = trimmed
+        .slice(authorityStart)
+        .search(/[/?#]/);
+    const authorityEnd =
+        authorityEndOffset === -1
+            ? trimmed.length
+            : authorityStart + authorityEndOffset;
+    return trimmed.slice(authorityStart, authorityEnd).includes('@');
 }
 
 export function deriveStalkerEndpointCandidates(

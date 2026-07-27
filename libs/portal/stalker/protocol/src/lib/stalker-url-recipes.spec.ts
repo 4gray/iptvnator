@@ -91,10 +91,15 @@ describe('Stalker endpoint URL recipes', () => {
 
     it.each([
         'https://user:password@portal.test/c/',
+        'https://@portal.test/c/',
         'https://portal.test/c/?username=account',
         'https://portal.test/c/?PASSWORD=secret',
         'https://portal.test/c/?token=secret',
         'https://portal.test/c/?mac=00%3A1A%3A79%3A00%3A00%3A01',
+        'https://portal.test/c/?sn=serial',
+        'https://portal.test/c/?auth_second_step=1',
+        'https://portal.test/c/?random=handshake-random',
+        'https://portal.test/c/?cookie=session-cookie',
         'ftp://portal.test/c/',
     ])('rejects credential-bearing or unsupported URLs', (sourceUrl) => {
         expect(() => normalizeStalkerSourceUrl(sourceUrl)).toThrow(

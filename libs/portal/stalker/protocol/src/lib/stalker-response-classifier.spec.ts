@@ -28,6 +28,21 @@ describe('Stalker response classifier', () => {
     });
 
     it.each([
+        { js: { error: 'Access denied', id: 7 } },
+        { js: { blocked: true, id: 7 } },
+        { js: { credentials_required: true, id: 7 } },
+        { error: 'Authorization failed', js: { id: 7 } },
+    ])(
+        'rejects status-less profiles carrying failure indicators',
+        (value) => {
+            expect(classifyStalkerProfile(value)).toEqual({
+                kind: 'failure',
+                reason: 'incompatible-response',
+            });
+        }
+    );
+
+    it.each([
         { js: { id: 7, status: 3 } },
         { js: { status: 'unknown' } },
         { status: 0 },
@@ -97,6 +112,34 @@ describe('Stalker response classifier', () => {
             reason: 'incompatible-response',
         });
     });
+
+    it('gives recognized 403 protection evidence precedence over token text', () => {
+        expect(
+            classifyStalkerResponseFailure({
+                httpStatus: 403,
+                rawBody: '<html>Cloudflare challenge</html>',
+                value: { js: { error: 'Authorization failed' } },
+            })
+        ).toEqual({
+            kind: 'failure',
+            reason: 'portal-protection-blocked',
+        });
+    });
+
+    it.each(['Authorization failed.', 'Access denied.'])(
+        'rejects the noncanonical error variant %s',
+        (error) => {
+            expect(
+                classifyStalkerResponseFailure({
+                    httpStatus: 200,
+                    value: { js: { error } },
+                })
+            ).toEqual({
+                kind: 'failure',
+                reason: 'incompatible-response',
+            });
+        }
+    );
 
     it.each(['application/json', 'text/json; charset=utf-8'])(
         'accepts JSON for %s',

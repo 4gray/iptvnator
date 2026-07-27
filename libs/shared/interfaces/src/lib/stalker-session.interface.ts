@@ -93,7 +93,6 @@ export type StalkerSessionStage =
 export type StalkerSessionLeaseRef = string;
 export type StalkerSessionAttemptRef = string;
 export type StalkerSessionChallengeRef = string;
-export type StalkerPlaybackContextRef = string;
 
 export interface StalkerSessionProfilePreset {
     id: 'mag250-public-5_1-minimal-v1';
@@ -128,10 +127,8 @@ export interface StalkerSessionTransportConfiguration {
     timezone?: string;
 }
 
-export interface StalkerSessionConnectionDescriptor {
+export interface StalkerSessionConnectionDescriptorBase {
     playlistRef: string;
-    connectionMode: StalkerSessionConnectionMode;
-    provisionalReason?: StalkerSessionProvisionalReason;
     sourceUrl: string;
     learnedEndpointHint?: string;
     macAddress: string;
@@ -139,6 +136,22 @@ export interface StalkerSessionConnectionDescriptor {
     identityOverrides?: StalkerSessionIdentityOverrides;
     transportConfiguration?: StalkerSessionTransportConfiguration;
 }
+
+export interface StalkerSessionPersistedConnectionDescriptor
+    extends StalkerSessionConnectionDescriptorBase {
+    connectionMode: 'persisted-open';
+    provisionalReason?: never;
+}
+
+export interface StalkerSessionProvisionalConnectionDescriptor
+    extends StalkerSessionConnectionDescriptorBase {
+    connectionMode: 'provisional';
+    provisionalReason: StalkerSessionProvisionalReason;
+}
+
+export type StalkerSessionConnectionDescriptor =
+    | StalkerSessionPersistedConnectionDescriptor
+    | StalkerSessionProvisionalConnectionDescriptor;
 
 export interface StalkerSessionOpenRequest {
     descriptor: StalkerSessionConnectionDescriptor;
@@ -179,28 +192,46 @@ export interface StalkerSessionPersistenceDraft {
     isFullStalkerPortal: boolean;
 }
 
-export interface StalkerSessionFullReadyOutcome {
+export interface StalkerSessionPersistedReadyState {
+    connectionMode: 'persisted-open';
+    provisionalReason?: never;
+    attemptRef?: never;
+}
+
+export interface StalkerSessionProvisionalReadyState {
+    connectionMode: 'provisional';
+    provisionalReason: StalkerSessionProvisionalReason;
+    attemptRef: StalkerSessionAttemptRef;
+}
+
+export interface StalkerSessionFullReadyOutcomeBase {
     kind: 'ready';
     recipe: 'full-session';
     requestId: string;
     endpoint: string;
     landingUrl: string;
     leaseRef: StalkerSessionLeaseRef;
-    attemptRef?: StalkerSessionAttemptRef;
     capabilities: StalkerSessionCapabilities;
     accountSummary?: StalkerSessionAccountSummary;
     persistenceDraft: StalkerSessionPersistenceDraft;
 }
 
-export interface StalkerSessionStatelessReadyOutcome {
+export type StalkerSessionFullReadyOutcome =
+    StalkerSessionFullReadyOutcomeBase &
+        (StalkerSessionPersistedReadyState | StalkerSessionProvisionalReadyState);
+
+export interface StalkerSessionStatelessReadyOutcomeBase {
     kind: 'ready';
     recipe: 'stateless-mac';
     requestId: string;
     endpoint: string;
     landingUrl: string;
-    attemptRef?: StalkerSessionAttemptRef;
     persistenceDraft: StalkerSessionPersistenceDraft;
 }
+
+export type StalkerSessionStatelessReadyOutcome =
+    StalkerSessionStatelessReadyOutcomeBase &
+        (StalkerSessionPersistedReadyState | StalkerSessionProvisionalReadyState);
 
 export interface StalkerSessionOriginApprovalRequiredOutcome {
     kind: 'origin-approval-required';
@@ -234,39 +265,46 @@ export type StalkerSessionConnectionOutcome =
     | StalkerSessionCredentialsRequiredOutcome
     | StalkerSessionFailureOutcome;
 
-export type StalkerSessionRequest = {
-    [Operation in StalkerSessionApplicationOperation]: {
+export type StalkerSessionRequest<
+    Operation extends
+        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+> = {
+    [CurrentOperation in Operation]: {
         leaseRef: StalkerSessionLeaseRef;
-        operation: Operation;
-        parameters: StalkerSessionOperationParameters<Operation>;
-        requestId?: string;
+        operation: CurrentOperation;
+        parameters: StalkerSessionOperationParameters<CurrentOperation>;
     };
-}[StalkerSessionApplicationOperation];
+}[Operation];
 
-export type StalkerSessionRequestSuccess = {
-    [Operation in StalkerSessionApplicationOperation]: {
+export type StalkerSessionRequestSuccess<
+    Operation extends
+        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+> = {
+    [CurrentOperation in Operation]: {
         kind: 'success';
         requestId: string;
-        operation: Operation;
-        payload: StalkerSessionOperationResult<Operation>;
-        playbackContextRef?: StalkerPlaybackContextRef;
+        operation: CurrentOperation;
+        payload: StalkerSessionOperationResult<CurrentOperation>;
     };
-}[StalkerSessionApplicationOperation];
+}[Operation];
 
-export type StalkerSessionRequestOutcome =
-    | StalkerSessionRequestSuccess
-    | StalkerSessionConnectionOutcome;
+export type StalkerSessionRequestOutcome<
+    Operation extends
+        StalkerSessionApplicationOperation = StalkerSessionApplicationOperation,
+> =
+    | StalkerSessionRequestSuccess<Operation>
+    | StalkerSessionOriginApprovalRequiredOutcome
+    | StalkerSessionCredentialsRequiredOutcome
+    | StalkerSessionFailureOutcome;
 
 export interface StalkerSessionLeaseControlRequest {
     action: 'activate' | 'deactivate' | 'close' | 'force-redetect';
     leaseRef: StalkerSessionLeaseRef;
-    requestId?: string;
 }
 
 export interface StalkerSessionAttemptControlRequest {
     action: 'commit' | 'discard';
     attemptRef: StalkerSessionAttemptRef;
-    requestId?: string;
 }
 
 export type StalkerSessionControlRequest =

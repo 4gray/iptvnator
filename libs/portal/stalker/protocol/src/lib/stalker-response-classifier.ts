@@ -106,7 +106,7 @@ export function classifyStalkerProfile(
     if (
         profile['status'] === undefined &&
         hasRecognizedStatuslessProfileField(profile) &&
-        typeof profile['error'] !== 'string'
+        !hasProfileFailureIndicator(envelope ?? {}, profile)
     ) {
         return {
             kind: STALKER_PROFILE_RESULT_KINDS.Ready,
@@ -140,11 +140,14 @@ export function classifyStalkerResponseFailure(
     | { kind: 'none' }
     | { kind: 'token-rejected' }
     | StalkerClassifierFailure {
-    const bodyError = extractExactBodyError(input.value, input.rawBody);
-    if (
-        input.httpStatus === 401 ||
-        bodyError === 'Authorization failed'
-    ) {
+    const bodyError = extractBodyError(input.value, input.rawBody);
+    if (input.httpStatus === 403 && looksLikePortalProtection(input.rawBody)) {
+        return {
+            kind: 'failure',
+            reason: STALKER_FAILURE_REASONS.PortalProtectionBlocked,
+        };
+    }
+    if (input.httpStatus === 401 || bodyError === 'Authorization failed') {
         return { kind: 'token-rejected' };
     }
     if (bodyError === 'Access denied') {
@@ -153,13 +156,7 @@ export function classifyStalkerResponseFailure(
             reason: STALKER_FAILURE_REASONS.AccountAccessDenied,
         };
     }
-    if (input.httpStatus === 403) {
-        if (looksLikePortalProtection(input.rawBody)) {
-            return {
-                kind: 'failure',
-                reason: STALKER_FAILURE_REASONS.PortalProtectionBlocked,
-            };
-        }
+    if (bodyError !== undefined || input.httpStatus === 403) {
         return incompatibleResponse();
     }
     if (input.httpStatus === 429) {
@@ -197,6 +194,48 @@ function hasRecognizedStatuslessProfileField(
         'timeslot',
         'watchdog_timeout',
     ].some((field) => profile[field] !== undefined);
+}
+
+function hasProfileFailureIndicator(
+    envelope: Readonly<Record<string, unknown>>,
+    profile: Readonly<Record<string, unknown>>
+): boolean {
+    const errorFields = ['error', 'errors', 'error_message', 'error_msg'];
+    const blockFields = [
+        'blocked',
+        'is_blocked',
+        'account_blocked',
+        'disabled',
+        'banned',
+    ];
+    const credentialFields = [
+        'credentials_required',
+        'credential_required',
+        'login_required',
+        'auth_required',
+        'authentication_required',
+        'need_auth',
+        'requires_auth',
+    ];
+    return [...errorFields, ...blockFields, ...credentialFields].some(
+        (field) =>
+            isFailureIndicator(envelope[field]) ||
+            isFailureIndicator(profile[field])
+    );
+}
+
+function isFailureIndicator(value: unknown): boolean {
+    if (value === true) return true;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value !== 'string') return false;
+    const normalized = value.trim().toLowerCase();
+    return (
+        normalized !== '' &&
+        normalized !== '0' &&
+        normalized !== 'false' &&
+        normalized !== 'none' &&
+        normalized !== 'ok'
+    );
 }
 
 function normalizeMediaType(
@@ -256,10 +295,10 @@ function asRecord(value: unknown): Readonly<Record<string, unknown>> | undefined
         : undefined;
 }
 
-function extractExactBodyError(
+function extractBodyError(
     value: unknown,
     rawBody: string | undefined
-): 'Access denied' | 'Authorization failed' | undefined {
+): string | undefined {
     const envelope = asRecord(value);
     const js = asRecord(envelope?.['js']);
     const candidate =
@@ -268,13 +307,7 @@ function extractExactBodyError(
             : typeof envelope?.['error'] === 'string'
               ? envelope['error']
               : rawBody;
-    if (candidate === 'Authorization failed' || candidate === 'Authorization failed.') {
-        return 'Authorization failed';
-    }
-    if (candidate === 'Access denied' || candidate === 'Access denied.') {
-        return 'Access denied';
-    }
-    return undefined;
+    return typeof candidate === 'string' ? candidate : undefined;
 }
 
 function looksLikePortalProtection(body: string | undefined): boolean {
