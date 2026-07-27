@@ -114,6 +114,7 @@ describe('vlc-session.service process lifecycle', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        spawnMock.mockReset();
         rcWrites.length = 0;
         consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
         (createServer as unknown as jest.Mock).mockImplementation(() => ({
@@ -161,6 +162,77 @@ describe('vlc-session.service process lifecycle', () => {
                     ':http-referrer=https://ref.example :meta-title=Second\n',
             ]);
             expect(session.status).toBe('opened');
+        });
+
+        it('relaunches instead of sending Authorization and Cookie through RC', async () => {
+            const proc = createMockChildProcess();
+            await openTrackedVlcInstance(proc);
+            installRcSocketMock('ack');
+
+            const freshProc = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(freshProc);
+            const openPromise = openVlcPlayer({
+                title: 'Authenticated',
+                url: 'https://example.com/authenticated.m3u8',
+                mainOwnedHeaders: {
+                    Authorization: 'Bearer safe-token',
+                    Cookie: 'session=safe-cookie',
+                },
+            });
+            await waitForSpawnCallCount(2);
+            freshProc.emit('spawn');
+            const session = await openPromise;
+
+            expect(proc.kill).toHaveBeenCalled();
+            expect(rcWrites).toEqual([]);
+            expect(spawnMock.mock.calls[1][1]).toEqual([
+                ':http-header=Authorization: Bearer safe-token',
+                ':http-header=Cookie: session=safe-cookie',
+                'https://example.com/authenticated.m3u8',
+                ':meta-title=Authenticated',
+            ]);
+            expect(spawnMock.mock.calls[1][2]).toEqual({
+                shell: false,
+                detached: true,
+                stdio: 'ignore',
+            });
+            expect(freshProc.unref).toHaveBeenCalled();
+            expect(session.status).toBe('opened');
+        });
+
+        it('keeps malicious header syntax inside argv and out of RC', async () => {
+            const proc = createMockChildProcess();
+            await openTrackedVlcInstance(proc);
+            installRcSocketMock('ack');
+
+            const freshProc = createMockChildProcess();
+            spawnMock.mockReturnValueOnce(freshProc);
+            const openPromise = openVlcPlayer({
+                title: 'Authenticated',
+                url: 'https://example.com/authenticated.m3u8',
+                mainOwnedHeaders: {
+                    Authorization:
+                        'Bearer safe-token :sout=#duplicate{dst=display}',
+                    Cookie: 'session=safe-cookie\n:sout=#display',
+                },
+            });
+            await waitForSpawnCallCount(2);
+            freshProc.emit('spawn');
+            await openPromise;
+
+            expect(proc.kill).toHaveBeenCalled();
+            expect(rcWrites).toEqual([]);
+            expect(spawnMock.mock.calls[1][1]).toContain(
+                ':http-header=Authorization: Bearer safe-token :sout=#duplicate{dst=display}'
+            );
+            expect(spawnMock.mock.calls[1][1]).toContain(
+                ':http-header=Cookie: session=safe-cookie\n:sout=#display'
+            );
+            expect(spawnMock.mock.calls[1][2]).toEqual({
+                shell: false,
+                detached: true,
+                stdio: 'ignore',
+            });
         });
 
         it('kills the stale instance and spawns fresh when RC reuse fails', async () => {

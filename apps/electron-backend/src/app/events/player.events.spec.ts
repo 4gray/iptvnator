@@ -860,18 +860,17 @@ describe('buildVlcEnqueueCommands', () => {
         ).toEqual(['clear', 'add http://stream.example/a.m3u8']);
     });
 
-    it('attaches per-input HTTP options inline with the add command', () => {
+    it('attaches non-header input options inline with the add command', () => {
         const commands = buildVlcEnqueueCommands({
             url: 'http://stream.example/a.m3u8',
             title: 'Channel One',
             userAgent: 'Custom/1.0',
             referer: 'https://referer.example',
-            headers: { 'X-Token': 'abc' },
         });
 
         expect(commands[0]).toBe('clear');
         expect(commands[1]).toBe(
-            'add http://stream.example/a.m3u8 :http-user-agent=Custom/1.0 :http-referrer=https://referer.example :http-header=X-Token: abc :meta-title=Channel One'
+            'add http://stream.example/a.m3u8 :http-user-agent=Custom/1.0 :http-referrer=https://referer.example :meta-title=Channel One'
         );
     });
 
@@ -897,13 +896,4 @@ describe('buildVlcEnqueueCommands', () => {
         ]);
     });
 
-    it('skips empty header values', () => {
-        const commands = buildVlcEnqueueCommands({
-            url: 'http://stream.example/a.m3u8',
-            headers: { 'X-Empty': '   ', 'X-Real': 'value' },
-        });
-
-        expect(commands[1]).toContain(':http-header=X-Real: value');
-        expect(commands[1]).not.toContain('X-Empty');
-    });
 });

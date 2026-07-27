@@ -59,7 +59,6 @@ export function buildVlcEnqueueCommands(options: {
     userAgent?: string;
     referer?: string;
     origin?: string;
-    headers?: Record<string, string>;
     startTime?: number;
 }): string[] {
     const inputOptions: string[] = [];
@@ -72,12 +71,6 @@ export function buildVlcEnqueueCommands(options: {
     } else if (options.origin) {
         inputOptions.push(`:http-referrer=${options.origin}`);
     }
-    Object.entries(options.headers ?? {}).forEach(([name, value]) => {
-        if (!name || value === undefined || value === null) return;
-        const trimmedValue = String(value).trim();
-        if (!trimmedValue) return;
-        inputOptions.push(`:http-header=${name}: ${trimmedValue}`);
-    });
     if (options.title) {
         inputOptions.push(`:meta-title=${options.title}`);
     }
@@ -329,10 +322,6 @@ export async function openVlcPlayer({
         );
         const customVlcArguments = store.get(VLC_PLAYER_ARGUMENTS, '');
         const requestedReuseInstance = store.get(VLC_REUSE_INSTANCE, false);
-        const reuseInstance = shouldReuseVlcInstance(
-            requestedReuseInstance,
-            isFlatpak
-        );
         const {
             mergedHeaders,
             effectiveOrigin,
@@ -346,11 +335,27 @@ export async function openVlcPlayer({
             headers,
             mainOwnedHeaders,
         });
+        const hasHttpHeaders = Object.entries(mergedHeaders).some(
+            ([name, value]) =>
+                Boolean(name) &&
+                value !== undefined &&
+                value !== null &&
+                Boolean(String(value).trim())
+        );
+        // VLC RC has no proven escaping for `add` input options. Header-bearing
+        // streams must use a fresh argv launch; a per-process RC port may still
+        // be opened below solely for playback-position polling.
+        const configuredReuseInstance = shouldReuseVlcInstance(
+            requestedReuseInstance,
+            isFlatpak
+        );
+        const reuseInstance = configuredReuseInstance && !hasHttpHeaders;
         traceExternalPlayer('open vlc player', {
             path: vlcLaunchContext.playerPath,
             launchMode: vlcLaunchContext.mode,
             requestedReuseInstance,
             reuseInstance,
+            hasHttpHeaders,
             stream: maskUrlForLogs(url),
             hasUserAgent: Boolean(effectiveUserAgent),
             hasReferer: Boolean(effectiveReferer),
@@ -360,6 +365,12 @@ export async function openVlcPlayer({
             customArgumentCount:
                 parseExternalPlayerArguments(customVlcArguments).length,
         });
+
+        if (hasHttpHeaders && vlcProcess) {
+            killStoredVlcProcess(
+                'relaunch vlc instead of sending http headers through rc'
+            );
+        }
 
         if (reuseInstance && vlcProcess && !vlcProcess.killed && vlcRcPort) {
             traceExternalPlayer('reuse existing vlc instance', {
@@ -372,7 +383,6 @@ export async function openVlcPlayer({
                     userAgent: effectiveUserAgent,
                     referer: effectiveReferer,
                     origin: effectiveOrigin,
-                    headers: mergedHeaders,
                     startTime,
                 });
                 await sendVlcRcCommands(vlcRcPort, enqueueCommands);

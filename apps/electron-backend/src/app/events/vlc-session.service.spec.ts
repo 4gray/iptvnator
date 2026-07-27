@@ -114,14 +114,12 @@ describe('vlc-session.service helpers and launch args', () => {
                     title: 'My Title',
                     userAgent: 'UA/1.0',
                     referer: 'https://ref.example',
-                    headers: { 'X-A': ' padded ', 'X-Empty': '  ' },
                     startTime: 12.7,
                 })
             ).toEqual([
                 'clear',
                 'add http://srv/1 :http-user-agent=UA/1.0 ' +
-                    ':http-referrer=https://ref.example ' +
-                    ':http-header=X-A: padded :meta-title=My Title',
+                    ':http-referrer=https://ref.example :meta-title=My Title',
                 'seek 12',
             ]);
         });
