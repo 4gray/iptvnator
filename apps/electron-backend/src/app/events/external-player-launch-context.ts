@@ -80,7 +80,9 @@ function resolveMacOSAppBundlePlayerPath(
         return playerPath;
     }
 
-    return path.join(
+    // .app bundle paths are always POSIX, even when a darwin platform is
+    // simulated on a win32 host in tests.
+    return path.posix.join(
         appBundlePath,
         'Contents',
         'MacOS',
@@ -320,10 +322,12 @@ function getHomebrewCaskVlcPaths(readDirectory: ReadDirectory): string[] {
     const caskroomPath = '/opt/homebrew/Caskroom/vlc';
 
     try {
+        // Caskroom paths are always POSIX, even when a darwin platform is
+        // simulated on a win32 host in tests.
         return readDirectory(caskroomPath)
             .filter((entry) => entry.trim().length > 0)
             .map((entry) =>
-                path.join(
+                path.posix.join(
                     caskroomPath,
                     entry,
                     'VLC.app',

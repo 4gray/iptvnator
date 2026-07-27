@@ -241,7 +241,7 @@
                 "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
             ],
-            "command": "eslint apps/electron-backend/**/*.ts \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/**/*.ts\""
+            "command": "eslint \"apps/electron-backend/**/*.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/**/*.ts\""
         },
         "test": {
             "executor": "@nx/jest:jest",
