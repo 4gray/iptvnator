@@ -42,7 +42,7 @@ export function createStalkerIdentityProfile(
         stb_type: 'MAG250',
         timezone,
     };
-    assignPresent(profileParameters, 'serial', serialNumber);
+    assignPresent(profileParameters, 'sn', serialNumber);
     assignPresent(profileParameters, 'device_id', deviceId1);
     assignPresent(profileParameters, 'device_id2', deviceId2);
     assignPresent(profileParameters, 'signature', signature1);
@@ -94,7 +94,7 @@ export function createStalkerIdentityProfile(
         type: 'STB',
     };
     assignPresent(metrics, 'random', handshakeRandom);
-    assignPresent(metrics, 'serial', serialNumber);
+    assignPresent(metrics, 'sn', serialNumber);
     assignPresent(metrics, 'uid', deviceId2);
 
     return {

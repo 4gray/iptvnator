@@ -24,6 +24,13 @@ describe('Stalker coherent identity profile', () => {
                 timezone: 'UTC',
             },
         });
+        expect(profile.profileParameters).toEqual({
+            client_type: 'STB',
+            hd: 1,
+            language: 'en',
+            stb_type: 'MAG250',
+            timezone: 'UTC',
+        });
     });
 
     it('omits blank native identity fields instead of inventing values', () => {
@@ -36,15 +43,12 @@ describe('Stalker coherent identity profile', () => {
             signature2: '',
         });
 
-        expect(profile.profileParameters).not.toEqual(
-            expect.objectContaining({
-                device_id: expect.anything(),
-                device_id2: expect.anything(),
-                serial: expect.anything(),
-                signature: expect.anything(),
-                signature2: expect.anything(),
-            })
-        );
+        expect(profile.profileParameters).not.toHaveProperty('device_id');
+        expect(profile.profileParameters).not.toHaveProperty('device_id2');
+        expect(profile.profileParameters).not.toHaveProperty('serial');
+        expect(profile.profileParameters).not.toHaveProperty('signature');
+        expect(profile.profileParameters).not.toHaveProperty('signature2');
+        expect(profile.profileParameters).not.toHaveProperty('sn');
         expect(profile.metrics).toEqual({
             mac: '00:1A:79:00:00:01',
             model: 'MAG250',
@@ -75,10 +79,11 @@ describe('Stalker coherent identity profile', () => {
         expect(profile.profileParameters).toMatchObject({
             device_id: 'Device-One',
             device_id2: 'Device-Two',
-            serial: 'Serial-AbC',
+            sn: 'Serial-AbC',
             signature: 'Sig-One',
             signature2: 'Sig-Two',
         });
+        expect(profile.profileParameters).not.toHaveProperty('serial');
     });
 
     it('normalizes one locale, language, and timezone tuple', () => {
@@ -114,10 +119,11 @@ describe('Stalker coherent identity profile', () => {
             mac: '00:1A:79:00:00:01',
             model: 'MAG250',
             random: 'run-random',
-            serial: 'serial-value',
+            sn: 'serial-value',
             type: 'STB',
             uid: 'actual-uid',
         });
+        expect(profile.metrics).not.toHaveProperty('serial');
     });
 
     it('forwards an explicitly traced firmware tuple without deriving it', () => {
