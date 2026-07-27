@@ -232,15 +232,7 @@ export class StalkerAuthSession {
         const secondProfile = await this.#http.request({
             headers: this.authenticatedHeaders(),
             mode: STALKER_HTTP_REQUEST_MODES.IdentityBearing,
-            params: {
-                ...this.#identity.profileParameters,
-                action: 'get_profile',
-                auth_second_step: 1,
-                JsHttpRequest: '1-xml',
-                metrics: JSON.stringify(this.#identity.metrics),
-                not_valid_token: 0,
-                type: 'stb',
-            },
+            params: profileRequestParameters(this.#identity, true),
             url: this.#endpoint,
         });
         const normalizedSecondProfile = normalizeResponse(
@@ -286,6 +278,50 @@ export class StalkerAuthSession {
 
     hasAcceptedCredentials(): boolean {
         return this.#acceptedCredentials !== undefined;
+    }
+
+    async checkProfile(): Promise<StalkerAuthenticatedRequestOutcome> {
+        if (this.#state !== 'ready') {
+            return authFailure(
+                STALKER_FAILURE_REASONS.IncompatibleResponse,
+                'ready',
+                false
+            );
+        }
+        const outcome = await this.#http.request({
+            headers: this.authenticatedHeaders(),
+            mode: STALKER_HTTP_REQUEST_MODES.IdentityBearing,
+            params: profileRequestParameters(
+                this.#identity,
+                this.#acceptedCredentials !== undefined
+            ),
+            url: this.#endpoint,
+        });
+        const normalized = normalizeResponse(outcome, 'ready', true);
+        if (normalized.kind !== 'success') {
+            return normalized;
+        }
+
+        const profile = classifyStalkerProfile(normalized.value);
+        if (profile.kind === 'ready') {
+            this.#profile = profile.profile;
+            return normalized;
+        }
+        if (profile.kind === 'blocked') {
+            return authFailure(
+                STALKER_FAILURE_REASONS.AccountOrDeviceBlocked,
+                'ready',
+                false
+            );
+        }
+        if (profile.kind === 'credentials-required') {
+            return authFailure(
+                STALKER_FAILURE_REASONS.PrincipalTransitionRequired,
+                'ready',
+                false
+            );
+        }
+        return authFailure(profile.reason, 'ready', false);
     }
 
     async preparePlayback(streamUrl: string): Promise<StalkerPreparedPlayback> {
@@ -540,6 +576,21 @@ function doAuthIdentityParameters(
     return parameters;
 }
 
+function profileRequestParameters(
+    identity: StalkerIdentityProfile,
+    authSecondStep: boolean
+): Readonly<Record<string, string | number>> {
+    return {
+        ...identity.profileParameters,
+        action: 'get_profile',
+        auth_second_step: authSecondStep ? 1 : 0,
+        JsHttpRequest: '1-xml',
+        metrics: JSON.stringify(identity.metrics),
+        not_valid_token: 0,
+        type: 'stb',
+    };
+}
+
 function buildReadyOutcome(
     profile: Readonly<Record<string, unknown>>
 ): StalkerAuthReadyOutcome {
@@ -562,9 +613,9 @@ function buildReadyOutcome(
             readNonEmptyString(accountInfo?.['tariff_plan_name']) ??
             readNonEmptyString(profile['tariff_plan_name']),
     });
-    const watchdogIntervalSeconds = readPositiveFiniteNumber(
-        profile['watchdog_timeout']
-    );
+    const watchdogIntervalSeconds =
+        readPositiveFiniteNumber(profile['timeslot']) ??
+        readPositiveFiniteNumber(profile['watchdog_timeout']);
     return {
         ...(accountSummary === undefined ? {} : { accountSummary }),
         kind: 'ready',

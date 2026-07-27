@@ -48,6 +48,10 @@ class BoundaryAuth implements StalkerSessionAuthLike {
         return true;
     }
 
+    async checkProfile(): Promise<StalkerAuthenticatedRequestOutcome> {
+        return { kind: 'success', value: { js: { status: 0 } } };
+    }
+
     async preparePlayback(): Promise<{
         headers: Readonly<Record<string, string>>;
         streamUrl: string;

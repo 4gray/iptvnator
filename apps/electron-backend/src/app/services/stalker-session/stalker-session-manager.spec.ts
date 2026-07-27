@@ -112,6 +112,8 @@ function stateless(): StalkerEndpointResolverOutcome {
 }
 
 class FakeAuth implements StalkerSessionAuthLike {
+    readonly profileOutcomes: StalkerAuthenticatedRequestOutcome[] = [];
+    profileChecks = 0;
     readonly requests: Readonly<Record<string, string | number>>[] = [];
     readonly submittedCredentials: StalkerAuthCredentials[] = [];
     startCalls = 0;
@@ -137,6 +139,16 @@ class FakeAuth implements StalkerSessionAuthLike {
 
     hasAcceptedCredentials(): boolean {
         return this.acceptedCredentials;
+    }
+
+    async checkProfile(): Promise<StalkerAuthenticatedRequestOutcome> {
+        this.profileChecks += 1;
+        return (
+            this.profileOutcomes.shift() ?? {
+                kind: 'success',
+                value: { js: { status: 0 } },
+            }
+        );
     }
 
     async start(): Promise<StalkerAuthOutcome> {
@@ -1260,6 +1272,100 @@ describe('StalkerSessionManager', () => {
         );
         expect(playbackContexts.invalidateSession).toHaveBeenCalled();
         expect(playbackContexts.clear).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces classified watchdog failures until a later profile check recovers', async () => {
+        jest.useFakeTimers();
+        const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        try {
+            const auth = new FakeAuth();
+            auth.profileOutcomes.push(
+                {
+                    kind: 'failure',
+                    reason: STALKER_SESSION_FAILURE_REASONS.AccountAccessDenied,
+                    retryable: false,
+                    stage: 'ready',
+                },
+                { kind: 'success', value: { js: { status: 0 } } }
+            );
+            const { manager, resolve } = harness({
+                auths: [auth],
+                resolverOutcomes: [full()],
+            });
+            const ready = await manager.open(1, {
+                descriptor: descriptor('watchdog-recovery'),
+            });
+            expectFullReady(ready);
+            await manager.control(1, {
+                action: 'activate',
+                leaseRef: ready.leaseRef,
+            });
+
+            await jest.advanceTimersByTimeAsync(25_000);
+
+            expect(auth.profileChecks).toBe(1);
+            await expect(
+                manager.request(1, catalogRequest(ready.leaseRef))
+            ).resolves.toMatchObject({
+                kind: 'failure',
+                reason: STALKER_SESSION_FAILURE_REASONS.AccountAccessDenied,
+                stage: 'ready',
+            });
+            expect(auth.requests).toHaveLength(0);
+            expect(resolve).toHaveBeenCalledTimes(1);
+
+            await jest.advanceTimersByTimeAsync(25_000);
+
+            await expect(
+                manager.request(1, catalogRequest(ready.leaseRef))
+            ).resolves.toMatchObject({ kind: 'success' });
+            expect(auth.profileChecks).toBe(2);
+            expect(auth.requests).toHaveLength(1);
+            expect(resolve).toHaveBeenCalledTimes(1);
+
+            await manager.destroyAll();
+        } finally {
+            random.mockRestore();
+            jest.useRealTimers();
+        }
+    });
+
+    it('routes watchdog token rejection through one manager-owned refresh', async () => {
+        jest.useFakeTimers();
+        const random = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        try {
+            const expired = new FakeAuth();
+            expired.profileOutcomes.push({ kind: 'token-rejected' });
+            const refreshed = new FakeAuth();
+            const { manager, resolve } = harness({
+                auths: [expired, refreshed],
+                resolverOutcomes: [full(), full()],
+            });
+            const ready = await manager.open(1, {
+                descriptor: descriptor('watchdog-refresh'),
+            });
+            expectFullReady(ready);
+            await manager.control(1, {
+                action: 'activate',
+                leaseRef: ready.leaseRef,
+            });
+
+            await jest.advanceTimersByTimeAsync(25_000);
+
+            expect(expired.profileChecks).toBe(1);
+            expect(resolve).toHaveBeenCalledTimes(2);
+            expect(refreshed.startCalls).toBe(1);
+            await expect(
+                manager.request(1, catalogRequest(ready.leaseRef))
+            ).resolves.toMatchObject({ kind: 'success' });
+            expect(expired.requests).toHaveLength(0);
+            expect(refreshed.requests).toHaveLength(1);
+
+            await manager.destroyAll();
+        } finally {
+            random.mockRestore();
+            jest.useRealTimers();
+        }
     });
 
     it('cannot resurrect an attempt after its renderer is cleaned up mid-authentication', async () => {

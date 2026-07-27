@@ -117,6 +117,28 @@ describe('StalkerAuthSession', () => {
         expect(calls).toHaveLength(0);
     });
 
+    it('prefers profile timeslot over watchdog_timeout for the watchdog interval', async () => {
+        const { auth } = harness(
+            {
+                kind: 'ready',
+                profile: {
+                    status: 0,
+                    timeslot: '17.5',
+                    watchdog_timeout: '45',
+                },
+                status: 0,
+            },
+            () => {
+                throw new Error('No request expected');
+            }
+        );
+
+        await expect(auth.start()).resolves.toMatchObject({
+            kind: 'ready',
+            watchdogIntervalSeconds: 17.5,
+        });
+    });
+
     it('runs do_auth only after status 2, then sends the second profile with step 1', async () => {
         const exactUsername = '  confirmed-user  ';
         const { auth, calls } = harness(
@@ -214,6 +236,114 @@ describe('StalkerAuthSession', () => {
             signature2: 'configured-signature-two',
             sn: 'configured-serial',
         });
+    });
+
+    it('reuses the coherent authenticated profile payload for watchdog checks', async () => {
+        const { auth, calls } = harness(
+            {
+                kind: 'credentials-required',
+                profile: { status: 2 },
+                status: 2,
+            },
+            (request) => {
+                if (request.params?.['action'] === 'do_auth') {
+                    return success({ js: true });
+                }
+                return success({
+                    js: {
+                        login: 'configured-user',
+                        status: 0,
+                    },
+                });
+            },
+            {
+                apiSignature: 'configured-api-signature',
+                deviceId1: 'configured-device-one',
+                deviceId2: 'configured-device-two',
+                firmwareVersion: 'configured-firmware',
+                hardwareVersion: 'configured-hardware',
+                macAddress: '00:1A:79:AA:BB:CC',
+                prehash: 'configured-prehash',
+                serialNumber: 'configured-serial',
+                signature1: 'configured-signature',
+                signature2: 'configured-signature-two',
+            }
+        );
+
+        await auth.start();
+        await auth.submitCredentials({
+            password: 'configured-password',
+            username: 'configured-user',
+        });
+        await expect(auth.checkProfile()).resolves.toMatchObject({
+            kind: 'success',
+        });
+
+        expect(calls).toHaveLength(3);
+        expect(calls[2].params).toEqual(calls[1].params);
+        expect(calls[2].params).toMatchObject({
+            action: 'get_profile',
+            api_signature: 'configured-api-signature',
+            auth_second_step: 1,
+            device_id: 'configured-device-one',
+            device_id2: 'configured-device-two',
+            hw_version: 'configured-hardware',
+            not_valid_token: 0,
+            prehash: 'configured-prehash',
+            signature: 'configured-signature',
+            signature2: 'configured-signature-two',
+            sn: 'configured-serial',
+            type: 'stb',
+            ver: 'configured-firmware',
+        });
+        expect(JSON.parse(String(calls[2].params?.['metrics']))).toMatchObject({
+            mac: '00:1A:79:AA:BB:CC',
+            sn: 'configured-serial',
+            uid: 'configured-device-two',
+        });
+    });
+
+    it('keeps a MAC-only watchdog profile on the first authentication step', async () => {
+        const { auth, calls } = harness(
+            {
+                kind: 'ready',
+                profile: { status: 0 },
+                status: 0,
+            },
+            () => success({ js: { status: 0 } })
+        );
+        await auth.start();
+
+        await expect(auth.checkProfile()).resolves.toMatchObject({
+            kind: 'success',
+        });
+
+        expect(calls[0].params).toMatchObject({
+            action: 'get_profile',
+            auth_second_step: 0,
+            not_valid_token: 0,
+            type: 'stb',
+        });
+    });
+
+    it('classifies a blocked watchdog profile without changing identity', async () => {
+        const { auth } = harness(
+            {
+                kind: 'ready',
+                profile: { login: 'stable-user', status: 0 },
+                status: 0,
+            },
+            () => success({ js: { status: 1 } })
+        );
+        await auth.start();
+
+        await expect(auth.checkProfile()).resolves.toEqual({
+            kind: 'failure',
+            reason: 'account-or-device-blocked',
+            retryable: false,
+            stage: 'ready',
+        });
+        expect(auth.getPrincipalKey()).toBe('stable-user');
     });
 
     it('marks rejected saved credentials and accepts a fresh bounded submission', async () => {

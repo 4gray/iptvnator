@@ -75,6 +75,7 @@ export interface StalkerPreparedPlayback {
 }
 
 export interface StalkerSessionAuthLike {
+    checkProfile(): Promise<StalkerAuthenticatedRequestOutcome>;
     getEndpoint(): string;
     getPrincipalKey(): string;
     hasAcceptedCredentials(): boolean;
@@ -265,6 +266,11 @@ interface LeaseRecord {
     session: SessionRecord;
 }
 
+type WatchdogRecoveryOutcome = Exclude<
+    StalkerAuthenticatedRequestOutcome,
+    { kind: 'success' } | { kind: 'token-rejected' }
+>;
+
 interface SessionRecord {
     accountSummary?: StalkerSessionAccountSummary;
     readonly activeLeases: Set<string>;
@@ -284,6 +290,7 @@ interface SessionRecord {
     resolutionSourceUrl?: string;
     readonly coordinator: StalkerBaseIdentityCoordinator;
     transport: StalkerTransportConfig;
+    watchdogRecovery?: WatchdogRecoveryOutcome;
     watchdogIntervalSeconds?: number;
 }
 
@@ -401,22 +408,43 @@ export class StalkerSessionManager {
                     if (!session || session.principal !== target.principal) {
                         return;
                     }
+                    const binding = this.#captureBinding(session);
                     const read = await session.coordinator.runRead(
-                        session.principal,
-                        session.epoch,
-                        () =>
-                            session.auth.request({
-                                action: 'get_profile',
-                                auth_second_step: 0,
-                                JsHttpRequest: '1-xml',
-                                type: 'stb',
-                            })
+                        binding.principal,
+                        binding.epoch,
+                        () => binding.auth.checkProfile()
                     );
                     if (
-                        read.kind === 'completed' &&
-                        read.value.kind === 'token-rejected'
+                        read.kind !== 'completed' ||
+                        !this.#isCurrentSessionBinding(binding)
                     ) {
-                        await this.#refreshSession(session);
+                        return;
+                    }
+                    if (read.value.kind === 'success') {
+                        session.watchdogRecovery = undefined;
+                        return;
+                    }
+                    if (read.value.kind !== 'token-rejected') {
+                        session.watchdogRecovery = read.value;
+                        return;
+                    }
+
+                    const refreshed = await this.#refreshSession(session);
+                    if (refreshed.kind === 'ready') {
+                        refreshed.session.watchdogRecovery = undefined;
+                    } else if (this.#isLiveSession(session)) {
+                        session.watchdogRecovery =
+                            refreshed.kind === 'failure'
+                                ? refreshed.outcome
+                                : {
+                                      finalOrigin:
+                                          refreshed.progress.finalOrigin,
+                                      kind: 'origin-approval-required',
+                                      sourceOrigin:
+                                          refreshed.progress.sourceOrigin,
+                                      targetUrl:
+                                          refreshed.progress.landingUrl,
+                                  };
                     }
                 },
             });
@@ -624,6 +652,23 @@ export class StalkerSessionManager {
                 payload: mapped.result,
                 requestId,
             } as StalkerSessionRequestOutcome<Operation>;
+        }
+
+        const watchdogRecovery = lease.session.watchdogRecovery;
+        if (watchdogRecovery !== undefined) {
+            if (watchdogRecovery.kind === 'origin-approval-required') {
+                lease.session.watchdogRecovery = undefined;
+                return this.#issueRecoveryOriginChallenge(
+                    senderId,
+                    lease.session,
+                    watchdogRecovery,
+                    requestId
+                ) as StalkerSessionRequestOutcome<Operation>;
+            }
+            return projectAuthFailure(
+                requestId,
+                watchdogRecovery
+            ) as StalkerSessionRequestOutcome<Operation>;
         }
 
         let execution = await this.#runSessionRequest(
@@ -1782,6 +1827,7 @@ export class StalkerSessionManager {
                       progress.credentials
                   );
         session.credentials = progress.credentials;
+        session.watchdogRecovery = undefined;
         session.watchdogIntervalSeconds = progress.watchdogIntervalSeconds;
         this.#sessions.set(nextKey, session);
         this.#reactivateTransferredLeases(session);
@@ -2038,9 +2084,22 @@ export class StalkerSessionManager {
         lease: LeaseRecord,
         binding: SessionGenerationBinding
     ): boolean {
-        const snapshot = binding.session.coordinator.snapshot;
         return (
             this.#isCurrentGenerationBinding(lease, binding) &&
+            this.#isCurrentSessionBinding(binding)
+        );
+    }
+
+    #isCurrentSessionBinding(binding: SessionGenerationBinding): boolean {
+        const session = binding.session;
+        const snapshot = session.coordinator.snapshot;
+        return (
+            this.#sessions.get(binding.key) === session &&
+            session.auth === binding.auth &&
+            session.epoch === binding.epoch &&
+            session.generation === binding.generation &&
+            session.key === binding.key &&
+            session.principal === binding.principal &&
             snapshot.epoch === binding.epoch &&
             snapshot.activePrincipal === binding.principal
         );
