@@ -163,7 +163,7 @@ describe('ReplayRun symbols and exact matching', () => {
             'password',
             'username',
         ]);
-        expect(firstSymbols['mac']).toMatch(/^02(?::[0-9a-f]{2}){5}$/);
+        expect(firstSymbols['mac']).toMatch(/^02(?::[0-9A-F]{2}){5}$/);
         expect(firstSymbols['username']).toMatch(/^test-credential-[0-9a-f]+$/);
         expect(firstSymbols['password']).not.toBe(firstSymbols['username']);
         expect(firstSymbols).not.toHaveProperty('token');
@@ -636,8 +636,7 @@ describe('ReplayRun scheduled expiry and retained-byte defense', () => {
                 );
             }
             await jest.advanceTimersByTimeAsync(
-                REPLAY_RUN_HARD_LIFETIME_MS -
-                    5 * (REPLAY_RUN_INACTIVITY_MS - 1)
+                REPLAY_RUN_HARD_LIFETIME_MS - 5 * (REPLAY_RUN_INACTIVITY_MS - 1)
             );
 
             expect(await Promise.all(settled)).toEqual(

@@ -27,7 +27,7 @@ function generatedValue(node: ReplayGenerateNode, runId: string): string {
     const hash = digest(runId, node.symbol, node.valueKind);
     switch (node.valueKind) {
         case 'mac':
-            return `02:${hash.slice(0, 2)}:${hash.slice(2, 4)}:${hash.slice(4, 6)}:${hash.slice(6, 8)}:${hash.slice(8, 10)}`;
+            return `02:${hash.slice(0, 2)}:${hash.slice(2, 4)}:${hash.slice(4, 6)}:${hash.slice(6, 8)}:${hash.slice(8, 10)}`.toUpperCase();
         case 'credential':
             return `test-credential-${hash.slice(0, 24)}`;
         case 'token':
