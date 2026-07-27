@@ -86,6 +86,27 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         );
     });
 
+    it('drops a switch once the movie identity goes null mid-navigation', async () => {
+        await loadMovie([ALT_TWO]);
+
+        const slow = createDeferred<ReturnType<typeof resolvedFor>>();
+        resolver.resolve.mockReturnValueOnce(slow.promise);
+
+        const pending = service.play(ALT_TWO.id);
+
+        // Route navigation empties the identity BEFORE the next movie's load()
+        // runs. Without invalidating the session here, the guard would still
+        // pass and the old movie's source would start over the new page.
+        movie.set(null);
+        TestBed.tick();
+
+        slow.resolve(resolvedFor(ALT_TWO, 0));
+        await expect(pending).resolves.toBe(false);
+
+        expect(startPlayback).not.toHaveBeenCalled();
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(false);
+    });
+
     it('drops a slower switch that a newer selection already superseded', async () => {
         await loadMovie([ALT_TWO, ALT_THREE]);
 

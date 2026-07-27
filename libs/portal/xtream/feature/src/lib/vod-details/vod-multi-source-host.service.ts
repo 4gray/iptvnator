@@ -146,6 +146,12 @@ export class VodMultiSourceHostService {
         effect(() => {
             const movie = bindings.movie();
             if (!movie) {
+                // Navigating away empties the identity before the next movie's
+                // `load()` runs. Bumping the session here — not only in
+                // `load()` — closes the window in which a resolution still in
+                // flight for the PREVIOUS movie would pass the staleness guard
+                // and start its playback over the page the user is leaving.
+                this.discoveryToken++;
                 return;
             }
 
