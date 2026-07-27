@@ -32,6 +32,7 @@ function fullPlaylist(): PlaylistMeta {
         isFullStalkerPortal: true,
         macAddress: 'has-mac-address',
         portalUrl: 'https://portal.example.test/stalker_portal/server/load.php',
+        stalkerRequestRecipe: 'full-session',
         stalkerDeviceId1: 'has-device-id-1',
         stalkerDeviceId2: 'has-device-id-2',
         stalkerSerialNumber: 'has-serial',
@@ -67,6 +68,7 @@ describe('executeStalkerRequest', () => {
             isFullStalkerPortal: false,
             macAddress: 'has-mac-address',
             portalUrl: 'https://portal.example.test/load.php',
+            stalkerRequestRecipe: 'stateless-mac',
             title: 'Basic Stalker Portal',
         } as PlaylistMeta;
 
@@ -84,6 +86,52 @@ describe('executeStalkerRequest', () => {
             (deps.dataService.sendIpcEvent as jest.Mock).mock.calls[0]?.[1]
                 ?.params
         ).toBe(CATEGORY_PARAMS);
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).not.toHaveBeenCalled();
+    });
+
+    it('lets the verified full-session recipe override a stale false compatibility flag', async () => {
+        const deps = createDeps(true);
+        const playlist = {
+            ...fullPlaylist(),
+            isFullStalkerPortal: false,
+        };
+
+        await executeStalkerRequest(deps, playlist, CATEGORY_PARAMS);
+
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).toHaveBeenCalled();
+        expect(deps.dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('lets the verified stateless recipe override a stale true compatibility flag', async () => {
+        const deps = createDeps(true);
+        const playlist = {
+            ...fullPlaylist(),
+            isFullStalkerPortal: true,
+            stalkerRequestRecipe: 'stateless-mac' as const,
+        };
+
+        await executeStalkerRequest(deps, playlist, CATEGORY_PARAMS);
+
+        expect(deps.dataService.sendIpcEvent).toHaveBeenCalled();
+        expect(
+            deps.stalkerSession.makeAuthenticatedRequest
+        ).not.toHaveBeenCalled();
+    });
+
+    it('does not infer a typed runtime path from the legacy boolean when recipe migration is still pending', async () => {
+        const deps = createDeps(true);
+        const playlist = {
+            ...fullPlaylist(),
+            stalkerRequestRecipe: undefined,
+        };
+
+        await executeStalkerRequest(deps, playlist, CATEGORY_PARAMS);
+
+        expect(deps.dataService.sendIpcEvent).toHaveBeenCalled();
         expect(
             deps.stalkerSession.makeAuthenticatedRequest
         ).not.toHaveBeenCalled();

@@ -32,16 +32,20 @@ function playlist(portalUrl: string): Playlist {
 }
 
 describe('executeStalkerSearchRequest', () => {
-    it('routes a detected full portal through the typed session facade', async () => {
+    it('routes a verified full-session recipe through the typed session facade despite a stale flag', async () => {
         const dataService = {
             sendIpcEvent: jest.fn(),
         };
         const stalkerSession = {
-            isFullStalkerPortal: jest.fn().mockReturnValue(true),
             supportsTypedSessions: jest.fn().mockReturnValue(true),
             makeAuthenticatedRequest: jest
                 .fn()
                 .mockResolvedValue({ js: { data: [] } }),
+        };
+        const fullPlaylist = {
+            ...playlist('https://portal.example/custom/api.php'),
+            isFullStalkerPortal: false,
+            stalkerRequestRecipe: 'full-session' as const,
         };
 
         await executeStalkerSearchRequest(
@@ -50,14 +54,15 @@ describe('executeStalkerSearchRequest', () => {
                 stalkerSession:
                     stalkerSession as unknown as StalkerSessionService,
             },
-            playlist('https://portal.example/server/load.php'),
+            fullPlaylist,
             REQUEST_PARAMS
         );
 
         expect(stalkerSession.makeAuthenticatedRequest).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: 'stalker-1',
-                isFullStalkerPortal: true,
+                isFullStalkerPortal: false,
+                stalkerRequestRecipe: 'full-session',
             }),
             REQUEST_PARAMS
         );
@@ -69,11 +74,14 @@ describe('executeStalkerSearchRequest', () => {
             sendIpcEvent: jest.fn().mockResolvedValue({ js: { data: [] } }),
         };
         const stalkerSession = {
-            isFullStalkerPortal: jest.fn().mockReturnValue(false),
             supportsTypedSessions: jest.fn().mockReturnValue(true),
             makeAuthenticatedRequest: jest.fn(),
         };
-        const simplePlaylist = playlist('https://portal.example/portal.php');
+        const simplePlaylist = {
+            ...playlist('https://portal.example/server/load.php'),
+            isFullStalkerPortal: true,
+            stalkerRequestRecipe: 'stateless-mac' as const,
+        };
 
         await executeStalkerSearchRequest(
             {

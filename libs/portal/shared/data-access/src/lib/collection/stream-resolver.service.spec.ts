@@ -606,7 +606,8 @@ describe('StreamResolverService', () => {
                 _id: 'stalker-1',
                 portalUrl: 'https://stalker.example.com/portal.php',
                 macAddress: '00:11:22:33:44:55',
-                isFullStalkerPortal: false,
+                isFullStalkerPortal: true,
+                stalkerRequestRecipe: 'stateless-mac',
             } satisfies Partial<Playlist>)
         );
         dataService.sendIpcEvent.mockResolvedValue({
@@ -668,7 +669,8 @@ describe('StreamResolverService', () => {
                 autoRefresh: false,
                 portalUrl: 'https://stalker.example.com/server/load.php',
                 macAddress: '00:11:22:33:44:55',
-                isFullStalkerPortal: true,
+                isFullStalkerPortal: false,
+                stalkerRequestRecipe: 'full-session',
                 userAgent: 'renderer-user-agent',
                 referrer: 'https://stalker.example.com/c/',
                 origin: 'https://stalker.example.com',
@@ -693,7 +695,8 @@ describe('StreamResolverService', () => {
         expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: 'stalker-1',
-                isFullStalkerPortal: true,
+                isFullStalkerPortal: false,
+                stalkerRequestRecipe: 'full-session',
             }),
             STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
             {

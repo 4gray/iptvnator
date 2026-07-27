@@ -22,11 +22,13 @@ const PLAYLIST = {
     portalUrl: 'http://demo.example/stalker_portal/server/load.php',
     macAddress: '00:1A:79:00:00:01',
     isFullStalkerPortal: false,
+    stalkerRequestRecipe: 'stateless-mac',
 } as PlaylistMeta;
 
 const FULL_PLAYLIST = {
     ...PLAYLIST,
     isFullStalkerPortal: true,
+    stalkerRequestRecipe: 'full-session',
 } as PlaylistMeta;
 
 describe('stalker-player-request.utils', () => {
@@ -133,6 +135,57 @@ describe('stalker-player-request.utils', () => {
             streamUrl: 'http://demo.example/stalker_portal/media/video_77.mpg',
             playbackContextRef: 'playback-context-1',
         });
+    });
+
+    it('uses the full-session recipe when the legacy compatibility flag is stale', async () => {
+        stalkerSession.requestForPlaylist.mockResolvedValue({
+            streamUrl: '/media/video_77.mpg',
+            playbackContextRef: 'playback-context-1',
+        });
+
+        await fetchStalkerPlayback(
+            {
+                dataService: dataService as never,
+                stalkerSession:
+                    stalkerSession as unknown as StalkerSessionService,
+            },
+            {
+                playlist: {
+                    ...FULL_PLAYLIST,
+                    isFullStalkerPortal: false,
+                },
+                selectedContentType: 'itv',
+                cmd: '/media/source.mpg',
+            }
+        );
+
+        expect(stalkerSession.requestForPlaylist).toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('uses the stateless recipe when the legacy compatibility flag is stale', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: '/media/video_77.mpg' },
+        });
+
+        await fetchStalkerPlayback(
+            {
+                dataService: dataService as never,
+                stalkerSession:
+                    stalkerSession as unknown as StalkerSessionService,
+            },
+            {
+                playlist: {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                },
+                selectedContentType: 'itv',
+                cmd: '/media/source.mpg',
+            }
+        );
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalled();
+        expect(stalkerSession.requestForPlaylist).not.toHaveBeenCalled();
     });
 
     it('keeps a full-portal PWA request on the exact legacy IPC payload', async () => {

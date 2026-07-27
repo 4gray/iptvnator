@@ -9,18 +9,5 @@ export async function executeStalkerSearchRequest<T>(
     playlist: Playlist,
     params: Record<string, string | number>
 ): Promise<T> {
-    const isFullPortal =
-        playlist.isFullStalkerPortal ??
-        deps.stalkerSession.isFullStalkerPortal(playlist.portalUrl ?? '');
-
-    return executeStalkerRequest<T>(
-        deps,
-        isFullPortal
-            ? {
-                  ...playlist,
-                  isFullStalkerPortal: true,
-              }
-            : playlist,
-        params
-    );
+    return executeStalkerRequest<T>(deps, playlist, params);
 }

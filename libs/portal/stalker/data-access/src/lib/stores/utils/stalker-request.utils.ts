@@ -42,7 +42,7 @@ export function usesTypedStalkerSession(
     playlist: PlaylistMeta
 ): boolean {
     return Boolean(
-        playlist.isFullStalkerPortal &&
+        playlist.stalkerRequestRecipe === 'full-session' &&
             supportsTypedSessions(deps.stalkerSession)
     );
 }

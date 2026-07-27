@@ -345,9 +345,6 @@ export class StreamResolverService {
             ...playlist,
             portalUrl,
             macAddress,
-            isFullStalkerPortal:
-                playlist?.isFullStalkerPortal ??
-                this.stalkerSession.isFullStalkerPortal(portalUrl),
         };
         const playbackLink = await fetchStalkerPlayback(
             {

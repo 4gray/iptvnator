@@ -12,6 +12,7 @@ import { StalkerContentType } from '../stalker-store.contracts';
 import {
     executeStalkerRequest,
     toStalkerSessionPlaylist,
+    usesTypedStalkerSession,
 } from './stalker-request.utils';
 
 export interface StalkerPlayerResponse {
@@ -157,10 +158,7 @@ export async function fetchStalkerPlayback(
 ): Promise<StalkerPlaybackLink> {
     const contentType =
         options.forcedContentType ?? options.selectedContentType;
-    if (
-        options.playlist.isFullStalkerPortal &&
-        supportsTypedSessions(deps.stalkerSession)
-    ) {
+    if (usesTypedStalkerSession(deps, options.playlist)) {
         const isEpisode = options.series !== undefined;
         const payload = await deps.stalkerSession.requestForPlaylist(
             toStalkerSessionPlaylist(options.playlist),
@@ -231,24 +229,12 @@ function normalizePlaybackLink(
     };
 }
 
-function supportsTypedSessions(stalkerSession: StalkerSessionService): boolean {
-    const probe = (
-        stalkerSession as Partial<
-            Pick<StalkerSessionService, 'supportsTypedSessions'>
-        >
-    ).supportsTypedSessions;
-    return typeof probe !== 'function' || probe.call(stalkerSession);
-}
-
 export async function fetchStalkerMovieFileId(
     deps: StalkerPlayerRequestDeps,
     playlist: PlaylistMeta,
     movieId: string
 ): Promise<string | null> {
-    if (
-        playlist.isFullStalkerPortal &&
-        supportsTypedSessions(deps.stalkerSession)
-    ) {
+    if (usesTypedStalkerSession(deps, playlist)) {
         const result = await deps.stalkerSession.requestForPlaylist(
             toStalkerSessionPlaylist(playlist),
             STALKER_SESSION_APPLICATION_OPERATIONS.CatalogItems,

@@ -28,6 +28,7 @@ const PLAYLIST = {
     portalUrl: 'http://demo.example/stalker_portal/server/load.php',
     macAddress: '00:1A:79:00:00:01',
     isFullStalkerPortal: false,
+    stalkerRequestRecipe: 'stateless-mac',
 } as PlaylistMeta;
 
 const TestSeriesStore = signalStore(
@@ -254,7 +255,8 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         });
         store.setCurrentPlaylist({
             ...PLAYLIST,
-            isFullStalkerPortal: true,
+            isFullStalkerPortal: false,
+            stalkerRequestRecipe: 'full-session',
         });
         store.setSelectedContentType('vod');
         store.setSelectedItem({
@@ -271,8 +273,9 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         expect(stalkerSession.requestForPlaylist).toHaveBeenCalledWith(
             expect.objectContaining({
                 _id: PLAYLIST._id,
-                isFullStalkerPortal: true,
+                isFullStalkerPortal: false,
                 lastUsage: '',
+                stalkerRequestRecipe: 'full-session',
             }),
             STALKER_SESSION_APPLICATION_OPERATIONS.SeriesSeasons,
             {

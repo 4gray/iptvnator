@@ -29,6 +29,7 @@ import {
     sortVodSeriesSeasonsByNumber,
     StalkerRequestDeps,
     toStalkerSessionPlaylist,
+    usesTypedStalkerSession,
 } from '../utils';
 
 /**
@@ -83,10 +84,7 @@ async function fetchVodSeriesSeasons(
     playlist: PlaylistMeta,
     seriesId: string | number
 ): Promise<StalkerVodSeriesSeason[]> {
-    if (
-        playlist.isFullStalkerPortal &&
-        supportsTypedSessions(deps.stalkerSession)
-    ) {
+    if (usesTypedStalkerSession(deps, playlist)) {
         const result = await deps.stalkerSession.requestForPlaylist(
             toStalkerSessionPlaylist(playlist),
             STALKER_SESSION_APPLICATION_OPERATIONS.SeriesSeasons,
@@ -116,15 +114,6 @@ async function fetchVodSeriesSeasons(
         p: '1',
     });
     return extractSeriesItems(response);
-}
-
-function supportsTypedSessions(stalkerSession: StalkerSessionService): boolean {
-    const probe = (
-        stalkerSession as Partial<
-            Pick<StalkerSessionService, 'supportsTypedSessions'>
-        >
-    ).supportsTypedSessions;
-    return typeof probe !== 'function' || probe.call(stalkerSession);
 }
 
 export function withStalkerSeries() {
