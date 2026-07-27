@@ -250,6 +250,23 @@ describe('title-sources.operations', () => {
             );
         });
 
+        it('collapses one playlist’s copies before the FTS limit applies', async () => {
+            // A playlist listing the film in dozens of categories produces
+            // identically ranked rows. Collapsing them only in TypeScript
+            // cannot recover the other playlists the window never reached.
+            const { db, all } = createDbMock([duneRow]);
+
+            await findTitleSources(db, { title: 'Dune' });
+
+            const query = compiledQuery(all);
+            expect(query.sql).toContain(
+                'GROUP BY cat.playlist_id, c.xtream_id'
+            );
+            expect(query.sql.indexOf('GROUP BY')).toBeLessThan(
+                query.sql.indexOf('LIMIT')
+            );
+        });
+
         it('leaves the queries unfiltered when no playlist is excluded', async () => {
             const { db, all } = createDbMock([duneRow]);
 

@@ -48,12 +48,9 @@ import {
  * Wires VOD multi-source into one open movie on the Xtream detail page.
  *
  * Component-provided, not root-provided: the controller's "each source is
- * tried at most once" set must die with the movie, or a later film would
- * inherit a poisoned failover history.
- *
- * The host component supplies the movie identity and the two playback seams
- * (start a playback, read the live position) through `bind()`, so this service
- * never reaches into the route component.
+ * tried at most once" set must die with the movie. The host supplies the
+ * movie identity and the playback seam through `bind()`, so this never
+ * reaches into the route component.
  */
 
 export interface VodMultiSourceBindings {
@@ -142,10 +139,9 @@ export class VodMultiSourceHostService {
     }
 
     /**
-     * Wire the host's playback seam and start watching the movie on screen.
-     *
-     * The effect lives here rather than in the route component because what it
-     * guards is this service's own lifecycle — see `load()`.
+     * Wire the host's playback seam and watch the movie on screen. The effect
+     * lives here because what it guards is this service's own lifecycle — see
+     * `load()`.
      */
     bind(bindings: VodMultiSourceBindings): void {
         this.bindings = bindings;
@@ -265,7 +261,12 @@ export class VodMultiSourceHostService {
         try {
             return (await this.switchTo(candidate)) === 'switched';
         } finally {
-            this._busySourceId.set(null);
+            // Only if this attempt still owns the spinner: a slower first pick
+            // finishing after a second one would otherwise clear the row that
+            // is still resolving.
+            if (this._busySourceId() === sourceId) {
+                this._busySourceId.set(null);
+            }
         }
     }
 
@@ -322,11 +323,6 @@ export class VodMultiSourceHostService {
             this.switchTo(candidate)
         );
         return switched ? this._lastSwitch() : null;
-    }
-
-    /** True once every alternative has been attempted this session. */
-    isExhausted(): boolean {
-        return this.controller.isExhausted();
     }
 
     /** The live position, fed ahead of the persist throttle. */

@@ -118,6 +118,15 @@ function scanCandidateQuery(base: string, excludePlaylist: SQL) {
     `;
 }
 
+/**
+ * The relevance-ranked path, and the only one still taking a window.
+ *
+ * One playlist can list a film in dozens of categories, and those rows are
+ * identically ranked — enough of them would fill the window before another
+ * playlist was ever read. The TypeScript pass collapses them afterwards,
+ * which cannot recover what the query never returned, so the collapse has to
+ * happen first: one row per `(playlist_id, xtream_id)`, then the limit.
+ */
 function ftsCandidateQuery(matchQuery: string, excludePlaylist: SQL) {
     return sql`
         SELECT
@@ -137,6 +146,7 @@ function ftsCandidateQuery(matchQuery: string, excludePlaylist: SQL) {
         AND cat.hidden = 0
         AND p.type = 'xtream'
         ${excludePlaylist}
+        GROUP BY cat.playlist_id, c.xtream_id
         ORDER BY rank, c.title
         LIMIT ${CANDIDATE_LIMIT}
     `;

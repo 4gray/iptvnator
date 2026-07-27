@@ -26,29 +26,46 @@ export async function readPin(
 }
 
 /**
- * Persist the pin for `candidate`.
+ * Persist the pin for `candidate` under EVERY alias of the movie.
  *
- * Written under the most-trusted key while lookups pass every alias, so a TMDB
- * id arriving after the fact does not orphan the row.
+ * Writing only the most-trusted key would leave the others pointing at
+ * whatever was pinned before: reopening the movie before enrichment lands —
+ * or when that request fails — reads a lower-trust alias and starts the source
+ * the user just replaced. Since lookups accept any alias, every alias has to
+ * agree.
+ *
+ * Success is the most-trusted key's: it is the one a later lookup reaches
+ * first, and a half-written alias set is no worse than the stale one it
+ * replaced (unpinning clears them all regardless).
  */
 export async function writePin(
     pins: Pick<VodSourcePinService, 'set'>,
     matchKeys: readonly string[],
     candidate: VodSourceCandidate
 ): Promise<boolean> {
-    const matchKey = matchKeys[0] ?? buildVodSourceMatchKey(candidate);
-    if (!matchKey) {
+    const keys = matchKeys.length
+        ? matchKeys
+        : [buildVodSourceMatchKey(candidate)].filter(
+              (key): key is string => !!key
+          );
+    if (keys.length === 0) {
         return false;
     }
 
     // The write can fail — no bridge, or the DB refused it. Reporting success
     // then would show a pin the next visit does not have.
-    return pins.set({
-        matchKey,
-        playlistId: candidate.playlistId,
-        contentId: candidate.contentId,
-        portalType: candidate.portalType,
-    });
+    const written = await Promise.all(
+        keys.map((matchKey) =>
+            pins.set({
+                matchKey,
+                playlistId: candidate.playlistId,
+                contentId: candidate.contentId,
+                portalType: candidate.portalType,
+            })
+        )
+    );
+
+    return written[0] === true;
 }
 
 /** Clears every alias, so unpinning is not undone by a stale row. */

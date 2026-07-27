@@ -177,6 +177,32 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
+    it('leaves the spinner on the row that is still resolving', async () => {
+        await loadMovie([ALT_TWO, ALT_THREE]);
+
+        const slowTwo = createDeferred<ReturnType<typeof resolvedFor>>();
+        const slowThree = createDeferred<ReturnType<typeof resolvedFor>>();
+        resolver.resolve
+            .mockReturnValueOnce(slowTwo.promise)
+            .mockReturnValueOnce(slowThree.promise);
+
+        const first = service.play(ALT_TWO.id);
+        const second = service.play(ALT_THREE.id);
+        expect(service.busySourceId()).toBe(ALT_THREE.id);
+
+        slowTwo.resolve(resolvedFor(ALT_TWO, 0));
+        await first;
+
+        // The abandoned pick finishing must not take the spinner off the row
+        // the user is actually waiting on.
+        expect(service.busySourceId()).toBe(ALT_THREE.id);
+
+        slowThree.resolve(resolvedFor(ALT_THREE, 0));
+        await second;
+
+        expect(service.busySourceId()).toBeNull();
+    });
+
     it('drops a pin change whose movie was navigated away from', async () => {
         const pinFor = (candidate: VodSourceCandidate) => ({
             matchKey: 'title:the matrix:1999',

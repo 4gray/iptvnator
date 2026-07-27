@@ -45,9 +45,12 @@ export function buildVodSourceMatchKey(input: {
 /**
  * Every key a movie may legitimately be stored under, most-trusted first.
  *
- * A pin written before TMDB enrichment lands is keyed by title; after
- * enrichment the same movie prefers a `tmdb:` key. Looking up both means the
- * earlier pin is not orphaned by the id arriving.
+ * Enrichment arrives late and adds BOTH identifying fields, so a pin can have
+ * been written under any earlier, poorer form of the same movie:
+ *   - before the TMDB id → `title:{base}:{year}`
+ *   - before the release year too → `title:{base}:`
+ * Each of those is a key the row may still be sitting under, and a lookup that
+ * skipped it would silently lose a preference the user set minutes ago.
  */
 export function buildVodSourceMatchKeyCandidates(input: {
     tmdbId?: number | string | null;
@@ -55,16 +58,20 @@ export function buildVodSourceMatchKeyCandidates(input: {
     year?: number | null;
 }): string[] {
     const keys: string[] = [];
+    const push = (key: string | null) => {
+        if (key && !keys.includes(key)) {
+            keys.push(key);
+        }
+    };
 
     const tmdbId = normalizeTmdbId(input.tmdbId);
     if (tmdbId !== null) {
-        keys.push(`${TMDB_PREFIX}${tmdbId}`);
+        push(`${TMDB_PREFIX}${tmdbId}`);
     }
 
-    const titleKey = buildVodSourceMatchKey({ ...input, tmdbId: null });
-    if (titleKey && !keys.includes(titleKey)) {
-        keys.push(titleKey);
-    }
+    push(buildVodSourceMatchKey({ ...input, tmdbId: null }));
+    // The yearless form, for a pin set before the release date was known.
+    push(buildVodSourceMatchKey({ ...input, tmdbId: null, year: null }));
 
     return keys;
 }

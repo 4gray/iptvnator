@@ -1035,7 +1035,7 @@
             "CHECK_ALL": "全部检测",
             "FILTER_PLACEHOLDER": "按播放列表筛选",
             "NO_MATCHES": "未找到匹配的播放列表",
-            "COPIES": "此播放列表中有 {{count}} 个副本",
+            "COPIES": "此播放列表中有 {{count}} 个版本",
             "MORE_SOURCES": "其余 {{count}} 个在播放源列表中"
         }
     },

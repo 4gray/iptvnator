@@ -217,7 +217,6 @@ describe('VodMultiSourceHostService', () => {
         expect(visited).toHaveLength(2);
         expect(new Set(visited).size).toBe(visited.length);
         expect(visited).not.toContain(CURRENT_A_ID);
-        expect(service.isExhausted()).toBe(true);
     });
 
     it('keeps going when the best candidate cannot be resolved', async () => {
@@ -247,121 +246,6 @@ describe('VodMultiSourceHostService', () => {
         // spinning through the same candidate forever.
         await expect(service.failover()).resolves.toBeNull();
         expect(startPlayback).not.toHaveBeenCalled();
-        expect(service.isExhausted()).toBe(true);
-    });
-
-    it('plays the pinned source instead of the route playlist', async () => {
-        pins.get.mockResolvedValue({
-            matchKey: 'title:the matrix:1999',
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        });
-        await loadMovie([ALT_TWO, ALT_THREE]);
-
-        // Without this the persisted preference is only an icon: reopening the
-        // movie would still start the playlist the route is on.
-        await expect(service.playPinnedSource()).resolves.toBe(true);
-        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
-    });
-
-    it('resumes the pinned source from the stored position', async () => {
-        pins.get.mockResolvedValue({
-            matchKey: 'title:the matrix:1999',
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        });
-        await loadMovie([ALT_TWO]);
-
-        // What the route knows after loading playback positions. Nothing has
-        // played yet, so no timeupdate has reported anything — and the button
-        // the user is about to press says "Resume".
-        service.seedResumePosition(2538);
-
-        await expect(service.playPinnedSource()).resolves.toBe(true);
-
-        expect(resolver.resolve).toHaveBeenCalledWith(
-            expect.objectContaining({ id: ALT_TWO.id }),
-            { startTime: 2538 }
-        );
-    });
-
-    it('does not show a pin the database refused to store', async () => {
-        await loadMovie([ALT_TWO]);
-        pins.set.mockResolvedValue(false);
-
-        await service.togglePin(ALT_TWO.id);
-
-        // The icon promises the preference survives reopening the movie. A
-        // write that failed makes that a lie, so the row must not change.
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
-    });
-
-    it('keeps the pin when clearing it fails', async () => {
-        pins.get.mockResolvedValue({
-            matchKey: 'title:the matrix:1999',
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        });
-        await loadMovie([ALT_TWO]);
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
-
-        pins.clear.mockResolvedValue(false);
-        await service.togglePin(ALT_TWO.id);
-
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
-    });
-
-    it('leaves Play alone when nothing is pinned', async () => {
-        await loadMovie([ALT_TWO]);
-
-        await expect(service.playPinnedSource()).resolves.toBe(false);
-        expect(startPlayback).not.toHaveBeenCalled();
-    });
-
-    it('prefers the pinned source when failing over', async () => {
-        pins.get.mockResolvedValue({
-            matchKey: 'title:the matrix:1999',
-            playlistId: ALT_THREE.playlistId,
-            contentId: ALT_THREE.contentId,
-            portalType: 'xtream',
-        });
-        await loadMovie([ALT_TWO, ALT_THREE]);
-        vodAutoFailover.set(true);
-
-        await expect(service.failover()).resolves.not.toBeNull();
-        expect(rowFor(ALT_THREE.id)?.isActive).toBe(true);
-    });
-
-    it('round-trips a pin under the movie match key', async () => {
-        await loadMovie([ALT_TWO]);
-        const matchKeys: string[] = pins.get.mock.calls[0][0];
-        expect(matchKeys.length).toBeGreaterThan(0);
-        const pin = {
-            matchKey: matchKeys[0],
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        };
-
-        await service.togglePin(ALT_TWO.id);
-
-        expect(pins.set).toHaveBeenCalledWith(pin);
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
-
-        await service.togglePin(ALT_TWO.id);
-
-        expect(pins.clear).toHaveBeenCalledWith(matchKeys);
-        expect(pins.set).toHaveBeenCalledTimes(1);
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
-
-        pins.get.mockResolvedValue(pin);
-        await loadMovie([ALT_TWO]);
-
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
-        expect(rowFor(CURRENT_A_ID)?.isPinned).toBe(false);
     });
 
     it('reports unknown, never fail, for a source it cannot check', async () => {

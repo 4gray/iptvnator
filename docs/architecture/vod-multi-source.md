@@ -119,11 +119,21 @@ every portal, which is the problem being solved.
 `buildVodSourceMatchKey()` produces `tmdb:{id}` when a usable TMDB id exists,
 otherwise `title:{normalizedBase}:{year}` via the shared `normalizeTitleKeys`.
 
-Lookups pass **every** alias, most-trusted first
-(`buildVodSourceMatchKeyCandidates`). A movie pinned before TMDB enrichment
-landed is stored under its title key and prefers a `tmdb:` key afterwards;
-reading both means the id arriving later does not orphan the pin, and unpinning
-clears every alias so a stale row cannot resurrect it.
+Enrichment adds BOTH identifying fields late, so the same movie can already be
+pinned under any poorer form of itself:
+
+| pinned when | stored under |
+|---|---|
+| after enrichment | `tmdb:{id}` |
+| before the TMDB id | `title:{base}:{year}` |
+| before the year too | `title:{base}:` |
+
+`buildVodSourceMatchKeyCandidates` returns all three, most-trusted first, and
+**writes go to every one of them**. Reading every alias is what keeps a late
+TMDB id from orphaning an earlier pin; writing every alias is what stops the
+lower-trust ones from still pointing at the source the user just replaced —
+which a reopen before enrichment lands would then play. Unpinning clears them
+all, so a stale row cannot resurrect it.
 
 The row only changes once the write lands. A pin the database refused is worse
 than no pin at all — the icon promises the preference will be there next time,
@@ -164,6 +174,11 @@ one that does not exist — the chip simply does not appear. So:
 - **The current playlist is excluded in SQL**, not afterwards. It routinely
   lists a film in several categories, and those rows would otherwise spend the
   FTS window before a single other playlist was read.
+- **Duplicates collapse in SQL too**, for the same reason. One playlist can
+  list a film in dozens of categories, and those rows rank identically, so
+  `GROUP BY cat.playlist_id, c.xtream_id` runs before the limit. Collapsing
+  them only in TypeScript afterwards cannot recover the playlists the window
+  never reached.
 - **Short titles scan on a word boundary, and take no window at all.** The
   trigram tokenizer cannot index tokens under three characters, so "Up", "It"
   or "Us" produce an empty `MATCH` and fall back to a scan. A substring scan
