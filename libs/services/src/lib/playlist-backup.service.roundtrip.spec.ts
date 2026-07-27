@@ -165,7 +165,9 @@ describe('PlaylistBackupService export → import round-trip', () => {
         const collaborators = createStatefulBackupCollaborators(state);
         const exportService = createPlaylistBackupService(collaborators);
 
-        const firstExport = await exportService.exportBackup();
+        const firstExport = await exportService.exportBackup({
+            includeSecrets: true,
+        });
 
         // Simulate a fresh install that has already cached the same portal
         // content (offline cache reports completed) but carries no user
@@ -220,15 +222,19 @@ describe('PlaylistBackupService export → import round-trip', () => {
             }),
         ]);
         expect(state.epgUrls).toEqual(['https://epg.example.com/guide.xml']);
-        expect(
-            state.playlists.map((playlist) => playlist._id)
-        ).toEqual(['m3u-1', 'xtream-1', 'stalker-1']);
+        expect(state.playlists.map((playlist) => playlist._id)).toEqual([
+            'm3u-1',
+            'xtream-1',
+            'stalker-1',
+        ]);
 
         // Exporting the restored state must reproduce the original
         // manifest byte for byte (modulo the export timestamp): any field
         // silently dropped by export, import, or the restore mapping shows
         // up as a diff here.
-        const secondExport = await importService.exportBackup();
+        const secondExport = await importService.exportBackup({
+            includeSecrets: true,
+        });
 
         expect(normalizeManifest(secondExport.manifest)).toEqual(
             normalizeManifest(firstExport.manifest)

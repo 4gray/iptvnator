@@ -31,6 +31,10 @@ export interface PlaylistBackupExportPayload {
     manifest: PlaylistBackupManifestV1;
 }
 
+export interface PlaylistBackupExportOptions {
+    includeSecrets?: boolean;
+}
+
 export interface PlaylistBackupImportSummary {
     imported: number;
     merged: number;
@@ -63,20 +67,25 @@ export class PlaylistBackupService {
         XtreamPendingRestoreService
     );
 
-    async exportBackup(): Promise<PlaylistBackupExportPayload> {
+    async exportBackup(
+        options: PlaylistBackupExportOptions = {}
+    ): Promise<PlaylistBackupExportPayload> {
+        const includeSecrets = options.includeSecrets === true;
         const playlists = await firstValueFrom(
             this.playlistsService.getAllData()
         );
         const settings = this.buildSettingsPayload();
         const playlistEntries = await Promise.all(
-            playlists.map((playlist) => this.buildPlaylistEntry(playlist))
+            playlists.map((playlist) =>
+                this.buildPlaylistEntry(playlist, includeSecrets)
+            )
         );
         const exportedAt = new Date().toISOString();
         const manifest: PlaylistBackupManifestV1 = {
             kind: PLAYLIST_BACKUP_KIND,
             version: PLAYLIST_BACKUP_VERSION,
             exportedAt,
-            includeSecrets: true,
+            includeSecrets,
             ...(settings ? { settings } : {}),
             playlists: playlistEntries,
         };
@@ -168,15 +177,16 @@ export class PlaylistBackupService {
     }
 
     private async buildPlaylistEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        includeSecrets: boolean
     ): Promise<PlaylistBackupEntry> {
         const portalType = this.getPlaylistPortalType(playlist);
 
         switch (portalType) {
             case 'xtream':
-                return this.buildXtreamEntry(playlist);
+                return this.buildXtreamEntry(playlist, includeSecrets);
             case 'stalker':
-                return this.buildStalkerEntry(playlist);
+                return this.buildStalkerEntry(playlist, includeSecrets);
             case 'm3u':
             default:
                 return this.buildM3uEntry(playlist);
@@ -231,7 +241,8 @@ export class PlaylistBackupService {
     }
 
     private async buildXtreamEntry(
-        playlist: Playlist
+        playlist: Playlist,
+        includeSecrets: boolean
     ): Promise<XtreamPlaylistBackupEntry> {
         if (!this.hasElectronApi()) {
             return {
@@ -240,13 +251,10 @@ export class PlaylistBackupService {
                 title: playlist.title,
                 autoRefresh: Boolean(playlist.autoRefresh),
                 position: playlist.position,
-                connection: {
-                    serverUrl: playlist.serverUrl ?? '',
-                    username: playlist.username ?? '',
-                    ...(playlist.password
-                        ? { password: playlist.password }
-                        : {}),
-                },
+                connection: this.buildXtreamConnection(
+                    playlist,
+                    includeSecrets
+                ),
                 userState: {
                     hiddenCategories: [],
                     favorites: [],
@@ -278,11 +286,7 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             position: playlist.position,
-            connection: {
-                serverUrl: playlist.serverUrl ?? '',
-                username: playlist.username ?? '',
-                ...(playlist.password ? { password: playlist.password } : {}),
-            },
+            connection: this.buildXtreamConnection(playlist, includeSecrets),
             userState: {
                 hiddenCategories: [
                     ...this.mapHiddenCategories(liveCategories, 'live'),
@@ -309,7 +313,29 @@ export class PlaylistBackupService {
         };
     }
 
-    private buildStalkerEntry(playlist: Playlist): StalkerPlaylistBackupEntry {
+    private buildXtreamConnection(
+        playlist: Playlist,
+        includeSecrets: boolean
+    ): XtreamPlaylistBackupEntry['connection'] {
+        if (!includeSecrets) {
+            return {
+                credentialsOmitted: true,
+                serverUrl: playlist.serverUrl ?? '',
+            };
+        }
+        return {
+            serverUrl: playlist.serverUrl ?? '',
+            username: playlist.username ?? '',
+            ...(playlist.password !== undefined
+                ? { password: playlist.password }
+                : {}),
+        };
+    }
+
+    private buildStalkerEntry(
+        playlist: Playlist,
+        includeSecrets: boolean
+    ): StalkerPlaylistBackupEntry {
         return {
             portalType: 'stalker',
             exportedId: playlist._id,
@@ -318,33 +344,36 @@ export class PlaylistBackupService {
             position: playlist.position,
             connection: {
                 portalUrl: playlist.portalUrl ?? playlist.url ?? '',
+                ...(playlist.stalkerSourceUrl !== undefined
+                    ? { sourceUrl: playlist.stalkerSourceUrl }
+                    : {}),
                 macAddress: playlist.macAddress ?? '',
                 ...(playlist.isFullStalkerPortal !== undefined
                     ? {
                           isFullStalkerPortal: playlist.isFullStalkerPortal,
                       }
                     : {}),
-                ...(playlist.username ? { username: playlist.username } : {}),
-                ...(playlist.password ? { password: playlist.password } : {}),
+                ...(playlist.stalkerProfilePreset !== undefined
+                    ? {
+                          profilePreset: {
+                              ...playlist.stalkerProfilePreset,
+                          },
+                      }
+                    : {}),
+                ...(playlist.stalkerTransportConfiguration !== undefined
+                    ? {
+                          transportConfiguration: {
+                              ...playlist.stalkerTransportConfiguration,
+                          },
+                      }
+                    : {}),
                 ...(playlist.userAgent
                     ? { userAgent: playlist.userAgent }
                     : {}),
                 ...(playlist.referrer ? { referrer: playlist.referrer } : {}),
                 ...(playlist.origin ? { origin: playlist.origin } : {}),
-                ...(playlist.stalkerSerialNumber
-                    ? { stalkerSerialNumber: playlist.stalkerSerialNumber }
-                    : {}),
-                ...(playlist.stalkerDeviceId1
-                    ? { stalkerDeviceId1: playlist.stalkerDeviceId1 }
-                    : {}),
-                ...(playlist.stalkerDeviceId2
-                    ? { stalkerDeviceId2: playlist.stalkerDeviceId2 }
-                    : {}),
-                ...(playlist.stalkerSignature1
-                    ? { stalkerSignature1: playlist.stalkerSignature1 }
-                    : {}),
-                ...(playlist.stalkerSignature2
-                    ? { stalkerSignature2: playlist.stalkerSignature2 }
+                ...(includeSecrets
+                    ? this.buildStalkerSecretConnectionFields(playlist)
                     : {}),
             },
             userState: {
@@ -353,6 +382,53 @@ export class PlaylistBackupService {
                     playlist.recentlyViewed
                 ),
             },
+        };
+    }
+
+    private buildStalkerSecretConnectionFields(
+        playlist: Playlist
+    ): Pick<
+        StalkerPlaylistBackupEntry['connection'],
+        | 'identityOverrides'
+        | 'password'
+        | 'stalkerDeviceId1'
+        | 'stalkerDeviceId2'
+        | 'stalkerSerialNumber'
+        | 'stalkerSignature1'
+        | 'stalkerSignature2'
+        | 'username'
+    > {
+        return {
+            ...(playlist.username !== undefined
+                ? { username: playlist.username }
+                : {}),
+            ...(playlist.password !== undefined
+                ? { password: playlist.password }
+                : {}),
+            ...(playlist.stalkerIdentityOverrides !== undefined
+                ? {
+                      identityOverrides: {
+                          ...playlist.stalkerIdentityOverrides,
+                      },
+                  }
+                : {}),
+            ...(playlist.stalkerSerialNumber !== undefined
+                ? {
+                      stalkerSerialNumber: playlist.stalkerSerialNumber,
+                  }
+                : {}),
+            ...(playlist.stalkerDeviceId1 !== undefined
+                ? { stalkerDeviceId1: playlist.stalkerDeviceId1 }
+                : {}),
+            ...(playlist.stalkerDeviceId2 !== undefined
+                ? { stalkerDeviceId2: playlist.stalkerDeviceId2 }
+                : {}),
+            ...(playlist.stalkerSignature1 !== undefined
+                ? { stalkerSignature1: playlist.stalkerSignature1 }
+                : {}),
+            ...(playlist.stalkerSignature2 !== undefined
+                ? { stalkerSignature2: playlist.stalkerSignature2 }
+                : {}),
         };
     }
 
@@ -407,14 +483,36 @@ export class PlaylistBackupService {
             );
         }
 
+        if (
+            manifest.includeSecrets !== undefined &&
+            typeof manifest.includeSecrets !== 'boolean'
+        ) {
+            throw new PlaylistBackupError(
+                'Backup contains an invalid secret policy.'
+            );
+        }
+        const includeSecrets = manifest.includeSecrets !== false;
+        const exportedIds = new Set<string>();
         for (const entry of manifest.playlists) {
-            this.validateEntry(entry);
+            this.validateEntry(entry, includeSecrets);
+            if (exportedIds.has(entry.exportedId)) {
+                throw new PlaylistBackupError(
+                    'Backup contains duplicate exported playlist IDs.'
+                );
+            }
+            exportedIds.add(entry.exportedId);
         }
 
-        return manifest as PlaylistBackupManifestV1;
+        return {
+            ...(manifest as PlaylistBackupManifestV1),
+            includeSecrets,
+        };
     }
 
-    private validateEntry(entry: PlaylistBackupEntry): void {
+    private validateEntry(
+        entry: PlaylistBackupEntry,
+        includeSecrets: boolean
+    ): void {
         if (!entry || typeof entry !== 'object') {
             throw new PlaylistBackupError(
                 'Backup contains an invalid playlist entry.'
@@ -436,12 +534,21 @@ export class PlaylistBackupService {
                 }
                 break;
             case 'xtream':
-                if (
-                    !entry.connection?.serverUrl ||
-                    !entry.connection?.username
-                ) {
+                if (!entry.connection?.serverUrl) {
                     throw new PlaylistBackupError(
                         `Xtream backup "${entry.title}" is missing connection metadata.`
+                    );
+                }
+                if (
+                    includeSecrets
+                        ? !entry.connection.username ||
+                          entry.connection.credentialsOmitted === true
+                        : entry.connection.credentialsOmitted !== true ||
+                          hasOwn(entry.connection, 'username') ||
+                          hasOwn(entry.connection, 'password')
+                ) {
+                    throw new PlaylistBackupError(
+                        `Xtream backup "${entry.title}" violates its secret policy.`
                     );
                 }
 
@@ -468,6 +575,14 @@ export class PlaylistBackupService {
                 ) {
                     throw new PlaylistBackupError(
                         `Stalker backup "${entry.title}" is missing connection metadata.`
+                    );
+                }
+                if (
+                    !includeSecrets &&
+                    containsStalkerGatedFields(entry.connection)
+                ) {
+                    throw new PlaylistBackupError(
+                        `Stalker backup "${entry.title}" violates its secret policy.`
                     );
                 }
                 break;
@@ -539,7 +654,9 @@ export class PlaylistBackupService {
                 return [
                     'xtream',
                     this.normalizeUrlIdentity(entry.connection.serverUrl),
-                    this.normalizeIdentityValue(entry.connection.username),
+                    this.normalizeIdentityValue(
+                        entry.connection.username ?? ''
+                    ),
                 ].join('|');
             case 'stalker':
                 return [
@@ -627,11 +744,12 @@ export class PlaylistBackupService {
         playlistId: string,
         existing: Playlist | null
     ): Promise<Playlist> {
-        const parsedPlaylist = await this.playlistsService.handlePlaylistParsing(
-            'TEXT',
-            entry.source.rawM3u,
-            entry.title
-        );
+        const parsedPlaylist =
+            await this.playlistsService.handlePlaylistParsing(
+                'TEXT',
+                entry.source.rawM3u,
+                entry.title
+            );
         const now = new Date().toISOString();
 
         return {
@@ -1034,4 +1152,23 @@ export class PlaylistBackupService {
     private hasElectronApi(): boolean {
         return !!(window as Window & { electron?: unknown }).electron;
     }
+}
+
+function hasOwn(value: object, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function containsStalkerGatedFields(
+    connection: StalkerPlaylistBackupEntry['connection']
+): boolean {
+    return [
+        'identityOverrides',
+        'password',
+        'stalkerDeviceId1',
+        'stalkerDeviceId2',
+        'stalkerSerialNumber',
+        'stalkerSignature1',
+        'stalkerSignature2',
+        'username',
+    ].some((key) => hasOwn(connection, key));
 }

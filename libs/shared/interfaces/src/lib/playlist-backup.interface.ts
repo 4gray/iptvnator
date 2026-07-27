@@ -1,6 +1,11 @@
 import { PlaybackPositionData } from './playback-position.interface';
 import { M3uRecentlyViewedItem } from './playlist-recently-viewed.interface';
 import { StalkerPortalItem } from './stalker-portal-item.interface';
+import type {
+    StalkerSessionIdentityOverrides,
+    StalkerSessionProfilePreset,
+    StalkerSessionTransportConfiguration,
+} from './stalker-session.interface';
 
 export const PLAYLIST_BACKUP_KIND = 'iptvnator-playlist-backup';
 export const PLAYLIST_BACKUP_VERSION = 1;
@@ -69,8 +74,9 @@ export interface XtreamPlaylistBackupEntry extends PlaylistBackupBaseEntry {
     portalType: 'xtream';
     connection: {
         serverUrl: string;
-        username: string;
+        username?: string;
         password?: string;
+        credentialsOmitted?: true;
     };
     userState: XtreamBackupUserState;
 }
@@ -79,8 +85,12 @@ export interface StalkerPlaylistBackupEntry extends PlaylistBackupBaseEntry {
     portalType: 'stalker';
     connection: {
         portalUrl: string;
+        sourceUrl?: string;
         macAddress: string;
         isFullStalkerPortal?: boolean;
+        profilePreset?: StalkerSessionProfilePreset;
+        transportConfiguration?: StalkerSessionTransportConfiguration;
+        identityOverrides?: StalkerSessionIdentityOverrides;
         username?: string;
         password?: string;
         userAgent?: string;
