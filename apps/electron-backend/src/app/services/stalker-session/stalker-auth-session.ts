@@ -23,9 +23,11 @@ import type {
     StalkerTransportConfig,
     StalkerTransportResult,
 } from './stalker-session.types';
+import type { StalkerCookieJar } from './stalker-cookie-jar';
 
 const USERNAME_MAX_BYTES = 512;
 const PASSWORD_MAX_BYTES = 2048;
+const STALKER_STREAM_USER_AGENT = 'KSPlayer';
 
 interface StalkerHttpSessionLike {
     request(request: StalkerHttpRequest): Promise<StalkerHttpRequestOutcome>;
@@ -36,6 +38,11 @@ export interface StalkerAuthSessionDependencies {
         resolved: StalkerEndpointFullSessionOutcome,
         transport: StalkerTransportConfig
     ) => StalkerHttpSessionLike;
+}
+
+export interface StalkerPreparedPlayback {
+    readonly headers: Readonly<Record<string, string>>;
+    readonly streamUrl: string;
 }
 
 export interface StalkerAuthCredentials {
@@ -85,6 +92,7 @@ export type StalkerAuthenticatedRequestOutcome =
 type AuthState = 'new' | 'awaiting-credentials' | 'ready' | 'failed';
 
 export class StalkerAuthSession {
+    readonly #cookieJar: StalkerCookieJar;
     readonly #endpoint: string;
     readonly #http: StalkerHttpSessionLike;
     readonly #identity: StalkerIdentityProfile;
@@ -101,6 +109,7 @@ export class StalkerAuthSession {
         transport: StalkerTransportConfig,
         dependencies: StalkerAuthSessionDependencies = {}
     ) {
+        this.#cookieJar = resolved.cookieJar;
         this.#endpoint = resolved.endpoint;
         this.#identity = resolved.identity;
         this.#profile = resolved.profile.profile;
@@ -280,6 +289,36 @@ export class StalkerAuthSession {
         return this.#acceptedCredentials !== undefined;
     }
 
+    async preparePlayback(streamUrl: string): Promise<StalkerPreparedPlayback> {
+        if (this.#state !== 'ready') {
+            throw new Error('stalker-playback-not-ready');
+        }
+
+        const normalizedUrl = normalizePlaybackUrl(streamUrl, this.#endpoint);
+        if (new URL(normalizedUrl).origin !== new URL(this.#endpoint).origin) {
+            return {
+                headers: {
+                    Accept: '*/*',
+                    Connection: 'keep-alive',
+                    'Icy-MetaData': '1',
+                    Range: 'bytes=0-',
+                    'User-Agent': STALKER_STREAM_USER_AGENT,
+                },
+                streamUrl: normalizedUrl,
+            };
+        }
+
+        const cookie = await this.#cookieJar.getCookieHeader(normalizedUrl);
+        return {
+            headers: {
+                ...this.#identity.headers,
+                Authorization: `Bearer ${this.#token}`,
+                ...(cookie ? { Cookie: cookie } : {}),
+            },
+            streamUrl: normalizedUrl,
+        };
+    }
+
     async request(
         parameters: Readonly<Record<string, string | number>>
     ): Promise<StalkerAuthenticatedRequestOutcome> {
@@ -358,6 +397,35 @@ export class StalkerAuthSession {
         this.#lastOutcome = outcome;
         return outcome;
     }
+}
+
+function normalizePlaybackUrl(value: string, endpoint: string): string {
+    if (
+        typeof value !== 'string' ||
+        value.trim() === '' ||
+        value.length > 16 * 1024
+    ) {
+        throw new Error('stalker-playback-invalid-url');
+    }
+    const trimmed = value.trim();
+    const separator = trimmed.indexOf(' ');
+    const command =
+        separator > 0 ? trimmed.slice(separator + 1).trim() : trimmed;
+    let url: URL;
+    try {
+        url = new URL(command, endpoint);
+    } catch {
+        throw new Error('stalker-playback-invalid-url');
+    }
+    if (
+        (url.protocol !== 'http:' && url.protocol !== 'https:') ||
+        url.username !== '' ||
+        url.password !== ''
+    ) {
+        throw new Error('stalker-playback-invalid-url');
+    }
+    url.hash = '';
+    return url.toString();
 }
 
 function normalizeResponse(

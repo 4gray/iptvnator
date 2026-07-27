@@ -311,4 +311,100 @@ describe('StalkerAuthSession', () => {
         expect(JSON.stringify(outcome)).not.toContain('token-secret');
         expect(JSON.stringify(outcome)).not.toContain('private-password');
     });
+
+    it('prepares exact same-origin playback headers from the private token and live cookie jar', async () => {
+        const outcome = resolved({
+            kind: 'ready',
+            profile: { login: 'player-user', status: 0 },
+            status: 0,
+        });
+        await outcome.cookieJar.collectResponseCookies(
+            outcome.endpoint,
+            'session=rotated; Path=/; HttpOnly'
+        );
+        const auth = new StalkerAuthSession(outcome, transport, {
+            createHttpSession: () => ({
+                request: async () => {
+                    throw new Error('No request expected');
+                },
+            }),
+        });
+        await auth.start();
+
+        const playback = await auth.preparePlayback(
+            '/stream/live.ts?ticket=synthetic'
+        );
+
+        expect(playback.streamUrl).toBe(
+            'https://portal.test/stream/live.ts?ticket=synthetic'
+        );
+        expect(playback.headers).toMatchObject({
+            Authorization: 'Bearer token-secret',
+            Cookie: expect.stringContaining('session=rotated'),
+            Referer: 'https://portal.test/c/',
+            'User-Agent': expect.stringContaining('MAG250'),
+            'X-User-Agent': 'Model: MAG250',
+        });
+        expect(playback.headers.Cookie).toContain('mac=00:1A:79:AA:BB:CC');
+        expect(playback.headers).not.toHaveProperty('SN');
+    });
+
+    it('uses a secret-free direct-stream profile for cross-origin playback', async () => {
+        const { auth } = harness(
+            {
+                kind: 'ready',
+                profile: { login: 'player-user', status: 0 },
+                status: 0,
+            },
+            () => {
+                throw new Error('No request expected');
+            }
+        );
+        await auth.start();
+
+        await expect(
+            auth.preparePlayback(
+                'https://media.example.test/live.ts?ticket=synthetic'
+            )
+        ).resolves.toEqual({
+            headers: {
+                Accept: '*/*',
+                Connection: 'keep-alive',
+                'Icy-MetaData': '1',
+                Range: 'bytes=0-',
+                'User-Agent': 'KSPlayer',
+            },
+            streamUrl: 'https://media.example.test/live.ts?ticket=synthetic',
+        });
+    });
+
+    it('rejects playback preparation before ready and for unsafe URL schemes', async () => {
+        const { auth: pendingAuth } = harness(
+            {
+                kind: 'credentials-required',
+                profile: { status: 2 },
+                status: 2,
+            },
+            () => success({ js: false })
+        );
+
+        await expect(
+            pendingAuth.preparePlayback('https://portal.test/live.ts')
+        ).rejects.toThrow('stalker-playback-not-ready');
+
+        const { auth: readyAuth } = harness(
+            {
+                kind: 'ready',
+                profile: { login: 'player-user', status: 0 },
+                status: 0,
+            },
+            () => {
+                throw new Error('No request expected');
+            }
+        );
+        await readyAuth.start();
+        await expect(
+            readyAuth.preparePlayback('file:///tmp/live.ts')
+        ).rejects.toThrow('stalker-playback-invalid-url');
+    });
 });
