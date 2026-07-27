@@ -23,10 +23,7 @@ export async function executeStalkerRequest<T>(
     playlist: PlaylistMeta,
     params: Record<string, string | number>
 ): Promise<T> {
-    if (
-        playlist.isFullStalkerPortal &&
-        supportsTypedSessions(deps.stalkerSession)
-    ) {
+    if (usesTypedStalkerSession(deps, playlist)) {
         return deps.stalkerSession.makeAuthenticatedRequest<T>(
             toStalkerSessionPlaylist(playlist),
             params
@@ -38,6 +35,16 @@ export async function executeStalkerRequest<T>(
         macAddress: playlist.macAddress,
         params,
     });
+}
+
+export function usesTypedStalkerSession(
+    deps: StalkerRequestDeps,
+    playlist: PlaylistMeta
+): boolean {
+    return Boolean(
+        playlist.isFullStalkerPortal &&
+            supportsTypedSessions(deps.stalkerSession)
+    );
 }
 
 function supportsTypedSessions(stalkerSession: StalkerSessionService): boolean {

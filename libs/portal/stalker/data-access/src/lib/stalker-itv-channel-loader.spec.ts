@@ -88,4 +88,51 @@ describe('loadFullItvChannelList', () => {
                 .sort()
         ).toEqual([1, 2, 3]);
     });
+
+    it('does not add a renderer retry after a typed full-session request exhausts recovery', async () => {
+        const makeAuthenticatedRequest = jest
+            .fn()
+            .mockRejectedValue(new Error('typed session recovery exhausted'));
+        const sendIpcEvent = jest.fn();
+
+        await expect(
+            loadFullItvChannelList(
+                {
+                    dataService: {
+                        sendIpcEvent,
+                    } as unknown as DataService,
+                    stalkerSession: {
+                        supportsTypedSessions: jest.fn().mockReturnValue(true),
+                        makeAuthenticatedRequest,
+                    } as unknown as StalkerSessionService,
+                },
+                {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                },
+                jest.fn(),
+                {
+                    info: jest.fn(),
+                    warn: jest.fn(),
+                }
+            )
+        ).resolves.toBe('error');
+
+        expect(sendIpcEvent).not.toHaveBeenCalled();
+        expect(makeAuthenticatedRequest.mock.calls.map(([, params]) => params))
+            .toEqual([
+                {
+                    action: StalkerPortalActions.GetAllChannels,
+                    type: 'itv',
+                },
+                {
+                    action: StalkerPortalActions.GetOrderedList,
+                    category: '*',
+                    genre: '*',
+                    p: 1,
+                    sortby: 'number',
+                    type: 'itv',
+                },
+            ]);
+    });
 });

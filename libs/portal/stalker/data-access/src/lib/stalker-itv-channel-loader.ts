@@ -8,6 +8,7 @@ import {
     executeStalkerRequest,
     toStalkerContentItem,
     toStalkerItvChannel,
+    usesTypedStalkerSession,
 } from './stores/utils';
 
 export interface StalkerItvLoadProgress {
@@ -252,6 +253,13 @@ async function fetchOrderedPageWithRetry(
     const firstAttempt = await fetchOrderedPage(deps, playlist, page, logger);
     if (firstAttempt !== null) {
         return firstAttempt;
+    }
+    // The typed session facade already owns the single auth recovery/reissue
+    // budget for this operation. Retrying here would silently turn it into a
+    // second renderer-side budget. Legacy/PWA requests retain their historical
+    // one-page retry because no session manager exists on that path.
+    if (usesTypedStalkerSession(deps, playlist)) {
+        return null;
     }
     return fetchOrderedPage(deps, playlist, page, logger);
 }
