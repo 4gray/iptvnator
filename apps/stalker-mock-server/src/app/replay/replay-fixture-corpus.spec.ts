@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- The committed corpus matrix and its typed deterministic driver form one auditable contract. */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { classifyStalkerDoAuth } from '@iptvnator/portal/stalker/protocol';
 import { createReplayRun, type ReplayRun } from './replay-run.js';
 import { parseReplayFixtureText } from './replay-schema.js';
 import type {
@@ -26,6 +27,7 @@ const FIXTURE_ROOT = resolve(
 const EXPECTED_SCENARIOS = [
     'authentication-blocked-profile',
     'authentication-noncanonical-do-auth',
+    'authentication-noncanonical-do-auth-string',
     'authentication-saved-rejected-fresh',
     'authentication-status2-second-step',
     'authentication-three-attempt-limit',
@@ -639,6 +641,72 @@ describe('committed replay fixture corpus', () => {
             } finally {
                 run.dispose();
             }
+        }
+    });
+
+    it('terminates both noncanonical do_auth near misses before a second profile', () => {
+        const cases = [
+            {
+                expectedJs: 1,
+                fileName: 'noncanonical-do-auth.json',
+                scenarioId: 'authentication-noncanonical-do-auth',
+            },
+            {
+                expectedJs: 'true',
+                fileName: 'noncanonical-do-auth-string.json',
+                scenarioId: 'authentication-noncanonical-do-auth-string',
+            },
+        ] as const;
+
+        for (const current of cases) {
+            const fixture = parseReplayFixtureText(
+                readFileSync(
+                    join(FIXTURE_ROOT, 'authentication', current.fileName),
+                    'utf8'
+                )
+            );
+            const expectations = fixture.phases.flatMap(
+                (phase) => phase.expectations
+            );
+            const profileSteps = expectations
+                .filter(
+                    (expectation) =>
+                        expectation.request.query.exact['action'] ===
+                        'get_profile'
+                )
+                .map(
+                    (expectation) =>
+                        expectation.request.query.exact['auth_second_step']
+                );
+            const doAuth = expectations.find(
+                (expectation) =>
+                    expectation.request.query.exact['action'] === 'do_auth'
+            );
+            if (doAuth?.response.body.kind !== 'json') {
+                throw new Error(
+                    `Noncanonical fixture lacks do_auth JSON: ${fixture.scenarioId}.`
+                );
+            }
+            const doAuthValue = doAuth.response.body.value as {
+                readonly js?: unknown;
+            };
+            const terminalPhase = fixture.phases.find((phase) =>
+                phase.expectations.includes(doAuth)
+            );
+
+            expect(fixture).toMatchObject({
+                failOnUnexpectedRequest: true,
+                scenarioId: current.scenarioId,
+            });
+            expect(doAuthValue.js).toBe(current.expectedJs);
+            expect(
+                classifyStalkerDoAuth({ js: doAuthValue.js })
+            ).toEqual({
+                kind: 'failure',
+                reason: 'incompatible-response',
+            });
+            expect(profileSteps).toEqual(['0']);
+            expect(terminalPhase?.nextState).toBe(fixture.terminalState);
         }
     });
 });
