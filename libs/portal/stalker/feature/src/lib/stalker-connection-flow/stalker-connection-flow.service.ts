@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- route connection recovery state is intentionally kept in one owner */
 import { DestroyRef, Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -88,7 +89,7 @@ export class StalkerConnectionFlowService {
         if (!this.session.supportsTypedSessions()) {
             return playlist;
         }
-        let leaseRef = this.session.getLeaseRef(playlist._id);
+        const leaseRef = this.session.getLeaseRef(playlist._id);
         if (leaseRef === undefined) {
             const runId = ++this.runId;
             await this.discardPending();
@@ -164,7 +165,12 @@ export class StalkerConnectionFlowService {
     ): Promise<Playlist | undefined> {
         let outcome = initialOutcome;
         let credentials: StalkerCredentialsDialogResult | undefined;
-        while (runId === this.runId) {
+        while (true) {
+            if (await this.discardOutcomeWhenStale(outcome, runId)) {
+                return undefined;
+            }
+            this.activeAttemptRef =
+                this.getOutcomeAttemptRef(outcome) ?? this.activeAttemptRef;
             if (outcome.kind === 'ready') {
                 const draft = this.applyReadyOutcome(
                     playlist,
@@ -190,6 +196,9 @@ export class StalkerConnectionFlowService {
                         kind: 'origin-approval',
                     },
                 });
+                if (await this.discardOutcomeWhenStale(outcome, runId)) {
+                    return undefined;
+                }
                 if (!approved) {
                     return undefined;
                 }
@@ -293,12 +302,16 @@ export class StalkerConnectionFlowService {
                     pending.outcome.attemptRef
                 );
             } catch {
-                await this.discardAttempt(pending.outcome.attemptRef);
-                return undefined;
+                return this.reopenPersistedAfterPromotionFailure(
+                    pending,
+                    persisted
+                );
             }
             if (promotion.kind !== 'success') {
-                await this.discardAttempt(pending.outcome.attemptRef);
-                return undefined;
+                return this.reopenPersistedAfterPromotionFailure(
+                    pending,
+                    persisted
+                );
             }
         }
         this.activeAttemptRef = null;
@@ -307,6 +320,63 @@ export class StalkerConnectionFlowService {
             this.readySubject.next(persisted);
         }
         return persisted;
+    }
+
+    private async reopenPersistedAfterPromotionFailure(
+        pending: PendingPersistence,
+        persisted: Playlist
+    ): Promise<Playlist | undefined> {
+        await this.discardAttempt(pending.outcome.attemptRef);
+        this.activeAttemptRef = null;
+        this.pendingPersistence = null;
+        if (pending.runId !== this.runId) {
+            return undefined;
+        }
+
+        let outcome: StalkerSessionConnectionOutcome;
+        try {
+            outcome = await this.session.open(persisted);
+        } catch {
+            this.notifyPromotionFailure();
+            return undefined;
+        }
+        if (await this.discardOutcomeWhenStale(outcome, pending.runId)) {
+            return undefined;
+        }
+        if (outcome.kind !== 'ready') {
+            const recovered = await this.handleOutcome(
+                persisted,
+                outcome,
+                pending.runId,
+                pending.announceReady
+            );
+            if (recovered === undefined && pending.runId === this.runId) {
+                this.notifyPromotionFailure();
+            }
+            return recovered;
+        }
+
+        if (pending.announceReady) {
+            this.readySubject.next(persisted);
+        }
+        return persisted;
+    }
+
+    private async discardOutcomeWhenStale(
+        outcome: StalkerSessionConnectionOutcome,
+        runId: number
+    ): Promise<boolean> {
+        if (runId === this.runId) {
+            return false;
+        }
+        await this.discardAttempt(this.getOutcomeAttemptRef(outcome));
+        return true;
+    }
+
+    private getOutcomeAttemptRef(
+        outcome: StalkerSessionConnectionOutcome
+    ): string | undefined {
+        return 'attemptRef' in outcome ? outcome.attemptRef : undefined;
     }
 
     private applyReadyOutcome(
@@ -338,6 +408,17 @@ export class StalkerConnectionFlowService {
             .subscribe(() => void this.retryPendingPersistence());
     }
 
+    private notifyPromotionFailure(): void {
+        this.snackBar.open(
+            this.translate.instant(
+                'HOME.STALKER_PORTAL.CONNECTION_FAILURE_GENERIC',
+                { reason: 'session-promotion-failed' }
+            ),
+            undefined,
+            { duration: 10_000 }
+        );
+    }
+
     private async discardPending(): Promise<void> {
         const attemptRef =
             this.pendingPersistence?.outcome.attemptRef ??
@@ -348,7 +429,9 @@ export class StalkerConnectionFlowService {
         await this.discardAttempt(attemptRef);
     }
 
-    private async discardAttempt(attemptRef: string | undefined): Promise<void> {
+    private async discardAttempt(
+        attemptRef: string | undefined
+    ): Promise<void> {
         if (attemptRef !== undefined) {
             await this.session.discard(attemptRef).catch(() => undefined);
         }

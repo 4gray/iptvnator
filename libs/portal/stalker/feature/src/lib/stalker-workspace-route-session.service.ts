@@ -13,6 +13,7 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     StalkerContentType,
+    StalkerSessionService,
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
@@ -26,10 +27,12 @@ export class StalkerWorkspaceRouteSession {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
+    private readonly session = inject(StalkerSessionService);
     private readonly stalkerStore = inject(StalkerStore);
 
     private currentPlaylistId: string | null = null;
     private readonly currentSection = signal<PortalRailSection | null>(null);
+    private routeSyncGeneration = 0;
     private syncGeneration = 0;
 
     constructor() {
@@ -48,13 +51,21 @@ export class StalkerWorkspaceRouteSession {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((playlist) => {
                 if (playlist._id === this.currentPlaylistId) {
-                    void this.stalkerStore.setCurrentPlaylist(playlist);
+                    void this.activateAndSetCurrentPlaylist(playlist);
                 }
             });
 
         void this.syncRouteContext();
 
         this.destroyRef.onDestroy(() => {
+            const playlistId = this.currentPlaylistId;
+            this.currentPlaylistId = null;
+            this.routeSyncGeneration += 1;
+            this.syncGeneration += 1;
+            void this.connectionFlow.cancel();
+            if (playlistId !== null) {
+                void this.releasePlaylistSession(playlistId);
+            }
             this.stalkerStore.resetCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
@@ -62,16 +73,22 @@ export class StalkerWorkspaceRouteSession {
     }
 
     private async syncRouteContext(): Promise<void> {
-        const generation = ++this.syncGeneration;
+        const routeGeneration = ++this.routeSyncGeneration;
         const routeContext = this.playlistContext.syncFromUrl(this.router.url);
         const playlistId =
             routeContext.provider === 'stalker'
                 ? routeContext.playlistId
                 : null;
+        const generation =
+            playlistId === this.currentPlaylistId
+                ? this.syncGeneration
+                : ++this.syncGeneration;
 
         if (!playlistId && this.currentPlaylistId !== null) {
+            const previousPlaylistId = this.currentPlaylistId;
             this.currentPlaylistId = null;
             await this.connectionFlow.cancel();
+            await this.releasePlaylistSession(previousPlaylistId);
             if (generation !== this.syncGeneration) {
                 return;
             }
@@ -80,16 +97,30 @@ export class StalkerWorkspaceRouteSession {
             this.stalkerStore.clearSelectedItem();
             await this.stalkerStore.setCurrentPlaylist(undefined);
         } else if (playlistId && this.currentPlaylistId !== playlistId) {
-            if (this.currentPlaylistId !== null) {
-                await this.connectionFlow.cancel();
-            }
+            const previousPlaylistId = this.currentPlaylistId;
             this.currentPlaylistId = playlistId;
+            if (previousPlaylistId !== null) {
+                await this.connectionFlow.cancel();
+                await this.releasePlaylistSession(previousPlaylistId);
+                if (
+                    generation !== this.syncGeneration ||
+                    playlistId !== this.currentPlaylistId
+                ) {
+                    return;
+                }
+            }
 
             this.stalkerStore.resetCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
 
             const playlist = await this.resolveStalkerPlaylist(playlistId);
+            if (
+                generation !== this.syncGeneration ||
+                playlistId !== this.currentPlaylistId
+            ) {
+                return;
+            }
             const connected =
                 playlist === undefined
                     ? undefined
@@ -103,11 +134,46 @@ export class StalkerWorkspaceRouteSession {
                 return;
             }
             if (connected !== undefined) {
-                await this.stalkerStore.setCurrentPlaylist(connected);
+                await this.activateAndSetCurrentPlaylist(connected);
             }
         }
 
-        this.syncRouteState(routeContext.section);
+        if (routeGeneration === this.routeSyncGeneration) {
+            this.syncRouteState(routeContext.section);
+        }
+    }
+
+    private async activateAndSetCurrentPlaylist(
+        playlist: Playlist
+    ): Promise<void> {
+        if (playlist._id !== this.currentPlaylistId) {
+            return;
+        }
+        const leaseRef = this.session.getLeaseRef(playlist._id);
+        if (leaseRef !== undefined) {
+            try {
+                const activation = await this.session.activate(leaseRef);
+                if (activation.kind !== 'success') {
+                    await this.releasePlaylistSession(playlist._id);
+                    return;
+                }
+            } catch {
+                await this.releasePlaylistSession(playlist._id);
+                return;
+            }
+        }
+        if (playlist._id === this.currentPlaylistId) {
+            await this.stalkerStore.setCurrentPlaylist(playlist);
+        }
+    }
+
+    private async releasePlaylistSession(playlistId: string): Promise<void> {
+        const leaseRef = this.session.getLeaseRef(playlistId);
+        if (leaseRef === undefined) {
+            return;
+        }
+        await this.session.deactivate(leaseRef).catch(() => undefined);
+        await this.session.close(leaseRef).catch(() => undefined);
     }
 
     private syncRouteState(section: PortalRailSection | null): void {

@@ -74,6 +74,31 @@ type PlaylistParserModule = Partial<typeof import('iptv-playlist-parser')> & {
     default?: Partial<typeof import('iptv-playlist-parser')>;
 };
 
+const STALKER_CONNECTION_FIELDS = [
+    'isFullStalkerPortal',
+    'macAddress',
+    'origin',
+    'password',
+    'portalUrl',
+    'referrer',
+    'stalkerAccountInfo',
+    'stalkerDeviceId1',
+    'stalkerDeviceId2',
+    'stalkerIdentityOverrides',
+    'stalkerLandingUrl',
+    'stalkerLastVerifiedAt',
+    'stalkerProfilePreset',
+    'stalkerRecipeClassifierVersion',
+    'stalkerRequestRecipe',
+    'stalkerSerialNumber',
+    'stalkerSignature1',
+    'stalkerSignature2',
+    'stalkerSourceUrl',
+    'stalkerTransportConfiguration',
+    'userAgent',
+    'username',
+] as const satisfies readonly (keyof Playlist)[];
+
 export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
     const parse = parserModule.parse ?? parserModule.default?.parse;
 
@@ -463,9 +488,10 @@ export class PlaylistsService {
     }
 
     /**
-     * Persists the complete, already verified Stalker connection in one
-     * serialized row write. This is the promotion boundary used before the
-     * main-process provisional session is committed.
+     * Persists an already verified Stalker connection in one serialized row
+     * write. Existing rows merge only connection-owned fields from the
+     * pre-authentication draft, so concurrent title, collection, playback,
+     * refresh, and display-setting changes survive this promotion boundary.
      *
      * The legacy bearer token is always removed. Omitted credentials preserve
      * an existing accepted pair, which lets saved-credential reconnects update
@@ -484,16 +510,32 @@ export class PlaylistsService {
             );
             const safeDraft = { ...draft };
             delete safeDraft.stalkerToken;
-            const nextPlaylist = {
-                ...(currentPlaylist ?? {}),
-                ...safeDraft,
-                _id: playlistId,
-            } as Playlist;
+            const nextPlaylist =
+                currentPlaylist === undefined
+                    ? safeDraft
+                    : {
+                          ...currentPlaylist,
+                          ...this.pickStalkerConnectionFields(safeDraft),
+                          _id: playlistId,
+                      };
             delete nextPlaylist.stalkerToken;
 
             await this.persistPlaylistMutation(nextPlaylist);
             return nextPlaylist;
         });
+    }
+
+    private pickStalkerConnectionFields(draft: Playlist): Partial<Playlist> {
+        const patch: Partial<Playlist> = {};
+        for (const field of STALKER_CONNECTION_FIELDS) {
+            if (
+                Object.prototype.hasOwnProperty.call(draft, field) &&
+                draft[field] !== undefined
+            ) {
+                Object.assign(patch, { [field]: draft[field] });
+            }
+        }
+        return patch;
     }
 
     getPlaylist(id: string) {

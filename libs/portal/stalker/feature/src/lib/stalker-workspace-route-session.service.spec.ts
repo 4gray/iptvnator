@@ -1,9 +1,13 @@
+/* eslint-disable max-lines -- route lifecycle and navigation race matrix is kept together */
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, Subject, of } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerSessionService,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerConnectionFlowService } from './stalker-connection-flow/stalker-connection-flow.service';
@@ -29,10 +33,20 @@ const FULL_STALKER_PLAYLIST: PlaylistMeta = {
 } as PlaylistMeta;
 
 async function flushEffects(): Promise<void> {
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 12; index += 1) {
+        await Promise.resolve();
+    }
+}
+
+function createDeferred<T>(): {
+    readonly promise: Promise<T>;
+    readonly resolve: (value: T) => void;
+} {
+    let resolve: (value: T) => void = () => undefined;
+    const promise = new Promise<T>((resolvePromise) => {
+        resolve = resolvePromise;
+    });
+    return { promise, resolve };
 }
 
 function getStalkerSectionFromUrl(url: string): string | null {
@@ -74,9 +88,26 @@ describe('StalkerWorkspaceRouteSession', () => {
     const connectionFlow = {
         cancel: jest.fn().mockResolvedValue(undefined),
         connectionReady$: connectionReady.asObservable(),
-        ensureConnected: jest.fn(
-            async (playlist: PlaylistMeta) => playlist
-        ),
+        ensureConnected: jest.fn(async (playlist: PlaylistMeta) => playlist),
+    };
+
+    const session = {
+        activate: jest.fn().mockResolvedValue({
+            action: 'activate',
+            kind: 'success',
+            requestId: 'activate-success',
+        }),
+        close: jest.fn().mockResolvedValue({
+            action: 'close',
+            kind: 'success',
+            requestId: 'close-success',
+        }),
+        deactivate: jest.fn().mockResolvedValue({
+            action: 'deactivate',
+            kind: 'success',
+            requestId: 'deactivate-success',
+        }),
+        getLeaseRef: jest.fn((playlistId: string) => `lease-${playlistId}`),
     };
 
     const router = {
@@ -113,6 +144,10 @@ describe('StalkerWorkspaceRouteSession', () => {
         playlistsService.getPlaylistById.mockClear();
         connectionFlow.cancel.mockClear();
         connectionFlow.ensureConnected.mockClear();
+        session.activate.mockClear();
+        session.close.mockClear();
+        session.deactivate.mockClear();
+        session.getLeaseRef.mockClear();
 
         await TestBed.configureTestingModule({
             providers: [
@@ -137,6 +172,10 @@ describe('StalkerWorkspaceRouteSession', () => {
                     provide: StalkerConnectionFlowService,
                     useValue: connectionFlow,
                 },
+                {
+                    provide: StalkerSessionService,
+                    useValue: session,
+                },
             ],
         });
     });
@@ -157,6 +196,10 @@ describe('StalkerWorkspaceRouteSession', () => {
         expect(
             connectionFlow.ensureConnected.mock.invocationCallOrder[0]
         ).toBeLessThan(
+            stalkerStore.setCurrentPlaylist.mock.invocationCallOrder[0]
+        );
+        expect(session.activate).toHaveBeenCalledWith(`lease-${PLAYLIST_ID}`);
+        expect(session.activate.mock.invocationCallOrder[0]).toBeLessThan(
             stalkerStore.setCurrentPlaylist.mock.invocationCallOrder[0]
         );
         expect(stalkerStore.setSelectedContentType).toHaveBeenCalledWith('itv');
@@ -257,6 +300,11 @@ describe('StalkerWorkspaceRouteSession', () => {
         await flushEffects();
 
         expect(connectionFlow.cancel).toHaveBeenCalledTimes(1);
+        expect(session.deactivate).toHaveBeenCalledWith(`lease-${PLAYLIST_ID}`);
+        expect(session.close).toHaveBeenCalledWith(`lease-${PLAYLIST_ID}`);
+        expect(session.deactivate.mock.invocationCallOrder[0]).toBeLessThan(
+            session.close.mock.invocationCallOrder[0]
+        );
         expect(stalkerStore.setCurrentPlaylist).toHaveBeenLastCalledWith(
             undefined
         );
@@ -273,5 +321,171 @@ describe('StalkerWorkspaceRouteSession', () => {
         expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
             FULL_STALKER_PLAYLIST
         );
+    });
+
+    it('does not connect a stale playlist after its lookup resolves behind a newer route', async () => {
+        const staleLookup = new Subject<PlaylistMeta>();
+        const nextPlaylist = {
+            ...FULL_STALKER_PLAYLIST,
+            _id: 'stalker-2',
+            title: 'Second Stalker',
+        };
+        playlistsService.getPlaylistById.mockImplementation(
+            (playlistId: string) =>
+                playlistId === PLAYLIST_ID
+                    ? staleLookup.asObservable()
+                    : of(nextPlaylist)
+        );
+        playlistContext.syncFromUrl.mockImplementation((url: string) => {
+            const match = url.match(
+                /^\/workspace\/stalker\/([^/]+)\/([^/?]+)(?:\/|$)/
+            );
+            return {
+                inWorkspace: true,
+                provider: match ? 'stalker' : null,
+                playlistId: match?.[1] ?? null,
+                section: (match?.[2] ?? null) as
+                    | 'favorites'
+                    | 'itv'
+                    | 'radio'
+                    | 'recent'
+                    | 'search'
+                    | 'series'
+                    | 'vod'
+                    | null,
+            };
+        });
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+            PLAYLIST_ID
+        );
+
+        router.url = '/workspace/stalker/stalker-2/series';
+        routerEvents.next(
+            new NavigationEnd(
+                2,
+                `/workspace/stalker/${PLAYLIST_ID}/vod`,
+                router.url
+            )
+        );
+        await flushEffects();
+
+        expect(connectionFlow.ensureConnected).toHaveBeenCalledWith(
+            nextPlaylist
+        );
+
+        staleLookup.next(FULL_STALKER_PLAYLIST);
+        staleLookup.complete();
+        await flushEffects();
+
+        expect(connectionFlow.ensureConnected).not.toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
+        expect(stalkerStore.setCurrentPlaylist).not.toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            nextPlaylist
+        );
+    });
+
+    it('keeps a newer section while the same playlist connection is still completing', async () => {
+        const deferredConnection = createDeferred<PlaylistMeta>();
+        connectionFlow.ensureConnected.mockReturnValueOnce(
+            deferredConnection.promise
+        );
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        expect(connectionFlow.ensureConnected).toHaveBeenCalledTimes(1);
+
+        router.url = `/workspace/stalker/${PLAYLIST_ID}/itv`;
+        routerEvents.next(
+            new NavigationEnd(
+                2,
+                `/workspace/stalker/${PLAYLIST_ID}/vod`,
+                router.url
+            )
+        );
+        await flushEffects();
+        expect(selectedContentType()).toBe('itv');
+
+        deferredConnection.resolve(FULL_STALKER_PLAYLIST);
+        await flushEffects();
+
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
+        expect(selectedContentType()).toBe('itv');
+    });
+
+    it('closes the old lease before activating a switched Stalker playlist', async () => {
+        const nextPlaylist = {
+            ...FULL_STALKER_PLAYLIST,
+            _id: 'stalker-2',
+            title: 'Second Stalker',
+        };
+        playlistsService.getPlaylistById.mockImplementation(
+            (playlistId: string) =>
+                of(
+                    playlistId === PLAYLIST_ID
+                        ? FULL_STALKER_PLAYLIST
+                        : nextPlaylist
+                )
+        );
+        playlistContext.syncFromUrl.mockImplementation((url: string) => {
+            const match = url.match(
+                /^\/workspace\/stalker\/([^/]+)\/([^/?]+)(?:\/|$)/
+            );
+            return {
+                inWorkspace: true,
+                provider: match ? 'stalker' : null,
+                playlistId: match?.[1] ?? null,
+                section: (match?.[2] ?? null) as
+                    | 'favorites'
+                    | 'itv'
+                    | 'radio'
+                    | 'recent'
+                    | 'search'
+                    | 'series'
+                    | 'vod'
+                    | null,
+            };
+        });
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        router.url = '/workspace/stalker/stalker-2/vod';
+        routerEvents.next(
+            new NavigationEnd(
+                2,
+                `/workspace/stalker/${PLAYLIST_ID}/vod`,
+                router.url
+            )
+        );
+        await flushEffects();
+
+        expect(session.deactivate).toHaveBeenCalledWith(`lease-${PLAYLIST_ID}`);
+        expect(session.close).toHaveBeenCalledWith(`lease-${PLAYLIST_ID}`);
+        expect(session.activate).toHaveBeenCalledWith('lease-stalker-2');
+        expect(session.close.mock.invocationCallOrder[0]).toBeLessThan(
+            session.activate.mock.invocationCallOrder.at(-1) as number
+        );
+    });
+
+    it('deactivates and closes the current lease when the route provider is destroyed', async () => {
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+        session.deactivate.mockClear();
+        session.close.mockClear();
+
+        TestBed.resetTestingModule();
+        await flushEffects();
+
+        expect(session.deactivate).toHaveBeenCalledWith(`lease-${PLAYLIST_ID}`);
+        expect(session.close).toHaveBeenCalledWith(`lease-${PLAYLIST_ID}`);
     });
 });

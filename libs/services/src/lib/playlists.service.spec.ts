@@ -1748,14 +1748,83 @@ describe('PlaylistsService', () => {
                     importDate: '2026-07-27T00:00:00.000Z',
                     lastUsage: '2026-07-27T00:00:00.000Z',
                     macAddress: '00:1A:79:AA:BB:CC',
+                    password: undefined,
                     portalUrl: 'https://portal.example/portal.php',
                     stalkerRequestRecipe: 'stateless-mac',
                     title: 'Updated Portal',
+                    username: undefined,
                 })
             );
 
             expect(store.current.username).toBe('saved-user');
             expect(store.current.password).toBe('saved-password');
+        });
+
+        it('merges only connection-owned fields from a stale Stalker authentication snapshot', async () => {
+            const staleSnapshot = {
+                ...createBasePlaylist('stalker-concurrent-metadata'),
+                autoRefresh: false,
+                favorites: [
+                    { stream_id: 1, title: 'Favorite before authentication' },
+                ],
+                macAddress: '00:1A:79:AA:BB:CC',
+                password: 'old-password',
+                portalUrl: 'https://old.example/server/load.php',
+                recentlyViewed: [],
+                title: 'Title before authentication',
+                username: 'old-user',
+            } as Playlist;
+            const { store, electron } =
+                createStatefulElectronStore(staleSnapshot);
+            store.current = {
+                ...staleSnapshot,
+                autoRefresh: true,
+                favorites: [{ stream_id: 9, title: 'Concurrent Favorite' }],
+                hiddenGroupTitles: ['Hidden concurrently'],
+                position: 7,
+                recentlyViewed: [
+                    {
+                        category_id: 'vod',
+                        id: 'concurrent-recent',
+                        title: 'Concurrent Recent',
+                    },
+                ],
+                title: 'Renamed while authentication was running',
+            } as Playlist;
+            testWindow.electron = electron;
+            const service = createService();
+
+            await firstValueFrom(
+                service.persistStalkerConnection({
+                    ...staleSnapshot,
+                    password: 'new-password',
+                    portalUrl: 'https://new.example/server/load.php',
+                    stalkerLandingUrl: 'https://new.example/c/',
+                    stalkerRecipeClassifierVersion: 1,
+                    stalkerRequestRecipe: 'full-session',
+                    stalkerSourceUrl: 'https://new.example/c/',
+                    username: 'new-user',
+                })
+            );
+
+            expect(store.current).toEqual(
+                expect.objectContaining({
+                    autoRefresh: true,
+                    favorites: [{ stream_id: 9, title: 'Concurrent Favorite' }],
+                    hiddenGroupTitles: ['Hidden concurrently'],
+                    password: 'new-password',
+                    portalUrl: 'https://new.example/server/load.php',
+                    position: 7,
+                    recentlyViewed: [
+                        expect.objectContaining({
+                            id: 'concurrent-recent',
+                        }),
+                    ],
+                    stalkerRequestRecipe: 'full-session',
+                    title: 'Renamed while authentication was running',
+                    username: 'new-user',
+                })
+            );
         });
 
         it('does not mutate the stored Stalker row when persistence fails', async () => {

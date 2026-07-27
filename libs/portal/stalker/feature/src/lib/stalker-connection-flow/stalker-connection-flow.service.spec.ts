@@ -15,7 +15,7 @@ import {
     StalkerSessionConnectionOutcome,
     StalkerSessionFullReadyOutcome,
 } from '@iptvnator/shared/interfaces';
-import { EMPTY, of, throwError } from 'rxjs';
+import { EMPTY, Subject, of, throwError } from 'rxjs';
 import { StalkerCredentialsDialogComponent } from './stalker-credentials-dialog.component';
 import { StalkerConnectionFlowService } from './stalker-connection-flow.service';
 import { StalkerOriginApprovalDialogComponent } from './stalker-origin-approval-dialog.component';
@@ -62,6 +62,57 @@ const CONTROL_SUCCESS = {
     kind: 'success' as const,
     requestId: 'request-commit-route-1',
 };
+
+const PERSISTED_READY: StalkerSessionFullReadyOutcome = {
+    capabilities: {
+        authenticatedSession: true,
+        playbackContext: true,
+    },
+    connectionMode: 'persisted-open',
+    endpoint: 'https://portal.example/stalker_portal/server/load.php',
+    kind: 'ready',
+    landingUrl: 'https://portal.example/c/',
+    leaseRef: 'lease-route-reopened',
+    persistenceDraft: {
+        isFullStalkerPortal: true,
+        portalUrl: 'https://portal.example/stalker_portal/server/load.php',
+        stalkerLandingUrl: 'https://portal.example/c/',
+        stalkerLastVerifiedAt: '2026-07-27T12:00:00.000Z',
+        stalkerRecipeClassifierVersion: 1,
+        stalkerRequestRecipe: 'full-session',
+        stalkerSourceUrl: 'https://source.example/c/',
+    },
+    recipe: 'full-session',
+    requestId: 'request-ready-route-reopened',
+};
+
+function createDeferred<T>(): {
+    readonly promise: Promise<T>;
+    readonly resolve: (value: T) => void;
+} {
+    let resolve: (value: T) => void = () => undefined;
+    const promise = new Promise<T>((resolvePromise) => {
+        resolve = resolvePromise;
+    });
+    return { promise, resolve };
+}
+
+async function flushPromises(): Promise<void> {
+    for (let index = 0; index < 10; index += 1) {
+        await Promise.resolve();
+    }
+}
+
+function createClosableDialogRef() {
+    const closed = new Subject<unknown>();
+    return {
+        afterClosed: () => closed.asObservable(),
+        close: jest.fn(() => {
+            closed.next(undefined);
+            closed.complete();
+        }),
+    };
+}
 
 function createSessionMock() {
     let recoveryHandler: StalkerSessionRecoveryHandler | undefined;
@@ -175,8 +226,7 @@ describe('StalkerConnectionFlowService', () => {
             .calls[0][0] as Playlist;
         expect(persistedDraft).toMatchObject({
             isFullStalkerPortal: true,
-            portalUrl:
-                'https://portal.example/stalker_portal/server/load.php',
+            portalUrl: 'https://portal.example/stalker_portal/server/load.php',
             stalkerRequestRecipe: 'full-session',
             stalkerSourceUrl: 'https://source.example/c/',
         });
@@ -201,15 +251,16 @@ describe('StalkerConnectionFlowService', () => {
 
         await expect(service.ensureConnected(simple)).resolves.toBe(simple);
         session.supportsTypedSessions.mockReturnValueOnce(false);
-        await expect(
-            service.ensureConnected(LEGACY_PLAYLIST)
-        ).resolves.toBe(LEGACY_PLAYLIST);
+        await expect(service.ensureConnected(LEGACY_PLAYLIST)).resolves.toBe(
+            LEGACY_PLAYLIST
+        );
 
         expect(session.open).not.toHaveBeenCalled();
     });
 
     it('shows exact origin and credential challenges and persists only accepted credentials', async () => {
         const origin: StalkerSessionConnectionOutcome = {
+            attemptRef: 'attempt-route-1',
             challengeRef: 'challenge-origin-route-1',
             finalOrigin: 'https://portal.example',
             kind: 'origin-approval-required',
@@ -218,6 +269,7 @@ describe('StalkerConnectionFlowService', () => {
         };
         const credentials: StalkerSessionConnectionOutcome = {
             attemptNumber: 2,
+            attemptRef: 'attempt-route-1',
             challengeRef: 'challenge-credentials-route-1',
             kind: 'credentials-required',
             requestId: 'request-credentials-route-1',
@@ -291,6 +343,7 @@ describe('StalkerConnectionFlowService', () => {
 
     it('consumes a rejected origin challenge without persisting anything', async () => {
         const origin: StalkerSessionConnectionOutcome = {
+            attemptRef: 'attempt-origin-rejected',
             challengeRef: 'challenge-origin-rejected',
             finalOrigin: 'https://other.example',
             kind: 'origin-approval-required',
@@ -311,16 +364,13 @@ describe('StalkerConnectionFlowService', () => {
             service.ensureConnected(LEGACY_PLAYLIST)
         ).resolves.toBeUndefined();
 
-        expect(session.continue).toHaveBeenCalledWith(
-            LEGACY_PLAYLIST._id,
-            {
-                challengeRef: 'challenge-origin-rejected',
-                response: {
-                    approved: false,
-                    kind: 'origin-approval',
-                },
-            }
-        );
+        expect(session.continue).toHaveBeenCalledWith(LEGACY_PLAYLIST._id, {
+            challengeRef: 'challenge-origin-rejected',
+            response: {
+                approved: false,
+                kind: 'origin-approval',
+            },
+        });
         expect(playlists.persistStalkerConnection).not.toHaveBeenCalled();
     });
 
@@ -359,15 +409,121 @@ describe('StalkerConnectionFlowService', () => {
         expect(session.discard).toHaveBeenCalledWith('attempt-route-1');
     });
 
-    it('turns a rejected promotion into a discarded runtime attempt', async () => {
-        session.open.mockResolvedValue(READY);
+    it('reopens the persisted connection after discarding a rejected promotion', async () => {
+        session.open
+            .mockResolvedValueOnce(READY)
+            .mockResolvedValueOnce(PERSISTED_READY);
         session.commit.mockRejectedValueOnce(new Error('promotion-failed'));
 
-        await expect(
-            service.ensureConnected(LEGACY_PLAYLIST)
-        ).resolves.toBeUndefined();
+        const connected = await service.ensureConnected(LEGACY_PLAYLIST);
 
         expect(session.discard).toHaveBeenCalledWith('attempt-route-1');
+        expect(session.open).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                portalUrl:
+                    'https://portal.example/stalker_portal/server/load.php',
+                stalkerRequestRecipe: 'full-session',
+            })
+        );
+        expect(connected).toMatchObject({
+            portalUrl: 'https://portal.example/stalker_portal/server/load.php',
+            stalkerRequestRecipe: 'full-session',
+        });
+    });
+
+    it('discards a provisional ready outcome that arrives after cancellation of open', async () => {
+        const deferredOpen = createDeferred<StalkerSessionConnectionOutcome>();
+        session.open.mockReturnValueOnce(deferredOpen.promise);
+
+        const connecting = service.ensureConnected(LEGACY_PLAYLIST);
+        await flushPromises();
+        expect(session.open).toHaveBeenCalledTimes(1);
+
+        await service.cancel();
+        deferredOpen.resolve(READY);
+
+        await expect(connecting).resolves.toBeUndefined();
+        expect(session.discard).toHaveBeenCalledWith('attempt-route-1');
+        expect(playlists.persistStalkerConnection).not.toHaveBeenCalled();
+    });
+
+    it('discards a provisional ready outcome that arrives after cancellation of continue', async () => {
+        const credentials: StalkerSessionConnectionOutcome = {
+            attemptNumber: 1,
+            attemptRef: 'attempt-route-1',
+            challengeRef: 'challenge-late-ready',
+            kind: 'credentials-required',
+            requestId: 'request-late-ready',
+        };
+        const deferredContinue =
+            createDeferred<StalkerSessionConnectionOutcome>();
+        session.open.mockResolvedValueOnce(credentials);
+        session.continue.mockReturnValueOnce(deferredContinue.promise);
+        queuedDialogResults.push({
+            password: 'password',
+            username: 'user',
+        });
+
+        const connecting = service.ensureConnected(LEGACY_PLAYLIST);
+        await flushPromises();
+        expect(session.continue).toHaveBeenCalledTimes(1);
+
+        await service.cancel();
+        deferredContinue.resolve(READY);
+
+        await expect(connecting).resolves.toBeUndefined();
+        expect(session.discard).toHaveBeenCalledWith('attempt-route-1');
+        expect(playlists.persistStalkerConnection).not.toHaveBeenCalled();
+    });
+
+    it('discards an origin challenge attempt when cancellation closes its active dialog', async () => {
+        const origin: StalkerSessionConnectionOutcome = {
+            attemptRef: 'attempt-origin-dialog',
+            challengeRef: 'challenge-origin-dialog',
+            finalOrigin: 'https://portal.example',
+            kind: 'origin-approval-required',
+            requestId: 'request-origin-dialog',
+            sourceOrigin: 'https://source.example',
+        };
+        const dialogRef = createClosableDialogRef();
+        session.open.mockResolvedValueOnce(origin);
+        dialog.open.mockReturnValueOnce(dialogRef);
+
+        const connecting = service.ensureConnected(LEGACY_PLAYLIST);
+        await flushPromises();
+        expect(dialog.open).toHaveBeenCalledTimes(1);
+
+        await service.cancel();
+        await expect(connecting).resolves.toBeUndefined();
+
+        expect(dialogRef.close).toHaveBeenCalledTimes(1);
+        expect(session.discard).toHaveBeenCalledWith('attempt-origin-dialog');
+    });
+
+    it('discards a credential challenge attempt when cancellation closes its active dialog', async () => {
+        const credentials: StalkerSessionConnectionOutcome = {
+            attemptNumber: 1,
+            attemptRef: 'attempt-credentials-dialog',
+            challengeRef: 'challenge-credentials-dialog',
+            kind: 'credentials-required',
+            requestId: 'request-credentials-dialog',
+        };
+        const dialogRef = createClosableDialogRef();
+        session.open.mockResolvedValueOnce(credentials);
+        dialog.open.mockReturnValueOnce(dialogRef);
+
+        const connecting = service.ensureConnected(LEGACY_PLAYLIST);
+        await flushPromises();
+        expect(dialog.open).toHaveBeenCalledTimes(1);
+
+        await service.cancel();
+        await expect(connecting).resolves.toBeUndefined();
+
+        expect(dialogRef.close).toHaveBeenCalledTimes(1);
+        expect(session.discard).toHaveBeenCalledWith(
+            'attempt-credentials-dialog'
+        );
     });
 
     it('opens a provisional replacement for a principal transition and enables one facade reissue', async () => {
@@ -399,6 +555,7 @@ describe('StalkerConnectionFlowService', () => {
     it('routes force-redetect through the active lease and handles its challenge', async () => {
         const credentials: StalkerSessionConnectionOutcome = {
             attemptNumber: 1,
+            attemptRef: 'attempt-force-redetect',
             challengeRef: 'challenge-force-redetect',
             kind: 'credentials-required',
             requestId: 'request-force-redetect',
