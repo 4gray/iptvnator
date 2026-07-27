@@ -1,35 +1,47 @@
 import {
     WORKER_PERFORMANCE_INVALID_REASON,
-    WORKER_PERFORMANCE_UNAVAILABLE_REASON,
     armWorkerPerformanceCapture,
     executeWithWorkerPerformanceCapture,
     registerDatabaseWorkerPerformanceCapture,
     releaseDatabaseWorkerPerformanceCapture,
     startWorkerPerformanceCapture,
     type WorkerPerformanceCapture,
-    type WorkerPerformanceCaptureResult,
+    type WorkerPerformanceCaptureRuntime,
 } from './worker-performance-capture';
+import { DEFAULT_WORKER_PERFORMANCE_RUNTIME } from './worker-performance-capture.runtime';
 import { createFakeRuntime } from './worker-performance-capture.test-harness';
 
 const PROFILING_ENV = 'IPTVNATOR_PERF_WORKER_PROFILING';
+
+const BLOCK_DURATION_MS = 20;
+const REAL_TIMER_TEST_TIMEOUT_MS = 30_000;
 
 /**
  * `monitorEventLoopDelay()` records nothing on its first internal timer tick —
  * that tick only seeds the previous timestamp, so the first delay sample lands
  * on the second tick. Condition-based arming therefore needs two event-loop
- * turns inside its fixed 50ms budget. A machine running the full Jest suite in
- * parallel can stretch a single turn past 25ms, which makes a lost arming race
- * an environmental outcome rather than a defect. Retry within a wall-clock
- * budget so the real measurement is asserted whenever the machine allows it.
+ * turns, and it budgets for them with a 50ms deadline read from
+ * `readMonotonicMs()`. A machine running the full Jest suite in parallel can
+ * stretch a single turn past 20ms, so that deadline expires against the
+ * scheduler rather than against any defect in the capture code.
+ *
+ * Slowing only that deadline clock leaves the wait bounded by its other limit,
+ * the 50-poll ceiling, which is ~25x the two turns arming actually needs.
+ * Everything else stays production code: the real `monitorEventLoopDelay()`
+ * histogram, real `setTimeout()` polling, and real epoch/CPU/ELU boundaries.
+ * The scaled clock reaches nothing but the wait budgets — its only other
+ * consumer records phase events, and this spec records none.
  */
-const REAL_TIMER_ARMING_BUDGET_MS = 5_000;
-const REAL_TIMER_TEST_TIMEOUT_MS = 30_000;
-const BLOCK_DURATION_MS = 20;
+const WAIT_DEADLINE_CLOCK_SCALE = 50;
 
-const DOCUMENTED_DELAY_TIMEOUTS = [
-    WORKER_PERFORMANCE_UNAVAILABLE_REASON.EVENT_LOOP_DELAY_ARM_TIMEOUT,
-    WORKER_PERFORMANCE_UNAVAILABLE_REASON.EVENT_LOOP_DELAY_FLUSH_TIMEOUT,
-];
+function createRuntimeWithScaledWaitDeadline(): WorkerPerformanceCaptureRuntime {
+    return {
+        ...DEFAULT_WORKER_PERFORMANCE_RUNTIME,
+        readMonotonicMs: () =>
+            DEFAULT_WORKER_PERFORMANCE_RUNTIME.readMonotonicMs() /
+            WAIT_DEADLINE_CLOCK_SCALE,
+    };
+}
 
 describe('worker performance capture concurrency and real timers', () => {
     const originalProfilingValue = process.env[PROFILING_ENV];
@@ -91,69 +103,42 @@ describe('worker performance capture concurrency and real timers', () => {
     });
 
     it(
-        'observes a real 20ms event-loop block once condition-based arming wins its budget',
+        'measures a real 20ms event-loop block through condition-based arming',
         async () => {
             process.env[PROFILING_ENV] = '1';
 
-            const startedAt = performance.now();
-            let attempts = 0;
-            let measured: WorkerPerformanceCaptureResult | undefined;
+            // No `enabled` override: the env variable is the opt-in under test.
+            const capture = startWorkerPerformanceCapture({
+                runtime: createRuntimeWithScaledWaitDeadline(),
+            });
 
-            while (
-                performance.now() - startedAt <
-                REAL_TIMER_ARMING_BUDGET_MS
-            ) {
-                attempts += 1;
-                const capture = startWorkerPerformanceCapture();
-                await armWorkerPerformanceCapture(capture);
-                const execution = await executeWithWorkerPerformanceCapture(
-                    capture,
-                    async () => {
-                        const blockStartedAt = performance.now();
-                        while (
-                            performance.now() - blockStartedAt <
-                            BLOCK_DURATION_MS
-                        ) {
-                            // This deliberate block is the behavior under measurement.
-                        }
+            expect(capture).not.toBeNull();
+
+            await armWorkerPerformanceCapture(capture);
+            const execution = await executeWithWorkerPerformanceCapture(
+                capture,
+                async () => {
+                    const blockStartedAt = performance.now();
+                    while (
+                        performance.now() - blockStartedAt <
+                        BLOCK_DURATION_MS
+                    ) {
+                        // This deliberate block is the behavior under measurement.
                     }
-                );
-
-                // Whether or not arming won its race, instrumentation must never
-                // break the work it wraps.
-                expect(execution.success).toBe(true);
-                expect(execution.performance?.invalidReason).toBeNull();
-
-                if (execution.performance?.eventLoopDelay) {
-                    measured = execution.performance;
-                    break;
                 }
+            );
 
-                // A lost race is only ever a documented timeout, never a silent null.
-                expect(DOCUMENTED_DELAY_TIMEOUTS).toContain(
-                    execution.performance?.eventLoopDelayUnavailableReason
-                );
-                expect(
-                    execution.performance?.histogramFlushedEpochMs
-                ).toBeNull();
-
-                // Let the loop breathe before contending for two more turns.
-                await new Promise<void>((resolve) => setTimeout(resolve, 0));
-            }
-
-            if (measured === undefined) {
-                console.warn(
-                    `Event-loop delay arming lost every one of ${attempts} races within ` +
-                        `${REAL_TIMER_ARMING_BUDGET_MS}ms; this machine never granted two ` +
-                        'event-loop turns inside the 50ms arming budget. The documented ' +
-                        'timeout contract was asserted on every attempt instead.'
-                );
-                return;
-            }
-
-            expect(measured.eventLoopDelayUnavailableReason).toBeNull();
-            expect(measured.histogramFlushedEpochMs).not.toBeNull();
-            expect(measured.eventLoopDelay?.maxMs).toBeGreaterThan(10);
+            expect(execution.success).toBe(true);
+            expect(execution.performance?.invalidReason).toBeNull();
+            expect(
+                execution.performance?.eventLoopDelayUnavailableReason
+            ).toBeNull();
+            expect(
+                execution.performance?.histogramFlushedEpochMs
+            ).not.toBeNull();
+            expect(
+                execution.performance?.eventLoopDelay?.maxMs
+            ).toBeGreaterThan(10);
         },
         REAL_TIMER_TEST_TIMEOUT_MS
     );
