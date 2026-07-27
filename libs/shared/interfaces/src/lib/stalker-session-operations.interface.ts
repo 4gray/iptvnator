@@ -143,7 +143,9 @@ export interface StalkerSessionCatalogItem {
 export interface StalkerSessionCatalogResult {
     items: readonly StalkerSessionCatalogItem[];
     page?: number;
+    pageSize?: number;
     total?: number;
+    totalPages?: number;
     hasMore?: boolean;
 }
 

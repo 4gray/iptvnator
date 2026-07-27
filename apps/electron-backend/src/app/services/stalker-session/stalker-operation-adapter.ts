@@ -300,13 +300,22 @@ function mapCatalog(
     );
     const total = optionalNonNegativeInteger(envelope['total_items']);
     const pageSize = optionalPositiveInteger(envelope['max_page_items']);
+    const totalPages =
+        optionalPositiveInteger(envelope['total_pages']) ??
+        (total !== undefined && pageSize !== undefined
+            ? Math.ceil(total / pageSize)
+            : undefined);
     const hasMore =
-        total !== undefined && page !== undefined
-            ? pageSize !== undefined
-                ? page * pageSize < total
-                : items.length > 0 && page * items.length < total
+        page !== undefined
+            ? totalPages !== undefined
+                ? page < totalPages
+                : total !== undefined && pageSize !== undefined
+                  ? page * pageSize < total
+                  : total !== undefined
+                    ? items.length > 0 && page * items.length < total
+                    : undefined
             : undefined;
-    return compact({ hasMore, items, page, total });
+    return compact({ hasMore, items, page, pageSize, total, totalPages });
 }
 
 function mapCatalogItem(

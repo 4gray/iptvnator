@@ -230,6 +230,7 @@ describe('stalker-operation-adapter', () => {
                     ],
                     max_page_items: '10',
                     total_items: '25',
+                    total_pages: '3',
                 },
             })
         ).toEqual({
@@ -252,7 +253,9 @@ describe('stalker-operation-adapter', () => {
                 },
             ],
             page: 2,
+            pageSize: 10,
             total: 25,
+            totalPages: 3,
         });
     });
 
