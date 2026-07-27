@@ -7,6 +7,8 @@ Xtream Codes API protocol. It is used for:
 
 - **Local development** — run a full portal without a real Xtream subscription
 - **E2E testing** — Playwright spins it up alongside the Angular dev server
+- **Performance investigation** — a locked-down loopback control plane
+  prepares and identifies a fixed synthetic 100k catalog before capture
 
 ---
 
@@ -20,6 +22,9 @@ credentialsToSeed(u, p)   ←── deterministic polynomial hash
         │
         ▼
 faker.seed(seed)           ←── all faker calls use same seed per credentials
+        │
+        ├── performance:performance?
+        │          └── index-derived generator (no Faker/runtime clock)
         │
         ▼
   generateCategories()     ←── live / vod / series categories
@@ -43,19 +48,26 @@ Re-requesting with the same credentials returns the exact same data until
 
 ```
 apps/xtream-mock-server/
-├── project.json                  ← Nx targets: serve (port 3211), serve-with-watch
+├── project.json                  ← Nx serve, watch, lint, and test targets
 ├── public/
 │   └── marketing/                ← committed fictional release artwork PNGs
 ├── tsconfig.json
 └── src/
-    ├── main.ts                   ← Express app bootstrap, all routes wired up
+    ├── main.ts                   ← env validation, HTTP lifecycle, safe logging
     └── app/
+        ├── server.ts             ← side-effect-free Express app factory/routes
         ├── scenarios.ts          ← Credential → ScenarioConfig mapping
         ├── data-store.ts         ← Lazy cache, per-credentials generation
+        ├── performance-control.ts ← bounded request lifecycle controller
+        ├── performance-control-routes.ts ← token-gated control HTTP API
+        ├── performance-control-validation.ts ← strict request validation
+        ├── performance-control.types.ts ← safe manifest/state contracts
+        ├── performance-manifest.ts ← fixed-order catalog hash/counts
         ├── generators/
         │   ├── categories.generator.ts
         │   ├── live.generator.ts   ← Live streams + EPG listings
         │   ├── marketing.generator.ts ← Fictional release screenshot fixture
+        │   ├── performance.generator.ts ← local-only deterministic 100k fixture
         │   ├── vod.generator.ts    ← VOD streams + VodDetails
         │   └── series.generator.ts ← Series items + SeriesInfo
         ├── handlers/
@@ -95,6 +107,114 @@ Response: `{ payload: <data>, action: <action> }`
 This mirrors the backend proxy in `apps/electron-backend` so the same
 Angular service code works in both environments.
 
+### Performance control endpoint
+
+The control plane is absent by default. It is mounted only when
+`IPTVNATOR_XTREAM_MOCK_CONTROL=1`; startup then requires a non-empty
+`IPTVNATOR_XTREAM_MOCK_CONTROL_TOKEN` and a literal loopback `HOST`
+(`127.0.0.1` or `::1`). Every `/__control/*` request must carry that exact value
+in `x-iptvnator-performance-token`. Configuration is validated before the HTTP
+listener opens. Normal development mode preserves the legacy wildcard bind
+when `HOST` is unset; control mode instead defaults to `127.0.0.1` and rejects
+an explicitly configured non-loopback host.
+
+Use a dedicated port rather than the normal `3211` E2E server:
+
+```bash
+HOST=127.0.0.1 \
+PORT=3221 \
+IPTVNATOR_XTREAM_MOCK_CONTROL=1 \
+IPTVNATOR_XTREAM_MOCK_CONTROL_TOKEN=local-benchmark-token \
+pnpm nx run xtream-mock-server:serve
+```
+
+The strict control API is:
+
+```text
+POST /__control/prepare
+POST /__control/reset
+POST /__control/barriers
+POST /__control/barriers/:id/release
+POST /__control/delays
+GET  /__control/state
+```
+
+`prepare` accepts exactly `{"scenario":"performance-100k"}` and materializes
+the fixed `performance:performance` fixture before application capture. It
+returns only this manifest:
+
+```json
+{
+    "epoch": 1,
+    "scenario": "performance-100k",
+    "seed": 91001,
+    "counts": {
+        "categories": { "live": 60, "vod": 20, "series": 20, "total": 100 },
+        "items": {
+            "live": 60000,
+            "vod": 20000,
+            "series": 20000,
+            "total": 100000
+        }
+    },
+    "bytes": 123,
+    "catalogSha256": "64-lowercase-hex-characters"
+}
+```
+
+`bytes` is the UTF-8 byte length and `catalogSha256` is the SHA-256 of one JSON
+object whose property order is fixed as:
+
+1. live categories
+2. VOD categories
+3. series categories
+4. live catalog
+5. VOD catalog
+6. series catalog
+
+Credentials, server origins, response envelopes, and EPG/detail caches are not
+part of the hash input.
+
+`reset` accepts exactly `{"mode":"observations"}` or `{"mode":"all"}`.
+Observation reset clears active/held rules, per-identity occurrences, and the
+ledger while retaining the prepared manifest and epoch. All-state reset also
+calls the data-store reset, clears the manifest, and increments the epoch.
+Either mode safely settles held clients.
+
+Barrier and delay rules have an ID plus the exact match tuple:
+
+```text
+(epoch, scenario, transport, canonicalAction, categoryId, occurrence)
+```
+
+`transport` is `direct` or `proxy`. Empty actions canonicalize to
+`get_account_info`; the dispatcher's legacy `get_simple_date_table` alias is
+allowlisted. Occurrences are counted per tuple excluding occurrence, so
+parallel requests for different categories cannot consume each other's rule.
+Rules are one-shot and match before dispatch or JSON serialization. Barrier
+lifecycle is `arrived → blocked → responded|aborted`; delay lifecycle is
+`arrived → delayed → responded|aborted`. Real request abort events release held
+state; a normally consumed request's `close` event is not treated as an abort.
+
+The state response contains only epoch, the safe manifest, active rules, held
+IDs/count, bounded occurrence counts, and bounded lifecycle entries with
+monotonic timestamps. It never stores or returns the token, username, password,
+raw URL/query, request/response payload, titles, or catalog arrays. Unknown
+incoming actions are represented only as `unknown`.
+
+Control JSON is limited to 16 KiB. Bodies reject unknown/missing/wrong-type
+fields. Each observation epoch accepts at most 32 rules, and the serialized
+ledger retains at most 128 entries. Occurrence state has 512 slots: enough for
+the complete closed scenario/action/category/transport identity domain without
+eviction or counter restart; an unexpected overflow fails closed. IDs,
+scenarios, transports, actions, categories, occurrences, and delays
+(`0..5000` ms) use closed validation. Duplicate IDs/matches and already-past
+occurrences fail closed.
+
+Barriers and delays exist for deterministic coordination and smoke tests only.
+Formal performance captures must prove that both rule sets are empty and must
+never add an artificial delay to the timed application path.
+
 ### M3U fixture endpoint
 
 ```
@@ -113,8 +233,12 @@ GET /movie/<username>/<password>/<streamId>.<ext>
 GET /series/<username>/<password>/<streamId>.<ext>
 ```
 
-All redirect to a publicly available HLS test stream
-(`https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`).
+In normal mode all redirect to a publicly available HLS test stream
+(`https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`). With the control plane
+enabled, every stream/timeshift route for the performance credentials returns
+`410` without a redirect or outbound request. `/playlist.m3u` is also `410` in
+that mode. This keeps formal performance fixtures local-only; normal
+control-disabled E2E behavior is unchanged.
 
 ---
 
@@ -242,19 +366,20 @@ sometimes only respond to that misspelled action.
 
 ## Scenarios
 
-| Key (`username:password`) | Seed | Categories               | Items/cat | Account status |
-| ------------------------- | ---- | ------------------------ | --------- | -------------- |
-| `user1:pass1`             | 1001 | 8 each                   | 40        | active         |
-| `large:large`             | 9999 | 20 each                  | 200       | active         |
-| `stress:stress`           | 7777 | 16 each                  | 120       | active         |
-| `series:series`           | 2002 | live:3, vod:4, series:15 | 30        | active         |
-| `minimal:minimal`         | 3003 | 2 each                   | 5         | active         |
-| `epg:epg`                 | 6006 | live:2, vod:1, series:1  | 3         | active         |
-| `emptyvod:emptyvod`       | 7007 | 2 each                   | 5         | active         |
-| `marketing:marketing`     | 8020 | live:4, vod:4, series:4  | curated   | active         |
-| `expired:expired`         | 4004 | 4 each                   | 10        | Expired        |
-| `inactive:inactive`       | 5005 | 4 each                   | 10        | Disabled       |
-| `<any other>`             | hash | 6 each                   | 30        | active         |
+| Key (`username:password`) | Seed  | Categories                 | Items/cat | Account status |
+| ------------------------- | ----- | -------------------------- | --------- | -------------- |
+| `user1:pass1`             | 1001  | 8 each                     | 40        | active         |
+| `large:large`             | 9999  | 20 each                    | 200       | active         |
+| `stress:stress`           | 7777  | 16 each                    | 120       | active         |
+| `performance:performance` | 91001 | live:60, vod:20, series:20 | 1,000     | active         |
+| `series:series`           | 2002  | live:3, vod:4, series:15   | 30        | active         |
+| `minimal:minimal`         | 3003  | 2 each                     | 5         | active         |
+| `epg:epg`                 | 6006  | live:2, vod:1, series:1    | 3         | active         |
+| `emptyvod:emptyvod`       | 7007  | 2 each                     | 5         | active         |
+| `marketing:marketing`     | 8020  | live:4, vod:4, series:4    | curated   | active         |
+| `expired:expired`         | 4004  | 4 each                     | 10        | Expired        |
+| `inactive:inactive`       | 5005  | 4 each                     | 10        | Disabled       |
+| `<any other>`             | hash  | 6 each                     | 30        | active         |
 
 ### `epg:epg` fixture details
 
@@ -295,6 +420,19 @@ This scenario is reserved for release screenshots and marketing materials:
   service answering on the mock port really is this fixture server
 - the SVG renderer in `marketing.generator.ts` remains the fallback for missing
   assets, live logos, season covers, and episode thumbnails
+
+### `performance:performance` fixture details
+
+This scenario is reserved for local performance captures:
+
+- exactly 60 live categories/60,000 channels, 20 VOD categories/20,000 movies,
+  and 20 series categories/20,000 series
+- exactly 1,000 catalog items in every category
+- fixed IDs, timestamps, ratings, names, and one lazy season/episode generated
+  from indexes rather than Faker, `Date.now()`, or `Math.random()`
+- empty/local-only artwork and direct-source fields
+- VOD and series detail records are materialized only on request
+- preparation and manifest hashing happen before the timed application request
 
 ---
 
@@ -337,4 +475,5 @@ await page.route('**/localhost:3000/xtream**', async (route) => {
   `OPENAI_API_KEY=... pnpm release:artwork:generate`, inspect the generated PNGs,
   and finish with `pnpm release:artwork:validate`
 - **Adjust data volume**: Change `itemsPerCategory`, `seasonsPerSeries`, or `episodesPerSeason` per scenario
-- **Custom stream URLs**: Edit the HLS stub redirect in `main.ts`
+- **Custom stream URLs**: Edit the normal-mode HLS stub redirect in
+  `app/server.ts`; never enable it for the performance fixture
