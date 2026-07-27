@@ -434,6 +434,33 @@ describe('StalkerSessionService', () => {
         });
     });
 
+    it('returns the typed create-link payload without dropping its opaque playback context', async () => {
+        bridge.stalkerSessionOpen.mockResolvedValue(READY);
+        bridge.stalkerSessionRequest.mockResolvedValue({
+            kind: 'success',
+            operation: STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+            payload: {
+                playbackContextRef: 'opaque-playback-context-1',
+                streamUrl: 'https://stream.example/live/1',
+            },
+            requestId: 'request-create-link-1',
+        });
+
+        await expect(
+            service.requestForPlaylist(
+                PLAYLIST,
+                STALKER_SESSION_APPLICATION_OPERATIONS.CreateLink,
+                {
+                    command: 'ffmpeg https://portal.example/live/1',
+                    contentType: 'itv',
+                }
+            )
+        ).resolves.toEqual({
+            playbackContextRef: 'opaque-playback-context-1',
+            streamUrl: 'https://stream.example/live/1',
+        });
+    });
+
     it('joins concurrent route recovery while preserving one retry per original operation', async () => {
         const transition: StalkerSessionRequestOutcome = {
             kind: 'failure',

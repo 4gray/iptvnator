@@ -10,11 +10,12 @@ import {
     type StalkerSessionControlOutcome,
     type StalkerSessionControlRequest,
     type StalkerSessionLeaseRef,
+    type StalkerSessionOperationParameters,
+    type StalkerSessionOperationResult,
     type StalkerSessionRequest,
     type StalkerSessionRequestOutcome,
 } from '@iptvnator/shared/interfaces';
 import {
-    type StalkerAdaptedRequest,
     adaptLegacyStalkerRequest,
     mapStalkerSessionResultToLegacyResponse,
 } from './stalker-request-adapter';
@@ -192,6 +193,40 @@ export class StalkerSessionService {
         return this.requireBridge().stalkerSessionRequest(request);
     }
 
+    async requestForPlaylist<
+        Operation extends StalkerSessionApplicationOperation,
+    >(
+        playlist: Playlist,
+        operation: Operation,
+        parameters: StalkerSessionOperationParameters<Operation>
+    ): Promise<StalkerSessionOperationResult<Operation>> {
+        let leaseRef = await this.resolveLease(playlist);
+        let outcome = await this.request({
+            leaseRef,
+            operation,
+            parameters,
+        } as StalkerSessionRequest<Operation>);
+        if (
+            outcome.kind !== 'success' &&
+            this.isRecoverable(outcome) &&
+            (await this.recover(playlist, outcome, 'request'))
+        ) {
+            const recoveredLease = this.getLeaseRef(playlist._id);
+            if (recoveredLease !== undefined) {
+                leaseRef = recoveredLease;
+                outcome = await this.request({
+                    leaseRef,
+                    operation,
+                    parameters,
+                } as StalkerSessionRequest<Operation>);
+            }
+        }
+        if (outcome.kind !== 'success') {
+            throw new StalkerSessionOutcomeError(outcome);
+        }
+        return outcome.payload;
+    }
+
     async control(
         request: StalkerSessionControlRequest
     ): Promise<StalkerSessionControlOutcome> {
@@ -293,13 +328,15 @@ export class StalkerSessionService {
         parameters: Readonly<Record<string, string | number>>
     ): Promise<T> {
         const adapted = adaptLegacyStalkerRequest(parameters);
-        const leaseRef = await this.resolveLease(playlist);
-        const result = await this.executeAdaptedRequest(
+        const result = await this.requestForPlaylist(
             playlist,
-            leaseRef,
-            adapted
+            adapted.operation,
+            adapted.parameters
         );
-        return result as T;
+        return mapStalkerSessionResultToLegacyResponse(
+            adapted.operation,
+            result
+        ) as T;
     }
 
     private async resolveLease(
@@ -347,39 +384,6 @@ export class StalkerSessionService {
                 username: savedCredentials.username,
             },
         });
-    }
-
-    private async executeAdaptedRequest(
-        playlist: Playlist,
-        leaseRef: StalkerSessionLeaseRef,
-        adaptedRequest: StalkerAdaptedRequest
-    ): Promise<unknown> {
-        let outcome = await this.request({
-            leaseRef,
-            operation: adaptedRequest.operation,
-            parameters: adaptedRequest.parameters,
-        } as StalkerSessionRequest);
-        if (
-            outcome.kind !== 'success' &&
-            this.isRecoverable(outcome) &&
-            (await this.recover(playlist, outcome, 'request'))
-        ) {
-            const recoveredLease = this.getLeaseRef(playlist._id);
-            if (recoveredLease !== undefined) {
-                outcome = await this.request({
-                    leaseRef: recoveredLease,
-                    operation: adaptedRequest.operation,
-                    parameters: adaptedRequest.parameters,
-                } as StalkerSessionRequest);
-            }
-        }
-        if (outcome.kind !== 'success') {
-            throw new StalkerSessionOutcomeError(outcome);
-        }
-        return mapStalkerSessionResultToLegacyResponse(
-            outcome.operation,
-            outcome.payload
-        );
     }
 
     private recover(
