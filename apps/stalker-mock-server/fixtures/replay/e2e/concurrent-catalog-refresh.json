@@ -1,0 +1,886 @@
+{
+    "description": "Synthetic concurrent catalog token rejections share one refreshed session and reissue each operation exactly once.",
+    "entry": {
+        "origin": "portal",
+        "path": "/c/"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "initial",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "anonymous-probe",
+                    "method": "GET",
+                    "operation": "anonymous-probe",
+                    "origin": "portal",
+                    "path": "/c/",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "mac",
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "device_id",
+                                "device_id2",
+                                "mac",
+                                "password",
+                                "signature",
+                                "signature2",
+                                "sn",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {},
+                        "status": 204
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "initial-handshake",
+                    "method": "GET",
+                    "operation": "initial-handshake",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "stb_lang": "en",
+                                "timezone": "UTC"
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization"
+                            ],
+                            "exact": {
+                                "user-agent": "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250",
+                                "x-user-agent": "Model: MAG250"
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "handshake",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "token": {
+                                        "kind": "ref",
+                                        "symbol": "initial-token"
+                                    }
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ],
+                            "set-cookie": [
+                                {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "session="
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "initial-cookie"
+                                        },
+                                        {
+                                            "kind": "literal",
+                                            "value": "; Path=/; HttpOnly"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "initial-profile",
+                    "method": "GET",
+                    "operation": "initial-profile",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "initial-cookie"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "initial-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "type": "stb"
+                            },
+                            "present": [
+                                "metrics"
+                            ]
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "status": 0
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "initial-session",
+            "nextState": "reject",
+            "state": "initial"
+        },
+        {
+            "barrier": {
+                "name": "both-catalog-requests-rejected",
+                "releaseWhenMatched": 2
+            },
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "reject-news",
+                    "method": "GET",
+                    "operation": "reject-news",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "initial-cookie"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "initial-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "mac",
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_ordered_list",
+                                "category": "news",
+                                "p": "1",
+                                "type": "itv"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "error": "Authorization failed"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 401
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "reject-sports",
+                    "method": "GET",
+                    "operation": "reject-sports",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "initial-cookie"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "initial-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "mac",
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_ordered_list",
+                                "category": "sports",
+                                "p": "2",
+                                "type": "itv"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "error": "Authorization failed"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 401
+                    }
+                }
+            ],
+            "mode": "unordered",
+            "name": "concurrent-rejections",
+            "nextState": "refresh",
+            "state": "reject"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "refresh-anonymous-probe",
+                    "method": "GET",
+                    "operation": "refresh-anonymous-probe",
+                    "origin": "portal",
+                    "path": "/c/",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "mac",
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "device_id",
+                                "device_id2",
+                                "mac",
+                                "password",
+                                "signature",
+                                "signature2",
+                                "sn",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {},
+                        "status": 204
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "refresh-handshake",
+                    "method": "GET",
+                    "operation": "refresh-handshake",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "stb_lang": "en",
+                                "timezone": "UTC"
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization"
+                            ],
+                            "exact": {
+                                "user-agent": "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250",
+                                "x-user-agent": "Model: MAG250"
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "handshake",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "token": {
+                                        "kind": "ref",
+                                        "symbol": "refresh-token"
+                                    }
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ],
+                            "set-cookie": [
+                                {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "session="
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "refresh-cookie"
+                                        },
+                                        {
+                                            "kind": "literal",
+                                            "value": "; Path=/; HttpOnly"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "refresh-profile",
+                    "method": "GET",
+                    "operation": "refresh-profile",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "refresh-cookie"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "refresh-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "type": "stb"
+                            },
+                            "present": [
+                                "metrics"
+                            ]
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "status": 0
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "single-refresh",
+            "nextState": "retry",
+            "state": "refresh"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "retry-news",
+                    "method": "GET",
+                    "operation": "retry-news",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "refresh-cookie"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "refresh-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "mac",
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_ordered_list",
+                                "category": "news",
+                                "p": "1",
+                                "type": "itv"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "cur_page": 1,
+                                    "data": [
+                                        {
+                                            "id": "news-channel",
+                                            "title": "Synthetic News"
+                                        }
+                                    ],
+                                    "max_page_items": 1,
+                                    "total_items": 1,
+                                    "total_pages": 1
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "retry-sports",
+                    "method": "GET",
+                    "operation": "retry-sports",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "refresh-cookie"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "refresh-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "mac",
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_ordered_list",
+                                "category": "sports",
+                                "p": "2",
+                                "type": "itv"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "cur_page": 2,
+                                    "data": [
+                                        {
+                                            "id": "sports-channel",
+                                            "title": "Synthetic Sports"
+                                        }
+                                    ],
+                                    "max_page_items": 1,
+                                    "total_items": 2,
+                                    "total_pages": 2
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "unordered",
+            "name": "retried-catalog-requests",
+            "nextState": "complete",
+            "state": "retry"
+        }
+    ],
+    "scenarioId": "e2e-concurrent-catalog-refresh",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "mac",
+            "valueKind": "mac"
+        },
+        {
+            "kind": "generate",
+            "symbol": "initial-token",
+            "valueKind": "token"
+        },
+        {
+            "kind": "generate",
+            "symbol": "refresh-token",
+            "valueKind": "token"
+        },
+        {
+            "kind": "generate",
+            "symbol": "initial-cookie",
+            "valueKind": "cookie"
+        },
+        {
+            "kind": "generate",
+            "symbol": "refresh-cookie",
+            "valueKind": "cookie"
+        }
+    ],
+    "terminalState": "complete"
+}

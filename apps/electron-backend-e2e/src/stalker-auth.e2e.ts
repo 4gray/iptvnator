@@ -246,6 +246,14 @@ test.describe('Electron Stalker authenticated sessions', () => {
                         const app = await launchElectronApp(dataDir);
 
                         try {
+                            await app.mainWindow.evaluate(async () => {
+                                const readPlaylist = window.electron
+                                    ?.dbGetAppPlaylist;
+                                if (!readPlaylist) {
+                                    throw new Error('playlist-read-unavailable');
+                                }
+                                await readPlaylist('e2e-stalker-warmup');
+                            });
                             return await Promise.all([
                                 openStatus2Session(
                                     app.mainWindow,
