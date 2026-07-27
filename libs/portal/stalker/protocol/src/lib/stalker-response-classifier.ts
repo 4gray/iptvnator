@@ -149,15 +149,34 @@ export function classifyStalkerResponseFailure(
     | { kind: 'none' }
     | { kind: 'token-rejected' }
     | StalkerClassifierFailure {
-    const bodyError = extractBodyError(input.value, input.rawBody);
-    const bodyHasErrorIndicator = hasBodyErrorIndicator(input.value);
     if (input.httpStatus === 403 && looksLikePortalProtection(input.rawBody)) {
         return {
             kind: 'failure',
             reason: STALKER_FAILURE_REASONS.PortalProtectionBlocked,
         };
     }
-    if (input.httpStatus === 401 || bodyError === 'Authorization failed') {
+    if (input.httpStatus === 401) {
+        return { kind: 'token-rejected' };
+    }
+    if (input.httpStatus === 429) {
+        return {
+            kind: 'failure',
+            reason: STALKER_FAILURE_REASONS.RateLimited,
+        };
+    }
+    if (input.httpStatus >= 500) {
+        return {
+            kind: 'failure',
+            reason: STALKER_FAILURE_REASONS.PortalUnavailable,
+        };
+    }
+    if (input.httpStatus !== 200 && input.httpStatus !== 403) {
+        return { kind: 'none' };
+    }
+
+    const bodyError = extractBodyError(input.value, input.rawBody);
+    const bodyHasErrorIndicator = hasBodyErrorIndicator(input.value);
+    if (bodyError === 'Authorization failed') {
         return { kind: 'token-rejected' };
     }
     if (bodyError === 'Access denied') {
@@ -172,18 +191,6 @@ export function classifyStalkerResponseFailure(
         input.httpStatus === 403
     ) {
         return incompatibleResponse();
-    }
-    if (input.httpStatus === 429) {
-        return {
-            kind: 'failure',
-            reason: STALKER_FAILURE_REASONS.RateLimited,
-        };
-    }
-    if (input.httpStatus >= 500) {
-        return {
-            kind: 'failure',
-            reason: STALKER_FAILURE_REASONS.PortalUnavailable,
-        };
     }
     return { kind: 'none' };
 }

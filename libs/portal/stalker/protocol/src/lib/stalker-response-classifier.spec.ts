@@ -156,6 +156,49 @@ describe('Stalker response classifier', () => {
         });
     });
 
+    it.each([
+        [
+            429,
+            {
+                kind: 'failure',
+                reason: 'rate-limited',
+            },
+        ],
+        [
+            503,
+            {
+                kind: 'failure',
+                reason: 'portal-unavailable',
+            },
+        ],
+        [404, { kind: 'none' }],
+    ])(
+        'gives HTTP status %i precedence over an authorization error body',
+        (httpStatus, expected) => {
+            expect(
+                classifyStalkerResponseFailure({
+                    httpStatus,
+                    value: { js: { error: 'Authorization failed' } },
+                })
+            ).toEqual(expected);
+        }
+    );
+
+    it.each([
+        ['Authorization failed', { kind: 'token-rejected' }],
+        [
+            'Access denied',
+            { kind: 'failure', reason: 'account-access-denied' },
+        ],
+    ])('classifies the canonical error %s on HTTP 403', (error, expected) => {
+        expect(
+            classifyStalkerResponseFailure({
+                httpStatus: 403,
+                value: { js: { error } },
+            })
+        ).toEqual(expected);
+    });
+
     it('ignores a normal raw JSON body when a parsed response value exists', () => {
         expect(
             classifyStalkerResponseFailure({
