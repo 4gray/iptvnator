@@ -51,6 +51,25 @@ function success(
     };
 }
 
+function rawSuccess(
+    body: string,
+    options: {
+        contentType?: string;
+        finalUrl?: string;
+        status?: number;
+    } = {}
+): StalkerHttpRequestOutcome {
+    return {
+        kind: STALKER_HTTP_OUTCOME_KINDS.Success,
+        result: {
+            body: new TextEncoder().encode(body),
+            contentType: options.contentType ?? 'application/json',
+            finalUrl: options.finalUrl ?? 'https://portal.test/c/',
+            status: options.status ?? 200,
+        },
+    };
+}
+
 function createHarness(
     responder: (
         request: StalkerHttpRequest,
@@ -176,6 +195,146 @@ describe('StalkerEndpointResolver', () => {
         ).toBe('Bearer token-one');
     });
 
+    it('stops at the first profile with an unknown status', async () => {
+        const harness = createHarness((request) => {
+            const action = request.params?.['action'];
+            if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                return success({}, { finalUrl: request.url });
+            }
+            if (action === 'handshake') {
+                return success(
+                    { js: { token: 'candidate-token' } },
+                    { finalUrl: request.url }
+                );
+            }
+            if (action === 'get_profile') {
+                return success(
+                    { js: { id: 'profile-one', status: 3 } },
+                    { finalUrl: request.url }
+                );
+            }
+            throw new Error(`Unexpected action: ${String(action)}`);
+        });
+
+        const outcome = await harness.resolver.resolve({
+            descriptor: descriptor(),
+            transport,
+        });
+
+        expect(outcome).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
+            retryable: false,
+            stage: 'resolving',
+        });
+        expect(
+            harness.calls.filter(
+                (request) => request.params?.['action'] === 'handshake'
+            )
+        ).toHaveLength(1);
+        expect(
+            harness.calls.filter(
+                (request) => request.params?.['action'] === 'get_profile'
+            )
+        ).toHaveLength(1);
+        expect(
+            harness.calls.some(
+                (request) => request.params?.['action'] === 'get_genres'
+            )
+        ).toBe(false);
+    });
+
+    it.each([
+        ['a handshake token near miss', () => success({ js: { token: 1 } })],
+        [
+            'malformed JSONP',
+            () =>
+                rawSuccess('callback({"js":{"token":"candidate-token"}}', {
+                    contentType: 'application/javascript',
+                }),
+        ],
+        [
+            'JSON with the wrong content type',
+            () =>
+                rawSuccess('{"js":{"token":"candidate-token"}}', {
+                    contentType: 'text/html',
+                }),
+        ],
+    ])(
+        'treats %s as terminal and never advances candidates',
+        async (_, reply) => {
+            const harness = createHarness((request) => {
+                if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                    return success({}, { finalUrl: request.url });
+                }
+                return reply();
+            });
+
+            const outcome = await harness.resolver.resolve({
+                descriptor: descriptor(),
+                transport,
+            });
+
+            expect(outcome).toEqual({
+                kind: 'failure',
+                reason: 'incompatible-response',
+                retryable: false,
+                stage: 'resolving',
+            });
+            expect(
+                harness.calls.filter(
+                    (request) => request.params?.['action'] === 'handshake'
+                )
+            ).toHaveLength(1);
+            expect(
+                harness.calls.some(
+                    (request) => request.params?.['action'] === 'get_genres'
+                )
+            ).toBe(false);
+        }
+    );
+
+    it('rejects a stateless catalog near miss without advancing candidates', async () => {
+        const harness = createHarness((request) => {
+            const action = request.params?.['action'];
+            if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                return success({}, { finalUrl: request.url });
+            }
+            if (action === 'handshake') {
+                return success({}, { finalUrl: request.url, status: 404 });
+            }
+            if (action === 'get_genres') {
+                return success(
+                    { js: { id: 'not-a-catalog' } },
+                    { finalUrl: request.url }
+                );
+            }
+            throw new Error(`Unexpected action: ${String(action)}`);
+        });
+
+        const outcome = await harness.resolver.resolve({
+            descriptor: descriptor(),
+            transport,
+        });
+
+        expect(outcome).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
+            retryable: false,
+            stage: 'resolving',
+        });
+        expect(
+            harness.calls.filter(
+                (request) => request.params?.['action'] === 'handshake'
+            )
+        ).toHaveLength(1);
+        expect(
+            harness.calls.filter(
+                (request) => request.params?.['action'] === 'get_genres'
+            )
+        ).toHaveLength(1);
+    });
+
     it('continues after early stateless evidence so a later full endpoint wins', async () => {
         const harness = createHarness((request) => {
             const action = request.params?.['action'];
@@ -279,7 +438,7 @@ describe('StalkerEndpointResolver', () => {
                 await jar.collectResponseCookies(request.url, [
                     'poison=first; Path=/',
                 ]);
-                return success({}, { finalUrl: request.url });
+                return success({}, { finalUrl: request.url, status: 404 });
             }
             if (request.url.endsWith('/portal.php') && action === 'handshake') {
                 secondCandidateCookie =
@@ -307,48 +466,54 @@ describe('StalkerEndpointResolver', () => {
         expect(secondCandidateCookie).not.toContain('poison=first');
     });
 
-    it('tries a learned endpoint once, then rediscovers from the landing shape', async () => {
-        const handshakeUrls: string[] = [];
-        const harness = createHarness((request) => {
-            const action = request.params?.['action'];
-            if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
-                return success({}, { finalUrl: request.url });
-            }
-            if (action === 'handshake') {
-                handshakeUrls.push(request.url);
-            }
-            if (request.url.includes('/learned/') && action === 'handshake') {
+    it.each([404, 405, 501])(
+        'keeps explicit unsupported HTTP %i eligible for candidate rediscovery',
+        async (unsupportedStatus) => {
+            const handshakeUrls: string[] = [];
+            const harness = createHarness((request) => {
+                const action = request.params?.['action'];
+                if (request.mode === STALKER_HTTP_REQUEST_MODES.Anonymous) {
+                    return success({}, { finalUrl: request.url });
+                }
+                if (action === 'handshake') {
+                    handshakeUrls.push(request.url);
+                }
+                if (request.url.includes('/learned/')) {
+                    return success(
+                        {},
+                        {
+                            finalUrl: request.url,
+                            status: unsupportedStatus,
+                        }
+                    );
+                }
+                if (action === 'handshake') {
+                    return success(
+                        { js: { token: 'rediscovered-token' } },
+                        { finalUrl: request.url }
+                    );
+                }
                 return success(
-                    { unexpected: true },
-                    {
-                        contentType: 'text/html',
-                        finalUrl: request.url,
-                    }
-                );
-            }
-            if (action === 'handshake') {
-                return success(
-                    { js: { token: 'rediscovered-token' } },
+                    { js: { status: 0 } },
                     { finalUrl: request.url }
                 );
-            }
-            return success({ js: { status: 0 } }, { finalUrl: request.url });
-        });
+            });
 
-        const outcome = await harness.resolver.resolve({
-            descriptor: descriptor({
-                learnedEndpointHint:
-                    'https://portal.test/learned/server/load.php',
-            }),
-            transport,
-        });
+            const outcome = await harness.resolver.resolve({
+                descriptor: descriptor({
+                    learnedEndpointHint:
+                        'https://portal.test/learned/server/load.php',
+                }),
+                transport,
+            });
 
-        expect(outcome.kind).toBe('full-session');
-        expect(handshakeUrls).toEqual([
-            'https://portal.test/learned/server/load.php',
-            'https://portal.test/server/load.php',
-        ]);
-    });
+            expect(outcome.kind).toBe('full-session');
+            expect(handshakeUrls).toEqual([
+                'https://portal.test/learned/server/load.php',
+                'https://portal.test/server/load.php',
+            ]);
+        }
+    );
 
     it('ignores an unapproved cross-origin learned endpoint before sending identity', async () => {
         const harness = createHarness((request) => {

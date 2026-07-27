@@ -90,9 +90,15 @@ export type StalkerEndpointResolverOutcome =
     | StalkerEndpointFailureOutcome;
 
 interface ParsedTransportEnvelope {
+    kind: 'parsed';
     rawBody: string;
-    result: StalkerTransportResult<Uint8Array>;
-    value?: unknown;
+    value: unknown;
+}
+
+interface UnparsedTransportEnvelope {
+    kind: 'unparsed';
+    rawBody?: string;
+    reason: StalkerSessionFailureReason;
 }
 
 interface CandidateProbeUnsupported {
@@ -259,7 +265,7 @@ export class StalkerEndpointResolver {
         const handshakeValue = asRecord(handshakeEnvelope?.['js']);
         const token = boundedNonEmptyString(handshakeValue?.['token']);
         if (token === undefined) {
-            return { kind: 'miss' };
+            return failure(STALKER_FAILURE_REASONS.IncompatibleResponse, false);
         }
         const handshakeRandom = boundedOptionalString(
             handshakeValue?.['random']
@@ -294,7 +300,7 @@ export class StalkerEndpointResolver {
             normalizedProfile.value
         );
         if (classifiedProfile.kind === 'failure') {
-            return { kind: 'miss' };
+            return failure(classifiedProfile.reason, false);
         }
 
         return {
@@ -343,7 +349,7 @@ export class StalkerEndpointResolver {
                   kind: 'stateless-mac',
                   landingUrl: endpoint,
               }
-            : { kind: 'miss' };
+            : failure(STALKER_FAILURE_REASONS.IncompatibleResponse, false);
     }
 }
 
@@ -439,12 +445,15 @@ function normalizeProtocolOutcome(
             sourceOrigin: outcome.sourceOrigin,
         };
     }
+    if (EXPLICITLY_UNSUPPORTED_STATUSES.has(outcome.result.status)) {
+        return { kind: 'unsupported' };
+    }
 
     const parsed = parseTransportEnvelope(outcome.result);
     const classifiedFailure = classifyStalkerResponseFailure({
         httpStatus: outcome.result.status,
-        rawBody: parsed?.rawBody,
-        value: parsed?.value,
+        rawBody: parsed.rawBody,
+        value: parsed.kind === 'parsed' ? parsed.value : undefined,
     });
     if (classifiedFailure.kind === 'failure') {
         return failure(
@@ -457,11 +466,14 @@ function normalizeProtocolOutcome(
     if (classifiedFailure.kind === 'token-rejected') {
         return failure(STALKER_FAILURE_REASONS.IncompatibleResponse, false);
     }
-    if (EXPLICITLY_UNSUPPORTED_STATUSES.has(outcome.result.status)) {
-        return { kind: 'unsupported' };
+    if (outcome.result.status !== 200) {
+        return failure(STALKER_FAILURE_REASONS.IncompatibleResponse, false);
     }
-    if (outcome.result.status !== 200 || parsed === null) {
-        return { kind: 'miss' };
+    if (parsed.kind === 'unparsed') {
+        return failure(
+            parsed.reason,
+            parsed.reason !== STALKER_FAILURE_REASONS.IncompatibleResponse
+        );
     }
     return { kind: 'parsed', value: parsed.value };
 }
@@ -472,8 +484,8 @@ function inspectResponseFailure(
     const parsed = parseTransportEnvelope(result);
     const classified = classifyStalkerResponseFailure({
         httpStatus: result.status,
-        rawBody: parsed?.rawBody,
-        value: parsed?.value,
+        rawBody: parsed.rawBody,
+        value: parsed.kind === 'parsed' ? parsed.value : undefined,
     });
     if (classified.kind === 'failure') {
         return failure(
@@ -490,12 +502,15 @@ function inspectResponseFailure(
 
 function parseTransportEnvelope(
     result: StalkerTransportResult<Uint8Array>
-): ParsedTransportEnvelope | null {
+): ParsedTransportEnvelope | UnparsedTransportEnvelope {
     let rawBody: string;
     try {
         rawBody = new TextDecoder('utf-8', { fatal: true }).decode(result.body);
     } catch {
-        return null;
+        return {
+            kind: 'unparsed',
+            reason: STALKER_FAILURE_REASONS.IncompatibleResponse,
+        };
     }
     const parsed = parseStalkerResponseEnvelope({
         body: rawBody,
@@ -503,8 +518,8 @@ function parseTransportEnvelope(
         maxBodyBytes: result.body.byteLength,
     });
     return parsed.kind === 'parsed'
-        ? { rawBody, result, value: parsed.value }
-        : { rawBody, result };
+        ? { kind: 'parsed', rawBody, value: parsed.value }
+        : { kind: 'unparsed', rawBody, reason: parsed.reason };
 }
 
 function boundedNonEmptyString(value: unknown): string | undefined {

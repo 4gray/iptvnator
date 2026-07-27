@@ -42,6 +42,22 @@ const STALKER_ERROR_FIELDS = [
     'error_message',
     'error_msg',
 ] as const;
+const STALKER_BLOCK_FIELDS = [
+    'blocked',
+    'is_blocked',
+    'account_blocked',
+    'disabled',
+    'banned',
+] as const;
+const STALKER_CREDENTIAL_FIELDS = [
+    'credentials_required',
+    'credential_required',
+    'login_required',
+    'auth_required',
+    'authentication_required',
+    'need_auth',
+    'requires_auth',
+] as const;
 
 export function parseStalkerResponseEnvelope(
     input: StalkerResponseEnvelopeInput
@@ -87,12 +103,25 @@ export function classifyStalkerProfile(
         return incompatibleResponse();
     }
     const profile = asRecord(envelope['js']);
-    if (!profile || hasProfileFailureIndicator(envelope, profile)) {
+    if (!profile || hasAnyIndicator(envelope, profile, STALKER_ERROR_FIELDS)) {
         return incompatibleResponse();
     }
 
     const status = normalizeProfileStatus(profile['status']);
+    const hasBlockIndicator = hasAnyIndicator(
+        envelope,
+        profile,
+        STALKER_BLOCK_FIELDS
+    );
+    const hasCredentialIndicator = hasAnyIndicator(
+        envelope,
+        profile,
+        STALKER_CREDENTIAL_FIELDS
+    );
     if (status === 0) {
+        if (hasBlockIndicator || hasCredentialIndicator) {
+            return incompatibleResponse();
+        }
         return {
             kind: STALKER_PROFILE_RESULT_KINDS.Ready,
             profile,
@@ -100,6 +129,9 @@ export function classifyStalkerProfile(
         };
     }
     if (status === 1) {
+        if (hasCredentialIndicator) {
+            return incompatibleResponse();
+        }
         return {
             kind: STALKER_PROFILE_RESULT_KINDS.Blocked,
             profile,
@@ -107,6 +139,9 @@ export function classifyStalkerProfile(
         };
     }
     if (status === 2) {
+        if (hasBlockIndicator) {
+            return incompatibleResponse();
+        }
         return {
             kind: STALKER_PROFILE_RESULT_KINDS.CredentialsRequired,
             profile,
@@ -115,7 +150,9 @@ export function classifyStalkerProfile(
     }
     if (
         profile['status'] === undefined &&
-        hasRecognizedStatuslessProfileField(profile)
+        hasRecognizedStatuslessProfileField(profile) &&
+        !hasBlockIndicator &&
+        !hasCredentialIndicator
     ) {
         return {
             kind: STALKER_PROFILE_RESULT_KINDS.Ready,
@@ -145,10 +182,7 @@ export function classifyStalkerDoAuth(
 
 export function classifyStalkerResponseFailure(
     input: StalkerResponseFailureInput
-):
-    | { kind: 'none' }
-    | { kind: 'token-rejected' }
-    | StalkerClassifierFailure {
+): { kind: 'none' } | { kind: 'token-rejected' } | StalkerClassifierFailure {
     if (input.httpStatus === 403 && looksLikePortalProtection(input.rawBody)) {
         return {
             kind: 'failure',
@@ -217,27 +251,12 @@ function hasRecognizedStatuslessProfileField(
     ].some((field) => profile[field] !== undefined);
 }
 
-function hasProfileFailureIndicator(
+function hasAnyIndicator(
     envelope: Readonly<Record<string, unknown>>,
-    profile: Readonly<Record<string, unknown>>
+    profile: Readonly<Record<string, unknown>>,
+    fields: readonly string[]
 ): boolean {
-    const blockFields = [
-        'blocked',
-        'is_blocked',
-        'account_blocked',
-        'disabled',
-        'banned',
-    ];
-    const credentialFields = [
-        'credentials_required',
-        'credential_required',
-        'login_required',
-        'auth_required',
-        'authentication_required',
-        'need_auth',
-        'requires_auth',
-    ];
-    return [...STALKER_ERROR_FIELDS, ...blockFields, ...credentialFields].some(
+    return fields.some(
         (field) =>
             isFailureIndicator(envelope[field]) ||
             isFailureIndicator(profile[field])
@@ -262,7 +281,8 @@ function isFailureIndicator(value: unknown): boolean {
 function normalizeMediaType(
     contentType: string | undefined
 ): string | undefined | 'invalid' {
-    if (contentType === undefined || contentType.trim() === '') return undefined;
+    if (contentType === undefined || contentType.trim() === '')
+        return undefined;
     const [rawType, ...parameters] = contentType.split(';');
     if (
         !rawType ||
@@ -310,7 +330,9 @@ function parseAllowlistedJsonp(
     return match?.[1] === undefined ? { parsed: false } : parseJson(match[1]);
 }
 
-function asRecord(value: unknown): Readonly<Record<string, unknown>> | undefined {
+function asRecord(
+    value: unknown
+): Readonly<Record<string, unknown>> | undefined {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
         ? (value as Readonly<Record<string, unknown>>)
         : undefined;

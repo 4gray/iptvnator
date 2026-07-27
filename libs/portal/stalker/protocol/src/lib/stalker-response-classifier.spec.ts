@@ -14,8 +14,47 @@ describe('Stalker response classifier', () => {
         [2, 'credentials-required'],
         ['2', 'credentials-required'],
     ])('normalizes profile status %p', (status, expectedKind) => {
-        expect(classifyStalkerProfile({ js: { id: 7, status } })).toMatchObject({
-            kind: expectedKind,
+        expect(classifyStalkerProfile({ js: { id: 7, status } })).toMatchObject(
+            {
+                kind: expectedKind,
+            }
+        );
+    });
+
+    it.each([
+        ['profile block flag', { js: { blocked: true, status: 1 } }, 'blocked'],
+        [
+            'envelope block flag',
+            { account_blocked: '1', js: { status: '1' } },
+            'blocked',
+        ],
+        [
+            'profile credential flag',
+            { js: { credentials_required: true, status: 2 } },
+            'credentials-required',
+        ],
+        [
+            'envelope credential flag',
+            { auth_required: '1', js: { status: '2' } },
+            'credentials-required',
+        ],
+    ])(
+        'accepts a status confirmed by a matching %s',
+        (_, value, expectedKind) => {
+            expect(classifyStalkerProfile(value)).toMatchObject({
+                kind: expectedKind,
+            });
+        }
+    );
+
+    it.each([
+        { js: { credentials_required: true, status: 1 } },
+        { js: { blocked: true, status: 2 } },
+        { js: { blocked: true, status: 0 } },
+    ])('rejects a profile status with a conflicting indicator', (value) => {
+        expect(classifyStalkerProfile(value)).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
         });
     });
 
@@ -32,15 +71,12 @@ describe('Stalker response classifier', () => {
         { js: { blocked: true, id: 7 } },
         { js: { credentials_required: true, id: 7 } },
         { error: 'Authorization failed', js: { id: 7 } },
-    ])(
-        'rejects status-less profiles carrying failure indicators',
-        (value) => {
-            expect(classifyStalkerProfile(value)).toEqual({
-                kind: 'failure',
-                reason: 'incompatible-response',
-            });
-        }
-    );
+    ])('rejects status-less profiles carrying failure indicators', (value) => {
+        expect(classifyStalkerProfile(value)).toEqual({
+            kind: 'failure',
+            reason: 'incompatible-response',
+        });
+    });
 
     it.each([
         { error: { message: 'Access denied' }, js: { id: 7 } },
@@ -186,10 +222,7 @@ describe('Stalker response classifier', () => {
 
     it.each([
         ['Authorization failed', { kind: 'token-rejected' }],
-        [
-            'Access denied',
-            { kind: 'failure', reason: 'account-access-denied' },
-        ],
+        ['Access denied', { kind: 'failure', reason: 'account-access-denied' }],
     ])('classifies the canonical error %s on HTTP 403', (error, expected) => {
         expect(
             classifyStalkerResponseFailure({
@@ -211,10 +244,7 @@ describe('Stalker response classifier', () => {
 
     it.each([
         ['Authorization failed', { kind: 'token-rejected' }],
-        [
-            'Access denied',
-            { kind: 'failure', reason: 'account-access-denied' },
-        ],
+        ['Access denied', { kind: 'failure', reason: 'account-access-denied' }],
     ])('recognizes the exact plain error body %s', (rawBody, expected) => {
         expect(
             classifyStalkerResponseFailure({
