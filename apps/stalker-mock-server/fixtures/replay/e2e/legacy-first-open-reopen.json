@@ -1,0 +1,608 @@
+{
+    "description": "A legacy full portal is classified through the route UI, persists accepted credentials and its learned recipe, then reopens without asking for credentials again.",
+    "entry": {
+        "origin": "portal",
+        "path": "/c/"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 2,
+                        "min": 2
+                    },
+                    "id": "anonymous-probe",
+                    "method": "GET",
+                    "operation": "anonymous-probe",
+                    "origin": "portal",
+                    "path": "/c/",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "mac",
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "device_id",
+                                "device_id2",
+                                "mac",
+                                "password",
+                                "signature",
+                                "signature2",
+                                "sn",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {},
+                        "status": 204
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 2,
+                        "min": 2
+                    },
+                    "id": "handshake",
+                    "method": "GET",
+                    "operation": "handshake",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "stb_lang": "en",
+                                "timezone": "UTC"
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization"
+                            ],
+                            "exact": {
+                                "accept-language": "en-US",
+                                "user-agent": "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250",
+                                "x-user-agent": "Model: MAG250"
+                            },
+                            "present": [
+                                "referer"
+                            ]
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "handshake",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "random": {
+                                        "kind": "ref",
+                                        "symbol": "challenge"
+                                    },
+                                    "token": {
+                                        "kind": "ref",
+                                        "symbol": "session-token"
+                                    }
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ],
+                            "set-cookie": [
+                                {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "session="
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "session-cookie-1"
+                                        },
+                                        {
+                                            "kind": "literal",
+                                            "value": "; Path=/; HttpOnly"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 2,
+                        "min": 2
+                    },
+                    "id": "profile-first",
+                    "method": "GET",
+                    "operation": "profile-first",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "session-cookie-1"
+                                },
+                                "stb_lang": "en",
+                                "timezone": "UTC"
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "accept-language": "en-US",
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "session-token"
+                                        }
+                                    ]
+                                },
+                                "user-agent": "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250",
+                                "x-user-agent": "Model: MAG250"
+                            },
+                            "present": [
+                                "referer"
+                            ]
+                        },
+                        "query": {
+                            "absent": [
+                                "device_id",
+                                "device_id2",
+                                "password",
+                                "signature",
+                                "signature2",
+                                "sn",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "client_type": "STB",
+                                "hd": "1",
+                                "language": "en",
+                                "not_valid_token": "0",
+                                "stb_type": "MAG250",
+                                "timezone": "UTC",
+                                "type": "stb"
+                            },
+                            "present": [
+                                "metrics"
+                            ]
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "status": 2
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 2,
+                        "min": 2
+                    },
+                    "id": "do-auth",
+                    "method": "GET",
+                    "operation": "do-auth",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "session-cookie-1"
+                                },
+                                "stb_lang": "en",
+                                "timezone": "UTC"
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "accept-language": "en-US",
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "session-token"
+                                        }
+                                    ]
+                                },
+                                "user-agent": "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250",
+                                "x-user-agent": "Model: MAG250"
+                            },
+                            "present": [
+                                "referer"
+                            ]
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "do_auth",
+                                "login": {
+                                    "kind": "ref",
+                                    "symbol": "username"
+                                },
+                                "password": {
+                                    "kind": "ref",
+                                    "symbol": "password"
+                                },
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": true
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ],
+                            "set-cookie": [
+                                {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "session="
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "session-cookie-2"
+                                        },
+                                        {
+                                            "kind": "literal",
+                                            "value": "; Path=/; HttpOnly"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 2,
+                        "min": 2
+                    },
+                    "id": "profile-second",
+                    "method": "GET",
+                    "operation": "profile-second",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "session-cookie-2"
+                                },
+                                "stb_lang": "en",
+                                "timezone": "UTC"
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "accept-language": "en-US",
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "session-token"
+                                        }
+                                    ]
+                                },
+                                "user-agent": "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250",
+                                "x-user-agent": "Model: MAG250"
+                            },
+                            "present": [
+                                "referer"
+                            ]
+                        },
+                        "query": {
+                            "absent": [
+                                "device_id",
+                                "device_id2",
+                                "password",
+                                "signature",
+                                "signature2",
+                                "sn",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_profile",
+                                "auth_second_step": "1",
+                                "client_type": "STB",
+                                "hd": "1",
+                                "language": "en",
+                                "not_valid_token": "0",
+                                "stb_type": "MAG250",
+                                "timezone": "UTC",
+                                "type": "stb"
+                            },
+                            "present": [
+                                "metrics"
+                            ]
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "status": 0
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 2,
+                        "min": 2
+                    },
+                    "id": "vod-categories",
+                    "method": "GET",
+                    "operation": "catalog-categories",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                },
+                                "session": {
+                                    "kind": "ref",
+                                    "symbol": "session-cookie-2"
+                                },
+                                "stb_lang": "en",
+                                "timezone": "UTC"
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "accept-language": "en-US",
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "session-token"
+                                        }
+                                    ]
+                                },
+                                "user-agent": "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250",
+                                "x-user-agent": "Model: MAG250"
+                            },
+                            "present": [
+                                "referer"
+                            ]
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "username"
+                            ],
+                            "exact": {
+                                "JsHttpRequest": "1-xml",
+                                "action": "get_categories",
+                                "type": "vod"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": []
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "unordered",
+            "name": "legacy-first-open-and-reopen",
+            "nextState": "complete",
+            "state": "start"
+        }
+    ],
+    "scenarioId": "e2e-legacy-first-open-reopen",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "mac",
+            "valueKind": "mac"
+        },
+        {
+            "kind": "generate",
+            "symbol": "username",
+            "valueKind": "credential"
+        },
+        {
+            "kind": "generate",
+            "symbol": "password",
+            "valueKind": "credential"
+        },
+        {
+            "kind": "generate",
+            "symbol": "challenge",
+            "valueKind": "random"
+        },
+        {
+            "kind": "generate",
+            "symbol": "session-token",
+            "valueKind": "token"
+        },
+        {
+            "kind": "generate",
+            "symbol": "session-cookie-1",
+            "valueKind": "cookie"
+        },
+        {
+            "kind": "generate",
+            "symbol": "session-cookie-2",
+            "valueKind": "cookie"
+        }
+    ],
+    "terminalState": "complete"
+}

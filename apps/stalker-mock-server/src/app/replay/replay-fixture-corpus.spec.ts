@@ -51,6 +51,7 @@ const EXPECTED_SCENARIOS = [
     'cookies-session-isolation',
     'e2e-concurrent-catalog-refresh',
     'e2e-full-session-catalog-playback',
+    'e2e-legacy-first-open-reopen',
     'redirect-auth-query',
     'redirect-identity-pause',
     'redirect-landing-approval',
