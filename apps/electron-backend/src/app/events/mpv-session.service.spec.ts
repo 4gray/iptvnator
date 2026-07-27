@@ -101,6 +101,49 @@ describe('external player shutdown on app quit', () => {
         expect(proc.kill).toHaveBeenCalledTimes(1);
     });
 
+    it('scopes initial reusable MPV request headers to the first source', async () => {
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: true,
+        });
+
+        await openMpvPlayer({
+            mainOwnedHeaders: {
+                Authorization: 'Bearer initial-token',
+                Cookie: 'session=initial-cookie',
+                Referer: 'https://portal.example/player/',
+                'User-Agent': 'InitialAgent/1.0',
+            },
+            title: 'Initial managed source',
+            url: 'https://portal.example/initial.m3u8',
+        });
+
+        const spawnArgs = (spawn as unknown as jest.Mock).mock
+            .calls[0][1] as string[];
+        const scopeStart = spawnArgs.indexOf('--{');
+        const scopeEnd = spawnArgs.indexOf('--}');
+
+        expect(scopeStart).toBeGreaterThanOrEqual(0);
+        expect(scopeEnd).toBeGreaterThan(scopeStart);
+        expect(spawnArgs.slice(scopeStart + 1, scopeEnd)).toEqual([
+            '--user-agent=InitialAgent/1.0',
+            '--referrer=https://portal.example/player/',
+            '--http-header-fields=Authorization: Bearer initial-token,Cookie: session=initial-cookie,Referer: https://portal.example/player/,User-Agent: InitialAgent/1.0',
+            '--force-media-title=Initial managed source',
+            'https://portal.example/initial.m3u8',
+        ]);
+        expect(spawnArgs.slice(0, scopeStart).join(',')).not.toContain(
+            'initial-token'
+        );
+        expect(spawnArgs.slice(scopeEnd + 1).join(',')).not.toContain(
+            'initial-token'
+        );
+
+        shutdownMpvSession();
+    });
+
     it('does not track non-reusable MPV processes for shutdown', async () => {
         const proc = createMockChildProcess();
         (spawn as unknown as jest.Mock).mockReturnValue(proc);

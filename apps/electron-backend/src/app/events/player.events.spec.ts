@@ -545,10 +545,55 @@ describe('player.events Stalker playback contexts', () => {
 });
 
 describe('openMpvPlayer reusable request isolation', () => {
-    const ipcCommands: unknown[][] = [];
+    interface MockMpvIpcRequest {
+        command: unknown[];
+        request_id?: number;
+    }
+
+    interface RecordedMpvIpcRequest {
+        payload: MockMpvIpcRequest;
+        socket: EventEmitter;
+    }
+
+    const ipcRequests: RecordedMpvIpcRequest[] = [];
+
+    async function waitForIpcRequestCount(count: number): Promise<void> {
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+            if (ipcRequests.length >= count) {
+                return;
+            }
+
+            await new Promise<void>((resolve) => {
+                setImmediate(resolve);
+            });
+        }
+
+        throw new Error(`Expected ${count} MPV IPC requests`);
+    }
+
+    async function flushIpcTurns(count = 4): Promise<void> {
+        for (let attempt = 0; attempt < count; attempt += 1) {
+            await new Promise<void>((resolve) => {
+                setImmediate(resolve);
+            });
+        }
+    }
+
+    function acknowledgeRequest(index: number): void {
+        const request = ipcRequests[index];
+        request.socket.emit(
+            'data',
+            Buffer.from(
+                `${JSON.stringify({
+                    error: 'success',
+                    request_id: request.payload.request_id,
+                })}\n`
+            )
+        );
+    }
 
     beforeEach(() => {
-        ipcCommands.length = 0;
+        ipcRequests.length = 0;
         mockGetStalkerPlaybackContextHeaders.mockReset();
         mockGetStalkerPlaybackContextHeaders.mockReturnValue(undefined);
         mockCreateConnection.mockReset();
@@ -558,10 +603,10 @@ describe('openMpvPlayer reusable request isolation', () => {
                 destroyed: false,
                 end: jest.fn(),
                 write: jest.fn((request: string) => {
-                    const payload = JSON.parse(request) as {
-                        command: unknown[];
-                    };
-                    ipcCommands.push(payload.command);
+                    const payload = JSON.parse(
+                        request
+                    ) as MockMpvIpcRequest;
+                    ipcRequests.push({ payload, socket });
                     return true;
                 }),
             });
@@ -589,7 +634,7 @@ describe('openMpvPlayer reusable request isolation', () => {
             url: 'https://seed.example/stream.m3u8',
         });
 
-        await openMpvPlayer({
+        const managedOpen = openMpvPlayer({
             mainOwnedHeaders: {
                 Authorization: 'Bearer managed-token',
                 Cookie: 'session=managed-cookie',
@@ -600,48 +645,62 @@ describe('openMpvPlayer reusable request isolation', () => {
             title: '',
             url: 'https://portal.example/managed.m3u8',
         });
+        await waitForIpcRequestCount(1);
+        acknowledgeRequest(0);
+        await managedOpen;
 
-        expect(ipcCommands).toEqual([
-            ['set_property', 'user-agent', 'ManagedAgent/1.0'],
-            [
-                'set_property',
-                'referrer',
-                'https://portal.example/player/',
-            ],
-            [
-                'set_property',
-                'http-header-fields',
-                'Authorization: Bearer managed-token,Cookie: session=managed-cookie,Origin: https://portal.example,Referer: https://portal.example/player/,User-Agent: ManagedAgent/1.0',
-            ],
+        expect(ipcRequests.map(({ payload }) => payload.command)).toEqual([
             [
                 'loadfile',
                 'https://portal.example/managed.m3u8',
                 'replace',
+                -1,
+                {
+                    'force-media-title': '',
+                    'http-header-fields':
+                        'Authorization: Bearer managed-token,Cookie: session=managed-cookie,Origin: https://portal.example,Referer: https://portal.example/player/,User-Agent: ManagedAgent/1.0',
+                    referrer: 'https://portal.example/player/',
+                    'user-agent': 'ManagedAgent/1.0',
+                },
             ],
         ]);
+        expect(ipcRequests[0].payload.request_id).toEqual(expect.any(Number));
 
-        ipcCommands.length = 0;
-
-        await openMpvPlayer({
+        const plainOpen = openMpvPlayer({
             title: '',
             url: 'https://plain.example/public.m3u8',
         });
+        await waitForIpcRequestCount(2);
+        acknowledgeRequest(1);
+        await plainOpen;
 
-        expect(ipcCommands).toEqual([
-            ['set_property', 'user-agent', ''],
-            ['set_property', 'referrer', ''],
-            ['set_property', 'http-header-fields', ''],
+        expect(ipcRequests[1].payload.command).toEqual(
             [
                 'loadfile',
                 'https://plain.example/public.m3u8',
                 'replace',
+                -1,
+                {
+                    'force-media-title': '',
+                    'http-header-fields': '',
+                    referrer: '',
+                    'user-agent': '',
+                },
             ],
-        ]);
-        expect(JSON.stringify(ipcCommands)).not.toContain('managed-token');
-        expect(JSON.stringify(ipcCommands)).not.toContain('managed-cookie');
+        );
+        expect(ipcRequests[1].payload.request_id).toEqual(expect.any(Number));
+        expect(ipcRequests[1].payload.request_id).not.toBe(
+            ipcRequests[0].payload.request_id
+        );
+        expect(JSON.stringify(ipcRequests[1].payload)).not.toContain(
+            'managed-token'
+        );
+        expect(JSON.stringify(ipcRequests[1].payload)).not.toContain(
+            'managed-cookie'
+        );
     });
 
-    it('serializes concurrent managed and plain loads so their request properties cannot interleave', async () => {
+    it('waits for each daemon ACK before issuing the next concurrent source switch', async () => {
         await openMpvPlayer({
             title: '',
             url: 'https://seed.example/stream.m3u8',
@@ -662,32 +721,60 @@ describe('openMpvPlayer reusable request isolation', () => {
             url: 'https://plain.example/concurrent.m3u8',
         });
 
+        let managedSettled = false;
+        managedOpen.finally(() => {
+            managedSettled = true;
+        });
+
+        await waitForIpcRequestCount(1);
+        ipcRequests[0].socket.emit(
+            'data',
+            Buffer.from(
+                `${JSON.stringify({ event: 'start-file' })}\n${JSON.stringify({
+                    error: 'success',
+                    request_id:
+                        (ipcRequests[0].payload.request_id ?? 0) + 10_000,
+                })}\n`
+            )
+        );
+        await flushIpcTurns();
+        const requestsBeforeManagedAck = ipcRequests.length;
+        const managedSettledBeforeAck = managedSettled;
+
+        acknowledgeRequest(0);
+        await waitForIpcRequestCount(2);
+        const requestsAfterManagedAck = ipcRequests.length;
+        acknowledgeRequest(1);
         await Promise.all([managedOpen, plainOpen]);
 
-        expect(ipcCommands).toEqual([
-            ['set_property', 'user-agent', 'ConcurrentAgent/1.0'],
-            [
-                'set_property',
-                'referrer',
-                'https://portal.example/player/',
-            ],
-            [
-                'set_property',
-                'http-header-fields',
-                'Authorization: Bearer concurrent-token,Cookie: session=concurrent-cookie,Referer: https://portal.example/player/,User-Agent: ConcurrentAgent/1.0',
-            ],
+        expect(managedSettledBeforeAck).toBe(false);
+        expect(requestsBeforeManagedAck).toBe(1);
+        expect(requestsAfterManagedAck).toBe(2);
+        expect(ipcRequests.map(({ payload }) => payload.command)).toEqual([
             [
                 'loadfile',
                 'https://portal.example/concurrent.m3u8',
                 'replace',
+                -1,
+                {
+                    'force-media-title': '',
+                    'http-header-fields':
+                        'Authorization: Bearer concurrent-token,Cookie: session=concurrent-cookie,Referer: https://portal.example/player/,User-Agent: ConcurrentAgent/1.0',
+                    referrer: 'https://portal.example/player/',
+                    'user-agent': 'ConcurrentAgent/1.0',
+                },
             ],
-            ['set_property', 'user-agent', ''],
-            ['set_property', 'referrer', ''],
-            ['set_property', 'http-header-fields', ''],
             [
                 'loadfile',
                 'https://plain.example/concurrent.m3u8',
                 'replace',
+                -1,
+                {
+                    'force-media-title': '',
+                    'http-header-fields': '',
+                    referrer: '',
+                    'user-agent': '',
+                },
             ],
         ]);
     });

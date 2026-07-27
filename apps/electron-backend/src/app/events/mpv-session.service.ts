@@ -46,6 +46,20 @@ let mpvProcess: ChildProcess | null = null;
 let mpvSocketPath: string | null = null;
 let positionPollingInterval: NodeJS.Timeout | null = null;
 let mpvReuseOperationQueue: Promise<void> = Promise.resolve();
+let mpvCommandRequestId = 0;
+
+type MpvCommandArgument =
+    | string
+    | number
+    | boolean
+    | Record<string, string>;
+
+interface MpvIpcResponse {
+    error?: unknown;
+    request_id?: unknown;
+}
+
+const MPV_COMMAND_TIMEOUT_MS = 2000;
 
 function getMpvPath(options: PlayerPathOptions = {}): string {
     return (
@@ -155,30 +169,125 @@ function startPositionPolling(
 
 function sendMpvCommand(
     command: string,
-    args: Array<string | number>
+    args: MpvCommandArgument[]
 ): Promise<void> {
     return new Promise((resolve, reject) => {
-        if (!mpvSocketPath) {
+        const socketPath = mpvSocketPath;
+        if (!socketPath) {
             reject(new Error('No MPV socket path available'));
             return;
         }
 
-        const client = createConnection(mpvSocketPath);
-        const request = JSON.stringify({ command: [command, ...args] }) + '\n';
+        mpvCommandRequestId += 1;
+        const requestId = mpvCommandRequestId;
+        const client = createConnection(socketPath);
+        const request =
+            JSON.stringify({
+                command: [command, ...args],
+                request_id: requestId,
+            }) + '\n';
+        let responseBuffer = '';
+        let settled = false;
+
+        const settle = (error?: Error) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            clearTimeout(timeoutHandle);
+            client.destroy();
+
+            if (error) {
+                reject(error);
+                return;
+            }
+            resolve();
+        };
+
+        const timeoutHandle = setTimeout(() => {
+            settle(
+                new Error(
+                    `MPV IPC command "${command}" timed out awaiting acknowledgement`
+                )
+            );
+        }, MPV_COMMAND_TIMEOUT_MS);
 
         client.on('connect', () => {
             traceExternalPlayer('mpv ipc command', {
                 command,
                 argsCount: args.length,
+                requestId,
             });
-            client.write(request);
-            client.end();
-            resolve();
+            try {
+                client.write(request);
+            } catch (error) {
+                settle(
+                    error instanceof Error
+                        ? error
+                        : new Error('Failed to write MPV IPC command')
+                );
+            }
+        });
+
+        client.on('data', (chunk) => {
+            responseBuffer += chunk.toString();
+
+            let newlineIndex = responseBuffer.indexOf('\n');
+            while (newlineIndex >= 0) {
+                const line = responseBuffer.slice(0, newlineIndex).trim();
+                responseBuffer = responseBuffer.slice(newlineIndex + 1);
+                newlineIndex = responseBuffer.indexOf('\n');
+
+                if (!line) {
+                    continue;
+                }
+
+                let response: MpvIpcResponse;
+                try {
+                    response = JSON.parse(line) as MpvIpcResponse;
+                } catch {
+                    continue;
+                }
+
+                if (response.request_id !== requestId) {
+                    continue;
+                }
+
+                if (response.error !== 'success') {
+                    settle(
+                        new Error(
+                            `MPV IPC command "${command}" failed: ${String(
+                                response.error ?? 'unknown error'
+                            )}`
+                        )
+                    );
+                    return;
+                }
+
+                settle();
+                return;
+            }
+        });
+
+        client.on('end', () => {
+            settle(
+                new Error(
+                    `MPV IPC connection ended before "${command}" was acknowledged`
+                )
+            );
+        });
+
+        client.on('close', () => {
+            settle(
+                new Error(
+                    `MPV IPC connection closed before "${command}" was acknowledged`
+                )
+            );
         });
 
         client.on('error', (err) => {
             console.error('MPV socket error:', err);
-            reject(err);
+            settle(err);
         });
     });
 }
@@ -296,31 +405,21 @@ export async function openMpvPlayer({
             traceExternalPlayer('reuse existing mpv instance');
             try {
                 await enqueueMpvReuseOperation(async () => {
-                    await sendMpvCommand('set_property', [
-                        'user-agent',
-                        effectiveUserAgent ?? '',
-                    ]);
-                    await sendMpvCommand('set_property', [
-                        'referrer',
-                        effectiveReferer ?? '',
-                    ]);
-                    await sendMpvCommand('set_property', [
-                        'http-header-fields',
-                        headerFields.join(','),
-                    ]);
-
-                    const loadFileArgs: Array<string | number> = [
+                    // `loadfile` returns before network loading begins. Keeping
+                    // the HTTP identity in file-local options binds it to this
+                    // playlist entry instead of a mutable process-wide window.
+                    const loadFileOptions: Record<string, string> = {
+                        'force-media-title': title,
+                        'http-header-fields': headerFields.join(','),
+                        referrer: effectiveReferer ?? '',
+                        'user-agent': effectiveUserAgent ?? '',
+                    };
+                    const loadFileArgs: MpvCommandArgument[] = [
                         url,
                         'replace',
+                        -1,
+                        loadFileOptions,
                     ];
-                    const loadFileOptions: string[] = [];
-
-                    if (title) {
-                        loadFileOptions.push(`force-media-title=${title}`);
-                    }
-                    if (loadFileOptions.length > 0) {
-                        loadFileArgs.push(-1, loadFileOptions.join(','));
-                    }
 
                     await sendMpvCommand('loadfile', loadFileArgs);
 
@@ -356,9 +455,9 @@ export async function openMpvPlayer({
                 return externalPlayerSessions.markOpened(session.id) ?? session;
             } catch (err) {
                 console.error('Failed to send command to existing MPV:', err);
-                mpvProcess = null;
-                mpvSocketPath = null;
-                stopPositionPolling();
+                killStoredMpvProcess(
+                    'discard reused mpv process after IPC command failure'
+                );
             }
         }
 
@@ -376,6 +475,11 @@ export async function openMpvPlayer({
         }
 
         args.push('--ytdl=no');
+
+        if (reuseInstance) {
+            // Do not leave the first source's credentials as process defaults.
+            args.push('--{');
+        }
 
         if (effectiveUserAgent) {
             args.push(`--user-agent=${effectiveUserAgent}`);
@@ -398,6 +502,10 @@ export async function openMpvPlayer({
         }
 
         args.push(url);
+
+        if (reuseInstance) {
+            args.push('--}');
+        }
 
         await new Promise<void>((resolve, reject) => {
             const spawnSpec = buildExternalPlayerSpawnSpec(
