@@ -278,6 +278,12 @@
                 "reason": "Node tests validate release-note parsing, rendering and gate policy; the scripts are release tooling, not shipped source."
             },
             {
+                "name": "shared-marketing-fixtures",
+                "root": "libs/shared/marketing-fixtures",
+                "validationCommand": "pnpm nx test shared-marketing-fixtures",
+                "reason": "Screenshot-safe fictional poster catalog shared by both mock servers; the spec asserts catalog order and shape, and percentage coverage over fixture data would not mean anything."
+            },
+            {
                 "name": "remote-control-web",
                 "root": "apps/remote-control-web",
                 "validationCommand": "pnpm nx build remote-control-web",

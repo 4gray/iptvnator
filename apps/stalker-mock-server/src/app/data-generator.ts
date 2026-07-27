@@ -1,4 +1,8 @@
 import { faker } from '@faker-js/faker';
+import {
+    MarketingMovieCategoryKey,
+    POSTER_SHOWCASE_MOVIES,
+} from '@iptvnator/shared/marketing-fixtures';
 import { ScenarioConfig } from './scenarios.js';
 
 // ---------------------------------------------------------------------------
@@ -115,6 +119,8 @@ export interface GeneratedPortalData {
     channels: Map<string, RawChannel[]>; // categoryId -> channels
     radio: Map<string, RawRadioStation[]>; // categoryId -> radio stations
     vod: Map<string, RawVodItem[]>;       // categoryId -> items
+    /** Preserves the provider-neutral fixture order for the "*" VOD listing. */
+    vodOrder?: RawVodItem[];
     series: Map<string, RawSeriesItem[]>; // categoryId -> items
     seasons: Map<string, RawSeason[]>;    // seriesItemId -> seasons
     epg: Map<string, RawEpgProgram[]>;    // channelId -> programs
@@ -144,6 +150,58 @@ function coverUrl(seed: string, width = 300, height = 200): string {
 
 function logoUrl(seed: string): string {
     return `https://picsum.photos/seed/logo-${seed}/100/100`;
+}
+
+const STALKER_MARKETING_VOD_CATEGORIES: RawCategory[] = [
+    { id: '2901', title: 'Action & Mystery', alias: 'action_mystery' },
+    { id: '2902', title: 'Cosmic & Future Worlds', alias: 'future_worlds' },
+    { id: '2903', title: 'Family & Comedy', alias: 'family_comedy' },
+    {
+        id: '2904',
+        title: 'Documentary & Drama',
+        alias: 'documentary_drama',
+    },
+];
+
+const STALKER_MARKETING_VOD_CATEGORY_IDS: Record<
+    MarketingMovieCategoryKey,
+    string
+> = {
+    'action-mystery': '2901',
+    'future-fantasy': '2902',
+    'family-comedy': '2903',
+    'drama-documentary': '2904',
+};
+
+function generateMarketingVodItems(): RawVodItem[] {
+    const assetBaseUrl = '/assets/marketing/poster';
+
+    return POSTER_SHOWCASE_MOVIES.map((movie, index) => {
+        const id = String(29_000 + index);
+        const posterUrl = `${assetBaseUrl}/${movie.slug}.png`;
+        const rating = movie.rating.toFixed(1);
+
+        return {
+            id,
+            name: movie.name,
+            o_name: movie.name,
+            title: movie.name,
+            cmd: `ffrt4://vod/${id}/index.m3u8`,
+            screenshot_uri: posterUrl,
+            cover: posterUrl,
+            description: `${movie.tagline} ${movie.description}`,
+            actors: movie.actors,
+            director: movie.director,
+            year: String(movie.year),
+            genre: movie.genre,
+            genres_str: movie.genre,
+            rating_imdb: rating,
+            rating_kinopoisk: rating,
+            category_id: STALKER_MARKETING_VOD_CATEGORY_IDS[movie.categoryKey],
+            is_series: 0,
+            has_files: 1,
+        };
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -205,20 +263,39 @@ export function generatePortalData(config: ScenarioConfig): GeneratedPortalData 
     }
 
     // ------ VOD categories + items ------
-    data.vodCategories = generateCategories('vod', config.categoryCount.vod);
-    let vodIndex = 0;
-    for (const cat of data.vodCategories) {
-        const items = generateVodItems(
-            cat.id,
-            config.itemsPerCategory,
-            vodIndex,
-            config.isSeriesFraction,
-            config.embeddedSeriesFraction,
-            config.seasonsPerSeries,
-            config.episodesPerSeason
+    if (config.marketingFixture) {
+        data.vodCategories = STALKER_MARKETING_VOD_CATEGORIES.map(
+            (category) => ({ ...category })
         );
-        data.vod.set(cat.id, items);
-        vodIndex += config.itemsPerCategory;
+        const marketingVodItems = generateMarketingVodItems();
+        data.vodOrder = marketingVodItems;
+        for (const category of data.vodCategories) {
+            data.vod.set(
+                category.id,
+                marketingVodItems.filter(
+                    (item) => item.category_id === category.id
+                )
+            );
+        }
+    } else {
+        data.vodCategories = generateCategories(
+            'vod',
+            config.categoryCount.vod
+        );
+        let vodIndex = 0;
+        for (const cat of data.vodCategories) {
+            const items = generateVodItems(
+                cat.id,
+                config.itemsPerCategory,
+                vodIndex,
+                config.isSeriesFraction,
+                config.embeddedSeriesFraction,
+                config.seasonsPerSeries,
+                config.episodesPerSeason
+            );
+            data.vod.set(cat.id, items);
+            vodIndex += config.itemsPerCategory;
+        }
     }
 
     // ------ Series categories + items ------

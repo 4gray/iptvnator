@@ -258,6 +258,7 @@ This is an Nx monorepo with the following structure:
     - **shared/logging** - Dependency-free structured redaction for diagnostic logs
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
+    - **shared/marketing-fixtures** - Provider-neutral fictional movie metadata shared by the Xtream and Stalker marketing mocks
     - **shared/testing** - Shared test helpers
     - **ui/components** - Reusable UI components (incl. channel list)
     - **ui/epg** - EPG UI (timeline ribbon, multi-EPG, progress panel, program dialogs)

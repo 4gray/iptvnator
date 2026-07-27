@@ -1,0 +1,26 @@
+{
+    "name": "shared-marketing-fixtures",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/shared/marketing-fixtures/src",
+    "projectType": "library",
+    "tags": ["scope:shared", "domain:shared-runtime", "type:util"],
+    "targets": {
+        "build": {
+            "executor": "@nx/js:tsc",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/libs/shared/marketing-fixtures",
+                "main": "libs/shared/marketing-fixtures/src/index.ts",
+                "tsConfig": "libs/shared/marketing-fixtures/tsconfig.lib.json",
+                "assets": []
+            }
+        },
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/shared/marketing-fixtures/jest.config.cts"
+            }
+        }
+    }
+}

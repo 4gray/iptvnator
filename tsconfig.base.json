@@ -108,7 +108,10 @@
             "@iptvnator/workspace/dashboard/data-access": [
                 "libs/workspace/dashboard/data-access/src/index.ts"
             ],
-            "@package": ["./package.json"]
+            "@package": ["./package.json"],
+            "@iptvnator/shared/marketing-fixtures": [
+                "./libs/shared/marketing-fixtures/src/index.ts"
+            ]
         }
     },
     "exclude": ["node_modules", "tmp"],

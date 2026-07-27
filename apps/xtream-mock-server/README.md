@@ -153,8 +153,12 @@ application code.
 
 ## Release Demo Artwork
 
-The `marketing:marketing` fixture uses 30 original fictional titles for release
-screenshots. Poster and backdrop PNGs are served from:
+The `marketing:marketing` fixture uses 65 original fictional titles for release
+screenshots. Its core 30-title artwork pack includes matched posters and
+backdrops; 35 additional movie-poster showcase titles use approved local poster
+PNGs and the deterministic SVG fallback for missing backdrops. The newest 20
+showcase movies are ordered first so they appear immediately in screenshot
+catalog grids. Assets are served from:
 
 ```text
 apps/xtream-mock-server/public/marketing/{poster,backdrop}/
