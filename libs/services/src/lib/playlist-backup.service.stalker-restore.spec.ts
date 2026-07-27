@@ -175,6 +175,107 @@ describe('PlaylistBackupService Stalker restore safety', () => {
         );
     });
 
+    it('matches a structured backup identity to the equivalent legacy local identity', async () => {
+        const local = existing({
+            _id: 'local-id',
+            stalkerIdentityOverrides: undefined,
+            stalkerDeviceId1: 'LOCAL-DEVICE',
+            stalkerSerialNumber: 'LOCAL-SERIAL',
+        });
+        const { playlistsService, service } = serviceWith([local]);
+        const backup = entry({
+            portalUrl: local.portalUrl as string,
+            sourceUrl: local.stalkerSourceUrl,
+            macAddress: local.macAddress as string,
+            profilePreset: local.stalkerProfilePreset,
+            identityOverrides: {
+                deviceId1: 'LOCAL-DEVICE',
+                serialNumber: 'LOCAL-SERIAL',
+            },
+            username: local.username,
+            password: 'replacement-password',
+        });
+
+        const summary = await service.importBackup(
+            JSON.stringify(manifest(backup, true))
+        );
+
+        expect(summary).toMatchObject({ imported: 0, merged: 1 });
+        expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'local-id',
+                password: 'replacement-password',
+            })
+        );
+    });
+
+    it('does not merge when a legacy explicit device identity differs', async () => {
+        const local = existing({
+            _id: 'local-id',
+            stalkerIdentityOverrides: undefined,
+            stalkerDeviceId1: 'LOCAL-DEVICE',
+        });
+        const { service } = serviceWith([local]);
+        const backup = entry({
+            portalUrl: local.portalUrl as string,
+            sourceUrl: local.stalkerSourceUrl,
+            macAddress: local.macAddress as string,
+            profilePreset: local.stalkerProfilePreset,
+            stalkerDeviceId1: 'OTHER-DEVICE',
+            username: local.username,
+            password: 'replacement-password',
+        });
+
+        await expect(
+            service.importBackup(JSON.stringify(manifest(backup, true)))
+        ).resolves.toMatchObject({ imported: 1, merged: 0 });
+    });
+
+    it('matches equivalent structured and legacy transport, but separates a transport mismatch', async () => {
+        const local = existing({
+            _id: 'local-id',
+            origin: 'https://portal.test',
+            referrer: 'https://portal.test/c/',
+            stalkerTransportConfiguration: undefined,
+            userAgent: 'MAG-UA',
+        });
+        const matching = entry({
+            portalUrl: local.portalUrl as string,
+            sourceUrl: local.stalkerSourceUrl,
+            macAddress: local.macAddress as string,
+            profilePreset: local.stalkerProfilePreset,
+            identityOverrides: local.stalkerIdentityOverrides,
+            transportConfiguration: {
+                origin: 'https://portal.test',
+                referer: 'https://portal.test/c/',
+                userAgent: 'MAG-UA',
+            },
+            username: local.username,
+            password: 'replacement-password',
+        });
+        const matchingHarness = serviceWith([local]);
+
+        await expect(
+            matchingHarness.service.importBackup(
+                JSON.stringify(manifest(matching, true))
+            )
+        ).resolves.toMatchObject({ imported: 0, merged: 1 });
+
+        const mismatching = entry({
+            ...matching.connection,
+            transportConfiguration: {
+                ...matching.connection.transportConfiguration,
+                userAgent: 'DIFFERENT-UA',
+            },
+        });
+        const mismatchHarness = serviceWith([local]);
+        await expect(
+            mismatchHarness.service.importBackup(
+                JSON.stringify(manifest(mismatching, true))
+            )
+        ).resolves.toMatchObject({ imported: 1, merged: 0 });
+    });
+
     it('keeps whitespace-distinct Stalker principals as separate rows', async () => {
         const local = existing({
             _id: 'local-id',

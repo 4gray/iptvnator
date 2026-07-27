@@ -96,7 +96,7 @@ describe('SettingsBackupCredentialsDialogComponent', () => {
         expect(text).toContain('Enter a password.');
     });
 
-    it('returns a trimmed username while preserving the password exactly', () => {
+    it('returns the username and password exactly as entered', () => {
         component.credentialsForm.setValue({
             username: '  viewer  ',
             password: ' secret with spaces ',
@@ -105,7 +105,7 @@ describe('SettingsBackupCredentialsDialogComponent', () => {
         component.submit();
 
         expect(dialogRef.close).toHaveBeenCalledWith({
-            username: 'viewer',
+            username: '  viewer  ',
             password: ' secret with spaces ',
         });
     });

@@ -268,7 +268,12 @@ describe('PlaylistBackupService redacted Xtream restore', () => {
         };
     }
 
-    function serviceWith(playlists: Playlist[]) {
+    function serviceWith(
+        playlists: Playlist[],
+        portalStatusService = {
+            checkPortalStatus: jest.fn().mockResolvedValue('active'),
+        }
+    ) {
         const playlistsService = {
             addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
             getAllData: jest.fn(() => of(playlists)),
@@ -276,8 +281,12 @@ describe('PlaylistBackupService redacted Xtream restore', () => {
             handlePlaylistParsing: jest.fn(),
         };
         return {
+            portalStatusService,
             playlistsService,
-            service: createPlaylistBackupService({ playlistsService }),
+            service: createPlaylistBackupService({
+                playlistsService,
+                portalStatusService,
+            }),
         };
     }
 
@@ -334,7 +343,9 @@ describe('PlaylistBackupService redacted Xtream restore', () => {
     });
 
     it('creates the row only after the resolver supplies valid credentials', async () => {
-        const { playlistsService, service } = serviceWith([]);
+        const { playlistsService, portalStatusService, service } = serviceWith(
+            []
+        );
 
         const summary = await service.importBackup(
             JSON.stringify(redactedManifest()),
@@ -347,11 +358,17 @@ describe('PlaylistBackupService redacted Xtream restore', () => {
         );
 
         expect(summary.imported).toBe(1);
+        expect(portalStatusService.checkPortalStatus).toHaveBeenCalledWith(
+            'https://portal.test/base/',
+            ' restored-user ',
+            ' restored-password ',
+            { skipCache: true }
+        );
         expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
             expect.objectContaining({
                 serverUrl: 'https://portal.test/base/',
-                username: 'restored-user',
-                password: 'restored-password',
+                username: ' restored-user ',
+                password: ' restored-password ',
             })
         );
     });

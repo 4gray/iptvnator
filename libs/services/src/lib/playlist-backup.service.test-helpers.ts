@@ -61,6 +61,9 @@ export function createPlaylistBackupService(
             clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
         },
+        portalStatusService: {
+            checkPortalStatus: jest.fn().mockResolvedValue('active'),
+        },
         pendingRestoreService: {
             set: jest.fn(),
             clear: jest.fn(),

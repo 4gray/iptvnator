@@ -59,7 +59,7 @@ export class SettingsBackupCredentialsDialogComponent {
 
         const { username, password } = this.credentialsForm.getRawValue();
         this.dialogRef.close({
-            username: username.trim(),
+            username,
             password,
         });
     }

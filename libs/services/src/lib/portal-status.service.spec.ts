@@ -79,7 +79,7 @@ describe('PortalStatusService', () => {
         consoleErrorSpy.mockRestore();
     });
 
-    it('normalizes full playlist URLs and trims copied credentials before checking status', async () => {
+    it('normalizes full playlist URLs while preserving the exact credentials', async () => {
         dataService.sendIpcEvent.mockResolvedValue({
             payload: {
                 user_info: {
@@ -103,8 +103,8 @@ describe('PortalStatusService', () => {
                 url: 'https://example.com',
                 params: {
                     action: 'get_account_info',
-                    password: 'pass',
-                    username: 'user',
+                    password: ' pass ',
+                    username: ' user ',
                 },
             })
         );

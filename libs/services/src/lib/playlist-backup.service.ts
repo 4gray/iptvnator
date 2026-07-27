@@ -5,6 +5,7 @@ import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
 import { DatabaseService } from './database-electron.service';
 import { PlaybackPositionService } from './playback-position.service';
+import { PortalStatusService } from './portal-status.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import {
     isM3uRecentlyViewedItem,
@@ -17,6 +18,9 @@ import {
     PlaylistBackupSettings,
     PLAYLIST_BACKUP_KIND,
     PLAYLIST_BACKUP_VERSION,
+    LEGACY_DEFAULT_STALKER_SERIAL,
+    StalkerSessionIdentityOverrides,
+    StalkerSessionTransportConfiguration,
     StalkerPlaylistBackupEntry,
     StalkerPortalItem,
     XtreamBackupCategoryType,
@@ -80,6 +84,7 @@ export class PlaylistBackupService {
     private readonly settingsStore = inject(SettingsStore);
     private readonly databaseService = inject(DatabaseService);
     private readonly playbackPositionService = inject(PlaybackPositionService);
+    private readonly portalStatusService = inject(PortalStatusService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -656,11 +661,22 @@ export class PlaylistBackupService {
             return null;
         }
 
-        const username = credentials.username.trim();
-        const password = credentials.password.trim();
-        if (!username || !password) {
+        const { username, password } = credentials;
+        if (!username.trim() || !password.trim()) {
             throw new PlaylistBackupError(
                 'Xtream credentials must include a username and password.'
+            );
+        }
+
+        const status = await this.portalStatusService.checkPortalStatus(
+            entry.connection.serverUrl,
+            username,
+            password,
+            { skipCache: true }
+        );
+        if (status !== 'active') {
+            throw new PlaylistBackupError(
+                'Xtream credentials could not be validated as an active account.'
             );
         }
 
@@ -755,9 +771,17 @@ export class PlaylistBackupService {
         const identityMatches = candidates.filter(
             (playlist) =>
                 this.hasSameStalkerSourceMacAndProfile(entry, playlist) &&
-                this.stableObjectIdentity(playlist.stalkerIdentityOverrides) ===
+                this.stableObjectIdentity(
+                    this.effectiveStalkerIdentityFromPlaylist(playlist)
+                ) ===
                     this.stableObjectIdentity(
-                        entry.connection.identityOverrides
+                        this.effectiveStalkerIdentityFromBackup(entry)
+                    ) &&
+                this.stableObjectIdentity(
+                    this.effectiveStalkerTransportFromPlaylist(playlist)
+                ) ===
+                    this.stableObjectIdentity(
+                        this.effectiveStalkerTransportFromBackup(entry)
                     )
         );
         const exportedIdMatch = identityMatches.find(
@@ -826,11 +850,111 @@ export class PlaylistBackupService {
     private isLegacyStalkerBackupEntry(
         entry: StalkerPlaylistBackupEntry
     ): boolean {
+        const connection = entry.connection;
         return (
-            !hasOwn(entry.connection, 'sourceUrl') &&
-            !hasOwn(entry.connection, 'profilePreset') &&
-            !hasOwn(entry.connection, 'identityOverrides')
+            !hasOwn(connection, 'sourceUrl') &&
+            !hasOwn(connection, 'profilePreset') &&
+            !hasOwn(connection, 'identityOverrides') &&
+            !hasOwn(connection, 'transportConfiguration') &&
+            !hasOwn(connection, 'username') &&
+            !hasOwn(connection, 'userAgent') &&
+            !hasOwn(connection, 'referrer') &&
+            !hasOwn(connection, 'origin') &&
+            !hasOwn(connection, 'stalkerSerialNumber') &&
+            !hasOwn(connection, 'stalkerDeviceId1') &&
+            !hasOwn(connection, 'stalkerDeviceId2') &&
+            !hasOwn(connection, 'stalkerSignature1') &&
+            !hasOwn(connection, 'stalkerSignature2')
         );
+    }
+
+    private effectiveStalkerIdentityFromBackup(
+        entry: StalkerPlaylistBackupEntry
+    ): StalkerSessionIdentityOverrides | undefined {
+        if (entry.connection.identityOverrides !== undefined) {
+            return this.presentStringFields(
+                entry.connection.identityOverrides
+            ) as StalkerSessionIdentityOverrides | undefined;
+        }
+        return this.presentStringFields({
+            deviceId1: entry.connection.stalkerDeviceId1,
+            deviceId2: entry.connection.stalkerDeviceId2,
+            serialNumber: this.nonSyntheticLegacySerial(
+                entry.connection.stalkerSerialNumber
+            ),
+            signature1: entry.connection.stalkerSignature1,
+            signature2: entry.connection.stalkerSignature2,
+        }) as StalkerSessionIdentityOverrides | undefined;
+    }
+
+    private effectiveStalkerIdentityFromPlaylist(
+        playlist: Playlist
+    ): StalkerSessionIdentityOverrides | undefined {
+        if (playlist.stalkerIdentityOverrides !== undefined) {
+            return this.presentStringFields(
+                playlist.stalkerIdentityOverrides
+            ) as StalkerSessionIdentityOverrides | undefined;
+        }
+        return this.presentStringFields({
+            deviceId1: playlist.stalkerDeviceId1,
+            deviceId2: playlist.stalkerDeviceId2,
+            serialNumber: this.nonSyntheticLegacySerial(
+                playlist.stalkerSerialNumber
+            ),
+            signature1: playlist.stalkerSignature1,
+            signature2: playlist.stalkerSignature2,
+        }) as StalkerSessionIdentityOverrides | undefined;
+    }
+
+    private effectiveStalkerTransportFromBackup(
+        entry: StalkerPlaylistBackupEntry
+    ): StalkerSessionTransportConfiguration | undefined {
+        if (entry.connection.transportConfiguration !== undefined) {
+            return this.presentStringFields(
+                entry.connection.transportConfiguration
+            ) as StalkerSessionTransportConfiguration | undefined;
+        }
+        return this.presentStringFields({
+            origin: entry.connection.origin,
+            referer: entry.connection.referrer,
+            userAgent: entry.connection.userAgent,
+        }) as StalkerSessionTransportConfiguration | undefined;
+    }
+
+    private effectiveStalkerTransportFromPlaylist(
+        playlist: Playlist
+    ): StalkerSessionTransportConfiguration | undefined {
+        if (playlist.stalkerTransportConfiguration !== undefined) {
+            return this.presentStringFields(
+                playlist.stalkerTransportConfiguration
+            ) as StalkerSessionTransportConfiguration | undefined;
+        }
+        return this.presentStringFields({
+            origin: playlist.origin,
+            referer: playlist.referrer,
+            userAgent: playlist.userAgent,
+        }) as StalkerSessionTransportConfiguration | undefined;
+    }
+
+    private nonSyntheticLegacySerial(
+        serialNumber: string | undefined
+    ): string | undefined {
+        return serialNumber?.trim().toUpperCase() ===
+            LEGACY_DEFAULT_STALKER_SERIAL
+            ? undefined
+            : serialNumber;
+    }
+
+    private presentStringFields(
+        value: Readonly<object>
+    ): Readonly<Record<string, string>> | undefined {
+        const present: Record<string, string> = {};
+        for (const [key, field] of Object.entries(value)) {
+            if (typeof field === 'string' && field.trim().length > 0) {
+                present[key] = field;
+            }
+        }
+        return Object.keys(present).length > 0 ? present : undefined;
     }
 
     private chooseUnambiguousMatch(

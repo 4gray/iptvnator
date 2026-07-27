@@ -185,16 +185,14 @@ export class PortalStatusService {
         username: string;
     } | null {
         try {
-            const normalizedUsername = username.trim();
-            const normalizedPassword = password.trim();
-            if (!normalizedUsername || !normalizedPassword) {
+            if (!username.trim() || !password.trim()) {
                 return null;
             }
 
             return {
                 serverUrl: normalizeXtreamServerUrl(serverUrl),
-                username: normalizedUsername,
-                password: normalizedPassword,
+                username,
+                password,
             };
         } catch {
             return null;
