@@ -1,5 +1,18 @@
 import { XtreamCodeActions } from './xtream-code-actions';
 
+export const XTREAM_MAIN_PERFORMANCE_PHASE_EVENT_CHANNEL =
+    'IPTVNATOR_XTREAM_MAIN_PERFORMANCE_PHASE_EVENT';
+
+export const XTREAM_MAIN_PERFORMANCE_PHASE = {
+    CANCEL_SESSION: 'xtream.cancel-session',
+    JSON_TRANSFORM: 'xtream.json.transform',
+    NETWORK_TOTAL: 'xtream.network.total',
+    RESPONSE_READY: 'xtream.response.ready',
+} as const;
+
+export type XtreamMainPerformancePhase =
+    (typeof XTREAM_MAIN_PERFORMANCE_PHASE)[keyof typeof XTREAM_MAIN_PERFORMANCE_PHASE];
+
 export const XTREAM_PRELOAD_PERFORMANCE_MARKER_CHANNEL =
     'IPTVNATOR_XTREAM_PERF_CAPTURE_MARKER';
 

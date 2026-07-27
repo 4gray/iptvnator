@@ -4,6 +4,8 @@ const registeredHandlers = new Map<string, (...args: unknown[]) => unknown>();
 const axiosMock = Object.assign(jest.fn(), {
     isAxiosError: jest.fn(),
 });
+const PERF_CAPTURE_ENV = 'IPTVNATOR_PERF_CAPTURE';
+const originalPerformanceCaptureValue = process.env[PERF_CAPTURE_ENV];
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -40,6 +42,7 @@ describe('XtreamEvents session cancellation', () => {
 
     beforeEach(async () => {
         jest.resetModules();
+        delete process.env[PERF_CAPTURE_ENV];
         registeredHandlers.clear();
         axiosMock.mockReset();
         axiosMock.isAxiosError.mockReset();
@@ -50,6 +53,14 @@ describe('XtreamEvents session cancellation', () => {
 
     afterEach(() => {
         consoleErrorSpy.mockRestore();
+    });
+
+    afterAll(() => {
+        if (originalPerformanceCaptureValue === undefined) {
+            delete process.env[PERF_CAPTURE_ENV];
+        } else {
+            process.env[PERF_CAPTURE_ENV] = originalPerformanceCaptureValue;
+        }
     });
 
     it('normalizes full Xtream API URLs before appending player_api.php', async () => {

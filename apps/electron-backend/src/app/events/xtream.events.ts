@@ -8,12 +8,18 @@ import { ipcMain } from 'electron';
 import {
     PortalDebugEvent,
     XTREAM_CANCEL_SESSION,
+    XTREAM_MAIN_PERFORMANCE_PHASE,
     normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    createXtreamMainPerformanceCaptureForRequest,
+    createXtreamMeasuredTransformResponse,
+} from './xtream-performance';
+import { cancelXtreamSessionRequests } from './xtream-session-cancellation';
 
 // Some Xtream panels sit behind Cloudflare (or similar WAFs) configured to
 // challenge generic browser-looking User-Agents while allowlisting known
@@ -101,6 +107,9 @@ ipcMain.handle(
         }
     ) => {
         const startedAt = Date.now();
+        const performanceCapture = createXtreamMainPerformanceCaptureForRequest(
+            payload.requestId
+        );
         let activeRequestKey: string | null = null;
         let requestUrlForLog = payload.url;
         try {
@@ -132,13 +141,29 @@ ipcMain.handle(
                 validateStatus: (status) => status < 500, // Don't throw on 4xx errors
                 signal: controller.signal,
             };
+            if (performanceCapture) {
+                config.transformResponse =
+                    createXtreamMeasuredTransformResponse(
+                        performanceCapture,
+                        axios.defaults.transformResponse
+                    );
+            }
 
-            const response = await requestWithValidatedRedirects<unknown>(
-                apiUrl.toString(),
-                config,
-                { allowPrivateNetworks: true }
-            );
-
+            const response = performanceCapture
+                ? await performanceCapture.measureAsync(
+                      XTREAM_MAIN_PERFORMANCE_PHASE.NETWORK_TOTAL,
+                      () =>
+                          requestWithValidatedRedirects<unknown>(
+                              apiUrl.toString(),
+                              config,
+                              { allowPrivateNetworks: true }
+                          )
+                  )
+                : await requestWithValidatedRedirects<unknown>(
+                      apiUrl.toString(),
+                      config,
+                      { allowPrivateNetworks: true }
+                  );
             // Check if response is successful
             if (response.status >= 400) {
                 throw {
@@ -169,10 +194,16 @@ ipcMain.handle(
             }
 
             // Xtream API returns JSON data
-            return {
+            const result = {
                 payload: response.data,
                 action: params.action,
             };
+            return performanceCapture
+                ? performanceCapture.measure(
+                      XTREAM_MAIN_PERFORMANCE_PHASE.RESPONSE_READY,
+                      () => result
+                  )
+                : result;
         } catch (error) {
             const requestId = payload.requestId;
             if (requestId) {
@@ -269,24 +300,20 @@ ipcMain.handle(
         _event,
         sessionId: string
     ): Promise<{ success: boolean; cancelled: number }> => {
-        if (!sessionId) {
-            return { success: false, cancelled: 0 };
-        }
-
-        let cancelled = 0;
-        for (const activeRequest of activeXtreamRequests.values()) {
-            if (activeRequest.sessionId !== sessionId) {
-                continue;
-            }
-
-            activeRequest.controller.abort();
-            cancelled += 1;
-        }
-
-        return {
-            success: cancelled > 0,
-            cancelled,
-        };
+        const capture = createXtreamMainPerformanceCaptureForRequest();
+        return capture
+            ? capture.measure(
+                  XTREAM_MAIN_PERFORMANCE_PHASE.CANCEL_SESSION,
+                  () =>
+                      cancelXtreamSessionRequests(
+                          activeXtreamRequests.values(),
+                          sessionId
+                      )
+              )
+            : cancelXtreamSessionRequests(
+                  activeXtreamRequests.values(),
+                  sessionId
+              );
     }
 );
 type ActiveXtreamRequest = {
@@ -329,8 +356,7 @@ ipcMain.handle(
                 }
             );
             const responseBody = response.data as
-                | { destroy?: () => void }
-                | undefined;
+                { destroy?: () => void } | undefined;
             responseBody?.destroy?.();
             return {
                 status: response.status,
