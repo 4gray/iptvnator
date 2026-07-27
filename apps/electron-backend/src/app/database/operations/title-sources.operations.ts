@@ -50,6 +50,59 @@ function buildFtsMatchQuery(normalizedTitle: string): string {
     return tokens.join(' AND ');
 }
 
+/**
+ * The trigram tokenizer cannot index tokens shorter than three characters, so
+ * a title like "Up", "It" or "Us" produces an empty MATCH expression. Those are
+ * real movies, and silently returning nothing for them means the chip never
+ * appears. This fallback scans instead — slower, but bounded by the same limit
+ * and only reachable for the handful of titles FTS structurally cannot serve.
+ */
+function scanCandidateQuery(base: string) {
+    const like = `%${base.replace(/[\\%_]/g, '\\$&')}%`;
+    return sql`
+        SELECT
+            c.id AS content_id,
+            c.title AS title,
+            c.xtream_id AS xtream_id,
+            c.poster_url AS poster_url,
+            cat.xtream_id AS category_xtream_id,
+            cat.playlist_id AS playlist_id,
+            p.name AS playlist_name
+        FROM content AS c
+        INNER JOIN categories AS cat ON c.category_id = cat.id
+        INNER JOIN playlists AS p ON cat.playlist_id = p.id
+        WHERE c.type = 'movie'
+        AND cat.hidden = 0
+        AND p.type = 'xtream'
+        AND LOWER(c.title) LIKE ${like} ESCAPE '\\'
+        ORDER BY c.title
+        LIMIT ${CANDIDATE_LIMIT}
+    `;
+}
+
+function ftsCandidateQuery(matchQuery: string) {
+    return sql`
+        SELECT
+            c.id AS content_id,
+            c.title AS title,
+            c.xtream_id AS xtream_id,
+            c.poster_url AS poster_url,
+            cat.xtream_id AS category_xtream_id,
+            cat.playlist_id AS playlist_id,
+            p.name AS playlist_name
+        FROM content_title_fts
+        INNER JOIN content AS c ON c.id = content_title_fts.rowid
+        INNER JOIN categories AS cat ON c.category_id = cat.id
+        INNER JOIN playlists AS p ON cat.playlist_id = p.id
+        WHERE content_title_fts MATCH ${matchQuery}
+        AND c.type = 'movie'
+        AND cat.hidden = 0
+        AND p.type = 'xtream'
+        ORDER BY rank, c.title
+        LIMIT ${CANDIDATE_LIMIT}
+    `;
+}
+
 export async function findTitleSources(
     db: AppDatabase,
     request: FindTitleSourcesRequest
@@ -60,38 +113,26 @@ export async function findTitleSources(
     }
 
     const wanted = normalizeTitleKeys(rawTitle);
-    // Search on the year-stripped form so a portal that tags the year and one
-    // that does not still find each other; the year gate below re-tightens it.
-    const matchQuery = buildFtsMatchQuery(wanted.base);
-    if (!wanted.base || !matchQuery) {
+    if (!wanted.base) {
         return [];
     }
 
     // The year the caller knows, falling back to a release tag on the title.
     const wantedYear = request.year ?? wanted.trailingYear ?? null;
 
+    // Search on the year-stripped form so a portal that tags the year and one
+    // that does not still find each other; the year gate below re-tightens it.
+    const matchQuery = buildFtsMatchQuery(wanted.base);
+
     let rows: TitleSourceRow[];
     try {
-        rows = (await db.all(sql`
-            SELECT
-                c.id AS content_id,
-                c.title AS title,
-                c.xtream_id AS xtream_id,
-                c.poster_url AS poster_url,
-                cat.xtream_id AS category_xtream_id,
-                cat.playlist_id AS playlist_id,
-                p.name AS playlist_name
-            FROM content_title_fts
-            INNER JOIN content AS c ON c.id = content_title_fts.rowid
-            INNER JOIN categories AS cat ON c.category_id = cat.id
-            INNER JOIN playlists AS p ON cat.playlist_id = p.id
-            WHERE content_title_fts MATCH ${matchQuery}
-            AND c.type = 'movie'
-            AND cat.hidden = 0
-            AND p.type = 'xtream'
-            ORDER BY rank, c.title
-            LIMIT ${CANDIDATE_LIMIT}
-        `)) as TitleSourceRow[];
+        rows = matchQuery
+            ? ((await db.all(
+                  ftsCandidateQuery(matchQuery)
+              )) as TitleSourceRow[])
+            : ((await db.all(
+                  scanCandidateQuery(wanted.base)
+              )) as TitleSourceRow[]);
     } catch {
         // Malformed FTS query for exotic titles — no sources, not a crash
         return [];

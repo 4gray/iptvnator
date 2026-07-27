@@ -40,15 +40,32 @@ describe('title-sources.operations', () => {
             expect(all).not.toHaveBeenCalled();
         });
 
-        it('returns nothing when no token survives the trigram minimum', async () => {
-            const { db, all } = createDbMock([duneRow]);
+        it('still searches when no token survives the trigram minimum', async () => {
+            // "up" is two chars, so the trigram tokenizer cannot index it. That
+            // is a real movie title, and it must not silently return nothing —
+            // the query falls back to a scan instead of being discarded.
+            const upRow = { ...duneRow, title: 'Up', xtream_id: 77 };
+            const { db, all } = createDbMock([upRow]);
 
-            // "up" is two chars — the trigram tokenizer cannot match it, so
-            // there is no FTS query left to run.
+            const result = await findTitleSources(db, { title: 'Up' });
+
+            expect(all).toHaveBeenCalledTimes(1);
+            expect(result).toHaveLength(1);
+            expect(result[0]).toEqual(
+                expect.objectContaining({ xtreamId: 77, matchConfidence: 'exact' })
+            );
+        });
+
+        it('does not offer a scan hit whose title merely contains the query', async () => {
+            // The scan is deliberately loose; the two-tier normalized check
+            // afterwards is what keeps "Up" from matching "Upgrade".
+            const { db } = createDbMock([
+                { ...duneRow, title: 'Upgrade', xtream_id: 78 },
+            ]);
+
             await expect(
                 findTitleSources(db, { title: 'Up' })
             ).resolves.toEqual([]);
-            expect(all).not.toHaveBeenCalled();
         });
 
         it('returns nothing instead of throwing when the FTS query fails', async () => {

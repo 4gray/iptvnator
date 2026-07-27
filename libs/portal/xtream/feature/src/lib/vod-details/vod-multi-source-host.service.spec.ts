@@ -10,80 +10,26 @@ import {
     VodSourcePinService,
 } from '@iptvnator/services';
 import type {
-    ResolvedPortalPlayback,
     VodSourceCandidate,
     VodSourceField,
 } from '@iptvnator/shared/interfaces';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import type { VodMultiSourceMovie } from './vod-multi-source-identity';
 
-const MOVIE_A: VodMultiSourceMovie = {
-    playlistId: 'playlist-1',
-    playlistName: 'Playlist One',
-    contentId: 101,
-    title: 'The Matrix',
-    year: 1999,
-};
-const MOVIE_B: VodMultiSourceMovie = {
-    ...MOVIE_A,
-    contentId: 202,
-    title: 'Blade Runner',
-    year: 1982,
-}; // a second movie, to prove load() fully resets the session
-const CURRENT_A_ID = 'playlist-1:xtream:101';
-
-const API_AC3: VodSourceField = { value: 'ac3', provenance: 'api' };
-const API_AAC: VodSourceField = { value: 'aac', provenance: 'api' };
-const PARSED_DUB: VodSourceField = { value: 'Дубляж', provenance: 'parsed' };
-const PROBE_OK = { status: 'ok', httpStatus: 200, latencyMs: 42 };
-
-type DiscoveryResult = { sources: VodSourceCandidate[]; matchKind: string };
-type AudioPicker = (c: VodSourceCandidate) => VodSourceField | undefined;
-
-function alternative(index: number): VodSourceCandidate {
-    return {
-        id: `playlist-${index}:xtream:${900 + index}`,
-        playlistId: `playlist-${index}`,
-        playlistName: `Playlist ${index}`,
-        portalType: 'xtream',
-        contentId: 900 + index,
-        rawTitle: 'The Matrix',
-        matchConfidence: 'exact',
-        year: 1999,
-    };
-}
-
-const [ALT_TWO, ALT_THREE] = [alternative(2), alternative(3)];
-
-function resolvedFor(
-    candidate: VodSourceCandidate,
-    startTime: number | undefined,
-    audio?: VodSourceField
-) {
-    const playback: ResolvedPortalPlayback = {
-        streamUrl: `http://${candidate.playlistId}/${candidate.contentId}.mkv`,
-        title: candidate.rawTitle,
-        isLive: false,
-        startTime,
-    };
-    return { playback, candidate: { ...candidate, audio } };
-}
-
-/** Stands in for the resolver: echoes the start time, injects audio facts. */
-function resolveWith(audioFor?: AudioPicker) {
-    return async (
-        candidate: VodSourceCandidate,
-        options?: { startTime?: number }
-    ) => resolvedFor(candidate, options?.startTime, audioFor?.(candidate));
-}
-
-function createDeferred<T>() {
-    let resolve!: (value: T) => void;
-    const promise = new Promise<T>((res) => {
-        resolve = res;
-    });
-    return { promise, resolve };
-}
+import {
+    ALT_THREE,
+    ALT_TWO,
+    API_AAC,
+    API_AC3,
+    CURRENT_A_ID,
+    MOVIE_A,
+    MOVIE_B,
+    PARSED_DUB,
+    PROBE_OK,
+    createDeferred,
+    resolveWith,
+    type DiscoveryResult,
+} from './vod-multi-source-host.fixtures';
 
 describe('VodMultiSourceHostService', () => {
     let service: VodMultiSourceHostService;

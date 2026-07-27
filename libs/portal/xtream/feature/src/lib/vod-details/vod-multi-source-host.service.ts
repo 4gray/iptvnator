@@ -71,6 +71,20 @@ export class VodMultiSourceHostService {
     /** Guards against a stale discovery resolving after the user moved on. */
     private discoveryToken = 0;
     private lastMovieKey: string | null = null;
+    /**
+     * Bumped by every switch. Two things can go wrong across the `await` in
+     * `switchTo`: a newer switch may already have committed (the slower
+     * resolution would then overwrite the user's latest choice and the Undo
+     * target), or the user may have navigated to another movie entirely (the
+     * continuation would activate the old film's source in the new session and
+     * restart it from that session's zero resume position).
+     */
+    private switchToken = 0;
+
+    /** True while `session`/`switch` still describe the operation in flight. */
+    private isCurrentSwitch(session: number, attempt: number): boolean {
+        return session === this.discoveryToken && attempt === this.switchToken;
+    }
     /** The source that was playing before the most recent switch. */
     private readonly _previousSourceId = signal<string | null>(null);
 
@@ -253,21 +267,35 @@ export class VodMultiSourceHostService {
             return;
         }
 
-        this.controller.setProbe(sourceId, { status: 'probing' });
+        // Same hazard as a switch: two awaits follow, and the user may open a
+        // different movie meanwhile. Writing a probe result into the new
+        // movie's controller would attach it to an unrelated source.
+        const session = this.discoveryToken;
+        const controller = this.controller;
+
+        controller.setProbe(sourceId, { status: 'probing' });
         this.publish();
 
         const resolved = await this.resolver.resolve(candidate);
+        if (session !== this.discoveryToken) {
+            return;
+        }
+
         if (!resolved) {
             // We could not even build a URL — that is "cannot check", not
             // "this source is dead".
-            this.controller.setProbe(sourceId, { status: 'unknown' });
+            controller.setProbe(sourceId, { status: 'unknown' });
             this.publish();
             return;
         }
 
-        this.controller.updateSource(resolved.candidate);
+        controller.updateSource(resolved.candidate);
         const result = await this.probes.probe(resolved.playback.streamUrl);
-        this.controller.setProbe(sourceId, result);
+        if (session !== this.discoveryToken) {
+            return;
+        }
+
+        controller.setProbe(sourceId, result);
         this.publish();
     }
 
@@ -307,30 +335,41 @@ export class VodMultiSourceHostService {
             return false;
         }
 
+        const session = this.discoveryToken;
+        const attempt = ++this.switchToken;
+        // Snapshot the controller: `load()` swaps in a fresh one for a new
+        // movie, and the continuation below must never touch that one.
+        const controller = this.controller;
+
         // Read the LIVE position, not the persisted one: the DB value lags by
         // up to 15 seconds and switching would visibly rewind.
-        const resumeSeconds = Math.floor(this.controller.getResumeSeconds());
+        const resumeSeconds = Math.floor(controller.getResumeSeconds());
 
-        const previous = this.controller.findSource(
-            this.controller.activeSourceId() ?? ''
+        const previous = controller.findSource(
+            controller.activeSourceId() ?? ''
         );
 
         const resolved = await this.resolver.resolve(candidate, {
             startTime: resumeSeconds,
         });
+        if (!this.isCurrentSwitch(session, attempt)) {
+            // Superseded mid-flight — dropping the result is the whole point.
+            return false;
+        }
+
         if (!resolved) {
             // Mark it tried without making it active: a source we cannot even
             // build a URL for must not be offered again by failover, but it
             // never started playing either.
-            this.controller.markTried(candidate.id);
+            controller.markTried(candidate.id);
             this.publish();
             return false;
         }
 
-        this.controller.updateSource(resolved.candidate);
+        controller.updateSource(resolved.candidate);
         this._previousSourceId.set(previous?.id ?? null);
-        this.controller.setActiveSource(candidate.id);
-        this.controller.setResumeSeconds(resumeSeconds);
+        controller.setActiveSource(candidate.id);
+        controller.setResumeSeconds(resumeSeconds);
         this.bindings.startPlayback(resolved.playback);
 
         this._lastSwitch.set({
