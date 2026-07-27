@@ -144,6 +144,13 @@ actually streaming, and hand failover a clean slate for sources it has already
 spent. Only a different film resets — including the tried set, which is what
 makes failover terminate.
 
+A rerun can also legitimately *drop* the playing row: the year the enrichment
+supplies makes the year gate reject a copy the yearless search had admitted
+("Dune" 1984 while watching the 2021 film). Off the list is right — it is not
+the same film. Off the screen is not, so `applyDiscoveredSources` keeps it as a
+row and leaves it active; a caption naming a playlist that is not streaming
+anything would be a lie about the one thing this feature exists to state.
+
 ## The candidate window
 
 Both queries take a bounded number of rows, so what fills that window decides

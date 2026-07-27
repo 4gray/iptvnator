@@ -1,6 +1,7 @@
 import {
     resolveVodMultiSourceMovie,
     vodMultiSourceMovieKey,
+    vodMultiSourceSessionKey,
     type VodMultiSourceMovie,
 } from './vod-multi-source-identity';
 
@@ -104,5 +105,28 @@ describe('vodMultiSourceMovieKey', () => {
         expect(vodMultiSourceMovieKey(movie({ contentId: 202 }))).not.toBe(
             vodMultiSourceMovieKey(movie())
         );
+    });
+});
+
+describe('vodMultiSourceSessionKey', () => {
+    it('ignores everything enrichment can change', () => {
+        // The whole point of the second key: the movie key SHOULD react to a
+        // year and a TMDB id arriving, so discovery reruns — but that rerun
+        // must not be mistaken for a different film and reset the session
+        // out from under the source that is playing.
+        expect(
+            vodMultiSourceSessionKey(
+                movie({ title: 'Dune (2021)', year: 2021, tmdbId: 438631 })
+            )
+        ).toBe(vodMultiSourceSessionKey(movie()));
+    });
+
+    it('separates two movies and two playlists', () => {
+        expect(vodMultiSourceSessionKey(movie({ contentId: 202 }))).not.toBe(
+            vodMultiSourceSessionKey(movie())
+        );
+        expect(
+            vodMultiSourceSessionKey(movie({ playlistId: 'playlist-2' }))
+        ).not.toBe(vodMultiSourceSessionKey(movie()));
     });
 });

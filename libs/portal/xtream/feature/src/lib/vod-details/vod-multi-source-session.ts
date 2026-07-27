@@ -43,17 +43,31 @@ export function applyDiscoveredSources(
             ? controller.findSource(activeId)
             : null;
 
-    controller.setSources([current, ...discovered], matchKind);
-
-    const playing = switchedTo && controller.findSource(switchedTo.id);
-    if (!playing) {
+    if (!switchedTo) {
+        controller.setSources([current, ...discovered], matchKind);
         controller.setActiveSource(current.id);
         return;
     }
 
-    // Catalog rows only ever carry guesses parsed off the title. Whatever the
-    // resolve turned into facts for the playing source stays fact.
-    controller.updateSource(switchedTo);
+    // The rerun can legitimately drop the playing row: enrichment supplies the
+    // release year, and the year gate then rejects a copy that a yearless
+    // search had admitted ("Dune" 1984 while watching the 2021 film). Dropping
+    // it from the LIST is right — it is not the same film. Dropping it from
+    // the SCREEN is not: it is what the user is watching, so it stays as a row
+    // and keeps the playing badge rather than letting the caption name a
+    // playlist that is not streaming anything.
+    const isDiscovered = discovered.some(
+        (source) => source.id === switchedTo.id
+    );
+    // Catalog rows only ever carry guesses parsed off the title, so the row
+    // that a real resolve turned into facts wins over its rediscovered twin.
+    const sources = isDiscovered
+        ? discovered.map((source) =>
+              source.id === switchedTo.id ? switchedTo : source
+          )
+        : [...discovered, switchedTo];
+
+    controller.setSources([current, ...sources], matchKind);
     controller.setActiveSource(switchedTo.id);
 }
 

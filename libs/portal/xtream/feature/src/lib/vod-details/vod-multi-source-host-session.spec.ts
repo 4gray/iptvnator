@@ -156,6 +156,20 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
         );
     });
 
+    it('keeps the playing row when the refined year rejects it', async () => {
+        await loadMovie([ALT_TWO]);
+        await expect(service.play(ALT_TWO.id)).resolves.toBe(true);
+
+        // Enrichment supplies the release year, and the year gate now rejects
+        // the copy the yearless search had admitted. Off the LIST is right —
+        // it is a different film. Off the SCREEN is not: it is the one
+        // streaming, and the caption must not name a playlist that is not.
+        await loadMovie([], { ...MOVIE_A, year: 2021 });
+
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
+        expect(rowFor(CURRENT_A_ID)?.isActive).toBe(false);
+    });
+
     it('resets the failover session when a new movie loads', async () => {
         await loadMovie([ALT_TWO]);
         vodAutoFailover.set(true);
