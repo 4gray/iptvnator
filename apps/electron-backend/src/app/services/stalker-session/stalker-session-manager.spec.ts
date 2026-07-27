@@ -115,6 +115,7 @@ class FakeAuth implements StalkerSessionAuthLike {
     readonly profileOutcomes: StalkerAuthenticatedRequestOutcome[] = [];
     profileChecks = 0;
     readonly requests: Readonly<Record<string, string | number>>[] = [];
+    readonly startedCredentials: Array<StalkerAuthCredentials | undefined> = [];
     readonly submittedCredentials: StalkerAuthCredentials[] = [];
     startCalls = 0;
 
@@ -151,8 +152,11 @@ class FakeAuth implements StalkerSessionAuthLike {
         );
     }
 
-    async start(): Promise<StalkerAuthOutcome> {
+    async start(
+        credentials?: StalkerAuthCredentials
+    ): Promise<StalkerAuthOutcome> {
         this.startCalls += 1;
+        this.startedCredentials.push(credentials);
         return (
             this.startOutcomes.shift() ?? {
                 kind: 'failure',
@@ -323,6 +327,59 @@ function deferred<T>() {
 }
 
 describe('StalkerSessionManager', () => {
+    it('does not replay a credential candidate after an origin challenge intervenes', async () => {
+        const sourceAuth = new FakeAuth('mac-only', false, [
+            { attemptNumber: 1, kind: 'credentials-required' },
+            {
+                finalOrigin: 'https://approved.test',
+                kind: 'origin-approval-required',
+                sourceOrigin: 'https://portal.test',
+                targetUrl: 'https://approved.test/c/',
+            },
+        ]);
+        const targetAuth = new FakeAuth();
+        const { manager } = harness({
+            auths: [sourceAuth, targetAuth],
+            resolverOutcomes: [
+                full('https://portal.test/server/load.php'),
+                {
+                    ...full('https://approved.test/server/load.php'),
+                    landingUrl: 'https://approved.test/c/',
+                },
+            ],
+        });
+
+        const credentialChallenge = await manager.open(1, {
+            descriptor: descriptor('credential-redirect', 'provisional'),
+        });
+        if (credentialChallenge.kind !== 'credentials-required') {
+            throw new Error('expected-credentials-challenge');
+        }
+
+        const originChallenge = await manager.continue(1, {
+            challengeRef: credentialChallenge.challengeRef,
+            response: {
+                kind: 'credentials',
+                password: 'candidate-password',
+                username: 'candidate-user',
+            },
+        });
+        if (originChallenge.kind !== 'origin-approval-required') {
+            throw new Error('expected-origin-challenge');
+        }
+
+        const ready = await manager.continue(1, {
+            challengeRef: originChallenge.challengeRef,
+            response: {
+                approved: true,
+                kind: 'origin-approval',
+            },
+        });
+
+        expectFullReady(ready);
+        expect(targetAuth.startedCredentials).toEqual([undefined]);
+    });
+
     it('restarts approved cross-origin discovery at the target without changing the persisted source', async () => {
         const originalSource = 'https://portal.test/customer/c/';
         const approvedLanding =

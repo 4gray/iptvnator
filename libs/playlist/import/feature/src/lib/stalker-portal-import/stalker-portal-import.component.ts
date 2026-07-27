@@ -104,6 +104,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
     private pendingAttemptRef: StalkerSessionAttemptRef | null = null;
     private pendingChallengeRef: StalkerSessionChallengeRef | null = null;
     private pendingReady: PendingReady | null = null;
+    private acceptedCredentials: StalkerAcceptedCredentials | undefined;
     private credentialCandidate: StalkerAcceptedCredentials | undefined;
     private automaticCredentialsTried = false;
     private committed = false;
@@ -233,6 +234,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
 
         const runId = this.runId;
         this.credentialCandidate = credentials;
+        this.acceptedCredentials = undefined;
         this.automaticCredentialsTried = true;
         this.pendingChallengeRef = null;
         this.connectionStage.set('validating-credentials');
@@ -245,6 +247,11 @@ export class StalkerPortalImportComponent implements OnDestroy {
                 },
             });
             if (runId === this.runId) {
+                this.acceptedCredentials =
+                    isStalkerReadyOutcome(outcome) &&
+                    outcome.recipe === 'full-session'
+                        ? credentials
+                        : undefined;
                 await this.handleOutcome(outcome, runId);
             } else {
                 await this.discardStaleOutcome(outcome);
@@ -269,7 +276,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
             const playlist = applyStalkerReadyOutcome(
                 provisional,
                 outcome,
-                this.credentialCandidate
+                this.acceptedCredentials
             );
             const pending = { outcome, playlist };
             this.pendingAttemptRef = outcome.attemptRef ?? null;
@@ -279,6 +286,8 @@ export class StalkerPortalImportComponent implements OnDestroy {
         }
 
         if (outcome.kind === 'origin-approval-required') {
+            this.acceptedCredentials = undefined;
+            this.credentialCandidate = undefined;
             this.pendingAttemptRef = outcome.attemptRef;
             this.pendingChallengeRef = outcome.challengeRef;
             this.pendingOriginApproval.set({
@@ -290,18 +299,18 @@ export class StalkerPortalImportComponent implements OnDestroy {
         }
 
         if (outcome.kind === 'credentials-required') {
+            this.acceptedCredentials = undefined;
             this.pendingAttemptRef = outcome.attemptRef;
             this.pendingChallengeRef = outcome.challengeRef;
             this.credentialsRequested.set(true);
             this.savedCredentialsRejected.set(
                 outcome.savedCredentialsRejected === true
             );
-            if (
-                this.credentialCandidate !== undefined &&
-                !this.automaticCredentialsTried
-            ) {
+            const candidate = this.credentialCandidate;
+            this.credentialCandidate = undefined;
+            if (candidate !== undefined && !this.automaticCredentialsTried) {
                 this.automaticCredentialsTried = true;
-                await this.continueWithCredentials(this.credentialCandidate);
+                await this.continueWithCredentials(candidate);
                 return;
             }
             this.connectionStage.set('credentials-required');
@@ -347,12 +356,16 @@ export class StalkerPortalImportComponent implements OnDestroy {
         }
         try {
             const promotion = await this.session.commit(attemptRef);
-            if (runId !== this.runId || promotion.kind !== 'success') {
+            if (promotion.kind !== 'success') {
                 await this.failPromotion(runId);
                 return;
             }
         } catch {
             await this.failPromotion(runId);
+            return;
+        }
+        if (runId !== this.runId) {
+            await this.closeCommittedLease(pending.outcome);
             return;
         }
 
@@ -367,6 +380,14 @@ export class StalkerPortalImportComponent implements OnDestroy {
         await this.discardPendingAttempt();
         if (runId === this.runId) {
             this.fail('session-promotion-failed');
+        }
+    }
+
+    private async closeCommittedLease(
+        outcome: StalkerImportReadyOutcome
+    ): Promise<void> {
+        if (outcome.recipe === 'full-session') {
+            await this.session.close(outcome.leaseRef).catch(() => undefined);
         }
     }
 
@@ -393,6 +414,8 @@ export class StalkerPortalImportComponent implements OnDestroy {
     }
 
     private fail(reason: StalkerSessionFailureReason): void {
+        this.acceptedCredentials = undefined;
+        this.credentialCandidate = undefined;
         this.failureReason.set(reason);
         this.connectionStage.set('failure');
         this.notifyFailure(reason);
@@ -414,6 +437,7 @@ export class StalkerPortalImportComponent implements OnDestroy {
         this.pendingAttemptRef = null;
         this.pendingChallengeRef = null;
         this.pendingReady = null;
+        this.acceptedCredentials = undefined;
         this.credentialCandidate = undefined;
         this.automaticCredentialsTried = false;
         this.committed = false;

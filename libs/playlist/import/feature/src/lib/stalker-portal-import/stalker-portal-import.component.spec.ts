@@ -62,6 +62,12 @@ function deferred<T>(): {
     return { promise, resolve };
 }
 
+async function flushPromises(): Promise<void> {
+    for (let index = 0; index < 10; index += 1) {
+        await Promise.resolve();
+    }
+}
+
 describe('StalkerPortalImportComponent', () => {
     let component: StalkerPortalImportComponent;
     let session: {
@@ -69,6 +75,7 @@ describe('StalkerPortalImportComponent', () => {
         continue: jest.Mock;
         commit: jest.Mock;
         discard: jest.Mock;
+        close: jest.Mock;
     };
     let playlists: {
         persistStalkerConnection: jest.Mock;
@@ -84,6 +91,11 @@ describe('StalkerPortalImportComponent', () => {
                 action: 'discard',
                 kind: 'success',
                 requestId: 'request-discard-1',
+            }),
+            close: jest.fn().mockResolvedValue({
+                action: 'close',
+                kind: 'success',
+                requestId: 'request-close-1',
             }),
         };
         playlists = {
@@ -279,6 +291,89 @@ describe('StalkerPortalImportComponent', () => {
             })
         );
         expect(component.connectionStage()).toBe('connected');
+    });
+
+    it.each([
+        ['status-0 full session', READY_OUTCOME],
+        [
+            'stateless portal',
+            {
+                attemptRef: 'attempt-import-stateless',
+                connectionMode: 'provisional',
+                endpoint: 'https://portal.example/portal.php',
+                kind: 'ready',
+                landingUrl: 'https://portal.example/c/',
+                persistenceDraft: {
+                    isFullStalkerPortal: false,
+                    portalUrl: 'https://portal.example/portal.php',
+                    stalkerLandingUrl: 'https://portal.example/c/',
+                    stalkerLastVerifiedAt: '2026-07-27T12:00:00.000Z',
+                    stalkerRecipeClassifierVersion: 1,
+                    stalkerRequestRecipe: 'stateless-mac',
+                    stalkerSourceUrl: 'https://portal.example/c/',
+                },
+                provisionalReason: 'import',
+                recipe: 'stateless-mac',
+                requestId: 'request-ready-stateless',
+            } satisfies StalkerSessionConnectionOutcome,
+        ],
+    ])(
+        'does not persist prefilled credential candidates for a ready %s',
+        async (_label, outcome) => {
+            component.form.patchValue({
+                password: 'candidate-password',
+                username: 'candidate-user',
+            });
+            session.open.mockResolvedValueOnce(outcome);
+
+            await component.addPlaylist();
+
+            const persisted = playlists.persistStalkerConnection.mock
+                .calls[0][0] as Playlist;
+            expect(persisted.username).toBeUndefined();
+            expect(persisted.password).toBeUndefined();
+        }
+    );
+
+    it('does not accept credentials when their continuation resolves as stateless', async () => {
+        session.open.mockResolvedValueOnce({
+            attemptNumber: 1,
+            attemptRef: 'attempt-credentials-stateless',
+            challengeRef: 'challenge-credentials-stateless',
+            kind: 'credentials-required',
+            requestId: 'request-credentials-stateless',
+        });
+        session.continue.mockResolvedValueOnce({
+            attemptRef: 'attempt-credentials-stateless',
+            connectionMode: 'provisional',
+            endpoint: 'https://portal.example/portal.php',
+            kind: 'ready',
+            landingUrl: 'https://portal.example/c/',
+            persistenceDraft: {
+                isFullStalkerPortal: false,
+                portalUrl: 'https://portal.example/portal.php',
+                stalkerLandingUrl: 'https://portal.example/c/',
+                stalkerLastVerifiedAt: '2026-07-27T12:00:00.000Z',
+                stalkerRecipeClassifierVersion: 1,
+                stalkerRequestRecipe: 'stateless-mac',
+                stalkerSourceUrl: 'https://portal.example/c/',
+            },
+            provisionalReason: 'import',
+            recipe: 'stateless-mac',
+            requestId: 'request-ready-stateless',
+        });
+
+        await component.addPlaylist();
+        component.form.patchValue({
+            password: 'candidate-password',
+            username: 'candidate-user',
+        });
+        await component.submitCredentials();
+
+        const persisted = playlists.persistStalkerConnection.mock
+            .calls[0][0] as Playlist;
+        expect(persisted.username).toBeUndefined();
+        expect(persisted.password).toBeUndefined();
     });
 
     it('retains form values after rejected credentials without overwriting storage', async () => {
@@ -483,6 +578,24 @@ describe('StalkerPortalImportComponent', () => {
             'attempt-credentials-stale'
         );
         expect(playlists.persistStalkerConnection).not.toHaveBeenCalled();
+    });
+
+    it('closes a committed full-session lease when the form is cleared during commit', async () => {
+        const commit = deferred<typeof CONTROL_SUCCESS>();
+        session.commit.mockReturnValueOnce(commit.promise);
+
+        const add = component.addPlaylist();
+        await flushPromises();
+        expect(session.commit).toHaveBeenCalledWith('attempt-import-1');
+
+        component.clearForm();
+        await Promise.resolve();
+        commit.resolve(CONTROL_SUCCESS);
+        await add;
+
+        expect(session.close).toHaveBeenCalledWith('lease-import-1');
+        expect(component.connectionStage()).toBe('idle');
+        expect(component.addClicked.emit).not.toHaveBeenCalled();
     });
 
     function setValidForm(): void {

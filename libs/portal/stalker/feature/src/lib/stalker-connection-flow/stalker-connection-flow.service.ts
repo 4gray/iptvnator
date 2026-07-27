@@ -9,6 +9,7 @@ import {
     StalkerSessionRecoveryRequest,
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
+import { STALKER_RECIPE_CLASSIFIER_VERSION } from '@iptvnator/portal/stalker/protocol';
 import { PlaylistsService } from '@iptvnator/services';
 import {
     Playlist,
@@ -164,7 +165,11 @@ export class StalkerConnectionFlowService {
         announceReady: boolean
     ): Promise<Playlist | undefined> {
         let outcome = initialOutcome;
-        let credentials: StalkerCredentialsDialogResult | undefined;
+        let acceptedCredentials:
+            | StalkerCredentialsDialogResult
+            | undefined;
+        let credentialsInvalidated = false;
+        let credentialsSubmitted = false;
         while (true) {
             if (await this.discardOutcomeWhenStale(outcome, runId)) {
                 return undefined;
@@ -175,7 +180,8 @@ export class StalkerConnectionFlowService {
                 const draft = this.applyReadyOutcome(
                     playlist,
                     outcome,
-                    credentials
+                    acceptedCredentials,
+                    credentialsInvalidated || credentialsSubmitted
                 );
                 return this.persistAndCommit({
                     announceReady,
@@ -185,6 +191,8 @@ export class StalkerConnectionFlowService {
                 });
             }
             if (outcome.kind === 'origin-approval-required') {
+                acceptedCredentials = undefined;
+                credentialsInvalidated = true;
                 const approved = await this.requestOriginApproval(outcome);
                 if (runId !== this.runId) {
                     return undefined;
@@ -205,13 +213,19 @@ export class StalkerConnectionFlowService {
                 continue;
             }
             if (outcome.kind === 'credentials-required') {
-                credentials = await this.requestCredentials(
+                acceptedCredentials = undefined;
+                const credentials = await this.requestCredentials(
                     playlist,
                     outcome.savedCredentialsRejected === true
                 );
-                if (runId !== this.runId || credentials === undefined) {
+                if (runId !== this.runId) {
                     return undefined;
                 }
+                if (credentials === undefined) {
+                    await this.discardPending();
+                    return undefined;
+                }
+                credentialsSubmitted = true;
                 outcome = await this.session.continue(playlist._id, {
                     challengeRef: outcome.challengeRef,
                     response: {
@@ -219,6 +233,8 @@ export class StalkerConnectionFlowService {
                         ...credentials,
                     },
                 });
+                acceptedCredentials =
+                    outcome.kind === 'ready' ? credentials : undefined;
                 continue;
             }
             return undefined;
@@ -314,6 +330,10 @@ export class StalkerConnectionFlowService {
                 );
             }
         }
+        if (pending.runId !== this.runId) {
+            await this.closeCommittedLease(pending.outcome);
+            return undefined;
+        }
         this.activeAttemptRef = null;
         this.pendingPersistence = null;
         if (pending.announceReady) {
@@ -382,16 +402,32 @@ export class StalkerConnectionFlowService {
     private applyReadyOutcome(
         playlist: Playlist,
         outcome: ReadyOutcome,
-        credentials: StalkerCredentialsDialogResult | undefined
+        acceptedCredentials: StalkerCredentialsDialogResult | undefined,
+        clearUnacceptedCredentials: boolean
     ): Playlist {
         const draft: Playlist = {
             ...playlist,
             ...outcome.persistenceDraft,
             portalUrl: outcome.persistenceDraft.portalUrl,
-            ...(credentials === undefined ? {} : credentials),
+            ...(acceptedCredentials === undefined
+                ? {}
+                : acceptedCredentials),
         };
+        if (
+            outcome.recipe === 'stateless-mac' ||
+            (clearUnacceptedCredentials && acceptedCredentials === undefined)
+        ) {
+            delete draft.username;
+            delete draft.password;
+        }
         delete draft.stalkerToken;
         return draft;
+    }
+
+    private async closeCommittedLease(outcome: ReadyOutcome): Promise<void> {
+        if (outcome.recipe === 'full-session') {
+            await this.session.close(outcome.leaseRef).catch(() => undefined);
+        }
     }
 
     private offerPersistenceRetry(): void {
@@ -440,15 +476,19 @@ export class StalkerConnectionFlowService {
     private shouldUseTypedSession(playlist: Playlist): boolean {
         return (
             this.session.supportsTypedSessions() &&
-            playlist.isFullStalkerPortal !== false &&
-            playlist.stalkerRequestRecipe !== 'stateless-mac'
+            !(
+                playlist.stalkerRequestRecipe === 'stateless-mac' &&
+                playlist.stalkerRecipeClassifierVersion ===
+                    STALKER_RECIPE_CLASSIFIER_VERSION
+            )
         );
     }
 
     private hasVerifiedRecipe(playlist: Playlist): boolean {
         return (
             playlist.stalkerRequestRecipe === 'full-session' &&
-            typeof playlist.stalkerRecipeClassifierVersion === 'number'
+            playlist.stalkerRecipeClassifierVersion ===
+                STALKER_RECIPE_CLASSIFIER_VERSION
         );
     }
 }

@@ -208,6 +208,7 @@ type AuthenticationProgress =
     | Extract<StalkerSessionConnectionOutcome, { kind: 'failure' }>;
 
 interface AttemptRecord {
+    acceptedCredentials?: StalkerAuthCredentials;
     approvedOrigins: Set<string>;
     auth?: StalkerSessionAuthLike;
     challengeRef?: string;
@@ -1105,7 +1106,8 @@ export class StalkerSessionManager {
         }
         if (progress.kind === 'full-ready') {
             attempt.auth = progress.auth;
-            attempt.credentialCandidate = progress.credentials;
+            attempt.acceptedCredentials = progress.credentials;
+            attempt.credentialCandidate = undefined;
             attempt.ready = this.#createFullAttemptReady(attempt, progress);
             attempt.state = 'ready';
             this.#refreshAttemptExpiry(attempt);
@@ -1150,6 +1152,8 @@ export class StalkerSessionManager {
             );
         }
         if (progress.kind === 'stateless-mac') {
+            attempt.acceptedCredentials = undefined;
+            attempt.credentialCandidate = undefined;
             attempt.ready = {
                 endpoint: progress.endpoint,
                 kind: progress.kind,
@@ -1172,6 +1176,8 @@ export class StalkerSessionManager {
             return outcome;
         }
         if (progress.kind === 'origin-approval-required') {
+            attempt.acceptedCredentials = undefined;
+            attempt.credentialCandidate = undefined;
             return this.#issueChallenge(
                 attempt,
                 {
@@ -1188,9 +1194,8 @@ export class StalkerSessionManager {
             attempt.lastEndpoint = progress.endpoint;
             attempt.lastLandingUrl = progress.landingUrl;
             attempt.mutationEpoch = progress.epoch;
-            if (progress.outcome.savedCredentialsRejected) {
-                attempt.credentialCandidate = undefined;
-            }
+            attempt.acceptedCredentials = undefined;
+            attempt.credentialCandidate = undefined;
             return this.#issueChallenge(
                 attempt,
                 {
@@ -1258,9 +1263,9 @@ export class StalkerSessionManager {
                 ? {}
                 : { accountSummary: progress.accountSummary }),
             auth: progress.auth,
-            ...(progress.credentials === undefined
+            ...(attempt.acceptedCredentials === undefined
                 ? {}
-                : { credentials: progress.credentials }),
+                : { credentials: attempt.acceptedCredentials }),
             endpoint: progress.endpoint,
             epoch: progress.epoch,
             identityRevision: progress.identityRevision,
@@ -1323,6 +1328,8 @@ export class StalkerSessionManager {
                     'stalker-session-promotion-revalidation-failed'
                 );
             }
+            attempt.acceptedCredentials = progress.credentials;
+            attempt.credentialCandidate = undefined;
             ready = this.#createFullAttemptReady(
                 attempt,
                 progress,
@@ -1522,6 +1529,7 @@ export class StalkerSessionManager {
         );
         this.#attempts.delete(attempt.ref);
         this.#rememberAttempt(attempt, action);
+        attempt.acceptedCredentials = undefined;
         attempt.auth = undefined;
         attempt.credentialCandidate = undefined;
         attempt.ready = undefined;
@@ -1552,6 +1560,7 @@ export class StalkerSessionManager {
         if (attempt.ready?.kind === 'full-session') {
             this.#playbackContexts?.invalidateLease(attempt.ready.leaseRef);
         }
+        attempt.acceptedCredentials = undefined;
         attempt.auth = undefined;
         attempt.credentialCandidate = undefined;
         attempt.ready = undefined;
