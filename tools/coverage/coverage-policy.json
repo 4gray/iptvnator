@@ -253,6 +253,18 @@
                 "reason": "Stateful Stalker replay behavior is validated by focused contract tests; percentage coverage is not a shipped-source quality signal."
             },
             {
+                "name": "portal-stalker-replay-fixtures",
+                "root": "libs/portal/stalker/replay-fixtures",
+                "validationCommand": "pnpm nx test portal-stalker-replay-fixtures",
+                "reason": "The Node-only replay grammar is covered by focused fail-closed schema contract tests."
+            },
+            {
+                "name": "stalker-fixture-tools",
+                "root": "tools/stalker-fixtures",
+                "validationCommand": "pnpm nx test stalker-fixture-tools",
+                "reason": "Fixture validation tooling is covered by focused scanner, schema, formatting, and filesystem contract tests."
+            },
+            {
                 "name": "remote-control-web",
                 "root": "apps/remote-control-web",
                 "validationCommand": "pnpm nx build remote-control-web",

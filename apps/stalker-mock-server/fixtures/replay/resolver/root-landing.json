@@ -1,0 +1,129 @@
+{
+    "description": "Synthetic resolver root landing redirect.",
+    "entry": {
+        "origin": "portal",
+        "path": "/c/"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/portal.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "landing",
+                    "method": "GET",
+                    "operation": "landing",
+                    "origin": "portal",
+                    "path": "/c/",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {
+                            "location": [
+                                "/portal.php"
+                            ]
+                        },
+                        "status": 302
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "resolve",
+            "nextState": "landing-resolved",
+            "state": "start"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "portal-entry",
+                    "method": "GET",
+                    "operation": "portal-entry",
+                    "origin": "portal",
+                    "path": "/portal.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "status": "ok"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "portal-entry",
+            "nextState": "complete",
+            "state": "landing-resolved"
+        }
+    ],
+    "scenarioId": "resolver-root-landing",
+    "schemaVersion": 1,
+    "symbols": [],
+    "terminalState": "complete"
+}

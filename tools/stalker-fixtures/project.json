@@ -1,0 +1,40 @@
+{
+    "name": "stalker-fixture-tools",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "tools/stalker-fixtures/src",
+    "projectType": "library",
+    "tags": ["scope:tools", "domain:stalker", "type:tool"],
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "cache": true,
+            "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js",
+                "stalkerReplayFixtures"
+            ],
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "tools/stalker-fixtures/jest.config.ts",
+                "tsConfig": "tools/stalker-fixtures/tsconfig.spec.json"
+            }
+        },
+        "validate": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "inputs": [
+                "production",
+                "^production",
+                "stalkerReplayFixtures"
+            ],
+            "options": {
+                "command": "pnpm tsx --tsconfig tools/stalker-fixtures/tsconfig.json tools/stalker-fixtures/src/cli.ts validate",
+                "cwd": "{workspaceRoot}"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

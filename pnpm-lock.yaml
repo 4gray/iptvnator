@@ -154,6 +154,9 @@ importers:
       shaka-player:
         specifier: 5.2.1
         version: 5.2.1
+      tough-cookie:
+        specifier: 5.1.2
+        version: 5.1.2
       uuid:
         specifier: 9.0.0
         version: 9.0.0

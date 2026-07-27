@@ -36,6 +36,12 @@
         },
         "test": {
             "executor": "@nx/jest:jest",
+            "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js",
+                "stalkerReplayFixtures"
+            ],
             "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
             "options": {
                 "jestConfig": "apps/stalker-mock-server/jest.config.ts"

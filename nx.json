@@ -12,7 +12,10 @@
             "!{projectRoot}/src/test-setup.[jt]s",
             "!{projectRoot}/test-setup.[jt]s"
         ],
-        "sharedGlobals": ["{workspaceRoot}/.github/workflows/ci.yml"]
+        "sharedGlobals": ["{workspaceRoot}/.github/workflows/ci.yml"],
+        "stalkerReplayFixtures": [
+            "{workspaceRoot}/apps/stalker-mock-server/fixtures/**/*.json"
+        ]
     },
     "targetDefaults": {
         "@angular/build:application": {

@@ -66,6 +66,7 @@
         "release:notes:changelog": "node tools/release/build-release-notes.mjs --format changelog",
         "release:notes:blog": "node tools/release/build-release-notes.mjs --format blog",
         "release:screenshots": "tsx tools/release/capture-release-screenshots.ts",
+        "stalker:fixtures:validate": "nx run stalker-fixture-tools:validate",
         "lint": "nx run-many --target=lint --all",
         "build": "nx build electron-backend"
     },
@@ -110,6 +111,7 @@
         "rxjs": "7.8.2",
         "saxes": "6.0.0",
         "shaka-player": "5.2.1",
+        "tough-cookie": "5.1.2",
         "uuid": "9.0.0",
         "video.js": "8.23.4",
         "videojs-contrib-quality-levels": "4.1.0",
