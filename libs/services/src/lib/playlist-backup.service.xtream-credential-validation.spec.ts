@@ -92,9 +92,7 @@ describe('PlaylistBackupService redacted Xtream credential validation', () => {
                 getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
                 handlePlaylistParsing: jest.fn(),
             };
-            const resolveXtreamCredentials = jest
-                .fn()
-                .mockResolvedValue(null);
+            const resolveXtreamCredentials = jest.fn().mockResolvedValue(null);
             const service = createPlaylistBackupService({
                 playlistsService,
             });
@@ -119,4 +117,60 @@ describe('PlaylistBackupService redacted Xtream credential validation', () => {
             expect(playlistsService.addPlaylist).not.toHaveBeenCalled();
         }
     );
+
+    it('merges an exact incomplete local row after validating replacement credentials', async () => {
+        const local = {
+            _id: 'xtream-redacted',
+            title: 'Incomplete local Xtream',
+            count: 7,
+            importDate: '2026-07-01T00:00:00.000Z',
+            lastUsage: '2026-07-02T00:00:00.000Z',
+            autoRefresh: false,
+            serverUrl: 'https://portal.test/base',
+            username: '',
+            password: '',
+            userAgent: 'Local presentation/1.0',
+            serverTimezone: 'Europe/Berlin',
+        } as Playlist;
+        const playlistsService = {
+            addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
+            getAllData: jest.fn(() => of([local])),
+            getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
+            handlePlaylistParsing: jest.fn(),
+        };
+        const portalStatusService = {
+            checkPortalStatus: jest.fn().mockResolvedValue('active'),
+        };
+        const service = createPlaylistBackupService({
+            playlistsService,
+            portalStatusService,
+        });
+
+        const summary = await service.importBackup(
+            JSON.stringify(redactedManifest()),
+            {
+                resolveXtreamCredentials: async () => ({
+                    username: 'replacement-user',
+                    password: 'replacement-password',
+                }),
+            }
+        );
+
+        expect(summary).toEqual({
+            imported: 0,
+            merged: 1,
+            skipped: 0,
+            failed: 0,
+            errors: [],
+        });
+        expect(playlistsService.addPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: local._id,
+                password: 'replacement-password',
+                serverTimezone: 'Europe/Berlin',
+                userAgent: 'Local presentation/1.0',
+                username: 'replacement-user',
+            })
+        );
+    });
 });

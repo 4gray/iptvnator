@@ -76,6 +76,11 @@ type PlaylistPortalType = 'm3u' | 'xtream' | 'stalker';
 type XtreamContentType = XtreamBackupContentType;
 type XtreamCategoryType = XtreamBackupCategoryType;
 
+interface ResolvedPlaylistBackupImportEntry {
+    entry: PlaylistBackupEntry;
+    exactLocalMatch?: Playlist;
+}
+
 @Injectable({
     providedIn: 'root',
 })
@@ -148,21 +153,25 @@ export class PlaylistBackupService {
                 entry.title || entry.exportedId || entry.portalType;
 
             try {
-                const importEntry = await this.resolveImportEntry(
+                const resolvedImportEntry = await this.resolveImportEntry(
                     entry,
                     existingPlaylists,
                     options
                 );
-                if (importEntry === null) {
+                if (resolvedImportEntry === null) {
                     summary.skipped += 1;
                     continue;
                 }
 
-                const existingMatch = await this.findExistingMatch(
-                    importEntry,
-                    existingPlaylists,
-                    manifest.includeSecrets
-                );
+                const { entry: importEntry, exactLocalMatch } =
+                    resolvedImportEntry;
+                const existingMatch =
+                    exactLocalMatch ??
+                    (await this.findExistingMatch(
+                        importEntry,
+                        existingPlaylists,
+                        manifest.includeSecrets
+                    ));
                 const targetId = this.resolveTargetPlaylistId(
                     importEntry,
                     existingMatch?._id,
@@ -633,25 +642,27 @@ export class PlaylistBackupService {
         entry: PlaylistBackupEntry,
         existingPlaylists: readonly Playlist[],
         options: PlaylistBackupImportOptions
-    ): Promise<PlaylistBackupEntry | null> {
+    ): Promise<ResolvedPlaylistBackupImportEntry | null> {
         if (
             entry.portalType !== 'xtream' ||
             entry.connection.credentialsOmitted !== true
         ) {
-            return entry;
+            return { entry };
         }
 
-        const exactLocalMatch = existingPlaylists.some(
+        const exactLocalMatch = existingPlaylists.find(
             (playlist) =>
                 playlist._id === entry.exportedId &&
-                this.getPlaylistPortalType(playlist) === 'xtream' &&
                 this.normalizeUrlIdentity(playlist.serverUrl ?? '') ===
-                    this.normalizeUrlIdentity(entry.connection.serverUrl) &&
-                this.normalizeIdentityValue(playlist.username ?? '') !== '' &&
-                this.normalizeIdentityValue(playlist.password ?? '') !== ''
+                    this.normalizeUrlIdentity(entry.connection.serverUrl)
         );
-        if (exactLocalMatch) {
-            return entry;
+        const hasUsableLocalCredentials =
+            exactLocalMatch !== undefined &&
+            this.normalizeIdentityValue(exactLocalMatch.username ?? '') !==
+                '' &&
+            this.normalizeIdentityValue(exactLocalMatch.password ?? '') !== '';
+        if (hasUsableLocalCredentials) {
+            return { entry, exactLocalMatch };
         }
 
         const credentials = await options.resolveXtreamCredentials?.({
@@ -683,12 +694,15 @@ export class PlaylistBackupService {
         }
 
         return {
-            ...entry,
-            connection: {
-                password,
-                serverUrl: entry.connection.serverUrl,
-                username,
+            entry: {
+                ...entry,
+                connection: {
+                    password,
+                    serverUrl: entry.connection.serverUrl,
+                    username,
+                },
             },
+            ...(exactLocalMatch ? { exactLocalMatch } : {}),
         };
     }
 
