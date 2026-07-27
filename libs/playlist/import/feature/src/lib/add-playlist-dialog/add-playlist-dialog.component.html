@@ -154,6 +154,52 @@
                                 'HOME.STALKER_PORTAL.VALIDATING' | translate
                             }}...
                         </button>
+                    } @else if (
+                        stalkerImport()?.connectionStage() ===
+                        'awaiting-origin-approval'
+                    ) {
+                        <button
+                            mat-flat-button
+                            color="primary"
+                            type="button"
+                            disabled
+                        >
+                            {{
+                                'HOME.STALKER_PORTAL.APPROVAL_REQUIRED'
+                                    | translate
+                            }}
+                        </button>
+                    } @else if (
+                        stalkerImport()?.connectionStage() ===
+                        'credentials-required'
+                    ) {
+                        <button
+                            mat-flat-button
+                            color="primary"
+                            type="button"
+                            [disabled]="
+                                !stalkerImport()?.form?.controls?.username
+                                    ?.value
+                            "
+                            (click)="stalkerImport()?.submitCredentials()"
+                        >
+                            {{
+                                'HOME.STALKER_PORTAL.VALIDATE_CREDENTIALS'
+                                    | translate
+                            }}
+                        </button>
+                    } @else if (
+                        stalkerImport()?.connectionStage() ===
+                        'persistence-failed'
+                    ) {
+                        <button
+                            mat-flat-button
+                            color="primary"
+                            type="button"
+                            (click)="stalkerImport()?.saveAgain()"
+                        >
+                            {{ 'HOME.STALKER_PORTAL.SAVE_AGAIN' | translate }}
+                        </button>
                     } @else {
                         <button
                             mat-flat-button

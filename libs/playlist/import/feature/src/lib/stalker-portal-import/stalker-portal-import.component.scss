@@ -1,0 +1,94 @@
+:host {
+    display: block;
+    width: 100%;
+}
+
+.stalker-import {
+    display: grid;
+    gap: 16px;
+}
+
+.stalker-import__fields {
+    display: grid;
+    gap: 12px;
+}
+
+.stalker-import__status,
+.stalker-import__challenge,
+.stalker-import__advanced {
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 12px;
+    background: var(--mat-sys-surface-container-low);
+}
+
+.stalker-import__status {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    color: var(--mat-sys-on-surface);
+}
+
+.stalker-import__status--error {
+    border-color: var(--mat-sys-error);
+    color: var(--mat-sys-error);
+}
+
+.stalker-import__challenge {
+    padding: 16px;
+
+    h3,
+    p {
+        margin-top: 0;
+    }
+
+    dl {
+        display: grid;
+        gap: 10px;
+        margin: 16px 0;
+    }
+
+    dl div {
+        display: grid;
+        gap: 2px;
+    }
+
+    dt {
+        color: var(--mat-sys-on-surface-variant);
+        font-size: 12px;
+    }
+
+    dd {
+        overflow-wrap: anywhere;
+        margin: 0;
+        font-family: monospace;
+    }
+}
+
+.stalker-import__challenge-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.stalker-import__advanced {
+    padding: 12px 16px;
+
+    summary {
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    p {
+        color: var(--mat-sys-on-surface-variant);
+    }
+}
+
+@media (min-width: 720px) {
+    .stalker-import__fields {
+        grid-template-columns: 1fr 1fr;
+
+        mat-form-field:first-child {
+            grid-column: 1 / -1;
+        }
+    }
+}

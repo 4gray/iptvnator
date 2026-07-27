@@ -1,116 +1,248 @@
-<form [formGroup]="form">
-    <mat-form-field class="w-full">
-        <mat-label for="title">{{
-            'HOME.STALKER_PORTAL.TITLE' | translate
-        }}</mat-label>
-        <input matInput type="text" id="title" formControlName="title" />
-    </mat-form-field>
-    <mat-form-field class="w-full" subscriptSizing="dynamic">
-        <mat-label for="portalUrl">{{
-            'HOME.STALKER_PORTAL.SERVER_URL' | translate
-        }}</mat-label>
-        <input
-            matInput
-            type="text"
-            id="portalUrl"
-            formControlName="portalUrl"
-        />
-        <mat-hint>{{
-            'HOME.STALKER_PORTAL.URL_VALIDATION_ERROR' | translate
-        }}</mat-hint>
-        <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
-    </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label for="macAddress">{{
-            'HOME.STALKER_PORTAL.MAC_ADDRESS' | translate
-        }}</mat-label>
-        <input
-            matInput
-            type="text"
-            id="macAddress"
-            formControlName="macAddress"
-        />
-    </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label for="serialNumber">{{
-            'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
-        }}</mat-label>
-        <input
-            matInput
-            type="text"
-            id="serialNumber"
-            formControlName="serialNumber"
-        />
-        <mat-hint>{{
-            'HOME.STALKER_PORTAL.SERIAL_NUMBER_HINT' | translate
-        }}</mat-hint>
-    </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label for="deviceId1">{{
-            'HOME.STALKER_PORTAL.DEVICE_ID_1' | translate
-        }}</mat-label>
-        <input
-            matInput
-            type="text"
-            id="deviceId1"
-            formControlName="deviceId1"
-        />
-        <mat-hint>{{
-            'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate
-        }}</mat-hint>
-    </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label for="deviceId2">{{
-            'HOME.STALKER_PORTAL.DEVICE_ID_2' | translate
-        }}</mat-label>
-        <input
-            matInput
-            type="text"
-            id="deviceId2"
-            formControlName="deviceId2"
-        />
-        <mat-hint>{{
-            'HOME.STALKER_PORTAL.DEVICE_ID_HINT' | translate
-        }}</mat-hint>
-    </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label for="signature1">{{
-            'HOME.STALKER_PORTAL.SIGNATURE_1' | translate
-        }}</mat-label>
-        <input
-            matInput
-            type="text"
-            id="signature1"
-            formControlName="signature1"
-        />
-        <mat-hint>{{
-            'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate
-        }}</mat-hint>
-    </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label for="signature2">{{
-            'HOME.STALKER_PORTAL.SIGNATURE_2' | translate
-        }}</mat-label>
-        <input
-            matInput
-            type="text"
-            id="signature2"
-            formControlName="signature2"
-        />
-        <mat-hint>{{
-            'HOME.STALKER_PORTAL.SIGNATURE_HINT' | translate
-        }}</mat-hint>
-    </mat-form-field>
-    <!-- <mat-form-field class="w-full">
-        <mat-label for="username">{{
-            'HOME.XTREAM_PLAYLIST.USERNAME' | translate
-        }}</mat-label>
-        <input matInput type="text" id="username" formControlName="username" />
-    </mat-form-field>
-    <mat-form-field class="w-full">
-        <mat-label for="password">{{
-            'HOME.XTREAM_PLAYLIST.PASSWORD' | translate
-        }}</mat-label>
-        <input matInput type="text" id="password" formControlName="password" />
-    </mat-form-field> -->
+<form [formGroup]="form" class="stalker-import">
+    <div class="stalker-import__fields">
+        <mat-form-field class="w-full">
+            <mat-label for="title">{{
+                'HOME.STALKER_PORTAL.TITLE' | translate
+            }}</mat-label>
+            <input matInput type="text" id="title" formControlName="title" />
+        </mat-form-field>
+
+        <mat-form-field class="w-full" subscriptSizing="dynamic">
+            <mat-label for="portalUrl">{{
+                'HOME.STALKER_PORTAL.SERVER_URL' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="url"
+                id="portalUrl"
+                formControlName="portalUrl"
+                autocomplete="url"
+            />
+            <mat-hint>{{
+                'HOME.STALKER_PORTAL.URL_VALIDATION_ERROR' | translate
+            }}</mat-hint>
+            <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
+        </mat-form-field>
+
+        <mat-form-field class="w-full">
+            <mat-label for="macAddress">{{
+                'HOME.STALKER_PORTAL.MAC_ADDRESS' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="text"
+                id="macAddress"
+                formControlName="macAddress"
+                autocomplete="off"
+            />
+        </mat-form-field>
+    </div>
+
+    @if (connectionStage() !== 'idle') {
+        <section
+            class="stalker-import__status"
+            [class.stalker-import__status--error]="
+                connectionStage() === 'failure' ||
+                connectionStage() === 'persistence-failed'
+            "
+            role="status"
+            aria-live="polite"
+        >
+            <strong>{{
+                'HOME.STALKER_PORTAL.CONNECTION_STAGE.' + connectionStage()
+                    | translate
+            }}</strong>
+            @if (failureReason()) {
+                <span>
+                    {{
+                        'HOME.STALKER_PORTAL.CONNECTION_FAILURE_GENERIC'
+                            | translate
+                    }}
+                    <code>{{ failureReason() }}</code>
+                </span>
+            }
+        </section>
+    }
+
+    @if (pendingOriginApproval(); as approval) {
+        <section class="stalker-import__challenge">
+            <h3>
+                {{ 'HOME.STALKER_PORTAL.ORIGIN_APPROVAL_TITLE' | translate }}
+            </h3>
+            <p>
+                {{
+                    'HOME.STALKER_PORTAL.ORIGIN_APPROVAL_DESCRIPTION'
+                        | translate
+                }}
+            </p>
+            <dl>
+                <div>
+                    <dt>
+                        {{ 'HOME.STALKER_PORTAL.ORIGIN_SOURCE' | translate }}
+                    </dt>
+                    <dd>{{ approval.sourceOrigin }}</dd>
+                </div>
+                <div>
+                    <dt>
+                        {{ 'HOME.STALKER_PORTAL.ORIGIN_TARGET' | translate }}
+                    </dt>
+                    <dd>{{ approval.finalOrigin }}</dd>
+                </div>
+            </dl>
+            <div class="stalker-import__challenge-actions">
+                <button
+                    mat-button
+                    type="button"
+                    (click)="respondToOriginApproval(false)"
+                >
+                    {{ 'CANCEL' | translate }}
+                </button>
+                <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    (click)="respondToOriginApproval(true)"
+                >
+                    {{ 'HOME.STALKER_PORTAL.APPROVE_ORIGIN' | translate }}
+                </button>
+            </div>
+        </section>
+    }
+
+    @if (credentialsRequested()) {
+        <section class="stalker-import__challenge">
+            <h3>
+                {{ 'HOME.STALKER_PORTAL.CREDENTIALS_TITLE' | translate }}
+            </h3>
+            <p>
+                {{
+                    (savedCredentialsRejected()
+                        ? 'HOME.STALKER_PORTAL.CREDENTIALS_REJECTED'
+                        : 'HOME.STALKER_PORTAL.CREDENTIALS_DESCRIPTION'
+                    ) | translate
+                }}
+            </p>
+            <mat-form-field class="w-full">
+                <mat-label for="username">{{
+                    'HOME.XTREAM_PLAYLIST.USERNAME' | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    type="text"
+                    id="username"
+                    formControlName="username"
+                    autocomplete="username"
+                />
+            </mat-form-field>
+            <mat-form-field class="w-full">
+                <mat-label for="password">{{
+                    'HOME.XTREAM_PLAYLIST.PASSWORD' | translate
+                }}</mat-label>
+                <input
+                    matInput
+                    [type]="passwordVisible() ? 'text' : 'password'"
+                    id="password"
+                    formControlName="password"
+                    autocomplete="current-password"
+                />
+                <button
+                    mat-icon-button
+                    matSuffix
+                    type="button"
+                    [attr.aria-label]="
+                        (passwordVisible()
+                            ? 'HOME.STALKER_PORTAL.HIDE_PASSWORD'
+                            : 'HOME.STALKER_PORTAL.SHOW_PASSWORD'
+                        ) | translate
+                    "
+                    (click)="togglePasswordVisibility()"
+                >
+                    <mat-icon>{{
+                        passwordVisible() ? 'visibility_off' : 'visibility'
+                    }}</mat-icon>
+                </button>
+            </mat-form-field>
+        </section>
+    }
+
+    <details
+        class="stalker-import__advanced"
+        [open]="advancedVisible()"
+        (toggle)="advancedVisible.set($any($event.target).open)"
+    >
+        <summary>
+            {{ 'HOME.STALKER_PORTAL.ADVANCED_IDENTITY' | translate }}
+        </summary>
+        <p>{{ 'HOME.STALKER_PORTAL.ADVANCED_IDENTITY_HINT' | translate }}</p>
+
+        <mat-form-field class="w-full">
+            <mat-label for="serialNumber">{{
+                'HOME.STALKER_PORTAL.SERIAL_NUMBER' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="text"
+                id="serialNumber"
+                formControlName="serialNumber"
+            />
+            <mat-hint>{{
+                'HOME.STALKER_PORTAL.SERIAL_NUMBER_HINT' | translate
+            }}</mat-hint>
+        </mat-form-field>
+        <mat-form-field class="w-full">
+            <mat-label for="deviceId1">{{
+                'HOME.STALKER_PORTAL.DEVICE_ID_1' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="text"
+                id="deviceId1"
+                formControlName="deviceId1"
+            />
+        </mat-form-field>
+        <mat-form-field class="w-full">
+            <mat-label for="deviceId2">{{
+                'HOME.STALKER_PORTAL.DEVICE_ID_2' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="text"
+                id="deviceId2"
+                formControlName="deviceId2"
+            />
+        </mat-form-field>
+        <mat-form-field class="w-full">
+            <mat-label for="signature1">{{
+                'HOME.STALKER_PORTAL.SIGNATURE_1' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="text"
+                id="signature1"
+                formControlName="signature1"
+            />
+        </mat-form-field>
+        <mat-form-field class="w-full">
+            <mat-label for="signature2">{{
+                'HOME.STALKER_PORTAL.SIGNATURE_2' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="text"
+                id="signature2"
+                formControlName="signature2"
+            />
+        </mat-form-field>
+        <mat-form-field class="w-full">
+            <mat-label for="userAgent">{{
+                'HOME.STALKER_PORTAL.USER_AGENT' | translate
+            }}</mat-label>
+            <input
+                matInput
+                type="text"
+                id="userAgent"
+                formControlName="userAgent"
+            />
+        </mat-form-field>
+    </details>
 </form>

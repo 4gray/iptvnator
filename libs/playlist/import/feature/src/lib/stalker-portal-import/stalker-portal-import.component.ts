@@ -1,86 +1,114 @@
-import { Component, inject, output, signal } from '@angular/core';
 import {
-    FormControl,
-    FormGroup,
-    FormsModule,
-    ReactiveFormsModule,
-    Validators,
-} from '@angular/forms';
+    Component,
+    OnDestroy,
+    computed,
+    inject,
+    output,
+    signal,
+} from '@angular/core';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import {
-    StalkerPortalIdentity,
-    StalkerSessionService,
-    normalizeStalkerPortalIdentity,
-} from '@iptvnator/portal/stalker/data-access';
-import { Playlist } from '@iptvnator/shared/interfaces';
+import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
+import { PlaylistsService } from '@iptvnator/services';
+import type {
+    Playlist,
+    StalkerSessionChallengeRef,
+    StalkerSessionConnectionOutcome,
+    StalkerSessionFailureReason,
+} from '@iptvnator/shared/interfaces';
+import { firstValueFrom } from 'rxjs';
 import { v4 as uuid } from 'uuid';
+import { createStalkerImportForm } from './stalker-import-form';
+import {
+    applyStalkerReadyOutcome,
+    buildProvisionalStalkerPlaylist,
+    isStalkerReadyOutcome,
+    readStalkerCredentialCandidate,
+    type StalkerAcceptedCredentials,
+    type StalkerImportReadyOutcome,
+} from './stalker-import-playlist';
+
+export type StalkerImportConnectionStage =
+    | 'idle'
+    | 'resolving'
+    | 'awaiting-origin-approval'
+    | 'credentials-required'
+    | 'validating-credentials'
+    | 'saving'
+    | 'persistence-failed'
+    | 'connected'
+    | 'failure';
+
+interface PendingOriginApproval {
+    readonly sourceOrigin: string;
+    readonly finalOrigin: string;
+}
+
+interface PendingReady {
+    readonly outcome: StalkerImportReadyOutcome;
+    readonly playlist: Playlist;
+}
 
 @Component({
     imports: [
         FormsModule,
+        MatButtonModule,
         MatFormFieldModule,
+        MatIconModule,
         MatInputModule,
         ReactiveFormsModule,
         TranslatePipe,
     ],
     selector: 'app-stalker-portal-import',
     templateUrl: './stalker-portal-import.component.html',
-    styles: [
-        `
-            :host {
-                display: flex;
-                margin: 10px;
-                justify-content: center;
-            }
-
-            form {
-                width: 100%;
-            }
-
-            .loading-container {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-        `,
-    ],
+    styleUrl: './stalker-portal-import.component.scss',
 })
-export class StalkerPortalImportComponent {
+export class StalkerPortalImportComponent implements OnDestroy {
     readonly addClicked = output<void>();
-    readonly URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
+    readonly form = createStalkerImportForm();
 
-    readonly form = new FormGroup({
-        _id: new FormControl(uuid()),
-        title: new FormControl('', [Validators.required]),
-        macAddress: new FormControl('', [Validators.required]),
-        serialNumber: new FormControl(''),
-        deviceId1: new FormControl(''),
-        deviceId2: new FormControl(''),
-        signature1: new FormControl(''),
-        signature2: new FormControl(''),
-        password: new FormControl(''),
-        username: new FormControl(''),
-        portalUrl: new FormControl('', [
-            Validators.required,
-            Validators.pattern(this.URL_REGEX),
-        ]),
-        importDate: new FormControl(new Date().toISOString()),
-        userAgent: new FormControl(''),
-    });
-
-    private readonly stalkerSessionService = inject(StalkerSessionService);
+    private readonly session = inject(StalkerSessionService);
+    private readonly playlists = inject(PlaylistsService);
     private readonly store = inject(Store);
     private readonly snackBar = inject(MatSnackBar);
     readonly translate = inject(TranslateService);
 
-    readonly isLoading = signal(false);
+    readonly connectionStage = signal<StalkerImportConnectionStage>('idle');
+    readonly failureReason = signal<StalkerSessionFailureReason | null>(null);
+    readonly pendingOriginApproval = signal<PendingOriginApproval | null>(null);
+    readonly credentialsRequested = signal(false);
+    readonly savedCredentialsRejected = signal(false);
+    readonly passwordVisible = signal(false);
+    readonly advancedVisible = signal(false);
+    readonly isLoading = computed(() =>
+        (
+            [
+                'resolving',
+                'validating-credentials',
+                'saving',
+            ] as StalkerImportConnectionStage[]
+        ).includes(this.connectionStage())
+    );
+
+    private runId = 0;
+    private provisionalPlaylist: Playlist | null = null;
+    private pendingChallengeRef: StalkerSessionChallengeRef | null = null;
+    private pendingReady: PendingReady | null = null;
+    private credentialCandidate: StalkerAcceptedCredentials | undefined;
+    private automaticCredentialsTried = false;
+    private committed = false;
 
     clearForm(): void {
+        this.runId += 1;
+        void this.discardPendingReady();
+        this.resetConnectionState();
         this.form.reset({
             _id: uuid(),
             title: '',
@@ -98,179 +126,275 @@ export class StalkerPortalImportComponent {
         });
     }
 
-    async addPlaylist() {
+    ngOnDestroy(): void {
+        this.runId += 1;
+        void this.discardPendingReady();
+    }
+
+    async addPlaylist(): Promise<void> {
         if (!this.form.valid || this.isLoading()) {
             return;
         }
 
-        this.isLoading.set(true);
+        const runId = ++this.runId;
+        await this.discardPendingReady();
+        this.resetConnectionState();
+        this.connectionStage.set('resolving');
 
         try {
-            const formValue = this.form.getRawValue();
-            const originalUrl = formValue.portalUrl ?? '';
-            const transformedUrl = this.transformPortalUrl(originalUrl);
-            const isFullStalkerPortal =
-                this.isFullStalkerPortalUrl(originalUrl);
-            const stalkerIdentity = normalizeStalkerPortalIdentity({
-                serialNumber: formValue.serialNumber ?? undefined,
-                deviceId1: formValue.deviceId1 ?? undefined,
-                deviceId2: formValue.deviceId2 ?? undefined,
-                signature1: formValue.signature1 ?? undefined,
-                signature2: formValue.signature2 ?? undefined,
+            this.provisionalPlaylist = buildProvisionalStalkerPlaylist(
+                this.form.getRawValue()
+            );
+            this.credentialCandidate = readStalkerCredentialCandidate(
+                this.form.getRawValue()
+            );
+            const outcome = await this.session.open(this.provisionalPlaylist, {
+                connectionMode: 'provisional',
+                provisionalReason: 'import',
             });
-
-            let stalkerToken: string | undefined;
-            let stalkerAccountInfo: Playlist['stalkerAccountInfo'] | undefined;
-
-            // For full stalker portal URLs, perform handshake and get profile
-            if (isFullStalkerPortal) {
-                try {
-                    const authResult =
-                        await this.stalkerSessionService.authenticate(
-                            transformedUrl,
-                            formValue.macAddress ?? '',
-                            stalkerIdentity
-                        );
-
-                    stalkerToken = authResult.token;
-
-                    if (authResult.accountInfo) {
-                        stalkerAccountInfo = {
-                            login: authResult.accountInfo.login,
-                            expireDate: authResult.accountInfo.expire_date,
-                            tariffPlanName:
-                                authResult.accountInfo.tariff_plan_name,
-                            status: authResult.accountInfo.status,
-                        };
-                    }
-
-                    // Show success notification with account info if available
-                    if (stalkerAccountInfo?.expireDate) {
-                        const expireDate = new Date(
-                            stalkerAccountInfo.expireDate * 1000
-                        );
-                        this.snackBar.open(
-                            `Portal validated. Expires: ${expireDate.toLocaleDateString()}`,
-                            undefined,
-                            { duration: 3000 }
-                        );
-                    }
-                } catch (error) {
-                    console.error(
-                        '[StalkerImport] Authentication failed:',
-                        error
-                    );
-                    this.snackBar.open(
-                        'Failed to authenticate with portal. Please check URL and MAC address.',
-                        undefined,
-                        { duration: 5000 }
-                    );
-                    this.isLoading.set(false);
-                    return;
-                }
+            if (runId !== this.runId) {
+                return;
             }
-
-            const {
-                serialNumber: _serialNumber,
-                deviceId1: _deviceId1,
-                deviceId2: _deviceId2,
-                signature1: _signature1,
-                signature2: _signature2,
-                ...playlistFormValue
-            } = formValue;
-
-            const playlist: Playlist = {
-                ...playlistFormValue,
-                portalUrl: transformedUrl,
-                isFullStalkerPortal,
-                stalkerToken,
-                stalkerAccountInfo,
-                ...this.toPlaylistIdentityFields(stalkerIdentity),
-            } as Playlist;
-
-            this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
-            this.addClicked.emit();
-        } finally {
-            this.isLoading.set(false);
+            await this.handleOutcome(outcome, runId);
+        } catch {
+            if (runId === this.runId) {
+                this.fail('portal-unavailable');
+            }
         }
     }
 
-    /**
-     * Checks if the URL is a full stalker portal URL that requires handshake authentication
-     * Pattern: example.com/stalker_portal/c or example.com/stalker_portal/...
-     */
-    isFullStalkerPortalUrl(url: string): boolean {
-        return url.includes('/stalker_portal');
-    }
-
-    private toPlaylistIdentityFields(identity: StalkerPortalIdentity): {
-        stalkerSerialNumber?: string;
-        stalkerDeviceId1?: string;
-        stalkerDeviceId2?: string;
-        stalkerSignature1?: string;
-        stalkerSignature2?: string;
-    } {
-        return {
-            ...(identity.serialNumber
-                ? { stalkerSerialNumber: identity.serialNumber }
-                : {}),
-            ...(identity.deviceId1
-                ? { stalkerDeviceId1: identity.deviceId1 }
-                : {}),
-            ...(identity.deviceId2
-                ? { stalkerDeviceId2: identity.deviceId2 }
-                : {}),
-            ...(identity.signature1
-                ? { stalkerSignature1: identity.signature1 }
-                : {}),
-            ...(identity.signature2
-                ? { stalkerSignature2: identity.signature2 }
-                : {}),
-        };
-    }
-
-    /**
-     * Transforms the portal URL to the correct API endpoint
-     * - Simple URL (example.com/c) -> example.com/portal.php
-     * - Full stalker portal (example.com/stalker_portal/c) -> example.com/stalker_portal/server/load.php
-     */
-    transformPortalUrl(url: string): string {
-        // Remove trailing slashes
-        url = url.replace(/\/+$/, '');
-
-        // Case 1: Simple URL ending with /c -> convert to /portal.php
-        if (url.endsWith('/c')) {
-            // Check if it's a full stalker portal URL
-            if (url.includes('/stalker_portal')) {
-                // example.com/stalker_portal/c -> example.com/stalker_portal/server/load.php
-                return url.replace(
-                    /\/stalker_portal\/c$/,
-                    '/stalker_portal/server/load.php'
-                );
-            }
-            // Simple URL: example.com/c -> example.com/portal.php
-            return url.replace(/\/c$/, '/portal.php');
+    async respondToOriginApproval(approved: boolean): Promise<void> {
+        const challengeRef = this.pendingChallengeRef;
+        const playlistRef = this.provisionalPlaylist?._id;
+        if (!challengeRef || !playlistRef || this.isLoading()) {
+            return;
         }
 
-        // Case 2: Full stalker portal URL without /c at the end
+        const runId = this.runId;
+        this.connectionStage.set('resolving');
+        this.pendingOriginApproval.set(null);
+        this.pendingChallengeRef = null;
+        try {
+            const outcome = await this.session.continue(playlistRef, {
+                challengeRef,
+                response: {
+                    approved,
+                    kind: 'origin-approval',
+                },
+            });
+            if (runId === this.runId) {
+                await this.handleOutcome(outcome, runId);
+            }
+        } catch {
+            if (runId === this.runId) {
+                this.fail('origin-not-approved');
+            }
+        }
+    }
+
+    async submitCredentials(): Promise<void> {
+        const credentials = readStalkerCredentialCandidate(
+            this.form.getRawValue()
+        );
+        if (credentials === undefined) {
+            return;
+        }
+        await this.continueWithCredentials(credentials);
+    }
+
+    async saveAgain(): Promise<void> {
         if (
-            url.includes('/stalker_portal') &&
-            !url.includes('/server/load.php')
+            this.connectionStage() !== 'persistence-failed' ||
+            this.pendingReady === null
         ) {
-            // example.com/stalker_portal -> example.com/stalker_portal/server/load.php
-            if (url.endsWith('/stalker_portal')) {
-                return url + '/server/load.php';
-            }
-            // If it has other path segments after /stalker_portal, append server/load.php
-            if (!url.endsWith('/load.php')) {
-                return url.replace(
-                    /\/stalker_portal(\/.*)?$/,
-                    '/stalker_portal/server/load.php'
-                );
-            }
+            return;
+        }
+        await this.persistAndCommit(this.pendingReady, this.runId);
+    }
+
+    togglePasswordVisibility(): void {
+        this.passwordVisible.update((visible) => !visible);
+    }
+
+    private async continueWithCredentials(
+        credentials: StalkerAcceptedCredentials
+    ): Promise<void> {
+        const challengeRef = this.pendingChallengeRef;
+        const playlistRef = this.provisionalPlaylist?._id;
+        if (!challengeRef || !playlistRef || this.isLoading()) {
+            return;
         }
 
-        // Otherwise keep the provided url
-        return url;
+        const runId = this.runId;
+        this.credentialCandidate = credentials;
+        this.automaticCredentialsTried = true;
+        this.pendingChallengeRef = null;
+        this.connectionStage.set('validating-credentials');
+        try {
+            const outcome = await this.session.continue(playlistRef, {
+                challengeRef,
+                response: {
+                    kind: 'credentials',
+                    ...credentials,
+                },
+            });
+            if (runId === this.runId) {
+                await this.handleOutcome(outcome, runId);
+            }
+        } catch {
+            if (runId === this.runId) {
+                this.fail('portal-unavailable');
+            }
+        }
+    }
+
+    private async handleOutcome(
+        outcome: StalkerSessionConnectionOutcome,
+        runId: number
+    ): Promise<void> {
+        if (isStalkerReadyOutcome(outcome)) {
+            const provisional = this.provisionalPlaylist;
+            if (provisional === null) {
+                this.fail('local-persistence-failed');
+                return;
+            }
+            const playlist = applyStalkerReadyOutcome(
+                provisional,
+                outcome,
+                this.credentialCandidate
+            );
+            const pending = { outcome, playlist };
+            this.pendingReady = pending;
+            await this.persistAndCommit(pending, runId);
+            return;
+        }
+
+        if (outcome.kind === 'origin-approval-required') {
+            this.pendingChallengeRef = outcome.challengeRef;
+            this.pendingOriginApproval.set({
+                finalOrigin: outcome.finalOrigin,
+                sourceOrigin: outcome.sourceOrigin,
+            });
+            this.connectionStage.set('awaiting-origin-approval');
+            return;
+        }
+
+        if (outcome.kind === 'credentials-required') {
+            this.pendingChallengeRef = outcome.challengeRef;
+            this.credentialsRequested.set(true);
+            this.savedCredentialsRejected.set(
+                outcome.savedCredentialsRejected === true
+            );
+            if (
+                this.credentialCandidate !== undefined &&
+                !this.automaticCredentialsTried
+            ) {
+                this.automaticCredentialsTried = true;
+                await this.continueWithCredentials(this.credentialCandidate);
+                return;
+            }
+            this.connectionStage.set('credentials-required');
+            return;
+        }
+
+        this.fail(outcome.reason);
+    }
+
+    private async persistAndCommit(
+        pending: PendingReady,
+        runId: number
+    ): Promise<void> {
+        this.connectionStage.set('saving');
+        this.failureReason.set(null);
+        let persisted: Playlist;
+        try {
+            persisted = await firstValueFrom(
+                this.playlists.persistStalkerConnection(pending.playlist)
+            );
+        } catch {
+            if (runId === this.runId) {
+                this.connectionStage.set('persistence-failed');
+                this.failureReason.set('local-persistence-failed');
+                this.notifyFailure('local-persistence-failed');
+            }
+            return;
+        }
+        if (runId !== this.runId) {
+            return;
+        }
+        this.store.dispatch(
+            PlaylistActions.stalkerConnectionPersisted({
+                playlist: persisted,
+            })
+        );
+
+        const attemptRef = pending.outcome.attemptRef;
+        if (attemptRef === undefined) {
+            await this.discardPendingReady();
+            this.fail('session-promotion-failed');
+            return;
+        }
+        try {
+            const promotion = await this.session.commit(attemptRef);
+            if (runId !== this.runId || promotion.kind !== 'success') {
+                await this.failPromotion(runId);
+                return;
+            }
+        } catch {
+            await this.failPromotion(runId);
+            return;
+        }
+
+        this.committed = true;
+        this.pendingReady = null;
+        this.connectionStage.set('connected');
+        this.addClicked.emit();
+    }
+
+    private async failPromotion(runId: number): Promise<void> {
+        await this.discardPendingReady();
+        if (runId === this.runId) {
+            this.fail('session-promotion-failed');
+        }
+    }
+
+    private async discardPendingReady(): Promise<void> {
+        const attemptRef = this.pendingReady?.outcome.attemptRef;
+        this.pendingReady = null;
+        if (attemptRef !== undefined && !this.committed) {
+            await this.session.discard(attemptRef).catch(() => undefined);
+        }
+    }
+
+    private fail(reason: StalkerSessionFailureReason): void {
+        this.failureReason.set(reason);
+        this.connectionStage.set('failure');
+        this.notifyFailure(reason);
+    }
+
+    private notifyFailure(reason: StalkerSessionFailureReason): void {
+        this.snackBar.open(
+            this.translate.instant(
+                'HOME.STALKER_PORTAL.CONNECTION_FAILURE_GENERIC',
+                { reason }
+            ),
+            undefined,
+            { duration: 5000 }
+        );
+    }
+
+    private resetConnectionState(): void {
+        this.provisionalPlaylist = null;
+        this.pendingChallengeRef = null;
+        this.pendingReady = null;
+        this.credentialCandidate = undefined;
+        this.automaticCredentialsTried = false;
+        this.committed = false;
+        this.failureReason.set(null);
+        this.pendingOriginApproval.set(null);
+        this.credentialsRequested.set(false);
+        this.savedCredentialsRejected.set(false);
+        this.passwordVisible.set(false);
+        this.connectionStage.set('idle');
     }
 }

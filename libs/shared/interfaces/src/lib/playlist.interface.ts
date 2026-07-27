@@ -98,7 +98,7 @@ export interface Playlist {
         login?: string;
         expireDate?: number;
         tariffPlanName?: string;
-        status?: number;
+        status?: number | string;
     };
     /** Hidden M3U group titles for the groups view */
     hiddenGroupTitles?: string[];
