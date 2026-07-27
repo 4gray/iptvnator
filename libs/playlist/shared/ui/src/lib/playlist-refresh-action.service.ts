@@ -23,6 +23,10 @@ import {
     PLAYLIST_UPDATE,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
+import {
+    measureRendererPerformancePhase,
+    RENDERER_PERFORMANCE_PHASE,
+} from '@iptvnator/shared/logging';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 
 export interface XtreamRefreshPreparationState {
@@ -159,10 +163,15 @@ export class PlaylistRefreshActionService {
                         playbackPositions,
                     });
 
-                    this.store.dispatch(
-                        PlaylistActions.updatePlaylistMeta({
-                            playlist: { ...item, updateDate },
-                        })
+                    measureRendererPerformancePhase(
+                        RENDERER_PERFORMANCE_PHASE.XTREAM_REFRESH_META,
+                        () =>
+                            this.store.dispatch(
+                                PlaylistActions.updatePlaylistMeta({
+                                    playlist: { ...item, updateDate },
+                                })
+                            ),
+                        () => ({ items: 1 })
                     );
 
                     await this.router.navigate([

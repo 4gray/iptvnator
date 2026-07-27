@@ -1,7 +1,16 @@
 import * as sharedLogging from '../index';
 
 type RendererPerformancePhase =
-    'store.m3u-import-dispatch' | 'store.m3u-publish-channels';
+    | 'store.m3u-import-dispatch'
+    | 'store.m3u-publish-channels'
+    | 'store.xtream-delete-row'
+    | 'store.xtream-import-terminal'
+    | 'store.xtream-publish-categories'
+    | 'store.xtream-publish-live'
+    | 'store.xtream-publish-series'
+    | 'store.xtream-publish-vod'
+    | 'store.xtream-refresh-meta'
+    | 'store.xtream-search-results';
 type RendererPerformancePhaseOutcome = 'error' | 'success';
 
 interface RendererPerformancePhaseEvent {
@@ -28,11 +37,20 @@ interface RendererPerformancePhaseModule {
     readonly RENDERER_PERFORMANCE_PHASE?: Readonly<{
         M3U_IMPORT_DISPATCH: 'store.m3u-import-dispatch';
         M3U_PUBLISH_CHANNELS: 'store.m3u-publish-channels';
+        XTREAM_DELETE_ROW: 'store.xtream-delete-row';
+        XTREAM_IMPORT_TERMINAL: 'store.xtream-import-terminal';
+        XTREAM_PUBLISH_CATEGORIES: 'store.xtream-publish-categories';
+        XTREAM_PUBLISH_LIVE: 'store.xtream-publish-live';
+        XTREAM_PUBLISH_SERIES: 'store.xtream-publish-series';
+        XTREAM_PUBLISH_VOD: 'store.xtream-publish-vod';
+        XTREAM_REFRESH_META: 'store.xtream-refresh-meta';
+        XTREAM_SEARCH_RESULTS: 'store.xtream-search-results';
     }>;
     readonly RENDERER_PERFORMANCE_PHASE_HOOK_KEY?: string;
 }
 
-const rendererPerformance = sharedLogging as RendererPerformancePhaseModule;
+const rendererPerformance =
+    sharedLogging as unknown as RendererPerformancePhaseModule;
 const EXPECTED_HOOK_KEY = 'iptvnator.renderer.performance-phase-hook.v1';
 const hookSymbol = Symbol.for(EXPECTED_HOOK_KEY);
 
@@ -175,6 +193,14 @@ describe('renderer performance phases', () => {
         expect(rendererPerformance.RENDERER_PERFORMANCE_PHASE).toEqual({
             M3U_IMPORT_DISPATCH: 'store.m3u-import-dispatch',
             M3U_PUBLISH_CHANNELS: 'store.m3u-publish-channels',
+            XTREAM_DELETE_ROW: 'store.xtream-delete-row',
+            XTREAM_IMPORT_TERMINAL: 'store.xtream-import-terminal',
+            XTREAM_PUBLISH_CATEGORIES: 'store.xtream-publish-categories',
+            XTREAM_PUBLISH_LIVE: 'store.xtream-publish-live',
+            XTREAM_PUBLISH_SERIES: 'store.xtream-publish-series',
+            XTREAM_PUBLISH_VOD: 'store.xtream-publish-vod',
+            XTREAM_REFRESH_META: 'store.xtream-refresh-meta',
+            XTREAM_SEARCH_RESULTS: 'store.xtream-search-results',
         });
 
         const events: RendererPerformancePhaseEvent[] = [];

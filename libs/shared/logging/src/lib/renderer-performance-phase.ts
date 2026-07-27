@@ -4,6 +4,14 @@ export const RENDERER_PERFORMANCE_PHASE_HOOK_KEY =
 export const RENDERER_PERFORMANCE_PHASE = {
     M3U_IMPORT_DISPATCH: 'store.m3u-import-dispatch',
     M3U_PUBLISH_CHANNELS: 'store.m3u-publish-channels',
+    XTREAM_DELETE_ROW: 'store.xtream-delete-row',
+    XTREAM_IMPORT_TERMINAL: 'store.xtream-import-terminal',
+    XTREAM_PUBLISH_CATEGORIES: 'store.xtream-publish-categories',
+    XTREAM_PUBLISH_LIVE: 'store.xtream-publish-live',
+    XTREAM_PUBLISH_SERIES: 'store.xtream-publish-series',
+    XTREAM_PUBLISH_VOD: 'store.xtream-publish-vod',
+    XTREAM_REFRESH_META: 'store.xtream-refresh-meta',
+    XTREAM_SEARCH_RESULTS: 'store.xtream-search-results',
 } as const;
 
 export type RendererPerformancePhase =
