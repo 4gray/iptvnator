@@ -228,6 +228,16 @@ export class PlaylistsService {
             password: playlist.password,
             macAddress: playlist.macAddress,
             portalUrl: playlist.portalUrl,
+            stalkerSourceUrl: playlist.stalkerSourceUrl,
+            stalkerLandingUrl: playlist.stalkerLandingUrl,
+            stalkerRequestRecipe: playlist.stalkerRequestRecipe,
+            stalkerRecipeClassifierVersion:
+                playlist.stalkerRecipeClassifierVersion,
+            stalkerProfilePreset: playlist.stalkerProfilePreset,
+            stalkerIdentityOverrides: playlist.stalkerIdentityOverrides,
+            stalkerTransportConfiguration:
+                playlist.stalkerTransportConfiguration,
+            stalkerLastVerifiedAt: playlist.stalkerLastVerifiedAt,
             stalkerSerialNumber: playlist.stalkerSerialNumber,
             stalkerDeviceId1: playlist.stalkerDeviceId1,
             stalkerDeviceId2: playlist.stalkerDeviceId2,
@@ -452,6 +462,40 @@ export class PlaylistsService {
             .pipe(map(() => playlist));
     }
 
+    /**
+     * Persists the complete, already verified Stalker connection in one
+     * serialized row write. This is the promotion boundary used before the
+     * main-process provisional session is committed.
+     *
+     * The legacy bearer token is always removed. Omitted credentials preserve
+     * an existing accepted pair, which lets saved-credential reconnects update
+     * endpoint/profile metadata without rewriting secrets.
+     */
+    persistStalkerConnection(draft: Playlist): Observable<Playlist> {
+        const playlistId = String(draft?._id ?? '').trim();
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
+        }
+
+        return this.serializePlaylistWrite(playlistId, async () => {
+            const currentPlaylist = await firstValueFrom(
+                this.getPlaylistById(playlistId),
+                { defaultValue: undefined }
+            );
+            const safeDraft = { ...draft };
+            delete safeDraft.stalkerToken;
+            const nextPlaylist = {
+                ...(currentPlaylist ?? {}),
+                ...safeDraft,
+                _id: playlistId,
+            } as Playlist;
+            delete nextPlaylist.stalkerToken;
+
+            await this.persistPlaylistMutation(nextPlaylist);
+            return nextPlaylist;
+        });
+    }
+
     getPlaylist(id: string) {
         if (id === 'global-favorites') {
             return this.getPlaylistWithGlobalFavorites();
@@ -625,6 +669,52 @@ export class PlaylistsService {
                     : {}),
                 ...(updatedPlaylist.portalUrl != null
                     ? { portalUrl: updatedPlaylist.portalUrl }
+                    : {}),
+                ...(updatedPlaylist.stalkerSourceUrl !== undefined
+                    ? {
+                          stalkerSourceUrl: updatedPlaylist.stalkerSourceUrl,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerLandingUrl !== undefined
+                    ? {
+                          stalkerLandingUrl: updatedPlaylist.stalkerLandingUrl,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerRequestRecipe !== undefined
+                    ? {
+                          stalkerRequestRecipe:
+                              updatedPlaylist.stalkerRequestRecipe,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerRecipeClassifierVersion !== undefined
+                    ? {
+                          stalkerRecipeClassifierVersion:
+                              updatedPlaylist.stalkerRecipeClassifierVersion,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerProfilePreset !== undefined
+                    ? {
+                          stalkerProfilePreset:
+                              updatedPlaylist.stalkerProfilePreset,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerIdentityOverrides !== undefined
+                    ? {
+                          stalkerIdentityOverrides:
+                              updatedPlaylist.stalkerIdentityOverrides,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerTransportConfiguration !== undefined
+                    ? {
+                          stalkerTransportConfiguration:
+                              updatedPlaylist.stalkerTransportConfiguration,
+                      }
+                    : {}),
+                ...(updatedPlaylist.stalkerLastVerifiedAt !== undefined
+                    ? {
+                          stalkerLastVerifiedAt:
+                              updatedPlaylist.stalkerLastVerifiedAt,
+                      }
                     : {}),
                 ...(updatedPlaylist.isFullStalkerPortal !== undefined
                     ? {

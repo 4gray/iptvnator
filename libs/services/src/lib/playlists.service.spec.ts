@@ -180,6 +180,9 @@ describe('PlaylistsService', () => {
                 count: '3',
                 url: 'https://example.com/list.m3u',
                 autoRefresh: '',
+                stalkerLandingUrl: 'https://portal.example/c/',
+                stalkerRequestRecipe: 'full-session',
+                stalkerSourceUrl: 'https://portal.example/c/',
             })),
             dbGetAppPlaylists: jest.fn(async () => []),
             dbGetAppState: jest.fn(async (key: string) =>
@@ -207,6 +210,9 @@ describe('PlaylistsService', () => {
                 recentlyViewed: [],
                 autoRefresh: false,
                 url: 'https://example.com/list.m3u',
+                stalkerLandingUrl: 'https://portal.example/c/',
+                stalkerRequestRecipe: 'full-session',
+                stalkerSourceUrl: 'https://portal.example/c/',
             })
         );
     });
@@ -1669,6 +1675,116 @@ describe('PlaylistsService', () => {
             resolvePortalARead?.();
             await blockedPortalA;
             expect(playlists.get('portal-a')?.favorites).toHaveLength(2);
+        });
+
+        it('persists a complete Stalker connection atomically and removes the legacy token', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('stalker-persist'),
+                macAddress: '00:1A:79:AA:BB:CC',
+                password: 'old-password',
+                portalUrl: 'https://old.example/server/load.php',
+                stalkerToken: 'legacy-token-secret',
+                username: 'old-user',
+            } as Playlist);
+            testWindow.electron = electron;
+            const service = createService();
+
+            const persisted = await firstValueFrom(
+                service.persistStalkerConnection({
+                    _id: 'stalker-persist',
+                    autoRefresh: false,
+                    count: 0,
+                    importDate: '2026-07-27T00:00:00.000Z',
+                    lastUsage: '2026-07-27T00:00:00.000Z',
+                    macAddress: '00:1A:79:AA:BB:CC',
+                    password: 'new-password',
+                    portalUrl: 'https://new.example/server/load.php',
+                    stalkerLandingUrl: 'https://new.example/c/',
+                    stalkerLastVerifiedAt: '2026-07-27T12:00:00.000Z',
+                    stalkerProfilePreset: {
+                        id: 'mag250-public-5_1-minimal-v1',
+                        version: 1,
+                    },
+                    stalkerRecipeClassifierVersion: 1,
+                    stalkerRequestRecipe: 'full-session',
+                    stalkerSourceUrl: 'https://new.example/c/',
+                    title: 'Connected Portal',
+                    username: 'new-user',
+                })
+            );
+
+            expect(persisted).toEqual(store.current);
+            expect(store.current).toEqual(
+                expect.objectContaining({
+                    portalUrl: 'https://new.example/server/load.php',
+                    stalkerLandingUrl: 'https://new.example/c/',
+                    stalkerRequestRecipe: 'full-session',
+                    username: 'new-user',
+                    password: 'new-password',
+                })
+            );
+            expect(store.current).not.toHaveProperty('stalkerToken');
+            expect(
+                electron.dbUpsertAppPlaylist.mock.calls.at(-1)?.[0]
+            ).not.toHaveProperty('stalkerToken');
+        });
+
+        it('preserves prior credentials when a verified Stalker draft omits replacements', async () => {
+            const { store, electron } = createStatefulElectronStore({
+                ...createBasePlaylist('stalker-saved-credentials'),
+                macAddress: '00:1A:79:AA:BB:CC',
+                password: 'saved-password',
+                portalUrl: 'https://portal.example/server/load.php',
+                username: 'saved-user',
+            } as Playlist);
+            testWindow.electron = electron;
+            const service = createService();
+
+            await firstValueFrom(
+                service.persistStalkerConnection({
+                    _id: 'stalker-saved-credentials',
+                    autoRefresh: false,
+                    count: 0,
+                    importDate: '2026-07-27T00:00:00.000Z',
+                    lastUsage: '2026-07-27T00:00:00.000Z',
+                    macAddress: '00:1A:79:AA:BB:CC',
+                    portalUrl: 'https://portal.example/portal.php',
+                    stalkerRequestRecipe: 'stateless-mac',
+                    title: 'Updated Portal',
+                })
+            );
+
+            expect(store.current.username).toBe('saved-user');
+            expect(store.current.password).toBe('saved-password');
+        });
+
+        it('does not mutate the stored Stalker row when persistence fails', async () => {
+            const initial = {
+                ...createBasePlaylist('stalker-write-failure'),
+                macAddress: '00:1A:79:AA:BB:CC',
+                portalUrl: 'https://old.example/server/load.php',
+                username: 'old-user',
+                password: 'old-password',
+            } as Playlist;
+            const { store, electron } = createStatefulElectronStore(initial);
+            electron.dbUpsertAppPlaylist.mockRejectedValueOnce(
+                new Error('disk-full')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+
+            await expect(
+                firstValueFrom(
+                    service.persistStalkerConnection({
+                        ...initial,
+                        portalUrl: 'https://new.example/server/load.php',
+                        username: 'new-user',
+                        password: 'new-password',
+                    })
+                )
+            ).rejects.toThrow('disk-full');
+
+            expect(store.current).toBe(initial);
         });
     });
 });
