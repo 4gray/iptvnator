@@ -563,10 +563,15 @@ describe('StalkerSessionManager', () => {
             })
         ).resolves.toMatchObject({ action: 'commit', kind: 'success' });
 
-        await manager.request(1, catalogRequest(existing.leaseRef));
+        await expect(
+            manager.request(1, catalogRequest(existing.leaseRef))
+        ).resolves.toMatchObject({
+            kind: 'failure',
+            reason: STALKER_SESSION_FAILURE_REASONS.InvalidIdentityInput,
+        });
         await manager.request(1, catalogRequest(provisional.leaseRef));
         expect(oldAuth.requests).toHaveLength(0);
-        expect(promotedAuth.requests).toHaveLength(2);
+        expect(promotedAuth.requests).toHaveLength(1);
     });
 
     it('revalidates a stale provisional principal before promotion', async () => {
@@ -1413,5 +1418,59 @@ describe('StalkerSessionManager', () => {
                 attemptRef: ready.attemptRef,
             })
         ).resolves.toMatchObject({ action: 'commit', kind: 'success' });
+    });
+
+    it('force-redetects from the original source without a learned hint and can commit a stateless reclassification', async () => {
+        const { manager, resolve } = harness({
+            auths: [new FakeAuth()],
+            resolverOutcomes: [full(), stateless()],
+        });
+        const originalSource = 'https://portal.test/original/c/';
+        const opened = await manager.open(1, {
+            descriptor: descriptor('redetect', 'persisted-open', {
+                learnedEndpointHint:
+                    'https://portal.test/stale/server/load.php',
+                sourceUrl: originalSource,
+            }),
+        });
+        expectFullReady(opened);
+
+        const redetected = await manager.control(1, {
+            action: 'force-redetect',
+            leaseRef: opened.leaseRef,
+        });
+
+        expect(redetected).toMatchObject({
+            attemptRef: expect.any(String),
+            connectionMode: 'provisional',
+            kind: 'ready',
+            recipe: 'stateless-mac',
+        });
+        if (
+            redetected.kind !== 'ready' ||
+            redetected.connectionMode !== 'provisional'
+        ) {
+            throw new Error('expected-provisional-redetection');
+        }
+        expect(resolve.mock.calls[1][0].descriptor).toMatchObject({
+            connectionMode: 'provisional',
+            sourceUrl: originalSource,
+        });
+        expect(resolve.mock.calls[1][0].descriptor.learnedEndpointHint).toBe(
+            undefined
+        );
+
+        await expect(
+            manager.control(1, {
+                action: 'commit',
+                attemptRef: redetected.attemptRef,
+            })
+        ).resolves.toMatchObject({ action: 'commit', kind: 'success' });
+        await expect(
+            manager.request(1, catalogRequest(opened.leaseRef))
+        ).resolves.toMatchObject({
+            kind: 'failure',
+            reason: STALKER_SESSION_FAILURE_REASONS.InvalidIdentityInput,
+        });
     });
 });

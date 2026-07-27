@@ -789,16 +789,7 @@ export class StalkerSessionManager {
             return controlSuccess(requestId, request.action);
         }
         if (request.action === 'force-redetect') {
-            const refreshed = await this.#refreshSession(lease.session);
-            if (refreshed.kind === 'ready') {
-                return controlSuccess(requestId, request.action);
-            }
-            return this.#projectRefreshFailure(
-                senderId,
-                lease.session,
-                refreshed,
-                requestId
-            );
+            return this.#forceRedetect(senderId, lease, requestId);
         }
         return invalidIdentityFailure(requestId, 'ready');
     }
@@ -1303,6 +1294,7 @@ export class StalkerSessionManager {
             throw new Error('stalker-session-promotion-became-stale');
         }
 
+        const replacedLeaseRefs = this.#previousPlaylistLeaseRefs(attempt);
         const destination = this.#sessions.get(ready.key);
         const promoted: SessionRecord = {
             ...(ready.accountSummary === undefined
@@ -1370,6 +1362,12 @@ export class StalkerSessionManager {
         this.#leases.set(lease.ref, lease);
         this.#sessions.set(promoted.key, promoted);
         this.#reactivateTransferredLeases(promoted);
+        for (const replacedLeaseRef of replacedLeaseRefs) {
+            const replacedLease = this.#leases.get(replacedLeaseRef);
+            if (replacedLease !== undefined && replacedLease !== lease) {
+                this.#closeLease(replacedLease);
+            }
+        }
         return { ref: lease.ref, session: promoted };
     }
 
@@ -1399,6 +1397,7 @@ export class StalkerSessionManager {
             return invalidIdentityFailure(requestId, 'promoting');
         }
         if (attempt.ready.kind === 'stateless-mac') {
+            this.#closePreviousPlaylistLeases(attempt);
             this.#finishAttempt(attempt, action);
             return controlSuccess(requestId, action);
         }
@@ -1417,6 +1416,58 @@ export class StalkerSessionManager {
         }
         this.#finishAttempt(attempt, action);
         return controlSuccess(requestId, action);
+    }
+
+    async #forceRedetect(
+        senderId: number,
+        lease: LeaseRecord,
+        requestId: string
+    ): Promise<StalkerSessionConnectionOutcome> {
+        const { learnedEndpointHint: _learnedEndpointHint, ...persisted } =
+            lease.session.descriptor;
+        const descriptor: StalkerSessionConnectionDescriptor = {
+            ...persisted,
+            connectionMode: 'provisional',
+            provisionalReason: 'migration',
+        };
+        const attempt = this.#createAttempt(senderId, {
+            descriptor,
+            transport: lease.session.transport,
+        });
+        attempt.previousSessions.add(lease.session);
+        attempt.credentialCandidate = lease.session.credentials;
+        this.#attempts.set(attempt.ref, attempt);
+        this.#scheduleExpiryCleanup();
+        const progress = await this.#authenticateFresh(
+            attempt,
+            attempt.credentialCandidate
+        );
+        return this.#publishProgress(attempt, progress, requestId);
+    }
+
+    #closePreviousPlaylistLeases(attempt: AttemptRecord): void {
+        for (const ref of this.#previousPlaylistLeaseRefs(attempt)) {
+            const lease = this.#leases.get(ref);
+            if (lease !== undefined) {
+                this.#closeLease(lease);
+            }
+        }
+    }
+
+    #previousPlaylistLeaseRefs(attempt: AttemptRecord): Set<string> {
+        const refs = new Set<string>();
+        for (const previous of attempt.previousSessions) {
+            for (const ref of previous.leases) {
+                const lease = this.#leases.get(ref);
+                if (
+                    lease?.senderId === attempt.senderId &&
+                    lease.playlistRef === attempt.descriptor.playlistRef
+                ) {
+                    refs.add(ref);
+                }
+            }
+        }
+        return refs;
     }
 
     #finishAttempt(attempt: AttemptRecord, action: 'commit' | 'discard'): void {

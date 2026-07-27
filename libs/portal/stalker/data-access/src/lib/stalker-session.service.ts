@@ -96,7 +96,7 @@ export class StalkerSessionService {
     private readonly provisionalByAttemptRef = new Map<
         StalkerSessionAttemptRef,
         {
-            readonly leaseRef: StalkerSessionLeaseRef;
+            readonly leaseRef?: StalkerSessionLeaseRef;
             readonly playlistRef: string;
         }
     >();
@@ -249,7 +249,19 @@ export class StalkerSessionService {
             request.action === 'commit' &&
             provisional !== undefined
         ) {
-            this.rememberLease(provisional.playlistRef, provisional.leaseRef);
+            if (provisional.leaseRef === undefined) {
+                const previousLease = this.leaseByPlaylistRef.get(
+                    provisional.playlistRef
+                );
+                if (previousLease !== undefined) {
+                    this.forgetLease(previousLease);
+                }
+            } else {
+                this.rememberLease(
+                    provisional.playlistRef,
+                    provisional.leaseRef
+                );
+            }
             this.forgetProvisionalAttempt(request.attemptRef);
         } else if (outcome.kind === 'success' && request.action === 'discard') {
             this.forgetProvisionalAttempt(request.attemptRef);
@@ -414,9 +426,7 @@ export class StalkerSessionService {
         return recovery;
     }
 
-    private isRecoverable(
-        outcome: StalkerSessionNonSuccessOutcome
-    ): boolean {
+    private isRecoverable(outcome: StalkerSessionNonSuccessOutcome): boolean {
         return (
             outcome.kind === 'origin-approval-required' ||
             outcome.kind === 'credentials-required' ||
@@ -432,25 +442,28 @@ export class StalkerSessionService {
         if (outcome.kind !== 'ready') {
             return;
         }
-        if (outcome.recipe !== 'full-session') {
-            if (outcome.connectionMode === 'persisted-open') {
-                const previousLease = this.leaseByPlaylistRef.get(playlistRef);
-                if (previousLease !== undefined) {
-                    this.forgetLease(previousLease);
-                }
+
+        if (outcome.connectionMode === 'provisional') {
+            this.provisionalByAttemptRef.set(outcome.attemptRef, {
+                ...(outcome.recipe === 'full-session'
+                    ? { leaseRef: outcome.leaseRef }
+                    : {}),
+                playlistRef,
+            });
+            if (outcome.recipe === 'full-session') {
+                this.attemptRefByProvisionalLease.set(
+                    outcome.leaseRef,
+                    outcome.attemptRef
+                );
             }
             return;
         }
 
-        if (outcome.connectionMode === 'provisional') {
-            this.provisionalByAttemptRef.set(outcome.attemptRef, {
-                leaseRef: outcome.leaseRef,
-                playlistRef,
-            });
-            this.attemptRefByProvisionalLease.set(
-                outcome.leaseRef,
-                outcome.attemptRef
-            );
+        if (outcome.recipe !== 'full-session') {
+            const previousLease = this.leaseByPlaylistRef.get(playlistRef);
+            if (previousLease !== undefined) {
+                this.forgetLease(previousLease);
+            }
             return;
         }
 
@@ -488,7 +501,7 @@ export class StalkerSessionService {
         attemptRef: StalkerSessionAttemptRef
     ): void {
         const provisional = this.provisionalByAttemptRef.get(attemptRef);
-        if (provisional !== undefined) {
+        if (provisional?.leaseRef !== undefined) {
             this.attemptRefByProvisionalLease.delete(provisional.leaseRef);
         }
         this.provisionalByAttemptRef.delete(attemptRef);

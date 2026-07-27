@@ -62,8 +62,7 @@ describe('mapPlaylistToStalkerSessionConnection', () => {
         expect(result).toEqual({
             descriptor: {
                 connectionMode: 'persisted-open',
-                learnedEndpointHint:
-                    'https://portal.example/server/load.php',
+                learnedEndpointHint: 'https://portal.example/server/load.php',
                 macAddress: '00:1A:79:AA:BB:CC',
                 playlistRef: 'playlist-1',
                 profilePreset: {
@@ -194,6 +193,25 @@ describe('mapPlaylistToStalkerSessionConnection', () => {
         expect(result.descriptor).not.toHaveProperty('credentials');
     });
 
+    it('does not auto-submit a legacy username when its password is missing or empty', () => {
+        expect(
+            mapPlaylistToStalkerSessionConnection(
+                playlist({
+                    password: undefined,
+                    username: ' exact user ',
+                })
+            ).savedCredentials
+        ).toBeUndefined();
+        expect(
+            mapPlaylistToStalkerSessionConnection(
+                playlist({
+                    password: '',
+                    username: ' exact user ',
+                })
+            ).savedCredentials
+        ).toBeUndefined();
+    });
+
     it('never reads the legacy stalkerToken into the new mapping', () => {
         const result = mapPlaylistToStalkerSessionConnection(
             playlist({ stalkerToken: 'legacy-token-secret' })
@@ -203,7 +221,11 @@ describe('mapPlaylistToStalkerSessionConnection', () => {
     });
 
     it.each([
-        playlist({ stalkerSourceUrl: undefined, portalUrl: undefined, url: '' }),
+        playlist({
+            stalkerSourceUrl: undefined,
+            portalUrl: undefined,
+            url: '',
+        }),
         playlist({ macAddress: undefined }),
         playlist({ _id: '' }),
     ])('rejects an incomplete playlist mapping', (invalidPlaylist) => {

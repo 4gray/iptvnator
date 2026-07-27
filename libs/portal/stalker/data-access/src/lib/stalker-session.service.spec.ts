@@ -59,6 +59,24 @@ const PROVISIONAL_READY: StalkerSessionConnectionOutcome = {
     requestId: 'request-provisional-1',
 };
 
+const PROVISIONAL_STATELESS_READY: StalkerSessionConnectionOutcome = {
+    attemptRef: 'opaque-attempt-stateless-1',
+    capabilities: {
+        authenticatedSession: false,
+        playbackContext: false,
+    },
+    connectionMode: 'provisional',
+    kind: 'ready',
+    persistenceDraft: {
+        isFullStalkerPortal: false,
+        stalkerRecipeClassifierVersion: 1,
+        stalkerRequestRecipe: 'stateless-mac',
+    },
+    provisionalReason: 'migration',
+    recipe: 'stateless-mac',
+    requestId: 'request-provisional-stateless-1',
+};
+
 const RECONNECTED_READY: StalkerSessionConnectionOutcome = {
     ...READY,
     leaseRef: 'opaque-lease-2',
@@ -321,6 +339,30 @@ describe('StalkerSessionService', () => {
         }
     );
 
+    it('forgets the previous full-session lease after committing a stateless redetection', async () => {
+        bridge.stalkerSessionOpen.mockResolvedValue(READY);
+        bridge.stalkerSessionControl
+            .mockResolvedValueOnce(PROVISIONAL_STATELESS_READY)
+            .mockResolvedValueOnce({
+                action: 'commit',
+                kind: 'success',
+                requestId: 'request-commit-stateless-1',
+            });
+
+        await service.open(PLAYLIST);
+        await expect(service.forceRedetect(READY.leaseRef)).resolves.toBe(
+            PROVISIONAL_STATELESS_READY
+        );
+        await expect(
+            service.commit(PROVISIONAL_STATELESS_READY.attemptRef)
+        ).resolves.toMatchObject({
+            action: 'commit',
+            kind: 'success',
+        });
+
+        expect(service.getLeaseRef(PLAYLIST._id)).toBeUndefined();
+    });
+
     it('adapts a current raw application call to a typed lease request and maps the result back to the legacy response shape', async () => {
         bridge.stalkerSessionOpen.mockResolvedValue(READY);
         bridge.stalkerSessionRequest.mockResolvedValue({
@@ -429,8 +471,7 @@ describe('StalkerSessionService', () => {
         expect(bridge.stalkerSessionRequest).toHaveBeenCalledTimes(2);
         expect(bridge.stalkerSessionRequest.mock.calls[1][0]).toMatchObject({
             leaseRef: 'opaque-lease-2',
-            operation:
-                STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
+            operation: STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
         });
     });
 
@@ -510,6 +551,7 @@ describe('StalkerSessionService', () => {
     it('lets the route continue a first-open credential challenge before the application request', async () => {
         const challenge: StalkerSessionConnectionOutcome = {
             attemptNumber: 1,
+            attemptRef: 'opaque-attempt-route-1',
             challengeRef: 'opaque-challenge-route-1',
             kind: 'credentials-required',
             requestId: 'request-open-challenge',
@@ -519,8 +561,7 @@ describe('StalkerSessionService', () => {
         bridge.stalkerSessionContinue.mockResolvedValue(READY);
         bridge.stalkerSessionRequest.mockResolvedValue({
             kind: 'success',
-            operation:
-                STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
+            operation: STALKER_SESSION_APPLICATION_OPERATIONS.CatalogCategories,
             payload: { items: [] },
             requestId: 'request-after-route-recovery',
         });
@@ -562,6 +603,7 @@ describe('StalkerSessionService', () => {
 
         const failure: StalkerSessionConnectionOutcome = {
             attemptNumber: 1,
+            attemptRef: 'opaque-attempt-active-handler',
             challengeRef: 'opaque-challenge-active-handler',
             kind: 'credentials-required',
             requestId: 'request-active-handler',

@@ -136,11 +136,16 @@ function copyPresentStringValues<T extends object>(source: T): T | undefined {
 function mapSavedCredentials(
     playlist: Playlist
 ): StalkerSavedCredentials | undefined {
-    if (playlist.username === undefined || playlist.username.length === 0) {
+    if (
+        playlist.username === undefined ||
+        playlist.username.length === 0 ||
+        playlist.password === undefined ||
+        playlist.password.length === 0
+    ) {
         return undefined;
     }
     return {
-        password: playlist.password ?? '',
+        password: playlist.password,
         username: playlist.username,
     };
 }
