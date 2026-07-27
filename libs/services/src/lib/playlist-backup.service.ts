@@ -1369,13 +1369,13 @@ export class PlaylistBackupService {
         if (value === undefined) {
             return '';
         }
-        return JSON.stringify(
-            Object.fromEntries(
-                Object.entries(value)
-                    .filter(([, field]) => field !== undefined)
-                    .sort(([left], [right]) => left.localeCompare(right))
-            )
-        );
+        const stable: Record<string, unknown> = {};
+        for (const [key, field] of Object.entries(value)
+            .filter(([, entry]) => entry !== undefined)
+            .sort(([left], [right]) => left.localeCompare(right))) {
+            stable[key] = field;
+        }
+        return JSON.stringify(stable);
     }
 
     private canonicalizeM3u(rawM3u: string): string {
