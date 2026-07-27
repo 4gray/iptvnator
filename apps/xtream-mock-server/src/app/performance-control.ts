@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import type { Request, Response } from 'express';
 import { resetAll } from './data-store.js';
+import { PerformanceInterceptionLifecycle } from './performance-interception-lifecycle.js';
 import { buildPerformanceManifest } from './performance-manifest.js';
 import { PerformanceControlError } from './performance-control-validation.js';
 import {
@@ -32,7 +33,7 @@ export {
     type PerformanceTransport,
 } from './performance-control.types.js';
 
-type HeldOutcome = 'released' | 'aborted' | 'reset';
+type HeldOutcome = 'released' | 'aborted' | 'reset' | 'shutdown';
 interface PendingRequest {
     readonly kind: 'barrier' | 'delay';
     settle(outcome: HeldOutcome): void;
@@ -46,6 +47,8 @@ export class XtreamPerformanceController {
     private readonly seenRuleIds = new Set<string>();
     private acceptedRuleCount = 0;
     private readonly pending = new Map<string, PendingRequest>();
+    private readonly interceptionLifecycle =
+        new PerformanceInterceptionLifecycle();
     private readonly occurrences = new PerformanceOccurrenceTracker();
     private readonly ledger: PerformanceLedgerEntry[] = [];
 
@@ -55,6 +58,7 @@ export class XtreamPerformanceController {
     }
 
     reset(mode: 'all' | 'observations'): { epoch: number; mode: string } {
+        this.interceptionLifecycle.reset();
         this.settlePending('reset');
         this.clearObservations();
         if (mode === 'all') {
@@ -63,6 +67,14 @@ export class XtreamPerformanceController {
             this.epoch += 1;
         }
         return { epoch: this.epoch, mode };
+    }
+
+    shutdown(): PerformanceControlState {
+        if (this.interceptionLifecycle.shutdown()) {
+            this.settlePending('shutdown');
+            this.clearObservations();
+        }
+        return this.snapshot();
     }
 
     addRule(input: PerformanceRuleInput): PerformanceRuleInput {
@@ -111,8 +123,14 @@ export class XtreamPerformanceController {
         transport: PerformanceTransport,
         dispatch: () => void | Promise<void>
     ): Promise<void> {
+        if (this.interceptionLifecycle.shuttingDown) {
+            if (!response.destroyed) response.destroy();
+            return;
+        }
+        const generation = this.interceptionLifecycle.generation;
         const identity = this.occurrences.next(request, transport, this.epoch);
         this.record(identity, 'arrived');
+        const activeId = Symbol('performance-interception');
         let terminal = false;
         let suppressTerminal = false;
         let pendingId: string | undefined;
@@ -121,6 +139,7 @@ export class XtreamPerformanceController {
             request.off('aborted', onAborted);
             response.off('finish', onFinished);
             response.off('close', onClosed);
+            this.interceptionLifecycle.unregister(activeId);
         };
         const finish = (status: 'responded' | 'aborted') => {
             if (terminal) return;
@@ -130,7 +149,12 @@ export class XtreamPerformanceController {
                 this.settleOnePending(pendingId, 'aborted');
                 pendingId = undefined;
             }
-            if (!suppressTerminal) this.record(identity, status);
+            if (
+                !suppressTerminal &&
+                this.interceptionLifecycle.isCurrent(generation)
+            ) {
+                this.record(identity, status);
+            }
         };
         const onAborted = () => finish('aborted');
         const onFinished = () => finish('responded');
@@ -140,6 +164,19 @@ export class XtreamPerformanceController {
         request.once('aborted', onAborted);
         response.once('finish', onFinished);
         response.once('close', onClosed);
+        this.interceptionLifecycle.register(activeId, (abortHeldResponse) => {
+            if (terminal) return;
+            terminal = true;
+            suppressTerminal = true;
+            cleanup();
+            if (
+                (abortHeldResponse || pendingId === undefined) &&
+                !response.writableFinished &&
+                !response.destroyed
+            ) {
+                response.destroy();
+            }
+        });
 
         const rule = this.consumeRule(identity);
         if (rule?.kind === 'barrier') {

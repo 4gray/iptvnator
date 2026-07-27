@@ -56,9 +56,11 @@ apps/xtream-mock-server/
     ├── main.ts                   ← env validation, HTTP lifecycle, safe logging
     └── app/
         ├── server.ts             ← side-effect-free Express app factory/routes
+        ├── server-lifecycle.ts   ← bounded, idempotent HTTP shutdown
         ├── scenarios.ts          ← Credential → ScenarioConfig mapping
         ├── data-store.ts         ← Lazy cache, per-credentials generation
         ├── performance-control.ts ← bounded request lifecycle controller
+        ├── performance-interception-lifecycle.ts ← reset/shutdown generation
         ├── performance-control-routes.ts ← token-gated control HTTP API
         ├── performance-control-validation.ts ← strict request validation
         ├── performance-control.types.ts ← safe manifest/state contracts
@@ -181,7 +183,10 @@ part of the hash input.
 Observation reset clears active/held rules, per-identity occurrences, and the
 ledger while retaining the prepared manifest and epoch. All-state reset also
 calls the data-store reset, clears the manifest, and increments the epoch.
-Either mode safely settles held clients.
+Either mode first advances an internal observation generation and detaches all
+pre-reset response listeners, so a late `finish` or `close` cannot repopulate
+the freshly cleared ledger. Held barrier/delay clients retain the safe `409`
+reset response where possible; unmatched active responses are aborted.
 
 Barrier and delay rules have an ID plus the exact match tuple:
 
@@ -225,6 +230,12 @@ must use the token-authenticated `/__control/reset`.
 Barriers and delays exist for deterministic coordination and smoke tests only.
 Formal performance captures must prove that both rule sets are empty and must
 never add an artificial delay to the timed application path.
+
+`SIGINT` and `SIGTERM` use one bounded, idempotent shutdown path. The
+application hook invalidates active observations, settles barriers and delays,
+and clears their timers/listeners before the HTTP listener closes. The shared
+HTTP helper then closes idle and active connections, so an unreleased control
+rule cannot keep the mock process alive.
 
 ### M3U fixture endpoint
 

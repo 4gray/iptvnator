@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import {
+    createXtreamMockServerShutdown,
     createXtreamMockApp,
     parseXtreamMockServerEnvironment,
 } from './app/server.js';
@@ -15,7 +16,9 @@ function start(): void {
         process.exit(1);
     }
 
-    const server = createServer(createXtreamMockApp(options));
+    const application = createXtreamMockApp(options);
+    const server = createServer(application);
+    const shutdownServer = createXtreamMockServerShutdown(server, application);
     const displayHost = options.host === '::1' ? '[::1]' : options.host;
     let shuttingDown = false;
 
@@ -42,10 +45,11 @@ function start(): void {
     });
 
     const shutdown = () => {
-        if (shuttingDown) return;
-        shuttingDown = true;
-        console.log('\n[xtream-mock] Shutting down...');
-        server.close(() => process.exit(0));
+        if (!shuttingDown) {
+            shuttingDown = true;
+            console.log('\n[xtream-mock] Shutting down...');
+        }
+        void shutdownServer().then(() => process.exit(0));
     };
 
     process.on('SIGINT', shutdown);

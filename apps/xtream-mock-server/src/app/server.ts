@@ -9,8 +9,13 @@ import express, {
 import { resetAll } from './data-store.js';
 import { renderMarketingAssetSvg } from './generators/marketing.generator.js';
 import { installPerformanceControlRoutes } from './performance-control-routes.js';
-import { XtreamPerformanceController } from './performance-control.js';
+import {
+    type PerformanceControlState,
+    XtreamPerformanceController,
+} from './performance-control.js';
 import { dispatchAction } from './routes/dispatch.js';
+
+export { createXtreamMockServerShutdown } from './server-lifecycle.js';
 
 export interface XtreamMockServerOptions {
     readonly control?: {
@@ -19,6 +24,10 @@ export interface XtreamMockServerOptions {
     };
     readonly host: string;
     readonly port: number;
+}
+
+export interface XtreamMockApplication extends express.Express {
+    shutdown(): PerformanceControlState | null;
 }
 
 const M3U_FIXTURE = `#EXTM3U
@@ -44,13 +53,14 @@ const marketingRasterAssetRoot = join(
 
 export function createXtreamMockApp(
     options: XtreamMockServerOptions
-): express.Express {
+): XtreamMockApplication {
     validateServerOptions(options);
-    const app = express();
+    const app = express() as XtreamMockApplication;
     const controlEnabled = options.control?.enabled === true;
     const controller = controlEnabled
         ? new XtreamPerformanceController()
         : undefined;
+    app.shutdown = () => controller?.shutdown() ?? null;
 
     if (controller && options.control) {
         installPerformanceControlRoutes(app, controller, options.control.token);
