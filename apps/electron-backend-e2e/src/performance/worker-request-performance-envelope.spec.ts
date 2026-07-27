@@ -21,10 +21,7 @@ const validCapture = {
     workStartedEpochMs: 1_010,
 } as const;
 
-function normalizeForOperation(
-    operation: string,
-    performanceCapture: unknown
-) {
+function normalizeForOperation(operation: string, performanceCapture: unknown) {
     return normalizeWorkerRequestPerformanceOutcome({
         ipcCallId: 2,
         operation,
@@ -40,7 +37,7 @@ function normalizeForOperation(
 }
 
 function normalize(performanceCapture: unknown) {
-    return normalizeForOperation('DB_GET_CONTENT', performanceCapture);
+    return normalizeForOperation('DB_HAS_CONTENT', performanceCapture);
 }
 
 function assertClosedCapture(
@@ -313,10 +310,7 @@ test('requires the exact operation-specific worker phase sequence', () => {
         );
     }
 
-    for (const operation of [
-        'DB_GET_APP_PLAYLIST',
-        'DB_UPSERT_APP_PLAYLIST',
-    ]) {
+    for (const operation of ['DB_GET_APP_PLAYLIST', 'DB_UPSERT_APP_PLAYLIST']) {
         assertClosedCapture(
             normalizeForOperation(operation, validCapture),
             'worker-performance-capture-invalid'
@@ -324,4 +318,69 @@ test('requires the exact operation-specific worker phase sequence', () => {
     }
 
     assert.deepEqual(normalize(validCapture).phaseEvents, []);
+});
+
+test('routes finalized Xtream phase sequences before the legacy M3U parser', () => {
+    const xtreamPhaseEvents = [
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_015,
+            phase: 'sqlite.content.category-map-read',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 2,
+            epochMs: 1_017,
+            metadata: { itemCount: 60 },
+            phase: 'sqlite.content.category-map-read',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_018,
+            phase: 'normalize.content',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 5,
+            epochMs: 1_023,
+            metadata: { itemCount: 60_000 },
+            phase: 'normalize.content',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_024,
+            phase: 'sqlite.content.write-transactions',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 10,
+            epochMs: 1_034,
+            metadata: { itemCount: 60_000 },
+            phase: 'sqlite.content.write-transactions',
+            requestId: 'request-1',
+        },
+    ] as const;
+
+    assert.deepEqual(
+        normalizeForOperation('DB_SAVE_CONTENT', {
+            ...validCapture,
+            phaseEvents: xtreamPhaseEvents,
+        }).phaseEvents,
+        xtreamPhaseEvents
+    );
+    assertClosedCapture(
+        normalizeForOperation('DB_SAVE_CONTENT', {
+            ...validCapture,
+            phaseEvents: xtreamPhaseEvents.slice(0, -2),
+        }),
+        'worker-performance-capture-invalid'
+    );
 });

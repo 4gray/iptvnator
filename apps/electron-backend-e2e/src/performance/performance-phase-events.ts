@@ -18,6 +18,107 @@ interface ParsedPerformancePhaseEvent {
     readonly requestId: string;
 }
 
+export interface DiagnosticsPerformancePhaseEventParserOptions {
+    readonly allowedPhases: readonly string[];
+    readonly timelineType: string;
+}
+
+export interface DiagnosticsPerformancePhaseTimelineEvent {
+    readonly boundary: 'end' | 'start';
+    readonly byteCount?: number;
+    readonly durationMs: number | null;
+    readonly epochMs: number;
+    readonly itemCount?: number;
+    readonly phase: string;
+    readonly requestId: string;
+    readonly type: string;
+}
+
+export function createDiagnosticsPerformancePhaseEventParser(
+    options: DiagnosticsPerformancePhaseEventParserOptions
+): (input: unknown) => DiagnosticsPerformancePhaseTimelineEvent | null {
+    const allowedPhases = new Set(options.allowedPhases);
+    const eventKeys = new Set([
+        'boundary',
+        'durationMs',
+        'epochMs',
+        'metadata',
+        'phase',
+        'requestId',
+    ]);
+    const metadataKeys = new Set(['byteCount', 'itemCount']);
+    const helpers = {
+        isCount(value: unknown): value is number {
+            return Number.isSafeInteger(value) && Number(value) >= 0;
+        },
+        isRecord(value: unknown): value is Record<string, unknown> {
+            return (
+                typeof value === 'object' &&
+                value !== null &&
+                !Array.isArray(value)
+            );
+        },
+    };
+
+    return (input: unknown) => {
+        if (
+            !helpers.isRecord(input) ||
+            Object.keys(input).some((key) => !eventKeys.has(key))
+        ) {
+            return null;
+        }
+        const boundary = input['boundary'];
+        const durationMs = input['durationMs'];
+        const epochMs = input['epochMs'];
+        const metadata = input['metadata'];
+        const phase = input['phase'];
+        const requestId = input['requestId'];
+        if (
+            (boundary !== 'start' && boundary !== 'end') ||
+            typeof epochMs !== 'number' ||
+            !Number.isFinite(epochMs) ||
+            epochMs < 0 ||
+            typeof phase !== 'string' ||
+            !allowedPhases.has(phase) ||
+            typeof requestId !== 'string' ||
+            requestId.length === 0 ||
+            (boundary === 'start' && durationMs !== null) ||
+            (boundary === 'end' &&
+                (typeof durationMs !== 'number' ||
+                    !Number.isFinite(durationMs) ||
+                    durationMs < 0))
+        ) {
+            return null;
+        }
+        if (
+            metadata !== undefined &&
+            (!helpers.isRecord(metadata) ||
+                Object.keys(metadata).some((key) => !metadataKeys.has(key)) ||
+                Object.values(metadata).some(
+                    (value) => !helpers.isCount(value)
+                ))
+        ) {
+            return null;
+        }
+        const byteCount = helpers.isRecord(metadata)
+            ? metadata['byteCount']
+            : undefined;
+        const itemCount = helpers.isRecord(metadata)
+            ? metadata['itemCount']
+            : undefined;
+        return {
+            boundary,
+            ...(helpers.isCount(byteCount) ? { byteCount } : {}),
+            durationMs: durationMs as number | null,
+            epochMs,
+            ...(helpers.isCount(itemCount) ? { itemCount } : {}),
+            phase,
+            requestId,
+            type: options.timelineType,
+        };
+    };
+}
+
 export function pairPerformancePhaseEvents(
     input: readonly unknown[]
 ): readonly PairedPerformancePhase[] {

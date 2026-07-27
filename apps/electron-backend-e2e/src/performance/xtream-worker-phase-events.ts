@@ -1,24 +1,41 @@
 import {
-    APP_PLAYLIST_GET_PERFORMANCE_PHASE,
-    APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE,
-    type AppPlaylistPerformancePhase,
-    type DatabaseWorkerPerformancePhase,
+    XTREAM_DATABASE_PERFORMANCE_PHASE,
     type PerformancePhaseEvent,
     type PerformancePhaseMetadata,
+    type XtreamDatabasePerformancePhase,
 } from '@iptvnator/shared/interfaces';
-import { parseXtreamWorkerPerformancePhaseEvents } from './xtream-worker-phase-events';
 
 const PHASE_SEQUENCES = {
-    DB_GET_APP_PLAYLIST: [
-        APP_PLAYLIST_GET_PERFORMANCE_PHASE.SQLITE_READ,
-        APP_PLAYLIST_GET_PERFORMANCE_PHASE.DESERIALIZE_PLAYLIST,
+    DB_CLEAR_XTREAM_IMPORT_CACHE: [
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
     ],
-    DB_UPSERT_APP_PLAYLIST: [
-        APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE.SERIALIZE_PLAYLIST,
-        APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE.SQLITE_WRITE,
+    DB_DELETE_PLAYLIST: [
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_COLLECT_IDS,
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_WRITE_TRANSACTIONS,
+    ],
+    DB_DELETE_XTREAM_CONTENT: [
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_COLLECT_USER_DATA,
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_WRITE_TRANSACTIONS,
+    ],
+    DB_GET_CATEGORIES: [
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CATEGORIES_READ,
+    ],
+    DB_GET_CONTENT: [XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CONTENT_READ],
+    DB_SAVE_CATEGORIES: [
+        XTREAM_DATABASE_PERFORMANCE_PHASE.NORMALIZE_CATEGORIES,
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CATEGORIES_WRITE_TRANSACTIONS,
+    ],
+    DB_SAVE_CONTENT: [
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CONTENT_CATEGORY_MAP_READ,
+        XTREAM_DATABASE_PERFORMANCE_PHASE.NORMALIZE_CONTENT,
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CONTENT_WRITE_TRANSACTIONS,
+    ],
+    DB_SEARCH_CONTENT: [
+        XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_SEARCH_QUERY,
+        XTREAM_DATABASE_PERFORMANCE_PHASE.NORMALIZE_SEARCH_RANK,
     ],
 } as const satisfies Readonly<
-    Record<string, readonly AppPlaylistPerformancePhase[]>
+    Record<string, readonly XtreamDatabasePerformancePhase[]>
 >;
 const EVENT_KEYS = new Set([
     'boundary',
@@ -29,36 +46,35 @@ const EVENT_KEYS = new Set([
     'requestId',
 ]);
 
-export function parseWorkerPerformancePhaseEvents(
+export function parseXtreamWorkerPerformancePhaseEvents(
     operation: string | null,
     input: unknown,
     workStartedEpochMs: number,
     workEndedEpochMs: number,
     requestSucceeded: boolean
-): readonly PerformancePhaseEvent<DatabaseWorkerPerformancePhase>[] | null {
-    const xtreamEvents = parseXtreamWorkerPerformancePhaseEvents(
-        operation,
-        input,
-        workStartedEpochMs,
-        workEndedEpochMs,
-        requestSucceeded
-    );
-    if (xtreamEvents !== undefined) {
-        return xtreamEvents;
+):
+    | readonly PerformancePhaseEvent<XtreamDatabasePerformancePhase>[]
+    | null
+    | undefined {
+    const phaseSequence =
+        operation === null
+            ? undefined
+            : PHASE_SEQUENCES[operation as keyof typeof PHASE_SEQUENCES];
+    if (!phaseSequence) {
+        return undefined;
     }
-
-    const phaseSequence = getPhaseSequence(operation);
-    if (phaseSequence.length === 0) {
-        return input === undefined ||
-            (Array.isArray(input) && input.length === 0)
-            ? []
-            : null;
-    }
-    if (!Array.isArray(input) || input.length !== phaseSequence.length * 2) {
+    const completeEventCount = phaseSequence.length * 2;
+    if (
+        !Array.isArray(input) ||
+        input.length === 0 ||
+        input.length % 2 !== 0 ||
+        input.length > completeEventCount ||
+        (requestSucceeded && input.length !== completeEventCount)
+    ) {
         return null;
     }
 
-    const parsed: PerformancePhaseEvent<AppPlaylistPerformancePhase>[] = [];
+    const parsed: PerformancePhaseEvent<XtreamDatabasePerformancePhase>[] = [];
     let lastEpochMs = workStartedEpochMs;
     for (let index = 0; index < input.length; index += 1) {
         const raw = input[index];
@@ -68,7 +84,6 @@ export function parseWorkerPerformancePhaseEvents(
         ) {
             return null;
         }
-
         const boundary = raw['boundary'];
         const durationMs = raw['durationMs'];
         const epochMs = raw['epochMs'];
@@ -86,35 +101,25 @@ export function parseWorkerPerformancePhaseEvents(
             (boundary === 'start' &&
                 (durationMs !== null || metadata !== undefined)) ||
             (boundary === 'end' && !isFiniteNonNegativeNumber(durationMs)) ||
+            (boundary === 'end' &&
+                requestSucceeded &&
+                metadata?.itemCount === undefined) ||
             metadata === null ||
             (parsed.length > 0 && parsed[0]?.requestId !== requestId)
         ) {
             return null;
         }
-
         parsed.push({
             boundary: boundary as 'end' | 'start',
             durationMs: durationMs as number | null,
             epochMs,
             ...(metadata === undefined ? {} : { metadata }),
-            phase: phase as AppPlaylistPerformancePhase,
+            phase: phase as XtreamDatabasePerformancePhase,
             requestId,
         });
         lastEpochMs = epochMs;
     }
     return parsed;
-}
-
-function getPhaseSequence(
-    operation: string | null
-): readonly AppPlaylistPerformancePhase[] {
-    if (operation === 'DB_GET_APP_PLAYLIST') {
-        return PHASE_SEQUENCES.DB_GET_APP_PLAYLIST;
-    }
-    if (operation === 'DB_UPSERT_APP_PLAYLIST') {
-        return PHASE_SEQUENCES.DB_UPSERT_APP_PLAYLIST;
-    }
-    return [];
 }
 
 function parseMetadata(
@@ -131,7 +136,6 @@ function parseMetadata(
     ) {
         return null;
     }
-
     const byteCount = input['byteCount'];
     const itemCount = input['itemCount'];
     if (

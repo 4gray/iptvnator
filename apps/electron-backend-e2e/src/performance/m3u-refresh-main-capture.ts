@@ -3,6 +3,12 @@ import type { ElectronApplication } from '@playwright/test';
 import {
     M3U_IMPORT_PERFORMANCE_PHASE,
     M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL,
+    XTREAM_MAIN_PERFORMANCE_PHASE,
+    XTREAM_MAIN_PERFORMANCE_PHASE_EVENT_CHANNEL,
+    XTREAM_PRELOAD_PERFORMANCE_MARKER_CHANNEL,
+    XTREAM_PRELOAD_PERFORMANCE_METHOD,
+    XTREAM_PRELOAD_PERFORMANCE_SCHEMA_VERSION,
+    XtreamCodeActions,
 } from '@iptvnator/shared/interfaces';
 
 import {
@@ -11,6 +17,10 @@ import {
     type DatabaseRequestIdentity,
     type DatabaseRequestIdentityCaptureApi,
 } from './database-request-identity-capture';
+import {
+    createDatabaseWorkerCancelCapture,
+    type DatabaseWorkerCancelCapture,
+} from './database-worker-cancel-capture';
 import {
     createDatabaseWorkerPostGcCutoffApi,
     type DatabaseWorkerPostGcCutoffApi,
@@ -52,6 +62,14 @@ import {
     type RendererWindowRssSessionApi,
     type RendererWindowRssSessionMetrics,
 } from './renderer-window-rss-session';
+import { createDiagnosticsPerformancePhaseEventParser } from './performance-phase-events';
+import {
+    createPerformanceTimelineMergeApi,
+    type PerformanceTimelineMergeApi,
+} from './performance-timeline-merge';
+import { createXtreamIpcMarkerCapture } from './xtream-ipc-marker-events';
+import { createXtreamIpcMarkerProtocol } from './xtream-ipc-marker-protocol';
+import { createXtreamMainLifecycleValidator } from './xtream-main-lifecycle';
 
 const MAIN_CAPTURE_STATE_KEY = '__iptvnatorM3uRefreshMainCapture';
 
@@ -95,6 +113,10 @@ export async function installMainCapture(
     const captureStateKeys = {
         databaseRequestIdentityStateKey:
             DATABASE_REQUEST_IDENTITY_CAPTURE_STATE_KEY,
+        databaseWorkerCancelCaptureFactorySource:
+            createDatabaseWorkerCancelCapture.toString(),
+        diagnosticsPerformancePhaseEventParserFactorySource:
+            createDiagnosticsPerformancePhaseEventParser.toString(),
         databaseWorkerPostGcCutoffApiFactorySource:
             createDatabaseWorkerPostGcCutoffApi.toString(),
         databaseWorkerPostGcFinalizationApiFactorySource:
@@ -110,11 +132,30 @@ export async function installMainCapture(
         m3uImportPerformancePhaseEventChannel:
             M3U_IMPORT_PERFORMANCE_PHASE_EVENT_CHANNEL,
         m3uImportPerformancePhases: Object.values(M3U_IMPORT_PERFORMANCE_PHASE),
+        performanceTimelineMergeApiFactorySource:
+            createPerformanceTimelineMergeApi.toString(),
         stateKey: MAIN_CAPTURE_STATE_KEY,
         workerTerminationGenerationApiFactorySource:
             createWorkerTerminationGenerationApi.toString(),
+        xtreamIpcMarkerCaptureFactorySource:
+            createXtreamIpcMarkerCapture.toString(),
+        xtreamIpcMarkerCaptureOptions: {
+            actions: Object.values(XtreamCodeActions),
+            mainPhases: Object.values(XTREAM_MAIN_PERFORMANCE_PHASE),
+            methods: Object.values(XTREAM_PRELOAD_PERFORMANCE_METHOD),
+            schemaVersion: XTREAM_PRELOAD_PERFORMANCE_SCHEMA_VERSION,
+        },
+        xtreamIpcMarkerProtocolFactorySource:
+            createXtreamIpcMarkerProtocol.toString(),
+        xtreamMainPerformancePhaseEventChannel:
+            XTREAM_MAIN_PERFORMANCE_PHASE_EVENT_CHANNEL,
+        xtreamMainLifecycleValidatorFactorySource:
+            createXtreamMainLifecycleValidator.toString(),
+        xtreamPreloadPerformanceMarkerChannel:
+            XTREAM_PRELOAD_PERFORMANCE_MARKER_CHANNEL,
     };
-    await electronApp.evaluate(async ({ app, BrowserWindow }, input) => {
+    await electronApp.evaluate(async (electron, input) => {
+        const { app, BrowserWindow, ipcMain } = electron;
         type JsonRecord = Record<string, unknown>;
         type WorkerTransferable = import('node:worker_threads').Transferable;
         interface CpuProfileHandle {
@@ -196,17 +237,23 @@ export async function installMainCapture(
             worker: InstrumentedWorker;
         }
         interface TimelineRecord {
+            readonly action?: string | null;
             readonly boundary?: 'end' | 'start';
             readonly byteCount?: number;
+            readonly categoryType?: string | null;
+            readonly contentType?: string | null;
             readonly durationMs?: number | null;
             readonly epochMs: number;
             readonly ipcCallId?: number;
-            readonly itemCount?: number;
+            readonly itemCount?: number | null;
+            readonly method?: string;
             readonly operation?: string;
-            readonly operationId?: string;
+            readonly operationId?: string | null;
+            readonly outcome?: 'error' | 'success' | null;
             readonly phase?: string;
-            readonly playlistId?: string;
+            readonly playlistId?: string | null;
             readonly requestId?: string;
+            readonly sessionId?: string | null;
             readonly success?: boolean;
             readonly sourceEpochMs?: number;
             readonly type: string;
@@ -228,6 +275,10 @@ export async function installMainCapture(
         const databaseWorkerPostGcCutoffApi =
             restoreFactory<DatabaseWorkerPostGcCutoffApi>(
                 input.databaseWorkerPostGcCutoffApiFactorySource
+            );
+        const databaseWorkerCancelCapture =
+            restoreFactory<DatabaseWorkerCancelCapture>(
+                input.databaseWorkerCancelCaptureFactorySource
             );
         const databaseWorkerPostGcFinalizationApi =
             restoreFactory<DatabaseWorkerPostGcFinalizationApi>(
@@ -253,6 +304,27 @@ export async function installMainCapture(
             restoreFactory<WorkerTerminationGenerationApi>(
                 input.workerTerminationGenerationApiFactorySource
             );
+        const diagnosticsPerformancePhaseEventParserFactory = restoreFactory<
+            typeof createDiagnosticsPerformancePhaseEventParser
+        >(input.diagnosticsPerformancePhaseEventParserFactorySource);
+        const performanceTimelineMergeApi =
+            restoreFactory<PerformanceTimelineMergeApi>(
+                input.performanceTimelineMergeApiFactorySource
+            );
+        const xtreamIpcMarkerProtocolFactory = restoreFactory<
+            typeof createXtreamIpcMarkerProtocol
+        >(input.xtreamIpcMarkerProtocolFactorySource);
+        const xtreamIpcMarkerCaptureFactory = restoreFactory<
+            typeof createXtreamIpcMarkerCapture
+        >(input.xtreamIpcMarkerCaptureFactorySource);
+        const xtreamMainLifecycleValidatorFactory = restoreFactory<
+            typeof createXtreamMainLifecycleValidator
+        >(input.xtreamMainLifecycleValidatorFactorySource);
+        const xtreamIpcMarkerCapture = xtreamIpcMarkerCaptureFactory(
+            input.xtreamIpcMarkerCaptureOptions,
+            xtreamIpcMarkerProtocolFactory(input.xtreamIpcMarkerCaptureOptions),
+            xtreamMainLifecycleValidatorFactory()
+        );
 
         const runtimeProcess = process as typeof process & {
             getBuiltinModule(id: string): unknown;
@@ -328,60 +400,61 @@ export async function installMainCapture(
                 state.timeline.push({ epochMs: nowEpochMs(), ...record });
             }
         };
-        const m3uImportPhases = new Set<string>(
-            input.m3uImportPerformancePhases
-        );
-        diagnosticsChannel
-            .channel(input.m3uImportPerformancePhaseEventChannel)
-            .subscribe((incoming: unknown) => {
+        const parseM3uImportPhase =
+            diagnosticsPerformancePhaseEventParserFactory({
+                allowedPhases: input.m3uImportPerformancePhases,
+                timelineType: 'm3u-import-phase',
+            });
+        const parseXtreamMainPhase =
+            diagnosticsPerformancePhaseEventParserFactory({
+                allowedPhases: input.xtreamIpcMarkerCaptureOptions.mainPhases,
+                timelineType: 'xtream-main-phase',
+            });
+        const subscribeDiagnosticsPhase = (
+            channelName: string,
+            parse: ReturnType<
+                typeof createDiagnosticsPerformancePhaseEventParser
+            >,
+            accept: (event: NonNullable<ReturnType<typeof parse>>) => void
+        ): void => {
+            diagnosticsChannel.channel(channelName).subscribe((incoming) => {
                 if (!state.active && !state.stopping) {
                     return;
                 }
-                if (typeof incoming !== 'object' || incoming === null) {
-                    return;
+                const event = parse(incoming);
+                if (event) {
+                    accept(event);
                 }
-                const event = incoming as JsonRecord;
-                const boundary = event['boundary'];
-                const durationMs = event['durationMs'];
-                const epochMs = event['epochMs'];
-                const metadata =
-                    typeof event['metadata'] === 'object' &&
-                    event['metadata'] !== null
-                        ? (event['metadata'] as JsonRecord)
-                        : null;
-                const phase = event['phase'];
-                const requestId = event['requestId'];
-                if (
-                    (boundary !== 'start' && boundary !== 'end') ||
-                    typeof epochMs !== 'number' ||
-                    !Number.isFinite(epochMs) ||
-                    typeof phase !== 'string' ||
-                    !m3uImportPhases.has(phase) ||
-                    typeof requestId !== 'string' ||
-                    requestId.length === 0 ||
-                    (boundary === 'start' && durationMs !== null) ||
-                    (boundary === 'end' &&
-                        (typeof durationMs !== 'number' ||
-                            !Number.isFinite(durationMs) ||
-                            durationMs < 0))
-                ) {
-                    return;
-                }
-                const byteCount = metadata?.['byteCount'];
-                const itemCount = metadata?.['itemCount'];
-                state.timeline.push({
-                    boundary,
-                    ...(isCount(byteCount) ? { byteCount } : {}),
-                    durationMs: durationMs as number | null,
-                    epochMs,
-                    ...(isCount(itemCount) ? { itemCount } : {}),
-                    phase,
-                    requestId,
-                    type: 'm3u-import-phase',
-                });
             });
-        const isCount = (value: unknown): value is number =>
-            Number.isSafeInteger(value) && Number(value) >= 0;
+        };
+        subscribeDiagnosticsPhase(
+            input.m3uImportPerformancePhaseEventChannel,
+            parseM3uImportPhase,
+            (event) => state.timeline.push(event)
+        );
+        subscribeDiagnosticsPhase(
+            input.xtreamMainPerformancePhaseEventChannel,
+            parseXtreamMainPhase,
+            (event) => {
+                xtreamIpcMarkerCapture.acceptMainPhase(event);
+            }
+        );
+        ipcMain.on(
+            input.xtreamPreloadPerformanceMarkerChannel,
+            (event, marker) => {
+                let senderWebContentsId = -1;
+                try {
+                    senderWebContentsId = event.sender.id;
+                } catch {
+                    // Strict capture rejects an unreadable sender identity.
+                }
+                xtreamIpcMarkerCapture.acceptPreload(
+                    senderWebContentsId,
+                    nowEpochMs(),
+                    marker
+                );
+            }
+        );
         const classifyRequest = (
             message: JsonRecord
         ): 'database.worker' | 'playlist-refresh.worker' | null => {
@@ -458,6 +531,17 @@ export async function installMainCapture(
                     return;
                 }
                 const message = incoming as JsonRecord;
+                if (message['type'] === 'performance-cancel-received') {
+                    if (record.kind === 'database.worker') {
+                        databaseWorkerCancelCapture.acceptReceipt({
+                            captureGeneration: state.captureGeneration,
+                            message,
+                            receivedEpochMs: nowEpochMs(),
+                            recordGeneration: record.captureGeneration,
+                        });
+                    }
+                    return;
+                }
                 if (!isCurrentCaptureRecord(record)) {
                     return;
                 }
@@ -494,6 +578,31 @@ export async function installMainCapture(
                             playlistId: record.playlistId ?? undefined,
                             success: message['success'] === true,
                             type: 'playlist-response',
+                        });
+                    }
+                    return;
+                }
+                if (
+                    message['type'] === 'event' &&
+                    typeof message['requestId'] === 'string'
+                ) {
+                    const event = message['event'];
+                    const request = dbRequests.get(message['requestId']);
+                    if (
+                        request &&
+                        typeof event === 'object' &&
+                        event !== null &&
+                        (event as JsonRecord)['status'] === 'cancelled' &&
+                        typeof (event as JsonRecord)['operationId'] === 'string'
+                    ) {
+                        databaseWorkerCancelCapture.acceptTerminal({
+                            captureGeneration: state.captureGeneration,
+                            operationId: (event as JsonRecord)[
+                                'operationId'
+                            ] as string,
+                            receivedEpochMs: nowEpochMs(),
+                            recordGeneration: record.captureGeneration,
+                            requestId: message['requestId'],
                         });
                     }
                     return;
@@ -954,8 +1063,13 @@ export async function installMainCapture(
                                           (payload as JsonRecord)['operationId']
                                       )
                                     : null;
+                            const xtreamIdentity =
+                                xtreamIpcMarkerCapture.matchDatabaseRequest(
+                                    value
+                                );
                             const identity =
-                                payloadOperationId === null
+                                xtreamIdentity ??
+                                (payloadOperationId === null
                                     ? databaseRequestIdentityCapture.matchDatabaseRequest(
                                           value
                                       )
@@ -964,7 +1078,7 @@ export async function installMainCapture(
                                           operationId: payloadOperationId,
                                           operationIdUnavailableReason: null,
                                           sourceEpochMs: null,
-                                      };
+                                      });
                             record.pendingCount += 1;
                             dbRequests.set(value['requestId'], {
                                 identity,
@@ -989,13 +1103,50 @@ export async function installMainCapture(
                     value['type'] === 'cancel' &&
                     typeof value['operationId'] === 'string'
                 ) {
-                    const record = operationWorkers.get(value['operationId']);
-                    if (record) {
-                        record.cancelPostedEpochMs = nowEpochMs();
+                    const playlistRecord = operationWorkers.get(
+                        value['operationId']
+                    );
+                    const cancelPostedEpochMs = nowEpochMs();
+                    if (playlistRecord) {
+                        playlistRecord.cancelPostedEpochMs =
+                            cancelPostedEpochMs;
                         recordTimeline({
                             operationId: value['operationId'],
                             type: 'playlist-cancel-posted',
                         });
+                    } else {
+                        const cancelIdentity =
+                            xtreamIpcMarkerCapture.matchDatabaseCancel(value);
+                        const matchingRequests = [
+                            ...dbRequests.entries(),
+                        ].filter(
+                            ([, request]) =>
+                                request.identity.operationId ===
+                                value['operationId']
+                        );
+                        const match = matchingRequests[0];
+                        if (
+                            matchingRequests.length === 1 &&
+                            match &&
+                            cancelIdentity
+                        ) {
+                            const [requestId, request] = match;
+                            request.record.cancelPostedEpochMs =
+                                cancelPostedEpochMs;
+                            databaseWorkerCancelCapture.acceptDispatch({
+                                captureGeneration: state.captureGeneration,
+                                ipcCallId: cancelIdentity.ipcCallId,
+                                operationId: cancelIdentity.operationId,
+                                postedEpochMs: cancelPostedEpochMs,
+                                requestId,
+                                sourceEpochMs: cancelIdentity.sourceEpochMs,
+                            });
+                        } else {
+                            recordTimeline({
+                                operationId: value['operationId'],
+                                type: 'db-cancel-dispatch-correlation-invalid',
+                            });
+                        }
                     }
                 }
             }
@@ -1101,6 +1252,7 @@ export async function installMainCapture(
         const startCapture = async (
             options: MainCaptureStartOptions
         ): Promise<void> => {
+            const captureStartedEpochMs = nowEpochMs();
             state.rendererWindowSession?.detach();
             state.rendererWindowSession = null;
             const rendererWindowSession = rendererWindowRssSessionApi.create({
@@ -1115,6 +1267,11 @@ export async function installMainCapture(
             state.captureGeneration += 1;
             state.active = true;
             databaseRequestIdentityCapture.start();
+            databaseWorkerCancelCapture.start(state.captureGeneration);
+            xtreamIpcMarkerCapture.start(
+                options.rendererWindowIdentity.webContentsId,
+                captureStartedEpochMs
+            );
             dbRequests.clear();
             operationWorkers.clear();
             state.diagnostic = options.diagnostic;
@@ -1202,6 +1359,21 @@ export async function installMainCapture(
                 databaseWorkerPostGcCutoffApi.beginStop();
                 state.stopping = true;
                 state.active = false;
+                const xtreamIpcSnapshot = xtreamIpcMarkerCapture.stop();
+                const databaseWorkerCancelSnapshot =
+                    databaseWorkerCancelCapture.stop();
+                for (const reason of databaseWorkerCancelSnapshot.invalidReasons) {
+                    state.timeline.push({
+                        epochMs: nowEpochMs(),
+                        type: `database-worker-cancel-capture-invalid:${reason}`,
+                    });
+                }
+                for (const reason of xtreamIpcSnapshot.invalidReasons) {
+                    state.timeline.push({
+                        epochMs: nowEpochMs(),
+                        type: `xtream-capture-invalid:${reason}`,
+                    });
+                }
                 for (const marker of databaseRequestIdentityCapture.takeSuccessMarkers()) {
                     state.timeline.push({
                         epochMs: marker.sourceEpochMs,
@@ -1397,6 +1569,13 @@ export async function installMainCapture(
                             success: request.success,
                         })),
                     }));
+                state.timeline = performanceTimelineMergeApi.merge(
+                    state.timeline,
+                    [
+                        ...xtreamIpcSnapshot.timeline,
+                        ...databaseWorkerCancelSnapshot.timeline,
+                    ]
+                );
                 const transport: MainCaptureGenerationTransport = {
                     captureGeneration: state.captureGeneration,
                     metrics: {
