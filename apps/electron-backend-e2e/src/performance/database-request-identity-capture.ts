@@ -22,6 +22,7 @@ export interface DatabaseRequestIdentityCaptureApi {
     matchDatabaseRequest(message: unknown): DatabaseRequestIdentity;
     start(): void;
     stop(): void;
+    successMarkerCount(): number;
     takeSuccessMarkers(): readonly PreloadDatabaseSuccessMarker[];
 }
 
@@ -333,6 +334,7 @@ export function installDatabaseRequestIdentityCaptureInMain(
             quarantinedKeys = [];
             successMarkers = [];
         },
+        successMarkerCount: () => successMarkers.length,
         takeSuccessMarkers: () => {
             const captured = Object.freeze([...successMarkers]);
             successMarkers = [];

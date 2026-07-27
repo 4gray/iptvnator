@@ -128,17 +128,19 @@ therefore `N/A` with
 Instrumentation is development-only, opt-in, fail-neutral, and count-only. It
 must not scan or log playlist payloads to generate metadata. Renderer
 long-task, frame-gap, and heartbeat samples are clipped to the measured
-operation boundary. Formal comparison fails closed after writing raw results
-if exact-window renderer RSS, database-worker peak heap/external samples, or
-the database worker's explicit post-GC heap is missing or incoherent. Both
-initial-import database requests in every measured run must also contain
-coherent event-loop delay, event-loop utilization, and thread-CPU metrics;
-the validity record exposes the exact expected and valid request counts rather
-than silently dropping nullable samples. An iteration failure idempotently
-stops renderer timers, closes trace listeners/output, and starts best-effort
-probe/session teardown without waiting on a wedged renderer before Electron is
-closed. A partial capture-start failure performs the same rollback before it
-escapes to the benchmark lifecycle.
+operation boundary. Main capture stops only after the upsert and route-reload
+GET responses plus both asynchronous preload success markers have arrived, so
+return-clone attribution cannot race capture shutdown. Formal comparison fails
+closed after writing raw results if exact-window renderer RSS, database-worker
+peak heap/external samples, or the database worker's explicit post-GC heap is
+missing or incoherent. Both initial-import database requests in every measured
+run must also contain coherent event-loop delay, event-loop utilization, and
+thread-CPU metrics; the validity record exposes the exact expected and valid
+request counts rather than silently dropping nullable samples. An iteration
+failure idempotently stops renderer timers, closes trace listeners/output, and
+starts best-effort probe/session teardown without waiting on a wedged renderer
+before Electron is closed. A partial capture-start failure performs the same
+rollback before it escapes to the benchmark lifecycle.
 Diagnostic artifacts require separate renderer, main, and database-worker CPU
 profiles plus renderer/main/database-worker heap snapshots and a Chromium
 trace; raw profiles remain ignored.

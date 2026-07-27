@@ -70,6 +70,7 @@ export interface MainCaptureStatus {
     readonly playlistResponsesFailed: number;
     readonly playlistResponses: number;
     readonly playlistResponsesSucceeded: number;
+    readonly preloadSuccessMarkers: number;
 }
 
 export interface MainCaptureRolloverResult {
@@ -1188,6 +1189,8 @@ export async function installMainCapture(
                         entry['type'] === 'playlist-response' &&
                         entry['success'] === true
                 ).length,
+                preloadSuccessMarkers:
+                    databaseRequestIdentityCapture.successMarkerCount(),
             }),
             start: async (options: MainCaptureStartOptions): Promise<void> => {
                 databaseWorkerPostGcCutoffApi.beginCapture();

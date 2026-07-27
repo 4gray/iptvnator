@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { it } from 'node:test';
 
 import { PERFORMANCE_ITERATION_KIND } from './m3u-refresh-cancellation-contract';
@@ -15,6 +17,16 @@ import {
     TEST_M3U_CHANNEL_COUNT,
     TEST_M3U_FIXTURE_BYTES,
 } from './m3u-import-report.test-helpers';
+
+it('keeps summary aggregation below the hard line limit without a suppression', () => {
+    const source = readFileSync(
+        resolve(process.cwd(), 'src/performance/m3u-import-summary.ts'),
+        'utf8'
+    );
+
+    assert.doesNotMatch(source, /eslint-disable max-lines/);
+    assert.ok(source.split(/\r?\n/).length <= 400);
+});
 
 it('summarizes measured runs only while preserving per-process memory boundaries', () => {
     const warmup = createM3uImportIterationResult({

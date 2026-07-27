@@ -114,6 +114,7 @@ test('captures exact successful preload completion markers for DB return-clone a
         })
     );
 
+    assert.equal(api.successMarkerCount(), 2);
     assert.deepEqual(api.takeSuccessMarkers(), [
         {
             ipcCallId: 7,
@@ -130,6 +131,7 @@ test('captures exact successful preload completion markers for DB return-clone a
             sourceEpochMs: 175.5,
         },
     ]);
+    assert.equal(api.successMarkerCount(), 0);
     assert.deepEqual(api.takeSuccessMarkers(), []);
 });
 
@@ -153,6 +155,7 @@ test('fails closed for malformed or invalid successful preload markers and reset
             })
         );
     }
+    assert.equal(api.successMarkerCount(), 0);
     assert.deepEqual(api.takeSuccessMarkers(), []);
 
     ipcMain.emit(
@@ -164,6 +167,7 @@ test('fails closed for malformed or invalid successful preload markers and reset
     );
     api.stop();
     api.start();
+    assert.equal(api.successMarkerCount(), 0);
     assert.deepEqual(api.takeSuccessMarkers(), []);
 });
 

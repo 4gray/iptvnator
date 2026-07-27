@@ -158,6 +158,7 @@ describe('initial M3U import benchmark lifecycle', () => {
         assert.match(source, /status\.databaseUpsertsCompleted\s*===\s*1/);
         assert.match(source, /status\.databaseGetsCompleted\s*===\s*1/);
         assert.match(source, /status\.databasePending\s*===\s*0/);
+        assert.match(source, /status\.preloadSuccessMarkers\s*===\s*2/);
     });
 
     it('always disposes renderer capture before closing Electron on iteration failure', () => {

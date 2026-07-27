@@ -268,7 +268,8 @@ async function waitForDatabaseSettlement(
                     status.databaseRequests === 2 &&
                     status.databaseUpsertsCompleted === 1 &&
                     status.databaseGetsCompleted === 1 &&
-                    status.databasePending === 0
+                    status.databasePending === 0 &&
+                    status.preloadSuccessMarkers === 2
                 );
             },
             { timeout: 120_000 }
