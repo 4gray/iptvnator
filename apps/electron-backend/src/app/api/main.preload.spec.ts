@@ -15,6 +15,7 @@ import {
     dbPreloadCases,
     epgPreloadCases,
     operationId,
+    playbackContextPreloadCases,
     stalkerSessionPreloadCases,
 } from './main.preload.spec-data';
 
@@ -124,6 +125,20 @@ describe('main preload DB IPC contract', () => {
 
     it.each(stalkerSessionPreloadCases)(
         '$method invokes $channel with the expected arguments',
+        async ({ method, args, channel, forwardedArgs }) => {
+            const api = getExposedApi();
+
+            await callExposedApiMethod(api, method, args);
+
+            expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+                channel,
+                ...forwardedArgs
+            );
+        }
+    );
+
+    it.each(playbackContextPreloadCases)(
+        '$method forwards opaque playback context through $channel',
         async ({ method, args, channel, forwardedArgs }) => {
             const api = getExposedApi();
 

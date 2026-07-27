@@ -39,6 +39,7 @@ export interface OpenVlcPlayerRequest {
     contentInfo?: PlayerContentInfo;
     startTime?: number;
     headers?: Record<string, string>;
+    mainOwnedHeaders?: Record<string, string>;
 }
 
 let vlcProcess: ChildProcess | null = null;
@@ -309,6 +310,7 @@ export async function openVlcPlayer({
     contentInfo,
     startTime,
     headers,
+    mainOwnedHeaders,
 }: OpenVlcPlayerRequest) {
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',
@@ -342,6 +344,7 @@ export async function openVlcPlayer({
             referer,
             origin,
             headers,
+            mainOwnedHeaders,
         });
         traceExternalPlayer('open vlc player', {
             path: vlcLaunchContext.playerPath,

@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import {
     CLOSE_EXTERNAL_PLAYER_SESSION,
     PlayerContentInfo,
+    StalkerPlaybackContextRef,
 } from '@iptvnator/shared/interfaces';
 import {
     MPV_PLAYER_PATH,
@@ -9,6 +10,7 @@ import {
     VLC_PLAYER_PATH,
 } from '../services/store.service';
 import { normalizePlayerPathForStore } from './external-player-launch-context';
+import { stalkerPlaybackContextService } from '../services/stalker-playback-context.service';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
@@ -41,7 +43,7 @@ export default class PlayerEvents {
 ipcMain.handle(
     'OPEN_MPV_PLAYER',
     async (
-        _event,
+        event,
         url: string,
         title: string,
         thumbnail?: string,
@@ -50,9 +52,29 @@ ipcMain.handle(
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
-    ) =>
-        openMpvPlayer({
+        headers?: Record<string, string>,
+        playbackContextRef?: StalkerPlaybackContextRef
+    ) => {
+        if (playbackContextRef !== undefined) {
+            const mainOwnedHeaders = stalkerPlaybackContextService.consume({
+                contextRef: playbackContextRef,
+                senderId: event.sender.id,
+                streamUrl: url,
+            });
+            if (!mainOwnedHeaders) {
+                throw new Error('invalid-playback-context');
+            }
+            return openMpvPlayer({
+                url,
+                title,
+                thumbnail,
+                contentInfo,
+                startTime,
+                mainOwnedHeaders,
+            });
+        }
+
+        return openMpvPlayer({
             url,
             title,
             thumbnail,
@@ -62,7 +84,8 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
-        })
+        });
+    }
 );
 
 ipcMain.handle(
@@ -83,7 +106,7 @@ ipcMain.handle('SET_MPV_REUSE_INSTANCE', (_event, reuseInstance: boolean) => {
 ipcMain.handle(
     'OPEN_VLC_PLAYER',
     async (
-        _event,
+        event,
         url: string,
         title: string,
         thumbnail?: string,
@@ -92,9 +115,29 @@ ipcMain.handle(
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
-    ) =>
-        openVlcPlayer({
+        headers?: Record<string, string>,
+        playbackContextRef?: StalkerPlaybackContextRef
+    ) => {
+        if (playbackContextRef !== undefined) {
+            const mainOwnedHeaders = stalkerPlaybackContextService.consume({
+                contextRef: playbackContextRef,
+                senderId: event.sender.id,
+                streamUrl: url,
+            });
+            if (!mainOwnedHeaders) {
+                throw new Error('invalid-playback-context');
+            }
+            return openVlcPlayer({
+                url,
+                title,
+                thumbnail,
+                contentInfo,
+                startTime,
+                mainOwnedHeaders,
+            });
+        }
+
+        return openVlcPlayer({
             url,
             title,
             thumbnail,
@@ -104,7 +147,8 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
-        })
+        });
+    }
 );
 
 ipcMain.handle(

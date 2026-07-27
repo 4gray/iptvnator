@@ -198,6 +198,34 @@ describe('ElectronService', () => {
         );
     });
 
+    it.each([
+        ['OPEN_MPV_PLAYER', 'openInMpv'],
+        ['OPEN_VLC_PLAYER', 'openInVlc'],
+    ])(
+        'forwards opaque playback contexts through %s',
+        async (event, method) => {
+            await service.sendIpcEvent(event, {
+                playbackContextRef: 'opaque-playback-context',
+                url: 'https://stream.example/live.m3u8',
+            });
+
+            expect(
+                electronBridge[method as 'openInMpv' | 'openInVlc']
+            ).toHaveBeenCalledWith(
+                'https://stream.example/live.m3u8',
+                '',
+                '',
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'opaque-playback-context'
+            );
+        }
+    );
+
     describe('startup playlist auto-refresh feedback', () => {
         function createPlaylist(id: string, title: string): Playlist {
             return {

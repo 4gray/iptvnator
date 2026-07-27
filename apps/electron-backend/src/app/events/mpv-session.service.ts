@@ -39,6 +39,7 @@ export interface OpenExternalPlayerRequest {
     contentInfo?: PlayerContentInfo;
     startTime?: number;
     headers?: Record<string, string>;
+    mainOwnedHeaders?: Record<string, string>;
 }
 
 let mpvProcess: ChildProcess | null = null;
@@ -220,6 +221,7 @@ export async function openMpvPlayer({
     contentInfo,
     startTime,
     headers,
+    mainOwnedHeaders,
 }: OpenExternalPlayerRequest) {
     const session = externalPlayerSessions.beginSession({
         player: 'mpv',
@@ -254,6 +256,7 @@ export async function openMpvPlayer({
             referer,
             origin,
             headers,
+            mainOwnedHeaders,
         });
 
         traceExternalPlayer('open mpv player', {

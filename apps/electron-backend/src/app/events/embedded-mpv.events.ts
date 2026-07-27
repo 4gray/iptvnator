@@ -26,6 +26,8 @@ import {
     EmbeddedMpvNativeService,
     embeddedMpvNativeService,
 } from '../services/embedded-mpv-native.service';
+import { stalkerPlaybackContextService } from '../services/stalker-playback-context.service';
+import { resolveEffectiveExternalPlaybackRequest } from './external-player-playback-request';
 
 export default class EmbeddedMpvEvents {
     static bootstrapEmbeddedMpvEvents(): Electron.IpcMain {
@@ -47,14 +49,20 @@ function handleEmbeddedMpv<Args extends unknown[]>(
     channel: string,
     handler: (...args: Args) => unknown
 ): void {
-    ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
+    handleEmbeddedMpvEvent(channel, (_event, ...args: Args) =>
+        handler(...args)
+    );
+}
+
+function handleEmbeddedMpvEvent<Args extends unknown[]>(
+    channel: string,
+    handler: (event: Electron.IpcMainInvokeEvent, ...args: Args) => unknown
+): void {
+    ipcMain.handle(channel, async (event, ...args: unknown[]) => {
         try {
-            return await handler(...(args as Args));
+            return await handler(event, ...(args as Args));
         } catch (error) {
-            console.error(
-                `[Embedded MPV] ${channel} handler failed:`,
-                error
-            );
+            console.error(`[Embedded MPV] ${channel} handler failed:`, error);
             throw error;
         }
     });
@@ -70,10 +78,49 @@ handleEmbeddedMpv(
         getService().createSession(bounds, title, initialVolume)
 );
 
-handleEmbeddedMpv(
+handleEmbeddedMpvEvent(
     EMBEDDED_MPV_LOAD_PLAYBACK,
-    (sessionId: string, playback: ResolvedPortalPlayback) =>
-        getService().loadPlayback(sessionId, playback)
+    (event, sessionId: string, playback: ResolvedPortalPlayback) => {
+        if (playback.playbackContextRef === undefined) {
+            return getService().loadPlayback(sessionId, playback);
+        }
+
+        const mainOwnedHeaders = stalkerPlaybackContextService.consume({
+            contextRef: playback.playbackContextRef,
+            senderId: event.sender.id,
+            streamUrl: playback.streamUrl,
+        });
+        if (!mainOwnedHeaders) {
+            throw new Error('invalid-playback-context');
+        }
+
+        const {
+            playbackContextRef: _playbackContextRef,
+            headers: _headers,
+            userAgent: _userAgent,
+            referer: _referer,
+            origin: _origin,
+            ...safePlayback
+        } = playback;
+        const {
+            effectiveOrigin,
+            effectiveReferer,
+            effectiveUserAgent,
+            mergedHeaders,
+        } = resolveEffectiveExternalPlaybackRequest({
+            url: playback.streamUrl,
+            mainOwnedHeaders,
+        });
+        const managedPlayback: ResolvedPortalPlayback = {
+            ...safePlayback,
+            headers: mergedHeaders,
+            ...(effectiveOrigin ? { origin: effectiveOrigin } : {}),
+            ...(effectiveReferer ? { referer: effectiveReferer } : {}),
+            ...(effectiveUserAgent ? { userAgent: effectiveUserAgent } : {}),
+        };
+
+        return getService().loadPlayback(sessionId, managedPlayback);
+    }
 );
 
 handleEmbeddedMpv(

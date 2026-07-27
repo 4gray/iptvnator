@@ -130,4 +130,31 @@ describe('PlayerService', () => {
         expect(dialog.open).not.toHaveBeenCalled();
         expect(result).toEqual(session);
     });
+
+    it('forwards only the opaque context instead of renderer-controlled headers for managed playback', async () => {
+        settingsStore.player.mockReturnValue(VideoPlayer.MPV);
+
+        await service.openResolvedPlayback({
+            headers: {
+                Authorization: 'Bearer renderer-token',
+                Cookie: 'session=renderer-cookie',
+            },
+            origin: 'https://renderer.example',
+            playbackContextRef: 'opaque-playback-context',
+            referer: 'https://renderer.example/referrer',
+            streamUrl: 'https://stream.example/live.m3u8',
+            title: 'Managed stream',
+            userAgent: 'RendererAgent/1.0',
+        });
+
+        const payload = dataService.sendIpcEvent.mock.calls[0][1];
+        expect(payload).toMatchObject({
+            playbackContextRef: 'opaque-playback-context',
+            url: 'https://stream.example/live.m3u8',
+        });
+        expect(payload).not.toHaveProperty('headers');
+        expect(payload).not.toHaveProperty('user-agent');
+        expect(payload).not.toHaveProperty('referer');
+        expect(payload).not.toHaveProperty('origin');
+    });
 });

@@ -26,8 +26,14 @@ jest.mock('../services/store.service', () => ({
     },
 }));
 
+const mockConsumeStalkerPlaybackContext = jest.fn();
+const mockGetStalkerPlaybackContextHeaders = jest.fn(() => undefined);
+
 jest.mock('../services/stalker-playback-context.service', () => ({
-    getStalkerPlaybackContextHeaders: jest.fn(() => undefined),
+    getStalkerPlaybackContextHeaders: mockGetStalkerPlaybackContextHeaders,
+    stalkerPlaybackContextService: {
+        consume: mockConsumeStalkerPlaybackContext,
+    },
 }));
 
 import { ipcMain } from 'electron';
@@ -52,6 +58,7 @@ import {
     shouldReuseVlcInstance,
     shouldUseMpvSocketBridge,
 } from './player.events';
+import { resolveEffectiveExternalPlaybackRequest } from './external-player-playback-request';
 import { openVlcPlayer } from './vlc-session.service';
 
 function createPathExists(existingPaths: string[]) {
@@ -385,6 +392,143 @@ describe('player.events external player path settings', () => {
         getIpcMainHandler('SET_VLC_REUSE_INSTANCE')({}, true);
 
         expect(store.set).toHaveBeenCalledWith(VLC_REUSE_INSTANCE, true);
+    });
+});
+
+describe('player.events Stalker playback contexts', () => {
+    beforeEach(() => {
+        mockConsumeStalkerPlaybackContext.mockReset();
+        mockGetStalkerPlaybackContextHeaders.mockReset();
+        mockGetStalkerPlaybackContextHeaders.mockReturnValue(undefined);
+        (spawn as unknown as jest.Mock).mockReset();
+        (store.get as unknown as jest.Mock).mockImplementation(
+            (_key: string, fallback?: unknown) => fallback
+        );
+    });
+
+    it('uses only main-owned context headers for a sender-bound MPV launch and consumes the ref once', async () => {
+        jest.useFakeTimers();
+        try {
+            const proc = createMockChildProcess();
+            (spawn as unknown as jest.Mock).mockReturnValue(proc);
+            mockConsumeStalkerPlaybackContext
+                .mockReturnValueOnce({
+                    Authorization: 'Bearer main-token',
+                    Cookie: 'session=main-cookie',
+                    Origin: 'https://main.example',
+                    Referer: 'https://main.example/player/',
+                    'User-Agent': 'MainAgent/1.0',
+                })
+                .mockReturnValueOnce(null);
+            const handler = getIpcMainHandler('OPEN_MPV_PLAYER');
+            const args = [
+                'https://stream.example/live.m3u8',
+                'Managed stream',
+                '',
+                'RendererAgent/1.0',
+                'https://renderer.example/referrer',
+                'https://renderer.example',
+                undefined,
+                undefined,
+                {
+                    Authorization: 'Bearer renderer-token',
+                    Cookie: 'session=renderer-cookie',
+                },
+                'opaque-playback-context',
+            ] as const;
+
+            const firstLaunch = handler({ sender: { id: 71 } }, ...args);
+            jest.advanceTimersByTime(100);
+            await expect(firstLaunch).resolves.toMatchObject({
+                player: 'mpv',
+                status: 'opened',
+            });
+
+            expect(mockConsumeStalkerPlaybackContext).toHaveBeenCalledWith({
+                contextRef: 'opaque-playback-context',
+                senderId: 71,
+                streamUrl: 'https://stream.example/live.m3u8',
+            });
+            expect(mockGetStalkerPlaybackContextHeaders).not.toHaveBeenCalled();
+            const spawnArgs = (spawn as unknown as jest.Mock).mock.calls[0][1];
+            const serializedArgs = JSON.stringify(spawnArgs);
+            expect(serializedArgs).toContain('Bearer main-token');
+            expect(serializedArgs).toContain('session=main-cookie');
+            expect(serializedArgs).toContain('MainAgent/1.0');
+            expect(serializedArgs).not.toContain('renderer-token');
+            expect(serializedArgs).not.toContain('renderer-cookie');
+            expect(serializedArgs).not.toContain('RendererAgent/1.0');
+            expect(serializedArgs).not.toContain('opaque-playback-context');
+
+            await expect(
+                handler({ sender: { id: 71 } }, ...args)
+            ).rejects.toThrow('invalid-playback-context');
+            expect(spawn).toHaveBeenCalledTimes(1);
+            expect(mockConsumeStalkerPlaybackContext).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('fails a foreign or expired VLC context before spawning the player', async () => {
+        mockConsumeStalkerPlaybackContext.mockReturnValue(null);
+        const handler = getIpcMainHandler('OPEN_VLC_PLAYER');
+
+        await expect(
+            handler(
+                { sender: { id: 99 } },
+                'https://stream.example/live.m3u8',
+                'Managed stream',
+                '',
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'foreign-or-expired-context'
+            )
+        ).rejects.toThrow('invalid-playback-context');
+
+        expect(mockConsumeStalkerPlaybackContext).toHaveBeenCalledWith({
+            contextRef: 'foreign-or-expired-context',
+            senderId: 99,
+            streamUrl: 'https://stream.example/live.m3u8',
+        });
+        expect(spawn).not.toHaveBeenCalled();
+    });
+
+    it('keeps the legacy no-ref fallback while main-owned headers bypass renderer overrides', () => {
+        mockGetStalkerPlaybackContextHeaders.mockReturnValue({
+            'User-Agent': 'LegacyAgent/1.0',
+        });
+
+        expect(
+            resolveEffectiveExternalPlaybackRequest({
+                headers: { 'X-Renderer': 'allowed-legacy-header' },
+                url: 'https://stream.example/legacy.m3u8',
+            }).mergedHeaders
+        ).toEqual({
+            'User-Agent': 'LegacyAgent/1.0',
+            'X-Renderer': 'allowed-legacy-header',
+        });
+
+        const managedOptions = {
+            headers: {
+                Authorization: 'Bearer renderer-token',
+                'User-Agent': 'RendererAgent/1.0',
+            },
+            mainOwnedHeaders: {
+                Authorization: 'Bearer main-token',
+                'User-Agent': 'MainAgent/1.0',
+            },
+            url: 'https://stream.example/managed.m3u8',
+            userAgent: 'RendererAgent/1.0',
+        };
+        const managed = resolveEffectiveExternalPlaybackRequest(managedOptions);
+
+        expect(managed.mergedHeaders).toEqual(managedOptions.mainOwnedHeaders);
+        expect(managed.effectiveUserAgent).toBe('MainAgent/1.0');
     });
 });
 

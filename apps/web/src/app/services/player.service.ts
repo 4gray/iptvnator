@@ -89,20 +89,30 @@ export class PlayerService {
     ): Promise<ExternalPlayerSession | void> {
         const ipcEvent =
             player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
+        const presentation = {
+            url: playback.streamUrl,
+            title: playback.title,
+            thumbnail: playback.thumbnail,
+            contentInfo: playback.contentInfo,
+            startTime: playback.startTime,
+        };
+        const payload =
+            playback.playbackContextRef !== undefined
+                ? {
+                      ...presentation,
+                      playbackContextRef: playback.playbackContextRef,
+                  }
+                : {
+                      ...presentation,
+                      'user-agent': playback.userAgent,
+                      referer: playback.referer,
+                      origin: playback.origin,
+                      headers: playback.headers,
+                  };
 
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,
-            {
-                url: playback.streamUrl,
-                title: playback.title,
-                thumbnail: playback.thumbnail,
-                'user-agent': playback.userAgent,
-                referer: playback.referer,
-                origin: playback.origin,
-                headers: playback.headers,
-                contentInfo: playback.contentInfo,
-                startTime: playback.startTime,
-            }
+            payload
         );
     }
 }

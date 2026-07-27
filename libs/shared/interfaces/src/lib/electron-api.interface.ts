@@ -40,6 +40,7 @@ import {
     StalkerSessionControlOutcome,
     StalkerSessionControlRequest,
     StalkerSessionOpenRequest,
+    StalkerPlaybackContextRef,
     StalkerSessionRequest,
     StalkerSessionRequestOutcome,
 } from './stalker-session.interface';
@@ -594,7 +595,8 @@ export interface ElectronBridgeApi {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        playbackContextRef?: StalkerPlaybackContextRef
     ) => Promise<ExternalPlayerSession>;
     openInVlc: (
         url: string,
@@ -605,7 +607,8 @@ export interface ElectronBridgeApi {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
+        headers?: Record<string, string>,
+        playbackContextRef?: StalkerPlaybackContextRef
     ) => Promise<ExternalPlayerSession>;
     autoUpdatePlaylists: (
         playlists: Playlist[],

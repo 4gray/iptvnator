@@ -46,6 +46,7 @@ import type {
     PortalDebugEvent,
     ResolvedPortalPlayback,
     Settings,
+    StalkerPlaybackContextRef,
     TmdbCacheEntry,
     TmdbCacheMediaType,
     XtreamCategory,
@@ -372,10 +373,10 @@ const electronApi: ElectronBridgeApi = {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
-    ): Promise<ExternalPlayerSession> =>
-        ipcRenderer.invoke(
-            'OPEN_MPV_PLAYER',
+        headers?: Record<string, string>,
+        playbackContextRef?: StalkerPlaybackContextRef
+    ): Promise<ExternalPlayerSession> => {
+        const args = [
             url,
             title,
             thumbnail,
@@ -384,8 +385,16 @@ const electronApi: ElectronBridgeApi = {
             origin,
             contentInfo,
             startTime,
-            headers
-        ),
+            headers,
+        ] as const;
+        return playbackContextRef === undefined
+            ? ipcRenderer.invoke('OPEN_MPV_PLAYER', ...args)
+            : ipcRenderer.invoke(
+                  'OPEN_MPV_PLAYER',
+                  ...args,
+                  playbackContextRef
+              );
+    },
     openInVlc: (
         url: string,
         title: string,
@@ -395,10 +404,10 @@ const electronApi: ElectronBridgeApi = {
         origin?: string,
         contentInfo?: PlayerContentInfo,
         startTime?: number,
-        headers?: Record<string, string>
-    ): Promise<ExternalPlayerSession> =>
-        ipcRenderer.invoke(
-            'OPEN_VLC_PLAYER',
+        headers?: Record<string, string>,
+        playbackContextRef?: StalkerPlaybackContextRef
+    ): Promise<ExternalPlayerSession> => {
+        const args = [
             url,
             title,
             thumbnail,
@@ -407,8 +416,16 @@ const electronApi: ElectronBridgeApi = {
             origin,
             contentInfo,
             startTime,
-            headers
-        ),
+            headers,
+        ] as const;
+        return playbackContextRef === undefined
+            ? ipcRenderer.invoke('OPEN_VLC_PLAYER', ...args)
+            : ipcRenderer.invoke(
+                  'OPEN_VLC_PLAYER',
+                  ...args,
+                  playbackContextRef
+              );
+    },
     closeExternalPlayerSession: (sessionId: string) =>
         ipcRenderer.invoke('CLOSE_EXTERNAL_PLAYER_SESSION', sessionId),
     getEmbeddedMpvSupport: (): Promise<EmbeddedMpvSupport> =>

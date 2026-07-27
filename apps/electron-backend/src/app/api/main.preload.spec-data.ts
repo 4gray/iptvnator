@@ -150,6 +150,34 @@ export const stalkerSessionPreloadCases: PreloadInvokeCase[] = [
     },
 ];
 
+const externalPlaybackArgs = [
+    'https://stream.example/live.m3u8',
+    'Managed stream',
+    'https://images.example/channel.png',
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'opaque-playback-context',
+];
+
+export const playbackContextPreloadCases: PreloadInvokeCase[] = [
+    {
+        method: 'openInMpv',
+        args: externalPlaybackArgs,
+        channel: 'OPEN_MPV_PLAYER',
+        forwardedArgs: externalPlaybackArgs,
+    },
+    {
+        method: 'openInVlc',
+        args: externalPlaybackArgs,
+        channel: 'OPEN_VLC_PLAYER',
+        forwardedArgs: externalPlaybackArgs,
+    },
+];
+
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
         method: 'dbCreatePlaylist',

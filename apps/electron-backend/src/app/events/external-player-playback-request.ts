@@ -51,26 +51,32 @@ export function resolveEffectiveExternalPlaybackRequest(options: {
     referer?: string;
     origin?: string;
     headers?: Record<string, string>;
+    mainOwnedHeaders?: Record<string, string>;
 }): EffectiveExternalPlaybackRequest {
-    const fallbackHeaders = getStalkerPlaybackContextHeaders(options.url) ?? {};
-    const mergedHeaders = isStalkerDirectStreamProfile(fallbackHeaders)
-        ? fallbackHeaders
-        : {
-              ...fallbackHeaders,
-              ...(options.headers ?? {}),
-          };
+    const usesMainOwnedHeaders = options.mainOwnedHeaders !== undefined;
+    const fallbackHeaders = usesMainOwnedHeaders
+        ? {}
+        : (getStalkerPlaybackContextHeaders(options.url) ?? {});
+    const mergedHeaders = usesMainOwnedHeaders
+        ? { ...options.mainOwnedHeaders }
+        : isStalkerDirectStreamProfile(fallbackHeaders)
+          ? fallbackHeaders
+          : {
+                ...fallbackHeaders,
+                ...(options.headers ?? {}),
+            };
     const effectiveOrigin =
-        options.origin ??
+        (usesMainOwnedHeaders ? undefined : options.origin) ??
         mergedHeaders['Origin'] ??
         mergedHeaders['origin'] ??
         undefined;
     const effectiveReferer =
-        options.referer ??
+        (usesMainOwnedHeaders ? undefined : options.referer) ??
         mergedHeaders['Referer'] ??
         mergedHeaders['referer'] ??
         undefined;
     const effectiveUserAgent =
-        options.userAgent ??
+        (usesMainOwnedHeaders ? undefined : options.userAgent) ??
         mergedHeaders['User-Agent'] ??
         mergedHeaders['user-agent'] ??
         undefined;

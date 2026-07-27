@@ -16,6 +16,7 @@ import {
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
+    StalkerPlaybackContextRef,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
@@ -38,6 +39,7 @@ interface PlayerLaunchPayload {
     readonly url: string;
     readonly ['user-agent']?: string;
     readonly contentInfo?: PlayerContentInfo;
+    readonly playbackContextRef?: StalkerPlaybackContextRef;
 }
 
 interface ErrorStatus {
@@ -165,7 +167,7 @@ export class ElectronService extends DataService {
         if (type === 'OPEN_MPV_PLAYER') {
             const data = payload as PlayerLaunchPayload;
             try {
-                return (await window.electron.openInMpv(
+                const args = [
                     data.url,
                     data.title ?? '',
                     data.thumbnail ?? '',
@@ -174,8 +176,14 @@ export class ElectronService extends DataService {
                     data.origin ?? undefined,
                     data.contentInfo,
                     data.startTime,
-                    data.headers ?? undefined
-                )) as T;
+                    data.headers ?? undefined,
+                ] as const;
+                return (await (data.playbackContextRef === undefined
+                    ? window.electron.openInMpv(...args)
+                    : window.electron.openInMpv(
+                          ...args,
+                          data.playbackContextRef
+                      ))) as T;
             } catch (error: unknown) {
                 const errorMessage =
                     this.getErrorDetails(error)?.message ?? String(error);
@@ -194,7 +202,7 @@ export class ElectronService extends DataService {
         if (type === 'OPEN_VLC_PLAYER') {
             const data = payload as PlayerLaunchPayload;
             try {
-                return (await window.electron.openInVlc(
+                const args = [
                     data.url,
                     data.title ?? '',
                     data.thumbnail ?? '',
@@ -203,8 +211,14 @@ export class ElectronService extends DataService {
                     data.origin ?? undefined,
                     data.contentInfo,
                     data.startTime,
-                    data.headers ?? undefined
-                )) as T;
+                    data.headers ?? undefined,
+                ] as const;
+                return (await (data.playbackContextRef === undefined
+                    ? window.electron.openInVlc(...args)
+                    : window.electron.openInVlc(
+                          ...args,
+                          data.playbackContextRef
+                      ))) as T;
             } catch (error: unknown) {
                 const errorMessage =
                     this.getErrorDetails(error)?.message ?? String(error);
