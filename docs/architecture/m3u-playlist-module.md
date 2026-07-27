@@ -50,7 +50,7 @@ All four parse call sites (Electron `playlist-source.ts` import, `playlist-refre
 
 - **`radio` attribute** — `item.radio` (string, `'true'` triggers the radio player, EPG suppression, and external-player gating app-wide). Upstream does not have this field; it must survive every upstream sync.
 - **Pipe stripping** — `item.url` is cut at the first `|`; `|User-Agent=` / `|Referer=` params still land in `item.http`. Upstream 0.15.0 stopped stripping, but iptvnator consumes `item.url` verbatim in hls.js/mpv/vlc, catch-up URL building, and url-keyed favorites.
-- **`#KODIPROP` lines before `#EXTINF` are preserved** (since `v0.15.2-iptvnator.2`) — Kodi property lines apply to the *next* list entry, so ones placed above the `#EXTINF` are buffered and attached to that item's `raw` in file order (case-insensitive prefix); other stray `#` lines outside an open item are still dropped. The DASH + ClearKey feature extracts `inputstream.adaptive.license_*` config from `item.raw`, so this delta must survive every upstream sync.
+- **`#KODIPROP` lines before `#EXTINF` are preserved** (since `v0.15.2-iptvnator.2`) — Kodi property lines apply to the _next_ list entry, so ones placed above the `#EXTINF` are buffered and attached to that item's `raw` in file order (case-insensitive prefix); other stray `#` lines outside an open item are still dropped. The DASH + ClearKey feature extracts `inputstream.adaptive.license_*` config from `item.raw`, so this delta must survive every upstream sync.
 
 There is intentionally **no URL validation** (upstream removed it in 0.15.0): any non-empty non-`#` line after `#EXTINF` becomes the item URL. This is what fixes issue #1189 (Pluto TV JWT URLs longer than validator's 2084-char IE-era limit used to be rejected, and the stalled item index collapsed the whole playlist into one channel). `#` comment lines and unknown directives are appended to `item.raw` and never treated as URLs.
 
@@ -123,7 +123,16 @@ The target reserves and verifies CDP port 9222, freezes renderer long-task,
 frame-gap, and heartbeat probes before forced post-GC heap collection, and
 builds the Electron main process, renderer, and workers with optimized,
 source-mapped performance configurations before enabling opt-in worker
-profiling. Each worker response retains a raw
+profiling. Renderer RSS is scoped to the Playwright page's exact
+`BrowserWindow` and `webContents`: every sample matches `getOSProcessId()` to
+one exact `app.getAppMetrics()` PID and creation time, while responsive and
+unresponsive events come only from that window. Identity changes, missing or
+ambiguous process metrics, and invalid working-set values fail closed with a
+raw reason and nullable RSS; summaries exclude unavailable RSS instead of
+reporting zero. Formal runs also list every invalid measured capture under
+`summary.validity.rendererRss` and fail after persisting the raw summary unless
+all measured iterations contribute one valid exact-window RSS value. Each
+worker response retains a raw
 request-scoped record containing request/operation identity, received/work/flush
 timestamps, thread CPU, event-loop utilization, event-loop delay, and fixed
 unavailability or invalid reasons. Missing or malformed profiling metadata
@@ -131,8 +140,59 @@ still produces an outcome with its request identity, nullable metrics, and a
 fixed capture-unavailable reason. A worker terminated before it can flush the
 capture reports the metric as unavailable rather than zero.
 
-The harness excludes workers created by pre-capture seed setup through an exact
-capture-generation marker. Since the production M3U database payload
+Database-worker post-GC heap is not inferred from a heap snapshot. The harness
+selects exactly one current-generation database worker independently of its
+sampling timer, waits for any in-flight sample plus one final sample, stops the
+worker CPU profile, sends an explicit-GC one-shot probe over a transferred
+`MessagePort`, and takes an optional diagnostic snapshot only afterward.
+Capture stop first closes a synchronous request cutoff and stops the main CPU
+profile, so worker profile writes and heap snapshots cannot appear as
+application stacks in `main.cpuprofile`. A database request observed after that
+cutoff cannot restart worker sampling or profiling; it records
+`database-worker-activity-after-cutoff` and invalidates the post-GC value.
+Worker artifacts include a stable isolate ordinal in their filename so an
+invalid multiple-worker capture cannot overwrite another isolate's profile.
+The raw heap and unavailability reason form a strict XOR; playlist workers
+terminated during cancellation report `worker-force-terminated-before-gc`
+instead of a snapshot-derived heap. Warm-up and measured cancellation invoke
+the real worker termination before best-effort finalization so profiling cannot
+delay headline acknowledgement metrics. The separate diagnostic iteration
+stops its CPU profile before termination; its timings are excluded from
+headline distributions. That pre-termination drain is bounded; timeout
+invalidates the profile and worker termination still proceeds. Late
+termination completions are generation-gated so they cannot mutate a reused
+record or append timeline events after an atomic capture rollover. The
+benchmark fails closed unless the diagnostic iteration observed cancellation,
+its profile is inside the iteration directory and parses with non-empty nodes
+and samples, and the dying worker has no heap snapshot.
+
+Headline worker memory distributions include every matching isolate and
+exclude only nullable unavailable values. This aggregation is not used as a
+validity shortcut. Runs that reach database persistence must independently
+contain exactly one database worker with a coherent numeric post-GC heap.
+Parsing cancellation happens before the renderer dispatches persistence, so a
+run with no database request is explicitly `N/A:
+operation-cancelled-before-database-phase`, not a missing capture. Any database
+activity in a run that observed the cancellation effect is unrelated
+contamination and invalidates the run. Duplicate, busy, late, timed-out, or
+malformed captures are listed under
+`summary.validity.databaseWorkerPostGc` and invalidate the benchmark. The
+benchmark writes `manifest.json` and `summary.json` first, then fails the formal
+run so the raw evidence remains available without supporting a before/after
+claim. A formal cancellation run also requires the cancellation effect in every
+measured iteration. Database-worker values are comparable only when every
+measured iteration reaches that phase and has one valid capture.
+
+Seed setup runs inside its own capture generation. The harness requires an
+observed seed database request, a completed playlist upsert, and no pending
+request, then persists that generation as `seed-main-capture.json`. Main
+capture finalization validates one idle database worker with a coherent
+explicit-GC result and atomically rolls the clean cutoff into the measured
+generation before yielding. A request before rollover remains late and rejects
+the transition; a request after rollover belongs to the measured generation.
+This prevents seed writes or an unobserved stop/start gap from crossing into
+measured main RSS, worker peaks, or profiles; generation selection also
+excludes the seed worker record. Since the production M3U database payload
 deliberately omits the refresh operation ID, the benchmark correlates only a
 valid preload `start` marker to the exact database operation and playlist. A
 missing or ambiguous marker leaves the raw operation ID `null` with a fixed
@@ -811,7 +871,7 @@ player in settings.
 1. The playlist parser fork does not interpret `#KODIPROP:` lines, but
    preserves them in `item.raw` for **both** layouts: unknown lines between
    `#EXTINF` and the stream URL are kept as before, and since parser pin
-   `v0.15.2-iptvnator.2` `#KODIPROP` lines placed *before* the `#EXTINF` are
+   `v0.15.2-iptvnator.2` `#KODIPROP` lines placed _before_ the `#EXTINF` are
    buffered and attached to the **next** entry's `raw` in file order (Kodi
    semantics, case-insensitive prefix). Other stray `#` lines outside an open
    item are still dropped, matching upstream.

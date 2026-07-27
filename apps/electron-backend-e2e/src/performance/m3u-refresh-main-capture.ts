@@ -7,17 +7,54 @@ import {
     type DatabaseRequestIdentity,
     type DatabaseRequestIdentityCaptureApi,
 } from './database-request-identity-capture';
-import type { MainCaptureMetrics } from './m3u-refresh-cancellation-contract';
+import {
+    createDatabaseWorkerPostGcCutoffApi,
+    type DatabaseWorkerPostGcCutoffApi,
+} from './database-worker-post-gc-cutoff';
+import {
+    createDatabaseWorkerPostGcFinalizationApi,
+    type DatabaseWorkerPostGcAncillaryFailureStage,
+    type DatabaseWorkerPostGcFinalizationApi,
+} from './database-worker-post-gc-finalization';
+import {
+    createDatabaseWorkerPostGcProbeApi,
+    type DatabaseWorkerPostGcProbeApi,
+} from './database-worker-post-gc-probe';
+import {
+    createDatabaseWorkerPostGcSelectionApi,
+    type DatabaseWorkerPostGcSelectionApi,
+    type DatabaseWorkerPostGcUnavailableReason,
+} from './database-worker-post-gc-selection';
+import type {
+    MainCaptureMetrics,
+    WorkerPostGcHeapUnavailableReason,
+} from './m3u-refresh-cancellation-contract';
 import {
     selectMainCaptureGeneration,
     type MainCaptureGenerationTransport,
 } from './worker-request-performance';
+import {
+    createWorkerTerminationGenerationApi,
+    type WorkerTerminationGenerationApi,
+} from './worker-termination-generation';
+import {
+    createRendererProcessRssCaptureApi,
+    type RendererProcessRssCaptureApi,
+} from './renderer-process-rss-capture';
+import {
+    createRendererWindowRssSessionApi,
+    type RendererWindowIdentity,
+    type RendererWindowRssSession,
+    type RendererWindowRssSessionApi,
+    type RendererWindowRssSessionMetrics,
+} from './renderer-window-rss-session';
 
 const MAIN_CAPTURE_STATE_KEY = '__iptvnatorM3uRefreshMainCapture';
 
 export interface MainCaptureStartOptions {
     readonly diagnostic: boolean;
     readonly outputDirectory: string;
+    readonly rendererWindowIdentity: RendererWindowIdentity;
 }
 
 export interface MainCaptureStatus {
@@ -30,6 +67,21 @@ export interface MainCaptureStatus {
     readonly playlistResponsesSucceeded: number;
 }
 
+export interface MainCaptureRolloverResult {
+    readonly completedCapture: MainCaptureMetrics;
+    readonly nextCaptureStarted: boolean;
+    readonly nextCaptureUnavailableReason: string | null;
+}
+
+interface MainCaptureRolloverStatus {
+    readonly nextCaptureStarted: boolean;
+    readonly nextCaptureUnavailableReason: string | null;
+}
+
+type MainCaptureStopTransport = MainCaptureGenerationTransport & {
+    readonly rollover: MainCaptureRolloverStatus | null;
+};
+
 export async function installMainCapture(
     electronApp: ElectronApplication
 ): Promise<void> {
@@ -37,7 +89,21 @@ export async function installMainCapture(
     const captureStateKeys = {
         databaseRequestIdentityStateKey:
             DATABASE_REQUEST_IDENTITY_CAPTURE_STATE_KEY,
+        databaseWorkerPostGcCutoffApiFactorySource:
+            createDatabaseWorkerPostGcCutoffApi.toString(),
+        databaseWorkerPostGcFinalizationApiFactorySource:
+            createDatabaseWorkerPostGcFinalizationApi.toString(),
+        databaseWorkerPostGcProbeApiFactorySource:
+            createDatabaseWorkerPostGcProbeApi.toString(),
+        databaseWorkerPostGcSelectionApiFactorySource:
+            createDatabaseWorkerPostGcSelectionApi.toString(),
+        rendererProcessRssApiFactorySource:
+            createRendererProcessRssCaptureApi.toString(),
+        rendererWindowRssSessionApiFactorySource:
+            createRendererWindowRssSessionApi.toString(),
         stateKey: MAIN_CAPTURE_STATE_KEY,
+        workerTerminationGenerationApiFactorySource:
+            createWorkerTerminationGenerationApi.toString(),
     };
     await electronApp.evaluate(async ({ app, BrowserWindow }, input) => {
         type JsonRecord = Record<string, unknown>;
@@ -94,17 +160,25 @@ export async function installMainCapture(
             eluStart: WorkerElu | null;
             externalPeak: number;
             finalized: boolean;
+            finalizationKey: object;
+            finalizationTimedOut: boolean;
             finalizing: Promise<void> | null;
             heapPeak: number;
             kind: 'database.worker' | 'playlist-refresh.worker';
             operationId: string | null;
+            ordinal: number;
+            pendingCount: number;
             playlistId: string | null;
+            postGcHeapUnavailableReason: WorkerPostGcHeapUnavailableReason | null;
             postGcHeapUsed: number | null;
             profileHandle: Promise<CpuProfileHandle> | null;
+            profileCaptureKey: object;
             profilePath: string | null;
+            profileResult: unknown | null;
+            resolvedProfileHandle: CpuProfileHandle | null;
             requestPerformance: WorkerRequestPerformance[];
             responseEpochMs: number | null;
-            sampleBusy: boolean;
+            samplePromise: Promise<void> | null;
             sampleTimer: NodeJS.Timeout | null;
             snapshotPath: string | null;
             terminatedEpochMs: number | null;
@@ -127,6 +201,40 @@ export async function installMainCapture(
         const databaseRequestIdentityCapture = target[
             input.databaseRequestIdentityStateKey
         ] as DatabaseRequestIdentityCaptureApi;
+        const restoreFactory = <T>(source: string): T => {
+            const factory = new Function(
+                `"use strict"; return (${source});`
+            )() as () => T;
+            return factory();
+        };
+        const databaseWorkerPostGcCutoffApi =
+            restoreFactory<DatabaseWorkerPostGcCutoffApi>(
+                input.databaseWorkerPostGcCutoffApiFactorySource
+            );
+        const databaseWorkerPostGcFinalizationApi =
+            restoreFactory<DatabaseWorkerPostGcFinalizationApi>(
+                input.databaseWorkerPostGcFinalizationApiFactorySource
+            );
+        const databaseWorkerPostGcProbeApi =
+            restoreFactory<DatabaseWorkerPostGcProbeApi>(
+                input.databaseWorkerPostGcProbeApiFactorySource
+            );
+        const databaseWorkerPostGcSelectionApi =
+            restoreFactory<DatabaseWorkerPostGcSelectionApi>(
+                input.databaseWorkerPostGcSelectionApiFactorySource
+            );
+        const rendererProcessRssApi =
+            restoreFactory<RendererProcessRssCaptureApi>(
+                input.rendererProcessRssApiFactorySource
+            );
+        const rendererWindowRssSessionApi =
+            restoreFactory<RendererWindowRssSessionApi>(
+                input.rendererWindowRssSessionApiFactorySource
+            );
+        const workerTerminationGenerationApi =
+            restoreFactory<WorkerTerminationGenerationApi>(
+                input.workerTerminationGenerationApiFactorySource
+            );
 
         const runtimeProcess = process as typeof process & {
             getBuiltinModule(id: string): unknown;
@@ -153,6 +261,7 @@ export async function installMainCapture(
         const originalPostMessage = WorkerClass.prototype.postMessage;
         const originalTerminate = WorkerClass.prototype.terminate;
         const records = new Map<InstrumentedWorker, WorkerRecord>();
+        let nextWorkerOrdinal = 1;
         const operationWorkers = new Map<string, WorkerRecord>();
         const dbRequests = new Map<
             string,
@@ -183,16 +292,10 @@ export async function installMainCapture(
             outputDirectory: '',
             postGcHeap: null as number | null,
             postGcRss: null as number | null,
-            rendererPeakRss: 0,
-            responsiveEvents: 0,
+            rendererWindowSession: null as RendererWindowRssSession | null,
             sampleTimer: null as NodeJS.Timeout | null,
+            stopping: false,
             timeline: [] as TimelineRecord[],
-            unresponsiveEvents: 0,
-            windowListeners: [] as {
-                responsive: () => void;
-                unresponsive: () => void;
-                window: Electron.BrowserWindow;
-            }[],
         };
 
         const nowEpochMs = (): number =>
@@ -200,7 +303,7 @@ export async function installMainCapture(
         const recordTimeline = (
             record: Omit<TimelineRecord, 'epochMs'>
         ): void => {
-            if (state.active) {
+            if (state.active || state.stopping) {
                 state.timeline.push({ epochMs: nowEpochMs(), ...record });
             }
         };
@@ -247,22 +350,31 @@ export async function installMainCapture(
                 eluStart: null,
                 externalPeak: 0,
                 finalized: false,
+                finalizationKey: {},
+                finalizationTimedOut: false,
                 finalizing: null,
                 heapPeak: 0,
                 kind,
                 operationId: null,
+                ordinal: nextWorkerOrdinal,
+                pendingCount: 0,
                 playlistId: null,
+                postGcHeapUnavailableReason: 'post-gc-probe-not-run',
                 postGcHeapUsed: null,
                 profileHandle: null,
+                profileCaptureKey: {},
                 profilePath: null,
+                profileResult: null,
+                resolvedProfileHandle: null,
                 requestPerformance: [],
                 responseEpochMs: null,
-                sampleBusy: false,
+                samplePromise: null,
                 sampleTimer: null,
                 snapshotPath: null,
                 terminatedEpochMs: null,
                 worker,
             };
+            nextWorkerOrdinal += 1;
             records.set(worker, record);
             worker.on('message', (incoming) => {
                 if (typeof incoming !== 'object' || incoming === null) {
@@ -313,6 +425,10 @@ export async function installMainCapture(
                 ) {
                     const request = dbRequests.get(message['requestId']);
                     if (request) {
+                        request.record.pendingCount = Math.max(
+                            0,
+                            request.record.pendingCount - 1
+                        );
                         record.requestPerformance.push({
                             identity: request.identity,
                             operation: request.operation,
@@ -339,39 +455,44 @@ export async function installMainCapture(
             });
             return record;
         };
-        const sampleWorker = async (record: WorkerRecord): Promise<void> => {
-            if (record.sampleBusy || record.finalized) {
-                return;
+        const sampleWorker = (record: WorkerRecord): Promise<void> => {
+            if (record.finalized) {
+                return Promise.resolve();
             }
-            record.sampleBusy = true;
-            try {
-                const stats = await record.worker.getHeapStatistics?.();
-                if (stats) {
-                    record.heapPeak = Math.max(
-                        record.heapPeak,
-                        Number(stats.used_heap_size ?? 0)
-                    );
-                    record.externalPeak = Math.max(
-                        record.externalPeak,
-                        Number(stats.external_memory ?? 0)
-                    );
-                }
-                const cpu = await record.worker.cpuUsage?.();
-                if (cpu) {
-                    record.cpuFirst ??= cpu;
-                    record.cpuLast = cpu;
-                }
-                const elu = record.worker.performance?.eventLoopUtilization(
-                    record.eluStart ?? undefined
-                );
-                if (elu) {
-                    record.elu = elu.utilization;
-                }
-            } catch {
-                // A one-shot worker may terminate between sampling calls.
-            } finally {
-                record.sampleBusy = false;
+            if (record.samplePromise) {
+                return record.samplePromise;
             }
+            record.samplePromise = (async () => {
+                try {
+                    const stats = await record.worker.getHeapStatistics?.();
+                    if (stats) {
+                        record.heapPeak = Math.max(
+                            record.heapPeak,
+                            Number(stats.used_heap_size ?? 0)
+                        );
+                        record.externalPeak = Math.max(
+                            record.externalPeak,
+                            Number(stats.external_memory ?? 0)
+                        );
+                    }
+                    const cpu = await record.worker.cpuUsage?.();
+                    if (cpu) {
+                        record.cpuFirst ??= cpu;
+                        record.cpuLast = cpu;
+                    }
+                    const elu = record.worker.performance?.eventLoopUtilization(
+                        record.eluStart ?? undefined
+                    );
+                    if (elu) {
+                        record.elu = elu.utilization;
+                    }
+                } catch {
+                    // A one-shot worker may terminate between sampling calls.
+                }
+            })().finally(() => {
+                record.samplePromise = null;
+            });
+            return record.samplePromise;
         };
         const resetWorkerForCapture = (record: WorkerRecord): void => {
             if (record.sampleTimer) {
@@ -385,16 +506,23 @@ export async function installMainCapture(
             record.eluStart = null;
             record.externalPeak = 0;
             record.finalized = false;
+            record.finalizationKey = {};
+            record.finalizationTimedOut = false;
             record.finalizing = null;
             record.heapPeak = 0;
             record.operationId = null;
+            record.pendingCount = 0;
             record.playlistId = null;
+            record.postGcHeapUnavailableReason = 'post-gc-probe-not-run';
             record.postGcHeapUsed = null;
             record.profileHandle = null;
+            record.profileCaptureKey = {};
             record.profilePath = null;
+            record.profileResult = null;
+            record.resolvedProfileHandle = null;
             record.requestPerformance = [];
             record.responseEpochMs = null;
-            record.sampleBusy = false;
+            record.samplePromise = null;
             record.sampleTimer = null;
             record.snapshotPath = null;
             record.terminatedEpochMs = null;
@@ -423,57 +551,241 @@ export async function installMainCapture(
             ) {
                 record.profilePath = path.join(
                     state.outputDirectory,
-                    `${record.kind}.cpuprofile`
+                    `${record.kind}-${record.ordinal}.cpuprofile`
                 );
-                record.profileHandle = record.worker.startCpuProfile();
+                const profileHandle = record.worker.startCpuProfile();
+                const profileCaptureKey = record.profileCaptureKey;
+                record.profileHandle = profileHandle;
+                void profileHandle.then(
+                    (handle) => {
+                        if (
+                            record.profileCaptureKey === profileCaptureKey &&
+                            record.profileHandle === profileHandle
+                        ) {
+                            record.resolvedProfileHandle = handle;
+                        }
+                    },
+                    () => undefined
+                );
             }
         };
-        const finalizeWorker = (record: WorkerRecord): Promise<void> => {
-            record.finalizing ??= (async () => {
-                if (record.sampleTimer) {
-                    clearInterval(record.sampleTimer);
-                    record.sampleTimer = null;
+        const stopWorkerSampling = (record: WorkerRecord): void => {
+            if (record.sampleTimer) {
+                clearInterval(record.sampleTimer);
+                record.sampleTimer = null;
+            }
+        };
+        const joinFinalWorkerSample = async (
+            record: WorkerRecord
+        ): Promise<void> => {
+            if (record.samplePromise) {
+                await record.samplePromise;
+            }
+            await sampleWorker(record);
+        };
+        const stopWorkerProfile = async (
+            record: WorkerRecord,
+            waitForHandle = true
+        ): Promise<void> => {
+            const profileCaptureKey = record.profileCaptureKey;
+            const profileHandle = record.profileHandle;
+            if (!profileHandle || !record.profilePath) {
+                return;
+            }
+            const handle =
+                record.resolvedProfileHandle ??
+                (waitForHandle ? await profileHandle : null);
+            if (!handle) {
+                throw new Error(
+                    'cpu-profile-handle-not-ready-before-worker-termination'
+                );
+            }
+            const profileResult = await handle.stop();
+            if (
+                record.profileCaptureKey !== profileCaptureKey ||
+                record.finalizationTimedOut
+            ) {
+                return;
+            }
+            record.profileResult = profileResult;
+        };
+        const writeWorkerProfile = (record: WorkerRecord): void => {
+            if (!record.profileHandle || !record.profilePath) {
+                return;
+            }
+            if (record.profileResult === null) {
+                throw new Error('worker-cpu-profile-result-missing');
+            }
+            fs.writeFileSync(
+                record.profilePath,
+                JSON.stringify(normalizeWorkerCpuProfile(record.profileResult))
+            );
+            record.profileHandle = null;
+            record.profileResult = null;
+            record.resolvedProfileHandle = null;
+        };
+        const flushWorkerProfiles = (workerRecords: WorkerRecord[]): void => {
+            for (const record of workerRecords) {
+                try {
+                    writeWorkerProfile(record);
+                } catch (error: unknown) {
+                    reportWorkerArtifactFailure(record, 'profile-write', error);
                 }
-                await sampleWorker(record);
-                if (record.profileHandle && record.profilePath) {
-                    const handle = await record.profileHandle;
-                    const profile = await handle.stop();
-                    fs.writeFileSync(
-                        record.profilePath,
-                        JSON.stringify(normalizeWorkerCpuProfile(profile))
-                    );
-                }
-                if (
-                    state.diagnostic &&
-                    typeof record.worker.getHeapSnapshot === 'function'
-                ) {
-                    record.snapshotPath = path.join(
-                        state.outputDirectory,
-                        `${record.kind}.heapsnapshot`
-                    );
-                    const snapshot = await record.worker.getHeapSnapshot();
-                    await streamPromises.pipeline(
-                        snapshot,
-                        fs.createWriteStream(record.snapshotPath)
-                    );
-                    const postSnapshot =
-                        await record.worker.getHeapStatistics?.();
-                    record.postGcHeapUsed = Number(
-                        postSnapshot?.used_heap_size ?? 0
-                    );
-                }
-                record.finalized = true;
-            })().catch((error: unknown) => {
-                recordTimeline({
-                    type: `worker-profile-error:${
-                        error instanceof Error
-                            ? error.message.slice(0, 160)
-                            : String(error).slice(0, 160)
-                    }`,
-                });
-                record.finalized = true;
+            }
+        };
+        const takeWorkerHeapSnapshot = async (
+            record: WorkerRecord
+        ): Promise<void> => {
+            if (typeof record.worker.getHeapSnapshot !== 'function') {
+                return;
+            }
+            record.snapshotPath = path.join(
+                state.outputDirectory,
+                `${record.kind}-${record.ordinal}.heapsnapshot`
+            );
+            const snapshot = await record.worker.getHeapSnapshot();
+            await streamPromises.pipeline(
+                snapshot,
+                fs.createWriteStream(record.snapshotPath)
+            );
+        };
+        const reportWorkerArtifactFailure = (
+            record: WorkerRecord,
+            stage: DatabaseWorkerPostGcAncillaryFailureStage,
+            error: unknown
+        ): void => {
+            if (stage === 'heap-snapshot') {
+                record.snapshotPath = null;
+            } else if (stage === 'profile-stop' || stage === 'profile-write') {
+                record.profilePath = null;
+                record.profileResult = null;
+                record.profileHandle = null;
+                record.resolvedProfileHandle = null;
+            }
+            recordTimeline({
+                type: `worker-artifact-error:${stage}:${
+                    error instanceof Error
+                        ? error.message.slice(0, 160)
+                        : String(error).slice(0, 160)
+                }`,
             });
+        };
+        const finalizeDatabaseWorker = (
+            record: WorkerRecord,
+            selectionUnavailableReason: DatabaseWorkerPostGcUnavailableReason | null
+        ): Promise<void> => {
+            record.finalizing ??= databaseWorkerPostGcFinalizationApi
+                .finalize({
+                    finalizationKey: record.finalizationKey,
+                    joinFinalSample: () => joinFinalWorkerSample(record),
+                    probePostGc: () =>
+                        selectionUnavailableReason === null
+                            ? databaseWorkerPostGcProbeApi.probe({
+                                  createMessageChannel: () =>
+                                      new workerThreads.MessageChannel(),
+                                  worker: {
+                                      postMessage(
+                                          message: unknown,
+                                          transferList: readonly unknown[]
+                                      ): void {
+                                          record.worker.postMessage(
+                                              message,
+                                              transferList as readonly WorkerTransferable[]
+                                          );
+                                      },
+                                  },
+                              })
+                            : Promise.resolve({
+                                  postGcHeapUsedBytes: null,
+                                  unavailableReason: selectionUnavailableReason,
+                              }),
+                    reportAncillaryFailure: (stage, error) =>
+                        reportWorkerArtifactFailure(record, stage, error),
+                    stopProfile: () => stopWorkerProfile(record),
+                    stopSampling: () => stopWorkerSampling(record),
+                    ...(state.diagnostic
+                        ? {
+                              takeHeapSnapshot: () =>
+                                  takeWorkerHeapSnapshot(record),
+                          }
+                        : {}),
+                })
+                .then((outcome) => {
+                    record.postGcHeapUsed = outcome.postGcHeapUsedBytes;
+                    record.postGcHeapUnavailableReason =
+                        outcome.unavailableReason;
+                    record.finalized = true;
+                })
+                .catch((error: unknown) => {
+                    record.postGcHeapUsed = null;
+                    record.postGcHeapUnavailableReason = 'capture-failed';
+                    reportWorkerArtifactFailure(record, 'post-gc-probe', error);
+                    record.finalized = true;
+                });
             return record.finalizing;
+        };
+        const finalizeTerminatingWorker = (
+            record: WorkerRecord,
+            waitForProfileHandle: boolean
+        ): Promise<void> => {
+            if (record.finalizing) {
+                return record.finalizing;
+            }
+            const finalizationKey = record.finalizationKey;
+            record.finalizing = (async () => {
+                stopWorkerSampling(record);
+                record.postGcHeapUsed = null;
+                record.postGcHeapUnavailableReason =
+                    'worker-force-terminated-before-gc';
+                try {
+                    await stopWorkerProfile(record, waitForProfileHandle);
+                } catch (error: unknown) {
+                    if (
+                        record.finalizationKey === finalizationKey &&
+                        !record.finalizationTimedOut
+                    ) {
+                        reportWorkerArtifactFailure(
+                            record,
+                            'profile-stop',
+                            error
+                        );
+                    }
+                }
+                if (record.finalizationKey === finalizationKey) {
+                    record.finalized = true;
+                }
+            })();
+            return record.finalizing;
+        };
+        const waitForTerminatingWorkerFinalization = async (
+            record: WorkerRecord
+        ): Promise<void> => {
+            if (!record.finalizing || record.finalizationTimedOut) {
+                return;
+            }
+            let timeout: NodeJS.Timeout | null = null;
+            let timedOut = false;
+            await Promise.race([
+                record.finalizing,
+                new Promise<void>((resolve) => {
+                    timeout = setTimeout(() => {
+                        timedOut = true;
+                        resolve();
+                    }, 5_000);
+                }),
+            ]);
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            if (timedOut) {
+                record.finalizationTimedOut = true;
+                record.profileCaptureKey = {};
+                reportWorkerArtifactFailure(
+                    record,
+                    'profile-stop',
+                    new Error('worker-profile-finalization-timeout')
+                );
+            }
         };
 
         WorkerClass.prototype.postMessage = function (
@@ -486,6 +798,32 @@ export async function installMainCapture(
                 if (value['type'] === 'request') {
                     const kind = classifyRequest(value);
                     if (kind) {
+                        const requestDisposition =
+                            kind === 'database.worker'
+                                ? databaseWorkerPostGcCutoffApi.observeDatabaseRequest()
+                                : null;
+                        if (requestDisposition === 'after-cutoff') {
+                            state.timeline.push({
+                                epochMs: nowEpochMs(),
+                                operation:
+                                    typeof value['operation'] === 'string'
+                                        ? value['operation']
+                                        : undefined,
+                                playlistId:
+                                    readDatabasePlaylistId(value) ?? undefined,
+                                requestId:
+                                    typeof value['requestId'] === 'string'
+                                        ? value['requestId']
+                                        : undefined,
+                                type: 'db-request-after-capture-cutoff',
+                            });
+                            originalPostMessage.call(
+                                this,
+                                message,
+                                transferList
+                            );
+                            return;
+                        }
                         const record = createWorkerRecord(this, kind);
                         startWorker(record);
                         if (
@@ -528,6 +866,7 @@ export async function installMainCapture(
                                           operationId: payloadOperationId,
                                           operationIdUnavailableReason: null,
                                       };
+                            record.pendingCount += 1;
                             dbRequests.set(value['requestId'], {
                                 identity,
                                 operation: value['operation'],
@@ -567,7 +906,17 @@ export async function installMainCapture(
             if (!record || !isCurrentCaptureRecord(record)) {
                 return originalTerminate.call(this);
             }
+            const terminationGeneration = record.captureGeneration;
             const markTerminated = (code: number): number => {
+                if (
+                    !workerTerminationGenerationApi.isCurrent({
+                        capturedGeneration: terminationGeneration,
+                        currentGeneration: state.captureGeneration,
+                        recordGeneration: record.captureGeneration,
+                    })
+                ) {
+                    return code;
+                }
                 record.terminatedEpochMs = nowEpochMs();
                 record.finalized = true;
                 recordTimeline({
@@ -577,16 +926,17 @@ export async function installMainCapture(
                 });
                 return code;
             };
-            if (!state.diagnostic) {
-                if (record.sampleTimer) {
-                    clearInterval(record.sampleTimer);
-                    record.sampleTimer = null;
-                }
-                return originalTerminate.call(this).then(markTerminated);
+            if (state.diagnostic) {
+                const diagnosticTermination = (async (): Promise<number> => {
+                    void finalizeTerminatingWorker(record, true);
+                    await waitForTerminatingWorkerFinalization(record);
+                    return originalTerminate.call(this);
+                })();
+                return diagnosticTermination.then(markTerminated);
             }
-            return finalizeWorker(record)
-                .then(() => originalTerminate.call(this))
-                .then(markTerminated);
+            const termination = originalTerminate.call(this);
+            void finalizeTerminatingWorker(record, false);
+            return termination.then(markTerminated);
         };
 
         const inspectorPost = (
@@ -644,31 +994,59 @@ export async function installMainCapture(
             const memory = process.memoryUsage();
             state.mainPeakHeap = Math.max(state.mainPeakHeap, memory.heapUsed);
             state.mainPeakRss = Math.max(state.mainPeakRss, memory.rss);
-            for (const metric of app.getAppMetrics()) {
-                const type = String(metric.type).toLowerCase();
-                if (type.includes('tab') || type.includes('renderer')) {
-                    state.rendererPeakRss = Math.max(
-                        state.rendererPeakRss,
-                        Number(metric.memory?.workingSetSize ?? 0) * 1024
-                    );
-                }
-            }
+            state.rendererWindowSession?.sample();
         };
-        const attachWindowListeners = (): void => {
-            for (const window of BrowserWindow.getAllWindows()) {
-                const unresponsive = () => {
-                    state.unresponsiveEvents += 1;
-                };
-                const responsive = () => {
-                    state.responsiveEvents += 1;
-                };
-                window.on('unresponsive', unresponsive);
-                window.on('responsive', responsive);
-                state.windowListeners.push({
-                    responsive,
-                    unresponsive,
-                    window,
-                });
+        const startCapture = async (
+            options: MainCaptureStartOptions
+        ): Promise<void> => {
+            state.rendererWindowSession?.detach();
+            state.rendererWindowSession = null;
+            const rendererWindowSession = rendererWindowRssSessionApi.create({
+                browserWindowFromId: (browserWindowId) =>
+                    BrowserWindow.fromId(browserWindowId),
+                browserWindowId: options.rendererWindowIdentity.browserWindowId,
+                getAppMetrics: () => app.getAppMetrics(),
+                rendererRssApi: rendererProcessRssApi,
+                webContentsId: options.rendererWindowIdentity.webContentsId,
+            });
+            state.stopping = false;
+            state.captureGeneration += 1;
+            state.active = true;
+            databaseRequestIdentityCapture.start();
+            dbRequests.clear();
+            operationWorkers.clear();
+            state.diagnostic = options.diagnostic;
+            state.outputDirectory = options.outputDirectory;
+            state.timeline = [];
+            state.mainPeakHeap = 0;
+            state.mainPeakRss = 0;
+            state.mainProfilePath = null;
+            state.mainSnapshotPath = null;
+            state.postGcHeap = null;
+            state.postGcRss = null;
+            state.rendererWindowSession = rendererWindowSession;
+            state.cpuStart = process.cpuUsage();
+            state.eventLoopStart = perfHooks.performance.eventLoopUtilization();
+            state.eventLoopDelay = perfHooks.monitorEventLoopDelay({
+                resolution: 1,
+            });
+            state.eventLoopDelay.enable();
+            sampleMain();
+            state.sampleTimer = setInterval(sampleMain, 20);
+            if (state.diagnostic) {
+                const session = new inspector.Session();
+                session.connect();
+                state.inspectorSession = session;
+                await inspectorPost(session, 'Profiler.enable');
+                await inspectorPost(session, 'Profiler.start');
+                state.mainProfilePath = path.join(
+                    state.outputDirectory,
+                    'main.cpuprofile'
+                );
+                state.mainSnapshotPath = path.join(
+                    state.outputDirectory,
+                    'main.heapsnapshot'
+                );
             }
         };
 
@@ -705,54 +1083,36 @@ export async function installMainCapture(
                 ).length,
             }),
             start: async (options: MainCaptureStartOptions): Promise<void> => {
-                state.captureGeneration += 1;
-                state.active = true;
-                databaseRequestIdentityCapture.start();
-                dbRequests.clear();
-                operationWorkers.clear();
-                state.diagnostic = options.diagnostic;
-                state.outputDirectory = options.outputDirectory;
-                state.timeline = [];
-                state.mainPeakHeap = 0;
-                state.mainPeakRss = 0;
-                state.rendererPeakRss = 0;
-                state.postGcHeap = null;
-                state.postGcRss = null;
-                state.unresponsiveEvents = 0;
-                state.responsiveEvents = 0;
-                state.cpuStart = process.cpuUsage();
-                state.eventLoopStart =
-                    perfHooks.performance.eventLoopUtilization();
-                state.eventLoopDelay = perfHooks.monitorEventLoopDelay({
-                    resolution: 1,
-                });
-                state.eventLoopDelay.enable();
-                attachWindowListeners();
-                sampleMain();
-                state.sampleTimer = setInterval(sampleMain, 20);
-                if (state.diagnostic) {
-                    const session = new inspector.Session();
-                    session.connect();
-                    state.inspectorSession = session;
-                    await inspectorPost(session, 'Profiler.enable');
-                    await inspectorPost(session, 'Profiler.start');
-                    state.mainProfilePath = path.join(
-                        state.outputDirectory,
-                        'main.cpuprofile'
-                    );
-                    state.mainSnapshotPath = path.join(
-                        state.outputDirectory,
-                        'main.heapsnapshot'
-                    );
-                }
+                databaseWorkerPostGcCutoffApi.beginCapture();
+                await startCapture(options);
             },
-            stop: async (): Promise<MainCaptureGenerationTransport> => {
+            stop: async (
+                nextOptions?: MainCaptureStartOptions
+            ): Promise<MainCaptureStopTransport> => {
+                databaseWorkerPostGcCutoffApi.beginStop();
+                state.stopping = true;
+                state.active = false;
+                databaseRequestIdentityCapture.stop();
                 if (state.sampleTimer) {
                     clearInterval(state.sampleTimer);
                     state.sampleTimer = null;
                 }
+                const currentWorkerRecords = [...records.values()].filter(
+                    (record) =>
+                        record.captureGeneration === state.captureGeneration
+                );
+                for (const record of currentWorkerRecords) {
+                    stopWorkerSampling(record);
+                }
                 state.eventLoopDelay?.disable();
                 sampleMain();
+                const rendererWindow: RendererWindowRssSessionMetrics | null =
+                    state.rendererWindowSession?.snapshot() ?? null;
+                state.rendererWindowSession?.detach();
+                state.rendererWindowSession = null;
+                if (rendererWindow === null) {
+                    throw new Error('renderer-window-session-missing');
+                }
                 const cpu = process.cpuUsage(state.cpuStart ?? undefined);
                 const eluEnd = perfHooks.performance.eventLoopUtilization();
                 const elu = perfHooks.performance.eventLoopUtilization(
@@ -767,15 +1127,6 @@ export async function installMainCapture(
                         ? null
                         : elu.utilization;
                 const delay = state.eventLoopDelay;
-                const databaseRecords = [...records.values()].filter(
-                    (record) =>
-                        record.captureGeneration === state.captureGeneration &&
-                        record.kind === 'database.worker' &&
-                        record.sampleTimer !== null
-                );
-                await Promise.all(
-                    databaseRecords.map((record) => finalizeWorker(record))
-                );
                 const session =
                     state.inspectorSession ?? new inspector.Session();
                 if (!state.inspectorSession) {
@@ -791,6 +1142,41 @@ export async function installMainCapture(
                         JSON.stringify(result['profile'])
                     );
                 }
+                await Promise.all(
+                    currentWorkerRecords
+                        .filter(
+                            (record) =>
+                                record.kind === 'playlist-refresh.worker' &&
+                                record.finalizing !== null
+                        )
+                        .map((record) =>
+                            waitForTerminatingWorkerFinalization(record)
+                        )
+                );
+                const databaseSelection =
+                    databaseWorkerPostGcSelectionApi.select(
+                        currentWorkerRecords,
+                        state.captureGeneration
+                    );
+                const currentDatabaseRecords = currentWorkerRecords.filter(
+                    (record) => record.kind === 'database.worker'
+                );
+                if (databaseSelection.selected) {
+                    await finalizeDatabaseWorker(
+                        databaseSelection.selected,
+                        null
+                    );
+                } else if (databaseSelection.unavailableReason !== null) {
+                    await Promise.all(
+                        currentDatabaseRecords.map((record) =>
+                            finalizeDatabaseWorker(
+                                record,
+                                databaseSelection.unavailableReason
+                            )
+                        )
+                    );
+                }
+                flushWorkerProfiles(currentWorkerRecords);
                 await inspectorPost(session, 'HeapProfiler.enable');
                 await inspectorPost(session, 'HeapProfiler.collectGarbage');
                 const postGc = process.memoryUsage();
@@ -815,20 +1201,20 @@ export async function installMainCapture(
                 }
                 session.disconnect();
                 state.inspectorSession = null;
-                for (const listener of state.windowListeners) {
-                    listener.window.off('unresponsive', listener.unresponsive);
-                    listener.window.off('responsive', listener.responsive);
+                const cutoff = databaseWorkerPostGcCutoffApi.snapshot();
+                if (cutoff.lateRequestCount > 0) {
+                    for (const record of currentDatabaseRecords) {
+                        record.postGcHeapUsed = null;
+                        record.postGcHeapUnavailableReason =
+                            'database-worker-activity-after-cutoff';
+                    }
                 }
-                state.windowListeners = [];
-                state.active = false;
-                databaseRequestIdentityCapture.stop();
 
-                const workers = [...records.values()]
+                const workers = currentWorkerRecords
                     .filter(
                         (record) =>
-                            record.kind === 'playlist-refresh.worker' ||
-                            record.heapPeak > 0 ||
-                            record.requestPerformance.length > 0
+                            record.kind === 'database.worker' ||
+                            record.kind === 'playlist-refresh.worker'
                     )
                     .map((record) => ({
                         captureGeneration: record.captureGeneration,
@@ -846,9 +1232,12 @@ export async function installMainCapture(
                             eventLoopUtilization: record.elu,
                             kind: record.kind,
                             operationId: record.operationId,
+                            ordinal: record.ordinal,
                             peakExternalBytes: record.externalPeak,
                             peakHeapUsedBytes: record.heapPeak,
                             playlistId: record.playlistId,
+                            postGcHeapUnavailableReason:
+                                record.postGcHeapUnavailableReason,
                             postGcHeapUsedBytes: record.postGcHeapUsed,
                             profilePath: record.profilePath,
                             responseEpochMs: record.responseEpochMs,
@@ -867,7 +1256,7 @@ export async function installMainCapture(
                             success: request.success,
                         })),
                     }));
-                return {
+                const transport: MainCaptureGenerationTransport = {
                     captureGeneration: state.captureGeneration,
                     metrics: {
                         cpuProfilePath: state.mainProfilePath,
@@ -893,15 +1282,59 @@ export async function installMainCapture(
                             postGcHeapUsedBytes: state.postGcHeap,
                             postGcRssBytes: state.postGcRss,
                         },
-                        rendererPeakRssBytes: state.rendererPeakRss,
-                        responsiveEvents: state.responsiveEvents,
+                        rendererWindow,
                         rssScope:
                             'electron-main-process-including-worker-threads-and-native-memory',
                         timeline: state.timeline,
-                        unresponsiveEvents: state.unresponsiveEvents,
                     },
                     workers,
                 };
+                let rollover: MainCaptureRolloverStatus | null = null;
+                if (nextOptions) {
+                    const databaseRecord =
+                        currentDatabaseRecords.length === 1
+                            ? currentDatabaseRecords[0]
+                            : null;
+                    const nextCaptureUnavailableReason =
+                        cutoff.lateRequestCount > 0
+                            ? 'database-worker-activity-after-cutoff'
+                            : dbRequests.size > 0
+                              ? 'database-worker-not-idle'
+                              : currentDatabaseRecords.length === 0
+                                ? 'database-worker-missing'
+                                : currentDatabaseRecords.length > 1
+                                  ? 'multiple-database-workers'
+                                  : !databaseRecord ||
+                                      !Number.isSafeInteger(
+                                          databaseRecord.postGcHeapUsed
+                                      ) ||
+                                      Number(databaseRecord.postGcHeapUsed) <
+                                          0 ||
+                                      databaseRecord.postGcHeapUnavailableReason !==
+                                          null
+                                    ? (databaseRecord?.postGcHeapUnavailableReason ??
+                                      'post-gc-capture-invalid')
+                                    : null;
+                    if (nextCaptureUnavailableReason === null) {
+                        databaseWorkerPostGcCutoffApi.rolloverCapture();
+                        await startCapture(nextOptions);
+                        rollover = {
+                            nextCaptureStarted: true,
+                            nextCaptureUnavailableReason: null,
+                        };
+                    } else {
+                        databaseWorkerPostGcCutoffApi.finishStop();
+                        state.stopping = false;
+                        rollover = {
+                            nextCaptureStarted: false,
+                            nextCaptureUnavailableReason,
+                        };
+                    }
+                } else {
+                    databaseWorkerPostGcCutoffApi.finishStop();
+                    state.stopping = false;
+                }
+                return { ...transport, rollover };
             },
         };
         target[input.stateKey] = api;
@@ -936,6 +1369,33 @@ export async function readMainCaptureStatus(
     }, MAIN_CAPTURE_STATE_KEY);
 }
 
+export async function rolloverMainCapture(
+    electronApp: ElectronApplication,
+    options: MainCaptureStartOptions
+): Promise<MainCaptureRolloverResult> {
+    const transport = await electronApp.evaluate(
+        async (_electron, input) => {
+            const target = globalThis as unknown as Record<string, unknown>;
+            const api = target[input.stateKey] as {
+                stop(
+                    nextOptions?: MainCaptureStartOptions
+                ): Promise<MainCaptureStopTransport>;
+            };
+            return api.stop(input.options);
+        },
+        { options, stateKey: MAIN_CAPTURE_STATE_KEY }
+    );
+    if (transport.rollover === null) {
+        throw new Error('main-capture-rollover-status-missing');
+    }
+    return Object.freeze({
+        completedCapture: selectMainCaptureGeneration(transport),
+        nextCaptureStarted: transport.rollover.nextCaptureStarted,
+        nextCaptureUnavailableReason:
+            transport.rollover.nextCaptureUnavailableReason,
+    });
+}
+
 export async function stopMainCapture(
     electronApp: ElectronApplication
 ): Promise<MainCaptureMetrics> {
@@ -943,7 +1403,7 @@ export async function stopMainCapture(
         async (_electron, stateKey) => {
             const target = globalThis as unknown as Record<string, unknown>;
             const api = target[stateKey] as {
-                stop(): Promise<MainCaptureGenerationTransport>;
+                stop(): Promise<MainCaptureStopTransport>;
             };
             return api.stop();
         },

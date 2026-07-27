@@ -12,6 +12,7 @@ import {
     type WorkerRequestPerformanceMetrics,
 } from './m3u-refresh-cancellation-contract';
 import {
+    type MainCaptureGenerationTransport,
     normalizeWorkerRequestPerformanceOutcome,
     selectMainCaptureGeneration,
 } from './worker-request-performance';
@@ -130,9 +131,24 @@ function measuredIteration(
                 postGcHeapUsedBytes: null,
                 postGcRssBytes: null,
             },
-            rendererPeakRssBytes: 0,
-            responsiveEvents: 0,
-            unresponsiveEvents: 0,
+            rendererWindow: {
+                responsiveEvents: 0,
+                rss: {
+                    identity: {
+                        creationTime: 1_721_234_567_890,
+                        pid: 42,
+                    },
+                    missingSampleCount: 0,
+                    peakRssBytes: 0,
+                    unavailableReason: null,
+                    validSampleCount: 1,
+                },
+                unresponsiveEvents: 0,
+                windowIdentity: {
+                    browserWindowId: 7,
+                    webContentsId: 11,
+                },
+            },
             workers,
         } as CancellationIterationResult['main'],
         phases: {} as CancellationIterationResult['phases'],
@@ -202,7 +218,6 @@ test('main capture retains raw request identity, timestamps, metrics, and reason
     );
 
     assert.match(source, /requestPerformance: \[\]/);
-    assert.match(source, /record\.requestPerformance\.length > 0/);
     assert.match(source, /record\.requestPerformance\.map/);
     assert.match(source, /operationId: request\.identity\.operationId/);
     assert.match(source, /identity: request\.identity/);
@@ -212,6 +227,26 @@ test('main capture retains raw request identity, timestamps, metrics, and reason
         source,
         /record\.eventLoopDelay = record\.eventLoopDelay/
     );
+});
+
+test('benchmark resolves one exact BrowserWindow and main capture never scans all windows', () => {
+    const benchmarkSource = readFileSync(
+        new URL('./m3u-refresh-cancellation.benchmark.ts', import.meta.url),
+        'utf8'
+    );
+    const mainCaptureSource = readFileSync(
+        new URL('./m3u-refresh-main-capture.ts', import.meta.url),
+        'utf8'
+    );
+
+    assert.match(
+        benchmarkSource,
+        /electronApp\.browserWindow\(\s*app\.mainWindow\s*\)/
+    );
+    assert.match(benchmarkSource, /rendererWindowIdentity/);
+    assert.doesNotMatch(mainCaptureSource, /BrowserWindow\.getAllWindows/);
+    assert.doesNotMatch(mainCaptureSource, /type\.includes\('renderer'\)/);
+    assert.doesNotMatch(mainCaptureSource, /type\.includes\('tab'\)/);
 });
 
 test('capture-generation selection excludes a pre-start seed worker', () => {
@@ -257,6 +292,53 @@ test('capture-generation selection excludes a pre-start seed worker', () => {
     );
     assert.equal(selected.workers[0]?.operationId, 'measured-cancel-operation');
     assert.equal(selected.workers[0]?.terminatedEpochMs, 2_100);
+});
+
+test('fails closed for incoherent worker post-GC metrics at the Electron boundary', () => {
+    const invalidOutcomes = [
+        {
+            postGcHeapUnavailableReason: 'gc-unavailable',
+            postGcHeapUsedBytes: 100,
+        },
+        {
+            postGcHeapUnavailableReason: null,
+            postGcHeapUsedBytes: null,
+        },
+        {
+            postGcHeapUnavailableReason: null,
+            postGcHeapUsedBytes: -1,
+        },
+        {
+            postGcHeapUnavailableReason: 'unknown-reason',
+            postGcHeapUsedBytes: null,
+        },
+    ] as const;
+
+    for (const outcome of invalidOutcomes) {
+        const selected = selectMainCaptureGeneration({
+            captureGeneration: 3,
+            metrics: measuredIteration([]).main,
+            workers: [
+                {
+                    captureGeneration: 3,
+                    metrics: {
+                        ...databaseWorker([]),
+                        ...outcome,
+                    },
+                    requests: [],
+                },
+            ],
+        } as unknown as MainCaptureGenerationTransport);
+        const worker = selected.workers[0] as WorkerCaptureMetrics & {
+            readonly postGcHeapUnavailableReason: string | null;
+        };
+
+        assert.equal(worker.postGcHeapUsedBytes, null);
+        assert.equal(
+            worker.postGcHeapUnavailableReason,
+            'post-gc-capture-invalid'
+        );
+    }
 });
 
 test('raw outcomes retain missing and malformed captures while summaries exclude their null metrics', () => {

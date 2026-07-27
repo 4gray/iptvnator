@@ -96,6 +96,10 @@ import {
     startWorkerPerformanceCapture,
     type WorkerPerformanceCapture,
 } from './worker-performance-capture';
+import {
+    handleDatabaseWorkerPostGcHeapRequest,
+    isDatabaseWorkerPostGcHeapRequest,
+} from './database-worker-post-gc-heap';
 
 const loggerLabel = '[DB Worker]';
 const batchDelayMs = Number.parseInt(
@@ -989,6 +993,14 @@ async function executeRequest(
 }
 
 parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
+    if (isDatabaseWorkerPostGcHeapRequest(message)) {
+        handleDatabaseWorkerPostGcHeapRequest(
+            message,
+            activePerformanceCaptures.size === 0
+        );
+        return;
+    }
+
     if (message.type === 'cancel') {
         const activeOperation = activeOperations.get(message.operationId);
         if (activeOperation) {

@@ -2,8 +2,10 @@ import type {
     EventLoopDelayMetrics,
     MainCaptureMetrics,
     WorkerCaptureMetrics,
+    WorkerPostGcHeapCapture,
     WorkerRequestPerformanceMetrics,
 } from './m3u-refresh-cancellation-contract';
+import { WORKER_POST_GC_HEAP_UNAVAILABLE_REASON } from './m3u-refresh-cancellation-contract';
 
 export interface WorkerRequestPerformanceOutcomeTransport {
     readonly operation: string | null;
@@ -62,6 +64,9 @@ const THREAD_CPU_REASONS = new Set([
     'thread-cpu-usage-invalid',
     'thread-cpu-usage-unavailable',
 ]);
+const WORKER_POST_GC_HEAP_UNAVAILABLE_REASONS = new Set<string>(
+    Object.values(WORKER_POST_GC_HEAP_UNAVAILABLE_REASON)
+);
 
 function isRecord(input: unknown): input is Record<string, unknown> {
     return typeof input === 'object' && input !== null && !Array.isArray(input);
@@ -82,6 +87,38 @@ function isNullableReason(
     allowed: ReadonlySet<string>
 ): value is string | null {
     return value === null || (typeof value === 'string' && allowed.has(value));
+}
+
+function normalizeWorkerPostGcHeapCapture(
+    input: Record<string, unknown>
+): WorkerPostGcHeapCapture {
+    const postGcHeapUnavailableReason = input['postGcHeapUnavailableReason'];
+    const postGcHeapUsedBytes = input['postGcHeapUsedBytes'];
+    if (
+        Number.isSafeInteger(postGcHeapUsedBytes) &&
+        Number(postGcHeapUsedBytes) >= 0 &&
+        postGcHeapUnavailableReason === null
+    ) {
+        return {
+            postGcHeapUnavailableReason: null,
+            postGcHeapUsedBytes: Number(postGcHeapUsedBytes),
+        };
+    }
+    if (
+        postGcHeapUsedBytes === null &&
+        typeof postGcHeapUnavailableReason === 'string' &&
+        WORKER_POST_GC_HEAP_UNAVAILABLE_REASONS.has(postGcHeapUnavailableReason)
+    ) {
+        return {
+            postGcHeapUnavailableReason,
+            postGcHeapUsedBytes: null,
+        } as WorkerPostGcHeapCapture;
+    }
+    return {
+        postGcHeapUnavailableReason:
+            WORKER_POST_GC_HEAP_UNAVAILABLE_REASON.INVALID_CAPTURE,
+        postGcHeapUsedBytes: null,
+    };
 }
 
 function parseEventLoopDelay(
@@ -280,8 +317,12 @@ export function selectMainCaptureGeneration(
             );
             const onlyRequest =
                 requests.length === 1 ? (requests[0] ?? null) : null;
+            const postGcHeap = normalizeWorkerPostGcHeapCapture(
+                worker.metrics as unknown as Record<string, unknown>
+            );
             return {
                 ...worker.metrics,
+                ...postGcHeap,
                 eventLoopDelay: onlyRequest?.eventLoopDelay ?? null,
                 eventLoopDelayUnavailableReason: onlyRequest
                     ? (onlyRequest.eventLoopDelayUnavailableReason ??
