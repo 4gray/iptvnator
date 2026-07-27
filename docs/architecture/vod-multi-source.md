@@ -39,7 +39,7 @@ Every metadata value carries **where it came from**:
 |---|---|---|
 | `api` | `get_vod_info` — container, codec, audio, dimensions | plain tag |
 | `parsed` | regex over the title/filename | tag prefixed `~`, warn colour |
-| `probe` | HEAD → reachable + latency | `ok` / `fail` status tag |
+| `probe` | HEAD → reachable + latency (retried as a ranged GET when the server answers 405/501, since plenty serve media over GET while refusing HEAD) | `ok` / `fail` status tag |
 | *absent* | — | **no tag at all** + a `check` chip |
 
 Three rules follow, and each is enforced in code rather than by convention:
@@ -110,6 +110,16 @@ landed is stored under its title key and prefers a `tmdb:` key afterwards;
 reading both means the id arriving later does not orphan the pin, and unpinning
 clears every alias so a stale row cannot resurrect it.
 
+## Short titles
+
+The trigram tokenizer cannot index tokens under three characters, so a title
+like "Up", "It" or "Us" produces an empty `MATCH` expression. Discovery falls
+back to a bounded `LIKE` scan for exactly those titles rather than returning
+nothing — the two-tier normalized confirmation still runs afterwards, so the
+looser query does not admit "Upgrade" for "Up". The scan is slower and cannot
+use the title index, which is acceptable because it is only reachable for the
+handful of titles FTS structurally cannot serve.
+
 ## Why resolution is lazy
 
 The `content` table stores no `container_extension`, and
@@ -161,7 +171,18 @@ an N-source movie fails over at most N−1 times and then shows the honest error
 screen. Returning to an earlier source by hand does not clear the set.
 
 A source that cannot even be resolved is marked tried without becoming active,
-so it is not re-picked.
+and failover **continues to the next candidate** rather than giving up —
+production calls `failover()` only once, on the original failure, so stopping at
+a dead top-ranked source would strand every healthy one below it. `switchTo`
+therefore reports which of two things happened: `unresolvable` (marked tried,
+keep going) or `superseded` (something newer owns the screen, stop). Without
+that distinction the loop would spin on a superseded target forever, because
+only the first outcome marks the candidate tried.
+
+**A pin is not decoration.** The primary Play action starts from the pinned
+source when one is set, and the pin outranks every other signal in the ranking
+above. Loading a pin that only decorated its row would mean "make this the main
+source" survived a restart as an icon and nothing else.
 
 The switch is **always announced** — another source can carry a different dub or
 cut. The toast offers Undo, and adds a dub warning when
