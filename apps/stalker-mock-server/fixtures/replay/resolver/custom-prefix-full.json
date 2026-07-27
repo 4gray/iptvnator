@@ -1,0 +1,244 @@
+{
+    "description": "Synthetic /tenant/c/ source discovers and authenticates its sibling custom-prefix full-session endpoint without a learned hint.",
+    "entry": {
+        "origin": "portal",
+        "path": "/tenant/c/"
+    },
+    "expectedEndpoint": {
+        "origin": "portal",
+        "path": "/tenant/server/load.php"
+    },
+    "failOnUnexpectedRequest": true,
+    "initialState": "start",
+    "origins": {
+        "portal": {}
+    },
+    "phases": [
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "custom-landing",
+                    "method": "GET",
+                    "operation": "custom-landing",
+                    "origin": "portal",
+                    "path": "/tenant/c/",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "mac",
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {},
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization",
+                                "cookie"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "device_id",
+                                "device_id2",
+                                "mac",
+                                "password",
+                                "signature",
+                                "signature2",
+                                "sn",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {},
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "empty"
+                        },
+                        "headers": {},
+                        "status": 204
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "custom-landing",
+            "nextState": "full-session",
+            "state": "start"
+        },
+        {
+            "expectations": [
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "custom-handshake",
+                    "method": "GET",
+                    "operation": "custom-handshake",
+                    "origin": "portal",
+                    "path": "/tenant/server/load.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [
+                                "authorization"
+                            ],
+                            "exact": {},
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "token",
+                                "username"
+                            ],
+                            "exact": {
+                                "action": "handshake",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "token": {
+                                        "kind": "generate",
+                                        "symbol": "custom-token",
+                                        "valueKind": "token"
+                                    }
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                },
+                {
+                    "cardinality": {
+                        "max": 1,
+                        "min": 1
+                    },
+                    "id": "custom-profile",
+                    "method": "GET",
+                    "operation": "custom-profile",
+                    "origin": "portal",
+                    "path": "/tenant/server/load.php",
+                    "request": {
+                        "body": {
+                            "kind": "absent"
+                        },
+                        "cookies": {
+                            "absent": [
+                                "session"
+                            ],
+                            "attributes": {},
+                            "exact": {
+                                "mac": {
+                                    "kind": "ref",
+                                    "symbol": "mac"
+                                }
+                            },
+                            "present": []
+                        },
+                        "headers": {
+                            "absent": [],
+                            "exact": {
+                                "authorization": {
+                                    "kind": "parts",
+                                    "parts": [
+                                        {
+                                            "kind": "literal",
+                                            "value": "Bearer "
+                                        },
+                                        {
+                                            "kind": "ref",
+                                            "symbol": "custom-token"
+                                        }
+                                    ]
+                                }
+                            },
+                            "present": []
+                        },
+                        "query": {
+                            "absent": [
+                                "password",
+                                "username"
+                            ],
+                            "exact": {
+                                "action": "get_profile",
+                                "auth_second_step": "0",
+                                "type": "stb"
+                            },
+                            "present": []
+                        }
+                    },
+                    "response": {
+                        "body": {
+                            "kind": "json",
+                            "value": {
+                                "js": {
+                                    "id": 1,
+                                    "status": 0
+                                }
+                            }
+                        },
+                        "headers": {
+                            "content-type": [
+                                "application/json"
+                            ]
+                        },
+                        "status": 200
+                    }
+                }
+            ],
+            "mode": "ordered",
+            "name": "full-session",
+            "nextState": "complete",
+            "state": "full-session"
+        }
+    ],
+    "scenarioId": "resolver-custom-prefix-full",
+    "schemaVersion": 1,
+    "symbols": [
+        {
+            "kind": "generate",
+            "symbol": "mac",
+            "valueKind": "mac"
+        }
+    ],
+    "terminalState": "complete"
+}

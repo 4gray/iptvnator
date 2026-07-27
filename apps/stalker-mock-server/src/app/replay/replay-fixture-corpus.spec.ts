@@ -47,6 +47,7 @@ const EXPECTED_SCENARIOS = [
     'redirect-repeated-loop',
     'refresh-concurrent-rejections',
     'refresh-exhausted-retry',
+    'resolver-custom-prefix-full',
     'resolver-direct-load-jsonp',
     'resolver-direct-portal-statusless',
     'resolver-learned-rediscovery',
