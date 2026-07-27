@@ -64,11 +64,20 @@ export function resolveVodMultiSourceMovie(input: {
 }
 
 /**
- * Identity key for "this is still the same movie".
+ * Identity key for "this is still the same movie, described the same way".
  *
- * Includes the title because it can arrive after the ids do — the first pass
- * may run against the catalog title and a better one may follow.
+ * Includes every field that changes matching or pin lookup, not just the ids.
+ * The catalog title usually arrives before `get_vod_info` supplies the TMDB id
+ * and release year; if the key ignored those, enrichment would never trigger a
+ * reload, discovery would stay yearless and a `tmdb:`-keyed pin would never be
+ * found.
  */
 export function vodMultiSourceMovieKey(movie: VodMultiSourceMovie): string {
-    return `${movie.playlistId}:${movie.contentId}:${movie.title}`;
+    return [
+        movie.playlistId,
+        movie.contentId,
+        movie.title,
+        movie.year ?? '',
+        movie.tmdbId ?? '',
+    ].join(':');
 }

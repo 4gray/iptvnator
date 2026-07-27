@@ -9,9 +9,7 @@ import {
     StreamProbeService,
     VodSourcePinService,
 } from '@iptvnator/services';
-import type {
-    VodSourceCandidate,
-} from '@iptvnator/shared/interfaces';
+import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import type { VodMultiSourceMovie } from './vod-multi-source-identity';
 

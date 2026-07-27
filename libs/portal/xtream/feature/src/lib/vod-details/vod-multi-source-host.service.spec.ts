@@ -233,22 +233,70 @@ describe('VodMultiSourceHostService', () => {
         expect(service.isExhausted()).toBe(true);
     });
 
-    it('does not retry a source it could not resolve', async () => {
+    it('keeps going when the best candidate cannot be resolved', async () => {
         await loadMovie([ALT_TWO, ALT_THREE]);
         vodAutoFailover.set(true);
+        // Top-ranked source has a dead account: get_vod_info yields nothing.
         resolver.resolve.mockResolvedValueOnce(null);
 
-        await expect(service.failover()).resolves.toBeNull();
-
-        const failedId = resolvedIds()[0];
-        expect(rowFor(failedId)?.isActive).toBe(false);
-        expect(rowFor(failedId)?.isTried).toBe(true);
-        expect(startPlayback).not.toHaveBeenCalled();
-
+        // Production calls failover() once, on the original failure — giving up
+        // here would strand a perfectly healthy lower-ranked source.
         await expect(service.failover()).resolves.not.toBeNull();
 
-        expect(resolvedIds()[1]).not.toBe(failedId);
-        expect(rowFor(resolvedIds()[1])?.isActive).toBe(true);
+        const [failedId, playingId] = resolvedIds();
+        expect(playingId).not.toBe(failedId);
+        expect(rowFor(failedId)?.isActive).toBe(false);
+        expect(rowFor(failedId)?.isTried).toBe(true);
+        expect(rowFor(playingId)?.isActive).toBe(true);
+        expect(startPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives up once every candidate fails to resolve', async () => {
+        await loadMovie([ALT_TWO, ALT_THREE]);
+        vodAutoFailover.set(true);
+        resolver.resolve.mockResolvedValue(null);
+
+        // Each attempt marks its source tried, so this terminates rather than
+        // spinning through the same candidate forever.
+        await expect(service.failover()).resolves.toBeNull();
+        expect(startPlayback).not.toHaveBeenCalled();
+        expect(service.isExhausted()).toBe(true);
+    });
+
+    it('plays the pinned source instead of the route playlist', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO, ALT_THREE]);
+
+        // Without this the persisted preference is only an icon: reopening the
+        // movie would still start the playlist the route is on.
+        await expect(service.playPinnedSource()).resolves.toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
+    });
+
+    it('leaves Play alone when nothing is pinned', async () => {
+        await loadMovie([ALT_TWO]);
+
+        await expect(service.playPinnedSource()).resolves.toBe(false);
+        expect(startPlayback).not.toHaveBeenCalled();
+    });
+
+    it('prefers the pinned source when failing over', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_THREE.playlistId,
+            contentId: ALT_THREE.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO, ALT_THREE]);
+        vodAutoFailover.set(true);
+
+        await expect(service.failover()).resolves.not.toBeNull();
+        expect(rowFor(ALT_THREE.id)?.isActive).toBe(true);
     });
 
     it('round-trips a pin under the movie match key', async () => {

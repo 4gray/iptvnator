@@ -408,7 +408,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.playback.resumeVod(vodItem);
     }
 
-    onPrimaryAction(vodItem: XtreamVodDetails | null): void {
+    async onPrimaryAction(vodItem: XtreamVodDetails | null): Promise<void> {
+        // A pinned source is an explicit "play this movie from here", so it
+        // outranks the playlist the route happens to be on. Falls through to
+        // the normal path when nothing is pinned or the pin cannot resolve.
+        if (await this.multiSource.playPinnedSource()) {
+            return;
+        }
+
         this.playback.onPrimaryAction(vodItem);
     }
 

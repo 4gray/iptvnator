@@ -10,7 +10,6 @@ import {
     VodMultiSourceController,
     VodSourceDiscoveryService,
     VodSourceResolverService,
-    audioDiffersFactually,
 } from '@iptvnator/portal/shared/data-access';
 import {
     SettingsStore,
@@ -21,8 +20,16 @@ import {
     vodMultiSourceMovieKey,
     type VodMultiSourceMovie,
 } from './vod-multi-source-identity';
+import { buildSwitchNotice } from './vod-multi-source-notice';
+import { currentSourceRow } from './vod-multi-source-current-row';
+import { probeSource } from './vod-multi-source-probe';
 import {
-    buildVodSourceMatchKey,
+    erasePin,
+    pinnedSourceIdOf,
+    readPin,
+    writePin,
+} from './vod-multi-source-pin';
+import {
     buildVodSourceMatchKeyCandidates,
     type ResolvedPortalPlayback,
     type VodSourceCandidate,
@@ -47,6 +54,12 @@ export interface VodMultiSourceBindings {
     /** The movie on screen, or null while its identity is not yet knowable. */
     movie: Signal<VodMultiSourceMovie | null>;
 }
+
+/**
+ * Why a switch attempt ended. `unresolvable` is the only outcome failover may
+ * continue past — `superseded` means something newer already owns the screen.
+ */
+type SwitchOutcome = 'switched' | 'unresolvable' | 'superseded';
 
 export interface VodMultiSourceSwitchNotice {
     playlistName: string;
@@ -174,18 +187,7 @@ export class VodMultiSourceHostService {
             return;
         }
 
-        // The playing source is part of the list, so the popover can show it
-        // as current rather than pretending the movie came from nowhere.
-        const current: VodSourceCandidate = {
-            id: `${movie.playlistId}:xtream:${movie.contentId}`,
-            playlistId: movie.playlistId,
-            playlistName: movie.playlistName,
-            portalType: 'xtream',
-            contentId: movie.contentId,
-            rawTitle: movie.title,
-            matchConfidence: 'exact',
-            year: movie.year ?? null,
-        };
+        const current = currentSourceRow(movie);
 
         this.controller.setSources(
             [current, ...result.sources],
@@ -193,17 +195,36 @@ export class VodMultiSourceHostService {
         );
         this.controller.setActiveSource(current.id);
 
-        const pin = await this.pins.get(this.matchKeys);
+        const pin = await readPin(this.pins, this.matchKeys);
         if (token !== this.discoveryToken) {
             return;
         }
         if (pin) {
-            this.controller.setPinnedSource(
-                `${pin.playlistId}:${pin.portalType}:${pin.contentId}`
-            );
+            this.controller.setPinnedSource(pinnedSourceIdOf(pin));
         }
 
         this.publish();
+    }
+
+    /**
+     * The pinned source, when it is not the one the route already plays.
+     *
+     * "Make this the main source" has to survive reopening the movie, or the
+     * persisted preference is just an icon. The host consults this before its
+     * normal Play so the pin decides where playback starts.
+     */
+    readonly pendingPinnedSourceId = computed(() => {
+        const pinned = this._sources().find((source) => source.isPinned);
+        return pinned && !pinned.isActive ? pinned.id : null;
+    });
+
+    /**
+     * Start from the pinned source if there is one. Returns false when there is
+     * nothing pinned to honour, leaving the caller's own Play path in charge.
+     */
+    async playPinnedSource(): Promise<boolean> {
+        const pinnedId = this.pendingPinnedSourceId();
+        return pinnedId ? this.play(pinnedId) : false;
     }
 
     /** Play from a specific source once; does not change the pin. */
@@ -215,7 +236,7 @@ export class VodMultiSourceHostService {
 
         this._busySourceId.set(sourceId);
         try {
-            return await this.switchTo(candidate);
+            return (await this.switchTo(candidate)) === 'switched';
         } finally {
             this._busySourceId.set(null);
         }
@@ -232,7 +253,7 @@ export class VodMultiSourceHostService {
         );
 
         if (alreadyPinned) {
-            await this.pins.clear(this.matchKeys);
+            await erasePin(this.pins, this.matchKeys);
             this.controller.setPinnedSource(null);
             this.publish();
             return;
@@ -243,60 +264,22 @@ export class VodMultiSourceHostService {
             return;
         }
 
-        // Written under the most-trusted key; lookups pass every alias, so a
-        // TMDB id arriving later does not orphan this row.
-        const matchKey = this.matchKeys[0] ?? buildVodSourceMatchKey(candidate);
-        if (!matchKey) {
-            return;
+        if (await writePin(this.pins, this.matchKeys, candidate)) {
+            this.controller.setPinnedSource(sourceId);
+            this.publish();
         }
-
-        await this.pins.set({
-            matchKey,
-            playlistId: candidate.playlistId,
-            contentId: candidate.contentId,
-            portalType: candidate.portalType,
-        });
-        this.controller.setPinnedSource(sourceId);
-        this.publish();
     }
 
     /** User-triggered availability check for one row. */
     async check(sourceId: string): Promise<void> {
-        const candidate = this.controller.findSource(sourceId);
-        if (!candidate) {
-            return;
-        }
-
-        // Same hazard as a switch: two awaits follow, and the user may open a
-        // different movie meanwhile. Writing a probe result into the new
-        // movie's controller would attach it to an unrelated source.
-        const session = this.discoveryToken;
-        const controller = this.controller;
-
-        controller.setProbe(sourceId, { status: 'probing' });
-        this.publish();
-
-        const resolved = await this.resolver.resolve(candidate);
-        if (session !== this.discoveryToken) {
-            return;
-        }
-
-        if (!resolved) {
-            // We could not even build a URL — that is "cannot check", not
-            // "this source is dead".
-            controller.setProbe(sourceId, { status: 'unknown' });
-            this.publish();
-            return;
-        }
-
-        controller.updateSource(resolved.candidate);
-        const result = await this.probes.probe(resolved.playback.streamUrl);
-        if (session !== this.discoveryToken) {
-            return;
-        }
-
-        controller.setProbe(sourceId, result);
-        this.publish();
+        await probeSource(sourceId, {
+            controller: this.controller,
+            resolver: this.resolver,
+            probes: this.probes,
+            isCurrent: (session) => session === this.discoveryToken,
+            session: this.discoveryToken,
+            publish: () => this.publish(),
+        });
     }
 
     /**
@@ -311,13 +294,28 @@ export class VodMultiSourceHostService {
             return null;
         }
 
-        const target = this.controller.pickFailoverTarget();
-        if (!target) {
-            return null;
-        }
+        // Keep going past candidates that cannot be resolved at all. A dead
+        // account or a failing get_vod_info on the top-ranked source must not
+        // end the attempt: production only calls this once, on the original
+        // failure, so giving up here would strand a healthy lower-ranked
+        // source. `switchTo` marks each attempt tried, so this terminates.
+        for (;;) {
+            const target = this.controller.pickFailoverTarget();
+            if (!target) {
+                return null;
+            }
 
-        const switched = await this.switchTo(target);
-        return switched ? this._lastSwitch() : null;
+            const outcome = await this.switchTo(target);
+            if (outcome === 'switched') {
+                return this._lastSwitch();
+            }
+            if (outcome === 'superseded') {
+                // A newer switch or another movie already owns the screen.
+                return null;
+            }
+            // 'unresolvable': the candidate is now marked tried, so the next
+            // pick is strictly a different source and the loop terminates.
+        }
     }
 
     /** True once every alternative has been attempted this session. */
@@ -330,9 +328,11 @@ export class VodMultiSourceHostService {
         this.controller.setResumeSeconds(seconds);
     }
 
-    private async switchTo(candidate: VodSourceCandidate): Promise<boolean> {
+    private async switchTo(
+        candidate: VodSourceCandidate
+    ): Promise<SwitchOutcome> {
         if (!this.bindings) {
-            return false;
+            return 'superseded';
         }
 
         const session = this.discoveryToken;
@@ -354,7 +354,7 @@ export class VodMultiSourceHostService {
         });
         if (!this.isCurrentSwitch(session, attempt)) {
             // Superseded mid-flight — dropping the result is the whole point.
-            return false;
+            return 'superseded';
         }
 
         if (!resolved) {
@@ -363,7 +363,7 @@ export class VodMultiSourceHostService {
             // never started playing either.
             controller.markTried(candidate.id);
             this.publish();
-            return false;
+            return 'unresolvable';
         }
 
         controller.updateSource(resolved.candidate);
@@ -372,15 +372,16 @@ export class VodMultiSourceHostService {
         controller.setResumeSeconds(resumeSeconds);
         this.bindings.startPlayback(resolved.playback);
 
-        this._lastSwitch.set({
-            playlistName: candidate.playlistName,
-            resumeSeconds,
-            audioMayDiffer: audioDiffersFactually(previous, resolved.candidate),
-            quality: resolved.candidate.quality?.value,
-            container: resolved.candidate.container?.value,
-        });
+        this._lastSwitch.set(
+            buildSwitchNotice(
+                candidate,
+                resolved.candidate,
+                previous,
+                resumeSeconds
+            )
+        );
         this.publish();
-        return true;
+        return 'switched';
     }
 
     private publish(): void {

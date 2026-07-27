@@ -80,7 +80,16 @@ export class StreamProbeService {
         let result: VodSourceProbeResult;
 
         try {
-            const response = await window.electron.probeStreamUrl(url, method);
+            let response = await window.electron.probeStreamUrl(url, method);
+
+            // Plenty of stream servers reject HEAD outright yet serve the media
+            // happily over GET. Reporting those as unavailable would be a
+            // confident lie, so retry once with the ranged GET the main process
+            // already supports.
+            if (method === 'HEAD' && refusesHeadRequests(response.status)) {
+                response = await window.electron.probeStreamUrl(url, 'GET');
+            }
+
             result = {
                 status: toProbeStatus(response.status),
                 httpStatus: response.status,
@@ -110,6 +119,11 @@ export class StreamProbeService {
  * redirect-safety policy refused. That is NOT evidence the source is dead, so
  * it maps to 'unknown' and the UI keeps offering a check.
  */
+/** Statuses that mean "not this method", not "not this resource". */
+function refusesHeadRequests(httpStatus: number): boolean {
+    return httpStatus === 405 || httpStatus === 501;
+}
+
 function toProbeStatus(httpStatus: number): VodSourceProbeResult['status'] {
     if (httpStatus === 0) {
         return 'unknown';

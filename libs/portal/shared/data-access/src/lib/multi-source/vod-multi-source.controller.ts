@@ -134,10 +134,11 @@ export class VodMultiSourceController {
      * Ranking deliberately ignores guessed metadata — a filename claiming 4K
      * must not outrank a source we actually reached. Order:
      *   1. never tried this session (a hard filter, not a preference)
-     *   2. probed reachable
-     *   3. not known to have failed recently
-     *   4. richer FACTUAL metadata
-     *   5. exact title match over fuzzy
+     *   2. pinned by the user for this movie
+     *   3. probed reachable
+     *   4. not known to have failed recently
+     *   5. richer FACTUAL metadata
+     *   6. exact title match over fuzzy
      */
     pickFailoverTarget(): VodSourceDescriptor | null {
         const untried = this.sources().filter(
@@ -158,6 +159,11 @@ export class VodMultiSourceController {
 
 function score(source: VodSourceDescriptor): number {
     let value = 0;
+
+    // An explicit user choice outranks anything we inferred about the others.
+    if (source.isPinned) {
+        value += 1000;
+    }
 
     if (source.probe.status === 'ok') {
         value += 100;
