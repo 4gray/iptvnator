@@ -229,9 +229,12 @@ a justified exemption never lands in the baseline.
 
 Project `lint` targets that shell out to eslint must quote the glob, e.g.
 `eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX
-shell on Linux (matching only a shallow subset of files) while Windows passes
-the literal pattern to ESLint, which expands it recursively — the two hosts
-then lint different file sets.
+shell on Linux and macOS (which has no `globstar`, so it matches only a
+shallow subset of files) while Windows passes the literal pattern to ESLint,
+which expands it recursively — the two hosts then lint different file sets.
+The target still reports success either way, so a broken glob hides missing
+coverage instead of failing. After changing such a target, compare the linted
+file count against `find <project> -name '*.ts' | wc -l`.
 
 ## Architecture
 
