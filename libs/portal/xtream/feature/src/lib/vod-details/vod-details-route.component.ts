@@ -115,6 +115,20 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
     );
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    private readonly scopedVodCategories = computed(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        return playlistId &&
+            this.xtreamStore.vodCategoriesPlaylistId() === playlistId
+            ? this.xtreamStore.vodCategories()
+            : [];
+    });
+    private readonly scopedVodStreams = computed(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        return playlistId &&
+            this.xtreamStore.vodStreamsPlaylistId() === playlistId
+            ? this.xtreamStore.vodStreams()
+            : [];
+    });
     readonly selectedCategory = computed<Partial<XtreamCategory> | null>(() => {
         const categoryId = this.routeParams().categoryId;
         if (!categoryId) {
@@ -122,7 +136,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore.vodCategories().find(
+            this.scopedVodCategories().find(
                 (category) =>
                     String(
                         (
@@ -154,7 +168,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore.vodStreams().find(
+            this.scopedVodStreams().find(
                 (item) =>
                     Number(
                         (
@@ -248,7 +262,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
         return matchRecommendationsToCatalog(
             info.tmdb_recommendations,
-            this.xtreamStore.vodStreams(),
+            this.scopedVodStreams(),
             { excludeId: this.selectedVodId() }
         );
     });

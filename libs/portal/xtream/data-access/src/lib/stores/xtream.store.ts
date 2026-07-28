@@ -29,13 +29,8 @@ import {
 } from './xtream-tmdb-enrichment';
 import {
     createXtreamDetailsRequestGuard,
-    recoverXtreamVodCatalogItem,
+    resolveXtreamVodDetailsSelection,
 } from './xtream-details-request';
-import { resolveXtreamVodPlaybackSource } from '../services/xtream-vod-playback-source';
-import {
-    buildXtreamVodSelection,
-    XtreamVodCatalogCategory,
-} from './xtream-vod-selection';
 
 /** Facade composing the Xtream feature stores and cross-feature workflows. */
 export const XtreamStore = signalStore(
@@ -70,15 +65,6 @@ export const XtreamStore = signalStore(
         const detailsRequestGuard = createXtreamDetailsRequestGuard(
             () => store.currentPlaylist()?.id
         );
-        const findVodCatalogItem = (vodId: string | number) =>
-            store.vodStreams().find((item) => {
-                const candidateId =
-                    item.xtream_id ??
-                    item.stream_id ??
-                    (item as { id?: string | number }).id;
-
-                return Number(candidateId) === Number(vodId);
-            });
         return {
             cancelDetailsRequest(): void {
                 detailsRequestGuard.invalidate();
@@ -161,46 +147,28 @@ export const XtreamStore = signalStore(
                     .then(async (vodDetails: XtreamVodDetails) => {
                         if (!isCurrentRequest()) return;
 
-                        let catalogItem = findVodCatalogItem(params.vodId);
-                        let selection = buildXtreamVodSelection(
-                            vodDetails,
-                            catalogItem,
-                            params.vodId
-                        );
-
-                        if (!resolveXtreamVodPlaybackSource(selection)) {
-                            try {
-                                const remoteCatalogItem =
-                                    await recoverXtreamVodCatalogItem({
-                                        apiService: xtreamApiService,
-                                        currentCategories:
-                                            store.vodCategories() as unknown as XtreamVodCatalogCategory[],
-                                        credentials,
-                                        dataSource,
-                                        isCurrent: isCurrentRequest,
-                                        playlistId: playlist.id,
-                                        routeCategoryId: params.categoryId,
-                                        vodId: params.vodId,
-                                    });
-                                if (remoteCatalogItem) {
-                                    catalogItem = {
-                                        ...catalogItem,
-                                        ...remoteCatalogItem,
-                                    };
-                                    selection = buildXtreamVodSelection(
-                                        vodDetails,
-                                        catalogItem,
-                                        params.vodId
-                                    );
-                                }
-                            } catch (error) {
-                                if (isCurrentRequest()) {
-                                    logger.warn(
-                                        'Failed to recover sparse VOD playback source from the catalog',
-                                        error
-                                    );
-                                }
-                            }
+                        const { recoveryError, selection } =
+                            await resolveXtreamVodDetailsSelection({
+                                apiService: xtreamApiService,
+                                currentCategories: store.vodCategories(),
+                                currentCategoriesPlaylistId:
+                                    store.vodCategoriesPlaylistId(),
+                                currentStreams: store.vodStreams(),
+                                currentStreamsPlaylistId:
+                                    store.vodStreamsPlaylistId(),
+                                credentials,
+                                dataSource,
+                                isCurrent: isCurrentRequest,
+                                playlistId: playlist.id,
+                                routeCategoryId: params.categoryId,
+                                vodDetails,
+                                vodId: params.vodId,
+                            });
+                        if (recoveryError && isCurrentRequest()) {
+                            logger.warn(
+                                'Failed to recover sparse VOD playback source from the catalog',
+                                recoveryError
+                            );
                         }
 
                         if (!isCurrentRequest()) return;

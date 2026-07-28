@@ -1,6 +1,9 @@
+import { XtreamVodStream } from '@iptvnator/shared/interfaces';
+import { resolveXtreamVodPlaybackSource } from '../services/xtream-vod-playback-source';
 import {
     createXtreamDetailsRequestGuard,
     recoverXtreamVodCatalogItem,
+    resolveXtreamVodDetailsSelection,
 } from './xtream-details-request';
 
 describe('Xtream details request coordination', () => {
@@ -114,5 +117,78 @@ describe('Xtream details request coordination', () => {
                 vodId: 42,
             })
         ).resolves.toBeNull();
+    });
+
+    it('ignores stale catalog owners and resolves against the active playlist', async () => {
+        const getAllCategories = jest
+            .fn()
+            .mockResolvedValue([{ id: 7, xtream_id: 701 }]);
+        const getCategories = jest.fn().mockResolvedValue([]);
+        const getVodStream = jest.fn().mockResolvedValue({
+            stream_id: 42,
+            container_extension: 'mkv',
+        });
+        const result = await resolveXtreamVodDetailsSelection({
+            apiService: { getVodStream },
+            currentCategories: [{ id: 7, xtream_id: 999 }],
+            currentCategoriesPlaylistId: 'playlist-a',
+            currentStreams: [
+                {
+                    stream_id: 42,
+                    container_extension: 'mp4',
+                    xtream_id: 42,
+                } as XtreamVodStream,
+            ],
+            currentStreamsPlaylistId: 'playlist-a',
+            credentials,
+            dataSource: { getAllCategories, getCategories },
+            isCurrent: () => true,
+            playlistId: 'playlist-b',
+            routeCategoryId: 7,
+            vodDetails: { info: [] },
+            vodId: 42,
+        });
+
+        expect(resolveXtreamVodPlaybackSource(result.selection)).toEqual({
+            streamId: 42,
+            containerExtension: 'mkv',
+        });
+        expect(getAllCategories).toHaveBeenCalledWith('playlist-b', 'movies');
+        expect(getCategories).not.toHaveBeenCalled();
+        expect(getVodStream).toHaveBeenCalledWith(credentials, 42, 701);
+    });
+
+    it('uses a catalog pair owned by the active playlist without recovery', async () => {
+        const getAllCategories = jest.fn();
+        const getCategories = jest.fn();
+        const getVodStream = jest.fn();
+        const result = await resolveXtreamVodDetailsSelection({
+            apiService: { getVodStream },
+            currentCategories: [],
+            currentCategoriesPlaylistId: 'playlist-b',
+            currentStreams: [
+                {
+                    stream_id: 42,
+                    container_extension: 'mp4',
+                    xtream_id: 42,
+                } as XtreamVodStream,
+            ],
+            currentStreamsPlaylistId: 'playlist-b',
+            credentials,
+            dataSource: { getAllCategories, getCategories },
+            isCurrent: () => true,
+            playlistId: 'playlist-b',
+            routeCategoryId: 7,
+            vodDetails: { info: [] },
+            vodId: 42,
+        });
+
+        expect(resolveXtreamVodPlaybackSource(result.selection)).toEqual({
+            streamId: 42,
+            containerExtension: 'mp4',
+        });
+        expect(getAllCategories).not.toHaveBeenCalled();
+        expect(getCategories).not.toHaveBeenCalled();
+        expect(getVodStream).not.toHaveBeenCalled();
     });
 });

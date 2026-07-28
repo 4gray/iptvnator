@@ -37,6 +37,8 @@ describe('VodDetailsRouteComponent', () => {
     } | null>(null);
     const vodStreams = signal<Partial<XtreamVodStream>[]>([]);
     const vodCategories = signal<Partial<XtreamCategory>[]>([]);
+    const vodStreamsPlaylistId = signal<string | null>(null);
+    const vodCategoriesPlaylistId = signal<string | null>(null);
     const fetchVodDetailsWithMetadata = jest.fn();
     const cancelDetailsRequest = jest.fn();
     const checkFavoriteStatus = jest.fn();
@@ -84,6 +86,8 @@ describe('VodDetailsRouteComponent', () => {
         currentPlaylist.set(null);
         vodStreams.set([]);
         vodCategories.set([]);
+        vodStreamsPlaylistId.set(null);
+        vodCategoriesPlaylistId.set(null);
         fetchVodDetailsWithMetadata.mockClear();
         cancelDetailsRequest.mockClear();
         checkFavoriteStatus.mockClear();
@@ -134,6 +138,8 @@ describe('VodDetailsRouteComponent', () => {
                         currentPlaylist,
                         vodStreams,
                         vodCategories,
+                        vodStreamsPlaylistId,
+                        vodCategoriesPlaylistId,
                         fetchVodDetailsWithMetadata,
                         cancelDetailsRequest,
                         checkFavoriteStatus,

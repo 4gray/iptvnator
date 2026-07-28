@@ -2,7 +2,10 @@ import {
     XtreamVodDetails,
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
-import { XtreamVodPlaybackItem } from '../services/xtream-vod-playback-source';
+import {
+    resolveXtreamVodPlaybackSource,
+    XtreamVodPlaybackItem,
+} from '../services/xtream-vod-playback-source';
 
 export type XtreamVodSelection = XtreamVodDetails & {
     [key: string]: unknown;
@@ -20,21 +23,44 @@ export interface XtreamVodCatalogCategory {
 export function buildXtreamVodSelection(
     vodDetails: XtreamVodDetails,
     catalogItem: XtreamVodStream | undefined,
-    vodId: string | number
+    vodId: string | number,
+    recoveredCatalogItem?: XtreamVodStream
 ): XtreamVodSelection {
     const detailItem = vodDetails as XtreamVodPlaybackItem;
+    const playbackSource =
+        resolveXtreamVodPlaybackSource(detailItem) ??
+        resolveXtreamVodPlaybackSource(
+            recoveredCatalogItem as unknown as XtreamVodPlaybackItem
+        ) ??
+        resolveXtreamVodPlaybackSource(
+            catalogItem as unknown as XtreamVodPlaybackItem
+        );
 
     return {
         ...catalogItem,
+        ...recoveredCatalogItem,
         ...vodDetails,
-        stream_id:
-            catalogItem?.stream_id ?? detailItem.stream_id ?? Number(vodId),
-        container_extension:
-            catalogItem?.container_extension ??
-            detailItem.container_extension ??
-            null,
-        xtream_id: catalogItem?.xtream_id ?? Number(vodId),
+        stream_id: playbackSource?.streamId ?? Number(vodId),
+        container_extension: playbackSource?.containerExtension ?? null,
+        xtream_id:
+            recoveredCatalogItem?.xtream_id ??
+            catalogItem?.xtream_id ??
+            Number(vodId),
     };
+}
+
+export function findXtreamVodCatalogItem(
+    items: readonly XtreamVodStream[],
+    vodId: string | number
+): XtreamVodStream | undefined {
+    return items.find((item) => {
+        const candidateId =
+            item.xtream_id ??
+            item.stream_id ??
+            (item as { id?: string | number }).id;
+
+        return Number(candidateId) === Number(vodId);
+    });
 }
 
 export function resolveXtreamVodCatalogCategoryId(

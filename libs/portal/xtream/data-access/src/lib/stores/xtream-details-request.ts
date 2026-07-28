@@ -1,8 +1,15 @@
-import { XtreamVodStream } from '@iptvnator/shared/interfaces';
-import { XtreamCredentials } from '../services/xtream-api.service';
 import {
+    XtreamVodDetails,
+    XtreamVodStream,
+} from '@iptvnator/shared/interfaces';
+import { XtreamCredentials } from '../services/xtream-api.service';
+import { resolveXtreamVodPlaybackSource } from '../services/xtream-vod-playback-source';
+import {
+    buildXtreamVodSelection,
+    findXtreamVodCatalogItem,
     resolveXtreamVodCatalogCategoryId,
     XtreamVodCatalogCategory,
+    XtreamVodSelection,
 } from './xtream-vod-selection';
 
 type PlaylistId = string | null | undefined;
@@ -50,6 +57,22 @@ interface RecoverXtreamVodCatalogItemOptions {
     readonly playlistId: string;
     readonly routeCategoryId: string | number;
     readonly vodId: string | number;
+}
+
+interface ResolveXtreamVodDetailsSelectionOptions extends Omit<
+    RecoverXtreamVodCatalogItemOptions,
+    'currentCategories'
+> {
+    readonly currentCategories: readonly XtreamVodCatalogCategory[];
+    readonly currentCategoriesPlaylistId: PlaylistId;
+    readonly currentStreams: readonly XtreamVodStream[];
+    readonly currentStreamsPlaylistId: PlaylistId;
+    readonly vodDetails: XtreamVodDetails;
+}
+
+export interface ResolveXtreamVodDetailsSelectionResult {
+    readonly recoveryError?: unknown;
+    readonly selection: XtreamVodSelection;
 }
 
 export async function recoverXtreamVodCatalogItem({
@@ -109,4 +132,50 @@ export async function recoverXtreamVodCatalogItem({
         providerCategoryId
     );
     return isCurrent() ? item : null;
+}
+
+export async function resolveXtreamVodDetailsSelection({
+    currentCategories,
+    currentCategoriesPlaylistId,
+    currentStreams,
+    currentStreamsPlaylistId,
+    vodDetails,
+    ...recoveryOptions
+}: ResolveXtreamVodDetailsSelectionOptions): Promise<ResolveXtreamVodDetailsSelectionResult> {
+    const catalogItem =
+        currentStreamsPlaylistId === recoveryOptions.playlistId
+            ? findXtreamVodCatalogItem(currentStreams, recoveryOptions.vodId)
+            : undefined;
+    const selection = buildXtreamVodSelection(
+        vodDetails,
+        catalogItem,
+        recoveryOptions.vodId
+    );
+
+    if (resolveXtreamVodPlaybackSource(selection)) {
+        return { selection };
+    }
+
+    try {
+        const recoveredCatalogItem = await recoverXtreamVodCatalogItem({
+            ...recoveryOptions,
+            currentCategories:
+                currentCategoriesPlaylistId === recoveryOptions.playlistId
+                    ? currentCategories
+                    : [],
+        });
+
+        return {
+            selection: recoveredCatalogItem
+                ? buildXtreamVodSelection(
+                      vodDetails,
+                      catalogItem,
+                      recoveryOptions.vodId,
+                      recoveredCatalogItem
+                  )
+                : selection,
+        };
+    } catch (recoveryError) {
+        return { recoveryError, selection };
+    }
 }

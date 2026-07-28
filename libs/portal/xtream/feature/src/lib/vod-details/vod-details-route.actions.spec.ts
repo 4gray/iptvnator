@@ -19,7 +19,9 @@ import {
 } from '@iptvnator/services';
 import {
     PlaybackPositionData,
+    XtreamCategory,
     XtreamVodDetails,
+    XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { NEVER, of } from 'rxjs';
@@ -56,6 +58,10 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         referrer: 'https://referrer.example',
         origin: 'https://origin.example',
     });
+    const vodStreams = signal<Partial<XtreamVodStream>[]>([]);
+    const vodCategories = signal<Partial<XtreamCategory>[]>([]);
+    const vodStreamsPlaylistId = signal<string | null>('playlist-1');
+    const vodCategoriesPlaylistId = signal<string | null>('playlist-1');
     const constructVodStreamUrl = jest
         .fn()
         .mockReturnValue('http://example.com/movie/650020.mp4');
@@ -74,6 +80,16 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         selectedItem.set(null);
         downloadsAvailable.set(false);
         isFavorite.set(false);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            userAgent: 'IPTVnator',
+            referrer: 'https://referrer.example',
+            origin: 'https://origin.example',
+        });
+        vodStreams.set([]);
+        vodCategories.set([]);
+        vodStreamsPlaylistId.set('playlist-1');
+        vodCategoriesPlaylistId.set('playlist-1');
         constructVodStreamUrl.mockClear();
         isEmbeddedPlayer.mockReset().mockReturnValue(true);
         openResolvedPlayback.mockClear();
@@ -120,8 +136,10 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                         detailsError: signal(null),
                         isFavorite,
                         currentPlaylist,
-                        vodStreams: signal([]),
-                        vodCategories: signal([]),
+                        vodStreams,
+                        vodCategories,
+                        vodStreamsPlaylistId,
+                        vodCategoriesPlaylistId,
                         fetchVodDetailsWithMetadata: jest.fn(),
                         cancelDetailsRequest: jest.fn(),
                         checkFavoriteStatus: jest.fn(),
@@ -195,6 +213,34 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             })
             .compileComponents();
         fixture = TestBed.createComponent(VodDetailsRouteComponent);
+    });
+    it('ignores catalog data owned by another playlist', () => {
+        currentPlaylist.set({
+            id: 'playlist-b',
+            userAgent: 'IPTVnator',
+            referrer: 'https://referrer.example',
+            origin: 'https://origin.example',
+        });
+        vodStreamsPlaylistId.set('playlist-a');
+        vodCategoriesPlaylistId.set('playlist-a');
+        vodStreams.set([
+            {
+                name: 'Stale catalog title',
+                stream_id: 650020,
+                container_extension: 'mkv',
+            },
+        ]);
+        vodCategories.set([
+            {
+                category_id: '235',
+                category_name: 'Stale category',
+            },
+        ]);
+
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.selectedCatalogItem()).toBeNull();
+        expect(fixture.componentInstance.selectedCategory()).toBeNull();
     });
     it('starts playable sparse VOD inline with catalog presentation', () => {
         const item = sparseItem();
