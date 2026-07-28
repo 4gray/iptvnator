@@ -22,6 +22,11 @@ import {
 } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join, resolve } from 'path';
+import {
+    dataDirPrefix,
+    reapOrphanedDataDirs,
+    writeDataDirOwnerMarker,
+} from './data-dir-reaper';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -129,11 +134,6 @@ export type CompetingElectronInstanceResult = {
 
 const competingInstanceStderrLimit = 4000;
 
-const dataDirPrefix = 'iptvnator-electron-e2e-';
-const dataDirOwnerMarker = '.e2e-owner-pid';
-// Fallback cutoff, used only for leftovers that carry no owner marker.
-const orphanDataDirMaxAgeMs = 24 * 60 * 60 * 1000;
-
 /**
  * Removes a run's data directory, tolerating handles the OS has not released
  * yet.
@@ -157,88 +157,6 @@ function removeDataDir(dataDir: string): void {
     }
 }
 
-/**
- * Reports whether the run that created `dataDir` is still alive.
- *
- * Directory age cannot answer this. Playwright writes beneath `databases/` and
- * `user-data/`, which never refreshes the root's mtime, so a long-lived run —
- * paused in a debugger, or blocked on a native process — looks arbitrarily old
- * while still using its data. Unix would then happily unlink files the running
- * Electron still has open. So each run records its pid and the sweep asks the
- * OS directly.
- */
-function isDataDirOwnerAlive(dataDir: string): boolean {
-    let pid: number;
-    try {
-        pid = Number.parseInt(
-            readFileSync(join(dataDir, dataDirOwnerMarker), 'utf8').trim(),
-            10
-        );
-    } catch {
-        // No marker: either a pre-marker leftover or a half-created directory.
-        return false;
-    }
-
-    if (!Number.isInteger(pid) || pid <= 0) {
-        return false;
-    }
-
-    try {
-        // Signal 0 performs the permission/existence check without delivering.
-        process.kill(pid, 0);
-        return true;
-    } catch (error) {
-        // EPERM means the pid exists but belongs to another user — still alive.
-        return (error as NodeJS.ErrnoException).code === 'EPERM';
-    }
-}
-
-/**
- * Best-effort sweep of data directories abandoned by earlier runs.
- *
- * `removeDataDir` gives up after its retries, and nothing collects the leftover
- * on our behalf: Windows never clears %TEMP% on process exit, and the Unix
- * equivalents only run on a schedule. Without this, every teardown that loses
- * the race leaks a database and user-data tree on a developer machine or a
- * long-lived self-hosted runner, invisibly, while CI stays green.
- *
- * A live owner is never collected, whatever the directory's age — this repo is
- * routinely checked out into several worktrees at once. A dead owner is
- * collected immediately, since the pid settles the question that age only
- * guesses at. Directories with no marker fall back to the age cutoff.
- */
-function reapOrphanedDataDirs(): void {
-    const now = Date.now();
-    let entries: string[];
-    try {
-        entries = readdirSync(tmpdir());
-    } catch {
-        return;
-    }
-
-    for (const entry of entries) {
-        if (!entry.startsWith(dataDirPrefix)) {
-            continue;
-        }
-
-        const candidate = join(tmpdir(), entry);
-        try {
-            if (isDataDirOwnerAlive(candidate)) {
-                continue;
-            }
-            if (
-                !existsSync(join(candidate, dataDirOwnerMarker)) &&
-                now - statSync(candidate).mtimeMs < orphanDataDirMaxAgeMs
-            ) {
-                continue;
-            }
-            rmSync(candidate, { force: true, recursive: true, maxRetries: 3 });
-        } catch {
-            // Still locked, or owned by another user — leave it for next time.
-        }
-    }
-}
-
 let reapedOrphanedDataDirs = false;
 
 export const test = base.extend<ElectronFixtures>({
@@ -249,7 +167,7 @@ export const test = base.extend<ElectronFixtures>({
             reapOrphanedDataDirs();
         }
         const dataDir = mkdtempSync(join(tmpdir(), dataDirPrefix));
-        writeFileSync(join(dataDir, dataDirOwnerMarker), String(process.pid));
+        writeDataDirOwnerMarker(dataDir);
 
         await use(dataDir);
 
