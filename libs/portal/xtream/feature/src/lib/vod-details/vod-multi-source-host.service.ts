@@ -77,8 +77,8 @@ export class VodMultiSourceHostService {
     private pinKeys: PinKeySets = { lookup: [], write: [] };
     /** Bumped per `load()`: discards a discovery the next one superseded. */
     private discoveryToken = 0;
-    /** Bumped when the FILM changes — a rediscovery of the same one is a
-     * refresh, and must not cancel a switch or probe in flight for it. */
+    /** Bumped when the FILM changes; a rediscovery of the same one is a
+     * refresh and must not cancel work in flight for it. */
     private sessionToken = 0;
     /** Bumped by every switch: a slower one must not overwrite a newer. */
     private switchToken = 0;
@@ -213,6 +213,16 @@ export class VodMultiSourceHostService {
             return;
         }
 
+        // Applied NOW, not after the discovery below: holding this snapshot
+        // across that await lets it overwrite a pin made in the meantime, and
+        // the row would name a source the database no longer holds. `loaded`
+        // records where it was found — the only ambiguous key an unpin may
+        // remove, being the row the user can actually see.
+        if (pin) {
+            this.controller.setPinnedSource(pinnedSourceIdOf(pin));
+            this.pinKeys = { ...this.pinKeys, loaded: pin.matchKey };
+        }
+
         const result = await this.discovery.discover({
             title: movie.title,
             year: movie.year,
@@ -229,13 +239,6 @@ export class VodMultiSourceHostService {
             result.sources,
             result.matchKind
         );
-        if (pin) {
-            this.controller.setPinnedSource(pinnedSourceIdOf(pin));
-            // Remember where it was found: that row is the one the user sees,
-            // so it is the only ambiguous key an unpin may remove.
-            this.pinKeys = { ...this.pinKeys, loaded: pin.matchKey };
-        }
-
         this.publish();
     }
 
@@ -290,9 +293,8 @@ export class VodMultiSourceHostService {
         try {
             return (await this.switchTo(candidate)) === 'switched';
         } finally {
-            // Only if this attempt still owns the spinner: a slower first pick
-            // finishing after a second one would otherwise clear the row that
-            // is still resolving.
+            // Only while this attempt still owns the spinner, or a slower
+            // pick would clear the row that is still resolving.
             if (this._busySourceId() === sourceId) {
                 this._busySourceId.set(null);
             }

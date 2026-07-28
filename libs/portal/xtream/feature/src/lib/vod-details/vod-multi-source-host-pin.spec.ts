@@ -206,6 +206,43 @@ describe('VodMultiSourceHostService — pinning', () => {
         );
     });
 
+    it('lets a pin made during a rediscovery win over the old one', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO, ALT_THREE]);
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
+
+        // Enrichment reruns discovery for the same film...
+        const slow = createDeferred<{
+            sources: VodSourceCandidate[];
+            matchKind: string;
+        }>();
+        discovery.discover.mockReturnValueOnce(slow.promise);
+        const reloading = service.load({ ...MOVIE_A, tmdbId: 603 });
+        while (discovery.discover.mock.calls.length < 2) {
+            await Promise.resolve();
+        }
+
+        // ...and the user pins a different source while it is still out.
+        await service.togglePin(ALT_THREE.id);
+
+        slow.resolve({
+            sources: [ALT_TWO, ALT_THREE],
+            matchKind: 'title-year',
+        });
+        await reloading;
+
+        // The snapshot that rerun started with is now stale. Restoring it
+        // would leave the row and Play on a source the database no longer
+        // holds.
+        expect(rowFor(ALT_THREE.id)?.isPinned).toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
+    });
+
     it('retires its own aliases but never another remake’s', async () => {
         await loadMovie([ALT_TWO]);
         const lookupKeys: string[] = pins.get.mock.calls[0][0];

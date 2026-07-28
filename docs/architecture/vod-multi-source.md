@@ -151,6 +151,12 @@ matter, and each rules out the other's shortcut:
   for a different film — pin Dune (2021), open Dune (1984) before its year
   arrives, and it starts the 2021 source.
 
+The pin a rediscovery reads is applied **immediately**, not after its source
+lookup returns: holding that snapshot across the await lets it overwrite a pin
+the user makes in the meantime, leaving the row and the primary Play naming a
+source the database no longer holds. Applying it first makes the later write
+simply win.
+
 For the same reason a write or an unpin never *deletes* the yearless alias on
 spec: that row may hold another remake's preference. The single exception is
 the row this session actually read, because the user is acting on the pin they
