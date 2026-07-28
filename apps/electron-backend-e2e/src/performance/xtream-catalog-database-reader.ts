@@ -59,8 +59,19 @@ export async function readXtreamCatalogDatabaseSnapshot(
                 interface NodeModuleBuiltin {
                     createRequire(path: string): (id: string) => unknown;
                 }
+                interface NodePerfHooksBuiltin {
+                    readonly performance: {
+                        now(): number;
+                        readonly timeOrigin: number;
+                    };
+                }
 
-                const databaseReadStartedEpochMs = Date.now();
+                const perfHooks = process.getBuiltinModule(
+                    'node:perf_hooks'
+                ) as NodePerfHooksBuiltin;
+                const databaseReadStartedEpochMs =
+                    perfHooks.performance.timeOrigin +
+                    perfHooks.performance.now();
                 const nodeModule = process.getBuiltinModule(
                     'node:module'
                 ) as NodeModuleBuiltin;
@@ -120,7 +131,7 @@ function snapshotTransport(
     ] as unknown;
     const rows = transport['rows'];
     if (
-        !isPositiveFiniteInteger(databaseReadStartedEpochMs) ||
+        !isPositiveFinite(databaseReadStartedEpochMs) ||
         databaseReadStartedEpochMs < captureStoppedEpochMs ||
         !Array.isArray(rows) ||
         rows.length !== expectedRowCount
@@ -284,12 +295,6 @@ function assertOptions(options: XtreamCatalogDatabaseReadOptions): void {
 
 function isPositiveFinite(value: unknown): value is number {
     return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
-function isPositiveFiniteInteger(value: unknown): value is number {
-    return (
-        typeof value === 'number' && Number.isSafeInteger(value) && value > 0
-    );
 }
 
 function invalid(): never {

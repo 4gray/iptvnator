@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
@@ -193,11 +195,11 @@ describe('Xtream catalog database reader', () => {
         database.close();
     });
 
-    it('accepts the high-resolution fractional epoch emitted by main capture', async () => {
+    it('accepts high-resolution fractional capture and database epochs', async () => {
         const database = createDatabase();
 
         const snapshot = await readXtreamCatalogDatabaseSnapshot(
-            evaluatorFor(database, 6_001),
+            evaluatorFor(database, 6_000.75),
             {
                 captureStoppedEpochMs: 6_000.5,
                 dataDirectory: '/tmp/iptvnator-performance-fixture',
@@ -208,8 +210,25 @@ describe('Xtream catalog database reader', () => {
         );
 
         assert.equal(snapshot.captureStoppedEpochMs, 6_000.5);
-        assert.equal(snapshot.databaseReadStartedEpochMs, 6_001);
+        assert.equal(snapshot.databaseReadStartedEpochMs, 6_000.75);
         database.close();
+    });
+
+    it('uses the high-resolution epoch clock inside the main-process read boundary', () => {
+        const source = readFileSync(
+            resolve(
+                process.cwd(),
+                'src/performance/xtream-catalog-database-reader.ts'
+            ),
+            'utf8'
+        );
+
+        assert.match(source, /getBuiltinModule\(\s*'node:perf_hooks'\s*\)/u);
+        assert.match(
+            source,
+            /perfHooks\.performance\.timeOrigin\s*\+\s*perfHooks\.performance\.now\(\)/u
+        );
+        assert.doesNotMatch(source, /Date\.now\(\)/u);
     });
 });
 
