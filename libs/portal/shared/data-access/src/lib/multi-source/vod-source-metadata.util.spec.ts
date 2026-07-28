@@ -148,7 +148,15 @@ describe('applyApiMetadata', () => {
         ).toBeUndefined();
     });
 
-    it('emits nothing for a width below every known format', () => {
+    it('emits nothing for a shape that is not a known format', () => {
+        // 800 wide is neither 854x480 nor anything else in the table, and
+        // 800x600 is certainly not 480 lines high.
+        expect(
+            applyApiMetadata(candidate(), { width: 800, height: 600 }).quality
+        ).toBeUndefined();
+        expect(
+            applyApiMetadata(candidate(), { width: 800, height: 450 }).quality
+        ).toBeUndefined();
         expect(
             applyApiMetadata(candidate(), { width: 320, height: 240 }).quality
         ).toBeUndefined();

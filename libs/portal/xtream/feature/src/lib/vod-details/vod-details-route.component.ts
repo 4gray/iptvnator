@@ -459,11 +459,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // timeupdate would otherwise resolve the next source back at it.
         this.multiSource.reportPosition(0);
         this.multiSource.markRouteSourceActive();
+        this.playbackFailed.set(false);
         this.playback.playVod(vodItem);
     }
 
     resumeVod(vodItem: XtreamVodDetails | null): void {
         this.multiSource.markRouteSourceActive();
+        this.playbackFailed.set(false);
         this.playback.resumeVod(vodItem);
     }
 
@@ -551,10 +553,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         const active = this.multiSource.sources().find((s) => s.isActive);
         // "Playing from" only while something actually is. Discovery marks a
         // source active as soon as the page opens, so gating on that alone
-        // makes the line a claim about a player that has not started — or one
-        // the user has since closed.
+        // makes the line a claim about a player that has not started, one the
+        // user has since closed, or one that failed and is showing an error.
         const playing =
-            !!this.inlinePlayback() || !!this.matchedExternalPlayback();
+            (!!this.inlinePlayback() && !this.playbackFailed()) ||
+            !!this.matchedExternalPlayback();
         if (!active || !playing) {
             return null;
         }
@@ -585,6 +588,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     });
 
     playFromSource(sourceId: string): void {
+        this.playbackFailed.set(false);
         void this.multiSource.play(sourceId);
     }
 
@@ -606,6 +610,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
      * is already showing the alternatives — is left to do its job.
      */
     async onPlaybackFailed(): Promise<void> {
+        // The error screen is up: nothing is playing from anywhere until a
+        // source actually starts again.
+        this.playbackFailed.set(true);
         const notice = await this.multiSource.failover();
         if (!notice) {
             return;
@@ -637,10 +644,15 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
     }
 
+    /** True from a playback failure until something plays again. */
+    private readonly playbackFailed = signal(false);
+
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
+        // The engine is producing time, so whatever failed before is over.
+        this.playbackFailed.set(false);
         const settled = this.playback.handleInlineTimeUpdate(event);
 
         // Ahead of the service's 15s persistence throttle, so a source switch

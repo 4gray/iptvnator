@@ -239,31 +239,47 @@ function isPositiveNumber(value: number | null | undefined): value is number {
  * check instead. Empty beats wrong.
  */
 /**
- * Below the HD widths the numbers stop separating cleanly.
+ * The sub-HD formats, matched rather than bucketed.
  *
- * 854 is 480p, but 720 is NTSC 480p or PAL 576p depending on the height, and
- * 640 is 360p — which the old "anything under 900 is 480p" rule published as
- * an `api` FACT for all of them. Empty beats wrong: an unrecognised shape
- * returns nothing and the row simply carries no quality tag.
+ * Ranges work above 900 because the encodes cluster there. Below it they do
+ * not: 800×600 and 800×450 are neither 480p nor each other, and 720 is NTSC
+ * 480p or PAL 576p depending only on the height. Anything that is not one of
+ * these shapes gets no tag at all — a bucket here would be published with
+ * `api` provenance and read as a measurement.
  */
+const SMALL_FORMATS: ReadonlyArray<[number, number, string]> = [
+    [854, 480, '480p'],
+    [720, 576, '576p'],
+    [720, 480, '480p'],
+    [640, 360, '360p'],
+];
+
+function within5Percent(value: number, reference: number): boolean {
+    return Math.abs(value - reference) / reference <= 0.05;
+}
+
 function smallFormatQuality(
     width: number,
     height: number | null | undefined
 ): string | null {
-    if (width >= 800) {
-        return '480p';
+    const byWidth = SMALL_FORMATS.filter(([reference]) =>
+        within5Percent(width, reference)
+    );
+    if (byWidth.length === 0) {
+        return null;
     }
-    if (width >= 700) {
-        // The one width two formats share; only the height tells them apart.
-        if (!isPositiveNumber(height)) {
-            return null;
-        }
-        return height >= 520 ? '576p' : '480p';
+    if (byWidth.length === 1) {
+        return byWidth[0][2];
     }
-    if (width >= 600) {
-        return '360p';
+
+    // One width, two formats: only the height separates them.
+    if (!isPositiveNumber(height)) {
+        return null;
     }
-    return null;
+    const exact = byWidth.find(([, reference]) =>
+        within5Percent(height, reference)
+    );
+    return exact ? exact[2] : null;
 }
 
 function qualityFromDimensions(

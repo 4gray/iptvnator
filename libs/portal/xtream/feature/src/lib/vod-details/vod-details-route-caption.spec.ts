@@ -21,11 +21,13 @@ import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 /**
- * What the primary button and the resume point do, as opposed to what the
- * page renders. Split from the rendering spec to keep both inside the
- * repository's file-size rule.
+ * What the page CLAIMS is playing.
+ *
+ * "Playing from ..." is a statement of fact about the stream on screen, and
+ * discovery marks a source active long before one exists — so the line has to
+ * be gated on playback rather than on selection.
  */
-describe('VodDetailsRouteComponent — playback actions', () => {
+describe('VodDetailsRouteComponent — source caption', () => {
     let fixture: ComponentFixture<VodDetailsRouteComponent>;
     let consoleDebugSpy: jest.SpyInstance | undefined;
     let consoleWarnSpy: jest.SpyInstance | undefined;
@@ -241,130 +243,49 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         );
     }
 
-    it('owns an external session for a copy in its own playlist', () => {
+    it('claims to be playing only while something is', () => {
         currentPlaylist.set({ id: 'playlist-1' });
         const component = fixture.componentInstance;
         const playback = fixture.debugElement.injector.get(
             VodDetailsPlaybackService
         );
+        withActiveSource('playlist-1', 650020);
 
-        // A pinned copy can now live in the route's OWN playlist. Comparing
-        // playlists alone would call this "the route source", and the page
-        // would disown the session it started for it.
-        withActiveSource('playlist-1', 4242);
-        activeSession.set({
-            player: 'mpv',
-            status: 'playing',
-            contentInfo: {
-                playlistId: 'playlist-1',
-                contentXtreamId: 4242,
-                contentType: 'vod',
-            },
-        });
+        // Discovery marks a source active as soon as the page opens, so the
+        // caption would otherwise say "Playing from ..." before Play is
+        // pressed — and again after the player is closed.
+        expect(component.activeSourceCaption()).toBeNull();
 
-        expect(playback.matchedExternalPlayback()).not.toBeNull();
-        expect(component.isExternalStopAction()).toBe(true);
-    });
-
-    it('drops the carried position when Restart starts from the beginning', () => {
-        const component = fixture.componentInstance;
-        const reported = jest.spyOn(component.multiSource, 'reportPosition');
-
-        component.playVod({} as XtreamVodDetails);
-
-        // The controller still holds whatever this page was seeded with, and
-        // a failure before the first timeupdate would resolve the next source
-        // back at it instead of honouring the restart.
-        expect(reported).toHaveBeenCalledWith(0);
-    });
-
-    it('stops the external player when the button says Stop', async () => {
-        currentPlaylist.set({ id: 'playlist-1' });
-        activeSession.set({
-            player: 'mpv',
-            status: 'playing',
-            contentInfo: {
-                playlistId: 'playlist-1',
-                contentXtreamId: 650020,
-                contentType: 'vod',
-            },
-        });
-
-        const component = fixture.componentInstance;
-        const playPinned = jest.spyOn(
-            component.multiSource,
-            'playPinnedSource'
-        );
-        expect(component.isExternalStopAction()).toBe(true);
-
-        await component.onPrimaryAction({} as XtreamVodDetails);
-
-        // Consulting the pin first would launch a second player while the
-        // first keeps running — the control doing the opposite of its label.
-        expect(playPinned).not.toHaveBeenCalled();
-        expect(closeSession).toHaveBeenCalled();
-    });
-
-    it('follows external playback progress, which has no timeupdate', () => {
-        const component = fixture.componentInstance;
-        const playback = fixture.debugElement.injector.get(
-            VodDetailsPlaybackService
-        );
-        const reported = jest.spyOn(component.multiSource, 'reportPosition');
-
-        // MPV/VLC report only through the polled position, so this IS their
-        // live timecode. Treating it as a one-shot seed would freeze the
-        // resume point at the start and rewind a later source switch by
-        // however long the user had been watching.
-        playback.vodPlaybackPosition.set({
-            playlistId: 'playlist-1',
-            contentXtreamId: 650020,
-            contentType: 'vod',
-            positionSeconds: 120,
-            durationSeconds: 7744,
-        });
-        fixture.detectChanges();
-        expect(reported).toHaveBeenLastCalledWith(120);
-
-        playback.vodPlaybackPosition.set({
-            playlistId: 'playlist-1',
-            contentXtreamId: 650020,
-            contentType: 'vod',
-            positionSeconds: 3600,
-            durationSeconds: 7744,
-        });
-        fixture.detectChanges();
-        expect(reported).toHaveBeenLastCalledWith(3600);
-    });
-
-    it('holds the resume point until the engine has seeked to it', () => {
-        const component = fixture.componentInstance;
-        const playback = fixture.debugElement.injector.get(
-            VodDetailsPlaybackService
-        );
         playback.inlinePlayback.set({
-            streamUrl: 'http://example.com/movie/650020.mp4',
-            title: 'City of McFarland',
-            startTime: 2538,
-            contentInfo: {
-                playlistId: 'playlist-1',
-                contentXtreamId: 650020,
-                contentType: 'vod',
-            },
+            streamUrl: 'http://example.com/movie.mkv',
+            title: 'Example',
         });
-        const reported = jest.spyOn(component.multiSource, 'reportPosition');
+        expect(component.activeSourceCaption()).not.toBeNull();
 
-        // A resuming engine emits timeupdates at ~0 on its way to 2538. That
-        // is not where the film is, and multi-source must not switch or fail
-        // over back to the beginning because of it.
-        component.handleInlineTimeUpdate({ currentTime: 0.2, duration: 7744 });
-        expect(reported).toHaveBeenLastCalledWith(2538);
+        playback.inlinePlayback.set(null);
+        expect(component.activeSourceCaption()).toBeNull();
+    });
 
-        component.handleInlineTimeUpdate({ currentTime: 2540, duration: 7744 });
-        expect(reported).toHaveBeenLastCalledWith(2540);
+    it('stops claiming playback once the error screen is up', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        withActiveSource('playlist-1', 650020);
+        playback.inlinePlayback.set({
+            streamUrl: 'http://example.com/movie.mkv',
+            title: 'Example',
+        });
+        expect(component.activeSourceCaption()).not.toBeNull();
 
-        // One-shot latch, not a filter: a deliberate seek backwards counts.
-        component.handleInlineTimeUpdate({ currentTime: 12, duration: 7744 });
-        expect(reported).toHaveBeenLastCalledWith(12);
+        // The host stays mounted through a failure, so the caption would go on
+        // naming a source while the diagnostic says it could not be played.
+        await component.onPlaybackFailed();
+        expect(component.activeSourceCaption()).toBeNull();
+
+        // And comes back when the engine produces time again.
+        component.handleInlineTimeUpdate({ currentTime: 3, duration: 90 });
+        expect(component.activeSourceCaption()).not.toBeNull();
     });
 });

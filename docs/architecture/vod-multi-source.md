@@ -61,10 +61,11 @@ Three rules follow, and each is enforced in code rather than by convention:
    letterboxed masters are cropped vertically — a 2.39:1 1080p film is 1920×800,
    and 800 alone is indistinguishable from a 1280×800 encode. With no width, a
    height is trusted only within 5% of a standard frame height; otherwise no tag
-   is emitted. Below the HD widths the numbers stop separating cleanly — 720
-   wide is NTSC 480p or PAL 576p depending on the height, 640 is 360p — so an
-   unrecognised shape returns nothing rather than a bucket that would be
-   published as an `api` fact.
+   is emitted. Below the HD widths the ranges stop working: 800×600
+   and 800×450 are neither 480p nor each other, and 720 wide is NTSC 480p or
+   PAL 576p depending only on the height. Those formats are therefore matched
+   rather than bucketed, and an unrecognised shape returns nothing rather than
+   a label that would be published as an `api` fact.
 
 Provenance is per-field and changes over time: at discovery a row has only
 `parsed` tags, because the `content` table stores no container, codec or audio.
@@ -368,9 +369,11 @@ the resume point at wherever playback began, so a switch an hour later rewinds
 the whole session.
 
 The caption itself appears only while a player is actually running — inline or
-a matched external session. Discovery marks a source active as the page opens,
-so gating on that alone would have the page claim "Playing from …" before Play
-was pressed, and again after the player was closed.
+a matched external session, and not while a playback diagnostic is up.
+Discovery marks a source active as the page opens, so gating on that alone
+would have the page claim "Playing from …" before Play was pressed, after the
+player was closed, and over the error screen for a stream that would not
+play.
 
 Whichever source ends up playing, the "playing" badge follows it: starting the
 route's own stream (Play, Resume, Restart, or the fallback after a pin does not
