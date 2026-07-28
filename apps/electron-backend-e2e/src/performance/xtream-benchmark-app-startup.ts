@@ -110,7 +110,12 @@ async function createXtreamAppResource(
 }
 
 function removeXtreamDataDirectory(dataDirectory: string): Promise<void> {
-    return rm(dataDirectory, { force: true, recursive: true });
+    return rm(dataDirectory, {
+        force: true,
+        maxRetries: 20,
+        recursive: true,
+        retryDelay: 250,
+    });
 }
 
 async function prepareXtreamAppResource(

@@ -165,6 +165,8 @@ describe('Xtream scenario driver source wiring', () => {
             startup,
             /failure instanceof ElectronApplicationDisposalError/
         );
+        assert.match(startup, /maxRetries:\s*20/);
+        assert.match(startup, /retryDelay:\s*250/);
         assert.doesNotMatch(
             startup,
             /removeXtreamDataDirectory\([^)]*\)\.catch/
