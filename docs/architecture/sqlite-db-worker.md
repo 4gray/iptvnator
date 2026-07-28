@@ -229,6 +229,21 @@ validity records the exact expected and valid request counts; nullable metrics
 remain in raw results but cannot be silently omitted from comparison
 distributions.
 
+The formal Xtream benchmark launches every iteration with a fresh temporary
+profile. On that cold profile, the renderer can request the persistent database
+worker while the main process is still initializing the shared SQLite schema.
+The harness treats only `database is locked` and `no such table` during its
+pre-measurement readiness checks as this startup race. It closes the failed app,
+confirms that its Electron process exited, removes that profile, and permits one
+relaunch with another fresh profile. Unrelated failures are never retried,
+unconfirmed teardown or profile cleanup is fatal, a second readiness failure is
+fatal, and the measured import, refresh, delete, cancel, or background-UI
+operation still has exactly one attempt. Each successful iteration persists
+`startup-evidence.json` for immediate diagnostics and also binds the attempt
+count and fixed retry reason into the receipted `result.json` process identity.
+The validated identity is copied into `summary.json`, so comparison output
+cannot hide startup instability.
+
 The main-process benchmark samples the database worker's V8
 `used_heap_size` and `external_memory` independently. Raw output includes a
 valid-sample count for each metric. A peak is numeric only after at least one
