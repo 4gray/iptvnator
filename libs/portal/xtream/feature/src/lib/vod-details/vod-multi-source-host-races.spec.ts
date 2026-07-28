@@ -111,6 +111,34 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(false);
     });
 
+    it('tells a superseded pinned play apart from an unusable pin', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO, ALT_THREE]);
+
+        const slow = createDeferred<ReturnType<typeof resolvedFor>>();
+        resolver.resolve.mockReturnValueOnce(slow.promise);
+        const pinnedPlay = service.playPinnedSource();
+
+        // Wait until the pinned play is genuinely inside its resolve, so the
+        // second click is what supersedes it rather than a race on setup.
+        while (resolver.resolve.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
+
+        // A second Play (double-click) supersedes the first while it resolves.
+        await service.play(ALT_THREE.id);
+        slow.resolve(resolvedFor(ALT_TWO, 0));
+
+        // Reporting "unavailable" here would have the caller start the ROUTE
+        // source over the playback the newer click just began.
+        await expect(pinnedPlay).resolves.toBe('superseded');
+    });
+
     it('drops a slower switch that a newer selection already superseded', async () => {
         await loadMovie([ALT_TWO, ALT_THREE]);
 
@@ -289,7 +317,7 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
 
         lookup.resolve(3600);
 
-        await expect(playing).resolves.toBe(false);
+        await expect(playing).resolves.toBe('superseded');
         expect(startPlayback).not.toHaveBeenCalled();
     });
 

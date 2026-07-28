@@ -85,6 +85,22 @@ export function applyDiscoveredSources(
     controller.markPlaying(switchedTo.id);
 }
 
+/**
+ * A switch outcome in the pinned-play vocabulary.
+ *
+ * Only `unresolvable` may fall through to the route source; a superseded
+ * attempt means something newer already owns the screen.
+ */
+export function toPinnedOutcome(
+    outcome: SwitchOutcome
+): 'played' | 'superseded' | 'unavailable' {
+    if (outcome === 'switched') {
+        return 'played';
+    }
+
+    return outcome === 'superseded' ? 'superseded' : 'unavailable';
+}
+
 /** What `switchToSource` needs from the host, without reaching into it. */
 export interface SwitchDeps {
     controller: VodMultiSourceController;

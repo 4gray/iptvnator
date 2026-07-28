@@ -443,9 +443,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // A pinned source is an explicit "play this movie from here", so it
         // outranks the playlist the route happens to be on. Falls through to
         // the normal path when nothing is pinned or the pin cannot resolve.
-        if (
-            await this.multiSource.playPinnedSource(this.msUi.resumeSecondsFor)
-        ) {
+        const pinned = await this.multiSource.playPinnedSource(
+            this.msUi.resumeSecondsFor
+        );
+        // Only "no usable pin" falls through. A superseded attempt means a
+        // newer action already owns the screen — starting the route source
+        // here would override the playback that action just began.
+        if (pinned !== 'unavailable') {
             return;
         }
 
@@ -459,7 +463,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
         this.playVod(vodItem);
     }
-
 
     stopExternalPlayback(): Promise<void> {
         return this.playback.stopExternalPlayback();

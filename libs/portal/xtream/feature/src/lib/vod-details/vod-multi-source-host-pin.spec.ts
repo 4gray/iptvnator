@@ -103,7 +103,7 @@ describe('VodMultiSourceHostService — pinning', () => {
 
         // Without this the persisted preference is only an icon: reopening the
         // movie would still start the playlist the route is on.
-        await expect(service.playPinnedSource()).resolves.toBe(true);
+        await expect(service.playPinnedSource()).resolves.toBe('played');
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
@@ -121,7 +121,7 @@ describe('VodMultiSourceHostService — pinning', () => {
         // the user is about to press says "Resume".
         service.seedResumePosition(2538);
 
-        await expect(service.playPinnedSource()).resolves.toBe(true);
+        await expect(service.playPinnedSource()).resolves.toBe('played');
 
         expect(resolver.resolve).toHaveBeenCalledWith(
             expect.objectContaining({ id: ALT_TWO.id }),
@@ -179,7 +179,9 @@ describe('VodMultiSourceHostService — pinning', () => {
         service.seedResumePosition(12);
 
         const resumeFor = jest.fn().mockResolvedValue(3600);
-        await expect(service.playPinnedSource(resumeFor)).resolves.toBe(true);
+        await expect(service.playPinnedSource(resumeFor)).resolves.toBe(
+            'played'
+        );
 
         expect(resumeFor).toHaveBeenCalledWith(
             expect.objectContaining({ id: ALT_TWO.id })
@@ -225,7 +227,7 @@ describe('VodMultiSourceHostService — pinning', () => {
 
         await expect(
             service.playPinnedSource(jest.fn().mockResolvedValue(null))
-        ).resolves.toBe(true);
+        ).resolves.toBe('played');
 
         // Positions are keyed by (playlist, stream). Carrying the route copy's
         // timecode into a copy the user has never opened drops them 42 minutes
@@ -249,7 +251,7 @@ describe('VodMultiSourceHostService — pinning', () => {
 
         // No lookup was performed, so "never watched" was never established —
         // zeroing here would throw away a position nobody contradicted.
-        await expect(service.playPinnedSource()).resolves.toBe(true);
+        await expect(service.playPinnedSource()).resolves.toBe('played');
 
         expect(resolver.resolve).toHaveBeenCalledWith(
             expect.objectContaining({ id: ALT_TWO.id }),
@@ -319,14 +321,14 @@ describe('VodMultiSourceHostService — pinning', () => {
         slow.resolve({ sources: [ALT_TWO], matchKind: 'title-year' });
         await loading;
 
-        await expect(playing).resolves.toBe(true);
+        await expect(playing).resolves.toBe('played');
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
     it('leaves Play alone when nothing is pinned', async () => {
         await loadMovie([ALT_TWO]);
 
-        await expect(service.playPinnedSource()).resolves.toBe(false);
+        await expect(service.playPinnedSource()).resolves.toBe('unavailable');
         expect(startPlayback).not.toHaveBeenCalled();
     });
 

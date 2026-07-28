@@ -499,6 +499,13 @@ downloads sit in their own component-provided services beside it.
 
 ## Backup
 
+`playPinnedSource` reports `played` / `superseded` / `unavailable`, and only
+`unavailable` may fall through to the route source. Collapsing the first two
+meant a double-click on Play — where the second attempt supersedes the first —
+had the losing attempt conclude "no usable pin" and start the route stream over
+the playback the winning one had just begun. Same distinction as `runFailover`'s,
+for the same reason.
+
 A pin is written and its old aliases retired in ONE transaction
 (`setVodSourcePin(db, pin, retireKeys)`). Split in two there is no honest
 outcome for a half-failure: a surviving alias is read before the canonical key

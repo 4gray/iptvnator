@@ -24,6 +24,7 @@ import {
 import {
     runDiscovery,
     runFailover,
+    toPinnedOutcome,
     switchToSource,
     type SwitchOutcome,
 } from './vod-multi-source-session';
@@ -33,11 +34,12 @@ import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
     pinnedSourceAwaitingPlay,
+    type PinnedPlayOutcome,
     pinnedSourceIdOf,
-    playPinned,
+    startPinnedSource,
     pinKeysFor,
     readPin,
-    togglePinnedSource,
+    commitPinToggle,
     type PinKeySets,
 } from './vod-multi-source-pin';
 import {
@@ -236,50 +238,39 @@ export class VodMultiSourceHostService {
     );
 
     /**
-     * Start from the pinned source if there is one. Returns false when there is
-     * nothing pinned to honour, leaving the caller's own Play path in charge.
+     * Start from the pinned source if there is one. `unavailable` means there
+     * is nothing pinned to honour, leaving the caller's own Play path in
+     * charge; a superseded attempt must NOT fall through that way.
      */
-    async playPinnedSource(
+    playPinnedSource(
         resumeFor?: (source: VodSourceCandidate) => Promise<number | null>
-    ): Promise<boolean> {
-        // The pin arrives with discovery; answering before the lookup lands
-        // would make a persisted preference lose to worker latency.
-        if (!(await this.stillOwnsScreen())) {
-            return false;
-        }
-
+    ): Promise<PinnedPlayOutcome> {
         const session = this.sessionToken;
-        return playPinned({
+        return startPinnedSource({
             controller: this.controller,
-            pinnedSourceId: this.pendingPinnedSourceId(),
+            loadInFlight: this.loadInFlight,
+            pinnedSourceId: () => this.pendingPinnedSourceId(),
             resumeFor,
             isCurrent: () => session === this.sessionToken,
-            play: (sourceId) => this.play(sourceId),
+            play: (sourceId) => this.runPlay(sourceId),
         });
-    }
-
-    /**
-     * Wait for a discovery still in flight, then say whether this film is
-     * still the one on screen. Both callers touch the controller afterwards,
-     * and the user can navigate during the wait — acting then would answer
-     * one film's question with another film's sources.
-     */
-    private async stillOwnsScreen(): Promise<boolean> {
-        const session = this.sessionToken;
-        await this.loadInFlight;
-        return session === this.sessionToken;
     }
 
     /** Play from a specific source once; does not change the pin. */
     async play(sourceId: string): Promise<boolean> {
+        return (await this.runPlay(sourceId)) === 'played';
+    }
+
+    /** As `play`, but keeping the distinction the pinned path needs. */
+    private async runPlay(sourceId: string): Promise<PinnedPlayOutcome> {
         const candidate = this.controller.findSource(sourceId);
         if (!candidate || !this.bindings) {
-            return false;
+            return 'unavailable';
         }
 
         this._busySourceId.set(sourceId);
         try {
-            return (await this.switchTo(candidate)) === 'switched';
+            return toPinnedOutcome(await this.switchTo(candidate));
         } finally {
             // Only while this attempt still owns the spinner, or a slower
             // pick would clear the row that is still resolving.
@@ -292,21 +283,17 @@ export class VodMultiSourceHostService {
     /** Pin or unpin this source as the movie's preferred one. */
     async togglePin(sourceId: string): Promise<void> {
         const session = this.sessionToken;
-        const isPinned = this._sources().some(
-            (source) => source.id === sourceId && source.isPinned
-        );
-        const pinned = await togglePinnedSource(
-            this.pins,
-            this.pinKeys,
-            this.controller.findSource(sourceId),
-            isPinned
-        );
+        const pinned = await commitPinToggle({
+            pins: this.pins,
+            keys: this.pinKeys,
+            candidate: this.controller.findSource(sourceId),
+            isPinned: this._sources().some(
+                (source) => source.id === sourceId && source.isPinned
+            ),
+            isCurrent: () => session === this.sessionToken,
+        });
 
-        // The write is an IPC round-trip, and another movie can own the screen
-        // by the time it returns. Committing then would apply THIS film's
-        // answer to THAT film's controller — an unpin would clear the pin it
-        // just loaded, and its Play button would stop honouring it.
-        if (pinned === undefined || session !== this.sessionToken) {
+        if (pinned === undefined) {
             return;
         }
 
@@ -315,8 +302,8 @@ export class VodMultiSourceHostService {
     }
 
     /** User-triggered availability check for one row. */
-    async check(sourceId: string): Promise<void> {
-        await probeSource(sourceId, {
+    check(sourceId: string): Promise<void> {
+        return probeSource(sourceId, {
             controller: this.controller,
             resolver: this.resolver,
             probes: this.probes,
@@ -340,7 +327,9 @@ export class VodMultiSourceHostService {
         // "nowhere to go" against a controller whose discovery has not landed
         // yet would strand the user on the error screen with alternatives
         // arriving a moment later and nothing left to retry them.
-        if (!(await this.stillOwnsScreen())) {
+        const session = this.sessionToken;
+        await this.loadInFlight;
+        if (session !== this.sessionToken) {
             return null;
         }
 

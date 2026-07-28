@@ -151,6 +151,38 @@ export async function togglePinnedSource(
     return (await writePin(pins, keys, candidate)) ? candidate.id : undefined;
 }
 
+/** What committing a pin toggle needs from the host. */
+export interface PinToggleDeps {
+    pins: Pick<VodSourcePinService, 'set' | 'clear'>;
+    keys: PinKeySets;
+    candidate: VodSourceCandidate | null;
+    isPinned: boolean;
+    /** False once another movie owns the screen — the write is awaited. */
+    isCurrent: () => boolean;
+}
+
+/**
+ * Toggle the pin and report the id the controller should hold, or `undefined`
+ * when nothing should change.
+ *
+ * The write is an IPC round-trip and another movie can own the screen by the
+ * time it returns. Committing then would apply THIS film's answer to THAT
+ * film's controller — an unpin would clear the pin it just loaded, and its
+ * Play button would stop honouring it.
+ */
+export async function commitPinToggle(
+    deps: PinToggleDeps
+): Promise<string | null | undefined> {
+    const pinned = await togglePinnedSource(
+        deps.pins,
+        deps.keys,
+        deps.candidate,
+        deps.isPinned
+    );
+
+    return deps.isCurrent() ? pinned : undefined;
+}
+
 /** Which keys a pin may be looked up under, stored under, and removed from. */
 export interface PinKeySets {
     /** Every alias the pin may be sitting under, most-trusted first. */
@@ -189,6 +221,28 @@ function retirablePinKeys(keys: PinKeySets): string[] {
     return retire;
 }
 
+/**
+ * The full pinned-play errand: wait out a discovery still in flight, confirm
+ * this film still owns the screen, then start the pinned source.
+ *
+ * The wait matters — the pin arrives WITH discovery, so answering before the
+ * lookup lands would make a persisted preference lose to worker latency — and
+ * so does the re-check after it, because the user can navigate across it.
+ */
+export async function startPinnedSource(
+    deps: Omit<PinnedPlayDeps, 'pinnedSourceId'> & {
+        loadInFlight: Promise<void> | null;
+        pinnedSourceId: () => string | null;
+    }
+): Promise<PinnedPlayOutcome> {
+    await deps.loadInFlight;
+    if (!deps.isCurrent()) {
+        return 'superseded';
+    }
+
+    return playPinned({ ...deps, pinnedSourceId: deps.pinnedSourceId() });
+}
+
 /** What starting the pinned source needs from the host. */
 export interface PinnedPlayDeps {
     controller: VodMultiSourceController;
@@ -197,8 +251,18 @@ export interface PinnedPlayDeps {
     resumeFor?: (source: VodSourceCandidate) => Promise<number | null>;
     /** False once another movie owns the screen — the lookup is awaited. */
     isCurrent: () => boolean;
-    play: (sourceId: string) => Promise<boolean>;
+    play: (sourceId: string) => Promise<PinnedPlayOutcome>;
 }
+
+/**
+ * Why a pinned play ended.
+ *
+ * `unavailable` is the ONLY outcome the caller may fall through on. A
+ * superseded attempt means something newer already owns the screen — treating
+ * that as "no usable pin" and starting the route source overrides the playback
+ * the newer action just began.
+ */
+export type PinnedPlayOutcome = 'played' | 'superseded' | 'unavailable';
 
 /**
  * Start the movie from its pinned source, at the position that source was
@@ -209,10 +273,12 @@ export interface PinnedPlayDeps {
  * row, which for this source is stale or missing entirely — resuming from it
  * would restart the film or jump to where a different copy was left.
  */
-export async function playPinned(deps: PinnedPlayDeps): Promise<boolean> {
+export async function playPinned(
+    deps: PinnedPlayDeps
+): Promise<PinnedPlayOutcome> {
     const pinned = deps.controller.findSource(deps.pinnedSourceId ?? '');
     if (!pinned) {
-        return false;
+        return 'unavailable';
     }
 
     const looked = !!deps.resumeFor;
@@ -221,7 +287,7 @@ export async function playPinned(deps: PinnedPlayDeps): Promise<boolean> {
     // it. Playing then would hand THIS film's source id to whatever movie now
     // owns the screen — starting it, if the id happens to exist there.
     if (!deps.isCurrent()) {
-        return false;
+        return 'superseded';
     }
 
     if (looked) {

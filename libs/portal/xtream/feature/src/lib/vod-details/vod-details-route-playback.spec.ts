@@ -252,12 +252,31 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(reported).toHaveBeenLastCalledWith(120);
     });
 
+    it('does not start the route source when a newer action owns the screen', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        withActiveSource('playlist-1', 650020);
+        // Double-clicking Play while the pin is resolving: the second click
+        // supersedes the first, and the first must not conclude "no usable
+        // pin" and start the route source over what the second just began.
+        jest.spyOn(component.multiSource, 'playPinnedSource').mockResolvedValue(
+            'superseded'
+        );
+        const reported = jest.spyOn(component.multiSource, 'reportPosition');
+
+        await component.onPrimaryAction({
+            movie_data: { stream_id: 650020, name: 'Example' },
+        } as never);
+
+        expect(reported).not.toHaveBeenCalled();
+    });
+
     it('takes the route wrappers when the primary button falls through', () => {
         currentPlaylist.set({ id: 'playlist-1' });
         const component = fixture.componentInstance;
         withActiveSource('playlist-1', 650020);
         jest.spyOn(component.multiSource, 'playPinnedSource').mockResolvedValue(
-            false
+            'unavailable'
         );
         const reported = jest.spyOn(component.multiSource, 'reportPosition');
 
