@@ -29,6 +29,10 @@ interface PersistXtreamIterationFailureEvidenceOptions {
     readonly stage: XtreamBenchmarkFailureStage;
 }
 
+export interface XtreamPropagatedFailure {
+    readonly failure: unknown;
+}
+
 const EVIDENCE_ARTIFACTS: readonly [FailureEvidenceName, string][] =
     Object.freeze([
         ['mainStatus', 'failure-main-status.json'],
@@ -90,4 +94,20 @@ export async function persistXtreamIterationFailureEvidenceAndThrow(
         );
     }
     throw failure;
+}
+
+export async function runXtreamFinalTeardown(
+    teardown: () => Promise<void>,
+    propagatedFailure: XtreamPropagatedFailure | null
+): Promise<void> {
+    try {
+        await teardown();
+    } catch (teardownFailure) {
+        if (!propagatedFailure) throw teardownFailure;
+        throw new AggregateError(
+            [propagatedFailure.failure, teardownFailure],
+            'Xtream benchmark iteration and final teardown both failed',
+            { cause: propagatedFailure.failure }
+        );
+    }
 }

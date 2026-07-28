@@ -39,7 +39,9 @@ import {
 import {
     createXtreamSingleAttemptCapture,
     persistXtreamIterationFailureEvidenceAndThrow,
+    runXtreamFinalTeardown,
     type XtreamBenchmarkFailureStage,
+    type XtreamPropagatedFailure,
 } from './xtream-benchmark-lifecycle';
 import {
     createXtreamDiagnosticEvidence,
@@ -87,6 +89,7 @@ export async function runXtreamBenchmarkIteration(
     );
     let app: LaunchedElectronApp | null = null;
     let dataDirectory: string | null = null;
+    let propagatedFailure: XtreamPropagatedFailure | null = null;
     let renderer: RunningXtreamRendererCapture | null = null;
     let prepared: PreparedXtreamScenario | null = null;
     let controlState: Awaited<ReturnType<XtreamControlClient['state']>> | null =
@@ -328,37 +331,48 @@ export async function runXtreamBenchmarkIteration(
         );
     } catch (failure) {
         const electronApp = app?.electronApp;
-        return await persistXtreamIterationFailureEvidenceAndThrow(failure, {
-            evidence: {
-                control: async () => controlState ?? control.state(),
-                ...(electronApp
-                    ? {
-                          mainStatus: () =>
-                              readXtreamMainCaptureStatus(electronApp),
-                      }
-                    : {}),
-                ...(stopMainCaptureOnce
-                    ? { mainCapture: stopMainCaptureOnce }
-                    : {}),
-                ...(stopRendererCaptureOnce
-                    ? { rendererCapture: stopRendererCaptureOnce }
-                    : {}),
-                ...(terminal ? { terminal: async () => terminal } : {}),
-                ...(trigger ? { trigger: async () => trigger } : {}),
-            },
-            persist: (filename, value) =>
-                writeXtreamSafeJson(
-                    join(iterationDirectory, filename),
-                    value,
-                    safety
-                ),
-            stage: failureStage,
-        });
+        try {
+            return await persistXtreamIterationFailureEvidenceAndThrow(
+                failure,
+                {
+                    evidence: {
+                        control: async () => controlState ?? control.state(),
+                        ...(electronApp
+                            ? {
+                                  mainStatus: () =>
+                                      readXtreamMainCaptureStatus(electronApp),
+                              }
+                            : {}),
+                        ...(stopMainCaptureOnce
+                            ? { mainCapture: stopMainCaptureOnce }
+                            : {}),
+                        ...(stopRendererCaptureOnce
+                            ? { rendererCapture: stopRendererCaptureOnce }
+                            : {}),
+                        ...(terminal ? { terminal: async () => terminal } : {}),
+                        ...(trigger ? { trigger: async () => trigger } : {}),
+                    },
+                    persist: (filename, value) =>
+                        writeXtreamSafeJson(
+                            join(iterationDirectory, filename),
+                            value,
+                            safety
+                        ),
+                    stage: failureStage,
+                }
+            );
+        } catch (failureToPropagate) {
+            propagatedFailure = { failure: failureToPropagate };
+            throw failureToPropagate;
+        }
     } finally {
         await prepared?.dispose().catch(() => undefined);
         await renderer?.dispose().catch(() => undefined);
         if (app && dataDirectory) {
-            await disposeXtreamBenchmarkApp(app, dataDirectory);
+            await runXtreamFinalTeardown(
+                () => disposeXtreamBenchmarkApp(app, dataDirectory),
+                propagatedFailure
+            );
         }
     }
 }
