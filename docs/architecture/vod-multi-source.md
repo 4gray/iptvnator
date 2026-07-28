@@ -423,6 +423,15 @@ first save would write that timecode under the pinned source's key.
 When no lookup function is supplied at all, nothing is applied: "never watched"
 was never established, so there is nothing to correct.
 
+## What the primary button describes
+
+A pin means the button plays a copy the page did not load a position for.
+`createPrimaryActionPosition` therefore looks that copy's row up and lets it
+govern the label, the timecode and the Restart affordance — including when the
+lookup comes back empty, because "never watched" is an answer: the button must
+read Play, not `Resume 42:18` on a stream that starts at zero. A pin on the
+route's own row changes nothing; the loaded position already IS that copy's.
+
 ## Claims about the present
 
 `isActive` means "the source a switch or Play would use". Discovery sets it the
@@ -433,7 +442,9 @@ its own, back a statement in the present tense.
 `timeupdate`: `inlinePlayback()` is only the REQUEST to play, non-null while
 the engine is still opening the stream and still non-null after it fails, while
 a timeupdate is the engine reporting frames. External, it needs the session
-past `launching`.
+past `launching`. Every path that mounts a stream clears the latch first —
+Play, Restart, and a source switch, which puts a DIFFERENT stream into the
+same host and so cannot inherit the old one's evidence.
 
 Two things read it, and they must agree: the "Playing from" caption, and the
 source row's badge — which reads `Current` when a source is merely selected and

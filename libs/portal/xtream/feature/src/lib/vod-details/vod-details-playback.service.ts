@@ -26,6 +26,7 @@ import {
     getXtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
+import { formatPlaybackPosition } from './vod-primary-action-position';
 
 export interface VodDetailsPlaybackBindings {
     /** Current vod id resolved from the route */
@@ -239,13 +240,7 @@ export class VodDetailsPlaybackService {
     }
 
     formatPosition(): string {
-        const position = this.vodPlaybackPosition();
-        if (!position) return '';
-
-        const date = new Date(0);
-        date.setSeconds(position.positionSeconds);
-        const timeString = date.toISOString().substr(11, 8);
-        return timeString.startsWith('00:') ? timeString.substr(3) : timeString;
+        return formatPlaybackPosition(this.vodPlaybackPosition());
     }
 
     closeInlinePlayer(): void {

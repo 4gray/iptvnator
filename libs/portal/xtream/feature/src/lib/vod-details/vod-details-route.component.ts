@@ -49,7 +49,9 @@ import {
     XtreamVodInfo,
     XtreamVodStream,
     youtubeEmbedUrl,
+    type PlaybackPositionData,
     type VodSourceCandidate,
+    type VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
 import {
     SimilarCatalogItem,
@@ -62,6 +64,10 @@ import {
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
+import {
+    createPrimaryActionPosition,
+    formatPlaybackPosition,
+} from './vod-primary-action-position';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -229,7 +235,19 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly externalPrimaryButtonState =
         this.playback.externalPrimaryButtonState;
     readonly vodPlaybackProgress = this.playback.vodPlaybackProgress;
-    readonly hasPlaybackPosition = this.playback.hasPlaybackPosition;
+
+    /**
+     * What the primary button acts on — the PINNED copy's position when a pin
+     * names another copy, since that is the stream the button will play.
+     */
+    private readonly primaryAction = createPrimaryActionPosition({
+        sources: this.multiSource.sources,
+        routePlaylistId: computed(() => this.xtreamStore.currentPlaylist()?.id),
+        routeContentId: this.selectedVodId,
+        routePosition: this.playback.vodPlaybackPosition,
+        load: (source) => this.positionFor(source),
+    });
+    readonly hasPlaybackPosition = this.primaryAction.hasPosition;
 
     readonly isDownloaded = computed(() => {
         const vodId = this.selectedVodId();
@@ -367,8 +385,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.multiSource.bind({
             // Route every switch through the same inline-vs-external fork a
             // normal Play uses, so the two paths cannot drift apart.
-            startPlayback: (playback) =>
-                this.playback.startResolvedPlayback(playback),
+            startPlayback: (playback) => {
+                // A switch mounts a DIFFERENT stream in the same host, so the
+                // evidence that the previous one was playing says nothing
+                // about this one — without clearing it the caption and the
+                // badge would claim the new source while it is still opening.
+                this.inlineTimeSeen.set(false);
+                this.playback.startResolvedPlayback(playback);
+            },
             movie: this.multiSourceMovie,
         });
 
@@ -500,23 +524,26 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
      * Positions are keyed by (playlist, stream), so a pinned alternative has
      * its own row — the one this page loaded belongs to the route's copy.
      */
-    private readonly resumeSecondsFor = async (
-        source: VodSourceCandidate
-    ): Promise<number | null> => {
-        const position = await this.playbackPositions.getPlaybackPosition(
+    private readonly positionFor = (
+        source: VodSourceCandidate | VodSourceDescriptor
+    ): Promise<PlaybackPositionData | null> =>
+        this.playbackPositions.getPlaybackPosition(
             source.playlistId,
             source.contentId,
             'vod'
         );
-        return position?.positionSeconds ?? null;
-    };
+
+    private readonly resumeSecondsFor = async (
+        source: VodSourceCandidate
+    ): Promise<number | null> =>
+        (await this.positionFor(source))?.positionSeconds ?? null;
 
     stopExternalPlayback(): Promise<void> {
         return this.playback.stopExternalPlayback();
     }
 
     formatPosition(): string {
-        return this.playback.formatPosition();
+        return formatPlaybackPosition(this.primaryAction.position());
     }
 
     toggleFavorite(): void {

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 import {
@@ -135,6 +136,48 @@ describe('VodDetailsRouteComponent — source caption', () => {
         } as never);
         expect(playback.inlinePlayback()).not.toBeNull();
         expect(component.activeSourceCaption()).toBeNull();
+    });
+
+    it('waits again after a manual source switch', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        stubs.isEmbeddedPlayer.mockReturnValue(true);
+        withActiveSource('playlist-1', 650020);
+        playback.inlinePlayback.set({
+            streamUrl: 'http://example.com/movie.mkv',
+            title: 'Example',
+        });
+        component.handleInlineTimeUpdate({ currentTime: 3, duration: 90 });
+        expect(component.activeSourceCaption()).not.toBeNull();
+
+        // A switch mounts a DIFFERENT stream in the same host and marks the
+        // new source active at once, so the old stream's timeupdate must not
+        // vouch for it — it may still be opening, or never start at all.
+        // The exact callback `switchToSource` invokes once it has resolved a
+        // new source. Standing up the resolver here would test the host, not
+        // the route's half of the seam.
+        (
+            component.multiSource as unknown as {
+                bindings: {
+                    startPlayback: (playback: ResolvedPortalPlayback) => void;
+                };
+            }
+        ).bindings.startPlayback({
+            streamUrl: 'http://example.com/alt.mkv',
+            title: 'Example',
+            startTime: 3,
+        });
+
+        expect(playback.inlinePlayback()?.streamUrl).toBe(
+            'http://example.com/alt.mkv'
+        );
+        expect(component.activeSourceCaption()).toBeNull();
+
+        component.handleInlineTimeUpdate({ currentTime: 4, duration: 90 });
+        expect(component.activeSourceCaption()).not.toBeNull();
     });
 
     it('says nothing while an external player is still launching', () => {
