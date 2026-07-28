@@ -17,6 +17,7 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import {
     createPrimaryActionPosition,
     formatPlaybackPosition,
+    isResumablePosition,
 } from './vod-primary-action-position';
 
 /**
@@ -145,10 +146,24 @@ export class VodDetailsMultiSourceUiService {
             'vod'
         );
 
+    /**
+     * The seconds a pinned play should resume from — `null` once the copy has
+     * been watched through, so a row the button offers as Play does not seek
+     * back to where it ended.
+     */
     readonly resumeSecondsFor = async (
         source: VodSourceCandidate
-    ): Promise<number | null> =>
-        (await this.positionFor(source))?.positionSeconds ?? null;
+    ): Promise<number | null> => {
+        const position = await this.positionFor(source);
+        return isResumablePosition(position)
+            ? (position?.positionSeconds ?? null)
+            : null;
+    };
+
+    /** True when the primary button acts on a pinned copy, not the route's. */
+    readonly primaryIsPinnedCopy = computed(
+        () => this.primaryAction.foreignPin() !== null
+    );
 
     /** Title shown in the sources popover header. */
     readonly multiSourceTitle = computed(() => this.movieTitle());

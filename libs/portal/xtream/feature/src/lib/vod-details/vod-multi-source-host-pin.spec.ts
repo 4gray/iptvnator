@@ -1,26 +1,10 @@
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import {
-    VodSourceDiscoveryService,
-    VodSourceResolverService,
-} from '@iptvnator/portal/shared/data-access';
-import {
-    SettingsStore,
-    StreamProbeService,
-    VodSourcePinService,
-} from '@iptvnator/services';
-import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
-import { VodMultiSourceHostService } from './vod-multi-source-host.service';
-import type { VodMultiSourceMovie } from './vod-multi-source-identity';
-
 import {
     ALT_THREE,
     ALT_TWO,
     CURRENT_A_ID,
     MOVIE_A,
-    PROBE_OK,
     createDeferred,
-    resolveWith,
+    setupVodMultiSourceHost,
 } from './vod-multi-source-host.fixtures';
 
 /**
@@ -31,65 +15,21 @@ import {
  * actually holds — under every alias the movie can be looked up by.
  */
 describe('VodMultiSourceHostService — pinning', () => {
-    let service: VodMultiSourceHostService;
-
-    const movie = signal<VodMultiSourceMovie | null>(null);
-
-    // Whatever is on screen; the pin path distinguishes it from selection.
-
-    const playbackLive = signal(false);
-    const vodAutoFailover = signal(false);
-    const startPlayback = jest.fn();
-    const discovery = { isAvailable: true, discover: jest.fn() };
-    const resolver = { resolve: jest.fn() };
-    const pins = { get: jest.fn(), set: jest.fn(), clear: jest.fn() };
-    const probes = { probe: jest.fn() };
-
-    async function loadMovie(
-        sources: VodSourceCandidate[],
-        target: VodMultiSourceMovie = MOVIE_A
-    ): Promise<void> {
-        discovery.discover.mockResolvedValue({
-            sources,
-            matchKind: 'title-year',
-        });
-        await service.load(target);
-    }
-
-    function rowFor(sourceId: string) {
-        return service.sources().find((source) => source.id === sourceId);
-    }
+    const harness = setupVodMultiSourceHost();
+    const {
+        discovery,
+        pins,
+        playbackLive,
+        resolver,
+        startPlayback,
+        vodAutoFailover,
+    } = harness;
+    const loadMovie = harness.loadMovie;
+    const rowFor = harness.rowFor;
+    let service = harness.service;
 
     beforeEach(() => {
-        jest.resetAllMocks();
-        movie.set(null);
-        vodAutoFailover.set(false);
-        discovery.isAvailable = true;
-        discovery.discover.mockResolvedValue({
-            sources: [],
-            matchKind: 'title-year',
-        });
-        resolver.resolve.mockImplementation(resolveWith());
-        pins.get.mockResolvedValue(null);
-        pins.set.mockResolvedValue(true);
-        pins.clear.mockResolvedValue(true);
-        probes.probe.mockResolvedValue(PROBE_OK);
-
-        TestBed.configureTestingModule({
-            providers: [
-                VodMultiSourceHostService,
-                { provide: VodSourceDiscoveryService, useValue: discovery },
-                { provide: VodSourceResolverService, useValue: resolver },
-                { provide: VodSourcePinService, useValue: pins },
-                { provide: StreamProbeService, useValue: probes },
-                { provide: SettingsStore, useValue: { vodAutoFailover } },
-            ],
-        });
-
-        service = TestBed.inject(VodMultiSourceHostService);
-        TestBed.runInInjectionContext(() =>
-            service.bind({ startPlayback, movie, playbackLive })
-        );
+        service = harness.reset();
     });
 
     it('plays the pinned source instead of the route playlist', async () => {
@@ -212,6 +152,29 @@ describe('VodMultiSourceHostService — pinning', () => {
         // stored preference until the page is reopened.
         playbackLive.set(false);
         expect(service.pendingPinnedSourceId()).toBe(ALT_TWO.id);
+    });
+
+    it('restarts a pinned copy that was watched through', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+        service.seedResumePosition(2538);
+
+        // The caller applies the same in-progress rule the button uses, so a
+        // finished copy arrives here as null. Anything else would show Play
+        // and then start near the end.
+        await expect(
+            service.playPinnedSource(jest.fn().mockResolvedValue(null))
+        ).resolves.toBe('played');
+
+        expect(resolver.resolve).toHaveBeenCalledWith(
+            expect.objectContaining({ id: ALT_TWO.id }),
+            { startTime: 0 }
+        );
     });
 
     it('starts a pinned source that was never watched from the beginning', async () => {

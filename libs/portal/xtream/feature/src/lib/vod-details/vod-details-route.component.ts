@@ -315,7 +315,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                 // about this one — without clearing it the caption and the
                 // badge would claim the new source while it is still opening.
                 this.msUi.reset();
-                this.playback.startResolvedPlayback(playback);
+                void this.playback.startResolvedPlayback(playback);
             },
             movie: this.multiSourceMovie,
             playbackLive: this.playbackLive,
@@ -417,6 +417,26 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.multiSource.markRouteSourceActive();
         this.msUi.beginPlayback();
         this.playback.playVod(vodItem);
+    }
+
+    /**
+     * Restart from the beginning — of whatever the primary button acts on.
+     *
+     * When a pin points at another copy, Resume honours it, so Restart sitting
+     * beside it must too; calling `playVod` there would quietly switch the
+     * user to the route's playlist.
+     */
+    async restartVod(vodItem: XtreamVodDetails | null): Promise<void> {
+        if (this.msUi.primaryIsPinnedCopy()) {
+            const outcome = await this.multiSource.playPinnedSource(async () =>
+                Promise.resolve(0)
+            );
+            if (outcome !== 'unavailable') {
+                return;
+            }
+        }
+
+        this.playVod(vodItem);
     }
 
     resumeVod(vodItem: XtreamVodDetails | null): void {

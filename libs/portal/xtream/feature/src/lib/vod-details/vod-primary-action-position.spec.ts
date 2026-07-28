@@ -7,6 +7,7 @@ import type {
 import {
     createPrimaryActionPosition,
     formatPlaybackPosition,
+    isResumablePosition,
 } from './vod-primary-action-position';
 
 /**
@@ -219,6 +220,25 @@ describe('createPrimaryActionPosition', () => {
         TestBed.tick();
 
         expect(api.position()?.positionSeconds).toBe(60);
+    });
+});
+
+describe('isResumablePosition', () => {
+    it('is false for a copy watched through', () => {
+        // The primary button reads Play at this point, so a pinned start must
+        // not seek back to where the film ended.
+        expect(
+            isResumablePosition({ ...position(6900), durationSeconds: 7200 })
+        ).toBe(false);
+    });
+
+    it('is false at the very beginning', () => {
+        expect(isResumablePosition(position(0))).toBe(false);
+        expect(isResumablePosition(null)).toBe(false);
+    });
+
+    it('is true in the middle', () => {
+        expect(isResumablePosition(position(2538))).toBe(true);
     });
 });
 

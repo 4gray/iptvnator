@@ -29,6 +29,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     let positionListener: ((data: PlaybackPositionData) => void) | undefined;
     const addRecentItem = jest.fn();
     const activeSession = signal<unknown>(null);
+    const closeSession = jest.fn().mockResolvedValue(undefined);
     const activeSource = signal<PlayerContentInfo | null>(null);
 
     function sessionFor(playlistId: string, contentXtreamId: number) {
@@ -61,7 +62,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: { activeSession, closeSession: jest.fn() },
+                    useValue: { activeSession, closeSession },
                 },
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
@@ -139,6 +140,25 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         // No active alternative: the switch was undone, so that session is
         // no longer this page's to stop.
         expect(service.matchedExternalPlayback()).toBeNull();
+    });
+
+    it('stops the running external player before switching sources', async () => {
+        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
+
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/alt.mkv',
+            title: 'Example Movie',
+            contentInfo: {
+                playlistId: 'playlist-2',
+                contentXtreamId: 991,
+                contentType: 'vod',
+            },
+        });
+
+        // A switch REPLACES what is playing. With MPV/VLC and instance reuse
+        // off the backend spawns a second detached player otherwise: both
+        // sources keep running, and Stop owns only the newer one.
+        expect(closeSession).toHaveBeenCalled();
     });
 
     it('records a source started through multi-source as recently viewed', () => {

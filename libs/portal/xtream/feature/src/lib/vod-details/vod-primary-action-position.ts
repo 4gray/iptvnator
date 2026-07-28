@@ -39,6 +39,22 @@ export interface PrimaryActionPosition {
     position: Signal<PlaybackPositionData | null>;
     /** Whether the button should read Resume rather than Play. */
     hasPosition: Signal<boolean>;
+    /** The pinned copy the button acts on, when it is not the route's own. */
+    foreignPin: Signal<VodSourceDescriptor | null>;
+}
+
+/**
+ * Whether a stored position is worth resuming from.
+ *
+ * Shared so the label and the start point cannot disagree: a copy watched to
+ * the end shows Play, and starting it must then mean starting it, not seeking
+ * back to the 95% mark it was left at.
+ */
+export function isResumablePosition(
+    position: PlaybackPositionData | null
+): boolean {
+    const progress = getPortalPlaybackProgressPercent(position);
+    return progress > 0 && progress < 90;
 }
 
 export function createPrimaryActionPosition(
@@ -101,12 +117,9 @@ export function createPrimaryActionPosition(
         return isPinnedCopy ? live : pinnedPosition();
     });
 
-    const hasPosition = computed(() => {
-        const progress = getPortalPlaybackProgressPercent(position());
-        return progress > 0 && progress < 90;
-    });
+    const hasPosition = computed(() => isResumablePosition(position()));
 
-    return { position, hasPosition };
+    return { position, hasPosition, foreignPin };
 }
 
 /** `01:02:03`, or `02:03` for anything under an hour. */

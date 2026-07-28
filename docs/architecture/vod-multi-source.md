@@ -453,7 +453,12 @@ which replace whatever timecode an alternative left in the controller.
 While the pinned copy is the one playing, its live position wins over the row
 that was stored before this session started.
 
-A pin means the button plays a copy the page did not load a position for.
+A pin means the button plays a copy the page did not load a position for. A
+watched-through copy resolves to zero rather than its stored seconds, through
+the same `isResumablePosition` rule the label uses — otherwise the button reads
+Play and then seeks back to where the film ended. Restart follows the pin for
+the same reason: with Resume honouring a pinned copy, a Restart that started
+the route copy would silently switch the user's playlist.
 `createPrimaryActionPosition` therefore looks that copy's row up and lets it
 govern the label, the timecode and the Restart affordance — including when the
 lookup comes back empty, because "never watched" is an answer: the button must
@@ -467,6 +472,11 @@ route's own row changes nothing; the loaded position already IS that copy's.
 object carrying `codec_name`/`width`/`height`. `readStreamInfo` accepts both —
 reading only the object silently lost the codec on every array response, and
 with it the "dub may differ" warning, which compares stated audio tracks.
+
+Switching sources through `startResolvedPlayback` closes a matched external
+session first. It REPLACES what is playing — with MPV or VLC and instance
+reuse off, the backend would otherwise spawn a second detached player, leaving
+both sources running and Stop owning only the newer one.
 
 ## Claims about the present
 

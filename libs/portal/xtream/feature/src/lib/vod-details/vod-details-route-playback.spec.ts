@@ -291,64 +291,68 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         });
     });
 
-    describe('auto-failover toggle', () => {
-        beforeEach(() => {
-            selectedPlayer.set(VideoPlayer.Html5Player);
-            updateSettings.mockReset().mockResolvedValue(undefined);
-            snackBarOpen.mockClear();
+    it('offers no resume point for a pinned copy watched through', async () => {
+        const component = fixture.componentInstance;
+        const resumeSecondsFor = component['msUi'].resumeSecondsFor;
+
+        getPlaybackPosition.mockResolvedValue({
+            playlistId: 'playlist-2',
+            contentXtreamId: 991,
+            contentType: 'vod',
+            positionSeconds: 6900,
+            durationSeconds: 7200,
         });
 
-        it.each([VideoPlayer.MPV, VideoPlayer.VLC, VideoPlayer.EmbeddedMpv])(
-            'is not offered on %s',
-            (player) => {
-                // Those players never raise the playback diagnostic that
-                // calls onPlaybackFailed(), so the switch could never happen.
-                selectedPlayer.set(player);
+        // The button reads Play at 95%, so the start must mean zero — not a
+        // seek back to where the film ended.
+        await expect(
+            resumeSecondsFor({
+                playlistId: 'playlist-2',
+                contentId: 991,
+            } as never)
+        ).resolves.toBeNull();
+    });
 
-                expect(fixture.componentInstance.autoFailoverSupported()).toBe(
-                    false
-                );
-            }
-        );
+    it('still resumes a pinned copy left mid-film', async () => {
+        const component = fixture.componentInstance;
 
-        it.each([
-            VideoPlayer.Html5Player,
-            VideoPlayer.VideoJs,
-            VideoPlayer.ArtPlayer,
-        ])('is offered on %s', (player) => {
-            selectedPlayer.set(player);
-
-            expect(fixture.componentInstance.autoFailoverSupported()).toBe(
-                true
-            );
+        getPlaybackPosition.mockResolvedValue({
+            playlistId: 'playlist-2',
+            contentXtreamId: 991,
+            contentType: 'vod',
+            positionSeconds: 2538,
+            durationSeconds: 7200,
         });
 
-        it('tells the user when the preference could not be stored', async () => {
-            // updateSettings patches memory and REJECTS on a failed write, so
-            // without this the toggle looks saved and silently reverts on the
-            // next start — and the rejection is unhandled.
-            updateSettings.mockRejectedValue(new Error('disk full'));
+        await expect(
+            component['msUi'].resumeSecondsFor({
+                playlistId: 'playlist-2',
+                contentId: 991,
+            } as never)
+        ).resolves.toBe(2538);
+    });
 
-            fixture.componentInstance.setAutoFailover(true);
-            await Promise.resolve();
-            await Promise.resolve();
-
-            expect(snackBarOpen).toHaveBeenCalledWith(
-                'SETTINGS.SETTINGS_SAVE_FAILED',
-                'CLOSE',
-                expect.anything()
-            );
+    it('restarts the pinned copy, not the route copy', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        withActiveSource('playlist-1', 650020);
+        // Resume honours the pin, so the Restart beside it must too —
+        // otherwise the button quietly switches the user's playlist.
+        Object.defineProperty(component['msUi'], 'primaryIsPinnedCopy', {
+            configurable: true,
+            value: () => true,
         });
+        const pinnedPlay = jest
+            .spyOn(component.multiSource, 'playPinnedSource')
+            .mockResolvedValue('played');
 
-        it('stays quiet when the write succeeds', async () => {
-            fixture.componentInstance.setAutoFailover(true);
-            await Promise.resolve();
-            await Promise.resolve();
+        await component.restartVod({
+            movie_data: { stream_id: 650020, name: 'Example' },
+        } as never);
 
-            expect(updateSettings).toHaveBeenCalledWith({
-                vodAutoFailover: true,
-            });
-            expect(snackBarOpen).not.toHaveBeenCalled();
-        });
+        expect(pinnedPlay).toHaveBeenCalled();
+        // Restart means zero, whichever copy it starts.
+        const resumeFor = pinnedPlay.mock.calls[0][0];
+        await expect(resumeFor?.({} as never)).resolves.toBe(0);
     });
 });

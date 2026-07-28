@@ -1,3 +1,15 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import {
+    VodSourceDiscoveryService,
+    VodSourceResolverService,
+} from '@iptvnator/portal/shared/data-access';
+import {
+    SettingsStore,
+    StreamProbeService,
+    VodSourcePinService,
+} from '@iptvnator/services';
+import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 /**
  * Shared fixtures for the multi-source host specs, extracted so the
  * race-condition suite can live in its own file rather than duplicating setup.
@@ -81,4 +93,89 @@ export function createDeferred<T>() {
         resolve = res;
     });
     return { promise, resolve };
+}
+
+/**
+ * The TestBed every host spec needs.
+ *
+ * Five specs carried their own identical copy of this — the same five stubs,
+ * the same reset, the same bind. One harness so they cannot drift, and so a
+ * new case does not cost sixty lines of setup.
+ */
+export function setupVodMultiSourceHost() {
+    const movie = signal<VodMultiSourceMovie | null>(null);
+    /** Whatever is on screen; the pin path distinguishes it from selection. */
+    const playbackLive = signal(false);
+    const vodAutoFailover = signal(false);
+    const startPlayback = jest.fn();
+    const discovery = { isAvailable: true, discover: jest.fn() };
+    const resolver = { resolve: jest.fn() };
+    const pins = { get: jest.fn(), set: jest.fn(), clear: jest.fn() };
+    const probes = { probe: jest.fn() };
+
+    const harness = {
+        movie,
+        playbackLive,
+        vodAutoFailover,
+        startPlayback,
+        discovery,
+        resolver,
+        pins,
+        probes,
+        service: null as unknown as VodMultiSourceHostService,
+
+        /** Call from `beforeEach`; returns the freshly bound service. */
+        reset(): VodMultiSourceHostService {
+            jest.resetAllMocks();
+            movie.set(null);
+            playbackLive.set(false);
+            vodAutoFailover.set(false);
+            discovery.isAvailable = true;
+            discovery.discover.mockResolvedValue({
+                sources: [],
+                matchKind: 'title-year',
+            });
+            resolver.resolve.mockImplementation(resolveWith());
+            pins.get.mockResolvedValue(null);
+            pins.set.mockResolvedValue(true);
+            pins.clear.mockResolvedValue(true);
+            probes.probe.mockResolvedValue(PROBE_OK);
+
+            TestBed.configureTestingModule({
+                providers: [
+                    VodMultiSourceHostService,
+                    { provide: VodSourceDiscoveryService, useValue: discovery },
+                    { provide: VodSourceResolverService, useValue: resolver },
+                    { provide: VodSourcePinService, useValue: pins },
+                    { provide: StreamProbeService, useValue: probes },
+                    { provide: SettingsStore, useValue: { vodAutoFailover } },
+                ],
+            });
+
+            harness.service = TestBed.inject(VodMultiSourceHostService);
+            TestBed.runInInjectionContext(() =>
+                harness.service.bind({ startPlayback, movie, playbackLive })
+            );
+            return harness.service;
+        },
+
+        async loadMovie(
+            sources: VodSourceCandidate[],
+            target: VodMultiSourceMovie = MOVIE_A
+        ): Promise<void> {
+            discovery.discover.mockResolvedValue({
+                sources,
+                matchKind: 'title-year',
+            });
+            await harness.service.load(target);
+        },
+
+        rowFor(sourceId: string) {
+            return harness.service
+                .sources()
+                .find((source) => source.id === sourceId);
+        },
+    };
+
+    return harness;
 }
