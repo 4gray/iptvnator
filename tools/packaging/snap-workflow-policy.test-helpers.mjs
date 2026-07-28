@@ -18,7 +18,7 @@ const BUILD_ACTION_ALLOWLIST = Object.freeze([
     'actions/cache@v6',
     'actions/checkout@v7',
     'actions/download-artifact@v8',
-    'actions/setup-node@v4',
+    'actions/setup-node@v7',
     'actions/upload-artifact@v7',
     'pnpm/action-setup@v4',
     'softprops/action-gh-release@v2',
