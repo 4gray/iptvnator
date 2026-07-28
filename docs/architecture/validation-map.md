@@ -34,9 +34,12 @@ The CI workflow (`.github/workflows/ci.yml`) lints affected projects on PRs
 (`nx affected`) and every project on master pushes.
 This enforces `@nx/enforce-module-boundaries` (scope/domain/type tag
 constraints), the legacy bare-alias ban, and the `max-lines` file-size rule
-(hard maximum 400 lines per TypeScript file). Files that predate the
-`max-lines` rule are baselined in `tools/eslint/max-lines-baseline.mjs`; after
-splitting a baselined file below the limit, regenerate the list with
+(hard maximum 400 lines for production TypeScript, 1200 for tests; blank lines
+and comments are not counted). The limits live in
+`tools/eslint/max-lines-config.mjs`, which both `eslint.config.mjs` and the
+generator import. Files that predate the `max-lines` rule are baselined in
+`tools/eslint/max-lines-baseline.mjs`; after splitting a baselined file below
+the limit, regenerate the list with
 `node tools/eslint/generate-max-lines-baseline.mjs`. Never add new files to
 the baseline.
 

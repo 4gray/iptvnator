@@ -1,0 +1,35 @@
+{
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "name": "eslint-tools",
+    "projectType": "library",
+    "sourceRoot": "tools/eslint",
+    "targets": {
+        "test": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "inputs": [
+                "{workspaceRoot}/tools/eslint/max-lines-config.mjs",
+                "{workspaceRoot}/tools/eslint/max-lines-baseline.mjs",
+                "{workspaceRoot}/tools/eslint/generate-max-lines-baseline.mjs",
+                "{workspaceRoot}/tools/eslint/max-lines-baseline.test.mjs",
+                "{workspaceRoot}/apps/**/*.ts",
+                "{workspaceRoot}/libs/**/*.ts",
+                "{workspaceRoot}/tools/**/*.ts"
+            ],
+            "options": {
+                "command": "node --test tools/eslint/max-lines-baseline.test.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        },
+        "lint": {
+            "inputs": [
+                "default",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ],
+            "command": "eslint \"tools/eslint/*.mjs\""
+        }
+    },
+    "tags": ["scope:tools", "domain:lint", "type:tool"]
+}

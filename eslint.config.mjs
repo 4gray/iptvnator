@@ -1,5 +1,11 @@
 import nx from '@nx/eslint-plugin';
 import { maxLinesBaseline } from './tools/eslint/max-lines-baseline.mjs';
+import {
+    MAX_LINES_OPTIONS,
+    MAX_LINES_PROD,
+    MAX_LINES_TEST,
+    TEST_FILE_GLOBS,
+} from './tools/eslint/max-lines-config.mjs';
 
 const legacyBareAliases = [
     'components',
@@ -248,13 +254,25 @@ export default [
         },
     },
     {
-        // CLAUDE.md file-size rule: keep TypeScript files under 300 lines,
+        // CLAUDE.md file-size rule for production code: target under 300 lines,
         // hard maximum 400. Files that predate the rule are baselined below.
         files: ['**/*.ts', '**/*.tsx'],
+        ignores: TEST_FILE_GLOBS,
         rules: {
             'max-lines': [
                 'error',
-                { max: 400, skipBlankLines: false, skipComments: false },
+                { max: MAX_LINES_PROD, ...MAX_LINES_OPTIONS },
+            ],
+        },
+    },
+    {
+        // Tests get a much higher ceiling — see tools/eslint/max-lines-config.mjs
+        // for why a long spec is not the same signal as a long component.
+        files: TEST_FILE_GLOBS,
+        rules: {
+            'max-lines': [
+                'error',
+                { max: MAX_LINES_TEST, ...MAX_LINES_OPTIONS },
             ],
         },
     },

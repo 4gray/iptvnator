@@ -219,14 +219,32 @@ nx lint electron-backend
 CI lints affected projects on PRs (`nx affected`) and every project on master
 pushes (`.github/workflows/ci.yml`). This enforces the
 Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
-rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
-are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
-with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
-Never add new files to the baseline — the list must only shrink. A new file
-that genuinely cannot be split (for example a function serialized into another
-process) instead carries its own file-wide
+rule. The limits and their rationale live in one place,
+`tools/eslint/max-lines-config.mjs`, which both `eslint.config.mjs` and the
+baseline generator import so the enforced rule and the generated list cannot
+drift:
+
+- **Production TypeScript: hard maximum 400 lines.**
+- **Tests: 1200.** `**/*.spec.ts`, `**/*.e2e.ts` and everything under
+  `apps/*-e2e/**` — a spec is a flat list of independent cases, so splitting one
+  at the production limit yields arbitrary `-2.spec.ts` files, and length there
+  signals coverage rather than the design debt the production limit catches.
+- **Blank lines and comments are not counted** (`skipBlankLines`,
+  `skipComments`), so a docblock is never the reason a file must be split.
+
+Pre-existing oversized files are baselined in
+`tools/eslint/max-lines-baseline.mjs`; regenerate the baseline with
+`node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file. The
+generator decides who belongs on the list by running ESLint's own `max-lines`
+rule, not by counting lines itself — a private reimplementation would silently
+disagree with the rule and produce a baseline that turns CI red while looking
+correct. Never add new files to the baseline — the list must only shrink. A new
+file that genuinely cannot be split (for example a function serialized into
+another process) instead carries its own file-wide
 `/* eslint-disable max-lines -- <why> */`; the generator skips those files, so
-a justified exemption never lands in the baseline.
+a justified exemption never lands in the baseline. If such a directive later
+becomes unnecessary, ESLint reports it as an unused disable directive — remove
+it rather than leaving a stale justification behind.
 
 Project `lint` targets that shell out to eslint must quote the glob, e.g.
 `eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX
@@ -490,7 +508,11 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 
 **TypeScript File Size Rule**:
 
-Keep TypeScript files under **300 lines**. Hard maximum is **350–400 lines**.
+Keep production TypeScript files under **300 lines**. Hard maximum is
+**350–400 lines**, and CI enforces the 400. Blank lines and comments do not
+count toward it, so documenting a file never costs you headroom. Tests
+(`**/*.spec.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held to 1200 instead — the
+guidance below is about production code.
 
 - When creating new files, design them to stay within this limit from the start.
 - When adding a feature to an existing file that would push it past 350 lines, **refactor first**: extract helpers, sub-services, or feature modules before adding the new code.
@@ -672,12 +694,12 @@ with its own `mimeType`. Electron Builder derives all three platform
 registrations from it: macOS `CFBundleDocumentTypes` (which is what makes
 `open-file` fire from Finder), the NSIS registry entries, and, on Linux, the
 desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
-deb/rpm/pacman. Two traps: it assigns the derived `MimeType` *after* spreading
+deb/rpm/pacman. Two traps: it assigns the derived `MimeType` _after_ spreading
 `linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
 must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
 over percent-encoded `file://` URIs rather than paths —
 `createPlaylistOpenRequest` decodes them before the extension check. `%U` is
-also the *plural* exec code, so a multi-file selection arrives as one launch
+also the _plural_ exec code, so a multi-file selection arrives as one launch
 with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
 of them and `enqueueAll` queues the batch, because stopping at the first match
 would silently drop the rest of the selection. Adding an exec code to
