@@ -468,6 +468,8 @@ describe('PlaylistRefreshActionService', () => {
                 },
             ],
             playbackPositions: [],
+            // Normalized state always carries every collection, empty or not.
+            sourcePins: [],
         });
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
