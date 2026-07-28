@@ -8,6 +8,7 @@ import {
 } from './xtream-benchmark-manifest-schema';
 import {
     XTREAM_NOT_APPLICABLE,
+    XTREAM_STARTUP_RETRY_REASON,
     type XtreamRawIterationResult,
     type XtreamValidatedIterationResult,
 } from './xtream-summary-contract';
@@ -317,7 +318,17 @@ export function isExactXtreamProcessIdentity(value: unknown): boolean {
         'generationIdentitySha256',
         'launchId',
         'profileDirectorySha256',
+        'startupAttemptCount',
+        'startupRetryReasons',
     ] as const;
+    const startupAttemptCount = isPositiveSafeInteger(
+        isExactRecord(value, keys) ? value['startupAttemptCount'] : null
+    )
+        ? Number(value['startupAttemptCount'])
+        : 0;
+    const startupRetryReasons = isExactRecord(value, keys)
+        ? value['startupRetryReasons']
+        : null;
     return (
         isExactRecord(value, keys) &&
         isPositiveSafeInteger(value['captureGeneration']) &&
@@ -328,7 +339,17 @@ export function isExactXtreamProcessIdentity(value: unknown): boolean {
         typeof value['generationIdentitySha256'] === 'string' &&
         XTREAM_SHA256.test(value['generationIdentitySha256']) &&
         typeof value['profileDirectorySha256'] === 'string' &&
-        XTREAM_SHA256.test(value['profileDirectorySha256'])
+        XTREAM_SHA256.test(value['profileDirectorySha256']) &&
+        (startupAttemptCount === 1 || startupAttemptCount === 2) &&
+        Array.isArray(startupRetryReasons) &&
+        startupRetryReasons.length === startupAttemptCount - 1 &&
+        startupRetryReasons.every(
+            (reason) =>
+                typeof reason === 'string' &&
+                Object.values(XTREAM_STARTUP_RETRY_REASON).includes(
+                    reason as never
+                )
+        )
     );
 }
 

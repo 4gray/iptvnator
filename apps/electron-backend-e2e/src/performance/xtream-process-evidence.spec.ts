@@ -72,10 +72,14 @@ describe('Xtream process evidence', () => {
             electronPid: 41_001,
             iterationDirectory,
             launchId: 'launch-00000000-0000-4000-8000-000000000001',
+            startupAttemptCount: 1,
+            startupRetryReasons: [],
         });
 
         assert.equal(evidence.freshProcessVerified, true);
         assert.match(evidence.profileDirectorySha256, /^[a-f0-9]{64}$/u);
+        assert.equal(evidence.startupAttemptCount, 1);
+        assert.deepEqual(evidence.startupRetryReasons, []);
     });
 
     it('uses validated diagnostic directory evidence verbatim', async () => {
@@ -89,9 +93,33 @@ describe('Xtream process evidence', () => {
             electronPid: 41_001,
             iterationDirectory,
             launchId: 'launch-00000000-0000-4000-8000-000000000001',
+            startupAttemptCount: 2,
+            startupRetryReasons: ['sqlite-database-locked'],
         });
 
         assert.equal(evidence.profileDirectorySha256, directorySha256);
+        assert.equal(evidence.startupAttemptCount, 2);
+        assert.deepEqual(evidence.startupRetryReasons, [
+            'sqlite-database-locked',
+        ]);
+    });
+
+    it('rejects inconsistent startup attempt evidence', async () => {
+        const root = await temporaryDirectory();
+        const iterationDirectory = join(root, 'run-01');
+        await mkdir(iterationDirectory);
+
+        await assert.rejects(
+            createXtreamIterationProcessEvidence({
+                diagnosticDirectorySha256: null,
+                electronPid: 41_001,
+                iterationDirectory,
+                launchId: 'launch-00000000-0000-4000-8000-000000000001',
+                startupAttemptCount: 2,
+                startupRetryReasons: [],
+            }),
+            /xtream-electron-process-identity-invalid/
+        );
     });
 });
 

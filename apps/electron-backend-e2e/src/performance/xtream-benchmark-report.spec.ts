@@ -188,6 +188,22 @@ describe('Xtream benchmark report contract', () => {
         );
     });
 
+    it('keeps a bounded startup retry in receipt-bound summary iterations', async () => {
+        const { diagnosticEvidence, iterations } = await formalReportFixture(1);
+        const summary = createXtreamBenchmarkSummary(
+            MANIFEST,
+            iterations,
+            diagnosticEvidence
+        );
+
+        const retryIdentity = itemAt(summary.iterations, 1).processIdentity;
+        assert.equal(retryIdentity.startupAttemptCount, 2);
+        assert.deepEqual(retryIdentity.startupRetryReasons, [
+            'sqlite-database-locked',
+        ]);
+        assert.equal(summary.validForComparison, true);
+    });
+
     it('rejects forged validated objects and excludes diagnostic CPU profiles from headline metrics', async () => {
         const { diagnosticEvidence, iterations } = await formalReportFixture();
         const forged = [...iterations];

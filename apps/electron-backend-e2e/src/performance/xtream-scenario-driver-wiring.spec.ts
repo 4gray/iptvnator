@@ -130,13 +130,13 @@ describe('Xtream scenario driver source wiring', () => {
 
     it('prearms the persistent database worker outside the measured capture', () => {
         const iteration = source('xtream-benchmark-iteration.ts');
+        const startup = source('xtream-benchmark-app-startup.ts');
         const support = source('xtream-benchmark-iteration-support.ts');
-        const install = iteration.indexOf(
+        const install = startup.indexOf(
             'await installMainCapture(app.electronApp)'
         );
-        const prearm = iteration.indexOf(
-            'await prearmXtreamDatabaseWorker(app)'
-        );
+        const prearm = startup.indexOf('await prearmXtreamDatabaseWorker(app)');
+        const launch = iteration.indexOf('await launchXtreamBenchmarkApp');
         const captureOptions = iteration.indexOf(
             'const captureOptions: MainCaptureStartOptions'
         );
@@ -155,7 +155,20 @@ describe('Xtream scenario driver source wiring', () => {
         assert.ok(workerPrearm > mainDatabaseReady);
         assert.ok(install >= 0);
         assert.ok(prearm > install);
-        assert.ok(captureOptions > prearm);
+        assert.ok(launch >= 0);
+        assert.ok(captureOptions > launch);
+        assert.match(startup, /maxAttempts:\s*2/);
+        assert.match(startup, /classifyXtreamStartupFailure/);
+        assert.match(startup, /disposeXtreamAppResource/);
+        assert.match(startup, /closeElectronAppAndConfirmExit/);
+        assert.match(
+            startup,
+            /failure instanceof ElectronApplicationDisposalError/
+        );
+        assert.doesNotMatch(
+            startup,
+            /removeXtreamDataDirectory\([^)]*\)\.catch/
+        );
     });
 
     it('subscribes the renderer probe before the cancellation observer is armed', () => {

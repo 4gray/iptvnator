@@ -61,12 +61,24 @@ export interface XtreamReportFixture {
     readonly iterations: readonly XtreamValidatedIterationResult[];
 }
 
-export async function formalReportFixture(): Promise<XtreamReportFixture> {
-    return reportFixture(createXtreamIterationDefinitions(false), 10, true);
+export async function formalReportFixture(
+    startupRetryIndex: number | null = null
+): Promise<XtreamReportFixture> {
+    return reportFixture(
+        createXtreamIterationDefinitions(false),
+        10,
+        true,
+        startupRetryIndex
+    );
 }
 
 export async function smokeReportFixture(): Promise<XtreamReportFixture> {
-    return reportFixture(createXtreamIterationDefinitions(true), 100, false);
+    return reportFixture(
+        createXtreamIterationDefinitions(true),
+        100,
+        false,
+        null
+    );
 }
 
 export async function clearXtreamProvenanceFixtureDirectories(): Promise<void> {
@@ -80,7 +92,8 @@ export async function clearXtreamProvenanceFixtureDirectories(): Promise<void> {
 async function reportFixture(
     definitions: readonly XtreamIterationDefinition[],
     identityOffset: number,
-    mixedInitialOverlap: boolean
+    mixedInitialOverlap: boolean,
+    startupRetryIndex: number | null
 ): Promise<XtreamReportFixture> {
     const entries = await Promise.all(
         definitions.map(async (definition, index) => {
@@ -104,6 +117,16 @@ async function reportFixture(
                 ['run-02', 'run-04'].includes(definition.runId)
             ) {
                 raw = withWorkerRequestOverlap(raw, 2);
+            }
+            if (index === startupRetryIndex) {
+                raw = {
+                    ...raw,
+                    processIdentity: {
+                        ...raw.processIdentity,
+                        startupAttemptCount: 2,
+                        startupRetryReasons: ['sqlite-database-locked'],
+                    },
+                };
             }
             return {
                 evidence,

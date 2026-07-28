@@ -33,9 +33,11 @@ import {
 } from './xtream-scenario-driver';
 import {
     XTREAM_NOT_APPLICABLE,
+    XTREAM_STARTUP_RETRY_REASON,
     type XtreamCatalogVerification as XtreamSummaryCatalogVerification,
     type XtreamIterationProcessIdentity,
     type XtreamRawIterationResult,
+    type XtreamStartupRetryReason,
 } from './xtream-summary-contract';
 
 export interface XtreamIterationProcessEvidence {
@@ -43,6 +45,8 @@ export interface XtreamIterationProcessEvidence {
     readonly freshProcessVerified: true;
     readonly launchId: string;
     readonly profileDirectorySha256: string;
+    readonly startupAttemptCount: 1 | 2;
+    readonly startupRetryReasons: readonly XtreamStartupRetryReason[];
 }
 
 export interface XtreamIterationAssemblyInput {
@@ -215,7 +219,8 @@ function createProcessIdentity(
         !Number.isSafeInteger(process.electronPid) ||
         process.electronPid <= 0 ||
         !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(process.launchId) ||
-        !/^[a-f0-9]{64}$/.test(process.profileDirectorySha256)
+        !/^[a-f0-9]{64}$/.test(process.profileDirectorySha256) ||
+        !validStartupEvidence(process)
     ) {
         invalid();
     }
@@ -228,6 +233,8 @@ function createProcessIdentity(
         electronPid: process.electronPid,
         launchId: process.launchId,
         profileDirectorySha256: process.profileDirectorySha256,
+        startupAttemptCount: process.startupAttemptCount,
+        startupRetryReasons: process.startupRetryReasons,
         rendererTargetId: input.rendererCapture.targetId,
         browserWindowId:
             input.mainCapture.capture.rendererWindow.windowIdentity
@@ -245,7 +252,24 @@ function createProcessIdentity(
             .digest('hex'),
         launchId: process.launchId,
         profileDirectorySha256: process.profileDirectorySha256,
+        startupAttemptCount: process.startupAttemptCount,
+        startupRetryReasons: [...process.startupRetryReasons],
     };
+}
+
+function validStartupEvidence(
+    process: XtreamIterationProcessEvidence
+): boolean {
+    return (
+        (process.startupAttemptCount === 1 ||
+            process.startupAttemptCount === 2) &&
+        Array.isArray(process.startupRetryReasons) &&
+        process.startupRetryReasons.length ===
+            process.startupAttemptCount - 1 &&
+        process.startupRetryReasons.every((reason) =>
+            Object.values(XTREAM_STARTUP_RETRY_REASON).includes(reason)
+        )
+    );
 }
 
 function requireEpoch(value: unknown): number {

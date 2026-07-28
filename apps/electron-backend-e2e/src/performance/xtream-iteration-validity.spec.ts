@@ -118,6 +118,18 @@ describe('Xtream raw iteration validity', () => {
                 }),
             /invalid Xtream iteration/
         );
+        assert.throws(
+            () =>
+                assertXtreamIterationResult({
+                    ...raw,
+                    processIdentity: {
+                        ...raw.processIdentity,
+                        startupAttemptCount: 2,
+                        startupRetryReasons: [],
+                    },
+                }),
+            /invalid Xtream iteration/
+        );
         const { processIdentity: _removed, ...missingIdentity } = raw;
         void _removed;
         assert.throws(

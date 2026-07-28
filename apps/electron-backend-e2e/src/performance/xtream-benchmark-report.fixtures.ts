@@ -33,6 +33,12 @@ import {
 import { bindFixtureWorkerEvidence } from './xtream-worker-phase-evidence.fixture';
 import type { WorkerRequestPerformanceMetrics } from './m3u-refresh-cancellation-contract';
 
+export const sha256 = (value: string): string =>
+    createHash('sha256').update(value).digest('hex');
+const hash = (character: string): string => character.repeat(64);
+const numberedHash = (value: number, salt: number): string =>
+    sha256(`${salt}:${value}`);
+
 export const TOKEN = 'random-control-token-that-must-never-persist';
 const buildFile = (path: string, marker: string): XtreamBuildFileIdentity => ({
     bytes: marker.length,
@@ -216,6 +222,8 @@ export function iteration(
             generationIdentitySha256: numberedHash(identity, 3),
             launchId: `launch-${identity}`,
             profileDirectorySha256: numberedHash(identity, 4),
+            startupAttemptCount: 1,
+            startupRetryReasons: [],
         },
         phaseCapture,
         phases,
@@ -385,16 +393,4 @@ function restoreValidRequestMetrics(
         threadCpuUnavailableReason: null,
         threadCpuUserMicros: 20,
     };
-}
-
-export function sha256(value: string): string {
-    return createHash('sha256').update(value).digest('hex');
-}
-
-function hash(character: string): string {
-    return character.repeat(64);
-}
-
-function numberedHash(value: number, salt: number): string {
-    return sha256(`${salt}:${value}`);
 }
