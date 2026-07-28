@@ -361,6 +361,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: { matchKeys: vodSourceMatchKeys },
     },
     {
+        operation: 'DB_LIST_VOD_SOURCE_PINS',
+        args: ['playlist-1'],
+        payload: { playlistId: 'playlist-1' },
+    },
+    {
         operation: 'DB_SET_VOD_SOURCE_PIN',
         args: [vodSourcePin],
         payload: { pin: vodSourcePin },

@@ -1,4 +1,4 @@
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { VodSourcePin } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
@@ -46,6 +46,29 @@ export async function getVodSourcePin(
     }
 
     return null;
+}
+
+/**
+ * Every pin pointing AT this playlist.
+ *
+ * A pin belongs to a movie but names one playlist, so the playlist it points
+ * at is the one that owns it for backup purposes — exporting it anywhere else
+ * would restore a preference for a portal that is not in the archive.
+ */
+export async function listVodSourcePinsForPlaylist(
+    db: AppDatabase,
+    playlistId: string
+): Promise<VodSourcePin[]> {
+    if (typeof playlistId !== 'string' || playlistId === '') {
+        return [];
+    }
+
+    const rows = await db
+        .select()
+        .from(schema.vodSourcePins)
+        .where(eq(schema.vodSourcePins.playlistId, playlistId));
+
+    return rows.map(toPin);
 }
 
 export async function setVodSourcePin(

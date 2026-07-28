@@ -478,6 +478,14 @@ Two things read it, and they must agree: the "Playing from" caption, and the
 source row's badge — which reads `Current` when a source is merely selected and
 `Playing` once one really is.
 
+## Backup
+
+Pins ride along with playlist backup, under the playlist they point at, as the
+optional `sourcePins` collection. See
+`docs/architecture/playlist-backup-restore.md` for the remapping and
+sanitizing rules — the short version is that `matchKey` names the film and
+survives as-is, while the playlist id becomes the imported copy's.
+
 ## Which engines can fail over
 
 Only the built-in web players (HTML5, Video.js, ArtPlayer) raise the playback

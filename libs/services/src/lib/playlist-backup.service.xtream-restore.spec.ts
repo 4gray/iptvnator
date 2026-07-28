@@ -64,7 +64,8 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
     } as Playlist;
 
     function createXtreamManifest(
-        hiddenCategories: unknown[]
+        hiddenCategories: unknown[],
+        sourcePins?: unknown[]
     ): PlaylistBackupManifestV1 {
         return {
             kind: PLAYLIST_BACKUP_KIND,
@@ -87,6 +88,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
                         favorites: [],
                         recentlyViewed: [],
                         playbackPositions: [],
+                        ...(sourcePins ? { sourcePins } : {}),
                     },
                 } as unknown as XtreamPlaylistBackupEntry,
             ],
@@ -188,6 +190,90 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         expect(collaborators.pendingRestoreService.clear).toHaveBeenCalledWith(
             'xtream-1'
         );
+    });
+
+    it('exports the pins that point at this playlist', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService({
+            playlistsService: collaborators.playlistsService,
+            databaseService: collaborators.databaseService,
+            vodSourcePinService: {
+                listForPlaylist: jest.fn().mockResolvedValue([
+                    {
+                        matchKey: 'tmdb:603',
+                        playlistId: 'xtream-1',
+                        contentId: 501,
+                        portalType: 'xtream',
+                        updatedAt: '2026-07-06T09:00:00.000Z',
+                    },
+                ]),
+                set: jest.fn().mockResolvedValue(true),
+            },
+        });
+
+        const backup = await service.exportBackup();
+
+        const entry = backup.manifest
+            .playlists[0] as XtreamPlaylistBackupEntry;
+        // Without this every "main source" choice vanishes on restore, with
+        // nothing in the archive to say it was ever made.
+        expect(entry.userState.sourcePins).toEqual([
+            {
+                matchKey: 'tmdb:603',
+                contentId: 501,
+                updatedAt: '2026-07-06T09:00:00.000Z',
+            },
+        ]);
+    });
+
+    it('restores pins against the imported playlist, not the exported one', async () => {
+        const collaborators = createRestoreCollaborators();
+        const setPin = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                listForPlaylist: jest.fn().mockResolvedValue([]),
+                set: setPin,
+            },
+        });
+
+        const manifest = createXtreamManifest(
+            [],
+            [{ matchKey: 'tmdb:603', contentId: 501 }]
+        );
+
+        await service.importBackup(JSON.stringify(manifest));
+
+        // The match key identifies the film and carries over as-is; the
+        // playlist id is this installation's, not the archive's.
+        expect(setPin).toHaveBeenCalledWith({
+            matchKey: 'tmdb:603',
+            playlistId: 'xtream-1',
+            contentId: 501,
+            portalType: 'xtream',
+        });
+    });
+
+    it('imports an archive written before pins existed', async () => {
+        const collaborators = createRestoreCollaborators();
+        const setPin = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                listForPlaylist: jest.fn().mockResolvedValue([]),
+                set: setPin,
+            },
+        });
+
+        // No `sourcePins` at all — absence is age, not damage.
+        const summary = await service.importBackup(
+            JSON.stringify(createXtreamManifest([]))
+        );
+
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 1, failed: 0 })
+        );
+        expect(setPin).not.toHaveBeenCalled();
     });
 
     it('rejects entries with missing user-state collections instead of wiping user data', async () => {

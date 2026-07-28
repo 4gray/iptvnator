@@ -150,6 +150,15 @@ describe('PlaylistBackupService export → import round-trip', () => {
                     updatedAt: '2026-07-05T20:00:00.000Z',
                 },
             ],
+            sourcePins: [
+                {
+                    matchKey: 'tmdb:603',
+                    playlistId: 'xtream-1',
+                    contentId: 501,
+                    portalType: 'xtream',
+                    updatedAt: '2026-07-06T09:00:00.000Z',
+                },
+            ],
             epgUrls: ['https://epg.example.com/guide.xml'],
         };
     }

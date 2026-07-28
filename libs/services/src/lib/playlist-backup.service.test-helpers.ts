@@ -2,6 +2,7 @@ import { of } from 'rxjs';
 import {
     PlaybackPositionData,
     Playlist,
+    VodSourcePin,
     XtreamBackupFavoriteItem,
     XtreamBackupRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
@@ -61,6 +62,10 @@ export function createPlaylistBackupService(
             clearAllPlaybackPositions: jest.fn().mockResolvedValue(undefined),
             savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
         },
+        vodSourcePinService: {
+            listForPlaylist: jest.fn().mockResolvedValue([]),
+            set: jest.fn().mockResolvedValue(true),
+        },
         pendingRestoreService: {
             set: jest.fn(),
             clear: jest.fn(),
@@ -100,6 +105,7 @@ export interface FakeBackupBackendState {
     xtreamFavorites: FakeXtreamContentRow[];
     xtreamRecent: FakeXtreamContentRow[];
     playbackPositions: PlaybackPositionData[];
+    sourcePins: VodSourcePin[];
     epgUrls: string[];
 }
 
@@ -229,6 +235,21 @@ export function createStatefulBackupCollaborators(
                 position: PlaybackPositionData
             ) => {
                 state.playbackPositions.push({ ...position });
+            },
+        },
+        vodSourcePinService: {
+            listForPlaylist: async (playlistId: string) =>
+                state.sourcePins
+                    .filter((pin) => pin.playlistId === playlistId)
+                    .map((pin) => ({ ...pin })),
+            // The real table keys on matchKey alone, so a second write for the
+            // same film replaces the first rather than adding a row.
+            set: async (pin: VodSourcePin) => {
+                state.sourcePins = state.sourcePins.filter(
+                    (existing) => existing.matchKey !== pin.matchKey
+                );
+                state.sourcePins.push({ ...pin });
+                return true;
             },
         },
         pendingRestoreService: new XtreamPendingRestoreService(),

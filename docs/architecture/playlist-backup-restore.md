@@ -162,12 +162,23 @@ worker IPC boundary in the snake_case wire shape declared by
 `XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
 their Drizzle rows explicitly to keep that contract true.
 
+`sourcePins` (VOD multi-source) is the one **optional** collection: archives
+written before multi-source existed simply do not have it, so its absence is
+age rather than damage and only a wrong type is rejected. A pin is carried
+under the playlist it points AT — exporting it anywhere else would restore a
+preference for a portal the archive never contained. Its `matchKey` identifies
+the film rather than the portal, so it survives untouched; only the playlist id
+is remapped to the imported copy. Pins whose match key or content id is
+unusable are dropped, since writing one would occupy the unique key of a film
+it does not describe.
+
 Electron restore behavior:
 
 1. Category import reads pending hidden-category state while saving categories.
 2. After content import, favorites/recent state is restored by typed
    `{ contentType, xtreamId }` matching.
 3. Playback positions are cleared and re-applied from backup state.
+4. VOD source pins are re-applied against the IMPORTED playlist id.
 
 For existing Xtream playlists with a fully populated offline cache, backup
 import applies the restore immediately. Otherwise the typed restore payload is

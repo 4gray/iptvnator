@@ -883,6 +883,8 @@ const electronApi: ElectronBridgeApi = {
     }) => ipcRenderer.invoke('DB_FIND_TITLE_SOURCES', request),
     dbGetVodSourcePin: (matchKeys: string[]) =>
         ipcRenderer.invoke('DB_GET_VOD_SOURCE_PIN', matchKeys),
+    dbListVodSourcePins: (playlistId: string) =>
+        ipcRenderer.invoke('DB_LIST_VOD_SOURCE_PINS', playlistId),
     dbSetVodSourcePin: (pin: VodSourcePin) =>
         ipcRenderer.invoke('DB_SET_VOD_SOURCE_PIN', pin),
     dbClearVodSourcePin: (matchKeys: string[]) =>

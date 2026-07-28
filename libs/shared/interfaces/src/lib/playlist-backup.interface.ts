@@ -58,11 +58,25 @@ export interface XtreamBackupRecentlyViewedItem {
     viewedAt: string;
 }
 
+/**
+ * A per-movie preferred source, carried under the playlist it points AT.
+ *
+ * `matchKey` identifies the film, not the portal, so it survives the restore
+ * untouched — only the playlist id has to be remapped to the imported copy.
+ */
+export interface XtreamBackupSourcePin {
+    matchKey: string;
+    contentId: number;
+    updatedAt?: string;
+}
+
 export interface XtreamBackupUserState {
     hiddenCategories: XtreamBackupHiddenCategory[];
     favorites: XtreamBackupFavoriteItem[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
     playbackPositions: PlaybackPositionData[];
+    /** Optional: absent in archives written before multi-source existed. */
+    sourcePins?: XtreamBackupSourcePin[];
 }
 
 export interface XtreamPlaylistBackupEntry extends PlaylistBackupBaseEntry {

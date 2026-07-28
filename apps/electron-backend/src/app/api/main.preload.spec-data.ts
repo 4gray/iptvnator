@@ -413,6 +413,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [vodSourceMatchKeys],
     },
     {
+        method: 'dbListVodSourcePins',
+        args: ['playlist-1'],
+        channel: 'DB_LIST_VOD_SOURCE_PINS',
+        forwardedArgs: ['playlist-1'],
+    },
+    {
         method: 'dbSetVodSourcePin',
         args: [vodSourcePin],
         channel: 'DB_SET_VOD_SOURCE_PIN',

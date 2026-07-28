@@ -880,6 +880,8 @@ export interface ElectronBridgeApi {
     }) => Promise<VodSourceCandidateRow[]>;
     /** Per-movie pinned source; keys are passed most-trusted first */
     dbGetVodSourcePin: (matchKeys: string[]) => Promise<VodSourcePin | null>;
+    /** Every pin pointing at this playlist — used by playlist backup. */
+    dbListVodSourcePins: (playlistId: string) => Promise<VodSourcePin[]>;
     dbSetVodSourcePin: (pin: VodSourcePin) => Promise<ElectronBridgeResult>;
     dbClearVodSourcePin: (
         matchKeys: string[]

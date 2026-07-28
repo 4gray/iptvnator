@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
 import { DatabaseService } from './database-electron.service';
+import { VodSourcePinService } from './vod-source-pin.service';
 import { PlaybackPositionService } from './playback-position.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import {
@@ -59,6 +60,7 @@ export class PlaylistBackupService {
     private readonly settingsStore = inject(SettingsStore);
     private readonly databaseService = inject(DatabaseService);
     private readonly playbackPositionService = inject(PlaybackPositionService);
+    private readonly vodSourcePinService = inject(VodSourcePinService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -252,6 +254,7 @@ export class PlaylistBackupService {
                     favorites: [],
                     recentlyViewed: [],
                     playbackPositions: [],
+                    sourcePins: [],
                 },
             };
         }
@@ -263,6 +266,7 @@ export class PlaylistBackupService {
             favorites,
             recent,
             playbackPositions,
+            sourcePins,
         ] = await Promise.all([
             this.databaseService.getAllXtreamCategories(playlist._id, 'live'),
             this.databaseService.getAllXtreamCategories(playlist._id, 'movies'),
@@ -270,6 +274,7 @@ export class PlaylistBackupService {
             this.databaseService.getFavorites(playlist._id),
             this.databaseService.getRecentItems(playlist._id),
             this.playbackPositionService.getAllPlaybackPositions(playlist._id),
+            this.vodSourcePinService.listForPlaylist(playlist._id),
         ]);
 
         return {
@@ -304,6 +309,14 @@ export class PlaylistBackupService {
                 })),
                 playbackPositions: playbackPositions.map((item) => ({
                     ...item,
+                })),
+                // Carried under the playlist they point AT, so a restore that
+                // does not include that portal cannot resurrect a preference
+                // for something the archive never had.
+                sourcePins: sourcePins.map((pin) => ({
+                    matchKey: pin.matchKey,
+                    contentId: pin.contentId,
+                    ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
                 })),
             },
         };
@@ -455,6 +468,17 @@ export class PlaylistBackupService {
                     !Array.isArray(entry.userState?.favorites) ||
                     !Array.isArray(entry.userState?.recentlyViewed) ||
                     !Array.isArray(entry.userState?.playbackPositions)
+                ) {
+                    throw new PlaylistBackupError(
+                        `Xtream backup "${entry.title}" has incomplete user state.`
+                    );
+                }
+
+                // Absent in archives written before multi-source existed, so
+                // its absence is not damage — only a wrong type is.
+                if (
+                    entry.userState.sourcePins !== undefined &&
+                    !Array.isArray(entry.userState.sourcePins)
                 ) {
                     throw new PlaylistBackupError(
                         `Xtream backup "${entry.title}" has incomplete user state.`
@@ -838,6 +862,18 @@ export class PlaylistBackupService {
                 playlistId,
                 playbackPosition
             );
+        }
+
+        // The match key identifies the film and survives untouched; only the
+        // playlist has a new id in this installation.
+        for (const pin of state.sourcePins ?? []) {
+            await this.vodSourcePinService.set({
+                matchKey: pin.matchKey,
+                playlistId,
+                contentId: pin.contentId,
+                portalType: 'xtream',
+                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+            });
         }
     }
 

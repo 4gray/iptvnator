@@ -41,6 +41,25 @@ export class VodSourcePinService {
         }
     }
 
+    /** Every pin pointing at this playlist. Used by playlist backup. */
+    async listForPlaylist(playlistId: string): Promise<VodSourcePin[]> {
+        if (!this.isAvailable || !playlistId) {
+            return [];
+        }
+
+        try {
+            return (
+                (await window.electron.dbListVodSourcePins(playlistId)) ?? []
+            );
+        } catch (error) {
+            console.warn(
+                'Listing pinned VOD sources failed:',
+                redactSensitiveData(error)
+            );
+            return [];
+        }
+    }
+
     async set(pin: VodSourcePin): Promise<boolean> {
         if (!this.isAvailable) {
             return false;
