@@ -210,6 +210,7 @@ export async function playPinned(deps: PinnedPlayDeps): Promise<boolean> {
         return false;
     }
 
+    const looked = !!deps.resumeFor;
     const stored = await deps.resumeFor?.(pinned);
     // That lookup is a database round-trip, and the user can navigate across
     // it. Playing then would hand THIS film's source id to whatever movie now
@@ -218,8 +219,12 @@ export async function playPinned(deps: PinnedPlayDeps): Promise<boolean> {
         return false;
     }
 
-    if (stored !== null && stored !== undefined) {
-        deps.controller.setResumeSeconds(stored);
+    if (looked) {
+        // `null` means this copy has never been watched, and the controller is
+        // still holding the ROUTE copy's position. Carrying that across would
+        // drop the user an hour into a film they have not started here — and
+        // the first save would write that timecode under this source's key.
+        deps.controller.setResumeSeconds(stored ?? 0);
     }
 
     return deps.play(pinned.id);

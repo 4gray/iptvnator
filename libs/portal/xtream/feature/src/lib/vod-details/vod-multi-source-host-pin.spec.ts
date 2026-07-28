@@ -186,7 +186,32 @@ describe('VodMultiSourceHostService — pinning', () => {
         );
     });
 
-    it('keeps the page position when the pinned source has none', async () => {
+    it('starts a pinned source that was never watched from the beginning', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+        // The position the PAGE loaded belongs to the route's copy.
+        service.seedResumePosition(2538);
+
+        await expect(
+            service.playPinnedSource(jest.fn().mockResolvedValue(null))
+        ).resolves.toBe(true);
+
+        // Positions are keyed by (playlist, stream). Carrying the route copy's
+        // timecode into a copy the user has never opened drops them 42 minutes
+        // into an unstarted film — and the first save writes it back under
+        // this source's key, making the mistake permanent.
+        expect(resolver.resolve).toHaveBeenCalledWith(
+            expect.objectContaining({ id: ALT_TWO.id }),
+            { startTime: 0 }
+        );
+    });
+
+    it('leaves the position alone when the host cannot look one up', async () => {
         pins.get.mockResolvedValue({
             matchKey: 'title:the matrix:1999',
             playlistId: ALT_TWO.playlistId,
@@ -196,9 +221,9 @@ describe('VodMultiSourceHostService — pinning', () => {
         await loadMovie([ALT_TWO]);
         service.seedResumePosition(2538);
 
-        await expect(
-            service.playPinnedSource(jest.fn().mockResolvedValue(null))
-        ).resolves.toBe(true);
+        // No lookup was performed, so "never watched" was never established —
+        // zeroing here would throw away a position nobody contradicted.
+        await expect(service.playPinnedSource()).resolves.toBe(true);
 
         expect(resolver.resolve).toHaveBeenCalledWith(
             expect.objectContaining({ id: ALT_TWO.id }),

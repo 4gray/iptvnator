@@ -411,6 +411,18 @@ Every entry point is gated on a bridge `typeof` check (`isAvailable`), matching
 `CatalogTitleMatchService`. In the PWA the chip renders nothing and the
 auto-failover setting is hidden.
 
+## Resuming a pinned copy
+
+Playback positions are keyed by (playlist, stream), so a pinned alternative
+carries its own. `playPinned` looks that position up and applies it — and
+applies **zero** when the lookup comes back empty, because the controller is
+still holding the ROUTE copy's position at that moment. Carrying it across
+would drop the user into the middle of a film they never started here, and the
+first save would write that timecode under the pinned source's key.
+
+When no lookup function is supplied at all, nothing is applied: "never watched"
+was never established, so there is nothing to correct.
+
 ## Claims about the present
 
 `isActive` means "the source a switch or Play would use". Discovery sets it the
