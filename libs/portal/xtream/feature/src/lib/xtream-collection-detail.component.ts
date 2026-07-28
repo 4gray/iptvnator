@@ -87,6 +87,7 @@ export class XtreamCollectionDetailComponent {
     }
 
     ngOnDestroy(): void {
+        this.xtreamStore.cancelDetailsRequest();
         this.restoreStoreState();
     }
 

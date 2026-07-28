@@ -15,7 +15,10 @@ import {
     createLogger,
     getPortalPlaybackProgressPercent,
 } from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    resolveXtreamVodPlaybackSource,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
@@ -23,9 +26,9 @@ import {
     ResolvedPortalPlayback,
     XtreamVodDetails,
     XtreamVodInfo,
-    getXtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
+import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
 
 export interface VodDetailsPlaybackBindings {
     /** Current vod id resolved from the route */
@@ -51,9 +54,7 @@ export class VodDetailsPlaybackService {
     private readonly logger = createLogger('VodDetailsPlayback');
 
     /** Signals bound from the host component via `bind()` */
-    private readonly bindings = signal<VodDetailsPlaybackBindings | null>(
-        null
-    );
+    private readonly bindings = signal<VodDetailsPlaybackBindings | null>(null);
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
@@ -115,22 +116,26 @@ export class VodDetailsPlaybackService {
             return;
         }
 
+        const source = resolveXtreamVodPlaybackSource(vodItem);
+        if (!source) {
+            return;
+        }
+
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) {
             return;
         }
 
-        const info = getXtreamVodInfo(vodItem);
+        const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         this.addToRecentlyViewed();
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
         const routeVodId = this.bindings()?.vodId();
         const id =
-            routeVodId != null && Number.isFinite(routeVodId)
+            routeVodId != null &&
+            Number.isSafeInteger(routeVodId) &&
+            routeVodId > 0
                 ? routeVodId
-                : Number(
-                      vodItem.movie_data?.stream_id ||
-                          (vodItem as { stream_id?: number }).stream_id
-                  );
+                : source.streamId;
 
         this.logger.debug('playVod resolved ID', { id, vodItem });
 
@@ -141,8 +146,8 @@ export class VodDetailsPlaybackService {
         };
         const playback: ResolvedPortalPlayback = {
             streamUrl,
-            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
-            thumbnail: info?.movie_image,
+            title: presentation.title,
+            thumbnail: presentation.posterUrl,
             contentInfo,
         };
 
@@ -154,14 +159,25 @@ export class VodDetailsPlaybackService {
             return;
         }
 
+        const source = resolveXtreamVodPlaybackSource(vodItem);
+        if (!source) {
+            return;
+        }
+
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) {
             return;
         }
 
-        const info = getXtreamVodInfo(vodItem);
+        const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         this.addToRecentlyViewed();
-        const vodId = this.bindings()?.vodId() ?? NaN;
+        const routeVodId = this.bindings()?.vodId();
+        const vodId =
+            routeVodId != null &&
+            Number.isSafeInteger(routeVodId) &&
+            routeVodId > 0
+                ? routeVodId
+                : source.streamId;
         const position = this.vodPlaybackPosition();
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
 
@@ -172,8 +188,8 @@ export class VodDetailsPlaybackService {
         };
         const playback: ResolvedPortalPlayback = {
             streamUrl,
-            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
-            thumbnail: info?.movie_image,
+            title: presentation.title,
+            thumbnail: presentation.posterUrl,
             startTime: position?.positionSeconds,
             contentInfo,
         };
