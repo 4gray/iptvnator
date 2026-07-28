@@ -666,6 +666,24 @@ itself reuses the normal file path
 playlist-scoped EPG, and the navigation to the new playlist all behave exactly
 like a dialog import.
 
+The OS-level registration that makes those paths reachable is
+`fileAssociations` in `electron-builder.json` — one entry per extension, each
+with its own `mimeType`. Electron Builder derives all three platform
+registrations from it: macOS `CFBundleDocumentTypes` (which is what makes
+`open-file` fire from Finder), the NSIS registry entries, and, on Linux, the
+desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
+deb/rpm/pacman. Two traps: it assigns the derived `MimeType` *after* spreading
+`linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
+must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
+over percent-encoded `file://` URIs rather than paths —
+`createPlaylistOpenRequest` decodes them before the extension check. `%U` is
+also the *plural* exec code, so a multi-file selection arrives as one launch
+with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
+of them and `enqueueAll` queues the batch, because stopping at the first match
+would silently drop the rest of the selection. Adding an exec code to
+`linux.executableArgs` would suppress the `%U` but also pass that code to the
+app as a real argument, so it is not an option.
+
 **Video Players**:
 
 - Built-in web players: HTML5+hls.js, Video.js, and ArtPlayer

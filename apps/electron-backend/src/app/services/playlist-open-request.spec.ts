@@ -1,7 +1,8 @@
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
     createPlaylistOpenRequest,
-    extractPlaylistOpenRequestFromArgv,
+    extractPlaylistOpenRequestsFromArgv,
     isPlaylistFilePath,
     PlaylistOpenRequest,
     PlaylistOpenRequestQueue,
@@ -49,6 +50,37 @@ describe('createPlaylistOpenRequest', () => {
         expect(first?.requestId).not.toEqual(second?.requestId);
     });
 
+    // The Linux desktop entry ends in `%U`, so a double-click in the file
+    // manager delivers a URI rather than a path.
+    it('accepts a file:// URI', () => {
+        const filePath = resolve('/tmp/playlists/list.m3u');
+
+        expect(createPlaylistOpenRequest(pathToFileURL(filePath).href)).toEqual(
+            expect.objectContaining({ fileName: 'list.m3u', filePath })
+        );
+    });
+
+    it('decodes percent-encoding before matching the extension', () => {
+        const filePath = resolve('/tmp/My Playlist.m3u');
+        const uri = pathToFileURL(filePath).href;
+
+        expect(uri).toContain('%20');
+        expect(createPlaylistOpenRequest(uri)).toEqual(
+            expect.objectContaining({
+                fileName: 'My Playlist.m3u',
+                filePath,
+            })
+        );
+    });
+
+    it('rejects a file:// URI that cannot be parsed', () => {
+        expect(createPlaylistOpenRequest('file://[bad/list.m3u')).toBeNull();
+    });
+
+    it('rejects a file:// URI that is not a playlist', () => {
+        expect(createPlaylistOpenRequest('file:///tmp/movie.mkv')).toBeNull();
+    });
+
     it('recognizes playlist extensions through the exported guard', () => {
         expect(isPlaylistFilePath('a.m3u')).toBe(true);
         expect(isPlaylistFilePath('a.m3u8')).toBe(true);
@@ -56,59 +88,85 @@ describe('createPlaylistOpenRequest', () => {
     });
 });
 
-describe('extractPlaylistOpenRequestFromArgv', () => {
+describe('extractPlaylistOpenRequestsFromArgv', () => {
     it('finds the playlist path in a packaged launch', () => {
         expect(
-            extractPlaylistOpenRequestFromArgv([
+            extractPlaylistOpenRequestsFromArgv([
                 '/opt/iptvnator/iptvnator',
                 '/home/user/list.m3u',
             ])
-        ).toMatchObject({
-            fileName: 'list.m3u',
-            filePath: '/home/user/list.m3u',
-        });
+        ).toMatchObject([
+            {
+                fileName: 'list.m3u',
+                filePath: '/home/user/list.m3u',
+            },
+        ]);
     });
 
     it('skips the executable, switches and the development entry point', () => {
         expect(
-            extractPlaylistOpenRequestFromArgv([
+            extractPlaylistOpenRequestsFromArgv([
                 '/usr/bin/electron',
                 '--remote-debugging-port=9222',
                 '--ozone-platform=x11',
                 '/workspace/dist/apps/electron-backend/main.js',
                 '/home/user/list.m3u8',
             ])
-        ).toMatchObject({
-            fileName: 'list.m3u8',
-            filePath: '/home/user/list.m3u8',
-        });
+        ).toMatchObject([
+            {
+                fileName: 'list.m3u8',
+                filePath: '/home/user/list.m3u8',
+            },
+        ]);
+    });
+
+    // `%U` hands over the whole selection, one argument per file.
+    it('keeps every playlist of a multi-file selection, in order', () => {
+        const requests = extractPlaylistOpenRequestsFromArgv([
+            '/opt/iptvnator/iptvnator',
+            '--ozone-platform=x11',
+            'file:///home/user/first.m3u',
+            '/home/user/movie.mkv',
+            'file:///home/user/second%20list.m3u8',
+        ]);
+
+        expect(requests).toHaveLength(2);
+        expect(requests).toMatchObject([
+            { fileName: 'first.m3u', filePath: '/home/user/first.m3u' },
+            {
+                fileName: 'second list.m3u8',
+                filePath: '/home/user/second list.m3u8',
+            },
+        ]);
     });
 
     it('never treats the executable itself as the playlist', () => {
-        expect(
-            extractPlaylistOpenRequestFromArgv(['/opt/weird.m3u'])
-        ).toBeNull();
+        expect(extractPlaylistOpenRequestsFromArgv(['/opt/weird.m3u'])).toEqual(
+            []
+        );
     });
 
-    it('returns null when no playlist argument is present', () => {
+    it('returns nothing when no playlist argument is present', () => {
         expect(
-            extractPlaylistOpenRequestFromArgv([
+            extractPlaylistOpenRequestsFromArgv([
                 '/opt/iptvnator/iptvnator',
                 '--no-sandbox',
             ])
-        ).toBeNull();
+        ).toEqual([]);
     });
 
     it('resolves a relative argument against the forwarded working directory', () => {
         expect(
-            extractPlaylistOpenRequestFromArgv(
+            extractPlaylistOpenRequestsFromArgv(
                 ['/opt/iptvnator/iptvnator', 'list.m3u'],
                 '/home/user/tv'
             )
-        ).toMatchObject({
-            fileName: 'list.m3u',
-            filePath: resolve('/home/user/tv', 'list.m3u'),
-        });
+        ).toMatchObject([
+            {
+                fileName: 'list.m3u',
+                filePath: resolve('/home/user/tv', 'list.m3u'),
+            },
+        ]);
     });
 });
 
@@ -216,6 +274,33 @@ describe('PlaylistOpenRequestQueue', () => {
 
         expect(() => queue.acknowledge('stale')).not.toThrow();
         expect(queue.unacknowledgedRequests).toEqual([request('known')]);
+    });
+
+    it('delivers a whole selection in arrival order', () => {
+        const queue = new PlaylistOpenRequestQueue();
+        const delivered: PlaylistOpenRequest[] = [];
+
+        queue.setDelivery((entry) => {
+            delivered.push(entry);
+            return true;
+        });
+        queue.enqueueAll([request('one'), null, request('two')]);
+
+        expect(delivered).toEqual([request('one'), request('two')]);
+    });
+
+    it('keeps the untouched remainder of a selection queued', () => {
+        const queue = new PlaylistOpenRequestQueue();
+        let accept = true;
+
+        queue.enqueueAll([request('one'), request('two')]);
+        queue.setDelivery(() => {
+            const outcome = accept;
+            accept = false;
+            return outcome;
+        });
+
+        expect(queue.pendingRequests).toEqual([request('two')]);
     });
 
     it('keeps a request queued when delivery reports a dead target', () => {

@@ -3,7 +3,8 @@
  *
  * Three entry points converge here:
  *  - a first launch with a path argument (`iptvnator playlist.m3u`, which is
- *    also what Windows/Linux file associations do),
+ *    also what the Windows file association does; the Linux one passes a
+ *    `file://` URI instead),
  *  - a second launch while the app is already running, whose argv the
  *    single-instance guard forwards,
  *  - macOS, which never puts the path in argv and emits `open-file` instead.
@@ -17,6 +18,7 @@
  */
 
 import { basename, isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface PlaylistOpenRequest {
     readonly fileName: string;
@@ -44,8 +46,30 @@ export function isPlaylistFilePath(candidate: string): boolean {
 }
 
 /**
- * Normalizes an OS-supplied path into an open request, or returns `null` when
- * it is not a playlist file. Relative paths are resolved against the working
+ * Linux desktop entries end in `%U`, so file managers hand over a
+ * percent-encoded `file:///…` URI rather than a path — Electron Builder appends
+ * that exec code unconditionally unless `linux.executableArgs` already carries
+ * one, and putting one there would also pass it to the app as a real argument.
+ * Every other source (macOS `open-file`, the Windows association command, a
+ * shell argument) supplies a plain path, which is returned untouched.
+ */
+function toLocalPath(candidate: string): string | null {
+    if (!/^file:\/\//i.test(candidate)) {
+        return candidate;
+    }
+
+    try {
+        // Rejects a URI naming another host, whose path is not ours to read.
+        return fileURLToPath(candidate);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Normalizes an OS-supplied path or `file://` URI into an open request, or
+ * returns `null` when it is not a playlist file. Relative paths are resolved
+ * against the working
  * directory of the process that supplied them — for a forwarded second launch
  * that is *not* this process' cwd.
  */
@@ -54,14 +78,17 @@ export function createPlaylistOpenRequest(
     workingDirectory?: string
 ): PlaylistOpenRequest | null {
     const candidate = filePath?.trim();
+    // Decoded before the extension check so a percent-encoded name still ends
+    // in a recognizable `.m3u`.
+    const localPath = candidate ? toLocalPath(candidate) : null;
 
-    if (!candidate || !isPlaylistFilePath(candidate)) {
+    if (!localPath || !isPlaylistFilePath(localPath)) {
         return null;
     }
 
-    const absolutePath = isAbsolute(candidate)
-        ? candidate
-        : resolve(workingDirectory?.trim() || process.cwd(), candidate);
+    const absolutePath = isAbsolute(localPath)
+        ? localPath
+        : resolve(workingDirectory?.trim() || process.cwd(), localPath);
 
     return {
         fileName: basename(absolutePath),
@@ -71,18 +98,25 @@ export function createPlaylistOpenRequest(
 }
 
 /**
- * Picks the playlist path out of a process argv.
+ * Picks every playlist path out of a process argv, in the order given.
  *
  * `argv[0]` is the executable and is always skipped; so is every switch, since
  * Electron and Chromium add plenty of them (`--remote-debugging-port=9222`,
  * `--ozone-platform=x11`, …) and a switch value is never the user's file.
  * In development the renderer entry (`main.js`) sits in argv too, but it is
  * not a playlist file so the extension check filters it out.
+ *
+ * Selecting several playlists in a Linux file manager delivers them as one
+ * launch with one argument each, because the desktop entry ends in `%U` — the
+ * plural exec code — so stopping at the first match would silently drop the
+ * rest of the selection.
  */
-export function extractPlaylistOpenRequestFromArgv(
+export function extractPlaylistOpenRequestsFromArgv(
     argv: readonly string[],
     workingDirectory?: string
-): PlaylistOpenRequest | null {
+): PlaylistOpenRequest[] {
+    const requests: PlaylistOpenRequest[] = [];
+
     for (const argument of argv.slice(1)) {
         if (typeof argument !== 'string' || argument.startsWith('-')) {
             continue;
@@ -91,11 +125,11 @@ export function extractPlaylistOpenRequestFromArgv(
         const request = createPlaylistOpenRequest(argument, workingDirectory);
 
         if (request) {
-            return request;
+            requests.push(request);
         }
     }
 
-    return null;
+    return requests;
 }
 
 export class PlaylistOpenRequestQueue {
@@ -111,6 +145,20 @@ export class PlaylistOpenRequestQueue {
         }
 
         this.pending.push(request);
+        this.flush();
+    }
+
+    /**
+     * Queues a whole selection at once. One flush for the batch, so a delivery
+     * that fails partway leaves the untouched remainder in arrival order.
+     */
+    enqueueAll(requests: readonly (PlaylistOpenRequest | null | undefined)[]): void {
+        for (const request of requests) {
+            if (request) {
+                this.pending.push(request);
+            }
+        }
+
         this.flush();
     }
 

@@ -153,6 +153,43 @@ test('Linux package identity does not expose the internal Electron backend proje
     );
 });
 
+test('playlist file associations are registered with the operating system', () => {
+    // Without these the OS never offers IPTVnator as a handler, so every
+    // runtime path for an OS-supplied playlist is unreachable by double-click.
+    assert.deepEqual(electronBuilderConfig.fileAssociations, [
+        {
+            ext: 'm3u',
+            name: 'M3U Playlist',
+            description: 'IPTV playlist',
+            mimeType: 'audio/x-mpegurl',
+            role: 'Viewer',
+        },
+        {
+            ext: 'm3u8',
+            name: 'M3U8 Playlist',
+            description: 'IPTV playlist',
+            mimeType: 'application/vnd.apple.mpegurl',
+            role: 'Viewer',
+        },
+    ]);
+
+    // Electron Builder derives the Linux desktop entry's MimeType from these
+    // `mimeType` fields, and assigns it *after* spreading `linux.desktop.entry`
+    // — so declaring MimeType there instead would be silently overwritten.
+    assert.equal(
+        electronBuilderConfig.linux?.desktop?.entry?.MimeType,
+        undefined
+    );
+
+    // Each association needs its own extension: Electron Builder derives the
+    // per-extension NSIS registry entries and the Linux `<glob>` in
+    // /usr/share/mime from `ext`, one mimeType per association.
+    const extensions = electronBuilderConfig.fileAssociations.map(
+        (association) => association.ext
+    );
+    assert.equal(new Set(extensions).size, extensions.length);
+});
+
 test('GitHub Releases auto-update metadata is generated and uploaded', () => {
     // \r?\n keeps this host-agnostic: Windows checkouts with autocrlf see
     // CRLF in the workflow file.
