@@ -133,7 +133,9 @@
         </div>
     }
 
-    @if (supportsVodMultiSource()) {
+    <!-- Only the web players raise a playback diagnostic, so under MPV, VLC
+         or Embedded MPV nothing would ever trigger a failover. -->
+    @if (supportsVodMultiSource() && isWebPlayerSelected()) {
         <div class="setting-item" data-test-id="vod-auto-failover-setting">
             <div class="setting-item__meta">
                 <h4>

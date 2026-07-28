@@ -197,6 +197,7 @@
                     [matchKind]="multiSource.matchKind()"
                     [count]="multiSource.alternativeCount()"
                     [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
+                    [autoFailoverSupported]="autoFailoverSupported()"
                     (playRequested)="playFromSource($event)"
                     (pinRequested)="pinSource($event)"
                     (checkRequested)="checkSource($event)"
@@ -287,6 +288,7 @@
                 [sourcesAutoFailoverEnabled]="
                     multiSource.autoFailoverEnabled()
                 "
+                [sourcesAutoFailoverSupported]="autoFailoverSupported()"
                 (sourcesAutoFailoverToggled)="setAutoFailover($event)"
                 (alternativeSourceRequested)="playFromSource($event)"
                 (sourcePinRequested)="pinSource($event)"

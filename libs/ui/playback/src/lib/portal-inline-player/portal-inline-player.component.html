@@ -35,6 +35,9 @@
                             [matchKind]="sourcesMatchKind()"
                             [resumeLabel]="sourcesResumeLabel()"
                             [autoFailoverEnabled]="sourcesAutoFailoverEnabled()"
+                            [autoFailoverSupported]="
+                                sourcesAutoFailoverSupported()
+                            "
                             (playRequested)="
                                 alternativeSourceRequested.emit($event)
                             "

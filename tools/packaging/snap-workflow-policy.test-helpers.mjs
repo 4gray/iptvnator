@@ -13,15 +13,15 @@ const PUBLISH_ACTION_ALLOWLIST = Object.freeze([
     PINNED_UPLOAD_ARTIFACT_ACTION,
 ]);
 const BUILD_ACTION_ALLOWLIST = Object.freeze([
-    'actions/cache/restore@v4',
-    'actions/cache/save@v4',
-    'actions/cache@v4',
+    'actions/cache/restore@v6',
+    'actions/cache/save@v6',
+    'actions/cache@v6',
     'actions/checkout@v7',
     'actions/download-artifact@v8',
-    'actions/setup-node@v4',
+    'actions/setup-node@v7',
     'actions/upload-artifact@v7',
     'pnpm/action-setup@v4',
-    'softprops/action-gh-release@v2',
+    'softprops/action-gh-release@v3',
 ]);
 const VERIFY_JOB_ID = 'verify-snap';
 const PUBLISH_JOB_ID = 'publish-snap';

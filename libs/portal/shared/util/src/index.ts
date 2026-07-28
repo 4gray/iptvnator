@@ -26,3 +26,5 @@ export * from './lib/navigation/portal-rail-links';
 export * from './lib/navigation/portal-route.utils';
 export * from './lib/navigation/workspace-portal-navigation';
 export * from './lib/collection';
+export * from './lib/external-playback-button-state';
+export * from './lib/inline-playback-position-writer';

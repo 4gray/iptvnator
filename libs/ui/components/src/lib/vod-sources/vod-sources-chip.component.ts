@@ -42,6 +42,8 @@ export class VodSourcesChipComponent {
     readonly title = input('');
     readonly matchKind = input<VodSourceMatchKind>('title-year');
     readonly autoFailoverEnabled = input(false);
+    /** See `VodSourcesMenuComponent.autoFailoverSupported`. */
+    readonly autoFailoverSupported = input(true);
     readonly resumeLabel = input<string | null>(null);
     readonly showPin = input(true);
     /** Falls back to the number of sources when the host does not override it. */

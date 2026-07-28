@@ -40,8 +40,9 @@ import {
 } from '@iptvnator/services';
 import {
     getXtreamVodInfo,
-    playlistDisplayLabel,
     normalizeTitleKeys,
+    playlistDisplayLabel,
+    reportsPlaybackFailures,
     TmdbEnrichedCastMember,
     XtreamCategory,
     XtreamVodDetails,
@@ -606,8 +607,31 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         void this.multiSource.check(sourceId);
     }
 
+    /**
+     * Only the built-in web players raise a playback diagnostic, so on MPV,
+     * VLC or Embedded MPV nothing would ever call `onPlaybackFailed()`. The
+     * toggle is hidden there rather than left promising a switch that cannot
+     * happen.
+     */
+    readonly autoFailoverSupported = computed(() =>
+        reportsPlaybackFailures(this.settingsStore.player?.())
+    );
+
     setAutoFailover(enabled: boolean): void {
-        this.settingsStore.updateSettings({ vodAutoFailover: enabled });
+        // `updateSettings` patches memory first and REJECTS if the write
+        // fails, so without this the toggle looks saved, reverts on restart,
+        // and the rejection surfaces only as an unhandled promise.
+        this.settingsStore
+            .updateSettings({ vodAutoFailover: enabled })
+            .catch(() =>
+                this.snackBar.open(
+                    this.translateService.instant(
+                        'SETTINGS.SETTINGS_SAVE_FAILED'
+                    ),
+                    this.translateService.instant('CLOSE'),
+                    { duration: 10000 }
+                )
+            );
     }
 
     /**

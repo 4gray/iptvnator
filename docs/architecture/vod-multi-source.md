@@ -14,7 +14,7 @@ current source is dead, serves an unsupported codec, or buffers badly.
 | Source types | **Xtream ↔ Xtream only** |
 | Content | Movies only — series are not offered a source chip |
 | Environment | **Electron only** — the chip renders nothing in the PWA |
-| Auto-failover | Opt-in, **off by default** (`Settings.vodAutoFailover`) |
+| Auto-failover | Opt-in, **off by default** (`Settings.vodAutoFailover`); offered only on the built-in web players |
 | Pin scope | Per movie (a global portal priority is out of scope) |
 | Stream probe | HEAD → reachable + latency, sent with the playlist's own playback headers. **No codec probing** |
 
@@ -410,3 +410,16 @@ than merely lacking a convenience.
 Every entry point is gated on a bridge `typeof` check (`isAvailable`), matching
 `CatalogTitleMatchService`. In the PWA the chip renders nothing and the
 auto-failover setting is hidden.
+
+## Which engines can fail over
+
+Only the built-in web players (HTML5, Video.js, ArtPlayer) raise the playback
+diagnostic that reaches `onPlaybackFailed()`. `WebPlayerViewComponent`
+suppresses it for Embedded MPV, and external MPV/VLC never mount that component
+at all — a stream that dies there is invisible to the app.
+
+So the toggle is hidden, not merely inert, on those engines: in
+`Settings > Playback` (`reportsPlaybackFailures()` gating the row) and in the
+sources menu (`autoFailoverSupported`). Leaving it visible would let a user
+switch on a feature that can never fire. The stored preference is untouched by
+the change — switching back to a web player restores whatever was set.

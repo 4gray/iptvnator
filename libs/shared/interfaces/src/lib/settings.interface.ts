@@ -15,6 +15,25 @@ export enum VideoPlayer {
     ArtPlayer = 'artplayer',
 }
 
+/**
+ * Whether a failed stream on this player reaches the app at all.
+ *
+ * Only the built-in web players raise a playback diagnostic: Embedded MPV has
+ * its diagnostics suppressed, and MPV/VLC play outside the app entirely. On
+ * those, anything keyed off a playback failure — VOD auto-failover above all —
+ * can never fire, so offering the control there promises a feature that does
+ * nothing.
+ */
+export function reportsPlaybackFailures(
+    player: VideoPlayer | null | undefined
+): boolean {
+    return (
+        player === VideoPlayer.VideoJs ||
+        player === VideoPlayer.Html5Player ||
+        player === VideoPlayer.ArtPlayer
+    );
+}
+
 export enum StartupBehavior {
     FirstView = 'first-view',
     RestoreLastView = 'restore-last-view',

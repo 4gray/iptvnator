@@ -1,24 +1,13 @@
-import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
-import { Location } from '@angular/common';
-import {
-    PORTAL_EXTERNAL_PLAYBACK,
-    PORTAL_PLAYBACK_POSITIONS,
-    PORTAL_PLAYER,
-} from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import {
-    XtreamCategory,
-    XtreamVodDetails,
-    XtreamVodStream,
-} from '@iptvnator/shared/interfaces';
-import { DownloadsService, SettingsStore } from '@iptvnator/services';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
+import {
+    configureVodDetailsRouteTestBed,
+    createVodDetailsRouteStubs,
+    resetVodDetailsRouteStubs,
+    silenceRouteLogging,
+} from './vod-details-route.harness';
 
 /**
  * What the primary button and the resume point do, as opposed to what the
@@ -27,186 +16,30 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
  */
 describe('VodDetailsRouteComponent — playback actions', () => {
     let fixture: ComponentFixture<VodDetailsRouteComponent>;
-    let consoleDebugSpy: jest.SpyInstance | undefined;
-    let consoleWarnSpy: jest.SpyInstance | undefined;
-    const selectedItem = signal<XtreamVodDetails | null>(null);
-    const isLoadingDetails = signal(false);
-    const detailsError = signal<string | null>(null);
-    const isFavorite = signal(false);
-    const currentPlaylist = signal<{
-        id: string;
-        userAgent?: string;
-        referrer?: string;
-        origin?: string;
-    } | null>(null);
-    const vodStreams = signal<Partial<XtreamVodStream>[]>([]);
-    const vodCategories = signal<Partial<XtreamCategory>[]>([]);
-    const fetchVodDetailsWithMetadata = jest.fn();
-    const checkFavoriteStatus = jest.fn();
-    const setSelectedItem = jest.fn();
-    const toggleFavorite = jest.fn();
-    const constructVodStreamUrl = jest
-        .fn()
-        .mockReturnValue('http://example.com/movie/650020.mp4');
-    const addRecentItem = jest.fn();
-    const downloads = signal([]);
-    const getPlaybackPosition = jest.fn().mockResolvedValue(null);
-    const activeSession = signal<unknown>(null);
-    const closeSession = jest.fn();
+    let restoreLogging: (() => void) | undefined;
+    const stubs = createVodDetailsRouteStubs();
+    const {
+        currentPlaylist,
+        activeSession,
+        addRecentItem,
+        closeSession,
+        getPlaybackPosition,
+        selectedItem,
+        selectedPlayer,
+        snackBarOpen,
+        updateSettings,
+    } = stubs;
 
     beforeEach(async () => {
-        const consoleDebug = console.debug.bind(console);
-        const consoleWarn = console.warn.bind(console);
-        consoleDebugSpy = jest
-            .spyOn(console, 'debug')
-            .mockImplementation((...args: unknown[]) => {
-                if (
-                    args[0] === '[VodDetailsRoute]' ||
-                    args[0] === '[VodDetailsPlayback]'
-                ) {
-                    return;
-                }
-
-                consoleDebug(...args);
-            });
-        consoleWarnSpy = jest
-            .spyOn(console, 'warn')
-            .mockImplementation((...args: unknown[]) => {
-                if (
-                    args[0] === '[VodDetailsRoute]' &&
-                    args[1] === 'Deferring VOD details init: playlist not ready'
-                ) {
-                    return;
-                }
-
-                consoleWarn(...args);
-            });
-
-        selectedItem.set(null);
-        isLoadingDetails.set(false);
-        detailsError.set(null);
-        isFavorite.set(false);
-        currentPlaylist.set(null);
-        vodStreams.set([]);
-        vodCategories.set([]);
-        fetchVodDetailsWithMetadata.mockClear();
-        checkFavoriteStatus.mockClear();
-        setSelectedItem.mockClear();
-        toggleFavorite.mockClear();
-        constructVodStreamUrl.mockClear();
-        addRecentItem.mockClear();
-        getPlaybackPosition.mockClear();
-        activeSession.set(null);
-        closeSession.mockClear();
-
-        await TestBed.configureTestingModule({
-            imports: [VodDetailsRouteComponent],
-            providers: [
-                {
-                    provide: ActivatedRoute,
-                    useValue: {
-                        params: of({
-                            vodId: '650020',
-                            categoryId: '235',
-                        }),
-                        snapshot: {
-                            params: {
-                                vodId: '650020',
-                                categoryId: '235',
-                            },
-                        },
-                    },
-                },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: (key: string) => key,
-                        get: (key: string) => of(key),
-                        stream: (key: string) => of(key),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
-                        currentLang: 'en',
-                        defaultLang: 'en',
-                    },
-                },
-                {
-                    provide: XtreamStore,
-                    useValue: {
-                        selectedItem,
-                        isLoadingDetails,
-                        detailsError,
-                        isFavorite,
-                        currentPlaylist,
-                        vodStreams,
-                        vodCategories,
-                        fetchVodDetailsWithMetadata,
-                        checkFavoriteStatus,
-                        setSelectedItem,
-                        toggleFavorite,
-                        constructVodStreamUrl,
-                        addRecentItem,
-                    },
-                },
-                {
-                    provide: SettingsStore,
-                    useValue: {
-                        theme: signal('dark'),
-                    },
-                },
-                {
-                    provide: DownloadsService,
-                    useValue: {
-                        isAvailable: signal(false),
-                        downloads,
-                        isDownloaded: jest.fn().mockReturnValue(false),
-                        isDownloading: jest.fn().mockReturnValue(false),
-                        startDownload: jest.fn(),
-                        getDownloadedFilePath: jest.fn(),
-                        playDownload: jest.fn(),
-                    },
-                },
-                {
-                    provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: { activeSession, closeSession },
-                },
-                {
-                    provide: PORTAL_PLAYBACK_POSITIONS,
-                    useValue: {
-                        getPlaybackPosition,
-                        savePlaybackPosition: jest
-                            .fn()
-                            .mockResolvedValue(undefined),
-                    },
-                },
-                {
-                    provide: PORTAL_PLAYER,
-                    useValue: {
-                        isEmbeddedPlayer: jest.fn().mockReturnValue(false),
-                        openResolvedPlayback: jest.fn(),
-                    },
-                },
-                {
-                    provide: MatSnackBar,
-                    useValue: {
-                        open: jest.fn(),
-                    },
-                },
-                {
-                    provide: Location,
-                    useValue: {
-                        back: jest.fn(),
-                    },
-                },
-            ],
-        }).compileComponents();
+        restoreLogging = silenceRouteLogging();
+        resetVodDetailsRouteStubs(stubs);
+        await configureVodDetailsRouteTestBed(stubs);
 
         fixture = TestBed.createComponent(VodDetailsRouteComponent);
     });
 
     afterEach(() => {
-        consoleDebugSpy?.mockRestore();
-        consoleWarnSpy?.mockRestore();
+        restoreLogging?.();
     });
 
     /**
@@ -366,5 +199,66 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // One-shot latch, not a filter: a deliberate seek backwards counts.
         component.handleInlineTimeUpdate({ currentTime: 12, duration: 7744 });
         expect(reported).toHaveBeenLastCalledWith(12);
+    });
+
+    describe('auto-failover toggle', () => {
+        beforeEach(() => {
+            selectedPlayer.set(VideoPlayer.Html5Player);
+            updateSettings.mockReset().mockResolvedValue(undefined);
+            snackBarOpen.mockClear();
+        });
+
+        it.each([VideoPlayer.MPV, VideoPlayer.VLC, VideoPlayer.EmbeddedMpv])(
+            'is not offered on %s',
+            (player) => {
+                // Those players never raise the playback diagnostic that
+                // calls onPlaybackFailed(), so the switch could never happen.
+                selectedPlayer.set(player);
+
+                expect(
+                    fixture.componentInstance.autoFailoverSupported()
+                ).toBe(false);
+            }
+        );
+
+        it.each([
+            VideoPlayer.Html5Player,
+            VideoPlayer.VideoJs,
+            VideoPlayer.ArtPlayer,
+        ])('is offered on %s', (player) => {
+            selectedPlayer.set(player);
+
+            expect(fixture.componentInstance.autoFailoverSupported()).toBe(
+                true
+            );
+        });
+
+        it('tells the user when the preference could not be stored', async () => {
+            // updateSettings patches memory and REJECTS on a failed write, so
+            // without this the toggle looks saved and silently reverts on the
+            // next start — and the rejection is unhandled.
+            updateSettings.mockRejectedValue(new Error('disk full'));
+
+            fixture.componentInstance.setAutoFailover(true);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(snackBarOpen).toHaveBeenCalledWith(
+                'SETTINGS.SETTINGS_SAVE_FAILED',
+                'CLOSE',
+                expect.anything()
+            );
+        });
+
+        it('stays quiet when the write succeeds', async () => {
+            fixture.componentInstance.setAutoFailover(true);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(updateSettings).toHaveBeenCalledWith({
+                vodAutoFailover: true,
+            });
+            expect(snackBarOpen).not.toHaveBeenCalled();
+        });
     });
 });

@@ -221,6 +221,8 @@ export class PortalInlinePlayerComponent {
      * nothing.
      */
     readonly sourcesAutoFailoverEnabled = input(false);
+    /** See `VodSourcesMenuComponent.autoFailoverSupported`. */
+    readonly sourcesAutoFailoverSupported = input(true);
     readonly sourcesAutoFailoverToggled = output<boolean>();
     readonly sourcePinRequested = output<string>();
     readonly sourceCheckRequested = output<string>();

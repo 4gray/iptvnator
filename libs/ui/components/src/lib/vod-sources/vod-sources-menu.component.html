@@ -120,16 +120,20 @@
         }
     </div>
 
-    <div class="sources-menu__footer">
-        <span class="sources-menu__footer-label">{{
-            'PORTALS.MULTI_SOURCE.AUTO_FAILOVER' | translate
-        }}</span>
-        <mat-slide-toggle
-            class="sources-menu__toggle"
-            [checked]="autoFailoverEnabled()"
-            (change)="onAutoFailoverChange($event)"
-            (click)="$event.stopPropagation()"
-            [attr.aria-label]="'PORTALS.MULTI_SOURCE.AUTO_FAILOVER' | translate"
-        />
-    </div>
+    @if (autoFailoverSupported()) {
+        <div class="sources-menu__footer">
+            <span class="sources-menu__footer-label">{{
+                'PORTALS.MULTI_SOURCE.AUTO_FAILOVER' | translate
+            }}</span>
+            <mat-slide-toggle
+                class="sources-menu__toggle"
+                [checked]="autoFailoverEnabled()"
+                (change)="onAutoFailoverChange($event)"
+                (click)="$event.stopPropagation()"
+                [attr.aria-label]="
+                    'PORTALS.MULTI_SOURCE.AUTO_FAILOVER' | translate
+                "
+            />
+        </div>
+    }
 </div>

@@ -57,6 +57,12 @@ export class VodSourcesMenuComponent {
     readonly matchKind = input<VodSourceMatchKind>('title-year');
     readonly autoFailoverEnabled = input(false);
     /**
+     * False on players that never report a playback failure (MPV, VLC,
+     * Embedded MPV). The toggle would then promise a switch that can never
+     * happen, so it is not offered at all.
+     */
+    readonly autoFailoverSupported = input(true);
+    /**
      * In-player variant: replaces the match kind with e.g.
      * "timecode will be kept · 0:42:18". Already formatted by the host.
      */

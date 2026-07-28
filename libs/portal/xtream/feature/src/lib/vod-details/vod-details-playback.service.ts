@@ -10,6 +10,8 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    createExternalPlaybackButtonState,
+    createInlinePlaybackPositionWriter,
     createLogger,
     getPortalPlaybackProgressPercent,
 } from '@iptvnator/portal/shared/util';
@@ -55,103 +57,26 @@ export class VodDetailsPlaybackService {
     private readonly logger = createLogger('VodDetailsPlayback');
 
     /** Signals bound from the host component via `bind()` */
-    private readonly bindings = signal<VodDetailsPlaybackBindings | null>(null);
-    private lastSaveTime = 0;
-    /** Cleared on every start; latches once playback reaches startTime. */
-    private resumeSettled = false;
+    private readonly bindings = signal<VodDetailsPlaybackBindings | null>(
+        null
+    );
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
 
-    readonly matchedExternalPlayback = computed(() => {
-        const session = this.externalPlayback.activeSession();
-
-        if (
-            !session?.contentInfo ||
-            !this.xtreamStore.currentPlaylist()?.id ||
-            session.status === 'error' ||
-            session.status === 'closed'
-        ) {
-            return null;
-        }
-
-        return this.ownsContent(session.contentInfo) ? session : null;
+    private readonly externalButton = createExternalPlaybackButtonState({
+        session: this.externalPlayback.activeSession,
+        playlistId: computed(() => this.xtreamStore.currentPlaylist()?.id),
+        contentId: computed(() => this.bindings()?.vodId()),
+        alsoOwns: computed(() => this.bindings()?.activeSource?.() ?? null),
     });
 
-    /**
-     * Whether this page owns the content an external session or a position
-     * update refers to.
-     *
-     * Multi-source can put playback on a movie in ANOTHER playlist, whose ids
-     * its session and position rows then carry. One predicate for both: when
-     * they disagree the page shows Stop for a session whose progress it drops.
-     */
-    private ownsContent(
-        info:
-            | {
-                  playlistId?: string;
-                  contentXtreamId?: number;
-                  contentType?: string;
-              }
-            | undefined
-    ): boolean {
-        // An absent playlist id must never match an absent current playlist.
-        if (!info?.playlistId || info.contentType !== 'vod') {
-            return false;
-        }
-
-        const active = this.bindings()?.activeSource?.();
-        return (
-            (info.playlistId === this.xtreamStore.currentPlaylist()?.id &&
-                info.contentXtreamId === this.bindings()?.vodId()) ||
-            (!!active &&
-                info.playlistId === active.playlistId &&
-                info.contentXtreamId === active.contentXtreamId)
-        );
-    }
-    readonly externalPrimaryLabel = computed(() => {
-        const session = this.matchedExternalPlayback();
-        if (!session) {
-            return null;
-        }
-
-        const player = session.player.toUpperCase();
-        switch (session.status) {
-            case 'launching':
-                return `Opening in ${player}...`;
-            case 'opened':
-            case 'playing':
-                return `Stop ${player}`;
-            default:
-                return null;
-        }
-    });
-    readonly externalPrimaryIcon = computed(() => {
-        const session = this.matchedExternalPlayback();
-        switch (session?.status) {
-            case 'launching':
-                return 'hourglass_top';
-            case 'opened':
-            case 'playing':
-                return 'stop_circle';
-            default:
-                return 'play_arrow';
-        }
-    });
-    readonly isExternalLaunchPending = computed(
-        () => this.matchedExternalPlayback()?.status === 'launching'
-    );
-    readonly isExternalStopAction = computed(() => {
-        const status = this.matchedExternalPlayback()?.status;
-        return status === 'opened' || status === 'playing';
-    });
-    readonly externalPrimaryButtonState = computed(() => {
-        if (this.isExternalLaunchPending()) {
-            return 'launching';
-        }
-
-        return this.isExternalStopAction() ? 'stop' : 'idle';
-    });
+    readonly matchedExternalPlayback = this.externalButton.matchedSession;
+    readonly externalPrimaryLabel = this.externalButton.primaryLabel;
+    readonly externalPrimaryIcon = this.externalButton.primaryIcon;
+    readonly isExternalLaunchPending = this.externalButton.isLaunchPending;
+    readonly isExternalStopAction = this.externalButton.isStopAction;
+    readonly externalPrimaryButtonState = this.externalButton.buttonState;
     readonly vodPlaybackProgress = computed(() =>
         getPortalPlaybackProgressPercent(this.vodPlaybackPosition())
     );
@@ -179,6 +104,38 @@ export class VodDetailsPlaybackService {
             ) ?? null;
 
         inject(DestroyRef).onDestroy(() => unsubscribePositionUpdates?.());
+    }
+
+    /**
+     * Whether this page owns the content a position update refers to.
+     *
+     * Multi-source can put playback on a movie in ANOTHER playlist, whose ids
+     * the incoming rows then carry, so this has to agree with the Play/Stop
+     * button's `alsoOwns` — otherwise the page offers Stop for a session whose
+     * progress it silently drops.
+     */
+    private ownsContent(
+        info:
+            | {
+                  playlistId?: string;
+                  contentXtreamId?: number;
+                  contentType?: string;
+              }
+            | undefined
+    ): boolean {
+        // An absent playlist id must never match an absent current playlist.
+        if (!info?.playlistId || info.contentType !== 'vod') {
+            return false;
+        }
+
+        const active = this.bindings()?.activeSource?.();
+        return (
+            (info.playlistId === this.xtreamStore.currentPlaylist()?.id &&
+                info.contentXtreamId === this.bindings()?.vodId()) ||
+            (!!active &&
+                info.playlistId === active.playlistId &&
+                info.contentXtreamId === active.contentXtreamId)
+        );
     }
 
     /** Wires the host component's context signals. Call once at construction. */
@@ -293,57 +250,29 @@ export class VodDetailsPlaybackService {
 
     closeInlinePlayer(): void {
         this.inlinePlayback.set(null);
-        this.lastSaveTime = 0;
-        this.resumeSettled = false;
+        this.positionWriter.reset();
     }
 
+    private readonly positionWriter = createInlinePlaybackPositionWriter({
+        playback: this.inlinePlayback,
+        save: (playlistId, position) =>
+            void this.playbackPositions.savePlaybackPosition(
+                playlistId,
+                position
+            ),
+        onSaved: (position) => this.vodPlaybackPosition.set(position),
+    });
+
     /**
-     * @returns whether `currentTime` can be believed yet — false while the
-     * engine is still on its way to `startTime`. Multi-source switching needs
-     * the same answer, and one latch has to serve both or they disagree.
+     * @returns whether `currentTime` can be believed yet — see the writer's
+     * resume latch. Multi-source reads the same answer before carrying a
+     * timecode to another source.
      */
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): boolean {
-        const playback = this.inlinePlayback();
-        // Nothing to persist against and the latch never ran, so the answer is
-        // whatever it already was — not a fresh "no".
-        if (!playback?.contentInfo) return this.resumeSettled;
-
-        // A resuming engine can emit timeupdates at ~0 before it finishes
-        // seeking to startTime. Writing one would overwrite the very position
-        // we are resuming from — which a source switch would then inherit.
-        //
-        // This is a one-shot latch, not a filter: once playback has reached
-        // the resume point the guard is done, so a deliberate seek backwards
-        // is still saved normally.
-        if (!this.resumeSettled) {
-            const startTime = playback.startTime ?? 0;
-            // A shorter cut can never reach a position carried into it, and
-            // latching on that would suppress every save for the session.
-            const reachable =
-                !(event.duration > 0) || startTime < event.duration;
-            if (reachable && startTime > 0 && event.currentTime < startTime - 5)
-                return false;
-            this.resumeSettled = true;
-        }
-
-        const now = Date.now();
-        if (now - this.lastSaveTime <= 15000) return true;
-
-        this.lastSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
-        this.vodPlaybackPosition.set(position);
-        return true;
+        return this.positionWriter.handleTimeUpdate(event);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -387,8 +316,7 @@ export class VodDetailsPlaybackService {
     }
 
     private startPlayback(playback: ResolvedPortalPlayback): void {
-        this.lastSaveTime = 0;
-        this.resumeSettled = false;
+        this.positionWriter.reset();
         if (this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);
             return;

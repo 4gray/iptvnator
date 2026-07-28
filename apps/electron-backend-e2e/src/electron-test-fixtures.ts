@@ -22,6 +22,11 @@ import {
 } from 'fs';
 import { tmpdir } from 'os';
 import { dirname, join, resolve } from 'path';
+import {
+    dataDirPrefix,
+    reapOrphanedDataDirs,
+    writeDataDirOwnerMarker,
+} from './data-dir-reaper';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -154,10 +159,17 @@ function removeDataDir(dataDir: string): void {
     }
 }
 
+let reapedOrphanedDataDirs = false;
+
 export const test = base.extend<ElectronFixtures>({
     dataDir: async ({ browserName }, use) => {
         void browserName;
-        const dataDir = mkdtempSync(join(tmpdir(), 'iptvnator-electron-e2e-'));
+        if (!reapedOrphanedDataDirs) {
+            reapedOrphanedDataDirs = true;
+            reapOrphanedDataDirs();
+        }
+        const dataDir = mkdtempSync(join(tmpdir(), dataDirPrefix));
+        writeDataDirOwnerMarker(dataDir);
 
         await use(dataDir);
 

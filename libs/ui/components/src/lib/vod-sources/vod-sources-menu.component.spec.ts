@@ -243,6 +243,22 @@ describe('VodSourcesMenuComponent', () => {
         expect(emitted).toEqual([true]);
     });
 
+    it('drops the footer switch on a player that cannot report failures', () => {
+        // MPV, VLC and Embedded MPV never raise the playback diagnostic that
+        // drives failover, so the switch there promises something that can
+        // never happen.
+        render([createSource()]);
+        fixture.componentRef.setInput('autoFailoverSupported', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(By.css('.sources-menu__toggle'))
+        ).toBeNull();
+        expect(fixture.nativeElement.textContent).not.toContain(
+            'Auto-switch on error'
+        );
+    });
+
     it('shows the match kind in the header, or the resume label when given', () => {
         fixture.componentRef.setInput('sources', [createSource()]);
         fixture.componentRef.setInput('matchKind', 'tmdb');
