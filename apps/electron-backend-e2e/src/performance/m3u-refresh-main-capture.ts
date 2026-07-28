@@ -56,6 +56,10 @@ import {
     type WorkerTerminationGenerationApi,
 } from './worker-termination-generation';
 import {
+    createWorkerSampleDeadlineApi,
+    type WorkerSampleDeadlineApi,
+} from './worker-sample-deadline';
+import {
     createRendererProcessRssCaptureApi,
     type RendererProcessRssCaptureApi,
 } from './renderer-process-rss-capture';
@@ -230,6 +234,9 @@ export async function installMainCapture(
         performanceTimelineMergeApiFactorySource:
             createPerformanceTimelineMergeApi.toString(),
         stateKey: MAIN_CAPTURE_STATE_KEY,
+        workerSampleDeadlineApiFactorySource:
+            createWorkerSampleDeadlineApi.toString(),
+        workerSampleDeadlineMs: 5_000,
         workerTerminationGenerationApiFactorySource:
             createWorkerTerminationGenerationApi.toString(),
         xtreamIpcMarkerCaptureFactorySource:
@@ -325,7 +332,9 @@ export async function installMainCapture(
             resolvedProfileHandle: CpuProfileHandle | null;
             requestPerformance: WorkerRequestPerformance[];
             responseEpochMs: number | null;
+            sampleKey: object;
             samplePromise: Promise<void> | null;
+            sampleTimedOut: boolean;
             samplingStarted: boolean;
             snapshotPath: string | null;
             terminatedEpochMs: number | null;
@@ -399,6 +408,9 @@ export async function installMainCapture(
             restoreFactory<WorkerTerminationGenerationApi>(
                 input.workerTerminationGenerationApiFactorySource
             );
+        const workerSampleDeadlineApi = restoreFactory<WorkerSampleDeadlineApi>(
+            input.workerSampleDeadlineApiFactorySource
+        );
         const diagnosticsPerformancePhaseEventParserFactory = restoreFunction<
             typeof createDiagnosticsPerformancePhaseEventParser
         >(input.diagnosticsPerformancePhaseEventParserFactorySource);
@@ -467,6 +479,7 @@ export async function installMainCapture(
             active: false,
             captureGeneration: 0,
             captureInvalidReasons: [] as string[],
+            capturePoisonedReason: null as string | null,
             captureOptions: null as MainCaptureStartOptions | null,
             captureStartedEpochMs: null as number | null,
             cpuStart: null as NodeJS.CpuUsage | null,
@@ -735,7 +748,9 @@ export async function installMainCapture(
                 resolvedProfileHandle: null,
                 requestPerformance: [],
                 responseEpochMs: null,
+                sampleKey: {},
                 samplePromise: null,
+                sampleTimedOut: false,
                 samplingStarted: false,
                 snapshotPath: null,
                 terminatedEpochMs: null,
@@ -864,59 +879,91 @@ export async function installMainCapture(
             return record;
         };
         const sampleWorker = (record: WorkerRecord): Promise<void> => {
-            if (record.finalized) {
+            if (record.finalized || record.sampleTimedOut) {
                 return Promise.resolve();
             }
             if (record.samplePromise) {
                 return record.samplePromise;
             }
-            record.samplePromise = (async () => {
-                try {
-                    const stats = await record.worker.getHeapStatistics?.();
-                    if (stats) {
-                        const heapUsedSample = stats.used_heap_size;
-                        if (
-                            typeof heapUsedSample === 'number' &&
-                            Number.isFinite(heapUsedSample) &&
-                            heapUsedSample >= 0
-                        ) {
-                            record.heapUsedSampleCount += 1;
-                            record.heapPeak = Math.max(
-                                record.heapPeak,
-                                heapUsedSample
-                            );
+            const captureGeneration = record.captureGeneration;
+            const sampleKey = {};
+            record.sampleKey = sampleKey;
+            const boundedSample = workerSampleDeadlineApi
+                .run({
+                    apply: ({ cpu, elu, stats }) => {
+                        if (stats) {
+                            const heapUsedSample = stats.used_heap_size;
+                            if (
+                                typeof heapUsedSample === 'number' &&
+                                Number.isFinite(heapUsedSample) &&
+                                heapUsedSample >= 0
+                            ) {
+                                record.heapUsedSampleCount += 1;
+                                record.heapPeak = Math.max(
+                                    record.heapPeak,
+                                    heapUsedSample
+                                );
+                            }
+                            const externalMemorySample = stats.external_memory;
+                            if (
+                                typeof externalMemorySample === 'number' &&
+                                Number.isFinite(externalMemorySample) &&
+                                externalMemorySample >= 0
+                            ) {
+                                record.externalMemorySampleCount += 1;
+                                record.externalPeak = Math.max(
+                                    record.externalPeak,
+                                    externalMemorySample
+                                );
+                            }
                         }
-                        const externalMemorySample = stats.external_memory;
-                        if (
-                            typeof externalMemorySample === 'number' &&
-                            Number.isFinite(externalMemorySample) &&
-                            externalMemorySample >= 0
-                        ) {
-                            record.externalMemorySampleCount += 1;
-                            record.externalPeak = Math.max(
-                                record.externalPeak,
-                                externalMemorySample
-                            );
+                        if (cpu) {
+                            record.cpuFirst ??= cpu;
+                            record.cpuLast = cpu;
                         }
+                        if (elu) {
+                            record.elu = elu.utilization;
+                        }
+                    },
+                    capturedGeneration: captureGeneration,
+                    currentIdentity: () => ({
+                        captureGeneration: state.captureGeneration,
+                        recordGeneration: record.captureGeneration,
+                        sampleKey: record.sampleKey,
+                    }),
+                    onTimeout: () => {
+                        record.sampleTimedOut = true;
+                        state.capturePoisonedReason = 'worker-sample-timeout';
+                        invalidateCapture('worker-sample-timeout');
+                        recordTimeline({
+                            operationId: record.operationId ?? undefined,
+                            playlistId: record.playlistId ?? undefined,
+                            type: `${record.kind}-sample-timeout`,
+                        });
+                    },
+                    operation: async () => {
+                        const stats = await record.worker.getHeapStatistics?.();
+                        const cpu = await record.worker.cpuUsage?.();
+                        const elu =
+                            record.worker.performance?.eventLoopUtilization(
+                                record.eluStart ?? undefined
+                            ) ?? null;
+                        return { cpu, elu, stats };
+                    },
+                    sampleKey,
+                    timeoutMs: input.workerSampleDeadlineMs,
+                })
+                .then(() => undefined)
+                .finally(() => {
+                    if (
+                        record.sampleKey === sampleKey &&
+                        record.samplePromise === boundedSample
+                    ) {
+                        record.samplePromise = null;
                     }
-                    const cpu = await record.worker.cpuUsage?.();
-                    if (cpu) {
-                        record.cpuFirst ??= cpu;
-                        record.cpuLast = cpu;
-                    }
-                    const elu = record.worker.performance?.eventLoopUtilization(
-                        record.eluStart ?? undefined
-                    );
-                    if (elu) {
-                        record.elu = elu.utilization;
-                    }
-                } catch {
-                    // A one-shot worker may terminate between sampling calls.
-                }
-            })().finally(() => {
-                record.samplePromise = null;
-            });
-            return record.samplePromise;
+                });
+            record.samplePromise = boundedSample;
+            return boundedSample;
         };
         const resetWorkerForCapture = (record: WorkerRecord): void => {
             record.cancelPostedEpochMs = null;
@@ -945,7 +992,9 @@ export async function installMainCapture(
             record.resolvedProfileHandle = null;
             record.requestPerformance = [];
             record.responseEpochMs = null;
+            record.sampleKey = {};
             record.samplePromise = null;
+            record.sampleTimedOut = false;
             record.samplingStarted = false;
             record.snapshotPath = null;
             record.terminatedEpochMs = null;
@@ -1563,6 +1612,11 @@ export async function installMainCapture(
         const startCapture = async (
             options: MainCaptureStartOptions
         ): Promise<void> => {
+            if (state.capturePoisonedReason !== null) {
+                throw new Error(
+                    `xtream-main-capture-poisoned:${state.capturePoisonedReason}`
+                );
+            }
             const captureStartedEpochMs = nowEpochMs();
             state.rendererWindowSession?.detach();
             state.rendererWindowSession = null;
@@ -1641,6 +1695,11 @@ export async function installMainCapture(
                     databaseRequestIdentityCapture.successMarkerCount(),
             }),
             start: async (options: MainCaptureStartOptions): Promise<void> => {
+                if (state.capturePoisonedReason !== null) {
+                    throw new Error(
+                        `xtream-main-capture-poisoned:${state.capturePoisonedReason}`
+                    );
+                }
                 databaseWorkerPostGcCutoffApi.beginCapture();
                 await startCapture(options);
             },
@@ -1962,7 +2021,8 @@ export async function installMainCapture(
                             ? currentDatabaseRecords[0]
                             : null;
                     const nextCaptureUnavailableReason =
-                        cutoff.lateRequestCount > 0
+                        state.capturePoisonedReason ??
+                        (cutoff.lateRequestCount > 0
                             ? 'database-worker-activity-after-cutoff'
                             : dbRequests.size > 0
                               ? 'database-worker-not-idle'
@@ -1980,7 +2040,7 @@ export async function installMainCapture(
                                           null
                                     ? (databaseRecord?.postGcHeapUnavailableReason ??
                                       'post-gc-capture-invalid')
-                                    : null;
+                                    : null);
                     if (nextCaptureUnavailableReason === null) {
                         databaseWorkerPostGcCutoffApi.rolloverCapture();
                         await startCapture(nextOptions);
