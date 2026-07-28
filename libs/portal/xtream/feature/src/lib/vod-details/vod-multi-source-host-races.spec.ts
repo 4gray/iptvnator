@@ -1,93 +1,34 @@
-import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-    VodSourceDiscoveryService,
-    VodSourceResolverService,
-} from '@iptvnator/portal/shared/data-access';
-import {
-    SettingsStore,
-    StreamProbeService,
-    VodSourcePinService,
-} from '@iptvnator/services';
-import type { VodSourceCandidate } from '@iptvnator/shared/interfaces';
-import { VodMultiSourceHostService } from './vod-multi-source-host.service';
-import type { VodMultiSourceMovie } from './vod-multi-source-identity';
-
 import {
     ALT_THREE,
     ALT_TWO,
     MOVIE_A,
     MOVIE_B,
-    PROBE_OK,
     createDeferred,
     resolveWith,
     resolvedFor,
+    setupVodMultiSourceHost,
 } from './vod-multi-source-host.fixtures';
 
 describe('VodMultiSourceHostService — stale resolutions', () => {
-    let service: VodMultiSourceHostService;
-
-    const movie = signal<VodMultiSourceMovie | null>(null);
-
-    // Whatever is on screen; the pin path distinguishes it from selection.
-
-    const playbackLive = signal(false);
-    const vodAutoFailover = signal(false);
-    const startPlayback = jest.fn();
-    const discovery = { isAvailable: true, discover: jest.fn() };
-    const resolver = { resolve: jest.fn() };
-    const pins = { get: jest.fn(), set: jest.fn(), clear: jest.fn() };
-    const probes = { probe: jest.fn() };
-
-    /** Runs pending root effects, then drains the work they started. */
-
-    async function loadMovie(
-        sources: VodSourceCandidate[],
-        target: VodMultiSourceMovie = MOVIE_A
-    ): Promise<void> {
-        discovery.discover.mockResolvedValue({
-            sources,
-            matchKind: 'title-year',
-        });
-        await service.load(target);
-    }
-
-    function rowFor(sourceId: string) {
-        return service.sources().find((source) => source.id === sourceId);
-    }
+    const harness = setupVodMultiSourceHost();
+    const {
+        discovery,
+        movie,
+        pins,
+        probes,
+        resolver,
+        startPlayback,
+        vodAutoFailover,
+    } = harness;
+    const loadMovie = harness.loadMovie;
+    const rowFor = harness.rowFor;
+    let service = harness.service;
 
     /** Two consecutive switches, so the "previous" side carries real audio. */
 
     beforeEach(() => {
-        jest.resetAllMocks();
-        movie.set(null);
-        vodAutoFailover.set(false);
-        discovery.isAvailable = true;
-        discovery.discover.mockResolvedValue({
-            sources: [],
-            matchKind: 'title-year',
-        });
-        resolver.resolve.mockImplementation(resolveWith());
-        pins.get.mockResolvedValue(null);
-        pins.set.mockResolvedValue(true);
-        pins.clear.mockResolvedValue(true);
-        probes.probe.mockResolvedValue(PROBE_OK);
-
-        TestBed.configureTestingModule({
-            providers: [
-                VodMultiSourceHostService,
-                { provide: VodSourceDiscoveryService, useValue: discovery },
-                { provide: VodSourceResolverService, useValue: resolver },
-                { provide: VodSourcePinService, useValue: pins },
-                { provide: StreamProbeService, useValue: probes },
-                { provide: SettingsStore, useValue: { vodAutoFailover } },
-            ],
-        });
-
-        service = TestBed.inject(VodMultiSourceHostService);
-        TestBed.runInInjectionContext(() =>
-            service.bind({ startPlayback, movie, playbackLive })
-        );
+        service = harness.reset();
     });
 
     it('drops a switch once the movie identity goes null mid-navigation', async () => {
@@ -109,6 +50,37 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
 
         expect(startPlayback).not.toHaveBeenCalled();
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(false);
+    });
+
+    it('lets a source picked during the pinned lookup win', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO, ALT_THREE]);
+
+        const lookup = createDeferred<number | null>();
+        let insideLookup = false;
+        const pinnedPlay = service.playPinnedSource(() => {
+            insideLookup = true;
+            return lookup.promise;
+        });
+        while (!insideLookup) {
+            await Promise.resolve();
+        }
+
+        // The user picks a different source while the pinned resume position
+        // is still being read.
+        await service.play(ALT_THREE.id);
+        startPlayback.mockClear();
+        lookup.resolve(0);
+
+        // The older pinned attempt must not finish last and replace it.
+        await expect(pinnedPlay).resolves.toBe('superseded');
+        expect(startPlayback).not.toHaveBeenCalled();
+        expect(rowFor(ALT_THREE.id)?.isActive).toBe(true);
     });
 
     it('tells a superseded pinned play apart from an unusable pin', async () => {

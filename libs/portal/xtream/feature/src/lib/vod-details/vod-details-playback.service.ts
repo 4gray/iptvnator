@@ -342,15 +342,28 @@ export class VodDetailsPlaybackService {
      * template already renders through `@if`, so the player component and its
      * engine survive and simply re-seek to `playback.startTime`.
      */
+    /** Bumped by every start; only the newest may launch after its close. */
+    private startGeneration = 0;
+
     async startResolvedPlayback(
         playback: ResolvedPortalPlayback
     ): Promise<void> {
+        const generation = ++this.startGeneration;
+
         // A switch REPLACES what is playing. With MPV or VLC and instance
         // reuse off, the backend spawns a second detached player otherwise —
         // both sources keep running and Stop owns only the newer one.
         const running = this.matchedExternalPlayback();
         if (running) {
             await this.externalPlayback.closeSession(running);
+        }
+
+        // Closing is a round-trip, and a second pick across it would otherwise
+        // reach this line too: both would have seen the same session, closed
+        // it once, and then launched independently — two detached players
+        // again, the older one holding a source the user has moved on from.
+        if (generation !== this.startGeneration) {
+            return;
         }
 
         // Same movie, different source: still a view.

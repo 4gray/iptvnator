@@ -478,6 +478,17 @@ session first. It REPLACES what is playing — with MPV or VLC and instance
 reuse off, the backend would otherwise spawn a second detached player, leaving
 both sources running and Stop owning only the newer one.
 
+## Short titles and Unicode
+
+SQLite's `LOWER()` and GLOB character classes are ASCII-only, so a short
+non-ASCII title could not be folded or word-bounded and simply never matched —
+the film stayed absent from the chip. ASCII tokens keep the word-boundary GLOB
+(what stops "it" matching "Titanic"); a non-ASCII token falls back to a
+substring test against both the folded and the as-typed form. That covers a
+title stored in the same case as the request or in lower case, and deliberately
+does not claim full Unicode case folding. It is looser, and the normalized
+confirmation afterwards is what makes looser safe.
+
 ## Claims about the present
 
 `isActive` means "the source a switch or Play would use" — selection, not

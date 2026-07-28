@@ -30,6 +30,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     const addRecentItem = jest.fn();
     const activeSession = signal<unknown>(null);
     const closeSession = jest.fn().mockResolvedValue(undefined);
+    const openResolvedPlayback = jest.fn();
     const activeSource = signal<PlayerContentInfo | null>(null);
 
     function sessionFor(playlistId: string, contentXtreamId: number) {
@@ -75,7 +76,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                     provide: PORTAL_PLAYER,
                     useValue: {
                         isEmbeddedPlayer: jest.fn().mockReturnValue(false),
-                        openResolvedPlayback: jest.fn(),
+                        openResolvedPlayback,
                     },
                 },
                 {
@@ -159,6 +160,44 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         // off the backend spawns a second detached player otherwise: both
         // sources keep running, and Stop owns only the newer one.
         expect(closeSession).toHaveBeenCalled();
+    });
+
+    it('launches only the newest source when two switches overlap', async () => {
+        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
+        // One shared promise: both calls see the same running session, so
+        // both await the same close rather than each making its own.
+        let releaseClose: (() => void) | undefined;
+        const closing = new Promise<void>((resolve) => {
+            releaseClose = () => resolve();
+        });
+        closeSession.mockReturnValue(closing);
+        // These spies are module-level and never cleared between cases.
+        openResolvedPlayback.mockClear();
+
+        const first = service.startResolvedPlayback({
+            streamUrl: 'https://example.com/one.mkv',
+            title: 'Example Movie',
+        });
+        const second = service.startResolvedPlayback({
+            streamUrl: 'https://example.com/two.mkv',
+            title: 'Example Movie',
+        });
+
+        releaseClose?.();
+        await Promise.all([first, second]);
+
+        // Both saw the same running session and awaited its close. Launching
+        // both afterwards is how two detached players appear again, with the
+        // older one holding a source the user has already moved on from.
+        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/two.mkv',
+            }),
+            true
+        );
+
+        closeSession.mockResolvedValue(undefined);
     });
 
     it('records a source started through multi-source as recently viewed', () => {

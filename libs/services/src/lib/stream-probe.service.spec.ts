@@ -56,7 +56,9 @@ describe('StreamProbeService', () => {
         const probe = jest
             .fn()
             .mockResolvedValueOnce({ status: 200, url: 'http://x/y.mkv' })
-            .mockResolvedValueOnce({ status: 403, url: 'http://x/y.mkv' });
+            // 404, not 403: this test is about cache keying, and a 403 would
+            // now earn a ranged-GET retry and muddy the call count.
+            .mockResolvedValueOnce({ status: 404, url: 'http://x/y.mkv' });
         const service = withBridge(probe as ProbeFn);
 
         const first = await service.probe('http://x/y.mkv', 'HEAD', {
@@ -100,7 +102,8 @@ describe('StreamProbeService', () => {
         );
     });
 
-    it('maps a refusal to fail', async () => {
+    it('maps a refusal to fail once the GET retry agrees', async () => {
+        // 403 earns a retry, but a 403 to the ranged GET too is a real answer.
         const service = withBridge(ok(403));
 
         await expect(service.probe('http://x/y.mkv')).resolves.toEqual(
@@ -118,11 +121,13 @@ describe('StreamProbeService', () => {
         );
     });
 
-    it.each([405, 501])(
+    it.each([400, 403, 405, 501])(
         'retries with a ranged GET when the server refuses HEAD with %i',
         async (status) => {
             // Plenty of stream servers reject HEAD yet serve the media over
             // GET; reporting those as unavailable would be a confident lie.
+            // 400 and 403 are what a WAF returns for an unexpected HEAD, and
+            // treating those as dead ranks a working source below worse ones.
             const probe = jest
                 .fn()
                 .mockResolvedValueOnce({ status, url: 'u' })
@@ -148,8 +153,9 @@ describe('StreamProbeService', () => {
         }
     );
 
-    it('does not retry a plain refusal', async () => {
-        const probe = ok(403);
+    it('does not retry a status that names the resource, not the method', async () => {
+        // 404 is about this URL; retrying it with another verb proves nothing.
+        const probe = ok(404);
         const service = withBridge(probe);
 
         await service.probe('http://x/y.mkv');

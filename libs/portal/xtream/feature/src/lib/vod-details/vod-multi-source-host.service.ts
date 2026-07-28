@@ -246,12 +246,17 @@ export class VodMultiSourceHostService {
         resumeFor?: (source: VodSourceCandidate) => Promise<number | null>
     ): Promise<PinnedPlayOutcome> {
         const session = this.sessionToken;
+        // Claim a switch generation up front. The discovery wait and the
+        // resume lookup are both awaits, and a source the user picks across
+        // either one has to win — otherwise this older attempt finishes last
+        // and replaces what they just chose.
+        const attempt = ++this.switchToken;
         return startPinnedSource({
             controller: this.controller,
             loadInFlight: this.loadInFlight,
             pinnedSourceId: () => this.pendingPinnedSourceId(),
             resumeFor,
-            isCurrent: () => session === this.sessionToken,
+            isCurrent: () => this.isCurrentSwitch(session, attempt),
             play: (sourceId) => this.runPlay(sourceId),
         });
     }

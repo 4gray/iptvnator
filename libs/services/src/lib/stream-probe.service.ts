@@ -170,9 +170,23 @@ export class StreamProbeService {
  * redirect-safety policy refused. That is NOT evidence the source is dead, so
  * it maps to 'unknown' and the UI keeps offering a check.
  */
-/** Statuses that mean "not this method", not "not this resource". */
+/**
+ * Statuses that may mean "not this method" rather than "not this resource".
+ *
+ * 405/501 say so outright. 403 and 400 are the ones a WAF or a stream server
+ * returns for a HEAD it does not expect while serving the same URL over GET
+ * perfectly well — and calling that source unavailable is a confident lie that
+ * also ranks it below worse ones. The retry is bounded (one ranged GET), so
+ * being generous here costs a request, while being strict costs a working
+ * source.
+ */
 function refusesHeadRequests(httpStatus: number): boolean {
-    return httpStatus === 405 || httpStatus === 501;
+    return (
+        httpStatus === 400 ||
+        httpStatus === 403 ||
+        httpStatus === 405 ||
+        httpStatus === 501
+    );
 }
 
 function toProbeStatus(httpStatus: number): VodSourceProbeResult['status'] {

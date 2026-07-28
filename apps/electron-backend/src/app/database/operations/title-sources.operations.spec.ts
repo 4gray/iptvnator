@@ -95,6 +95,32 @@ describe('title-sources.operations', () => {
             expect(compiledQuery(fts.all).sql).toContain('LIMIT');
         });
 
+        it('can still find a short non-ASCII title', async () => {
+            // SQLite's LOWER() and GLOB classes are ASCII-only, so folding
+            // "Он" to "он" never happened and the film stayed invisible in
+            // the Sources chip entirely.
+            const scan = createDbMock([]);
+            await findTitleSources(scan.db, { title: 'Он' });
+            const scanQuery = compiledQuery(scan.all);
+
+            expect(scanQuery.sql).toContain('instr');
+            // Both the folded and the as-typed form, since neither alone
+            // matches a title stored in the other case.
+            expect(scanQuery.params).toContain('он');
+            expect(scanQuery.params).toContain('Он');
+        });
+
+        it('keeps the word boundary for ASCII tokens', async () => {
+            // The looser substring test must not leak into the ASCII path,
+            // where it would let "it" match "Titanic".
+            const scan = createDbMock([]);
+            await findTitleSources(scan.db, { title: 'It' });
+            const scanQuery = compiledQuery(scan.all);
+
+            expect(scanQuery.sql).toContain('GLOB ?');
+            expect(scanQuery.sql).not.toContain('instr');
+        });
+
         it('requires every token of an all-short multiword title', async () => {
             // "I Am" reaches the scan too — no token survives the trigram
             // minimum. Matching on the first token alone returns every catalog

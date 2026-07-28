@@ -103,6 +103,21 @@ describe('createPrimaryActionPosition', () => {
         expect(api.position()?.positionSeconds).toBe(4200);
     });
 
+    it('claims nothing while the pinned copy’s row is still loading', () => {
+        const { api } = setup(
+            [source(), ALT],
+            position(2538),
+            () => new Promise(() => undefined)
+        );
+        TestBed.tick();
+
+        // The route copy's "Resume 42:18" would be a label for a stream this
+        // button is not going to start — and a click across this window looks
+        // the pinned position up separately and begins somewhere else.
+        expect(api.position()).toBeNull();
+        expect(api.hasPosition()).toBe(false);
+    });
+
     it('reads Play for a pinned copy that was never watched', async () => {
         const { api } = setup(
             [source(), ALT],

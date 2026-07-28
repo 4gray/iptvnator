@@ -104,8 +104,17 @@ export function createPrimaryActionPosition(
 
     const position = computed(() => {
         const pinned = foreignPin();
-        if (!pinned || !pinnedLoadedFor()) {
+        if (!pinned) {
             return deps.routePosition();
+        }
+
+        // The pin names a copy whose row has not been read yet. Showing the
+        // ROUTE copy's `Resume 42:18` here would be a label for a stream this
+        // button is not going to start — and a click across this window looks
+        // the pinned position up separately and begins somewhere else. Say
+        // nothing until the answer is in; empty beats wrong.
+        if (!pinnedLoadedFor()) {
+            return null;
         }
 
         // What just played beats what was stored before it did.

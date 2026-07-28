@@ -116,21 +116,48 @@ function excludePlaylistClause(
  * ("IT (2017) 1080p").
  *
  * Still a necessary-not-sufficient filter — `normalizeTitleKeys` below is what
- * confirms a match. Like the `LIKE` it replaces, it compares ASCII-lowercased
- * text, so a non-ASCII short title is no better and no worse served than before.
+ * confirms a match.
  */
-function scanCandidateQuery(base: string, excludePlaylist: SQL) {
+/**
+ * One token's presence test.
+ *
+ * SQLite's `LOWER()` and GLOB character classes are ASCII-only, so a Cyrillic
+ * or Greek token cannot be folded or word-bounded in stock SQLite — matching
+ * "он" against a stored "Он" would simply fail, and the film stayed invisible
+ * in the Sources chip.
+ *
+ * ASCII tokens keep the word-boundary GLOB, which is what stops "it" matching
+ * "Titanic". A non-ASCII token falls back to a substring test tried against
+ * both the folded and the as-typed form: that covers a title stored in the
+ * same case as the request or in lower case, which is the realistic pair, and
+ * it deliberately does NOT claim full Unicode case folding. It is looser than
+ * the ASCII branch, and the normalized confirmation afterwards is what makes
+ * that safe — a looser filter here costs transfer, never a wrong match.
+ */
+function tokenPredicate(token: string, rawToken: string): SQL {
+    // Normalized, so an ASCII token holds letters and digits only — nothing
+    // GLOB would read as a metacharacter.
+    if (/^[a-z0-9]+$/.test(token)) {
+        return sql`' ' || LOWER(c.title) || ' ' GLOB ${`*[^a-z0-9]${token}[^a-z0-9]*`}`;
+    }
+
+    return sql`(instr(LOWER(c.title), ${token}) > 0 OR instr(c.title, ${rawToken}) > 0)`;
+}
+
+function scanCandidateQuery(
+    base: string,
+    rawTitle: string,
+    excludePlaylist: SQL
+) {
     // EVERY token has to appear, not just the first. This path is reached
     // whenever no token survives FTS's minimum length, which includes
     // multiword titles like "I Am" — matching on "i" alone would return most
     // of the catalog and hand it all to the TypeScript pass to throw away.
     const tokens = base.split(' ').filter(Boolean);
-    // Normalized, so they hold letters, digits and spaces only — nothing GLOB
-    // would read as a metacharacter.
+    const rawTokens = rawTitle.split(/\s+/).filter(Boolean);
     const wordMatches = sql.join(
-        tokens.map(
-            (token) =>
-                sql`' ' || LOWER(c.title) || ' ' GLOB ${`*[^a-z0-9]${token}[^a-z0-9]*`}`
+        tokens.map((token, index) =>
+            tokenPredicate(token, rawTokens[index] ?? token)
         ),
         sql` AND `
     );
@@ -224,7 +251,7 @@ export async function findTitleSources(
                   ftsCandidateQuery(matchQuery, excludePlaylist)
               )) as TitleSourceRow[])
             : ((await db.all(
-                  scanCandidateQuery(wanted.base, excludePlaylist)
+                  scanCandidateQuery(wanted.base, rawTitle, excludePlaylist)
               )) as TitleSourceRow[]);
     } catch {
         // Malformed FTS query for exotic titles — no sources, not a crash
