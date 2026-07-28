@@ -256,6 +256,39 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(service.busySourceId()).toBeNull();
     });
 
+    it('abandons a pinned play whose movie was left during the lookup', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+
+        const lookup = createDeferred<number | null>();
+        let insideLookup = false;
+        const playing = service.playPinnedSource(() => {
+            insideLookup = true;
+            return lookup.promise;
+        });
+        // Wait until the call is genuinely inside the position lookup —
+        // stopping earlier would only re-prove the guard before it.
+        while (!insideLookup) {
+            await Promise.resolve();
+        }
+
+        // Reading that source's own resume position is a database round-trip,
+        // and another movie can take the screen across it. Playing then would
+        // hand THIS film's source id to the film now showing.
+        await loadMovie([ALT_TWO, ALT_THREE], MOVIE_B);
+        startPlayback.mockClear();
+
+        lookup.resolve(3600);
+
+        await expect(playing).resolves.toBe(false);
+        expect(startPlayback).not.toHaveBeenCalled();
+    });
+
     it('drops a pin change whose movie was navigated away from', async () => {
         const pinFor = (candidate: VodSourceCandidate) => ({
             matchKey: 'title:the matrix:1999',

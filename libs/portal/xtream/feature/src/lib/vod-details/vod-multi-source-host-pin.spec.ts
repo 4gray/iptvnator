@@ -206,27 +206,47 @@ describe('VodMultiSourceHostService — pinning', () => {
         );
     });
 
-    it('retires every stale alias and writes only the canonical key', async () => {
+    it('retires its own aliases but never another remake’s', async () => {
         await loadMovie([ALT_TWO]);
-        const matchKeys: string[] = pins.get.mock.calls[0][0];
-        expect(matchKeys.length).toBeGreaterThan(1);
+        const lookupKeys: string[] = pins.get.mock.calls[0][0];
+        const yearless = lookupKeys[lookupKeys.length - 1];
+        expect(yearless).toBe('title:the matrix:');
 
         await service.togglePin(ALT_TWO.id);
 
-        // Leaving the other aliases alone would keep them pointing at whatever
-        // was pinned before, and a reopen that reads one — because enrichment
-        // has not landed yet — starts the source the user just replaced.
-        expect(pins.clear).toHaveBeenCalledWith(matchKeys);
-        // But the decision is NOT written back into them: `title:{base}:` is
-        // shared by every remake, so a known-year pin stored there would
-        // answer for a different film.
+        // Stale aliases of THIS movie go, or a reopen before enrichment reads
+        // one and starts the source the user just replaced.
+        const [retired] = pins.clear.mock.calls[0] as [string[]];
+        expect(retired).toContain('title:the matrix:1999');
+        // The yearless form is shared by every remake: a Dune (2021) pin must
+        // not delete — or answer for — a row that may be Dune (1984)'s.
+        expect(retired).not.toContain(yearless);
+
         expect(pins.set).toHaveBeenCalledTimes(1);
         expect(pins.set).toHaveBeenCalledWith({
-            matchKey: matchKeys[0],
+            matchKey: 'title:the matrix:1999',
             playlistId: ALT_TWO.playlistId,
             contentId: ALT_TWO.contentId,
             portalType: 'xtream',
         });
+    });
+
+    it('retires the ambiguous row it actually read', async () => {
+        // A pin set before the year was known lives under the yearless key.
+        // This session read it, so the user is unpinning THAT row — leaving it
+        // would make the unpin come back on the next open.
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+
+        await service.togglePin(ALT_TWO.id);
+
+        const [retired] = pins.clear.mock.calls[0] as [string[]];
+        expect(retired).toContain('title:the matrix:');
     });
 
     it('does not show a pin the database refused to store', async () => {
@@ -321,7 +341,7 @@ describe('VodMultiSourceHostService — pinning', () => {
 
         await service.togglePin(ALT_TWO.id);
 
-        expect(pins.clear).toHaveBeenCalledWith(matchKeys);
+        expect(pins.clear).toHaveBeenCalled();
         // Unpinning writes nothing further.
         expect(pins.set).toHaveBeenCalledTimes(1);
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);

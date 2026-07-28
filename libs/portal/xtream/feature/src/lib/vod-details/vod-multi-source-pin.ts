@@ -2,6 +2,8 @@ import type { VodMultiSourceController } from '@iptvnator/portal/shared/data-acc
 import type { VodSourcePinService } from '@iptvnator/services';
 import {
     buildVodSourceMatchKey,
+    buildVodSourceMatchKeyCandidates,
+    buildVodSourceMatchKeyWriteKeys,
     type VodSourceCandidate,
     type VodSourceDescriptor,
     type VodSourcePin,
@@ -74,15 +76,15 @@ export async function readPin(
  */
 export async function writePin(
     pins: Pick<VodSourcePinService, 'set' | 'clear'>,
-    matchKeys: readonly string[],
+    keys: PinKeySets,
     candidate: VodSourceCandidate
 ): Promise<boolean> {
-    const matchKey = matchKeys[0] ?? buildVodSourceMatchKey(candidate);
+    const matchKey = keys.write[0] ?? buildVodSourceMatchKey(candidate);
     if (!matchKey) {
         return false;
     }
 
-    await erasePin(pins, matchKeys);
+    await erasePin(pins, retirablePinKeys(keys));
 
     // The write can fail — no bridge, or the DB refused it. Reporting success
     // then would show a pin the next visit does not have.
@@ -113,25 +115,63 @@ export async function erasePin(
  */
 export async function togglePinnedSource(
     pins: Pick<VodSourcePinService, 'set' | 'clear'>,
-    matchKeys: readonly string[],
+    keys: PinKeySets,
     candidate: VodSourceCandidate | null,
     isPinned: boolean
 ): Promise<string | null | undefined> {
-    if (matchKeys.length === 0) {
+    if (keys.write.length === 0) {
         return undefined;
     }
 
     if (isPinned) {
-        return (await erasePin(pins, matchKeys)) ? null : undefined;
+        return (await erasePin(pins, retirablePinKeys(keys)))
+            ? null
+            : undefined;
     }
 
     if (!candidate) {
         return undefined;
     }
 
-    return (await writePin(pins, matchKeys, candidate))
-        ? candidate.id
-        : undefined;
+    return (await writePin(pins, keys, candidate)) ? candidate.id : undefined;
+}
+
+/** Which keys a pin may be looked up under, stored under, and removed from. */
+export interface PinKeySets {
+    /** Every alias the pin may be sitting under, most-trusted first. */
+    lookup: readonly string[];
+    /** Keys that name exactly one film. */
+    write: readonly string[];
+    /** The key the pin currently on screen was actually found under. */
+    loaded?: string | null;
+}
+
+/** The three key sets for a movie, in one place so they cannot disagree. */
+export function pinKeysFor(movie: {
+    tmdbId?: number | string | null;
+    title?: string | null;
+    year?: number | null;
+}): PinKeySets {
+    return {
+        lookup: buildVodSourceMatchKeyCandidates(movie),
+        write: buildVodSourceMatchKeyWriteKeys(movie),
+    };
+}
+
+/**
+ * The rows a write or an unpin is allowed to remove.
+ *
+ * Never the ambiguous yearless alias on spec — it may hold another remake's
+ * preference. The one exception is the row this session actually READ: the
+ * user is acting on the pin they can see, whatever key it happens to live
+ * under, and leaving it would make an unpin come back.
+ */
+function retirablePinKeys(keys: PinKeySets): string[] {
+    const retire = [...keys.write];
+    if (keys.loaded && !retire.includes(keys.loaded)) {
+        retire.push(keys.loaded);
+    }
+    return retire;
 }
 
 /** What starting the pinned source needs from the host. */
@@ -140,6 +180,8 @@ export interface PinnedPlayDeps {
     pinnedSourceId: string | null;
     /** Where THAT source was last watched, when the host can look it up. */
     resumeFor?: (source: VodSourceCandidate) => Promise<number | null>;
+    /** False once another movie owns the screen — the lookup is awaited. */
+    isCurrent: () => boolean;
     play: (sourceId: string) => Promise<boolean>;
 }
 
@@ -159,6 +201,13 @@ export async function playPinned(deps: PinnedPlayDeps): Promise<boolean> {
     }
 
     const stored = await deps.resumeFor?.(pinned);
+    // That lookup is a database round-trip, and the user can navigate across
+    // it. Playing then would hand THIS film's source id to whatever movie now
+    // owns the screen — starting it, if the id happens to exist there.
+    if (!deps.isCurrent()) {
+        return false;
+    }
+
     if (stored !== null && stored !== undefined) {
         deps.controller.setResumeSeconds(stored);
     }

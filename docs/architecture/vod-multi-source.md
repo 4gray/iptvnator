@@ -131,8 +131,17 @@ pinned under any poorer form of itself:
 `buildVodSourceMatchKeyCandidates` returns all three, most-trusted first.
 Reading every alias is what keeps a late TMDB id from orphaning an earlier pin.
 
-A write **clears every alias and then stores only the canonical key** — both
-halves matter, and each rules out the other's shortcut:
+Three key sets, because reading, writing and deleting are different questions
+(`pinKeysFor` builds all three so they cannot disagree):
+
+| set | contents | why |
+|---|---|---|
+| `lookup` | every alias above | a pin may sit under any poorer form of the movie |
+| `write` | `tmdb:` + `title:{base}:{year}` | keys that name exactly ONE film |
+| `loaded` | the key the pin on screen came from | the only ambiguous row this session may retire |
+
+A write stores the canonical key and clears the stale ones — both halves
+matter, and each rules out the other's shortcut:
 
 - Writing only the top key would leave the lower-trust aliases pointing at
   whatever was pinned before, and a reopen that reads one of those (enrichment
@@ -140,8 +149,12 @@ halves matter, and each rules out the other's shortcut:
 - Writing the decision *into* every alias is not the fix either: the yearless
   form is shared by every remake, so a known-year pin stored there would answer
   for a different film — pin Dune (2021), open Dune (1984) before its year
-  arrives, and it starts the 2021 source. That alias stays readable and
-  unwritten.
+  arrives, and it starts the 2021 source.
+
+For the same reason a write or an unpin never *deletes* the yearless alias on
+spec: that row may hold another remake's preference. The single exception is
+the row this session actually read, because the user is acting on the pin they
+can see — and leaving that one would make an unpin come back.
 
 The row only changes once the write lands. A pin the database refused is worse
 than no pin at all — the icon promises the preference will be there next time,

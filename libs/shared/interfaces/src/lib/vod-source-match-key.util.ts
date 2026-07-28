@@ -76,6 +76,36 @@ export function buildVodSourceMatchKeyCandidates(input: {
     return keys;
 }
 
+/**
+ * The keys that name exactly ONE film — the only ones safe to write to or
+ * delete.
+ *
+ * `buildVodSourceMatchKeyCandidates` deliberately also offers the yearless
+ * `title:{base}:` form, because a pin set before the release year was known
+ * lives there. But that form is shared by every remake: storing a
+ * known-year decision in it would answer for a different film, and deleting
+ * it could throw away a different film's preference.
+ */
+export function buildVodSourceMatchKeyWriteKeys(input: {
+    tmdbId?: number | string | null;
+    title?: string | null;
+    year?: number | null;
+}): string[] {
+    const keys: string[] = [];
+
+    const tmdbId = normalizeTmdbId(input.tmdbId);
+    if (tmdbId !== null) {
+        keys.push(`${TMDB_PREFIX}${tmdbId}`);
+    }
+
+    const titleKey = buildVodSourceMatchKey({ ...input, tmdbId: null });
+    if (titleKey && !keys.includes(titleKey)) {
+        keys.push(titleKey);
+    }
+
+    return keys;
+}
+
 export function isTmdbMatchKey(key: string): boolean {
     return key.startsWith(TMDB_PREFIX);
 }

@@ -317,7 +317,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly activeAlternativeSource = computed(() => {
         const active = this.multiSource.sources().find((s) => s.isActive);
         const routePlaylistId = this.xtreamStore.currentPlaylist()?.id;
-        if (!active || active.playlistId === routePlaylistId) {
+        // Both halves: a pinned copy can now live in the route's OWN playlist,
+        // and comparing the playlist alone would call it "the route source" —
+        // losing the Stop state and every position update for it.
+        if (
+            !active ||
+            (active.playlistId === routePlaylistId &&
+                active.contentId === this.selectedVodId())
+        ) {
             return null;
         }
 
@@ -447,6 +454,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     playVod(vodItem: XtreamVodDetails | null): void {
+        // Restart means from the beginning. The controller still holds the
+        // position this page was seeded with, and a failure before the first
+        // timeupdate would otherwise resolve the next source back at it.
+        this.multiSource.reportPosition(0);
         this.playback.playVod(vodItem);
     }
 

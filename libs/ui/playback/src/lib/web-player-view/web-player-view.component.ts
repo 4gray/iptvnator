@@ -116,6 +116,8 @@ export class WebPlayerViewComponent {
      */
     readonly alternativeSources = input<VodSourceDescriptor[]>([]);
     readonly alternativeSourceRequested = output<string>();
+    /** The row's Check action, which has to reach the host that can probe. */
+    readonly sourceCheckRequested = output<string>();
     /**
      * A playback failure the host may be able to recover from by switching
      * source. Emitted alongside showing the overlay, never instead of it: if

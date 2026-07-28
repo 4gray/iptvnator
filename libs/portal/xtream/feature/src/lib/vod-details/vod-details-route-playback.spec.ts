@@ -211,6 +211,61 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         consoleWarnSpy?.mockRestore();
     });
 
+    it('owns an external session for a copy in its own playlist', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+
+        // A pinned copy can now live in the route's OWN playlist. Comparing
+        // playlists alone would call this "the route source", and the page
+        // would disown the session it started for it.
+        Object.defineProperty(component.multiSource, 'sources', {
+            configurable: true,
+            value: () => [
+                {
+                    id: 'playlist-1:xtream:4242',
+                    playlistId: 'playlist-1',
+                    playlistName: 'Portal One',
+                    portalType: 'xtream',
+                    contentId: 4242,
+                    rawTitle: 'Example',
+                    matchConfidence: 'exact',
+                    year: null,
+                    isActive: true,
+                    isPinned: true,
+                    isTried: true,
+                    probe: { status: 'idle' },
+                },
+            ],
+        });
+        activeSession.set({
+            player: 'mpv',
+            status: 'playing',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 4242,
+                contentType: 'vod',
+            },
+        });
+
+        expect(playback.matchedExternalPlayback()).not.toBeNull();
+        expect(component.isExternalStopAction()).toBe(true);
+    });
+
+    it('drops the carried position when Restart starts from the beginning', () => {
+        const component = fixture.componentInstance;
+        const reported = jest.spyOn(component.multiSource, 'reportPosition');
+
+        component.playVod({} as XtreamVodDetails);
+
+        // The controller still holds whatever this page was seeded with, and
+        // a failure before the first timeupdate would resolve the next source
+        // back at it instead of honouring the restart.
+        expect(reported).toHaveBeenCalledWith(0);
+    });
+
     it('stops the external player when the button says Stop', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         activeSession.set({

@@ -35,11 +35,12 @@ import {
     pinnedSourceAwaitingPlay,
     pinnedSourceIdOf,
     playPinned,
+    pinKeysFor,
     readPin,
     togglePinnedSource,
+    type PinKeySets,
 } from './vod-multi-source-pin';
 import {
-    buildVodSourceMatchKeyCandidates,
     type ResolvedPortalPlayback,
     type VodSourceCandidate,
     type VodSourceDescriptor,
@@ -73,18 +74,13 @@ export class VodMultiSourceHostService {
 
     private controller = new VodMultiSourceController();
     private bindings: VodMultiSourceBindings | null = null;
-    private matchKeys: string[] = [];
+    private pinKeys: PinKeySets = { lookup: [], write: [] };
     /** Bumped per `load()`: discards a discovery the next one superseded. */
     private discoveryToken = 0;
-    /**
-     * Bumped when the FILM changes, and only then — a rediscovery of the same
-     * film must not cancel a switch or probe in flight for it.
-     */
+    /** Bumped when the FILM changes — a rediscovery of the same one is a
+     * refresh, and must not cancel a switch or probe in flight for it. */
     private sessionToken = 0;
-    /**
-     * Bumped by every switch, so a slower resolution cannot overwrite the
-     * user's latest choice, nor the source Undo points back to.
-     */
+    /** Bumped by every switch: a slower one must not overwrite a newer. */
     private switchToken = 0;
     private lastMovieKey: string | null = null;
     private movieIdentity: string | null = null;
@@ -205,14 +201,14 @@ export class VodMultiSourceHostService {
             this._busySourceId.set(null);
             this._previousSourceId.set(null);
         }
-        this.matchKeys = buildVodSourceMatchKeyCandidates(movie);
+        this.pinKeys = pinKeysFor(movie);
 
         if (!this.discovery.isAvailable) {
             return;
         }
 
         // Read FIRST, because discovery has to be told which copy to keep.
-        const pin = await readPin(this.pins, this.matchKeys);
+        const pin = await readPin(this.pins, this.pinKeys.lookup);
         if (token !== this.discoveryToken) {
             return;
         }
@@ -235,6 +231,9 @@ export class VodMultiSourceHostService {
         );
         if (pin) {
             this.controller.setPinnedSource(pinnedSourceIdOf(pin));
+            // Remember where it was found: that row is the one the user sees,
+            // so it is the only ambiguous key an unpin may remove.
+            this.pinKeys = { ...this.pinKeys, loaded: pin.matchKey };
         }
 
         this.publish();
@@ -258,10 +257,12 @@ export class VodMultiSourceHostService {
             return false;
         }
 
+        const session = this.sessionToken;
         return playPinned({
             controller: this.controller,
             pinnedSourceId: this.pendingPinnedSourceId(),
             resumeFor,
+            isCurrent: () => session === this.sessionToken,
             play: (sourceId) => this.play(sourceId),
         });
     }
@@ -306,7 +307,7 @@ export class VodMultiSourceHostService {
         );
         const pinned = await togglePinnedSource(
             this.pins,
-            this.matchKeys,
+            this.pinKeys,
             this.controller.findSource(sourceId),
             isPinned
         );
