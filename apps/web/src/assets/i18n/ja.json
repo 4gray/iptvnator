@@ -151,7 +151,8 @@
             "OR": "または",
             "CHOOSE_PLAYLIST": "プレイリストを選択",
             "BROWSE": "ファイルを参照",
-            "REJECTED": "ファイルが拒否されました。サポートされていないファイル形式です：{{filename}}"
+            "REJECTED": "ファイルが拒否されました。サポートされていないファイル形式です：{{filename}}",
+            "OPEN_FAILED": "\"{{filename}}\" を開けませんでした。"
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "プレイリストURL (m3u, m3u8)",

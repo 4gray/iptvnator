@@ -151,7 +151,8 @@
             "OR": "vagy",
             "CHOOSE_PLAYLIST": "kattintson a tallózáshoz",
             "BROWSE": "Fájlok tallózása",
-            "REJECTED": "Elutasított fájl: {{filename}} – nem támogatott fájlformátum."
+            "REJECTED": "Elutasított fájl: {{filename}} – nem támogatott fájlformátum.",
+            "OPEN_FAILED": "A(z) \"{{filename}}\" nem nyitható meg."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Lejátszási lista URL-címe (m3u, m3u8)",

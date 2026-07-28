@@ -151,7 +151,8 @@
             "OR": "或者",
             "CHOOSE_PLAYLIST": "選擇播放清單",
             "BROWSE": "瀏覽檔案",
-            "REJECTED": "檔案被拒絕，不支援的檔案格式 {{filename}}。"
+            "REJECTED": "檔案被拒絕，不支援的檔案格式 {{filename}}。",
+            "OPEN_FAILED": "無法開啟 \"{{filename}}\"。"
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "播放清單網址（m3u，m3u8）",

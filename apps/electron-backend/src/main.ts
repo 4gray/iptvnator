@@ -19,6 +19,7 @@ import { shutdownMpvSession } from './app/events/mpv-session.service';
 import PlayerEvents from './app/events/player.events';
 import { shutdownVlcSession } from './app/events/vlc-session.service';
 import PlaylistEvents from './app/events/playlist.events';
+import PlaylistOpenEvents from './app/events/playlist-open.events';
 import RemoteControlEvents from './app/events/remote-control.events';
 import SettingsEvents from './app/events/settings.events';
 import SharedEvents from './app/events/shared.events';
@@ -39,6 +40,11 @@ import {
 import { isEmbeddedMpvFeatureEnabled } from './app/services/embedded-mpv-runtime-policy.util';
 import { runEmbeddedMpvRuntimeDiagnosticOrContinue } from './app/services/embedded-mpv-runtime-diagnostic';
 import { acquireSingleInstanceLock } from './app/services/single-instance';
+import {
+    createPlaylistOpenRequest,
+    extractPlaylistOpenRequestsFromArgv,
+    playlistOpenRequests,
+} from './app/services/playlist-open-request';
 import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
@@ -141,6 +147,7 @@ export default class Main {
         WindowEvents.bootstrapWindowEvents();
         EmbeddedMpvEvents.bootstrapEmbeddedMpvEvents();
         PlaylistEvents.bootstrapPlaylistEvents();
+        PlaylistOpenEvents.bootstrapPlaylistOpenEvents();
         SharedEvents.bootstrapSharedEvents();
         PlayerEvents.bootstrapPlayerEvents();
         SettingsEvents.bootstrapSettingsEvents();
@@ -194,6 +201,24 @@ export default class Main {
 }
 
 runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
+    // macOS never puts the opened file in argv — Launch Services delivers it
+    // through `open-file`, which can fire before `whenReady`. Registering the
+    // listener here (and calling preventDefault, or Electron logs a warning
+    // and treats the event as unhandled) is the only way to catch a launch by
+    // double-clicking a playlist in Finder.
+    app.on('open-file', (event, filePath) => {
+        event.preventDefault();
+        playlistOpenRequests.enqueue(createPlaylistOpenRequest(filePath));
+    });
+
+    // Windows/Linux file associations and plain `iptvnator playlist.m3u`
+    // launches arrive as arguments instead — one per file, since selecting
+    // several playlists at once is a single launch. The renderer drains the
+    // queue once it is ready.
+    playlistOpenRequests.enqueueAll(
+        extractPlaylistOpenRequestsFromArgv(process.argv)
+    );
+
     // handle setup events as quickly as possible
     Main.initialize();
 
@@ -205,7 +230,20 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
         !acquireSingleInstanceLock(
             app,
             () => App.mainWindow,
-            () => App.ensureMainWindow()
+            () => App.ensureMainWindow(),
+            {
+                // A second launch is also how the OS says "open this playlist
+                // in the app you already have running". Its argv is the only
+                // carrier for that, and it is relative to *its* cwd.
+                onSecondInstance: (argv, workingDirectory) => {
+                    playlistOpenRequests.enqueueAll(
+                        extractPlaylistOpenRequestsFromArgv(
+                            argv,
+                            workingDirectory
+                        )
+                    );
+                },
+            }
         )
     ) {
         return;

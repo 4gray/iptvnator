@@ -151,7 +151,8 @@
             "OR": "ou",
             "CHOOSE_PLAYLIST": "Choisir une liste de lecture",
             "BROWSE": "Parcourir les fichiers",
-            "REJECTED": "Le fichier a été rejeté, format de fichier non pris en charge {{filename}}."
+            "REJECTED": "Le fichier a été rejeté, format de fichier non pris en charge {{filename}}.",
+            "OPEN_FAILED": "Impossible d’ouvrir \"{{filename}}\"."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "URL de la liste de lecture (m3u, m3u8)",

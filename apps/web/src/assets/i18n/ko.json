@@ -151,7 +151,8 @@
             "OR": "또는",
             "CHOOSE_PLAYLIST": "재생 목록을 선택",
             "BROWSE": "파일 찾아보기",
-            "REJECTED": "파일이 거부되었습니다. 지원되지 않는 파일 형식 {{filename}}."
+            "REJECTED": "파일이 거부되었습니다. 지원되지 않는 파일 형식 {{filename}}.",
+            "OPEN_FAILED": "\"{{filename}}\" 파일을 열 수 없습니다."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "재생 목록 URL (m3u, m3u8)",

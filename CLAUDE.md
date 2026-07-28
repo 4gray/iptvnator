@@ -126,7 +126,7 @@ nx run electron-backend:make
 - When the task is Electron automation/debugging, use the `electron` skill
 - Do not auto-open DevTools during normal CDP automation. In development, DevTools is opt-in via `ELECTRON_OPEN_DEVTOOLS=1`.
 - If DevTools is open, `agent-browser --cdp 9222 ...` may attach to the DevTools page instead of the IPTVnator window (symptoms: `tab list` shows `about:blank`, empty snapshots, black screenshots). Inspect targets with `curl http://127.0.0.1:9222/json/list` and connect directly to the app page's `webSocketDebuggerUrl`.
-- The app holds a single-instance lock (`acquireSingleInstanceLock` in `apps/electron-backend/src/app/services/single-instance.ts`): a second launch against the same `userData` quits immediately and focuses the running window. To attach a second CDP-enabled instance to the same profile, set `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` — knowing that only one of the two processes will own the renderer's IndexedDB, so settings written by the other are lost.
+- The app holds a single-instance lock (`acquireSingleInstanceLock` in `apps/electron-backend/src/app/services/single-instance.ts`): a second launch against the same `userData` quits immediately and focuses the running window. To attach a second CDP-enabled instance to the same profile, set `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` — knowing that only one of the two processes will own the renderer's IndexedDB, so settings written by the other are lost. Before focusing, the guard forwards the second launch's argv to `onSecondInstance`, which is how a playlist path handed to an already-running app reaches the open queue.
 
 For startup tracing or white-screen debugging:
 
@@ -591,7 +591,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 - Bootstraps Electron app and initializes database
 - Registers event handlers for IPC communication
-- Holds a single-instance lock (`app/services/single-instance.ts`), requested after the `userData` override so E2E runs with their own data dir keep independent locks. A second launch quits and focuses the running window; concurrent instances would otherwise share a Chromium profile whose IndexedDB only one of them can lock, silently breaking renderer-side settings persistence. `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` opts out for local debugging.
+- Holds a single-instance lock (`app/services/single-instance.ts`), requested after the `userData` override so E2E runs with their own data dir keep independent locks. A second launch quits and focuses the running window; concurrent instances would otherwise share a Chromium profile whose IndexedDB only one of them can lock, silently breaking renderer-side settings persistence. `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` opts out for local debugging. The guard also forwards that launch's argv and working directory, so `iptvnator playlist.m3u` against a running app opens the playlist instead of being discarded.
 
 **Database**:
 
@@ -624,6 +624,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - **Event handlers**: `apps/electron-backend/src/app/events/`
     - `database.events.ts` - Database CRUD operations
     - `playlist.events.ts` - Playlist import/update
+    - `playlist-open.events.ts` - Playlist files handed over by the OS (argv, file association, macOS `open-file`); the queue itself lives in `services/playlist-open-request.ts`
     - `epg.events.ts` - EPG IPC registration; freshness/fetch orchestration lives in `epg-fetch.service.ts`, manual channel-mapping resolution and CRUD in `epg-mapping.service.ts`, worker lifecycle in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
     - `xtream.events.ts` - Xtream Codes API
     - `stalker.events.ts` - Stalker portal API
@@ -644,6 +645,45 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - M3U/M3U8 files (local or URL)
 - Xtream Codes API (`username`, `password`, `serverUrl`)
 - Stalker portal (`macAddress`, `url`)
+
+**Opening a playlist from the OS** (Electron only): a `.m3u`/`.m3u8` path passed
+on the command line, opened through a file association, or delivered by macOS'
+`open-file` event is normalized to an absolute path in the main process
+(`services/playlist-open-request.ts`) and queued there. The renderer
+(`apps/web/src/app/services/playlist-open-request.service.ts`) subscribes to the
+`OPEN_FILE` push **before** calling `announcePlaylistOpenListener`, which is
+what makes the main process flush. `OPEN_FILE` is the only way out of the
+queue, and a request stays there until the renderer confirms receipt via
+`acknowledgePlaylistOpenRequest` — `webContents.send()` returns before the
+listener runs, and a reload or dead render process keeps the `WebContents`
+alive, so a successful push is not proof of delivery. Anything unacknowledged
+is replayed to the next renderer that announces itself. The renderer
+imports them on a single promise chain so a burst arrives in a deterministic
+order. `addPlaylist$` in `libs/m3u-state` uses `concatMap` (not `switchMap`)
+for the same reason: each action carries a different playlist, so a newer add
+must never cancel an older one's write, EPG fetch and navigation. The import
+itself reuses the normal file path
+(`updatePlaylistFromFilePath` → `PlaylistActions.addPlaylist`), so persistence,
+playlist-scoped EPG, and the navigation to the new playlist all behave exactly
+like a dialog import.
+
+The OS-level registration that makes those paths reachable is
+`fileAssociations` in `electron-builder.json` — one entry per extension, each
+with its own `mimeType`. Electron Builder derives all three platform
+registrations from it: macOS `CFBundleDocumentTypes` (which is what makes
+`open-file` fire from Finder), the NSIS registry entries, and, on Linux, the
+desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
+deb/rpm/pacman. Two traps: it assigns the derived `MimeType` *after* spreading
+`linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
+must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
+over percent-encoded `file://` URIs rather than paths —
+`createPlaylistOpenRequest` decodes them before the extension check. `%U` is
+also the *plural* exec code, so a multi-file selection arrives as one launch
+with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
+of them and `enqueueAll` queues the batch, because stopping at the first match
+would silently drop the rest of the selection. Adding an exec code to
+`linux.executableArgs` would suppress the `%U` but also pass that code to the
+app as a real argument, so it is not an option.
 
 **Video Players**:
 

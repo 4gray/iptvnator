@@ -13,6 +13,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
 import {
     EMPTY,
+    concatMap,
     filter,
     firstValueFrom,
     from,
@@ -340,6 +341,12 @@ export class PlaylistEffects {
         );
     });
 
+    // concatMap, not switchMap: every action carries a *different* playlist,
+    // so a newer one must never cancel the previous playlist's write. Under
+    // switchMap two adds in quick succession — the OS handing over several
+    // playlist files at once is the realistic case — dropped the first
+    // playlist's EPG fetch and navigation on the floor. Serialising also keeps
+    // the last-added playlist as the one that ends up active.
     addPlaylist$ = createEffect(
         () => {
             return this.actions$.pipe(
@@ -347,7 +354,7 @@ export class PlaylistEffects {
                     PlaylistActions.addPlaylist,
                     PlaylistActions.handleAddingPlaylistByUrl
                 ),
-                switchMap((action) => {
+                concatMap((action) => {
                     if ('isTemporary' in action && action.isTemporary) {
                         return EMPTY;
                     }

@@ -151,7 +151,8 @@
             "OR": "of",
             "CHOOSE_PLAYLIST": "kies een afspeellijst",
             "BROWSE": "Bestanden bladeren",
-            "REJECTED": "Bestand geweigerd, niet-ondersteund bestandsformaat: {{filename}}."
+            "REJECTED": "Bestand geweigerd, niet-ondersteund bestandsformaat: {{filename}}.",
+            "OPEN_FAILED": "Kan \"{{filename}}\" niet openen."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Afspeellijst-URL (m3u, m3u8)",

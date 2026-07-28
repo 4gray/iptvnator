@@ -17,7 +17,14 @@
 /** Minimal Electron `App` surface used by the guard, kept narrow for tests. */
 export interface SingleInstanceApp {
     quit(): void;
-    on(event: 'second-instance', listener: () => void): unknown;
+    on(
+        event: 'second-instance',
+        listener: (
+            event: unknown,
+            argv: string[],
+            workingDirectory: string
+        ) => void
+    ): unknown;
     requestSingleInstanceLock(): boolean;
 }
 
@@ -74,6 +81,18 @@ function needsNewWindow(
     return !window || window.isDestroyed();
 }
 
+export interface SingleInstanceOptions {
+    env?: NodeJS.ProcessEnv;
+    /**
+     * Receives the second launch's command line before its window is focused.
+     * Electron discards that argv otherwise, and it is the only place a
+     * "open this playlist in the running app" request can come from on
+     * Windows/Linux. `workingDirectory` belongs to the *other* process, so a
+     * relative path must be resolved against it rather than against `cwd()`.
+     */
+    onSecondInstance?: (argv: string[], workingDirectory: string) => void;
+}
+
 /**
  * Acquires the single instance lock.
  *
@@ -88,9 +107,9 @@ export function acquireSingleInstanceLock(
     app: SingleInstanceApp,
     getMainWindow: () => SingleInstanceWindow | null | undefined,
     createMainWindow: () => void,
-    env: NodeJS.ProcessEnv = process.env
+    options: SingleInstanceOptions = {}
 ): boolean {
-    if (allowsMultipleInstances(env)) {
+    if (allowsMultipleInstances(options.env ?? process.env)) {
         return true;
     }
 
@@ -99,7 +118,9 @@ export function acquireSingleInstanceLock(
         return false;
     }
 
-    app.on('second-instance', () => {
+    app.on('second-instance', (_event, argv, workingDirectory) => {
+        options.onSecondInstance?.(argv ?? [], workingDirectory ?? '');
+
         const mainWindow = getMainWindow();
 
         if (needsNewWindow(mainWindow)) {

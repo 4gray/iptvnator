@@ -151,7 +151,8 @@
             "OR": "veya",
             "CHOOSE_PLAYLIST": "oynatma listesi seçin",
             "BROWSE": "Dosyalara göz at",
-            "REJECTED": "Dosya reddedildi, desteklenmeyen dosya formatı {{filename}}."
+            "REJECTED": "Dosya reddedildi, desteklenmeyen dosya formatı {{filename}}.",
+            "OPEN_FAILED": "\"{{filename}}\" açılamadı."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Oynatma listesi URL'si (m3u, m3u8)",

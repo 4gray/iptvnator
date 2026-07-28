@@ -7,6 +7,17 @@ import {
     type SingleInstanceWindow,
 } from './single-instance';
 
+/**
+ * Electron's real `second-instance` listener signature. The guard has to keep
+ * working when Electron hands over an empty command line, so the argv and
+ * working directory are modelled as optional here.
+ */
+type SecondInstanceHandler = (
+    event: unknown,
+    argv: string[] | undefined,
+    workingDirectory: string | undefined
+) => void;
+
 function createApp(hasLock: boolean): jest.Mocked<SingleInstanceApp> {
     return {
         quit: jest.fn(),
@@ -60,7 +71,7 @@ describe('acquireSingleInstanceLock', () => {
         const app = createApp(true);
 
         expect(
-            acquireSingleInstanceLock(app, () => null, jest.fn(), {})
+            acquireSingleInstanceLock(app, () => null, jest.fn(), { env: {} })
         ).toBe(true);
         expect(app.quit).not.toHaveBeenCalled();
         expect(app.on).toHaveBeenCalledWith(
@@ -73,7 +84,7 @@ describe('acquireSingleInstanceLock', () => {
         const app = createApp(false);
 
         expect(
-            acquireSingleInstanceLock(app, () => null, jest.fn(), {})
+            acquireSingleInstanceLock(app, () => null, jest.fn(), { env: {} })
         ).toBe(false);
         expect(app.quit).toHaveBeenCalledTimes(1);
         expect(app.on).not.toHaveBeenCalled();
@@ -87,7 +98,9 @@ describe('acquireSingleInstanceLock', () => {
         });
 
         const createMainWindow = jest.fn();
-        acquireSingleInstanceLock(app, () => window, createMainWindow, {});
+        acquireSingleInstanceLock(app, () => window, createMainWindow, {
+            env: {},
+        });
         const [, handler] = app.on.mock.calls[0];
         (handler as () => void)();
 
@@ -112,7 +125,9 @@ describe('acquireSingleInstanceLock', () => {
                 : null;
         const createMainWindow = jest.fn();
 
-        acquireSingleInstanceLock(app, () => window, createMainWindow, {});
+        acquireSingleInstanceLock(app, () => window, createMainWindow, {
+            env: {},
+        });
         const [, handler] = app.on.mock.calls[0];
         (handler as () => void)();
 
@@ -127,11 +142,75 @@ describe('acquireSingleInstanceLock', () => {
 
         expect(
             acquireSingleInstanceLock(app, () => null, jest.fn(), {
-                [ALLOW_MULTIPLE_INSTANCES_ENV]: '1',
+                env: { [ALLOW_MULTIPLE_INSTANCES_ENV]: '1' },
             })
         ).toBe(true);
         expect(app.requestSingleInstanceLock).not.toHaveBeenCalled();
         expect(app.quit).not.toHaveBeenCalled();
+    });
+
+    it('forwards a second launch command line before focusing the window', () => {
+        const app = createApp(true);
+        const window = createWindow();
+        const onSecondInstance = jest.fn();
+
+        acquireSingleInstanceLock(app, () => window, jest.fn(), {
+            env: {},
+            onSecondInstance,
+        });
+        const [, handler] = app.on.mock.calls[0];
+        (handler as SecondInstanceHandler)(
+            {},
+            ['/opt/iptvnator/iptvnator', '/home/user/list.m3u'],
+            '/home/user'
+        );
+
+        expect(onSecondInstance).toHaveBeenCalledWith(
+            ['/opt/iptvnator/iptvnator', '/home/user/list.m3u'],
+            '/home/user'
+        );
+        expect(onSecondInstance.mock.invocationCallOrder[0]).toBeLessThan(
+            window.focus.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('forwards a second launch that carries no arguments', () => {
+        const app = createApp(true);
+        const window = createWindow();
+        const onSecondInstance = jest.fn();
+
+        acquireSingleInstanceLock(app, () => window, jest.fn(), {
+            env: {},
+            onSecondInstance,
+        });
+        const [, handler] = app.on.mock.calls[0];
+        (handler as SecondInstanceHandler)({}, undefined, undefined);
+
+        expect(onSecondInstance).toHaveBeenCalledWith([], '');
+        expect(window.focus).toHaveBeenCalledTimes(1);
+    });
+
+    it('still forwards when the lock owner has to rebuild its window', () => {
+        const app = createApp(true);
+        const createMainWindow = jest.fn();
+        const onSecondInstance = jest.fn();
+
+        acquireSingleInstanceLock(app, () => null, createMainWindow, {
+            env: {},
+            onSecondInstance,
+        });
+        const [, handler] = app.on.mock.calls[0];
+        (handler as SecondInstanceHandler)(
+            {},
+            ['/opt/iptvnator/iptvnator', '/home/user/list.m3u8'],
+            '/home/user'
+        );
+
+        expect(onSecondInstance).toHaveBeenCalledWith(
+            ['/opt/iptvnator/iptvnator', '/home/user/list.m3u8'],
+            '/home/user'
+        );
+        expect(createMainWindow).toHaveBeenCalledTimes(1);
     });
 });
 
