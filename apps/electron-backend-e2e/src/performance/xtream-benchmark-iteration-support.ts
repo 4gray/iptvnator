@@ -50,6 +50,14 @@ export interface SeedXtreamExistingPortalOptions {
 export async function prearmXtreamDatabaseWorker(
     app: LaunchedElectronApp
 ): Promise<void> {
+    // Main owns schema creation but loads the renderer first. Fence that
+    // startup promise before the independent worker opens the fresh database.
+    const downloads = await app.mainWindow.evaluate(() =>
+        window.electron.downloadsGetList()
+    );
+    if (!Array.isArray(downloads)) {
+        throw new Error('xtream-main-database-readiness-invalid');
+    }
     const playlists = await app.mainWindow.evaluate(() =>
         window.electron.dbGetAppPlaylists()
     );

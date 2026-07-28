@@ -145,7 +145,14 @@ describe('Xtream scenario driver source wiring', () => {
             support,
             /export async function prearmXtreamDatabaseWorker/
         );
-        assert.match(support, /window\.electron\.dbGetAppPlaylists\(\)/);
+        const mainDatabaseReady = support.indexOf(
+            'window.electron.downloadsGetList()'
+        );
+        const workerPrearm = support.indexOf(
+            'window.electron.dbGetAppPlaylists()'
+        );
+        assert.ok(mainDatabaseReady >= 0);
+        assert.ok(workerPrearm > mainDatabaseReady);
         assert.ok(install >= 0);
         assert.ok(prearm > install);
         assert.ok(captureOptions > prearm);
