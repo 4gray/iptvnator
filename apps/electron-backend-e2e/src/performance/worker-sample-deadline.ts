@@ -32,6 +32,14 @@ export interface WorkerSampleDeadlineApi {
     ): Promise<WorkerSampleDeadlineOutcome>;
 }
 
+export function assertWorkerSampleCaptureValid(
+    invalidReasons: readonly string[]
+): void {
+    if (invalidReasons.includes('worker-sample-timeout')) {
+        throw new Error('main-capture-worker-sample-timeout');
+    }
+}
+
 export function createWorkerSampleDeadlineApi(): WorkerSampleDeadlineApi {
     const defaultTimers: WorkerSampleDeadlineTimers = {
         clearTimeout(handle: unknown): void {

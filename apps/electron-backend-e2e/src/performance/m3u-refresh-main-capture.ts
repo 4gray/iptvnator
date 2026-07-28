@@ -56,6 +56,7 @@ import {
     type WorkerTerminationGenerationApi,
 } from './worker-termination-generation';
 import {
+    assertWorkerSampleCaptureValid,
     createWorkerSampleDeadlineApi,
     type WorkerSampleDeadlineApi,
 } from './worker-sample-deadline';
@@ -2548,6 +2549,7 @@ export async function rolloverMainCapture(
         },
         { options, stateKey: MAIN_CAPTURE_STATE_KEY }
     );
+    assertWorkerSampleCaptureValid(transport.xtream.invalidReasons);
     if (transport.rollover === null) {
         throw new Error('main-capture-rollover-status-missing');
     }
@@ -2572,6 +2574,7 @@ export async function stopMainCapture(
         },
         MAIN_CAPTURE_STATE_KEY
     );
+    assertWorkerSampleCaptureValid(transport.xtream.invalidReasons);
     return selectMainCaptureGeneration(transport);
 }
 
