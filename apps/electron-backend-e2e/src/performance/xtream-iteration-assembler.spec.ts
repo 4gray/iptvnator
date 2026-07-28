@@ -173,6 +173,34 @@ describe('Xtream raw iteration assembler', () => {
         );
     });
 
+    it('accepts sub-millisecond skew between renderer and main cancellation clocks', () => {
+        const input = createXtreamAssemblerFixture(
+            XTREAM_SCENARIO_ID.CANCEL_IMPORT
+        );
+        const workerTerminal = input.mainCapture.cancelTimeline.find(
+            ({ type }) => type === 'db-cancel-terminal-received'
+        );
+        assert.ok(workerTerminal);
+        const rendererTerminalEpochMs = workerTerminal.epochMs - 0.1;
+        assert.ok(
+            rendererTerminalEpochMs >
+                Number(input.rendererCapture.probe.cancellationClickEpochMs)
+        );
+
+        assert.doesNotThrow(() =>
+            assembleXtreamRawIteration({
+                ...input,
+                rendererCapture: {
+                    ...input.rendererCapture,
+                    probe: {
+                        ...input.rendererCapture.probe,
+                        dbCancellationTerminalEpochMs: rendererTerminalEpochMs,
+                    },
+                },
+            })
+        );
+    });
+
     it('accepts main observing a network cancel response after the next renderer IPC starts', () => {
         const input = createXtreamAssemblerFixture(
             XTREAM_SCENARIO_ID.CANCEL_IMPORT

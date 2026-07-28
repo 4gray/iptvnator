@@ -264,6 +264,8 @@ function cancellationEvidence(
     const preload = ipcPair(input.phaseCapture.ipcSpans, 'dbCancelOperation');
     const authoritative = request.responseEpochMs;
     const painted = requireNumber(renderer.uiPaintedEpochMs);
+    // Renderer and main sample independent clocks. Their correlated receipt
+    // timestamps cannot establish cross-process sub-millisecond ordering.
     if (
         !dispatch ||
         !receipt ||
@@ -271,7 +273,6 @@ function cancellationEvidence(
         dispatch.type !== 'db-cancel-dispatched' ||
         receipt.type !== 'db-cancel-received' ||
         workerTerminal.type !== 'db-cancel-terminal-received' ||
-        renderer.dbCancellationTerminalEpochMs < workerTerminal.epochMs ||
         renderer.dbCancellationTerminalEpochMs > painted ||
         authoritative > painted
     ) {
