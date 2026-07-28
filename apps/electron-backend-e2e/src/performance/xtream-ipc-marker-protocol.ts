@@ -84,10 +84,11 @@ export function createXtreamIpcMarkerProtocol(
     };
     const helpers = {
         correlationKey(marker: SafeXtreamPreloadMarker): string | null {
-            const values: Array<string | null> = [marker.method];
+            const values: Array<number | string | null> = [marker.method];
             switch (marker.method) {
                 case 'xtreamRequest':
-                    values.push(marker.sessionId, marker.action);
+                    if (marker.action === null) return null;
+                    values.push(marker.ipcCallId);
                     break;
                 case 'xtreamCancelSession':
                     values.push(marker.sessionId);

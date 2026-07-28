@@ -102,6 +102,44 @@ describe('Xtream preload marker capture', () => {
         });
     });
 
+    it('normalizes sub-millisecond cross-process clock skew and rejects larger reversals', () => {
+        const capture = createXtreamIpcMarkerCapture(options);
+        capture.start(42, 90);
+
+        assert.equal(
+            capture.acceptPreload(42, 100, marker({ sourceEpochMs: 100.006 })),
+            true
+        );
+        assert.equal(
+            capture.acceptPreload(
+                42,
+                101,
+                marker({
+                    boundary: 'end',
+                    outcome: 'success',
+                    sourceEpochMs: 101.006,
+                })
+            ),
+            true
+        );
+        const snapshot = capture.stop();
+        assert.deepEqual(snapshot.invalidReasons, []);
+        assert.equal(snapshot.timeline[0]?.epochMs, 100.006);
+        assert.equal(snapshot.timeline[1]?.epochMs, 101.006);
+
+        const reversed = createXtreamIpcMarkerCapture(options);
+        reversed.start(42, 90);
+        assert.equal(
+            reversed.acceptPreload(42, 100, marker({ sourceEpochMs: 101.001 })),
+            false
+        );
+        assert.ok(
+            reversed
+                .stop()
+                .invalidReasons.includes('preload-marker-source-after-receipt')
+        );
+    });
+
     it('rejects delayed preload markers from a completed capture generation', () => {
         const capture = createXtreamIpcMarkerCapture(options);
         capture.start(42, 90);

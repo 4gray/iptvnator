@@ -8,6 +8,11 @@ import {
     XTREAM_SCENARIO_ID,
     type XtreamIterationDefinition,
 } from './xtream-benchmark-contract';
+import {
+    computeXtreamBuildFilesAggregate,
+    type XtreamBenchmarkBuildIdentity,
+    type XtreamBuildFileIdentity,
+} from './xtream-build-identity';
 import { persistThenValidateXtreamIteration } from './xtream-benchmark-report';
 import { bindFixtureCancellationEvidence } from './xtream-cancellation-evidence.fixture';
 import { bindFixtureIpcWorkerIdentities } from './xtream-ipc-worker-identity.fixture';
@@ -29,6 +34,67 @@ import { bindFixtureWorkerEvidence } from './xtream-worker-phase-evidence.fixtur
 import type { WorkerRequestPerformanceMetrics } from './m3u-refresh-cancellation-contract';
 
 export const TOKEN = 'random-control-token-that-must-never-persist';
+const buildFile = (path: string, marker: string): XtreamBuildFileIdentity => ({
+    bytes: marker.length,
+    path,
+    sha256: sha256(marker),
+});
+const rendererFiles = [
+    buildFile('dist/apps/web/index.html', 'renderer-index'),
+    buildFile('dist/apps/web/main-FIXTURE.js', 'renderer-javascript'),
+    buildFile('dist/apps/web/main-FIXTURE.js.map', 'renderer-source-map'),
+] as const;
+export const BUILD_IDENTITY: XtreamBenchmarkBuildIdentity = {
+    electron: {
+        databaseWorker: {
+            javascript: buildFile(
+                'dist/apps/electron-backend/workers/database.worker.js',
+                'database-worker-javascript'
+            ),
+            sourceMap: buildFile(
+                'dist/apps/electron-backend/workers/database.worker.js.map',
+                'database-worker-source-map'
+            ),
+        },
+        main: {
+            javascript: buildFile(
+                'dist/apps/electron-backend/main.js',
+                'main-javascript'
+            ),
+            sourceMap: buildFile(
+                'dist/apps/electron-backend/main.js.map',
+                'main-source-map'
+            ),
+        },
+        playlistRefreshWorker: {
+            javascript: buildFile(
+                'dist/apps/electron-backend/workers/playlist-refresh.worker.js',
+                'playlist-worker-javascript'
+            ),
+            sourceMap: buildFile(
+                'dist/apps/electron-backend/workers/playlist-refresh.worker.js.map',
+                'playlist-worker-source-map'
+            ),
+        },
+        preload: {
+            javascript: buildFile(
+                'dist/apps/electron-backend/main.preload.js',
+                'preload-javascript'
+            ),
+            sourceMap: buildFile(
+                'dist/apps/electron-backend/main.preload.js.map',
+                'preload-source-map'
+            ),
+        },
+    },
+    renderer: {
+        aggregateSha256: computeXtreamBuildFilesAggregate(rendererFiles),
+        bytes: rendererFiles.reduce((total, file) => total + file.bytes, 0),
+        executableJavaScriptCount: 1,
+        files: rendererFiles,
+        sourceMapCount: 1,
+    },
+};
 const SAFETY: XtreamArtifactSafetyContext = {
     controlToken: TOKEN,
     syntheticCredentials: {
@@ -37,6 +103,7 @@ const SAFETY: XtreamArtifactSafetyContext = {
     },
 };
 export const MANIFEST: XtreamBenchmarkManifest = {
+    build: BUILD_IDENTITY,
     environment: {
         cdpAddress: '127.0.0.1',
         cdpPort: 9222,
@@ -72,7 +139,6 @@ export const MANIFEST: XtreamBenchmarkManifest = {
     variant: 'baseline',
 };
 const directories: string[] = [];
-
 export async function clearXtreamReportFixtureDirectories(): Promise<void> {
     await Promise.all(
         directories
@@ -177,6 +243,7 @@ export function iteration(
         main: {
             ...profile,
             browserWindowId: 1,
+            cpuMetricScope: 'electron-main-thread',
             cpuSystemMicros: 200,
             cpuUserMicros: 1_000,
             eventLoopDelayMaxMs: 8,
@@ -194,8 +261,15 @@ export function iteration(
         },
         databaseWorker: {
             ...profile,
-            cpuSystemMicros: 100,
-            cpuUserMicros: 800,
+            cpuMetricScope: 'sum-valid-request-thread-cpu',
+            cpuSystemMicros:
+                capturedRequestEvidence.filter(
+                    ({ invalidReason }) => invalidReason === null
+                ).length * 10,
+            cpuUserMicros:
+                capturedRequestEvidence.filter(
+                    ({ invalidReason }) => invalidReason === null
+                ).length * 20,
             currentForCapture: true,
             eventLoopDelayMaxMs: 9,
             eventLoopDelayMetricScope: 'valid-request-window-proxy',

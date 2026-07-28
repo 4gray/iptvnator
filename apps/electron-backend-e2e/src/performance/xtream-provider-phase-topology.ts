@@ -61,7 +61,51 @@ export function assertXtreamProviderCausality(
     assertSemanticOwnership(spans);
     if (scenarioId === 'xtream-delete-large') return;
 
-    const account = semanticOne(spans, PHASE.RESPONSE_READY, SEMANTIC.ACCOUNT);
+    const routeHydratesAfterImport =
+        scenarioId === 'xtream-refresh-large' ||
+        scenarioId === 'xtream-background-ui';
+    const accounts = semanticMany(spans, PHASE.NETWORK_TOTAL, SEMANTIC.ACCOUNT);
+    if (accounts.length !== 2) invalid();
+    if (
+        accounts.some(
+            (account, index) =>
+                index > 0 &&
+                required(accounts, index - 1).startEpochMs >=
+                    account.startEpochMs
+        )
+    ) {
+        invalid();
+    }
+    const accountResponses = accounts.map((network) =>
+        accountResponse(spans, network)
+    );
+    // Fresh-add windows start the passive Sources check before route bootstrap,
+    // so the later response gates the import. Refresh windows first run the
+    // import and only then hydrate the recreated route from SQLite.
+    const account = required(
+        accountResponses,
+        routeHydratesAfterImport ? 0 : accountResponses.length - 1
+    );
+    const routeAccount = routeHydratesAfterImport
+        ? required(accountResponses, 1)
+        : null;
+    const routeAccountNetwork = routeHydratesAfterImport
+        ? required(accounts, 1)
+        : null;
+    const routeStore = routeHydratesAfterImport
+        ? required(phaseMany(spans, PHASE.STORE_PUBLISH_CATEGORIES), 1)
+        : null;
+    const terminal = routeHydratesAfterImport
+        ? required(phaseMany(spans, PHASE.STORE_IMPORT_TERMINAL), 0)
+        : null;
+    if (
+        routeAccount &&
+        routeAccountNetwork &&
+        terminal &&
+        terminal.endEpochMs > routeAccountNetwork.startEpochMs
+    ) {
+        invalid();
+    }
     for (const category of CATEGORIES) {
         const preRead = semanticOne(
             spans,
@@ -86,13 +130,19 @@ export function assertXtreamProviderCausality(
             category.type,
             category.count
         );
-        const postRead = semanticOne(
+        const completedReads = semanticMany(
             spans,
             PHASE.SQLITE_CATEGORIES_READ,
-            category.type,
-            category.count
-        );
+            category.type
+        ).filter(({ itemCount }) => itemCount === category.count);
+        if (completedReads.length !== (routeHydratesAfterImport ? 2 : 1)) {
+            invalid();
+        }
+        const postRead = required(completedReads, 0);
         ordered(account, preRead, response, normalization, write, postRead);
+        if (routeAccount && routeStore) {
+            ordered(routeAccount, required(completedReads, 1), routeStore);
+        }
     }
 
     const expectedContent =
@@ -102,12 +152,41 @@ export function assertXtreamProviderCausality(
     }
 }
 
+function accountResponse(
+    spans: readonly XtreamTopologyPhaseSpan[],
+    network: XtreamTopologyPhaseSpan
+): XtreamTopologyPhaseSpan {
+    const transform = correlatedSemanticOne(
+        spans,
+        PHASE.JSON_TRANSFORM,
+        SEMANTIC.ACCOUNT,
+        network.correlationId
+    );
+    const response = correlatedSemanticOne(
+        spans,
+        PHASE.RESPONSE_READY,
+        SEMANTIC.ACCOUNT,
+        network.correlationId
+    );
+    if (
+        network.startEpochMs > transform.startEpochMs ||
+        transform.endEpochMs > network.endEpochMs ||
+        network.endEpochMs > response.startEpochMs
+    ) {
+        invalid();
+    }
+    return response;
+}
+
 function assertContentCausality(
     spans: readonly XtreamTopologyPhaseSpan[],
     content: (typeof CONTENT)[number],
     scenarioId: XtreamScenarioId
 ): void {
-    const categoryStore = one(spans, PHASE.STORE_PUBLISH_CATEGORIES);
+    const categoryStore = required(
+        phaseMany(spans, PHASE.STORE_PUBLISH_CATEGORIES),
+        0
+    );
     const preRead = semanticOne(
         spans,
         PHASE.SQLITE_CONTENT_READ,
@@ -142,19 +221,36 @@ function assertContentCausality(
         write
     );
     if (scenarioId === 'xtream-cancel-import') return;
-    const postRead = semanticOne(
+    const routeHydratesAfterImport =
+        scenarioId === 'xtream-refresh-large' ||
+        scenarioId === 'xtream-background-ui';
+    const completedReads = semanticMany(
         spans,
         PHASE.SQLITE_CONTENT_READ,
-        content.type,
-        content.itemCount
+        content.type
+    ).filter(({ itemCount }) => itemCount === content.itemCount);
+    const stores = semanticMany(spans, content.storePhase, content.type).filter(
+        ({ itemCount }) => itemCount === content.itemCount
     );
-    const store = semanticOne(
-        spans,
-        content.storePhase,
-        content.type,
-        content.itemCount
-    );
-    ordered(write, postRead, store);
+    const expectedCount = routeHydratesAfterImport ? 2 : 1;
+    if (
+        completedReads.length !== expectedCount ||
+        stores.length !== expectedCount
+    ) {
+        invalid();
+    }
+    ordered(write, required(completedReads, 0), required(stores, 0));
+    if (routeHydratesAfterImport) {
+        const routeCategoryStore = required(
+            phaseMany(spans, PHASE.STORE_PUBLISH_CATEGORIES),
+            1
+        );
+        ordered(
+            routeCategoryStore,
+            required(completedReads, 1),
+            required(stores, 1)
+        );
+    }
 }
 
 function assertSemanticOwnership(
@@ -217,11 +313,39 @@ function semanticOne(
     return required(matches, 0);
 }
 
-function one(
+function semanticMany(
+    spans: readonly XtreamTopologyPhaseSpan[],
+    phase: string,
+    semanticType: XtreamPhaseSemanticType
+): XtreamTopologyPhaseSpan[] {
+    return spans
+        .filter(
+            (span) => span.phase === phase && span.semanticType === semanticType
+        )
+        .sort((left, right) => left.startEpochMs - right.startEpochMs);
+}
+
+function phaseMany(
     spans: readonly XtreamTopologyPhaseSpan[],
     phase: string
+): XtreamTopologyPhaseSpan[] {
+    return spans
+        .filter((span) => span.phase === phase)
+        .sort((left, right) => left.startEpochMs - right.startEpochMs);
+}
+
+function correlatedSemanticOne(
+    spans: readonly XtreamTopologyPhaseSpan[],
+    phase: string,
+    semanticType: XtreamPhaseSemanticType,
+    correlationId: string
 ): XtreamTopologyPhaseSpan {
-    const matches = spans.filter((span) => span.phase === phase);
+    const matches = spans.filter(
+        (span) =>
+            span.phase === phase &&
+            span.semanticType === semanticType &&
+            span.correlationId === correlationId
+    );
     if (matches.length !== 1) invalid();
     return required(matches, 0);
 }

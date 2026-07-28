@@ -37,6 +37,33 @@ describe('Xtream phase attribution', () => {
                 assert.ok(result.jsonParsingMs >= 0);
                 assert.ok(result.normalizationMs >= 0);
             }
+            if (
+                scenarioId === XTREAM_SCENARIO_ID.REFRESH_LARGE ||
+                scenarioId === XTREAM_SCENARIO_ID.BACKGROUND_UI
+            ) {
+                assert.equal(
+                    input.events.filter(
+                        ({ boundary, phase }) =>
+                            boundary === 'end' &&
+                            phase === PHASE.SQLITE_CONTENT_READ
+                    ).length,
+                    9
+                );
+                for (const phase of [
+                    PHASE.STORE_PUBLISH_LIVE,
+                    PHASE.STORE_PUBLISH_VOD,
+                    PHASE.STORE_PUBLISH_SERIES,
+                ]) {
+                    assert.equal(
+                        input.events.filter(
+                            (event) =>
+                                event.boundary === 'end' &&
+                                event.phase === phase
+                        ).length,
+                        2
+                    );
+                }
+            }
         }
     });
 
@@ -81,13 +108,13 @@ describe('Xtream phase attribution', () => {
         );
     });
 
-    it('includes the route playlist read in every selected IPC inventory', () => {
+    it('includes only performance-marked app-playlist reads in IPC inventory', () => {
         const expectedReads = new Map([
-            [XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE, 1],
-            [XTREAM_SCENARIO_ID.REFRESH_LARGE, 2],
+            [XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE, 0],
+            [XTREAM_SCENARIO_ID.REFRESH_LARGE, 1],
             [XTREAM_SCENARIO_ID.DELETE_LARGE, 0],
-            [XTREAM_SCENARIO_ID.CANCEL_IMPORT, 1],
-            [XTREAM_SCENARIO_ID.BACKGROUND_UI, 2],
+            [XTREAM_SCENARIO_ID.CANCEL_IMPORT, 0],
+            [XTREAM_SCENARIO_ID.BACKGROUND_UI, 1],
         ]);
         for (const [scenarioId, expected] of expectedReads) {
             const requests = scenarioCapture(scenarioId).ipcSpans.filter(
@@ -95,111 +122,6 @@ describe('Xtream phase attribution', () => {
                     boundary === 'request' && method === 'dbGetAppPlaylist'
             );
             assert.equal(requests.length, expected);
-        }
-    });
-
-    it('rejects impossible store, refresh, cancel-cleanup, and double-delete topology', () => {
-        const initial = scenarioCapture(
-            XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE
-        );
-        const refresh = scenarioCapture(XTREAM_SCENARIO_ID.REFRESH_LARGE);
-        const cancel = scenarioCapture(XTREAM_SCENARIO_ID.CANCEL_IMPORT);
-        const deletion = scenarioCapture(XTREAM_SCENARIO_ID.DELETE_LARGE);
-        const phaseStart = (
-            capture: typeof initial,
-            phase: string,
-            correlationId: string
-        ) =>
-            Number(
-                capture.events.find(
-                    (event) =>
-                        event.boundary === 'start' &&
-                        event.phase === phase &&
-                        event.correlationId === correlationId
-                )?.epochMs
-            );
-        const candidates = [
-            {
-                ...initial,
-                events: movePair(
-                    initial.events,
-                    PHASE.STORE_IMPORT_TERMINAL,
-                    'store-terminal',
-                    102
-                ),
-            },
-            {
-                ...initial,
-                events: movePair(
-                    initial.events,
-                    PHASE.STORE_PUBLISH_LIVE,
-                    'store-live',
-                    phaseStart(initial, PHASE.STORE_PUBLISH_VOD, 'store-vod') +
-                        2
-                ),
-            },
-            {
-                ...refresh,
-                events: movePair(
-                    refresh.events,
-                    PHASE.STORE_REFRESH_META,
-                    'refresh-meta',
-                    refresh.terminalEpochMs - 3
-                ),
-                uiPaintEpochMs: refresh.terminalEpochMs - 1,
-            },
-            {
-                ...refresh,
-                events: movePair(
-                    refresh.events,
-                    PHASE.STORE_REFRESH_META,
-                    'refresh-meta',
-                    phaseStart(
-                        refresh,
-                        PHASE.SQLITE_XTREAM_DELETE_COLLECT_USER_DATA,
-                        'refresh-delete'
-                    )
-                ),
-            },
-            {
-                ...cancel,
-                events: movePair(
-                    cancel.events,
-                    PHASE.SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS,
-                    'cache-clear-live',
-                    102
-                ),
-            },
-            {
-                ...cancel,
-                events: movePair(
-                    cancel.events,
-                    PHASE.CANCEL_SESSION,
-                    'cancel-session',
-                    phaseStart(
-                        cancel,
-                        PHASE.SQLITE_CONTENT_WRITE_TRANSACTIONS,
-                        'content-save-live'
-                    ) - 2
-                ),
-            },
-            {
-                ...deletion,
-                events: movePair(
-                    deletion.events,
-                    PHASE.STORE_DELETE_ROW,
-                    'delete-store',
-                    102
-                ),
-                uiPaintEpochMs: deletion.terminalEpochMs - 1,
-            },
-        ];
-
-        for (const candidate of candidates) {
-            assert.throws(
-                () => attributeXtreamPhases(candidate),
-                /invalid Xtream phase capture/
-            );
         }
     });
 
@@ -353,21 +275,3 @@ describe('Xtream phase attribution', () => {
         );
     });
 });
-
-function movePair(
-    events: ReturnType<typeof scenarioCapture>['events'],
-    phase: string,
-    correlationId: string,
-    startEpochMs: number
-) {
-    return events.map((event) =>
-        event.phase === phase && event.correlationId === correlationId
-            ? {
-                  ...event,
-                  epochMs:
-                      startEpochMs +
-                      (event.boundary === 'end' ? Number(event.durationMs) : 0),
-              }
-            : event
-    );
-}

@@ -77,7 +77,9 @@ type ElectronFixtures = {
 
 export type LaunchElectronAppOptions = {
     args?: readonly string[];
+    environmentInheritance?: 'all' | 'runtime-only';
     env?: Record<string, string | undefined>;
+    omitEnvKeys?: readonly string[];
 };
 
 export type PortalDebugEvent = {
@@ -197,16 +199,7 @@ export async function launchElectronApp(
 
     const electronApp = await electron.launch({
         args,
-        env: {
-            ...process.env,
-            // Electron E2E uses local mock HTTP servers for playlists, portals, and EPG sources.
-            IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS:
-                process.env['IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS'] ?? '1',
-            ...options.env,
-            ELECTRON_IS_DEV: '0',
-            IPTVNATOR_E2E_DATA_DIR: dataDir,
-            NODE_ENV: 'test',
-        },
+        env: buildElectronLaunchEnvironment(dataDir, options),
     });
     attachElectronProcessDiagnostics(electronApp);
 
@@ -220,6 +213,86 @@ export async function launchElectronApp(
         electronApp,
         mainWindow,
     };
+}
+
+export function buildElectronLaunchEnvironment(
+    dataDir: string,
+    options: LaunchElectronAppOptions = {},
+    inheritedEnvironment: NodeJS.ProcessEnv = process.env
+): Record<string, string> {
+    if (
+        options.environmentInheritance !== undefined &&
+        options.environmentInheritance !== 'all' &&
+        options.environmentInheritance !== 'runtime-only'
+    ) {
+        throw new Error('Electron environment inheritance mode is invalid');
+    }
+    const runtimeOnly = options.environmentInheritance === 'runtime-only';
+    const environment: Record<string, string | undefined> = {
+        ...(runtimeOnly
+            ? selectElectronRuntimeEnvironment(inheritedEnvironment)
+            : inheritedEnvironment),
+        // Electron E2E uses local mock HTTP servers for playlists, portals, and EPG sources.
+        IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS: runtimeOnly
+            ? '1'
+            : (inheritedEnvironment['IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS'] ??
+              '1'),
+        ...options.env,
+        ELECTRON_IS_DEV: '0',
+        IPTVNATOR_E2E_DATA_DIR: dataDir,
+        NODE_ENV: 'test',
+    };
+    for (const key of options.omitEnvKeys ?? []) {
+        delete environment[key];
+    }
+    return Object.fromEntries(
+        Object.entries(environment).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string'
+        )
+    );
+}
+
+export const ELECTRON_RUNTIME_ENVIRONMENT_KEYS = Object.freeze([
+    'APPDATA',
+    'COMSPEC',
+    'DBUS_SESSION_BUS_ADDRESS',
+    'DISPLAY',
+    'HOME',
+    'LANG',
+    'LANGUAGE',
+    'LC_ALL',
+    'LC_CTYPE',
+    'LOCALAPPDATA',
+    'LOGNAME',
+    'PATH',
+    'PATHEXT',
+    'SYSTEMROOT',
+    'TEMP',
+    'TMP',
+    'TMPDIR',
+    'USER',
+    'USERPROFILE',
+    'WAYLAND_DISPLAY',
+    'WINDIR',
+    'XAUTHORITY',
+    'XDG_RUNTIME_DIR',
+    'XDG_SESSION_TYPE',
+    '__CF_USER_TEXT_ENCODING',
+] as const);
+
+function selectElectronRuntimeEnvironment(
+    inheritedEnvironment: NodeJS.ProcessEnv
+): Record<string, string> {
+    const selected: Record<string, string> = {};
+    const allowed = new Set(
+        ELECTRON_RUNTIME_ENVIRONMENT_KEYS.map((key) => key.toUpperCase())
+    );
+    for (const [key, value] of Object.entries(inheritedEnvironment)) {
+        if (typeof value === 'string' && allowed.has(key.toUpperCase())) {
+            selected[key] = value;
+        }
+    }
+    return selected;
 }
 
 /**
@@ -1703,9 +1776,7 @@ export async function expectWorkspaceSearchStatus(
 }
 
 /** The degraded-search hint chip must be absent (e.g. complete local search). */
-export async function expectNoWorkspaceSearchStatus(
-    page: Page
-): Promise<void> {
+export async function expectNoWorkspaceSearchStatus(page: Page): Promise<void> {
     await expect(
         page.locator('app-workspace-shell-header .search-chip--status')
     ).toHaveCount(0);

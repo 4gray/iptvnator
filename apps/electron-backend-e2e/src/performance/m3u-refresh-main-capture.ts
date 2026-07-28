@@ -20,6 +20,8 @@ import {
 import {
     createDatabaseWorkerCancelCapture,
     type DatabaseWorkerCancelCapture,
+    type DatabaseWorkerCancelCaptureSnapshot,
+    type DatabaseWorkerCancelTimelineRecord,
 } from './database-worker-cancel-capture';
 import {
     createDatabaseWorkerPostGcCutoffApi,
@@ -41,7 +43,9 @@ import {
 } from './database-worker-post-gc-selection';
 import type {
     MainCaptureMetrics,
+    WorkerCaptureMetrics,
     WorkerPostGcHeapUnavailableReason,
+    WorkerRequestPerformanceMetrics,
 } from './m3u-refresh-cancellation-contract';
 import {
     selectMainCaptureGeneration,
@@ -68,12 +72,17 @@ import {
     type PerformanceTimelineMergeApi,
 } from './performance-timeline-merge';
 import { createXtreamIpcMarkerCapture } from './xtream-ipc-marker-events';
+import type {
+    XtreamIpcMarkerCaptureSnapshot,
+    XtreamIpcTimelineRecord,
+} from './xtream-ipc-marker-events.model';
 import { createXtreamIpcMarkerProtocol } from './xtream-ipc-marker-protocol';
 import { createXtreamMainLifecycleValidator } from './xtream-main-lifecycle';
 
 const MAIN_CAPTURE_STATE_KEY = '__iptvnatorM3uRefreshMainCapture';
 
 export interface MainCaptureStartOptions {
+    readonly deferMeasurement?: boolean;
     readonly diagnostic: boolean;
     readonly outputDirectory: string;
     readonly rendererWindowIdentity: RendererWindowIdentity;
@@ -97,14 +106,100 @@ export interface MainCaptureRolloverResult {
     readonly nextCaptureUnavailableReason: string | null;
 }
 
-interface MainCaptureRolloverStatus {
+export type XtreamMainCaptureOperationOutcomeKind =
+    'error' | 'pending' | 'success';
+
+export interface XtreamMainCaptureOperationOutcome {
+    readonly count: number;
+    readonly operation: string;
+    readonly outcome: XtreamMainCaptureOperationOutcomeKind;
+}
+
+export interface XtreamMainCaptureOperationProgress {
+    readonly current: number | null;
+    readonly epochMs: number;
+    readonly phase: string | null;
+    readonly status:
+        'cancelled' | 'completed' | 'error' | 'progress' | 'started';
+    readonly total: number | null;
+}
+
+export interface XtreamMainCaptureActiveOperation {
+    readonly operation: string;
+    readonly operationId: string | null;
+    readonly playlistId: string | null;
+    readonly progress: XtreamMainCaptureOperationProgress | null;
+    readonly requestId: string;
+}
+
+export interface XtreamMainCaptureInvalidReasons {
+    readonly capture: readonly string[];
+    readonly databaseWorkerCancel: readonly string[];
+    readonly xtreamIpc: readonly string[];
+}
+
+export interface XtreamMainCaptureStatus {
+    readonly active: boolean;
+    readonly activeOperations: readonly XtreamMainCaptureActiveOperation[];
+    readonly captureGeneration: number;
+    readonly captureStartedEpochMs: number;
+    readonly cutoffPhase: 'active' | 'idle' | 'stopping';
+    readonly databaseWorkerCount: number;
+    readonly invalidReasons: readonly string[];
+    readonly lateDatabaseRequestCount: number;
+    readonly lateEventCount: number;
+    readonly measurementPhase: 'armed' | 'frozen' | 'measuring';
+    readonly measurementStartedEpochMs: number | null;
+    readonly operationOutcomes: readonly XtreamMainCaptureOperationOutcome[];
+    readonly playlistRefreshWorkerCount: number;
+}
+
+export interface MainCaptureRolloverStatus {
     readonly nextCaptureStarted: boolean;
     readonly nextCaptureUnavailableReason: string | null;
 }
 
-type MainCaptureStopTransport = MainCaptureGenerationTransport & {
+export interface XtreamMainCaptureTransport extends MainCaptureGenerationTransport {
     readonly rollover: MainCaptureRolloverStatus | null;
-};
+    readonly xtream: {
+        readonly cancelCapture: DatabaseWorkerCancelCaptureSnapshot;
+        readonly captureCutoffEpochMs: number;
+        readonly captureGeneration: number;
+        readonly captureStartedEpochMs: number;
+        readonly captureStoppedEpochMs: number;
+        readonly databaseWorkerCount: number;
+        readonly invalidReasons: readonly string[];
+        readonly ipcCapture: XtreamIpcMarkerCaptureSnapshot;
+        readonly lateDatabaseRequestCount: number;
+        readonly lateEventCount: number;
+        readonly measurementStartedEpochMs: number;
+        readonly operationOutcomes: readonly XtreamMainCaptureOperationOutcome[];
+        readonly playlistRefreshWorkerCount: number;
+    };
+}
+
+export interface XtreamMainCaptureResult {
+    readonly cancelTimeline: readonly DatabaseWorkerCancelTimelineRecord[];
+    readonly capture: MainCaptureMetrics;
+    readonly captureCutoffEpochMs: number;
+    readonly captureGeneration: number;
+    readonly captureStartedEpochMs: number;
+    readonly captureStoppedEpochMs: number;
+    readonly databaseWorkerCount: number;
+    readonly invalidReasons: XtreamMainCaptureInvalidReasons;
+    readonly ipcTimeline: readonly XtreamIpcTimelineRecord[];
+    readonly lateDatabaseRequestCount: number;
+    readonly lateEventCount: number;
+    readonly measurementStartedEpochMs: number;
+    readonly operationOutcomes: readonly XtreamMainCaptureOperationOutcome[];
+    readonly playlistRefreshWorkerCount: number;
+    readonly quarantinedIpcMarkerCount: number;
+    readonly requests: readonly WorkerRequestPerformanceMetrics[];
+    readonly rollover: MainCaptureRolloverStatus | null;
+    readonly workers: readonly WorkerCaptureMetrics[];
+}
+
+type MainCaptureStopTransport = XtreamMainCaptureTransport;
 
 export async function installMainCapture(
     electronApp: ElectronApplication
@@ -231,7 +326,7 @@ export async function installMainCapture(
             requestPerformance: WorkerRequestPerformance[];
             responseEpochMs: number | null;
             samplePromise: Promise<void> | null;
-            sampleTimer: NodeJS.Timeout | null;
+            samplingStarted: boolean;
             snapshotPath: string | null;
             terminatedEpochMs: number | null;
             worker: InstrumentedWorker;
@@ -266,10 +361,10 @@ export async function installMainCapture(
         const databaseRequestIdentityCapture = target[
             input.databaseRequestIdentityStateKey
         ] as DatabaseRequestIdentityCaptureApi;
+        const restoreFunction = <T>(source: string): T =>
+            new Function(`"use strict"; return (${source});`)() as T;
         const restoreFactory = <T>(source: string): T => {
-            const factory = new Function(
-                `"use strict"; return (${source});`
-            )() as () => T;
+            const factory = restoreFunction<() => T>(source);
             return factory();
         };
         const databaseWorkerPostGcCutoffApi =
@@ -304,20 +399,20 @@ export async function installMainCapture(
             restoreFactory<WorkerTerminationGenerationApi>(
                 input.workerTerminationGenerationApiFactorySource
             );
-        const diagnosticsPerformancePhaseEventParserFactory = restoreFactory<
+        const diagnosticsPerformancePhaseEventParserFactory = restoreFunction<
             typeof createDiagnosticsPerformancePhaseEventParser
         >(input.diagnosticsPerformancePhaseEventParserFactorySource);
         const performanceTimelineMergeApi =
             restoreFactory<PerformanceTimelineMergeApi>(
                 input.performanceTimelineMergeApiFactorySource
             );
-        const xtreamIpcMarkerProtocolFactory = restoreFactory<
+        const xtreamIpcMarkerProtocolFactory = restoreFunction<
             typeof createXtreamIpcMarkerProtocol
         >(input.xtreamIpcMarkerProtocolFactorySource);
-        const xtreamIpcMarkerCaptureFactory = restoreFactory<
+        const xtreamIpcMarkerCaptureFactory = restoreFunction<
             typeof createXtreamIpcMarkerCapture
         >(input.xtreamIpcMarkerCaptureFactorySource);
-        const xtreamMainLifecycleValidatorFactory = restoreFactory<
+        const xtreamMainLifecycleValidatorFactory = restoreFunction<
             typeof createXtreamMainLifecycleValidator
         >(input.xtreamMainLifecycleValidatorFactorySource);
         const xtreamIpcMarkerCapture = xtreamIpcMarkerCaptureFactory(
@@ -328,6 +423,7 @@ export async function installMainCapture(
 
         const runtimeProcess = process as typeof process & {
             getBuiltinModule(id: string): unknown;
+            threadCpuUsage(previousValue?: NodeJS.CpuUsage): NodeJS.CpuUsage;
         };
         const fs = runtimeProcess.getBuiltinModule(
             'node:fs'
@@ -362,6 +458,7 @@ export async function installMainCapture(
                 identity: DatabaseRequestIdentity;
                 operation: string;
                 playlistId: string | null;
+                progress: XtreamMainCaptureOperationProgress | null;
                 record: WorkerRecord;
             }
         >();
@@ -369,6 +466,9 @@ export async function installMainCapture(
         const state = {
             active: false,
             captureGeneration: 0,
+            captureInvalidReasons: [] as string[],
+            captureOptions: null as MainCaptureStartOptions | null,
+            captureStartedEpochMs: null as number | null,
             cpuStart: null as NodeJS.CpuUsage | null,
             diagnostic: false,
             eventLoopDelay: null as ReturnType<
@@ -382,10 +482,13 @@ export async function installMainCapture(
             mainPeakRss: 0,
             mainProfilePath: null as string | null,
             mainSnapshotPath: null as string | null,
+            measurementPhase: 'armed' as 'armed' | 'frozen' | 'measuring',
+            measurementStartedEpochMs: null as number | null,
             outputDirectory: '',
             postGcHeap: null as number | null,
             postGcRss: null as number | null,
             rendererWindowSession: null as RendererWindowRssSession | null,
+            lateEventCount: 0,
             sampleTimer: null as NodeJS.Timeout | null,
             stopping: false,
             timeline: [] as TimelineRecord[],
@@ -400,6 +503,120 @@ export async function installMainCapture(
                 state.timeline.push({ epochMs: nowEpochMs(), ...record });
             }
         };
+        const invalidateCapture = (reason: string): void => {
+            if (!state.captureInvalidReasons.includes(reason)) {
+                state.captureInvalidReasons.push(reason);
+            }
+        };
+        const readDatabaseProgress = (
+            inputValue: unknown
+        ): XtreamMainCaptureOperationProgress | null => {
+            if (typeof inputValue !== 'object' || inputValue === null) {
+                invalidateCapture('database-operation-progress-invalid');
+                return null;
+            }
+            const event = inputValue as JsonRecord;
+            const status = event['status'];
+            const phase = event['phase'];
+            const current = event['current'];
+            const total = event['total'];
+            if (
+                typeof event['operation'] !== 'string' ||
+                !/^[a-z][a-z0-9-]{0,127}$/.test(event['operation']) ||
+                ![
+                    'cancelled',
+                    'completed',
+                    'error',
+                    'progress',
+                    'started',
+                ].includes(String(status)) ||
+                !(
+                    phase === undefined ||
+                    phase === null ||
+                    (typeof phase === 'string' &&
+                        /^[a-z][a-z0-9-]{0,127}$/.test(phase))
+                ) ||
+                !(
+                    current === undefined ||
+                    (typeof current === 'number' &&
+                        Number.isFinite(current) &&
+                        current >= 0)
+                ) ||
+                !(
+                    total === undefined ||
+                    (typeof total === 'number' &&
+                        Number.isFinite(total) &&
+                        total >= 0)
+                )
+            ) {
+                invalidateCapture('database-operation-progress-invalid');
+                return null;
+            }
+            return {
+                current: typeof current === 'number' ? current : null,
+                epochMs: nowEpochMs(),
+                phase: typeof phase === 'string' ? phase : null,
+                status: status as XtreamMainCaptureOperationProgress['status'],
+                total: typeof total === 'number' ? total : null,
+            };
+        };
+        const readOperationOutcomes =
+            (): XtreamMainCaptureOperationOutcome[] => {
+                const counts = new Map<
+                    string,
+                    { error: number; requests: number; success: number }
+                >();
+                for (const entry of state.timeline) {
+                    if (
+                        entry.type !== 'db-request' &&
+                        entry.type !== 'db-response'
+                    ) {
+                        continue;
+                    }
+                    if (
+                        typeof entry.operation !== 'string' ||
+                        !/^DB_[A-Z0-9_]{1,124}$/.test(entry.operation)
+                    ) {
+                        invalidateCapture('database-operation-outcome-invalid');
+                        continue;
+                    }
+                    const count = counts.get(entry.operation) ?? {
+                        error: 0,
+                        requests: 0,
+                        success: 0,
+                    };
+                    if (entry.type === 'db-request') {
+                        count.requests += 1;
+                    } else if (entry.success === true) {
+                        count.success += 1;
+                    } else if (entry.success === false) {
+                        count.error += 1;
+                    } else {
+                        invalidateCapture('database-operation-outcome-invalid');
+                    }
+                    counts.set(entry.operation, count);
+                }
+                const outcomes: XtreamMainCaptureOperationOutcome[] = [];
+                for (const operation of [...counts.keys()].sort()) {
+                    const count = counts.get(operation);
+                    if (!count) continue;
+                    const pending =
+                        count.requests - count.error - count.success;
+                    if (pending < 0) {
+                        invalidateCapture('database-operation-outcome-invalid');
+                    }
+                    for (const [outcome, value] of [
+                        ['error', count.error],
+                        ['pending', Math.max(0, pending)],
+                        ['success', count.success],
+                    ] as const) {
+                        if (value > 0) {
+                            outcomes.push({ count: value, operation, outcome });
+                        }
+                    }
+                }
+                return outcomes;
+            };
         const parseM3uImportPhase =
             diagnosticsPerformancePhaseEventParserFactory({
                 allowedPhases: input.m3uImportPerformancePhases,
@@ -519,7 +736,7 @@ export async function installMainCapture(
                 requestPerformance: [],
                 responseEpochMs: null,
                 samplePromise: null,
-                sampleTimer: null,
+                samplingStarted: false,
                 snapshotPath: null,
                 terminatedEpochMs: null,
                 worker,
@@ -588,6 +805,9 @@ export async function installMainCapture(
                 ) {
                     const event = message['event'];
                     const request = dbRequests.get(message['requestId']);
+                    if (request) {
+                        request.progress = readDatabaseProgress(event);
+                    }
                     if (
                         request &&
                         typeof event === 'object' &&
@@ -699,9 +919,6 @@ export async function installMainCapture(
             return record.samplePromise;
         };
         const resetWorkerForCapture = (record: WorkerRecord): void => {
-            if (record.sampleTimer) {
-                clearInterval(record.sampleTimer);
-            }
             record.cancelPostedEpochMs = null;
             record.captureGeneration = state.captureGeneration;
             record.cpuFirst = null;
@@ -729,28 +946,26 @@ export async function installMainCapture(
             record.requestPerformance = [];
             record.responseEpochMs = null;
             record.samplePromise = null;
-            record.sampleTimer = null;
+            record.samplingStarted = false;
             record.snapshotPath = null;
             record.terminatedEpochMs = null;
         };
-        const startWorker = (record: WorkerRecord): void => {
-            if (!state.active) {
+        const startWorker = async (record: WorkerRecord): Promise<void> => {
+            if (!state.active || state.measurementPhase !== 'measuring') {
                 return;
             }
             if (record.captureGeneration !== state.captureGeneration) {
                 resetWorkerForCapture(record);
             }
-            if (record.sampleTimer !== null) {
+            if (record.samplingStarted) {
                 return;
             }
+            record.samplingStarted = true;
             record.elu = null;
             record.eluStart =
                 record.worker.performance?.eventLoopUtilization() ?? null;
-            void sampleWorker(record);
-            record.sampleTimer = setInterval(
-                () => void sampleWorker(record),
-                20
-            );
+            const initialSample = sampleWorker(record);
+            let profileReady: Promise<unknown> = Promise.resolve();
             if (
                 state.diagnostic &&
                 typeof record.worker.startCpuProfile === 'function'
@@ -762,7 +977,7 @@ export async function installMainCapture(
                 const profileHandle = record.worker.startCpuProfile();
                 const profileCaptureKey = record.profileCaptureKey;
                 record.profileHandle = profileHandle;
-                void profileHandle.then(
+                profileReady = profileHandle.then(
                     (handle) => {
                         if (
                             record.profileCaptureKey === profileCaptureKey &&
@@ -771,15 +986,15 @@ export async function installMainCapture(
                             record.resolvedProfileHandle = handle;
                         }
                     },
-                    () => undefined
+                    (error: unknown) => {
+                        throw error;
+                    }
                 );
             }
+            await Promise.all([initialSample, profileReady]);
         };
         const stopWorkerSampling = (record: WorkerRecord): void => {
-            if (record.sampleTimer) {
-                clearInterval(record.sampleTimer);
-                record.sampleTimer = null;
-            }
+            record.samplingStarted = false;
         };
         const joinFinalWorkerSample = async (
             record: WorkerRecord
@@ -796,6 +1011,9 @@ export async function installMainCapture(
             const profileCaptureKey = record.profileCaptureKey;
             const profileHandle = record.profileHandle;
             if (!profileHandle || !record.profilePath) {
+                return;
+            }
+            if (record.profileResult !== null) {
                 return;
             }
             const handle =
@@ -824,7 +1042,8 @@ export async function installMainCapture(
             }
             fs.writeFileSync(
                 record.profilePath,
-                JSON.stringify(normalizeWorkerCpuProfile(record.profileResult))
+                JSON.stringify(normalizeWorkerCpuProfile(record.profileResult)),
+                { encoding: 'utf8', flag: 'wx', mode: 0o600 }
             );
             record.profileHandle = null;
             record.profileResult = null;
@@ -852,7 +1071,10 @@ export async function installMainCapture(
             const snapshot = await record.worker.getHeapSnapshot();
             await streamPromises.pipeline(
                 snapshot,
-                fs.createWriteStream(record.snapshotPath)
+                fs.createWriteStream(record.snapshotPath, {
+                    flags: 'wx',
+                    mode: 0o600,
+                })
             );
         };
         const reportWorkerArtifactFailure = (
@@ -883,7 +1105,7 @@ export async function installMainCapture(
             record.finalizing ??= databaseWorkerPostGcFinalizationApi
                 .finalize({
                     finalizationKey: record.finalizationKey,
-                    joinFinalSample: () => joinFinalWorkerSample(record),
+                    joinFinalSample: () => Promise.resolve(),
                     probePostGc: () =>
                         selectionUnavailableReason === null
                             ? databaseWorkerPostGcProbeApi.probe({
@@ -907,7 +1129,7 @@ export async function installMainCapture(
                               }),
                     reportAncillaryFailure: (stage, error) =>
                         reportWorkerArtifactFailure(record, stage, error),
-                    stopProfile: () => stopWorkerProfile(record),
+                    stopProfile: () => Promise.resolve(),
                     stopSampling: () => stopWorkerSampling(record),
                     ...(state.diagnostic
                         ? {
@@ -1009,6 +1231,7 @@ export async function installMainCapture(
                                 ? databaseWorkerPostGcCutoffApi.observeDatabaseRequest()
                                 : null;
                         if (requestDisposition === 'after-cutoff') {
+                            state.lateEventCount += 1;
                             state.timeline.push({
                                 epochMs: nowEpochMs(),
                                 operation:
@@ -1031,7 +1254,26 @@ export async function installMainCapture(
                             return;
                         }
                         const record = createWorkerRecord(this, kind);
-                        startWorker(record);
+                        if (
+                            state.active &&
+                            state.measurementPhase !== 'measuring'
+                        ) {
+                            invalidateCapture(
+                                'worker-request-before-measurement'
+                            );
+                        }
+                        if (
+                            state.active &&
+                            state.measurementPhase === 'measuring' &&
+                            kind === 'database.worker' &&
+                            (!isCurrentCaptureRecord(record) ||
+                                !record.samplingStarted)
+                        ) {
+                            invalidateCapture('database-worker-not-prearmed');
+                        }
+                        void startWorker(record).catch(() =>
+                            invalidateCapture('worker-measurement-start-failed')
+                        );
                         if (
                             isCurrentCaptureRecord(record) &&
                             kind === 'playlist-refresh.worker'
@@ -1084,6 +1326,7 @@ export async function installMainCapture(
                                 identity,
                                 operation: value['operation'],
                                 playlistId: readDatabasePlaylistId(value),
+                                progress: null,
                                 record,
                             });
                             recordTimeline({
@@ -1248,14 +1491,30 @@ export async function installMainCapture(
             state.mainPeakHeap = Math.max(state.mainPeakHeap, memory.heapUsed);
             state.mainPeakRss = Math.max(state.mainPeakRss, memory.rss);
             state.rendererWindowSession?.sample();
+            for (const record of records.values()) {
+                if (record.samplingStarted && isCurrentCaptureRecord(record)) {
+                    void sampleWorker(record);
+                }
+            }
         };
-        const startCapture = async (
-            options: MainCaptureStartOptions
-        ): Promise<void> => {
-            const captureStartedEpochMs = nowEpochMs();
-            state.rendererWindowSession?.detach();
-            state.rendererWindowSession = null;
-            const rendererWindowSession = rendererWindowRssSessionApi.create({
+        const beginMeasurement = async (): Promise<number> => {
+            if (
+                !state.active ||
+                state.stopping ||
+                state.measurementPhase !== 'armed' ||
+                state.measurementStartedEpochMs !== null ||
+                state.captureOptions === null
+            ) {
+                throw new Error('xtream-main-measurement-boundary-unavailable');
+            }
+            const options = state.captureOptions;
+            const databaseRecords = [...records.values()].filter(
+                (record) => record.kind === 'database.worker'
+            );
+            if (options.deferMeasurement && databaseRecords.length !== 1) {
+                throw new Error('xtream-database-worker-boundary-unavailable');
+            }
+            state.rendererWindowSession = rendererWindowRssSessionApi.create({
                 browserWindowFromId: (browserWindowId) =>
                     BrowserWindow.fromId(browserWindowId),
                 browserWindowId: options.rendererWindowIdentity.browserWindowId,
@@ -1263,9 +1522,56 @@ export async function installMainCapture(
                 rendererRssApi: rendererProcessRssApi,
                 webContentsId: options.rendererWindowIdentity.webContentsId,
             });
+            if (state.diagnostic) {
+                const session = new inspector.Session();
+                session.connect();
+                state.inspectorSession = session;
+                await inspectorPost(session, 'Profiler.enable');
+                await inspectorPost(session, 'Profiler.start');
+                state.mainProfilePath = path.join(
+                    state.outputDirectory,
+                    'main.cpuprofile'
+                );
+                state.mainSnapshotPath = path.join(
+                    state.outputDirectory,
+                    'main.heapsnapshot'
+                );
+            }
+            if (typeof runtimeProcess.threadCpuUsage !== 'function') {
+                throw new Error('electron-main-thread-cpu-unavailable');
+            }
+            state.measurementStartedEpochMs = nowEpochMs();
+            state.measurementPhase = 'measuring';
+            state.cpuStart = runtimeProcess.threadCpuUsage();
+            state.eventLoopStart = perfHooks.performance.eventLoopUtilization();
+            state.eventLoopDelay = perfHooks.monitorEventLoopDelay({
+                resolution: 1,
+            });
+            state.eventLoopDelay.enable();
+            state.mainPeakHeap = 0;
+            state.mainPeakRss = 0;
+            for (const record of databaseRecords) {
+                await startWorker(record);
+            }
+            sampleMain();
+            state.sampleTimer = setInterval(sampleMain, 20);
+            return state.measurementStartedEpochMs;
+        };
+        const startCapture = async (
+            options: MainCaptureStartOptions
+        ): Promise<void> => {
+            const captureStartedEpochMs = nowEpochMs();
+            state.rendererWindowSession?.detach();
+            state.rendererWindowSession = null;
             state.stopping = false;
             state.captureGeneration += 1;
             state.active = true;
+            state.captureInvalidReasons = [];
+            state.captureOptions = { ...options };
+            state.captureStartedEpochMs = captureStartedEpochMs;
+            state.measurementPhase = 'armed';
+            state.measurementStartedEpochMs = null;
+            state.lateEventCount = 0;
             databaseRequestIdentityCapture.start();
             databaseWorkerCancelCapture.start(state.captureGeneration);
             xtreamIpcMarkerCapture.start(
@@ -1283,29 +1589,11 @@ export async function installMainCapture(
             state.mainSnapshotPath = null;
             state.postGcHeap = null;
             state.postGcRss = null;
-            state.rendererWindowSession = rendererWindowSession;
-            state.cpuStart = process.cpuUsage();
-            state.eventLoopStart = perfHooks.performance.eventLoopUtilization();
-            state.eventLoopDelay = perfHooks.monitorEventLoopDelay({
-                resolution: 1,
-            });
-            state.eventLoopDelay.enable();
-            sampleMain();
-            state.sampleTimer = setInterval(sampleMain, 20);
-            if (state.diagnostic) {
-                const session = new inspector.Session();
-                session.connect();
-                state.inspectorSession = session;
-                await inspectorPost(session, 'Profiler.enable');
-                await inspectorPost(session, 'Profiler.start');
-                state.mainProfilePath = path.join(
-                    state.outputDirectory,
-                    'main.cpuprofile'
-                );
-                state.mainSnapshotPath = path.join(
-                    state.outputDirectory,
-                    'main.heapsnapshot'
-                );
+            state.cpuStart = null;
+            state.eventLoopStart = null;
+            state.eventLoopDelay = null;
+            if (!options.deferMeasurement) {
+                await beginMeasurement();
             }
         };
 
@@ -1353,12 +1641,32 @@ export async function installMainCapture(
                 databaseWorkerPostGcCutoffApi.beginCapture();
                 await startCapture(options);
             },
+            beginMeasurement: async (): Promise<number> => beginMeasurement(),
             stop: async (
                 nextOptions?: MainCaptureStartOptions
             ): Promise<MainCaptureStopTransport> => {
+                const captureCutoffEpochMs = nowEpochMs();
+                const completedCaptureGeneration = state.captureGeneration;
+                const completedCaptureStartedEpochMs =
+                    state.captureStartedEpochMs;
+                const completedMeasurementStartedEpochMs =
+                    state.measurementStartedEpochMs;
+                if (
+                    !Number.isSafeInteger(completedCaptureGeneration) ||
+                    completedCaptureGeneration <= 0 ||
+                    completedCaptureStartedEpochMs === null ||
+                    state.measurementPhase !== 'measuring' ||
+                    completedMeasurementStartedEpochMs === null
+                ) {
+                    throw new Error(
+                        'xtream-main-capture-generation-unavailable'
+                    );
+                }
                 databaseWorkerPostGcCutoffApi.beginStop();
                 state.stopping = true;
                 state.active = false;
+                state.measurementPhase = 'frozen';
+                const operationOutcomes = readOperationOutcomes();
                 const xtreamIpcSnapshot = xtreamIpcMarkerCapture.stop();
                 const databaseWorkerCancelSnapshot =
                     databaseWorkerCancelCapture.stop();
@@ -1395,6 +1703,9 @@ export async function installMainCapture(
                     (record) =>
                         record.captureGeneration === state.captureGeneration
                 );
+                const currentDatabaseRecords = currentWorkerRecords.filter(
+                    (record) => record.kind === 'database.worker'
+                );
                 for (const record of currentWorkerRecords) {
                     stopWorkerSampling(record);
                 }
@@ -1407,7 +1718,9 @@ export async function installMainCapture(
                 if (rendererWindow === null) {
                     throw new Error('renderer-window-session-missing');
                 }
-                const cpu = process.cpuUsage(state.cpuStart ?? undefined);
+                const cpu = runtimeProcess.threadCpuUsage(
+                    state.cpuStart ?? undefined
+                );
                 const eluEnd = perfHooks.performance.eventLoopUtilization();
                 const elu = perfHooks.performance.eventLoopUtilization(
                     state.eventLoopStart ?? undefined
@@ -1433,9 +1746,20 @@ export async function installMainCapture(
                     );
                     fs.writeFileSync(
                         state.mainProfilePath,
-                        JSON.stringify(result['profile'])
+                        JSON.stringify(result['profile']),
+                        { encoding: 'utf8', flag: 'wx', mode: 0o600 }
                     );
                 }
+                await Promise.all(
+                    currentDatabaseRecords.map((record) =>
+                        joinFinalWorkerSample(record)
+                    )
+                );
+                await Promise.all(
+                    currentDatabaseRecords.map((record) =>
+                        stopWorkerProfile(record)
+                    )
+                );
                 await Promise.all(
                     currentWorkerRecords
                         .filter(
@@ -1452,9 +1776,6 @@ export async function installMainCapture(
                         currentWorkerRecords,
                         state.captureGeneration
                     );
-                const currentDatabaseRecords = currentWorkerRecords.filter(
-                    (record) => record.kind === 'database.worker'
-                );
                 if (databaseSelection.selected) {
                     await finalizeDatabaseWorker(
                         databaseSelection.selected,
@@ -1477,7 +1798,10 @@ export async function installMainCapture(
                 state.postGcHeap = postGc.heapUsed;
                 state.postGcRss = postGc.rss;
                 if (state.diagnostic && state.mainSnapshotPath) {
-                    const output = fs.createWriteStream(state.mainSnapshotPath);
+                    const output = fs.createWriteStream(
+                        state.mainSnapshotPath,
+                        { flags: 'wx', mode: 0o600 }
+                    );
                     const onChunk = (message: { params: { chunk: string } }) =>
                         output.write(message.params.chunk);
                     session.on('HeapProfiler.addHeapSnapshotChunk', onChunk);
@@ -1609,6 +1933,25 @@ export async function installMainCapture(
                     },
                     workers,
                 };
+                const captureStoppedEpochMs = nowEpochMs();
+                const xtream = {
+                    cancelCapture: databaseWorkerCancelSnapshot,
+                    captureCutoffEpochMs,
+                    captureGeneration: completedCaptureGeneration,
+                    captureStartedEpochMs: completedCaptureStartedEpochMs,
+                    captureStoppedEpochMs,
+                    databaseWorkerCount: currentDatabaseRecords.length,
+                    invalidReasons: [...state.captureInvalidReasons],
+                    ipcCapture: xtreamIpcSnapshot,
+                    lateDatabaseRequestCount: cutoff.lateRequestCount,
+                    lateEventCount: state.lateEventCount,
+                    measurementStartedEpochMs:
+                        completedMeasurementStartedEpochMs,
+                    operationOutcomes,
+                    playlistRefreshWorkerCount: currentWorkerRecords.filter(
+                        ({ kind }) => kind === 'playlist-refresh.worker'
+                    ).length,
+                };
                 let rollover: MainCaptureRolloverStatus | null = null;
                 if (nextOptions) {
                     const databaseRecord =
@@ -1654,11 +1997,423 @@ export async function installMainCapture(
                     databaseWorkerPostGcCutoffApi.finishStop();
                     state.stopping = false;
                 }
-                return { ...transport, rollover };
+                return { ...transport, rollover, xtream };
+            },
+            xtreamStatus: (): XtreamMainCaptureStatus => {
+                if (
+                    !Number.isSafeInteger(state.captureGeneration) ||
+                    state.captureGeneration <= 0 ||
+                    state.captureStartedEpochMs === null
+                ) {
+                    throw new Error(
+                        'xtream-main-capture-generation-unavailable'
+                    );
+                }
+                const cutoff = databaseWorkerPostGcCutoffApi.snapshot();
+                const currentWorkers = [...records.values()].filter(
+                    (record) =>
+                        record.captureGeneration === state.captureGeneration
+                );
+                return {
+                    active: state.active,
+                    activeOperations: [...dbRequests.entries()]
+                        .map(([requestId, request]) => ({
+                            operation: request.operation,
+                            operationId: request.identity.operationId,
+                            playlistId: request.playlistId,
+                            progress: request.progress
+                                ? { ...request.progress }
+                                : null,
+                            requestId,
+                        }))
+                        .sort(
+                            (left, right) =>
+                                left.operation.localeCompare(right.operation) ||
+                                left.requestId.localeCompare(right.requestId)
+                        ),
+                    captureGeneration: state.captureGeneration,
+                    captureStartedEpochMs: state.captureStartedEpochMs,
+                    cutoffPhase: cutoff.phase,
+                    databaseWorkerCount: currentWorkers.filter(
+                        ({ kind }) => kind === 'database.worker'
+                    ).length,
+                    invalidReasons: [...state.captureInvalidReasons],
+                    lateDatabaseRequestCount: cutoff.lateRequestCount,
+                    lateEventCount: state.lateEventCount,
+                    measurementPhase: state.measurementPhase,
+                    measurementStartedEpochMs: state.measurementStartedEpochMs,
+                    operationOutcomes: readOperationOutcomes(),
+                    playlistRefreshWorkerCount: currentWorkers.filter(
+                        ({ kind }) => kind === 'playlist-refresh.worker'
+                    ).length,
+                };
             },
         };
         target[input.stateKey] = api;
     }, captureStateKeys);
+}
+
+const XTREAM_CAPTURE_OPERATION_PATTERN = /^DB_[A-Z0-9_]{1,124}$/;
+const XTREAM_CAPTURE_IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const XTREAM_CAPTURE_REASON_PATTERN = /^[a-z0-9][a-z0-9:-]{0,159}$/;
+const XTREAM_IPC_TIMELINE_TYPES = new Set([
+    'xtream-main-phase',
+    'xtream-preload-marker',
+]);
+const XTREAM_CANCEL_TIMELINE_TYPES = new Set([
+    'db-cancel-dispatched',
+    'db-cancel-received',
+    'db-cancel-terminal-received',
+]);
+
+function xtreamCaptureInvalid(kind: 'status' | 'transport'): never {
+    throw new Error(`xtream-main-capture-${kind}-invalid`);
+}
+
+function isFinitePositive(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+    return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+function snapshotXtreamReasons(
+    input: readonly string[],
+    kind: 'status' | 'transport'
+): readonly string[] {
+    if (
+        !Array.isArray(input) ||
+        input.some(
+            (reason) =>
+                typeof reason !== 'string' ||
+                !XTREAM_CAPTURE_REASON_PATTERN.test(reason)
+        )
+    ) {
+        xtreamCaptureInvalid(kind);
+    }
+    return Object.freeze([...input]);
+}
+
+function snapshotXtreamOperationOutcomes(
+    input: readonly XtreamMainCaptureOperationOutcome[],
+    kind: 'status' | 'transport'
+): readonly XtreamMainCaptureOperationOutcome[] {
+    if (!Array.isArray(input)) xtreamCaptureInvalid(kind);
+    const seen = new Set<string>();
+    const outcomes = input.map((entry) => {
+        if (
+            typeof entry !== 'object' ||
+            entry === null ||
+            !XTREAM_CAPTURE_OPERATION_PATTERN.test(entry.operation) ||
+            !['error', 'pending', 'success'].includes(entry.outcome) ||
+            !Number.isSafeInteger(entry.count) ||
+            entry.count <= 0
+        ) {
+            xtreamCaptureInvalid(kind);
+        }
+        const key = `${entry.operation}:${entry.outcome}`;
+        if (seen.has(key)) xtreamCaptureInvalid(kind);
+        seen.add(key);
+        return Object.freeze({ ...entry });
+    });
+    return Object.freeze(outcomes);
+}
+
+function snapshotXtreamProgress(
+    input: XtreamMainCaptureOperationProgress | null,
+    captureStartedEpochMs: number
+): XtreamMainCaptureOperationProgress | null {
+    if (input === null) return null;
+    if (
+        typeof input !== 'object' ||
+        !isFinitePositive(input.epochMs) ||
+        input.epochMs < captureStartedEpochMs ||
+        !['cancelled', 'completed', 'error', 'progress', 'started'].includes(
+            input.status
+        ) ||
+        !(
+            input.phase === null || /^[a-z][a-z0-9-]{0,127}$/.test(input.phase)
+        ) ||
+        !(
+            input.current === null ||
+            (Number.isFinite(input.current) && input.current >= 0)
+        ) ||
+        !(
+            input.total === null ||
+            (Number.isFinite(input.total) && input.total >= 0)
+        )
+    ) {
+        xtreamCaptureInvalid('status');
+    }
+    return Object.freeze({ ...input });
+}
+
+function snapshotXtreamStatus(
+    input: XtreamMainCaptureStatus
+): XtreamMainCaptureStatus {
+    if (
+        typeof input !== 'object' ||
+        input === null ||
+        typeof input.active !== 'boolean' ||
+        !Number.isSafeInteger(input.captureGeneration) ||
+        input.captureGeneration <= 0 ||
+        !isFinitePositive(input.captureStartedEpochMs) ||
+        !['armed', 'frozen', 'measuring'].includes(input.measurementPhase) ||
+        !(
+            (input.measurementPhase === 'armed' &&
+                input.measurementStartedEpochMs === null) ||
+            (input.measurementPhase !== 'armed' &&
+                isFinitePositive(input.measurementStartedEpochMs) &&
+                input.measurementStartedEpochMs >= input.captureStartedEpochMs)
+        ) ||
+        !['active', 'idle', 'stopping'].includes(input.cutoffPhase) ||
+        !isNonNegativeSafeInteger(input.databaseWorkerCount) ||
+        !isNonNegativeSafeInteger(input.playlistRefreshWorkerCount) ||
+        !isNonNegativeSafeInteger(input.lateDatabaseRequestCount) ||
+        !isNonNegativeSafeInteger(input.lateEventCount) ||
+        input.lateEventCount !== input.lateDatabaseRequestCount ||
+        !Array.isArray(input.activeOperations)
+    ) {
+        xtreamCaptureInvalid('status');
+    }
+    const activeOperations = input.activeOperations.map((entry) => {
+        if (
+            typeof entry !== 'object' ||
+            entry === null ||
+            !XTREAM_CAPTURE_OPERATION_PATTERN.test(entry.operation) ||
+            !XTREAM_CAPTURE_IDENTIFIER_PATTERN.test(entry.requestId) ||
+            !(
+                entry.operationId === null ||
+                XTREAM_CAPTURE_IDENTIFIER_PATTERN.test(entry.operationId)
+            ) ||
+            !(
+                entry.playlistId === null ||
+                XTREAM_CAPTURE_IDENTIFIER_PATTERN.test(entry.playlistId)
+            )
+        ) {
+            xtreamCaptureInvalid('status');
+        }
+        return Object.freeze({
+            ...entry,
+            progress: snapshotXtreamProgress(
+                entry.progress,
+                input.captureStartedEpochMs
+            ),
+        });
+    });
+    return Object.freeze({
+        ...input,
+        activeOperations: Object.freeze(activeOperations),
+        invalidReasons: snapshotXtreamReasons(input.invalidReasons, 'status'),
+        operationOutcomes: snapshotXtreamOperationOutcomes(
+            input.operationOutcomes,
+            'status'
+        ),
+    });
+}
+
+function snapshotXtreamIpcTimeline(
+    input: XtreamIpcMarkerCaptureSnapshot,
+    startedEpochMs: number,
+    cutoffEpochMs: number
+): readonly XtreamIpcTimelineRecord[] {
+    if (!Array.isArray(input.timeline)) xtreamCaptureInvalid('transport');
+    return Object.freeze(
+        input.timeline.map((record) => {
+            if (
+                typeof record !== 'object' ||
+                record === null ||
+                !XTREAM_IPC_TIMELINE_TYPES.has(record.type) ||
+                !['end', 'start'].includes(record.boundary) ||
+                !isFinitePositive(record.epochMs) ||
+                record.epochMs < startedEpochMs ||
+                record.epochMs > cutoffEpochMs
+            ) {
+                xtreamCaptureInvalid('transport');
+            }
+            return Object.freeze({ ...record });
+        })
+    );
+}
+
+function snapshotXtreamCancelTimeline(
+    input: DatabaseWorkerCancelCaptureSnapshot,
+    startedEpochMs: number,
+    cutoffEpochMs: number
+): readonly DatabaseWorkerCancelTimelineRecord[] {
+    if (!Array.isArray(input.timeline)) xtreamCaptureInvalid('transport');
+    return Object.freeze(
+        input.timeline.map((record) => {
+            if (
+                typeof record !== 'object' ||
+                record === null ||
+                !XTREAM_CANCEL_TIMELINE_TYPES.has(record.type) ||
+                !isFinitePositive(record.epochMs) ||
+                record.epochMs < startedEpochMs ||
+                record.epochMs > cutoffEpochMs ||
+                !Number.isSafeInteger(record.ipcCallId) ||
+                record.ipcCallId <= 0 ||
+                !XTREAM_CAPTURE_IDENTIFIER_PATTERN.test(record.operationId) ||
+                !XTREAM_CAPTURE_IDENTIFIER_PATTERN.test(record.requestId) ||
+                !isFinitePositive(record.sourceEpochMs) ||
+                record.sourceEpochMs > record.epochMs
+            ) {
+                xtreamCaptureInvalid('transport');
+            }
+            return Object.freeze({ ...record });
+        })
+    );
+}
+
+function snapshotXtreamResult(
+    input: XtreamMainCaptureTransport
+): XtreamMainCaptureResult {
+    try {
+        const evidence = input.xtream;
+        if (
+            !Number.isSafeInteger(input.captureGeneration) ||
+            input.captureGeneration <= 0 ||
+            evidence.captureGeneration !== input.captureGeneration ||
+            !isFinitePositive(evidence.captureStartedEpochMs) ||
+            !isFinitePositive(evidence.measurementStartedEpochMs) ||
+            !isFinitePositive(evidence.captureCutoffEpochMs) ||
+            !isFinitePositive(evidence.captureStoppedEpochMs) ||
+            evidence.captureCutoffEpochMs < evidence.captureStartedEpochMs ||
+            evidence.measurementStartedEpochMs <
+                evidence.captureStartedEpochMs ||
+            evidence.captureCutoffEpochMs <
+                evidence.measurementStartedEpochMs ||
+            evidence.captureStoppedEpochMs < evidence.captureCutoffEpochMs ||
+            !isNonNegativeSafeInteger(evidence.databaseWorkerCount) ||
+            !isNonNegativeSafeInteger(evidence.playlistRefreshWorkerCount) ||
+            !isNonNegativeSafeInteger(
+                evidence.ipcCapture.quarantinedKeyCount
+            ) ||
+            !isNonNegativeSafeInteger(evidence.lateDatabaseRequestCount) ||
+            !isNonNegativeSafeInteger(evidence.lateEventCount) ||
+            evidence.lateEventCount !== evidence.lateDatabaseRequestCount
+        ) {
+            xtreamCaptureInvalid('transport');
+        }
+        const capture = selectMainCaptureGeneration(input);
+        const workers = Object.freeze([...capture.workers]);
+        const requests = Object.freeze(
+            workers.flatMap((worker) => worker.requests)
+        );
+        if (
+            workers.filter(({ kind }) => kind === 'database.worker').length !==
+                evidence.databaseWorkerCount ||
+            workers.filter(({ kind }) => kind === 'playlist-refresh.worker')
+                .length !== evidence.playlistRefreshWorkerCount
+        ) {
+            xtreamCaptureInvalid('transport');
+        }
+        const rollover =
+            input.rollover === null
+                ? null
+                : Object.freeze({ ...input.rollover });
+        if (
+            rollover !== null &&
+            (typeof rollover.nextCaptureStarted !== 'boolean' ||
+                !(
+                    rollover.nextCaptureUnavailableReason === null ||
+                    typeof rollover.nextCaptureUnavailableReason === 'string'
+                ))
+        ) {
+            xtreamCaptureInvalid('transport');
+        }
+        const operationOutcomes = snapshotXtreamOperationOutcomes(
+            evidence.operationOutcomes,
+            'transport'
+        );
+        const completedOutcomes = new Map<string, number>();
+        for (const worker of workers) {
+            if (worker.kind !== 'database.worker') continue;
+            for (const request of worker.requests) {
+                if (
+                    typeof request.operation !== 'string' ||
+                    !XTREAM_CAPTURE_OPERATION_PATTERN.test(request.operation)
+                ) {
+                    xtreamCaptureInvalid('transport');
+                }
+                const key = `${request.operation}:${
+                    request.success ? 'success' : 'error'
+                }`;
+                completedOutcomes.set(
+                    key,
+                    (completedOutcomes.get(key) ?? 0) + 1
+                );
+            }
+        }
+        const capturedCompletedOutcomes = new Map(
+            operationOutcomes
+                .filter(({ outcome }) => outcome !== 'pending')
+                .map(({ count, operation, outcome }) => [
+                    `${operation}:${outcome}`,
+                    count,
+                ])
+        );
+        if (
+            completedOutcomes.size !== capturedCompletedOutcomes.size ||
+            [...completedOutcomes].some(
+                ([key, count]) => capturedCompletedOutcomes.get(key) !== count
+            )
+        ) {
+            xtreamCaptureInvalid('transport');
+        }
+        const ipcTimeline = snapshotXtreamIpcTimeline(
+            evidence.ipcCapture,
+            evidence.captureStartedEpochMs,
+            evidence.captureCutoffEpochMs
+        );
+        const cancelTimeline = snapshotXtreamCancelTimeline(
+            evidence.cancelCapture,
+            evidence.captureStartedEpochMs,
+            evidence.captureCutoffEpochMs
+        );
+        return Object.freeze({
+            cancelTimeline,
+            capture: Object.freeze({ ...capture, workers }),
+            captureCutoffEpochMs: evidence.captureCutoffEpochMs,
+            captureGeneration: evidence.captureGeneration,
+            captureStartedEpochMs: evidence.captureStartedEpochMs,
+            captureStoppedEpochMs: evidence.captureStoppedEpochMs,
+            databaseWorkerCount: evidence.databaseWorkerCount,
+            invalidReasons: Object.freeze({
+                capture: snapshotXtreamReasons(
+                    evidence.invalidReasons,
+                    'transport'
+                ),
+                databaseWorkerCancel: snapshotXtreamReasons(
+                    evidence.cancelCapture.invalidReasons,
+                    'transport'
+                ),
+                xtreamIpc: snapshotXtreamReasons(
+                    evidence.ipcCapture.invalidReasons,
+                    'transport'
+                ),
+            }),
+            ipcTimeline,
+            lateDatabaseRequestCount: evidence.lateDatabaseRequestCount,
+            lateEventCount: evidence.lateEventCount,
+            measurementStartedEpochMs: evidence.measurementStartedEpochMs,
+            operationOutcomes,
+            playlistRefreshWorkerCount: evidence.playlistRefreshWorkerCount,
+            quarantinedIpcMarkerCount: evidence.ipcCapture.quarantinedKeyCount,
+            requests,
+            rollover,
+            workers,
+        });
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            error.message === 'xtream-main-capture-transport-invalid'
+        ) {
+            throw error;
+        }
+        return xtreamCaptureInvalid('transport');
+    }
 }
 
 export async function startMainCapture(
@@ -1677,6 +2432,18 @@ export async function startMainCapture(
     );
 }
 
+export async function beginXtreamMainMeasurement(
+    electronApp: ElectronApplication
+): Promise<number> {
+    return electronApp.evaluate(async (_electron, stateKey) => {
+        const target = globalThis as unknown as Record<string, unknown>;
+        const api = target[stateKey] as {
+            beginMeasurement(): Promise<number>;
+        };
+        return api.beginMeasurement();
+    }, MAIN_CAPTURE_STATE_KEY);
+}
+
 export async function readMainCaptureStatus(
     electronApp: ElectronApplication
 ): Promise<MainCaptureStatus> {
@@ -1687,6 +2454,19 @@ export async function readMainCaptureStatus(
         };
         return api.status();
     }, MAIN_CAPTURE_STATE_KEY);
+}
+
+export async function readXtreamMainCaptureStatus(
+    electronApp: ElectronApplication
+): Promise<XtreamMainCaptureStatus> {
+    const status = await electronApp.evaluate((_electron, stateKey) => {
+        const target = globalThis as unknown as Record<string, unknown>;
+        const api = target[stateKey] as {
+            xtreamStatus(): XtreamMainCaptureStatus;
+        };
+        return api.xtreamStatus();
+    }, MAIN_CAPTURE_STATE_KEY);
+    return snapshotXtreamStatus(status);
 }
 
 export async function rolloverMainCapture(
@@ -1730,4 +2510,47 @@ export async function stopMainCapture(
         MAIN_CAPTURE_STATE_KEY
     );
     return selectMainCaptureGeneration(transport);
+}
+
+export async function rolloverXtreamMainCapture(
+    electronApp: ElectronApplication,
+    options: MainCaptureStartOptions
+): Promise<XtreamMainCaptureResult> {
+    const transport = await electronApp.evaluate(
+        async (_electron, input) => {
+            const target = globalThis as unknown as Record<string, unknown>;
+            const api = target[input.stateKey] as {
+                stop(
+                    nextOptions?: MainCaptureStartOptions
+                ): Promise<XtreamMainCaptureTransport>;
+            };
+            return api.stop(input.options);
+        },
+        { options, stateKey: MAIN_CAPTURE_STATE_KEY }
+    );
+    const result = snapshotXtreamResult(transport);
+    if (result.rollover === null) {
+        throw new Error('xtream-main-capture-rollover-status-missing');
+    }
+    return result;
+}
+
+export async function stopXtreamMainCapture(
+    electronApp: ElectronApplication
+): Promise<XtreamMainCaptureResult> {
+    const transport = await electronApp.evaluate(
+        async (_electron, stateKey) => {
+            const target = globalThis as unknown as Record<string, unknown>;
+            const api = target[stateKey] as {
+                stop(): Promise<XtreamMainCaptureTransport>;
+            };
+            return api.stop();
+        },
+        MAIN_CAPTURE_STATE_KEY
+    );
+    const result = snapshotXtreamResult(transport);
+    if (result.rollover !== null) {
+        throw new Error('xtream-main-capture-stop-rollover-unexpected');
+    }
+    return result;
 }

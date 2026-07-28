@@ -1,12 +1,17 @@
-import { once } from 'node:events';
 import { createWriteStream } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { finished } from 'node:stream/promises';
 
 import type { CDPSession } from '@playwright/test';
 
 interface TraceData {
     readonly value: readonly unknown[];
+}
+
+export interface RendererHeapUsageSample {
+    readonly epochMs: number;
+    readonly usedSize: number;
 }
 
 export interface RendererArtifactCapture {
@@ -27,7 +32,9 @@ export function createRendererArtifactCapture(options: {
     const tracePath = options.diagnostic
         ? join(options.outputDirectory, 'renderer.trace.json')
         : null;
-    const traceOutput = tracePath ? createWriteStream(tracePath) : null;
+    const traceOutput = tracePath
+        ? createWriteStream(tracePath, { flags: 'wx', mode: 0o600 })
+        : null;
     let traceOutputOpened = false;
     let traceOutputFinish: Promise<void> | null = null;
     let traceFirstEvent = true;
@@ -62,9 +69,7 @@ export function createRendererArtifactCapture(options: {
                     traceOutput.write(']}');
                     traceOutput.end();
                 }
-                if (!traceOutput.writableFinished) {
-                    await once(traceOutput, 'finish');
-                }
+                await finished(traceOutput);
             })();
             return traceOutputFinish;
         },
@@ -122,7 +127,7 @@ export async function stopRendererDiagnosticCapture(
         await writeFile(
             requirePath(artifacts.cpuProfilePath, 'renderer CPU profile'),
             JSON.stringify(cpuProfile['profile']),
-            'utf8'
+            { encoding: 'utf8', flag: 'wx', mode: 0o600 }
         );
         await session.send('Tracing.end');
         await artifacts.traceComplete;
@@ -145,7 +150,8 @@ export async function takeRendererHeapSnapshot(
     path: string | null
 ): Promise<void> {
     const output = createWriteStream(
-        requirePath(path, 'renderer heap snapshot')
+        requirePath(path, 'renderer heap snapshot'),
+        { flags: 'wx', mode: 0o600 }
     );
     const onChunk = ({ chunk }: { readonly chunk: string }): void => {
         output.write(chunk);
@@ -158,9 +164,43 @@ export async function takeRendererHeapSnapshot(
     } finally {
         session.off('HeapProfiler.addHeapSnapshotChunk', onChunk);
         output.end();
-        if (!output.writableFinished) {
-            await once(output, 'finish');
-        }
+        await finished(output);
+    }
+}
+
+export function selectRendererPeakHeapUsedBytes(
+    samples: readonly RendererHeapUsageSample[],
+    measurementStartEpochMs: number,
+    terminalEpochMs: number
+): number {
+    const inWindow = samples.filter(
+        ({ epochMs, usedSize }) =>
+            Number.isFinite(epochMs) &&
+            epochMs >= measurementStartEpochMs &&
+            epochMs <= terminalEpochMs &&
+            Number.isFinite(usedSize) &&
+            usedSize >= 0
+    );
+    if (inWindow.length === 0) {
+        throw new Error('renderer-heap-window-empty');
+    }
+    return Math.max(...inWindow.map(({ usedSize }) => usedSize));
+}
+
+export function assertRendererMeasurementWindow(input: {
+    readonly captureCutoffEpochMs: number;
+    readonly measurementStartEpochMs: number;
+    readonly operationStartEpochMs: number;
+    readonly terminalEpochMs: number;
+}): void {
+    const epochs = Object.values(input);
+    if (
+        !epochs.every((epoch) => Number.isFinite(epoch) && epoch > 0) ||
+        input.measurementStartEpochMs < input.operationStartEpochMs ||
+        input.terminalEpochMs < input.measurementStartEpochMs ||
+        input.captureCutoffEpochMs < input.terminalEpochMs
+    ) {
+        throw new Error('renderer-measurement-window-invalid');
     }
 }
 

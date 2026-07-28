@@ -1,7 +1,5 @@
 import type {
     XtreamControlState,
-    XtreamLedgerEntry,
-    XtreamOccurrence,
     XtreamPerformanceManifest,
     XtreamScenarioId,
 } from './xtream-benchmark-contract';
@@ -14,6 +12,7 @@ import {
     parseXtreamControlState,
     parseXtreamManifest,
 } from './xtream-control-state-schema';
+import { assertXtreamScenarioObservations } from './xtream-control-observation-contract';
 
 export {
     assertXtreamArtifactRedacted,
@@ -36,16 +35,6 @@ export interface XtreamControlClient {
     state(): Promise<XtreamControlState>;
 }
 
-const FULL_ACTIONS = [
-    'get_account_info',
-    'get_live_categories',
-    'get_vod_categories',
-    'get_series_categories',
-    'get_live_streams',
-    'get_vod_streams',
-    'get_series',
-] as const;
-const CATEGORY_ACTIONS = FULL_ACTIONS.slice(1, 4);
 export function createXtreamControlClient(
     options: XtreamControlClientOptions
 ): XtreamControlClient {
@@ -233,13 +222,7 @@ export function assertXtreamControlStateForScenario(
     try {
         const state = parseXtreamControlState(input);
         assertPreparedState(state, expectedManifest);
-        const expected =
-            scenarioId === 'xtream-delete-large'
-                ? []
-                : scenarioId === 'xtream-cancel-import'
-                  ? FULL_ACTIONS.slice(0, 5)
-                  : FULL_ACTIONS;
-        assertExactActions(state, expected);
+        assertXtreamScenarioObservations(scenarioId, state);
     } catch {
         throw new Error('invalid Xtream mock observations');
     }
@@ -260,112 +243,6 @@ function assertPreparedState(
         throw new Error('state residue');
     }
     assertXtreamManifestIdentity(manifest, state.prepared);
-}
-
-function assertExactActions(
-    state: XtreamControlState,
-    expected: readonly string[]
-): void {
-    if (
-        state.occurrences.length !== expected.length ||
-        state.ledger.length !== expected.length * 2
-    ) {
-        throw new Error('action cardinality');
-    }
-    const lifecycle = new Map<string, { arrived: number; responded: number }>();
-    for (const action of expected) {
-        const occurrence = state.occurrences.find(
-            (entry) => entry.action === action
-        );
-        const entries = state.ledger.filter((entry) => entry.action === action);
-        const arrived = entries.find((entry) => entry.status === 'arrived');
-        const responded = entries.find((entry) => entry.status === 'responded');
-        if (
-            !isExpectedOccurrence(occurrence) ||
-            entries.length !== 2 ||
-            !isExpectedLedger(arrived, state.epoch, 1) ||
-            !isExpectedLedger(responded, state.epoch, 1) ||
-            arrived.status !== 'arrived' ||
-            responded.status !== 'responded' ||
-            arrived.atMs > responded.atMs
-        ) {
-            throw new Error('action lifecycle');
-        }
-        lifecycle.set(action, {
-            arrived: arrived.atMs,
-            responded: responded.atMs,
-        });
-    }
-    if (
-        state.occurrences.some((entry) => !expected.includes(entry.action)) ||
-        state.ledger.some((entry) => !expected.includes(entry.action))
-    ) {
-        throw new Error('unexpected action');
-    }
-    assertActionOrder(expected, lifecycle);
-}
-
-function assertActionOrder(
-    expected: readonly string[],
-    lifecycle: ReadonlyMap<string, { arrived: number; responded: number }>
-): void {
-    if (expected.length === 0) return;
-    const account = lifecycle.get('get_account_info');
-    const liveCategory = lifecycle.get(CATEGORY_ACTIONS[0]);
-    const vodCategory = lifecycle.get(CATEGORY_ACTIONS[1]);
-    const seriesCategory = lifecycle.get(CATEGORY_ACTIONS[2]);
-    const live = lifecycle.get('get_live_streams');
-    if (
-        !account ||
-        !liveCategory ||
-        !vodCategory ||
-        !seriesCategory ||
-        account.responded >
-            Math.min(
-                liveCategory.arrived,
-                vodCategory.arrived,
-                seriesCategory.arrived
-            ) ||
-        !live ||
-        Math.max(
-            liveCategory.responded,
-            vodCategory.responded,
-            seriesCategory.responded
-        ) > live.arrived
-    ) {
-        throw new Error('action order');
-    }
-    const vod = lifecycle.get('get_vod_streams');
-    const series = lifecycle.get('get_series');
-    if (
-        (vod && live.responded > vod.arrived) ||
-        (series && (!vod || vod.responded > series.arrived))
-    ) {
-        throw new Error('content order');
-    }
-}
-
-function isExpectedOccurrence(value: XtreamOccurrence | undefined): boolean {
-    return (
-        value?.scenario === 'performance-100k' &&
-        value.transport === 'direct' &&
-        value.categoryId === 'all' &&
-        value.count === 1
-    );
-}
-
-function isExpectedLedger(
-    value: XtreamLedgerEntry | undefined,
-    epoch: number,
-    occurrence: number
-): value is XtreamLedgerEntry {
-    return (
-        value?.scenario === 'performance-100k' &&
-        value.transport === 'direct' &&
-        value.categoryId === 'all' &&
-        value.epoch === epoch &&
-        value.occurrence === occurrence
-    );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

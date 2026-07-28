@@ -93,7 +93,7 @@ describe('Xtream preload performance capture safety', () => {
         const entryRead = jest.fn(() => {
             throw new Error('array entries must stay opaque');
         });
-        const streams = [,] as unknown[];
+        const streams = new Array<unknown>(1);
         Object.defineProperty(streams, 0, { get: entryRead });
         const markers: XtreamPreloadPerformanceMarker[] = [];
         const capture = createXtreamPreloadPerformanceCapture(

@@ -90,7 +90,7 @@ describe('Xtream IPC attribution producer identity', () => {
         );
         const legacy = raw.phaseCapture.ipcSpans.find(
             ({ boundary, method }) =>
-                boundary === 'request' && method === 'dbGetAppPlaylist'
+                boundary === 'request' && method === 'dbUpsertAppPlaylist'
         );
         const xtream = raw.phaseCapture.ipcSpans.find(
             ({ boundary, method }) =>
@@ -156,7 +156,7 @@ describe('Xtream IPC attribution producer identity', () => {
         );
         const legacy = raw.phaseCapture.ipcSpans.find(
             ({ boundary, method }) =>
-                boundary === 'request' && method === 'dbGetAppPlaylist'
+                boundary === 'request' && method === 'dbUpsertAppPlaylist'
         );
         assert.ok(cancellation);
         assert.ok(legacy);
@@ -166,7 +166,7 @@ describe('Xtream IPC attribution producer identity', () => {
                 : span
         );
         const requests = raw.databaseWorker.requests.evidence.map((request) =>
-            request.operation === 'DB_GET_APP_PLAYLIST' &&
+            request.operation === 'DB_UPSERT_APP_PLAYLIST' &&
             request.ipcCallId === legacy.ipcCallId
                 ? { ...request, ipcCallId: cancellation.ipcCallId }
                 : request

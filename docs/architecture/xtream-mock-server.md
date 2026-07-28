@@ -6,7 +6,7 @@
 Xtream Codes API protocol. It is used for:
 
 - **Local development** — run a full portal without a real Xtream subscription
-- **E2E testing** — Playwright spins it up alongside the Angular dev server
+- **E2E testing** — Playwright uses it for both web and Electron workflows
 - **Performance investigation** — a locked-down loopback control plane
   prepares and identifies a fixed synthetic 100k catalog before capture
 
@@ -455,6 +455,78 @@ This scenario is reserved for local performance captures:
 - empty/local-only artwork and direct-source fields
 - VOD and series detail records are materialized only on request
 - preparation and manifest hashing happen before the timed application request
+
+### Electron Xtream performance benchmark
+
+Run a formal benchmark from a clean worktree with the standard CDP endpoint
+available at `127.0.0.1:9222`:
+
+```bash
+perf_output="$PWD/dist/performance/$(date -u +%Y%m%dT%H%M%SZ)-xtream"
+IPTVNATOR_PERF_OUTPUT_DIR="$perf_output" \
+IPTVNATOR_PERF_VARIANT=baseline \
+NX_TASKS_RUNNER_DYNAMIC_OUTPUT=false \
+pnpm nx run electron-backend-e2e:benchmark-xtream --skip-nx-cache
+```
+
+The target starts an isolated control-enabled mock server on
+`127.0.0.1:3221` and uses only the synthetic `performance:performance`
+credentials and fixture. It covers initial import, refresh, deletion,
+cancellation during import, and navigation/search/UI interaction during a
+background operation. Every scenario has one warm-up, five measured
+iterations, and one diagnostic iteration. Only the five measured iterations
+of a clean formal run can have `validForComparison: true`.
+
+Capture setup and operation measurement are separate boundaries. The harness
+first installs and arms the main, renderer, and worker capture infrastructure;
+it then starts the main measurement and renderer operation window immediately
+before triggering the user operation. Profiler attachment, fixture preparation,
+and other setup outside that operation window are not application work. Because
+`database.worker` is persistent but created lazily, the harness awaits the
+read-only `window.electron.dbGetAppPlaylists()` preload call immediately after
+installing main capture. Its result is discarded: this pre-arm only guarantees
+that the exact worker can be profiled and happens before seed or measured
+capture.
+
+Diagnostic profiles are evidence envelopes, not comparison totals. Starting
+Chromium tracing and the CPU profilers can add a short pre-trigger setup segment
+that contains no application workload; the raw boundary timestamps preserve
+that segment explicitly. Formal summaries compare only the five measured runs,
+never warm-up or diagnostic totals.
+
+CPU scopes in the summary are intentionally not interchangeable. Electron main
+CPU uses `process.threadCpuUsage()` and is labeled
+`electron-main-thread`. Database-worker CPU is the sum of thread CPU from valid,
+non-overlapping request work and is labeled
+`sum-valid-request-thread-cpu`; it is neither process-wide CPU nor a whole-worker
+sample.
+
+Scenarios that need an existing portal seed it outside the measured iteration.
+Seed completion is authoritative only after a successful
+`store.xtream-import-terminal` renderer phase marker, the matching terminal DOM
+gate, and two consecutive painted `requestAnimationFrame` frames. The harness
+then verifies main-process settlement before rolling over to the measured
+capture; merely seeing the catalog or loading overlay disappear is not a seed
+terminal.
+
+For an end-to-end wiring check, run smoke mode with one comparison-ineligible
+measured iteration per scenario. An unused loopback CDP port may be selected
+when the formal port is occupied:
+
+```bash
+perf_output="$PWD/dist/performance/$(date -u +%Y%m%dT%H%M%SZ)-xtream-smoke"
+IPTVNATOR_PERF_OUTPUT_DIR="$perf_output" \
+IPTVNATOR_PERF_VARIANT=smoke \
+IPTVNATOR_PERF_SMOKE=1 \
+IPTVNATOR_PERF_CDP_PORT=9322 \
+NX_TASKS_RUNNER_DYNAMIC_OUTPUT=false \
+pnpm nx run electron-backend-e2e:benchmark-xtream --skip-nx-cache
+```
+
+The manifest, summary, per-iteration JSON, traces, CPU profiles, and heap
+snapshots stay under the git-ignored `dist/performance/` tree. Never commit
+those artifacts, and never substitute real credentials, portal URLs, or
+provider data.
 
 ---
 

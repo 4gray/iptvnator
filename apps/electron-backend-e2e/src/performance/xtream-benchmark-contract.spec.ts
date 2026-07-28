@@ -174,36 +174,6 @@ describe('Xtream benchmark contract', () => {
         );
     });
 
-    it('accepts exact import and cancel request catalogs after observation reset', () => {
-        for (const scenarioId of [
-            XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE,
-            XTREAM_SCENARIO_ID.REFRESH_LARGE,
-            XTREAM_SCENARIO_ID.BACKGROUND_UI,
-        ] as const) {
-            assert.doesNotThrow(() =>
-                assertXtreamControlStateForScenario(
-                    scenarioId,
-                    controlState(fullActions()),
-                    MANIFEST
-                )
-            );
-        }
-        assert.doesNotThrow(() =>
-            assertXtreamControlStateForScenario(
-                XTREAM_SCENARIO_ID.CANCEL_IMPORT,
-                controlState(cancelActions()),
-                MANIFEST
-            )
-        );
-        assert.doesNotThrow(() =>
-            assertXtreamControlStateForScenario(
-                XTREAM_SCENARIO_ID.DELETE_LARGE,
-                controlState([]),
-                MANIFEST
-            )
-        );
-    });
-
     it('requires a clean, same-epoch pre-trigger state after observation reset', () => {
         const ready = controlState([]);
         assert.doesNotThrow(() =>
@@ -231,15 +201,18 @@ describe('Xtream benchmark contract', () => {
         assert.doesNotThrow(() =>
             assertXtreamControlStateForScenario(
                 XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE,
-                controlState([
-                    ['get_account_info', 'all', 1],
-                    ['get_series_categories', 'all', 2],
-                    ['get_vod_categories', 'all', 3],
-                    ['get_live_categories', 'all', 4],
-                    ['get_live_streams', 'all', 5],
-                    ['get_vod_streams', 'all', 6],
-                    ['get_series', 'all', 7],
-                ]),
+                controlState(
+                    [
+                        ['get_account_info', 'all', 1],
+                        ['get_series_categories', 'all', 2],
+                        ['get_vod_categories', 'all', 3],
+                        ['get_live_categories', 'all', 4],
+                        ['get_live_streams', 'all', 5],
+                        ['get_vod_streams', 'all', 6],
+                        ['get_series', 'all', 7],
+                    ],
+                    2
+                ),
                 MANIFEST
             )
         );
@@ -247,33 +220,36 @@ describe('Xtream benchmark contract', () => {
 
     it('fails closed on action drift, proxy traffic, residue, and ordering drift', () => {
         const cases: XtreamControlState[] = [
-            controlState(fullActions().slice(0, -1)),
-            controlState([...fullActions(), ['get_vod_info', 'all', 8]]),
+            controlState(fullActions().slice(0, -1), 2),
+            controlState([...fullActions(), ['get_vod_info', 'all', 8]], 2),
             {
-                ...controlState(fullActions()),
-                occurrences: controlState(fullActions()).occurrences.map(
+                ...controlState(fullActions(), 2),
+                occurrences: controlState(fullActions(), 2).occurrences.map(
                     (entry, index) =>
                         index === 0 ? { ...entry, transport: 'proxy' } : entry
                 ),
             },
             {
-                ...controlState(fullActions()),
+                ...controlState(fullActions(), 2),
                 rules: [{ kind: 'delay' }],
             },
             {
-                ...controlState(fullActions()),
+                ...controlState(fullActions(), 2),
                 heldCount: 1,
                 heldIds: ['leftover'],
             },
-            controlState([
-                ['get_account_info', 'all', 1],
-                ['get_live_streams', 'all', 2],
-                ['get_live_categories', 'all', 3],
-                ['get_vod_categories', 'all', 4],
-                ['get_series_categories', 'all', 5],
-                ['get_vod_streams', 'all', 6],
-                ['get_series', 'all', 7],
-            ]),
+            controlState(
+                [
+                    ['get_account_info', 'all', 1],
+                    ['get_live_streams', 'all', 2],
+                    ['get_live_categories', 'all', 3],
+                    ['get_vod_categories', 'all', 4],
+                    ['get_series_categories', 'all', 5],
+                    ['get_vod_streams', 'all', 6],
+                    ['get_series', 'all', 7],
+                ],
+                2
+            ),
         ];
 
         for (const invalid of cases) {
@@ -329,11 +305,10 @@ function fullActions(): readonly Action[] {
     ];
 }
 
-function cancelActions(): readonly Action[] {
-    return fullActions().slice(0, 5);
-}
-
-function controlState(actions: readonly Action[]): XtreamControlState {
+function controlState(
+    actions: readonly Action[],
+    accountCount = 1
+): XtreamControlState {
     return {
         epoch: MANIFEST.epoch,
         prepared: MANIFEST,
@@ -345,29 +320,42 @@ function controlState(actions: readonly Action[]): XtreamControlState {
             transport: 'direct',
             action,
             categoryId,
-            count: 1,
+            count: action === 'get_account_info' ? accountCount : 1,
         })),
-        ledger: actions.flatMap(([action, categoryId, order]) => [
-            {
-                epoch: MANIFEST.epoch,
-                scenario: 'performance-100k',
-                transport: 'direct' as const,
-                action,
-                categoryId,
-                occurrence: 1,
-                status: 'arrived' as const,
-                atMs: order * 10,
-            },
-            {
-                epoch: MANIFEST.epoch,
-                scenario: 'performance-100k',
-                transport: 'direct' as const,
-                action,
-                categoryId,
-                occurrence: 1,
-                status: 'responded' as const,
-                atMs: order * 10 + 1,
-            },
-        ]),
+        ledger: actions.flatMap(([action, categoryId, order]) =>
+            Array.from(
+                {
+                    length: action === 'get_account_info' ? accountCount : 1,
+                },
+                (_, index) => {
+                    const shiftedOrder =
+                        order +
+                        index +
+                        (action === 'get_account_info' ? 0 : accountCount - 1);
+                    return [
+                        {
+                            epoch: MANIFEST.epoch,
+                            scenario: 'performance-100k',
+                            transport: 'direct' as const,
+                            action,
+                            categoryId,
+                            occurrence: index + 1,
+                            status: 'arrived' as const,
+                            atMs: shiftedOrder * 10,
+                        },
+                        {
+                            epoch: MANIFEST.epoch,
+                            scenario: 'performance-100k',
+                            transport: 'direct' as const,
+                            action,
+                            categoryId,
+                            occurrence: index + 1,
+                            status: 'responded' as const,
+                            atMs: shiftedOrder * 10 + 1,
+                        },
+                    ];
+                }
+            ).flat()
+        ),
     };
 }

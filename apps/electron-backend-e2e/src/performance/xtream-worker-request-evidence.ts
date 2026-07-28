@@ -264,16 +264,13 @@ function expectedItemCounts(
     operation: string
 ): readonly (readonly (number | null)[])[] | null {
     if (operation === 'DB_UPSERT_APP_PLAYLIST') return [[null, 1]];
-    if (operation === 'DB_GET_APP_PLAYLIST') {
-        const count =
-            scenarioId === XTREAM_SCENARIO_ID.REFRESH_LARGE ||
-            scenarioId === XTREAM_SCENARIO_ID.BACKGROUND_UI
-                ? 2
-                : 1;
-        return Array.from({ length: count }, () => [1, 0]);
-    }
+    if (operation === 'DB_GET_APP_PLAYLIST') return [[1, 0]];
     if (operation === 'DB_GET_CATEGORIES') {
-        return [[0], [0], [0], [60], [20], [20]];
+        const importReads = [[0], [0], [0], [60], [20], [20]] as const;
+        return scenarioId === XTREAM_SCENARIO_ID.REFRESH_LARGE ||
+            scenarioId === XTREAM_SCENARIO_ID.BACKGROUND_UI
+            ? [...importReads, [60], [20], [20]]
+            : importReads;
     }
     if (operation === 'DB_SAVE_CATEGORIES') {
         return [
@@ -283,9 +280,19 @@ function expectedItemCounts(
         ];
     }
     if (operation === 'DB_GET_CONTENT') {
-        return scenarioId === XTREAM_SCENARIO_ID.CANCEL_IMPORT
-            ? [[0]]
-            : [[0], [60_000], [0], [20_000], [0], [20_000]];
+        if (scenarioId === XTREAM_SCENARIO_ID.CANCEL_IMPORT) return [[0]];
+        const importReads = [
+            [0],
+            [60_000],
+            [0],
+            [20_000],
+            [0],
+            [20_000],
+        ] as const;
+        return scenarioId === XTREAM_SCENARIO_ID.REFRESH_LARGE ||
+            scenarioId === XTREAM_SCENARIO_ID.BACKGROUND_UI
+            ? [...importReads, [60_000], [20_000], [20_000]]
+            : importReads;
     }
     if (operation === 'DB_SAVE_CONTENT') {
         return scenarioId === XTREAM_SCENARIO_ID.CANCEL_IMPORT

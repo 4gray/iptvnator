@@ -1,4 +1,5 @@
 import type { XtreamBenchmarkManifest } from './xtream-benchmark-contract';
+import { parseXtreamBenchmarkBuildIdentity } from './xtream-build-identity-schema';
 import { assertXtreamArtifactRedacted } from './xtream-diagnostic-artifacts';
 import { XTREAM_MEMORY_ACCOUNTING } from './xtream-summary-contract';
 
@@ -7,6 +8,7 @@ export const XTREAM_IDENTIFIER =
     /^(?!(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$))[A-Za-z0-9](?:[A-Za-z0-9._-]{0,126}[A-Za-z0-9_-])?$/iu;
 
 const ROOT_KEYS = [
+    'build',
     'environment',
     'fixture',
     'memoryAccounting',
@@ -48,6 +50,7 @@ export function parseXtreamBenchmarkManifest(
 ): XtreamBenchmarkManifest {
     try {
         const input = snapshotExactRecord(value, ROOT_KEYS);
+        const build = parseXtreamBenchmarkBuildIdentity(input['build']);
         const environment = snapshotExactRecord(
             input['environment'],
             ENVIRONMENT_KEYS
@@ -60,6 +63,7 @@ export function parseXtreamBenchmarkManifest(
         const runtime = snapshotExactRecord(input['runtime'], RUNTIME_KEYS);
         const source = snapshotExactRecord(input['source'], SOURCE_KEYS);
         const snapshot = {
+            build,
             environment: { ...environment },
             fixture: { ...fixture },
             memoryAccounting: { ...memoryAccounting },

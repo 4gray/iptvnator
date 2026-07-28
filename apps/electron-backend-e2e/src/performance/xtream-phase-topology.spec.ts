@@ -222,7 +222,7 @@ describe('Xtream request-level phase topology', () => {
             XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE
         );
         const ipcSpans = initial.ipcSpans.map((span) =>
-            span.correlationId === 'dbGetAppPlaylist-0'
+            span.correlationId === 'dbGetCategories-0'
                 ? { ...span, correlationId: 'dbUpsertAppPlaylist-0' }
                 : span
         );

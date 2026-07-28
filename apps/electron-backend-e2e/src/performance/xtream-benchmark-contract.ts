@@ -1,4 +1,5 @@
 import type { XTREAM_MEMORY_ACCOUNTING } from './xtream-summary-contract';
+import type { XtreamBenchmarkBuildIdentity } from './xtream-build-identity';
 
 export const XTREAM_SCENARIO_ID = {
     INITIAL_IMPORT_LARGE: 'xtream-initial-import-large',
@@ -87,6 +88,7 @@ export interface XtreamControlState {
 }
 
 export interface XtreamBenchmarkManifest {
+    readonly build: XtreamBenchmarkBuildIdentity;
     readonly environment: XtreamBenchmarkEnvironment;
     readonly fixture: XtreamBenchmarkFixture;
     readonly memoryAccounting: typeof XTREAM_MEMORY_ACCOUNTING;
@@ -287,7 +289,8 @@ const WORKER_REQUEST_INVENTORY: Readonly<
 > = Object.freeze({
     [XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE]: inventory(
         request('DB_UPSERT_APP_PLAYLIST', 1, PHASES.playlistUpsert),
-        request('DB_GET_APP_PLAYLIST', 1, PHASES.playlistGet),
+        request('DB_GET_PLAYLIST', 1),
+        request('DB_GET_ALL_PLAYBACK_POSITIONS', 1),
         ...fullImportRequests()
     ),
     [XTREAM_SCENARIO_ID.REFRESH_LARGE]: refreshRequests(),
@@ -296,7 +299,8 @@ const WORKER_REQUEST_INVENTORY: Readonly<
     ),
     [XTREAM_SCENARIO_ID.CANCEL_IMPORT]: inventory(
         request('DB_UPSERT_APP_PLAYLIST', 1, PHASES.playlistUpsert),
-        request('DB_GET_APP_PLAYLIST', 1, PHASES.playlistGet),
+        request('DB_GET_PLAYLIST', 1),
+        request('DB_GET_ALL_PLAYBACK_POSITIONS', 1),
         request('DB_GET_APP_STATE', 4),
         request('DB_GET_CATEGORIES', 6, PHASES.categoriesRead),
         request('DB_SAVE_CATEGORIES', 3, PHASES.categoriesWrite),
@@ -313,14 +317,21 @@ const WORKER_REQUEST_INVENTORY: Readonly<
     ),
 });
 
-function fullImportRequests(): readonly XtreamWorkerRequestInventoryEntry[] {
+function fullImportRequests(
+    reads: Readonly<{
+        appState: number;
+        categories: number;
+        content: number;
+        setAppState: number;
+    }> = { appState: 6, categories: 6, content: 6, setAppState: 3 }
+): readonly XtreamWorkerRequestInventoryEntry[] {
     return inventory(
-        request('DB_GET_APP_STATE', 6),
-        request('DB_GET_CATEGORIES', 6, PHASES.categoriesRead),
+        request('DB_GET_APP_STATE', reads.appState),
+        request('DB_GET_CATEGORIES', reads.categories, PHASES.categoriesRead),
         request('DB_SAVE_CATEGORIES', 3, PHASES.categoriesWrite),
-        request('DB_GET_CONTENT', 6, PHASES.contentRead),
+        request('DB_GET_CONTENT', reads.content, PHASES.contentRead),
         request('DB_SAVE_CONTENT', 3, PHASES.contentWrite),
-        request('DB_SET_APP_STATE', 3)
+        request('DB_SET_APP_STATE', reads.setAppState)
     );
 }
 
@@ -329,9 +340,15 @@ function refreshRequests(): readonly XtreamWorkerRequestInventoryEntry[] {
         request('DB_DELETE_XTREAM_CONTENT', 1, PHASES.xtreamDelete),
         request('DB_GET_ALL_PLAYBACK_POSITIONS', 1),
         request('DB_UPDATE_PLAYLIST', 1),
-        request('DB_GET_APP_PLAYLIST', 2, PHASES.playlistGet),
+        request('DB_GET_APP_PLAYLIST', 1, PHASES.playlistGet),
+        request('DB_GET_PLAYLIST', 2),
         request('DB_UPSERT_APP_PLAYLIST', 1, PHASES.playlistUpsert),
-        ...fullImportRequests(),
+        ...fullImportRequests({
+            appState: 12,
+            categories: 9,
+            content: 9,
+            setAppState: 6,
+        }),
         request('DB_RESTORE_XTREAM_USER_DATA', 1),
         request('DB_CLEAR_ALL_PLAYBACK_POSITIONS', 1)
     );

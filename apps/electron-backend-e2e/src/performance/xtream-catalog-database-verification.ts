@@ -149,9 +149,9 @@ function expectedSnapshot(
         contentCount: empty ? 0 : manifest.counts.items.total,
         databaseReadStartedEpochMs: 1,
         importStatuses: {
-            live: cancelled ? 'cancelled' : 'completed',
-            movie: cancelled ? 'cancelled' : 'completed',
-            series: cancelled ? 'cancelled' : 'completed',
+            live: cancelled ? 'failed' : 'completed',
+            movie: cancelled ? 'failed' : 'completed',
+            series: cancelled ? 'failed' : 'completed',
         },
         matchingPlaylistCount: deleted ? 0 : 1,
         matchingPlaylistType: deleted ? null : 'xtream',

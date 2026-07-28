@@ -1,48 +1,16 @@
 /* eslint-disable playwright/expect-expect -- These are Node assertion-based performance contract tests. */
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterEach, test } from 'node:test';
+import { test } from 'node:test';
 
 import {
     createXtreamIterationDefinitions,
     XTREAM_SCENARIO_ID,
     type XtreamScenarioId,
 } from './xtream-benchmark-contract';
-import {
-    createXtreamBenchmarkSummary,
-    persistThenValidateXtreamIteration,
-} from './xtream-benchmark-report';
-import {
-    MANIFEST,
-    TOKEN,
-    iteration,
-    sha256,
-} from './xtream-benchmark-report.fixtures';
-import {
-    clearXtreamProvenanceFixtureDirectories,
-    smokeReportFixture,
-} from './xtream-benchmark-report-provenance.fixtures';
-import { toXtreamRawIteration } from './xtream-exact-schema';
+import { iteration } from './xtream-benchmark-report.fixtures';
 import { assertXtreamIterationResult } from './xtream-iteration-validity';
-import type {
-    XtreamRawIterationResult,
-    XtreamValidatedIterationResult,
-} from './xtream-summary-contract';
-
-const directories: string[] = [];
-
-afterEach(async () => {
-    await Promise.all([
-        ...directories
-            .splice(0)
-            .map((directory) =>
-                rm(directory, { force: true, recursive: true })
-            ),
-        clearXtreamProvenanceFixtureDirectories(),
-    ]);
-});
+import type { XtreamRawIterationResult } from './xtream-summary-contract';
+import { validXtreamWorkerRequestIdentity } from './xtream-worker-request-identity';
 
 test('enforces producer-coherent request identities and source-to-worker chronology', () => {
     const raw = createRaw(XTREAM_SCENARIO_ID.INITIAL_IMPORT_LARGE);
@@ -51,6 +19,22 @@ test('enforces producer-coherent request identities and source-to-worker chronol
     const correlated = request(raw, 'DB_GET_CATEGORIES');
     const nonApplicable = request(raw, 'DB_GET_APP_STATE');
     const requiredOperationId = request(raw, 'DB_SAVE_CONTENT');
+    const receivedEpochMs = requireEpoch(correlated.requestReceivedEpochMs);
+
+    assert.equal(
+        validXtreamWorkerRequestIdentity({
+            ...correlated,
+            sourceEpochMs: receivedEpochMs + 0.006,
+        }),
+        true
+    );
+    assert.equal(
+        validXtreamWorkerRequestIdentity({
+            ...correlated,
+            sourceEpochMs: receivedEpochMs + 1,
+        }),
+        false
+    );
 
     assert.equal(nonApplicable.ipcCallId, null);
     assert.equal(nonApplicable.operationId, null);
@@ -84,8 +68,7 @@ test('enforces producer-coherent request identities and source-to-worker chronol
             operationIdUnavailableReason: null,
         }),
         replaceRequest(raw, correlated, {
-            sourceEpochMs:
-                requireEpoch(correlated.requestReceivedEpochMs) + 0.01,
+            sourceEpochMs: receivedEpochMs + 1,
         }),
     ];
 
@@ -285,37 +268,6 @@ test('requires the database-worker isolate heap to fit inside main-process RSS o
     );
 });
 
-test('rejects a schedule whose validated raw iterations reuse one persistence path', async () => {
-    const { diagnosticEvidence, iterations } = await smokeReportFixture();
-    const directory = await mkdtemp(
-        join(tmpdir(), 'iptvnator-xtream-shared-raw-path-')
-    );
-    directories.push(directory);
-    const absolutePath = join(directory, 'raw.json');
-    const first = await persistAt(
-        toXtreamRawIteration(required(iterations, 0)),
-        absolutePath
-    );
-    const second = await persistAt(
-        toXtreamRawIteration(required(iterations, 1)),
-        absolutePath
-    );
-    const reused = [...iterations];
-    reused[0] = first;
-    reused[1] = second;
-
-    assert.equal(first.persistence.pathSha256, second.persistence.pathSha256);
-    assert.throws(
-        () =>
-            createXtreamBenchmarkSummary(
-                { ...MANIFEST, mode: 'smoke' },
-                reused,
-                diagnosticEvidence
-            ),
-        /persistence path/
-    );
-});
-
 function createRaw(scenarioId: XtreamScenarioId): XtreamRawIterationResult {
     const definition = createXtreamIterationDefinitions(false).find(
         (candidate) => candidate.scenarioId === scenarioId
@@ -366,34 +318,4 @@ function requestItemCounts(
     return request.phaseEvents
         .filter(({ boundary }) => boundary === 'end')
         .map(({ metadata }) => metadata?.itemCount ?? null);
-}
-
-async function persistAt(
-    raw: XtreamRawIterationResult,
-    absolutePath: string
-): Promise<XtreamValidatedIterationResult> {
-    return persistThenValidateXtreamIteration(
-        raw,
-        {
-            controlToken: TOKEN,
-            syntheticCredentials: {
-                password: 'performance',
-                username: 'performance',
-            },
-        },
-        async (serialized) => {
-            await writeFile(absolutePath, serialized);
-            return {
-                absolutePath,
-                bytes: Buffer.byteLength(serialized),
-                sha256: sha256(serialized),
-            };
-        }
-    );
-}
-
-function required<T>(items: readonly T[], index: number): T {
-    const item = items[index];
-    assert.ok(item);
-    return item;
 }

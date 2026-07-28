@@ -81,28 +81,28 @@ export function scenarioCapture(
         builder.add(PHASE.STORE_REFRESH_META, 'refresh-meta', 1);
         addPlaylistRead(builder, 'refresh-effect');
         addPlaylistUpsert(builder);
-        addPlaylistRead(builder, 'workspace-route');
         builder.addProvider('provider-account', SEMANTIC.ACCOUNT);
         addImportFlow(builder);
+        addRouteHydration(builder);
         return builder.capture(
             scenarioId,
             ipcInventory({
                 dbDeleteXtreamContent: 1,
-                dbGetAppPlaylist: 2,
-                dbGetCategories: 6,
-                dbGetContent: 6,
+                dbGetAppPlaylist: 1,
+                dbGetCategories: 9,
+                dbGetContent: 9,
                 dbRestoreXtreamUserData: 1,
                 dbSaveCategories: 3,
                 dbSaveContent: 3,
                 dbUpsertAppPlaylist: 1,
-                xtreamRequest: 7,
+                xtreamRequest: 8,
             })
         );
     }
 
     addPlaylistUpsert(builder);
-    addPlaylistRead(builder, 'workspace-route');
     builder.addProvider('provider-account', SEMANTIC.ACCOUNT);
+    builder.addProvider('provider-account-route', SEMANTIC.ACCOUNT);
     addCategories(builder);
     if (scenarioId === XTREAM_SCENARIO_ID.CANCEL_IMPORT) {
         builder.add(PHASE.STORE_PUBLISH_CATEGORIES, 'store-categories', 100);
@@ -161,14 +161,13 @@ export function scenarioCapture(
             scenarioId,
             ipcInventory({
                 dbCancelOperation: 1,
-                dbGetAppPlaylist: 1,
                 dbGetCategories: 6,
                 dbGetContent: 1,
                 dbSaveCategories: 3,
                 dbSaveContent: -1,
                 dbUpsertAppPlaylist: 1,
                 xtreamCancelSession: 1,
-                xtreamRequest: 5,
+                xtreamRequest: 6,
             })
         );
     }
@@ -178,13 +177,12 @@ export function scenarioCapture(
     return builder.capture(
         scenarioId,
         ipcInventory({
-            dbGetAppPlaylist: 1,
             dbGetCategories: 6,
             dbGetContent: 6,
             dbSaveCategories: 3,
             dbSaveContent: 3,
             dbUpsertAppPlaylist: 1,
-            xtreamRequest: 7,
+            xtreamRequest: 8,
         })
     );
 }
@@ -193,6 +191,39 @@ function addImportFlow(builder: InventoryBuilder): void {
     addCategories(builder);
     builder.add(PHASE.STORE_PUBLISH_CATEGORIES, 'store-categories', 100);
     addContentAndStores(builder);
+}
+
+function addRouteHydration(builder: InventoryBuilder): void {
+    builder.addProvider('provider-account-route', SEMANTIC.ACCOUNT);
+    CATEGORY_COUNTS.forEach((count, index) => {
+        builder.add(
+            PHASE.SQLITE_CATEGORIES_READ,
+            `category-read-${index}-route`,
+            count,
+            CATEGORY_SEMANTICS[index]
+        );
+    });
+    builder.add(PHASE.STORE_PUBLISH_CATEGORIES, 'store-categories-route', 100);
+    const storePhases = [
+        PHASE.STORE_PUBLISH_LIVE,
+        PHASE.STORE_PUBLISH_VOD,
+        PHASE.STORE_PUBLISH_SERIES,
+    ] as const;
+    CONTENT_COUNTS.forEach((count, index) => {
+        builder.add(
+            PHASE.SQLITE_CONTENT_READ,
+            `content-read-${index}-route`,
+            count,
+            CONTENT_SEMANTICS[index]
+        );
+        builder.add(
+            storePhases[index],
+            `store-${CONTENT_SEMANTICS[index]}-route`,
+            count,
+            CONTENT_SEMANTICS[index]
+        );
+    });
+    builder.add(PHASE.STORE_IMPORT_TERMINAL, 'store-terminal-route', 100_000);
 }
 
 function addPlaylistRead(builder: InventoryBuilder, id: string): void {

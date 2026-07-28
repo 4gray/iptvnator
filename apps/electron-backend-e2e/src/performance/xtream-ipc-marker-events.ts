@@ -14,10 +14,8 @@ import {
     createXtreamMainLifecycleValidator,
     type XtreamMainLifecycleValidator,
 } from './xtream-main-lifecycle';
-
 export { deriveXtreamAcquisitionDurationMs } from './xtream-acquisition-duration';
 export type * from './xtream-ipc-marker-events.model';
-
 export function createXtreamIpcMarkerCapture(
     options: XtreamIpcMarkerCaptureOptions,
     protocol: XtreamIpcMarkerProtocol = createXtreamIpcMarkerProtocol(options),
@@ -31,13 +29,13 @@ export function createXtreamIpcMarkerCapture(
     let lastSourceEpochMs = 0;
     let timeline: XtreamIpcTimelineRecord[] = [];
     let invalidReasons: string[] = [];
+    const preloadSourceReceiptSkewToleranceMs = 1;
     const calls = new Map<number, XtreamIpcCallState>();
     const activeByKey = new Map<string, XtreamIpcCallState>();
     const pendingRequests = new Map<string, XtreamIpcRequestIdentity[]>();
     const quarantinedKeys = new Set<string>();
     const mainPhases = new Map<string, XtreamMainPhaseState>();
     const mainRequestCalls = new Map<string, XtreamIpcCallState>();
-
     const helpers = {
         invalidate(reason: string): false {
             invalidReasons.push(reason);
@@ -105,9 +103,7 @@ export function createXtreamIpcMarkerCapture(
     };
     return {
         acceptMainPhase(input) {
-            if (!active) {
-                return false;
-            }
+            if (!active) return false;
             const event = protocol.parseMainPhase(input);
             if (!event) {
                 return helpers.invalidate('main-phase-invalid');
@@ -220,11 +216,18 @@ export function createXtreamIpcMarkerCapture(
                     'preload-marker-before-capture-start'
                 );
             }
-            if (marker.sourceEpochMs > receivedEpochMs) {
+            if (
+                marker.sourceEpochMs - receivedEpochMs >=
+                preloadSourceReceiptSkewToleranceMs
+            ) {
                 return helpers.invalidate(
                     'preload-marker-source-after-receipt'
                 );
             }
+            const normalizedReceivedEpochMs = Math.max(
+                receivedEpochMs,
+                marker.sourceEpochMs
+            );
             if (marker.sourceEpochMs < lastSourceEpochMs) {
                 return helpers.invalidate(
                     'preload-marker-source-epoch-regressed'
@@ -250,7 +253,7 @@ export function createXtreamIpcMarkerCapture(
                     key,
                     marker,
                     quarantined: false,
-                    receivedEpochMs,
+                    receivedEpochMs: normalizedReceivedEpochMs,
                 };
                 calls.set(marker.ipcCallId, call);
                 activeByKey.set(key, call);
@@ -283,7 +286,7 @@ export function createXtreamIpcMarkerCapture(
                 boundary: marker.boundary,
                 categoryType: marker.categoryType,
                 contentType: marker.contentType,
-                epochMs: receivedEpochMs,
+                epochMs: normalizedReceivedEpochMs,
                 ipcCallId: marker.ipcCallId,
                 itemCount: marker.itemCount,
                 method: marker.method,

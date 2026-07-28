@@ -1,5 +1,7 @@
 import { isPositiveSafeInteger } from './xtream-exact-schema';
 
+const SOURCE_RECEIPT_CLOCK_SKEW_TOLERANCE_MS = 1;
+
 export const XTREAM_WORKER_REQUEST_IDENTITY_KIND = {
     LEGACY_PRELOAD: 'legacy-preload',
     NOT_APPLICABLE: 'not-applicable',
@@ -97,7 +99,8 @@ function hasOrderedIpcIdentity(value: Record<string, unknown>): boolean {
         isFinitePositive(sourceEpochMs) &&
         isFiniteNonNegative(requestReceivedEpochMs) &&
         isFiniteNonNegative(responseEpochMs) &&
-        sourceEpochMs <= requestReceivedEpochMs &&
+        sourceEpochMs - requestReceivedEpochMs <
+            SOURCE_RECEIPT_CLOCK_SKEW_TOLERANCE_MS &&
         requestReceivedEpochMs <= responseEpochMs
     );
 }

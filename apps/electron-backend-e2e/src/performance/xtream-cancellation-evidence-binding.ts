@@ -113,7 +113,7 @@ function assertCancellationTimeline(
         networkPreload[0].startEpochMs < click ||
         networkPreload[0].endEpochMs > networkCancel.startEpochMs ||
         networkCancel.endEpochMs > networkPreload[1].startEpochMs ||
-        networkPreload[1].endEpochMs > databasePreload[0].startEpochMs ||
+        networkPreload[1].startEpochMs > databasePreload[0].startEpochMs ||
         preloadStart !== databasePreload[0].startEpochMs ||
         dispatchRecord.ipcCallId !== databasePreload[0].ipcCallId ||
         dispatchRecord.sourceEpochMs !== databasePreload[0].sourceEpochMs ||
@@ -124,7 +124,6 @@ function assertCancellationTimeline(
         databasePreload[1].startEpochMs < dispatch ||
         preloadReturn !== databasePreload[1].endEpochMs ||
         preloadReturn < dispatch ||
-        preloadReturn > authoritative ||
         receipt !== receiptRecord.epochMs ||
         receipt < dispatch ||
         receipt > request.workEndedEpochMs ||

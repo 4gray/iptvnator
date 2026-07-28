@@ -200,7 +200,10 @@ function phaseItemCounts(
         return ordinal === 1 ? [100_100, 100_101] : [0, 1];
     }
     if (operation === 'DB_GET_CATEGORIES') {
-        return [[0], [60], [0], [20], [0], [20]][ordinal - 1] ?? [];
+        return (
+            [[0], [60], [0], [20], [0], [20], [60], [20], [20]][ordinal - 1] ??
+            []
+        );
     }
     if (operation === 'DB_SAVE_CATEGORIES') {
         const count = [60, 20, 20][ordinal - 1] ?? 0;
@@ -208,7 +211,19 @@ function phaseItemCounts(
     }
     if (operation === 'DB_GET_CONTENT') {
         if (scenarioId === XTREAM_SCENARIO_ID.CANCEL_IMPORT) return [0];
-        return [[0], [60_000], [0], [20_000], [0], [20_000]][ordinal - 1] ?? [];
+        return (
+            [
+                [0],
+                [60_000],
+                [0],
+                [20_000],
+                [0],
+                [20_000],
+                [60_000],
+                [20_000],
+                [20_000],
+            ][ordinal - 1] ?? []
+        );
     }
     if (operation === 'DB_SAVE_CONTENT') {
         if (scenarioId === XTREAM_SCENARIO_ID.CANCEL_IMPORT) {

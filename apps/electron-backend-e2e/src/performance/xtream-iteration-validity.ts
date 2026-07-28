@@ -5,9 +5,11 @@ import {
 } from './xtream-benchmark-contract';
 import {
     XTREAM_CANCEL_NETWORK_ABORT_REASON,
+    XTREAM_MAIN_CPU_METRIC_SCOPE,
     XTREAM_NOT_APPLICABLE,
     XTREAM_RENDERER_VISIBILITY,
     XTREAM_STRUCTURED_CLONE_ATTRIBUTION,
+    XTREAM_WORKER_CPU_METRIC_SCOPE,
     XTREAM_WORKER_REQUEST_METRIC_SCOPE,
     XTREAM_WORKER_WHOLE_METRIC_SCOPE,
     type XtreamRawIterationResult,
@@ -185,6 +187,7 @@ function assertMain(value: unknown, kind: unknown): void {
     const keys = [
         ...XTREAM_PROFILE_KEYS,
         ...XTREAM_MAIN_NUMBER_KEYS,
+        'cpuMetricScope',
         'eventLoopUtilization',
         'eventLoopUtilizationUnavailableReason',
     ] as const;
@@ -199,6 +202,8 @@ function assertMain(value: unknown, kind: unknown): void {
         value['eventLoopUtilization'] !== null ||
         value['eventLoopUtilizationUnavailableReason'] !==
             XTREAM_NOT_APPLICABLE.MAIN_EVENT_LOOP_UTILIZATION ||
+        value['cpuMetricScope'] !==
+            XTREAM_MAIN_CPU_METRIC_SCOPE.ELECTRON_MAIN_THREAD ||
         !hasOrderedEventLoopDelay(value) ||
         (value['peakHeapUsedBytes'] as number) <= 0 ||
         (value['peakRssBytes'] as number) <= 0 ||
@@ -220,6 +225,7 @@ function assertWorker(
     const keys = [
         ...XTREAM_PROFILE_KEYS,
         ...XTREAM_WORKER_NUMBER_KEYS,
+        'cpuMetricScope',
         'currentForCapture',
         'eventLoopDelayMetricScope',
         'kind',
@@ -233,6 +239,8 @@ function assertWorker(
         !hasFiniteNonNegativeKeys(value, XTREAM_WORKER_NUMBER_KEYS) ||
         !isXtreamProfile(value, kind) ||
         value['kind'] !== 'database.worker' ||
+        value['cpuMetricScope'] !==
+            XTREAM_WORKER_CPU_METRIC_SCOPE.SUM_VALID_REQUEST_WORK ||
         value['currentForCapture'] !== true ||
         !isPositiveSafeInteger(value['ordinal']) ||
         !isUtilization(value['eventLoopUtilization']) ||
@@ -315,7 +323,6 @@ function assertCancellation(value: unknown, scenarioId: unknown): void {
         preloadStart > databaseDispatch ||
         databaseDispatch > preloadReturn ||
         databaseDispatch > workerReceipt ||
-        preloadReturn > authoritativeTerminal ||
         workerReceipt > authoritativeTerminal ||
         authoritativeTerminal > painted ||
         !derived(

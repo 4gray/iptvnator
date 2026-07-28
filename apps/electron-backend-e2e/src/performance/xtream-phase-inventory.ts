@@ -131,8 +131,8 @@ export function expectedXtreamPhases(
         scenarioId === 'xtream-delete-large'
             ? 0
             : scenarioId === 'xtream-cancel-import'
-              ? 5
-              : 7;
+              ? 6
+              : 8;
     for (const phase of [
         PHASE.NETWORK_TOTAL,
         PHASE.JSON_TRANSFORM,
@@ -151,11 +151,14 @@ export function expectedXtreamPhases(
     const playlistReads =
         scenarioId === 'xtream-refresh-large' ||
         scenarioId === 'xtream-background-ui'
-            ? 2
-            : 1;
+            ? 1
+            : 0;
     add(PHASE.SQLITE_GENERIC_READ, playlistReads);
     add(PHASE.DESERIALIZE_PLAYLIST, playlistReads);
-    addFullCategories(add);
+    const routeHydratesAfterImport =
+        scenarioId === 'xtream-refresh-large' ||
+        scenarioId === 'xtream-background-ui';
+    addFullCategories(add, routeHydratesAfterImport);
     if (scenarioId === 'xtream-cancel-import') {
         add(PHASE.CANCEL_SESSION, 1);
         add(PHASE.SQLITE_CONTENT_READ, 1, [0]);
@@ -175,12 +178,32 @@ export function expectedXtreamPhases(
         add(PHASE.SQLITE_XTREAM_DELETE_WRITE_TRANSACTIONS, 1, [100_100]);
         add(PHASE.STORE_REFRESH_META, 1, [1]);
     }
-    addFullContent(add);
-    add(PHASE.STORE_PUBLISH_CATEGORIES, 1, [100]);
-    add(PHASE.STORE_PUBLISH_LIVE, 1, [60_000]);
-    add(PHASE.STORE_PUBLISH_VOD, 1, [20_000]);
-    add(PHASE.STORE_PUBLISH_SERIES, 1, [20_000]);
-    add(PHASE.STORE_IMPORT_TERMINAL, 1, [100_000]);
+    addFullContent(add, routeHydratesAfterImport);
+    add(
+        PHASE.STORE_PUBLISH_CATEGORIES,
+        routeHydratesAfterImport ? 2 : 1,
+        routeHydratesAfterImport ? [100, 100] : [100]
+    );
+    add(
+        PHASE.STORE_PUBLISH_LIVE,
+        routeHydratesAfterImport ? 2 : 1,
+        routeHydratesAfterImport ? [60_000, 60_000] : [60_000]
+    );
+    add(
+        PHASE.STORE_PUBLISH_VOD,
+        routeHydratesAfterImport ? 2 : 1,
+        routeHydratesAfterImport ? [20_000, 20_000] : [20_000]
+    );
+    add(
+        PHASE.STORE_PUBLISH_SERIES,
+        routeHydratesAfterImport ? 2 : 1,
+        routeHydratesAfterImport ? [20_000, 20_000] : [20_000]
+    );
+    add(
+        PHASE.STORE_IMPORT_TERMINAL,
+        routeHydratesAfterImport ? 2 : 1,
+        routeHydratesAfterImport ? [100_000, 100_000] : [100_000]
+    );
     return result;
 }
 
@@ -193,36 +216,34 @@ export function expectedXtreamIpc(
             : scenarioId === 'xtream-cancel-import'
               ? {
                     dbCancelOperation: 1,
-                    dbGetAppPlaylist: 1,
                     dbGetCategories: 6,
                     dbGetContent: 1,
                     dbSaveCategories: 3,
                     dbSaveContent: -1,
                     dbUpsertAppPlaylist: 1,
                     xtreamCancelSession: 1,
-                    xtreamRequest: 5,
+                    xtreamRequest: 6,
                 }
               : scenarioId === 'xtream-refresh-large' ||
                   scenarioId === 'xtream-background-ui'
                 ? {
                       dbDeleteXtreamContent: 1,
-                      dbGetAppPlaylist: 2,
-                      dbGetCategories: 6,
-                      dbGetContent: 6,
+                      dbGetAppPlaylist: 1,
+                      dbGetCategories: 9,
+                      dbGetContent: 9,
                       dbRestoreXtreamUserData: 1,
                       dbSaveCategories: 3,
                       dbSaveContent: 3,
                       dbUpsertAppPlaylist: 1,
-                      xtreamRequest: 7,
+                      xtreamRequest: 8,
                   }
                 : {
-                      dbGetAppPlaylist: 1,
                       dbGetCategories: 6,
                       dbGetContent: 6,
                       dbSaveCategories: 3,
                       dbSaveContent: 3,
                       dbUpsertAppPlaylist: 1,
-                      xtreamRequest: 7,
+                      xtreamRequest: 8,
                   };
     return new Map(
         Object.entries(counts).map(([method, count]) => [
@@ -232,14 +253,32 @@ export function expectedXtreamIpc(
     );
 }
 
-function addFullCategories(add: AddExpectation): void {
-    add(PHASE.SQLITE_CATEGORIES_READ, 6, [0, 0, 0, 60, 20, 20]);
+function addFullCategories(
+    add: AddExpectation,
+    routeHydratesAfterImport: boolean
+): void {
+    add(
+        PHASE.SQLITE_CATEGORIES_READ,
+        routeHydratesAfterImport ? 9 : 6,
+        routeHydratesAfterImport
+            ? [0, 0, 0, 60, 20, 20, 60, 20, 20]
+            : [0, 0, 0, 60, 20, 20]
+    );
     add(PHASE.NORMALIZE_CATEGORIES, 3, [60, 20, 20]);
     add(PHASE.SQLITE_CATEGORIES_WRITE_TRANSACTIONS, 3, [60, 20, 20]);
 }
 
-function addFullContent(add: AddExpectation): void {
-    add(PHASE.SQLITE_CONTENT_READ, 6, [0, 60_000, 0, 20_000, 0, 20_000]);
+function addFullContent(
+    add: AddExpectation,
+    routeHydratesAfterImport: boolean
+): void {
+    add(
+        PHASE.SQLITE_CONTENT_READ,
+        routeHydratesAfterImport ? 9 : 6,
+        routeHydratesAfterImport
+            ? [0, 60_000, 0, 20_000, 0, 20_000, 60_000, 20_000, 20_000]
+            : [0, 60_000, 0, 20_000, 0, 20_000]
+    );
     add(PHASE.SQLITE_CONTENT_CATEGORY_MAP_READ, 3, [60, 20, 20]);
     add(PHASE.NORMALIZE_CONTENT, 3, [60_000, 20_000, 20_000]);
     add(PHASE.SQLITE_CONTENT_WRITE_TRANSACTIONS, 3, [60_000, 20_000, 20_000]);

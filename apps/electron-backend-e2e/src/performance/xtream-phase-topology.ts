@@ -9,6 +9,7 @@ import type {
     XtreamPhaseProviderAction,
 } from './xtream-phase-semantic-source';
 import { assertXtreamProviderCausality } from './xtream-provider-phase-topology';
+import { assertXtreamRefreshRouteHydration } from './xtream-refresh-route-phase-topology';
 import { assertXtreamWorkerCorrelationOwnership } from './xtream-worker-phase-topology';
 
 export interface XtreamTopologyPhaseSpan {
@@ -35,7 +36,7 @@ export function assertXtreamPhaseTopology(
     spans: readonly XtreamTopologyPhaseSpan[]
 ): void {
     assertWorkerRequestChains(scenarioId, spans);
-    assertCategoryCorrelation(spans);
+    assertCategoryCorrelation(scenarioId, spans);
     assertXtreamProviderCausality(scenarioId, spans);
     if (scenarioId === 'xtream-delete-large') {
         assertDeleteTopology(spans);
@@ -51,7 +52,7 @@ export function assertXtreamPhaseTopology(
         assertCancelTopology(spans);
         return;
     }
-    assertFullImportTopology(spans);
+    assertFullImportTopology(scenarioId, spans);
 }
 
 function assertWorkerRequestChains(
@@ -128,6 +129,7 @@ function assertCorrelatedChains(
 }
 
 function assertCategoryCorrelation(
+    scenarioId: XtreamScenarioId,
     spans: readonly XtreamTopologyPhaseSpan[]
 ): void {
     if (select(spans, PHASE.NORMALIZE_CATEGORIES).length === 0) return;
@@ -141,8 +143,13 @@ function assertCategoryCorrelation(
         spans,
         PHASE.SQLITE_CATEGORIES_WRITE_TRANSACTIONS
     ).map(({ itemCount }) => itemCount);
+    const expectedCompletedReads =
+        scenarioId === 'xtream-refresh-large' ||
+        scenarioId === 'xtream-background-ui'
+            ? [...normalized, ...normalized]
+            : normalized;
     if (
-        !sameCountMultiset(completedReads, normalized) ||
+        !sameCountMultiset(completedReads, expectedCompletedReads) ||
         !sameCountMultiset(normalized, written)
     ) {
         invalid();
@@ -175,22 +182,37 @@ function assertRefreshPrelude(spans: readonly XtreamTopologyPhaseSpan[]): void {
 }
 
 function assertFullImportTopology(
+    scenarioId: XtreamScenarioId,
     spans: readonly XtreamTopologyPhaseSpan[]
 ): void {
-    const categoryStore = one(spans, PHASE.STORE_PUBLISH_CATEGORIES);
+    const routeHydratesAfterImport =
+        scenarioId === 'xtream-refresh-large' ||
+        scenarioId === 'xtream-background-ui';
+    const categoryStores = select(spans, PHASE.STORE_PUBLISH_CATEGORIES);
+    if (categoryStores.length !== (routeHydratesAfterImport ? 2 : 1)) {
+        invalid();
+    }
+    const categoryStore = required(categoryStores, 0);
     assertCategoriesBeforeStore(spans, categoryStore);
-    const stores = [
-        one(spans, PHASE.STORE_PUBLISH_LIVE),
-        one(spans, PHASE.STORE_PUBLISH_VOD),
-        one(spans, PHASE.STORE_PUBLISH_SERIES),
+    const storeGroups = [
+        select(spans, PHASE.STORE_PUBLISH_LIVE),
+        select(spans, PHASE.STORE_PUBLISH_VOD),
+        select(spans, PHASE.STORE_PUBLISH_SERIES),
     ];
-    const terminal = one(spans, PHASE.STORE_IMPORT_TERMINAL);
+    const expectedStoreCount = routeHydratesAfterImport ? 2 : 1;
+    if (storeGroups.some(({ length }) => length !== expectedStoreCount)) {
+        invalid();
+    }
+    const stores = storeGroups.map((group) => required(group, 0));
+    const terminals = select(spans, PHASE.STORE_IMPORT_TERMINAL);
+    if (terminals.length !== expectedStoreCount) invalid();
+    const terminal = required(terminals, 0);
     const reads = select(spans, PHASE.SQLITE_CONTENT_READ);
     const maps = select(spans, PHASE.SQLITE_CONTENT_CATEGORY_MAP_READ);
     const normalizations = select(spans, PHASE.NORMALIZE_CONTENT);
     const writes = select(spans, PHASE.SQLITE_CONTENT_WRITE_TRANSACTIONS);
     if (
-        reads.length !== 6 ||
+        reads.length !== (routeHydratesAfterImport ? 9 : 6) ||
         maps.length !== 3 ||
         normalizations.length !== 3 ||
         writes.length !== 3
@@ -212,7 +234,18 @@ function assertFullImportTopology(
         if (index < 2) ordered(stores[index], reads[(index + 1) * 2]);
     }
     ordered(stores[2], terminal);
-    assertTerminalLast(spans, terminal);
+    if (routeHydratesAfterImport) {
+        assertXtreamRefreshRouteHydration(
+            spans,
+            terminal,
+            required(categoryStores, 1),
+            reads.slice(6),
+            storeGroups.map((group) => required(group, 1)),
+            required(terminals, 1)
+        );
+    } else {
+        assertTerminalLast(spans, terminal);
+    }
 }
 
 function assertCancelTopology(spans: readonly XtreamTopologyPhaseSpan[]): void {
@@ -261,9 +294,12 @@ function assertCategoriesBeforeStore(
     spans: readonly XtreamTopologyPhaseSpan[],
     store: XtreamTopologyPhaseSpan
 ): void {
-    const categories = spans.filter(({ phase }) => CATEGORY_PHASES.has(phase));
+    const categories = spans.filter(
+        ({ endEpochMs, phase }) =>
+            CATEGORY_PHASES.has(phase) && endEpochMs <= store.startEpochMs
+    );
     if (
-        categories.length === 0 ||
+        categories.length !== 12 ||
         Math.max(...categories.map(({ endEpochMs }) => endEpochMs)) >
             store.startEpochMs
     ) {
@@ -293,6 +329,12 @@ function one(
     const match = matches[0];
     if (matches.length !== 1 || !match) invalid();
     return match;
+}
+
+function required<T>(values: readonly T[], index: number): T {
+    const value = values[index];
+    if (!value) invalid();
+    return value;
 }
 
 function ordered(...spans: XtreamTopologyPhaseSpan[]): void {

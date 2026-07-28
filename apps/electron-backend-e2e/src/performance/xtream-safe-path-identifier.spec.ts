@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { XTREAM_MEMORY_ACCOUNTING } from './xtream-summary-contract';
+import { BUILD_IDENTITY } from './xtream-benchmark-report.fixtures';
 import {
     assertXtreamBenchmarkManifest,
     assertXtreamSafePathIdentifier,
@@ -52,6 +53,7 @@ describe('Xtream safe path identifiers', () => {
         assert.throws(
             () =>
                 assertXtreamBenchmarkManifest({
+                    build: BUILD_IDENTITY,
                     environment: {
                         cdpAddress: '127.0.0.1',
                         cdpPort: 9222,

@@ -57,6 +57,14 @@ export const XTREAM_WORKER_REQUEST_METRIC_SCOPE = {
     VALID_REQUEST_WINDOW_PROXY: 'valid-request-window-proxy',
 } as const;
 
+export const XTREAM_MAIN_CPU_METRIC_SCOPE = {
+    ELECTRON_MAIN_THREAD: 'electron-main-thread',
+} as const;
+
+export const XTREAM_WORKER_CPU_METRIC_SCOPE = {
+    SUM_VALID_REQUEST_WORK: 'sum-valid-request-thread-cpu',
+} as const;
+
 export const XTREAM_WORKER_WHOLE_METRIC_SCOPE = {
     OPERATION_WINDOW: 'whole-worker-operation-window',
 } as const;
@@ -95,6 +103,7 @@ export interface XtreamRendererMetrics extends XtreamProfileCapture {
 
 export interface XtreamMainMetrics extends XtreamProfileCapture {
     readonly browserWindowId: number;
+    readonly cpuMetricScope: typeof XTREAM_MAIN_CPU_METRIC_SCOPE.ELECTRON_MAIN_THREAD;
     readonly cpuSystemMicros: number;
     readonly cpuUserMicros: number;
     readonly eventLoopDelayMaxMs: number;
@@ -111,6 +120,7 @@ export interface XtreamMainMetrics extends XtreamProfileCapture {
 }
 
 export interface XtreamDatabaseWorkerMetrics extends XtreamProfileCapture {
+    readonly cpuMetricScope: typeof XTREAM_WORKER_CPU_METRIC_SCOPE.SUM_VALID_REQUEST_WORK;
     readonly cpuSystemMicros: number;
     readonly cpuUserMicros: number;
     readonly currentForCapture: boolean;

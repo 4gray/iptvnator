@@ -44,7 +44,7 @@ describe('Xtream catalog database verification', () => {
         }
     });
 
-    it('accepts complete cancellation cleanup and complete source deletion', () => {
+    it('pins the current cancellation cleanup state and complete source deletion', () => {
         assert.doesNotThrow(() =>
             assertXtreamCatalogDatabaseSnapshot(
                 emptySnapshot({
@@ -52,14 +52,32 @@ describe('Xtream catalog database verification', () => {
                     matchingPlaylistType: 'xtream',
                     playlistCount: 1,
                     statuses: {
-                        live: 'cancelled',
-                        movie: 'cancelled',
-                        series: 'cancelled',
+                        live: 'failed',
+                        movie: 'failed',
+                        series: 'failed',
                     },
                 }),
                 manifest(),
                 XTREAM_SCENARIO_ID.CANCEL_IMPORT
             )
+        );
+        assert.throws(
+            () =>
+                assertXtreamCatalogDatabaseSnapshot(
+                    emptySnapshot({
+                        matchingPlaylistCount: 1,
+                        matchingPlaylistType: 'xtream',
+                        playlistCount: 1,
+                        statuses: {
+                            live: 'cancelled',
+                            movie: 'cancelled',
+                            series: 'cancelled',
+                        },
+                    }),
+                    manifest(),
+                    XTREAM_SCENARIO_ID.CANCEL_IMPORT
+                ),
+            /invalid Xtream database catalog state/
         );
         assert.doesNotThrow(() =>
             assertXtreamCatalogDatabaseSnapshot(
@@ -146,9 +164,9 @@ describe('Xtream catalog database verification', () => {
             matchingPlaylistType: 'xtream',
             playlistCount: 1,
             statuses: {
-                live: 'cancelled',
-                movie: 'cancelled',
-                series: 'cancelled',
+                live: 'failed',
+                movie: 'failed',
+                series: 'failed',
             },
         });
         const cancelWithResidue: XtreamCatalogDatabaseSnapshot = {
