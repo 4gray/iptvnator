@@ -358,7 +358,7 @@ export class VodMultiSourceHostService {
     markRouteSourceActive(): void {
         this.switchToken++;
         if (this.routeSourceId) {
-            this.controller.setActiveSource(this.routeSourceId);
+            this.controller.markPlaying(this.routeSourceId);
             this.publish();
         }
     }

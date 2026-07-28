@@ -338,6 +338,17 @@ Termination is structural: `triedSourceIds` only ever grows within a session, so
 an N-source movie fails over at most N−1 times and then shows the honest error
 screen. Returning to an earlier source by hand does not clear the set.
 
+Selection is not an attempt. `setActiveSource` only selects; `markPlaying` also
+spends the source's turn, and only the three places that really start playback
+call it — a switch, the route's own Play/Resume, and restoring the playing row
+after a rediscovery. Discovery selects the route's row the moment the page
+opens, and a pin or the picker can select an alternative before anything plays;
+counting those would let a later failure skip a healthy fallback, or call the
+options exhausted with one untouched. `runFailover` then retires whatever is on
+screen before picking, so the source that just failed is spent however it got
+there — one hole per start path would be an infinite ping-pong between two
+sources.
+
 A source that cannot even be resolved is marked tried without becoming active,
 and failover **continues to the next candidate** rather than giving up —
 production calls `failover()` only once, on the original failure, so stopping at

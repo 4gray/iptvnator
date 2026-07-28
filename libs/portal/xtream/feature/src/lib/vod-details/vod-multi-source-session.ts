@@ -82,7 +82,7 @@ export function applyDiscoveredSources(
         : [...discovered, switchedTo];
 
     controller.setSources([current, ...sources], matchKind);
-    controller.setActiveSource(switchedTo.id);
+    controller.markPlaying(switchedTo.id);
 }
 
 /** What `switchToSource` needs from the host, without reaching into it. */
@@ -140,7 +140,7 @@ export async function switchToSource(
 
     controller.updateSource(resolved.candidate);
     deps.setPreviousSource(previous?.id ?? null);
-    controller.setActiveSource(candidate.id);
+    controller.markPlaying(candidate.id);
     controller.setResumeSeconds(resumeSeconds);
     deps.startPlayback(resolved.playback);
 
@@ -169,6 +169,15 @@ export async function runFailover(
     controller: VodMultiSourceController,
     switchTo: (candidate: VodSourceCandidate) => Promise<SwitchOutcome>
 ): Promise<boolean> {
+    // Whatever is on screen just failed, so it is spent — whichever way it got
+    // there. Relying on the start paths to have marked it would leave one hole
+    // per path, and the cost of missing it is an infinite ping-pong between
+    // two sources.
+    const failing = controller.activeSourceId();
+    if (failing) {
+        controller.markTried(failing);
+    }
+
     for (;;) {
         const target = controller.pickFailoverTarget();
         if (!target) {

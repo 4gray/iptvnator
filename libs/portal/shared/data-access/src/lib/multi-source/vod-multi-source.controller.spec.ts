@@ -47,11 +47,11 @@ describe('VodMultiSourceController', () => {
     describe('failover cannot loop', () => {
         it('never returns a source that was already tried', () => {
             const controller = controllerWith('a', 'b', 'c');
-            controller.setActiveSource('a');
+            controller.markPlaying('a');
 
             const first = controller.pickFailoverTarget();
             expect(first).not.toBeNull();
-            controller.setActiveSource(first!.id);
+            controller.markPlaying(first!.id);
 
             const second = controller.pickFailoverTarget();
             expect(second!.id).not.toBe(first!.id);
@@ -60,7 +60,7 @@ describe('VodMultiSourceController', () => {
 
         it('exhausts after each source has been tried exactly once', () => {
             const controller = controllerWith('a', 'b', 'c');
-            controller.setActiveSource('a');
+            controller.markPlaying('a');
 
             const visited = ['a'];
             for (let hop = 0; hop < 5; hop++) {
@@ -70,7 +70,7 @@ describe('VodMultiSourceController', () => {
                 }
                 expect(visited).not.toContain(next.id);
                 visited.push(next.id);
-                controller.setActiveSource(next.id);
+                controller.markPlaying(next.id);
             }
 
             // Three sources, three visits, then an honest dead end.
@@ -81,13 +81,38 @@ describe('VodMultiSourceController', () => {
 
         it('stays exhausted even if the user returns to an earlier source', () => {
             const controller = controllerWith('a', 'b');
-            controller.setActiveSource('a');
-            controller.setActiveSource('b');
-            controller.setActiveSource('a');
+            controller.markPlaying('a');
+            controller.markPlaying('b');
+            controller.markPlaying('a');
 
             // Returning by hand is allowed; automatic retrying is not.
             expect(controller.pickFailoverTarget()).toBeNull();
         });
+
+    describe('selection is not an attempt', () => {
+        it('keeps the route source available after discovery selects it', () => {
+            // Discovery marks the route's row active the moment the page
+            // opens. Spending its turn there means a failure on some other
+            // source skips a healthy fallback.
+            const controller = controllerWith('a', 'b');
+            controller.setActiveSource('a');
+
+            controller.markPlaying('b');
+
+            expect(controller.pickFailoverTarget()?.id).toBe('a');
+            expect(controller.isExhausted()).toBe(false);
+        });
+
+        it('still exhausts once every source has actually played', () => {
+            const controller = controllerWith('a', 'b');
+            controller.setActiveSource('a');
+
+            controller.markPlaying('b');
+            controller.markPlaying('a');
+
+            expect(controller.isExhausted()).toBe(true);
+        });
+    });
     });
 
     describe('failover ranking', () => {

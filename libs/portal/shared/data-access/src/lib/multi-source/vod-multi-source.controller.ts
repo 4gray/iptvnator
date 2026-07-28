@@ -84,11 +84,23 @@ export class VodMultiSourceController {
         );
     }
 
+    /**
+     * Select a source WITHOUT spending its failover turn.
+     *
+     * Discovery selects the route's row the moment the page opens, and a pin
+     * or the picker can select an alternative before anything plays. None of
+     * those is an attempt: counting them means a later failure finds the
+     * route source "tried" and skips a perfectly healthy fallback — or calls
+     * the options exhausted while one is untouched.
+     */
     setActiveSource(sourceId: string | null) {
         this._activeSourceId.set(sourceId);
-        if (sourceId) {
-            this.tried.add(sourceId);
-        }
+    }
+
+    /** Select a source AND spend its turn — playback is actually starting. */
+    markPlaying(sourceId: string) {
+        this.markTried(sourceId);
+        this.setActiveSource(sourceId);
     }
 
     /**

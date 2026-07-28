@@ -136,8 +136,28 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
         expect(discovery.discover).toHaveBeenCalledTimes(2);
     });
 
+    it('does not burn a source the user only selected', async () => {
+        // One alternative, so the route copy is the ONLY fallback left and
+        // the outcome cannot depend on how candidates are ranked.
+        await loadMovie([ALT_TWO]);
+
+        // Straight to the alternative from the picker: the route copy was
+        // selected by discovery but never played, so it is still a fallback.
+        await expect(service.play(ALT_TWO.id)).resolves.toBe(true);
+        expect(rowFor(CURRENT_A_ID)?.isTried).toBe(false);
+
+        vodAutoFailover.set(true);
+
+        // Burning it at discovery made this failure report the options
+        // exhausted while a healthy copy sat untouched.
+        await expect(service.failover()).resolves.not.toBeNull();
+        expect(rowFor(CURRENT_A_ID)?.isActive).toBe(true);
+    });
+
     it('keeps the playing source when enrichment reloads the same movie', async () => {
         await loadMovie([ALT_TWO, ALT_THREE]);
+        // The route copy actually plays first, so its turn is genuinely spent.
+        service.markRouteSourceActive();
         await expect(service.play(ALT_TWO.id)).resolves.toBe(true);
         service.reportPosition(2538);
 
