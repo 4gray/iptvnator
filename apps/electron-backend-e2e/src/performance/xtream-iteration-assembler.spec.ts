@@ -201,6 +201,32 @@ describe('Xtream raw iteration assembler', () => {
         );
     });
 
+    it('rejects a cancellation terminal that substantially predates the main receipt', () => {
+        const input = createXtreamAssemblerFixture(
+            XTREAM_SCENARIO_ID.CANCEL_IMPORT
+        );
+        const workerTerminal = input.mainCapture.cancelTimeline.find(
+            ({ type }) => type === 'db-cancel-terminal-received'
+        );
+        assert.ok(workerTerminal);
+
+        assert.throws(
+            () =>
+                assembleXtreamRawIteration({
+                    ...input,
+                    rendererCapture: {
+                        ...input.rendererCapture,
+                        probe: {
+                            ...input.rendererCapture.probe,
+                            dbCancellationTerminalEpochMs:
+                                workerTerminal.epochMs - 2,
+                        },
+                    },
+                }),
+            /xtream-iteration-assembly-invalid/
+        );
+    });
+
     it('accepts main observing a network cancel response after the next renderer IPC starts', () => {
         const input = createXtreamAssemblerFixture(
             XTREAM_SCENARIO_ID.CANCEL_IMPORT

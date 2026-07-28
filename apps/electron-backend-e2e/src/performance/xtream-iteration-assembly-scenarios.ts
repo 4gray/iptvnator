@@ -26,6 +26,8 @@ import {
     type XtreamUiActionSample,
 } from './xtream-ui-action-probe';
 
+const CANCELLATION_CLOCK_SKEW_TOLERANCE_MS = 1;
+
 export interface XtreamScenarioAssembly {
     readonly backgroundMetrics: {
         readonly actionLatencyMs: number;
@@ -264,8 +266,8 @@ function cancellationEvidence(
     const preload = ipcPair(input.phaseCapture.ipcSpans, 'dbCancelOperation');
     const authoritative = request.responseEpochMs;
     const painted = requireNumber(renderer.uiPaintedEpochMs);
-    // Renderer and main sample independent clocks. Their correlated receipt
-    // timestamps cannot establish cross-process sub-millisecond ordering.
+    // Renderer and main sample independent clocks, so allow their correlated
+    // terminal timestamps to invert only within the known sub-millisecond skew.
     if (
         !dispatch ||
         !receipt ||
@@ -273,6 +275,8 @@ function cancellationEvidence(
         dispatch.type !== 'db-cancel-dispatched' ||
         receipt.type !== 'db-cancel-received' ||
         workerTerminal.type !== 'db-cancel-terminal-received' ||
+        renderer.dbCancellationTerminalEpochMs <
+            workerTerminal.epochMs - CANCELLATION_CLOCK_SKEW_TOLERANCE_MS ||
         renderer.dbCancellationTerminalEpochMs > painted ||
         authoritative > painted
     ) {
