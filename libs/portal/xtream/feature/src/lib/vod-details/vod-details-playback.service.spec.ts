@@ -206,6 +206,26 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             });
         }
 
+        it('keeps the route’s own resume point when an alternative plays', () => {
+            activeSource.set({
+                playlistId: 'playlist-2',
+                contentXtreamId: 991,
+                contentType: 'vod',
+            });
+
+            // An alternative's position arrives under ITS ids. Letting it stand in
+            // for the route copy's row would have Resume start the route stream at
+            // a timecode nobody ever reached in it.
+            emit('playlist-2', 991, 4200);
+
+            expect(service.vodPlaybackPosition()?.positionSeconds).toBe(4200);
+            expect(service.routePlaybackPosition()).toBeNull();
+            expect(service.hasPlaybackPosition()).toBe(false);
+
+            emit(ROUTE_PLAYLIST, ROUTE_VOD_ID, 60);
+            expect(service.routePlaybackPosition()?.positionSeconds).toBe(60);
+        });
+
         it('takes the route stream’s progress', () => {
             emit(ROUTE_PLAYLIST, ROUTE_VOD_ID, 120);
 

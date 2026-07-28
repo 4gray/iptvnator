@@ -425,6 +425,13 @@ was never established, so there is nothing to correct.
 
 ## What the primary button describes
 
+Two position signals, not one. `vodPlaybackPosition` is the LAST position
+seen — whichever copy produced it — and feeds the progress bar and the switch
+handoff. `routePlaybackPosition` is the route copy's own row, and everything
+that acts on the route's stream reads that: Resume, its label, its timecode.
+Collapsing them lets an alternative's progress resume the route copy at a
+timecode nobody reached in it.
+
 A pin means the button plays a copy the page did not load a position for.
 `createPrimaryActionPosition` therefore looks that copy's row up and lets it
 govern the label, the timecode and the Restart affordance — including when the
@@ -434,7 +441,10 @@ route's own row changes nothing; the loaded position already IS that copy's.
 
 ## Claims about the present
 
-`isActive` means "the source a switch or Play would use". Discovery sets it the
+`isActive` means "the source a switch or Play would use" — selection, not
+playback. `pinnedSourceAwaitingPlay` therefore takes `playbackLive` as well:
+a pinned row stays selected after its player is closed, and skipping the pin
+on selection alone would send the next Play to the route copy. Discovery sets it the
 moment the page opens, and it survives closing the player — so it cannot, on
 its own, back a statement in the present tense.
 

@@ -28,6 +28,7 @@ import {
     type SwitchOutcome,
 } from './vod-multi-source-session';
 import type { VodMultiSourceSwitchNotice } from './vod-multi-source-notice';
+import { createVodSourceCounts } from './vod-multi-source-counts';
 import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
@@ -59,6 +60,11 @@ export interface VodMultiSourceBindings {
     startPlayback: (playback: ResolvedPortalPlayback) => void;
     /** The movie on screen, or null while its identity is not yet knowable. */
     movie: Signal<VodMultiSourceMovie | null>;
+    /**
+     * Whether a stream is on screen right now — NOT whether a row is selected.
+     * A pinned row stays selected after its player is closed.
+     */
+    playbackLive: Signal<boolean>;
 }
 
 export type { VodMultiSourceSwitchNotice };
@@ -107,20 +113,11 @@ export class VodMultiSourceHostService {
     readonly lastSwitch = this._lastSwitch.asReadonly();
     readonly previousSourceId = this._previousSourceId.asReadonly();
 
-    readonly alternatives = computed(() =>
-        this._sources().filter((source) => !source.isActive)
-    );
-    /** The chip appears only when there is genuinely somewhere else to go. */
-    readonly hasAlternatives = computed(() => this.alternatives().length > 0);
-    /** Alternative STREAMS — what the "Sources N" chip counts. */
-    readonly alternativeCount = computed(() => this.alternatives().length);
-    /**
-     * Alternative PLAYLISTS: the popover groups a playlist's copies under it,
-     * so "also found in N other playlists" counts portals, not copies.
-     */
-    readonly alternativePlaylistCount = computed(
-        () => new Set(this.alternatives().map((s) => s.playlistId)).size
-    );
+    private readonly counts = createVodSourceCounts(this._sources);
+    readonly alternatives = this.counts.alternatives;
+    readonly hasAlternatives = this.counts.hasAlternatives;
+    readonly alternativeCount = this.counts.alternativeCount;
+    readonly alternativePlaylistCount = this.counts.alternativePlaylistCount;
     readonly matchKind = computed(() => this.controller.matchKind());
 
     /** Opt-in and off by default — a silent switch is never acceptable. */
@@ -232,7 +229,10 @@ export class VodMultiSourceHostService {
 
     /** The pinned source, when it is not the one the route already plays. */
     readonly pendingPinnedSourceId = computed(() =>
-        pinnedSourceAwaitingPlay(this._sources())
+        pinnedSourceAwaitingPlay(
+            this._sources(),
+            this.bindings?.playbackLive() === true
+        )
     );
 
     /**

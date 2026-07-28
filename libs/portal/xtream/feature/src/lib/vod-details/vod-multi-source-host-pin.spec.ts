@@ -34,6 +34,10 @@ describe('VodMultiSourceHostService — pinning', () => {
     let service: VodMultiSourceHostService;
 
     const movie = signal<VodMultiSourceMovie | null>(null);
+
+    // Whatever is on screen; the pin path distinguishes it from selection.
+
+    const playbackLive = signal(false);
     const vodAutoFailover = signal(false);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
@@ -84,7 +88,7 @@ describe('VodMultiSourceHostService — pinning', () => {
 
         service = TestBed.inject(VodMultiSourceHostService);
         TestBed.runInInjectionContext(() =>
-            service.bind({ startPlayback, movie })
+            service.bind({ startPlayback, movie, playbackLive })
         );
     });
 
@@ -184,6 +188,28 @@ describe('VodMultiSourceHostService — pinning', () => {
             expect.objectContaining({ id: ALT_TWO.id }),
             { startTime: 3600 }
         );
+    });
+
+    it('honours the pin again after its player is closed', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+        await service.play(ALT_TWO.id);
+
+        // Playing it makes its row active AND live: Play must not relaunch
+        // what is already on screen.
+        playbackLive.set(true);
+        expect(service.pendingPinnedSourceId()).toBeNull();
+
+        // Closing the player leaves the row selected. Reading `isActive`
+        // alone here sends the next Play to the route copy and ignores the
+        // stored preference until the page is reopened.
+        playbackLive.set(false);
+        expect(service.pendingPinnedSourceId()).toBe(ALT_TWO.id);
     });
 
     it('starts a pinned source that was never watched from the beginning', async () => {

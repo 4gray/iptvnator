@@ -37,12 +37,22 @@ export function pinnedCopyInPlaylist(
  * "Make this the main source" has to survive reopening the movie, or the
  * persisted preference is just an icon. The host consults this before its
  * normal Play, so the pin decides where playback starts.
+ *
+ * `isActive` alone cannot answer this: it means SELECTED, and the pinned row
+ * stays selected after its player is closed. Skipping the pin then would send
+ * the next Play to the route copy and quietly ignore the stored preference
+ * until the page is reopened.
  */
 export function pinnedSourceAwaitingPlay(
-    sources: readonly VodSourceDescriptor[]
+    sources: readonly VodSourceDescriptor[],
+    playbackLive: boolean
 ): string | null {
     const pinned = sources.find((source) => source.isPinned);
-    return pinned && !pinned.isActive ? pinned.id : null;
+    if (!pinned) {
+        return null;
+    }
+
+    return pinned.isActive && playbackLive ? null : pinned.id;
 }
 
 /** The row id the controller uses, derived from a stored pin. */

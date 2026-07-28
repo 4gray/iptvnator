@@ -244,7 +244,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         sources: this.multiSource.sources,
         routePlaylistId: computed(() => this.xtreamStore.currentPlaylist()?.id),
         routeContentId: this.selectedVodId,
-        routePosition: this.playback.vodPlaybackPosition,
+        routePosition: this.playback.routePlaybackPosition,
         load: (source) => this.positionFor(source),
     });
     readonly hasPlaybackPosition = this.primaryAction.hasPosition;
@@ -394,6 +394,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                 this.playback.startResolvedPlayback(playback);
             },
             movie: this.multiSourceMovie,
+            playbackLive: this.playbackLive,
         });
 
         // Initializes on first render and RE-initializes when the route

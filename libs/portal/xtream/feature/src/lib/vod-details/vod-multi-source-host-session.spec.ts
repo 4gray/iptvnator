@@ -36,6 +36,10 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
     let service: VodMultiSourceHostService;
 
     const movie = signal<VodMultiSourceMovie | null>(null);
+
+    // Whatever is on screen; the pin path distinguishes it from selection.
+
+    const playbackLive = signal(false);
     const vodAutoFailover = signal(false);
     const startPlayback = jest.fn();
     const discovery = { isAvailable: true, discover: jest.fn() };
@@ -94,7 +98,7 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
 
         service = TestBed.inject(VodMultiSourceHostService);
         TestBed.runInInjectionContext(() =>
-            service.bind({ startPlayback, movie })
+            service.bind({ startPlayback, movie, playbackLive })
         );
     });
 

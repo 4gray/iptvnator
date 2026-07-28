@@ -63,7 +63,25 @@ export class VodDetailsPlaybackService {
     );
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    /**
+     * The LAST position seen, whichever copy produced it.
+     *
+     * Multi-source can put playback on a copy in another playlist, and this
+     * follows it — the progress bar and the switch feed both want the stream
+     * on screen, not the one the route happens to address.
+     */
     readonly vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
+
+    /**
+     * The ROUTE copy's own row.
+     *
+     * Everything that acts on the route's stream — Resume, its label, its
+     * timecode — has to read this instead. Positions are keyed by (playlist,
+     * stream), so once an alternative has played, `vodPlaybackPosition` names
+     * a different film's row entirely and resuming from it would jump the
+     * route copy to a timecode nobody reached in it.
+     */
+    readonly routePlaybackPosition = signal<PlaybackPositionData | null>(null);
 
     private readonly externalButton = createExternalPlaybackButtonState({
         session: this.externalPlayback.activeSession,
@@ -82,9 +100,28 @@ export class VodDetailsPlaybackService {
         getPortalPlaybackProgressPercent(this.vodPlaybackPosition())
     );
 
+    /** Mirrors an incoming position into the route's row when it owns it. */
+    private trackPosition(position: PlaybackPositionData | null): void {
+        this.vodPlaybackPosition.set(position);
+        if (this.isRouteContent(position)) {
+            this.routePlaybackPosition.set(position);
+        }
+    }
+
+    private isRouteContent(position: PlaybackPositionData | null): boolean {
+        return (
+            !!position &&
+            position.playlistId === this.xtreamStore.currentPlaylist()?.id &&
+            position.contentXtreamId === this.bindings()?.vodId()
+        );
+    }
+
+    /** Whether the ROUTE copy has somewhere to resume from. */
     readonly hasPlaybackPosition = computed(() => {
-        const inProgress =
-            this.vodPlaybackProgress() > 0 && this.vodPlaybackProgress() < 90;
+        const progress = getPortalPlaybackProgressPercent(
+            this.routePlaybackPosition()
+        );
+        const inProgress = progress > 0 && progress < 90;
         this.logger.debug('hasPlaybackPosition check', {
             vodId: this.bindings()?.vodId(),
             inProgress,
@@ -99,7 +136,7 @@ export class VodDetailsPlaybackService {
                     // An external player on an ALTERNATIVE reports under
                     // that playlist's ids; dropping those rewinds a switch.
                     if (this.ownsContent(data)) {
-                        this.vodPlaybackPosition.set(data);
+                        this.trackPosition(data);
                     }
                 }
             ) ?? null;
@@ -196,7 +233,7 @@ export class VodDetailsPlaybackService {
         const info = getXtreamVodInfo(vodItem);
         this.addToRecentlyViewed();
         const vodId = this.bindings()?.vodId() ?? NaN;
-        const position = this.vodPlaybackPosition();
+        const position = this.routePlaybackPosition();
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
 
         const contentInfo: PlayerContentInfo = {
@@ -240,7 +277,7 @@ export class VodDetailsPlaybackService {
     }
 
     formatPosition(): string {
-        return formatPlaybackPosition(this.vodPlaybackPosition());
+        return formatPlaybackPosition(this.routePlaybackPosition());
     }
 
     closeInlinePlayer(): void {
@@ -255,7 +292,7 @@ export class VodDetailsPlaybackService {
                 playlistId,
                 position
             ),
-        onSaved: (position) => this.vodPlaybackPosition.set(position),
+        onSaved: (position) => this.trackPosition(position),
     });
 
     /**
@@ -284,6 +321,7 @@ export class VodDetailsPlaybackService {
             'vod'
         );
         this.vodPlaybackPosition.set(position);
+        this.routePlaybackPosition.set(position);
     }
 
     private addToRecentlyViewed(): void {
