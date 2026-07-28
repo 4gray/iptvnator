@@ -65,7 +65,10 @@ Three rules follow, and each is enforced in code rather than by convention:
    and 800×450 are neither 480p nor each other, and 720 wide is NTSC 480p or
    PAL 576p depending only on the height. Those formats are therefore matched
    rather than bucketed, and an unrecognised shape returns nothing rather than
-   a label that would be published as an `api` fact.
+   a label that would be published as an `api` fact. A known height still has
+   to be consistent with the match: cropping only ever *removes* lines, so a
+   shorter frame is a letterboxed master of that format, while a taller one
+   (640×480 against 640×360) is a different shape and gets no tag.
 
 Provenance is per-field and changes over time: at discovery a row has only
 `parsed` tags, because the `content` table stores no container, codec or audio.

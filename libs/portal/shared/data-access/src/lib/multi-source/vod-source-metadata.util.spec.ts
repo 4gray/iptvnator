@@ -148,6 +148,22 @@ describe('applyApiMetadata', () => {
         ).toBeUndefined();
     });
 
+    it('rejects a height the width cannot account for', () => {
+        // 640x480 is 4:3 VGA, not a letterboxed 360p — the width alone would
+        // have called it 360p and published that as a measurement.
+        expect(
+            applyApiMetadata(candidate(), { width: 640, height: 480 }).quality
+        ).toBeUndefined();
+    });
+
+    it('still trusts the width when the frame is cropped', () => {
+        // Cropping only removes lines, so a short frame at 854 wide is a
+        // letterboxed 480p master and the width still names it.
+        expect(
+            applyApiMetadata(candidate(), { width: 854, height: 360 }).quality
+        ).toEqual({ value: '480p', provenance: 'api' });
+    });
+
     it('emits nothing for a shape that is not a known format', () => {
         // 800 wide is neither 854x480 nor anything else in the table, and
         // 800x600 is certainly not 480 lines high.

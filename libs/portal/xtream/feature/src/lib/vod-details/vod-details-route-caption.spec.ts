@@ -288,4 +288,28 @@ describe('VodDetailsRouteComponent — source caption', () => {
         component.handleInlineTimeUpdate({ currentTime: 3, duration: 90 });
         expect(component.activeSourceCaption()).not.toBeNull();
     });
+
+    it('keeps the failure state when the chosen source will not resolve', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        withActiveSource('playlist-1', 650020);
+        playback.inlinePlayback.set({
+            streamUrl: 'http://example.com/movie.mkv',
+            title: 'Example',
+        });
+        await component.onPlaybackFailed();
+        expect(component.activeSourceCaption()).toBeNull();
+
+        // Picking an alternative off the error screen that cannot be resolved
+        // leaves the diagnostic up — so the caption must stay away too.
+        jest.spyOn(component.multiSource, 'play').mockResolvedValue(false);
+        component.playFromSource('playlist-2:xtream:991');
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(component.activeSourceCaption()).toBeNull();
+    });
 });

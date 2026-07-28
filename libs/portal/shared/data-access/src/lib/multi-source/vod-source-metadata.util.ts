@@ -268,18 +268,28 @@ function smallFormatQuality(
     if (byWidth.length === 0) {
         return null;
     }
-    if (byWidth.length === 1) {
-        return byWidth[0][2];
+
+    if (byWidth.length > 1) {
+        // One width, two formats (720): only the height separates them.
+        if (!isPositiveNumber(height)) {
+            return null;
+        }
+        const exact = byWidth.find(([, reference]) =>
+            within5Percent(height, reference)
+        );
+        return exact ? exact[2] : null;
     }
 
-    // One width, two formats: only the height separates them.
-    if (!isPositiveNumber(height)) {
+    // A single candidate still has to survive the height, when one is known.
+    // Cropping only ever REMOVES lines, so a shorter frame is a letterboxed
+    // master of this format and the width still names it — but a TALLER one
+    // (640x480 against 640x360) is a different shape entirely, and labelling
+    // it would state a measurement the numbers contradict.
+    const [, formatHeight, label] = byWidth[0];
+    if (isPositiveNumber(height) && height > formatHeight * 1.05) {
         return null;
     }
-    const exact = byWidth.find(([, reference]) =>
-        within5Percent(height, reference)
-    );
-    return exact ? exact[2] : null;
+    return label;
 }
 
 function qualityFromDimensions(

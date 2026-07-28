@@ -588,8 +588,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     });
 
     playFromSource(sourceId: string): void {
-        this.playbackFailed.set(false);
-        void this.multiSource.play(sourceId);
+        // Only once the switch actually starts something. A source picked off
+        // the error screen that cannot be resolved leaves the diagnostic up,
+        // and clearing eagerly would have the caption claim playback again.
+        void this.multiSource.play(sourceId).then((switched) => {
+            if (switched) {
+                this.playbackFailed.set(false);
+            }
+        });
     }
 
     pinSource(sourceId: string): void {
