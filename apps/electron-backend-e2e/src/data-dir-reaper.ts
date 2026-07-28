@@ -13,6 +13,14 @@ export const dataDirPrefix = 'iptvnator-electron-e2e-';
 export const dataDirOwnerMarker = '.e2e-owner-pid';
 /** Fallback cutoff, used only for leftovers whose owner cannot be determined. */
 export const orphanDataDirMaxAgeMs = 24 * 60 * 60 * 1000;
+/**
+ * Backstop for pid reuse. A pid that looks alive is normally decisive, but the
+ * OS recycles pids — aggressively so on the long-lived Windows runners this
+ * sweep exists for — and an unrelated service inheriting an abandoned run's pid
+ * would otherwise pin that directory forever, defeating the whole point. No
+ * suite survives a week, so past this age a live-looking pid is a stranger.
+ */
+export const dataDirHardMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
 
 export type DataDirOwner = 'alive' | 'dead' | 'unknown';
 
@@ -77,10 +85,11 @@ export function readDataDirOwner(dataDir: string): DataDirOwner {
  * every teardown that loses that race leaks a database and user-data tree on a
  * developer machine or a long-lived self-hosted runner, invisibly.
  *
- * A live owner is never collected, whatever the age — this repo is routinely
- * checked out into several worktrees at once. A dead owner is collected at
- * once, since the pid settles what age only guesses at. An undeterminable
- * owner falls back to the age cutoff.
+ * A live owner is kept — this repo is routinely checked out into several
+ * worktrees at once — up to `dataDirHardMaxAgeMs`, past which the pid is
+ * assumed recycled rather than still ours. A dead owner is collected at once,
+ * since the pid settles what age only guesses at. An undeterminable owner
+ * falls back to `orphanDataDirMaxAgeMs`.
  */
 export function reapOrphanedDataDirs(root: string = tmpdir()): void {
     const now = Date.now();
@@ -99,13 +108,11 @@ export function reapOrphanedDataDirs(root: string = tmpdir()): void {
         const candidate = join(root, entry);
         try {
             const owner = readDataDirOwner(candidate);
-            if (owner === 'alive') {
+            const age = now - statSync(candidate).mtimeMs;
+            if (owner === 'alive' && age < dataDirHardMaxAgeMs) {
                 continue;
             }
-            if (
-                owner === 'unknown' &&
-                now - statSync(candidate).mtimeMs < orphanDataDirMaxAgeMs
-            ) {
+            if (owner === 'unknown' && age < orphanDataDirMaxAgeMs) {
                 continue;
             }
             rmSync(candidate, { force: true, recursive: true, maxRetries: 3 });

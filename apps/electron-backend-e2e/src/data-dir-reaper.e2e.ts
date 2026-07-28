@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
+    dataDirHardMaxAgeMs,
     dataDirOwnerMarker,
     dataDirPrefix,
     orphanDataDirMaxAgeMs,
@@ -75,7 +76,7 @@ test.afterAll(() => {
 });
 
 test.describe('orphaned data directory reaper', () => {
-    test('keeps a live owner regardless of directory age', () => {
+    test('keeps a live owner well past the unmarked cutoff', () => {
         const root = makeRoot();
         const child = spawnLiveProcess();
         // Age is deliberately past the cutoff: writes land under databases/ and
@@ -88,6 +89,23 @@ test.describe('orphaned data directory reaper', () => {
         reapOrphanedDataDirs(root);
 
         expect(existsSync(dir)).toBe(true);
+    });
+
+    test('reaps a live-looking owner once past the hard cap, since the pid must be recycled', () => {
+        const root = makeRoot();
+        // A pid that resolves to a live process, but on a directory far older
+        // than any suite could run — so the pid belongs to a stranger now.
+        const child = spawnLiveProcess();
+        const dir = makeDataDir(root, 'recycled', {
+            ageHours: 24 * 8,
+            pid: child.pid,
+        });
+
+        expect(readDataDirOwner(dir)).toBe('alive');
+
+        reapOrphanedDataDirs(root);
+
+        expect(existsSync(dir)).toBe(false);
     });
 
     test('reaps a dead owner immediately, without waiting out the cutoff', async () => {
@@ -178,7 +196,9 @@ test.describe('orphaned data directory reaper', () => {
         ).not.toThrow();
     });
 
-    test('cutoff is a full day', () => {
+    test('cutoffs are a day and a week, and the hard cap is the looser one', () => {
         expect(orphanDataDirMaxAgeMs).toBe(24 * 60 * 60 * 1000);
+        expect(dataDirHardMaxAgeMs).toBe(7 * 24 * 60 * 60 * 1000);
+        expect(dataDirHardMaxAgeMs).toBeGreaterThan(orphanDataDirMaxAgeMs);
     });
 });
