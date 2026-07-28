@@ -211,6 +211,47 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         consoleWarnSpy?.mockRestore();
     });
 
+    it('claims to be playing only while something is', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        Object.defineProperty(component.multiSource, 'sources', {
+            configurable: true,
+            value: () => [
+                {
+                    id: 'playlist-1:xtream:650020',
+                    playlistId: 'playlist-1',
+                    playlistName: 'Portal One',
+                    portalType: 'xtream',
+                    contentId: 650020,
+                    rawTitle: 'Example',
+                    matchConfidence: 'exact',
+                    year: null,
+                    isActive: true,
+                    isPinned: false,
+                    isTried: true,
+                    probe: { status: 'idle' },
+                },
+            ],
+        });
+
+        // Discovery marks a source active as soon as the page opens, so the
+        // caption would otherwise say "Playing from ..." before Play is
+        // pressed — and again after the player is closed.
+        expect(component.activeSourceCaption()).toBeNull();
+
+        playback.inlinePlayback.set({
+            streamUrl: 'http://example.com/movie.mkv',
+            title: 'Example',
+        });
+        expect(component.activeSourceCaption()).not.toBeNull();
+
+        playback.inlinePlayback.set(null);
+        expect(component.activeSourceCaption()).toBeNull();
+    });
+
     it('owns an external session for a copy in its own playlist', () => {
         currentPlaylist.set({ id: 'playlist-1' });
         const component = fixture.componentInstance;

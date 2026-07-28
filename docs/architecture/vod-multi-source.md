@@ -24,6 +24,10 @@ blob whose search path forces `content_type: 'live'`. Both are additive later
 without changing the contracts — `VodSourceCandidate.portalType` already carries
 `'xtream' | 'stalker' | 'm3u'` and discovery sits behind a service interface.
 
+A probe answer is cached per *request*, not per URL: two playlists can share a
+stream URL and require different headers, and one of them answering 403 says
+nothing about the other.
+
 `ffprobe`/`ffmpeg` are not dependencies of this app and are not bundled, so
 `provenance: 'probe'` means reachability and latency only. There is deliberately
 no feature flag for codec probing: it would gate a code path with no binary
@@ -57,7 +61,10 @@ Three rules follow, and each is enforced in code rather than by convention:
    letterboxed masters are cropped vertically — a 2.39:1 1080p film is 1920×800,
    and 800 alone is indistinguishable from a 1280×800 encode. With no width, a
    height is trusted only within 5% of a standard frame height; otherwise no tag
-   is emitted.
+   is emitted. Below the HD widths the numbers stop separating cleanly — 720
+   wide is NTSC 480p or PAL 576p depending on the height, 640 is 360p — so an
+   unrecognised shape returns nothing rather than a bucket that would be
+   published as an `api` fact.
 
 Provenance is per-field and changes over time: at discovery a row has only
 `parsed` tags, because the `content` table stores no container, codec or audio.
@@ -359,6 +366,11 @@ matcher AND the playback-position bridge. They cannot be allowed to disagree —
 a page that shows a Stop button for a session whose progress it discards keeps
 the resume point at wherever playback began, so a switch an hour later rewinds
 the whole session.
+
+The caption itself appears only while a player is actually running — inline or
+a matched external session. Discovery marks a source active as the page opens,
+so gating on that alone would have the page claim "Playing from …" before Play
+was pressed, and again after the player was closed.
 
 Whichever source ends up playing, the "playing" badge follows it: starting the
 route's own stream (Play, Resume, Restart, or the fallback after a pin does not

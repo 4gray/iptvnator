@@ -238,6 +238,34 @@ function isPositiveNumber(value: number | null | undefined): value is number {
  * height. Anything else returns null, so the row shows no tag and offers a
  * check instead. Empty beats wrong.
  */
+/**
+ * Below the HD widths the numbers stop separating cleanly.
+ *
+ * 854 is 480p, but 720 is NTSC 480p or PAL 576p depending on the height, and
+ * 640 is 360p — which the old "anything under 900 is 480p" rule published as
+ * an `api` FACT for all of them. Empty beats wrong: an unrecognised shape
+ * returns nothing and the row simply carries no quality tag.
+ */
+function smallFormatQuality(
+    width: number,
+    height: number | null | undefined
+): string | null {
+    if (width >= 800) {
+        return '480p';
+    }
+    if (width >= 700) {
+        // The one width two formats share; only the height tells them apart.
+        if (!isPositiveNumber(height)) {
+            return null;
+        }
+        return height >= 520 ? '576p' : '480p';
+    }
+    if (width >= 600) {
+        return '360p';
+    }
+    return null;
+}
+
 function qualityFromDimensions(
     width: number | null | undefined,
     height: number | null | undefined
@@ -258,7 +286,7 @@ function qualityFromDimensions(
         if (width >= 900) {
             return '576p';
         }
-        return '480p';
+        return smallFormatQuality(width, height);
     }
 
     if (!isPositiveNumber(height)) {

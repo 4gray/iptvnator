@@ -52,6 +52,28 @@ describe('StreamProbeService', () => {
         );
     });
 
+    it('does not answer one playlist with another’s probe result', async () => {
+        const probe = jest
+            .fn()
+            .mockResolvedValueOnce({ status: 200, url: 'http://x/y.mkv' })
+            .mockResolvedValueOnce({ status: 403, url: 'http://x/y.mkv' });
+        const service = withBridge(probe as ProbeFn);
+
+        const first = await service.probe('http://x/y.mkv', 'HEAD', {
+            userAgent: 'PlayerOne/1.0',
+        });
+        const second = await service.probe('http://x/y.mkv', 'HEAD', {
+            userAgent: 'PlayerTwo/2.0',
+        });
+
+        // Two playlists can share a stream URL and require different headers.
+        // Reusing the first answer would state the second source is dead
+        // without ever having asked it.
+        expect(probe).toHaveBeenCalledTimes(2);
+        expect(first.status).toBe('ok');
+        expect(second.status).toBe('fail');
+    });
+
     it('carries the playlist headers into both attempts', async () => {
         const headers = { userAgent: 'MyPlayer/2.0', referer: 'http://x/' };
         const probe = jest

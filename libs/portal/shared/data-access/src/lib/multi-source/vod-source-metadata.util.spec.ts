@@ -123,6 +123,37 @@ describe('applyApiMetadata', () => {
         ).toEqual({ value: '1080p', provenance: 'api' });
     });
 
+    it('does not call every small stream 480p', () => {
+        // The old rule labelled ANY width under 900 as 480p, published with
+        // `api` provenance — so a 640x360 stream stated 480p as a fact.
+        expect(
+            applyApiMetadata(candidate(), { width: 640, height: 360 }).quality
+        ).toEqual({ value: '360p', provenance: 'api' });
+        expect(
+            applyApiMetadata(candidate(), { width: 854, height: 480 }).quality
+        ).toEqual({ value: '480p', provenance: 'api' });
+    });
+
+    it('reads the height when one width covers two formats', () => {
+        // 720 wide is NTSC 480p or PAL 576p; only the height separates them,
+        // and without one there is no honest answer to give.
+        expect(
+            applyApiMetadata(candidate(), { width: 720, height: 576 }).quality
+        ).toEqual({ value: '576p', provenance: 'api' });
+        expect(
+            applyApiMetadata(candidate(), { width: 720, height: 480 }).quality
+        ).toEqual({ value: '480p', provenance: 'api' });
+        expect(
+            applyApiMetadata(candidate(), { width: 720 }).quality
+        ).toBeUndefined();
+    });
+
+    it('emits nothing for a width below every known format', () => {
+        expect(
+            applyApiMetadata(candidate(), { width: 320, height: 240 }).quality
+        ).toBeUndefined();
+    });
+
     it('emits no quality for an ambiguous cropped height', () => {
         // 800 lines alone could be a cropped 1080p or a 1280x800 encode.
         // Guessing here would publish a wrong value labelled as a fact.

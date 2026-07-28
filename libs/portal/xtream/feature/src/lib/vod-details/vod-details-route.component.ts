@@ -549,7 +549,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     /** The ".srcbar" caption under the action row: where this is playing from. */
     readonly activeSourceCaption = computed(() => {
         const active = this.multiSource.sources().find((s) => s.isActive);
-        if (!active) {
+        // "Playing from" only while something actually is. Discovery marks a
+        // source active as soon as the page opens, so gating on that alone
+        // makes the line a claim about a player that has not started — or one
+        // the user has since closed.
+        const playing =
+            !!this.inlinePlayback() || !!this.matchedExternalPlayback();
+        if (!active || !playing) {
             return null;
         }
 

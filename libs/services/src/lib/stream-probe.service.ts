@@ -37,9 +37,35 @@ export class StreamProbeService {
         );
     }
 
-    /** A cached result for this URL, if one is still fresh. */
-    peek(url: string): VodSourceProbeResult | null {
-        const entry = this.cache.get(url);
+    /**
+     * The key an answer is stored under.
+     *
+     * Not the URL alone: the same stream URL can be shared by two playlists
+     * that require different headers, and one of them answering 403 says
+     * nothing about the other. Reusing that result would state a source is
+     * dead without ever having asked it.
+     */
+    private cacheKey(
+        url: string,
+        method: 'GET' | 'HEAD',
+        headers?: StreamProbeHeaders
+    ): string {
+        return [
+            url,
+            method,
+            headers?.userAgent ?? '',
+            headers?.referer ?? '',
+            headers?.origin ?? '',
+        ].join('\u0000');
+    }
+
+    /** A cached result for this exact request, if one is still fresh. */
+    peek(
+        url: string,
+        method: 'GET' | 'HEAD' = 'HEAD',
+        headers?: StreamProbeHeaders
+    ): VodSourceProbeResult | null {
+        const entry = this.cache.get(this.cacheKey(url, method, headers));
         if (!entry || Date.now() - entry.storedAt > CACHE_TTL_MS) {
             return null;
         }
@@ -61,20 +87,21 @@ export class StreamProbeService {
             return { status: 'unknown' };
         }
 
-        const cached = this.peek(url);
+        const key = this.cacheKey(url, method, headers);
+        const cached = this.peek(url, method, headers);
         if (cached) {
             return cached;
         }
 
-        const pending = this.inFlight.get(url);
+        const pending = this.inFlight.get(key);
         if (pending) {
             return pending;
         }
 
         const request = this.runProbe(url, method, headers).finally(() => {
-            this.inFlight.delete(url);
+            this.inFlight.delete(key);
         });
-        this.inFlight.set(url, request);
+        this.inFlight.set(key, request);
         return request;
     }
 
@@ -126,7 +153,10 @@ export class StreamProbeService {
         // caching it would keep a perfectly good source looking unverified
         // for the whole TTL.
         if (result.status !== 'unknown') {
-            this.cache.set(url, { result, storedAt: Date.now() });
+            this.cache.set(this.cacheKey(url, method, headers), {
+                result,
+                storedAt: Date.now(),
+            });
         }
 
         return result;
