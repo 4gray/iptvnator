@@ -1,3 +1,5 @@
+import { copyFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
     closeElectronApp,
     expect,
@@ -5,6 +7,7 @@ import {
     launchCompetingElectronInstance,
     launchElectronApp,
     m3uFixturePath,
+    openSources,
     test,
 } from './electron-test-fixtures';
 
@@ -43,6 +46,32 @@ test.describe('Electron Native Playlist Import', () => {
             await expect(
                 app.mainWindow.getByTestId('channel-item')
             ).toHaveCount(4);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@m3u @electron opens every playlist of a multi-file selection', async ({
+        dataDir,
+    }) => {
+        // Selecting several playlists in a file manager is a single launch
+        // with one argument per file, because the generated desktop entry
+        // ends in `%U`. Stopping at the first would drop the rest.
+        const secondPlaylist = join(dataDir, 'second-selection.m3u');
+        copyFileSync(m3uFixturePath, secondPlaylist);
+
+        const app = await launchElectronApp(dataDir, {
+            appArgs: [m3uFixturePath, secondPlaylist],
+        });
+
+        try {
+            await app.mainWindow.waitForURL(/\/workspace\/playlists\/.+/, {
+                timeout: 30000,
+            });
+            await openSources(app.mainWindow);
+            await expect(
+                app.mainWindow.locator('app-playlist-item')
+            ).toHaveCount(2, { timeout: 30000 });
         } finally {
             await closeElectronApp(app);
         }

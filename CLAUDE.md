@@ -675,10 +675,14 @@ desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
 deb/rpm/pacman. Two traps: it assigns the derived `MimeType` *after* spreading
 `linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
 must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
-over a percent-encoded `file://` URI rather than a path —
-`createPlaylistOpenRequest` decodes it before the extension check. Adding an
-exec code to `linux.executableArgs` would suppress the `%U` but also pass that
-code to the app as a real argument, so it is not an option.
+over percent-encoded `file://` URIs rather than paths —
+`createPlaylistOpenRequest` decodes them before the extension check. `%U` is
+also the *plural* exec code, so a multi-file selection arrives as one launch
+with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
+of them and `enqueueAll` queues the batch, because stopping at the first match
+would silently drop the rest of the selection. Adding an exec code to
+`linux.executableArgs` would suppress the `%U` but also pass that code to the
+app as a real argument, so it is not an option.
 
 **Video Players**:
 

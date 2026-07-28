@@ -98,18 +98,25 @@ export function createPlaylistOpenRequest(
 }
 
 /**
- * Picks the playlist path out of a process argv.
+ * Picks every playlist path out of a process argv, in the order given.
  *
  * `argv[0]` is the executable and is always skipped; so is every switch, since
  * Electron and Chromium add plenty of them (`--remote-debugging-port=9222`,
  * `--ozone-platform=x11`, …) and a switch value is never the user's file.
  * In development the renderer entry (`main.js`) sits in argv too, but it is
  * not a playlist file so the extension check filters it out.
+ *
+ * Selecting several playlists in a Linux file manager delivers them as one
+ * launch with one argument each, because the desktop entry ends in `%U` — the
+ * plural exec code — so stopping at the first match would silently drop the
+ * rest of the selection.
  */
-export function extractPlaylistOpenRequestFromArgv(
+export function extractPlaylistOpenRequestsFromArgv(
     argv: readonly string[],
     workingDirectory?: string
-): PlaylistOpenRequest | null {
+): PlaylistOpenRequest[] {
+    const requests: PlaylistOpenRequest[] = [];
+
     for (const argument of argv.slice(1)) {
         if (typeof argument !== 'string' || argument.startsWith('-')) {
             continue;
@@ -118,11 +125,11 @@ export function extractPlaylistOpenRequestFromArgv(
         const request = createPlaylistOpenRequest(argument, workingDirectory);
 
         if (request) {
-            return request;
+            requests.push(request);
         }
     }
 
-    return null;
+    return requests;
 }
 
 export class PlaylistOpenRequestQueue {
@@ -138,6 +145,20 @@ export class PlaylistOpenRequestQueue {
         }
 
         this.pending.push(request);
+        this.flush();
+    }
+
+    /**
+     * Queues a whole selection at once. One flush for the batch, so a delivery
+     * that fails partway leaves the untouched remainder in arrival order.
+     */
+    enqueueAll(requests: readonly (PlaylistOpenRequest | null | undefined)[]): void {
+        for (const request of requests) {
+            if (request) {
+                this.pending.push(request);
+            }
+        }
+
         this.flush();
     }
 

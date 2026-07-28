@@ -41,7 +41,7 @@ import { runEmbeddedMpvRuntimeDiagnosticOrContinue } from './app/services/embedd
 import { acquireSingleInstanceLock } from './app/services/single-instance';
 import {
     createPlaylistOpenRequest,
-    extractPlaylistOpenRequestFromArgv,
+    extractPlaylistOpenRequestsFromArgv,
     playlistOpenRequests,
 } from './app/services/playlist-open-request';
 import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
@@ -210,10 +210,11 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
     });
 
     // Windows/Linux file associations and plain `iptvnator playlist.m3u`
-    // launches arrive as an argument instead. The renderer drains the queue
-    // once it is ready.
-    playlistOpenRequests.enqueue(
-        extractPlaylistOpenRequestFromArgv(process.argv)
+    // launches arrive as arguments instead — one per file, since selecting
+    // several playlists at once is a single launch. The renderer drains the
+    // queue once it is ready.
+    playlistOpenRequests.enqueueAll(
+        extractPlaylistOpenRequestsFromArgv(process.argv)
     );
 
     // handle setup events as quickly as possible
@@ -233,8 +234,8 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
                 // in the app you already have running". Its argv is the only
                 // carrier for that, and it is relative to *its* cwd.
                 onSecondInstance: (argv, workingDirectory) => {
-                    playlistOpenRequests.enqueue(
-                        extractPlaylistOpenRequestFromArgv(
+                    playlistOpenRequests.enqueueAll(
+                        extractPlaylistOpenRequestsFromArgv(
                             argv,
                             workingDirectory
                         )
