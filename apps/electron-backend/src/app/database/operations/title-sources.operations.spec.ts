@@ -95,6 +95,21 @@ describe('title-sources.operations', () => {
             expect(compiledQuery(fts.all).sql).toContain('LIMIT');
         });
 
+        it('requires every token of an all-short multiword title', async () => {
+            // "I Am" reaches the scan too — no token survives the trigram
+            // minimum. Matching on the first token alone returns every catalog
+            // row containing the word "i", which the TypeScript pass then
+            // throws away: a full scan of a large catalog on the single DB
+            // worker, just to open a detail page.
+            const scan = createDbMock([]);
+            await findTitleSources(scan.db, { title: 'I Am' });
+            const scanQuery = compiledQuery(scan.all);
+
+            expect(scanQuery.params).toContain('*[^a-z0-9]i[^a-z0-9]*');
+            expect(scanQuery.params).toContain('*[^a-z0-9]am[^a-z0-9]*');
+            expect(scanQuery.sql.match(/GLOB \?/g)).toHaveLength(2);
+        });
+
         it('does not offer a scan hit whose title merely contains the query', async () => {
             // The scan is deliberately loose; the two-tier normalized check
             // afterwards is what keeps "Up" from matching "Upgrade".

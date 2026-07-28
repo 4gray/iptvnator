@@ -109,11 +109,12 @@ export async function writePin(
         return false;
     }
 
-    await erasePin(
-        pins,
-        retirablePinKeys(keys).filter((key) => key !== matchKey)
-    );
-    return true;
+    const retire = retirablePinKeys(keys).filter((key) => key !== matchKey);
+    // A surviving alias is read BEFORE the canonical key on the next open, so
+    // a failed retire means reopening the movie picks the OLD source until
+    // enrichment supplies the tmdb id again. Report that rather than claiming
+    // the change stuck.
+    return retire.length === 0 || (await erasePin(pins, retire));
 }
 
 /** Clears every alias, so unpinning is not undone by a stale row. */

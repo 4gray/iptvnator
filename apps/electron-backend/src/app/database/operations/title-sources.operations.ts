@@ -120,10 +120,20 @@ function excludePlaylistClause(
  * text, so a non-ASCII short title is no better and no worse served than before.
  */
 function scanCandidateQuery(base: string, excludePlaylist: SQL) {
-    // Normalized, so it holds letters, digits and spaces only — nothing GLOB
+    // EVERY token has to appear, not just the first. This path is reached
+    // whenever no token survives FTS's minimum length, which includes
+    // multiword titles like "I Am" — matching on "i" alone would return most
+    // of the catalog and hand it all to the TypeScript pass to throw away.
+    const tokens = base.split(' ').filter(Boolean);
+    // Normalized, so they hold letters, digits and spaces only — nothing GLOB
     // would read as a metacharacter.
-    const token = base.split(' ')[0];
-    const wordMatch = `*[^a-z0-9]${token}[^a-z0-9]*`;
+    const wordMatches = sql.join(
+        tokens.map(
+            (token) =>
+                sql`' ' || LOWER(c.title) || ' ' GLOB ${`*[^a-z0-9]${token}[^a-z0-9]*`}`
+        ),
+        sql` AND `
+    );
     return sql`
         SELECT
             c.id AS content_id,
@@ -139,7 +149,7 @@ function scanCandidateQuery(base: string, excludePlaylist: SQL) {
         WHERE c.type = 'movie'
         AND cat.hidden = 0
         AND p.type = 'xtream'
-        AND ' ' || LOWER(c.title) || ' ' GLOB ${wordMatch}
+        AND ${wordMatches}
         ${excludePlaylist}
         ORDER BY LENGTH(c.title), c.title
     `;

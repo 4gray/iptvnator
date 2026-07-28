@@ -457,6 +457,14 @@ lookup comes back empty, because "never watched" is an answer: the button must
 read Play, not `Resume 42:18` on a stream that starts at zero. A pin on the
 route's own row changes nothing; the loaded position already IS that copy's.
 
+## Provider codec metadata
+
+`info.video` / `info.audio` come back in two shapes: the declared string array
+(`['H.264']`, which the mock server and many panels send) and the ffprobe
+object carrying `codec_name`/`width`/`height`. `readStreamInfo` accepts both —
+reading only the object silently lost the codec on every array response, and
+with it the "dub may differ" warning, which compares stated audio tracks.
+
 ## Claims about the present
 
 `isActive` means "the source a switch or Play would use" — selection, not

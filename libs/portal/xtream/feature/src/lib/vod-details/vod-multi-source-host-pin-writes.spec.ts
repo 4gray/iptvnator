@@ -196,6 +196,23 @@ describe('VodMultiSourceHostService — pin persistence', () => {
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
     });
 
+    it('does not claim a pin whose stale alias survived', async () => {
+        // A tmdb id AND a title/year, so the canonical key is written and the
+        // title alias is left to retire — the case where a failed clear can
+        // actually strand a stale row.
+        await loadMovie([ALT_TWO], { ...MOVIE_A, tmdbId: 603 });
+        pins.set.mockResolvedValue(true);
+        // The canonical key is written, but retiring the alias fails.
+        pins.clear.mockResolvedValue(false);
+
+        await service.togglePin(ALT_TWO.id);
+
+        // Lookups read the alias BEFORE the key just written, so reopening
+        // this movie before enrichment lands would start the OLD source. The
+        // icon must not promise otherwise.
+        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
+    });
+
     it('keeps the pin when clearing it fails', async () => {
         pins.get.mockResolvedValue({
             matchKey: 'title:the matrix:1999',

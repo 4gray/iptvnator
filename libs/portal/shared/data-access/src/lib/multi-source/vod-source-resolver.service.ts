@@ -180,10 +180,8 @@ export class VodSourceResolverService {
             const info = Array.isArray(vodDetails?.info)
                 ? undefined
                 : vodDetails?.info;
-            const video = info?.video as
-                | { codec_name?: string; width?: number; height?: number }
-                | undefined;
-            const audio = info?.audio as { codec_name?: string } | undefined;
+            const video = readStreamInfo(info?.video);
+            const audio = readStreamInfo(info?.audio);
 
             const container = vodDetails?.movie_data?.container_extension;
             if (container) {
@@ -221,4 +219,29 @@ export class VodSourceResolverService {
             };
         }
     }
+}
+
+/**
+ * Xtream panels disagree about `info.video` / `info.audio`.
+ *
+ * The declared shape is a string array (`['H.264']`), and that is what the
+ * mock server and many panels return; others return the ffprobe object with
+ * `codec_name`/`width`/`height`. Reading only the object shape silently lost
+ * the codec on every array-shaped response — so the source rows showed no
+ * provider-stated codec and the "dub may differ" warning could never fire.
+ */
+export function readStreamInfo(
+    value: unknown
+): { codec_name?: string; width?: number; height?: number } | undefined {
+    if (Array.isArray(value)) {
+        const codec = value.find(
+            (entry): entry is string =>
+                typeof entry === 'string' && entry.trim() !== ''
+        );
+        return codec ? { codec_name: codec.trim() } : undefined;
+    }
+
+    return typeof value === 'object' && value !== null
+        ? (value as { codec_name?: string; width?: number; height?: number })
+        : undefined;
 }
