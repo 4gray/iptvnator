@@ -9,6 +9,9 @@ import {
     APP_UPDATE_GET_STATUS,
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
+    ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
+    ANNOUNCE_PLAYLIST_OPEN_LISTENER,
+    OPEN_FILE,
 } from '@iptvnator/shared/interfaces';
 import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 import {
@@ -188,6 +191,38 @@ describe('main preload DB IPC contract', () => {
             APP_UPDATE_STATUS_CHANGED,
             handler
         );
+    });
+
+    it('exposes the playlist open-request announcement and push channel', async () => {
+        const api = getExposedApi();
+        const callback = jest.fn();
+        const request = {
+            fileName: 'weekend.m3u',
+            filePath: '/home/user/weekend.m3u',
+            requestId: 'playlist-open-1',
+        };
+
+        await api.announcePlaylistOpenListener();
+        await api.acknowledgePlaylistOpenRequest(request.requestId);
+        const unsubscribe = api.onPlaylistOpenRequest(callback);
+        const handler = mockIpcRenderer.on.mock.calls.at(-1)?.[1];
+
+        handler({}, request);
+        unsubscribe();
+
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
+            ANNOUNCE_PLAYLIST_OPEN_LISTENER
+        );
+        expect(mockIpcRenderer.invoke).toHaveBeenCalledWith(
+            ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
+            'playlist-open-1'
+        );
+        expect(mockIpcRenderer.on).toHaveBeenCalledWith(
+            OPEN_FILE,
+            expect.any(Function)
+        );
+        expect(callback).toHaveBeenCalledWith(request);
+        expect(mockIpcRenderer.off).toHaveBeenCalledWith(OPEN_FILE, handler);
     });
 
     it('forwards request-scoped DB operation events and unregisters the listener', () => {

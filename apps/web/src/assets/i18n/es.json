@@ -151,7 +151,8 @@
             "OR": "o",
             "CHOOSE_PLAYLIST": "Escoga una lista de reproducción",
             "BROWSE": "Explorar archivos",
-            "REJECTED": "El archivo fue rechazado, formato de archivo no compatible {{filename}}."
+            "REJECTED": "El archivo fue rechazado, formato de archivo no compatible {{filename}}.",
+            "OPEN_FAILED": "No se pudo abrir \"{{filename}}\"."
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Lista de reproducción (m3u, m3u8)",

@@ -177,6 +177,18 @@ export interface ElectronBridgeWindowState {
     isFullScreen: boolean;
 }
 
+/**
+ * A playlist file the operating system asked the app to open — a command line
+ * argument, a file association double-click, or macOS' `open-file` event. The
+ * main process resolves the path to an absolute one before handing it over.
+ */
+export interface ElectronBridgePlaylistOpenRequest {
+    fileName: string;
+    filePath: string;
+    /** Pass back to `acknowledgePlaylistOpenRequest` once received. */
+    requestId: string;
+}
+
 export interface ElectronBridgeAppUpdateRelease {
     version: string;
     releaseDate?: string;
@@ -561,6 +573,21 @@ export interface ElectronBridgeApi {
         title: string
     ) => Promise<Playlist>;
     openPlaylistFromFile: () => Promise<Playlist | null>;
+    onPlaylistOpenRequest: (
+        callback: (request: ElectronBridgePlaylistOpenRequest) => void
+    ) => () => void;
+    /**
+     * Tells the main process that an `onPlaylistOpenRequest` listener is
+     * attached, so it can push the playlist files the OS handed over — both
+     * the ones queued before this renderer existed and any that arrive later.
+     * Call it *after* subscribing.
+     */
+    announcePlaylistOpenListener: () => Promise<void>;
+    /**
+     * Confirms a pushed request reached this renderer. Until it does, the main
+     * process keeps the request and replays it to the next renderer.
+     */
+    acknowledgePlaylistOpenRequest: (requestId: string) => Promise<void>;
     getPathForFile: (file: File) => string;
     saveFileDialog: (
         defaultPath: string,

@@ -17,6 +17,10 @@ type NativePlaylistFileImportWindow = Window & {
     electron?: {
         getPathForFile?: (file: File) => string;
         openPlaylistFromFile?: () => Promise<Playlist | null>;
+        updatePlaylistFromFilePath?: (
+            filePath: string,
+            title: string
+        ) => Promise<Playlist | null>;
     };
 };
 
@@ -29,7 +33,11 @@ export class PlaylistFileImportService {
     }
 
     isSupportedFile(file: File): boolean {
-        const lower = file.name.toLowerCase();
+        return this.isSupportedPath(file.name);
+    }
+
+    isSupportedPath(fileNameOrPath: string): boolean {
+        const lower = fileNameOrPath.trim().toLowerCase();
         return M3U_EXTENSIONS.some((ext) => lower.endsWith(ext));
     }
 
@@ -52,6 +60,43 @@ export class PlaylistFileImportService {
                 title:
                     playlist.title || playlist.filename || 'Untitled playlist',
             };
+        } catch {
+            return { ok: false, reason: 'read-error' };
+        }
+    }
+
+    /**
+     * Imports a playlist the main process already resolved to a path — the OS
+     * "open with" / command line route, where there is no `File` handle. The
+     * extension guard mirrors {@link isSupportedFile} so a path that slipped
+     * through is rejected here rather than read.
+     */
+    async importFromPath(
+        filePath: string,
+        fileName?: string
+    ): Promise<PlaylistFileImportResult> {
+        const title = this.normalizeTitle(
+            fileName?.trim() || this.baseNameFromPath(filePath)
+        );
+
+        if (!this.isSupportedPath(filePath)) {
+            return { ok: false, reason: 'unsupported' };
+        }
+
+        const parseFromPath = this.getNativeFilePathParser();
+        if (!parseFromPath) {
+            return { ok: false, reason: 'read-error' };
+        }
+
+        try {
+            const playlist = await parseFromPath(filePath, title);
+            if (!playlist) {
+                return { ok: false, reason: 'read-error' };
+            }
+
+            this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
+
+            return { ok: true, title: playlist.title || title };
         } catch {
             return { ok: false, reason: 'read-error' };
         }
@@ -84,6 +129,12 @@ export class PlaylistFileImportService {
         );
 
         return { ok: true, title };
+    }
+
+    /** Renderer-side `basename`; handles both POSIX and Windows separators. */
+    private baseNameFromPath(filePath: string): string {
+        const segments = filePath.trim().split(/[\\/]/);
+        return segments[segments.length - 1] || filePath;
     }
 
     private normalizeTitle(filename: string): string {
@@ -122,6 +173,17 @@ export class PlaylistFileImportService {
 
         return (window as NativePlaylistFileImportWindow).electron
             ?.openPlaylistFromFile;
+    }
+
+    private getNativeFilePathParser():
+        | ((filePath: string, title: string) => Promise<Playlist | null>)
+        | undefined {
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        return (window as NativePlaylistFileImportWindow).electron
+            ?.updatePlaylistFromFilePath;
     }
 
     private getNativeFilePathResolver():
