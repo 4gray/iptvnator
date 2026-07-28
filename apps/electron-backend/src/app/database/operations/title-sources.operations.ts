@@ -135,9 +135,15 @@ function excludePlaylistClause(
  * that safe — a looser filter here costs transfer, never a wrong match.
  */
 function tokenPredicate(token: string, rawToken: string): SQL {
-    // Normalized, so an ASCII token holds letters and digits only — nothing
-    // GLOB would read as a metacharacter.
-    if (/^[a-z0-9]+$/.test(token)) {
+    // Decided from the RAW token, not the normalized one. Normalization folds
+    // diacritics, so "Ça" arrives here as "ca" — which looks like plain ASCII
+    // while the stored title still reads "Ça", and SQLite folds neither the
+    // cedilla nor the case. Branching on the folded form sent that title down
+    // the GLOB path and filtered it out before the confirmation ever ran.
+    //
+    // Normalized ASCII tokens hold letters and digits only, so nothing here
+    // is a GLOB metacharacter.
+    if (/^[\x20-\x7e]*$/.test(rawToken) && /^[a-z0-9]+$/.test(token)) {
         return sql`' ' || LOWER(c.title) || ' ' GLOB ${`*[^a-z0-9]${token}[^a-z0-9]*`}`;
     }
 

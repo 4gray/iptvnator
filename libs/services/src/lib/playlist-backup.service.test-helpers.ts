@@ -65,6 +65,7 @@ export function createPlaylistBackupService(
         vodSourcePinService: {
             listForPlaylist: jest.fn().mockResolvedValue([]),
             set: jest.fn().mockResolvedValue(true),
+            clear: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService: {
             set: jest.fn(),
@@ -249,6 +250,12 @@ export function createStatefulBackupCollaborators(
                     (existing) => existing.matchKey !== pin.matchKey
                 );
                 state.sourcePins.push({ ...pin });
+                return true;
+            },
+            clear: async (matchKeys: string[]) => {
+                state.sourcePins = state.sourcePins.filter(
+                    (pin) => !matchKeys.includes(pin.matchKey)
+                );
                 return true;
             },
         },

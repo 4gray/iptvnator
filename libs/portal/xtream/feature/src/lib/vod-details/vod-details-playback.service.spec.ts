@@ -162,6 +162,50 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(closeSession).toHaveBeenCalled();
     });
 
+    it('closes the alternative it launched, once the badge has moved on', async () => {
+        // The controller marks the DESTINATION active before playback is
+        // handed over, so by the time the switch reaches the service the
+        // running process no longer looks like "ours" — and was left playing
+        // beside its replacement.
+        activeSession.set(sessionFor('playlist-2', 991));
+        activeSource.set({
+            playlistId: 'playlist-3',
+            contentXtreamId: 77,
+            contentType: 'vod',
+        });
+        closeSession.mockClear();
+
+        // Pretend the alternative we are replacing is the one we started.
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/first.mkv',
+            title: 'Example Movie',
+            contentInfo: {
+                playlistId: 'playlist-2',
+                contentXtreamId: 991,
+                contentType: 'vod',
+            },
+        });
+        closeSession.mockClear();
+
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/second.mkv',
+            title: 'Example Movie',
+            contentInfo: {
+                playlistId: 'playlist-3',
+                contentXtreamId: 77,
+                contentType: 'vod',
+            },
+        });
+
+        expect(closeSession).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentInfo: expect.objectContaining({
+                    contentXtreamId: 991,
+                }),
+            })
+        );
+    });
+
     it('launches only the newest source when two switches overlap', async () => {
         activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
         // One shared promise: both calls see the same running session, so

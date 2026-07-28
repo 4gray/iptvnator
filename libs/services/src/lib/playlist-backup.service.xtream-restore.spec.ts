@@ -7,6 +7,10 @@ import {
     XtreamPlaylistBackupEntry,
 } from '@iptvnator/shared/interfaces';
 import { createPlaylistBackupService } from './playlist-backup.service.test-helpers';
+import {
+    createRestoreCollaborators,
+    createXtreamManifest,
+} from './playlist-backup.xtream-fixtures';
 
 /**
  * Regression coverage for issue #1017: hidden Xtream categories must be
@@ -17,111 +21,6 @@ import { createPlaylistBackupService } from './playlist-backup.service.test-help
  */
 describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
     const electronWindow = window as unknown as { electron?: unknown };
-
-    // Wire-shape rows as returned by the DB worker's category ops.
-    const categoryRowsByType: Record<string, unknown[]> = {
-        live: [
-            {
-                id: 11,
-                playlist_id: 'xtream-1',
-                name: 'News',
-                type: 'live',
-                xtream_id: 101,
-                hidden: true,
-            },
-            {
-                id: 12,
-                playlist_id: 'xtream-1',
-                name: 'Sports',
-                type: 'live',
-                xtream_id: 102,
-                hidden: false,
-            },
-        ],
-        movies: [
-            {
-                id: 21,
-                playlist_id: 'xtream-1',
-                name: 'Drama',
-                type: 'movies',
-                xtream_id: 201,
-                hidden: true,
-            },
-        ],
-        series: [],
-    };
-
-    const existingXtreamPlaylist = {
-        _id: 'xtream-1',
-        title: 'Xtream Portal',
-        count: 3,
-        importDate: '2026-04-20T00:00:00.000Z',
-        lastUsage: '2026-04-20T00:00:00.000Z',
-        autoRefresh: false,
-        serverUrl: 'http://portal.example.com',
-        username: 'user',
-        password: 'pass',
-    } as Playlist;
-
-    function createXtreamManifest(
-        hiddenCategories: unknown[],
-        sourcePins?: unknown[]
-    ): PlaylistBackupManifestV1 {
-        return {
-            kind: PLAYLIST_BACKUP_KIND,
-            version: PLAYLIST_BACKUP_VERSION,
-            exportedAt: '2026-04-21T00:00:00.000Z',
-            includeSecrets: true,
-            playlists: [
-                {
-                    portalType: 'xtream',
-                    exportedId: 'xtream-1',
-                    title: 'Xtream Portal',
-                    autoRefresh: false,
-                    connection: {
-                        serverUrl: 'http://portal.example.com',
-                        username: 'user',
-                        password: 'pass',
-                    },
-                    userState: {
-                        hiddenCategories,
-                        favorites: [],
-                        recentlyViewed: [],
-                        playbackPositions: [],
-                        ...(sourcePins ? { sourcePins } : {}),
-                    },
-                } as unknown as XtreamPlaylistBackupEntry,
-            ],
-        };
-    }
-
-    function createRestoreCollaborators() {
-        return {
-            playlistsService: {
-                addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
-                getAllData: jest.fn(() => of([existingXtreamPlaylist])),
-                getRawPlaylistById: jest.fn(() => of('#EXTM3U')),
-                handlePlaylistParsing: jest.fn(),
-            },
-            databaseService: {
-                getAllXtreamCategories: jest.fn(
-                    (_playlistId: string, type: string) =>
-                        Promise.resolve(categoryRowsByType[type] ?? [])
-                ),
-                getFavorites: jest.fn().mockResolvedValue([]),
-                getRecentItems: jest.fn().mockResolvedValue([]),
-                getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
-                hasXtreamCategories: jest.fn().mockResolvedValue(true),
-                hasXtreamContent: jest.fn().mockResolvedValue(true),
-                restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
-                updateCategoryVisibility: jest.fn().mockResolvedValue(true),
-            },
-            pendingRestoreService: {
-                set: jest.fn(),
-                clear: jest.fn(),
-            },
-        };
-    }
 
     beforeEach(() => {
         electronWindow.electron = {};
@@ -192,114 +91,11 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         );
     });
 
-    it('exports the pins that point at this playlist', async () => {
-        const collaborators = createRestoreCollaborators();
-        const service = createPlaylistBackupService({
-            playlistsService: collaborators.playlistsService,
-            databaseService: collaborators.databaseService,
-            vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([
-                    {
-                        matchKey: 'tmdb:603',
-                        playlistId: 'xtream-1',
-                        contentId: 501,
-                        portalType: 'xtream',
-                        updatedAt: '2026-07-06T09:00:00.000Z',
-                    },
-                ]),
-                set: jest.fn().mockResolvedValue(true),
-            },
-        });
 
-        const backup = await service.exportBackup();
 
-        const entry = backup.manifest
-            .playlists[0] as XtreamPlaylistBackupEntry;
-        // Without this every "main source" choice vanishes on restore, with
-        // nothing in the archive to say it was ever made.
-        expect(entry.userState.sourcePins).toEqual([
-            {
-                matchKey: 'tmdb:603',
-                contentId: 501,
-                updatedAt: '2026-07-06T09:00:00.000Z',
-            },
-        ]);
-    });
 
-    it('restores pins against the imported playlist, not the exported one', async () => {
-        const collaborators = createRestoreCollaborators();
-        const setPin = jest.fn().mockResolvedValue(true);
-        const service = createPlaylistBackupService({
-            ...collaborators,
-            vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
-                set: setPin,
-            },
-        });
 
-        const manifest = createXtreamManifest(
-            [],
-            [{ matchKey: 'tmdb:603', contentId: 501 }]
-        );
 
-        await service.importBackup(JSON.stringify(manifest));
-
-        // The match key identifies the film and carries over as-is; the
-        // playlist id is this installation's, not the archive's.
-        expect(setPin).toHaveBeenCalledWith({
-            matchKey: 'tmdb:603',
-            playlistId: 'xtream-1',
-            contentId: 501,
-            portalType: 'xtream',
-        });
-    });
-
-    it('reports a pin that could not be written', async () => {
-        const collaborators = createRestoreCollaborators();
-        const service = createPlaylistBackupService({
-            ...collaborators,
-            vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
-                // `set` reports failure rather than throwing, so ignoring the
-                // result would drop the preference while the summary claims
-                // the import succeeded.
-                set: jest.fn().mockResolvedValue(false),
-            },
-        });
-
-        const manifest = createXtreamManifest(
-            [],
-            [{ matchKey: 'tmdb:603', contentId: 501 }]
-        );
-
-        const summary = await service.importBackup(JSON.stringify(manifest));
-
-        expect(summary).toEqual(
-            expect.objectContaining({ merged: 0, failed: 1 })
-        );
-    });
-
-    it('imports an archive written before pins existed', async () => {
-        const collaborators = createRestoreCollaborators();
-        const setPin = jest.fn().mockResolvedValue(true);
-        const service = createPlaylistBackupService({
-            ...collaborators,
-            vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
-                set: setPin,
-            },
-        });
-
-        // No `sourcePins` at all — absence is age, not damage.
-        const summary = await service.importBackup(
-            JSON.stringify(createXtreamManifest([]))
-        );
-
-        expect(summary).toEqual(
-            expect.objectContaining({ merged: 1, failed: 0 })
-        );
-        expect(setPin).not.toHaveBeenCalled();
-    });
 
     it('rejects entries with missing user-state collections instead of wiping user data', async () => {
         const collaborators = createRestoreCollaborators();

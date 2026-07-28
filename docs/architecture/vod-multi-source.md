@@ -473,8 +473,9 @@ object carrying `codec_name`/`width`/`height`. `readStreamInfo` accepts both —
 reading only the object silently lost the codec on every array response, and
 with it the "dub may differ" warning, which compares stated audio tracks.
 
-Switching sources through `startResolvedPlayback` closes a matched external
-session first. It REPLACES what is playing — with MPV or VLC and instance
+Switching sources through `startResolvedPlayback` closes the external session
+it LAUNCHED first — tracked separately from the controller's active source,
+which a switch has already moved to the destination by then. It REPLACES what is playing — with MPV or VLC and instance
 reuse off, the backend would otherwise spawn a second detached player, leaving
 both sources running and Stop owning only the newer one.
 
@@ -482,7 +483,10 @@ both sources running and Stop owning only the newer one.
 
 SQLite's `LOWER()` and GLOB character classes are ASCII-only, so a short
 non-ASCII title could not be folded or word-bounded and simply never matched —
-the film stayed absent from the chip. ASCII tokens keep the word-boundary GLOB
+the film stayed absent from the chip. The ASCII/Unicode branch is decided from the RAW token, not the normalized
+one: normalization folds diacritics, so "Ça" arrives as "ca" and looks like
+plain ASCII while the stored title still reads "Ça". ASCII tokens keep the
+word-boundary GLOB
 (what stops "it" matching "Titanic"); a non-ASCII token falls back to a
 substring test against both the folded and the as-typed form. That covers a
 title stored in the same case as the request or in lower case, and deliberately

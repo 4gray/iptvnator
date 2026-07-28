@@ -26,6 +26,10 @@ import {
     getXtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
+import {
+    ownsContent,
+    runningExternalSession,
+} from './vod-details-external-session';
 import { formatPlaybackPosition } from './vod-primary-action-position';
 
 export interface VodDetailsPlaybackBindings {
@@ -144,14 +148,6 @@ export class VodDetailsPlaybackService {
         inject(DestroyRef).onDestroy(() => unsubscribePositionUpdates?.());
     }
 
-    /**
-     * Whether this page owns the content a position update refers to.
-     *
-     * Multi-source can put playback on a movie in ANOTHER playlist, whose ids
-     * the incoming rows then carry, so this has to agree with the Play/Stop
-     * button's `alsoOwns` — otherwise the page offers Stop for a session whose
-     * progress it silently drops.
-     */
     private ownsContent(
         info:
             | {
@@ -161,19 +157,11 @@ export class VodDetailsPlaybackService {
               }
             | undefined
     ): boolean {
-        // An absent playlist id must never match an absent current playlist.
-        if (!info?.playlistId || info.contentType !== 'vod') {
-            return false;
-        }
-
-        const active = this.bindings()?.activeSource?.();
-        return (
-            (info.playlistId === this.xtreamStore.currentPlaylist()?.id &&
-                info.contentXtreamId === this.bindings()?.vodId()) ||
-            (!!active &&
-                info.playlistId === active.playlistId &&
-                info.contentXtreamId === active.contentXtreamId)
-        );
+        return ownsContent(info, {
+            routePlaylistId: this.xtreamStore.currentPlaylist()?.id,
+            routeContentId: this.bindings()?.vodId(),
+            alternative: this.bindings()?.activeSource?.() ?? null,
+        });
     }
 
     /** Wires the host component's context signals. Call once at construction. */
@@ -345,6 +333,17 @@ export class VodDetailsPlaybackService {
     /** Bumped by every start; only the newest may launch after its close. */
     private startGeneration = 0;
 
+    /**
+     * What we last launched externally, remembered independently of the
+     * controller's active source.
+     *
+     * `matchedExternalPlayback` cannot answer this during a switch: the
+     * controller marks the DESTINATION active before playback is handed over,
+     * so by the time we get here the running process no longer looks like
+     * ours and would be left playing beside its replacement.
+     */
+    private launchedExternally: PlayerContentInfo | null = null;
+
     async startResolvedPlayback(
         playback: ResolvedPortalPlayback
     ): Promise<void> {
@@ -353,7 +352,11 @@ export class VodDetailsPlaybackService {
         // A switch REPLACES what is playing. With MPV or VLC and instance
         // reuse off, the backend spawns a second detached player otherwise —
         // both sources keep running and Stop owns only the newer one.
-        const running = this.matchedExternalPlayback();
+        const running = runningExternalSession(
+            this.externalPlayback.activeSession(),
+            this.launchedExternally,
+            this.matchedExternalPlayback()
+        );
         if (running) {
             await this.externalPlayback.closeSession(running);
         }
@@ -371,14 +374,17 @@ export class VodDetailsPlaybackService {
         this.startPlayback(playback);
     }
 
+
     private startPlayback(playback: ResolvedPortalPlayback): void {
         this.positionWriter.reset();
         if (this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);
+            this.launchedExternally = null;
             return;
         }
 
         this.closeInlinePlayer();
+        this.launchedExternally = playback.contentInfo ?? null;
         void this.portalPlayer.openResolvedPlayback(playback, true);
     }
 }

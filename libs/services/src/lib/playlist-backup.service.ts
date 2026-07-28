@@ -774,6 +774,16 @@ export class PlaylistBackupService {
         });
     }
 
+    /** Drops every pin currently pointing at this playlist. */
+    private async clearPinsForPlaylist(playlistId: string): Promise<void> {
+        const existing =
+            await this.vodSourcePinService.listForPlaylist(playlistId);
+        const matchKeys = existing.map((pin) => pin.matchKey).filter(Boolean);
+        if (matchKeys.length > 0) {
+            await this.vodSourcePinService.clear(matchKeys);
+        }
+    }
+
     private async restoreXtreamEntry(
         playlistId: string,
         entry: XtreamPlaylistBackupEntry
@@ -862,6 +872,15 @@ export class PlaylistBackupService {
                 playlistId,
                 playbackPosition
             );
+        }
+
+        // Present-but-empty is an answer, like the positions cleared above: a
+        // backup that holds no pin for this playlist means the user had none,
+        // so leaving the current ones would resurrect preferences the archive
+        // deliberately does not contain. Absent (an older archive) means "no
+        // opinion", and those are left alone.
+        if (state.sourcePins) {
+            await this.clearPinsForPlaylist(playlistId);
         }
 
         // The match key identifies the film and survives untouched; only the
