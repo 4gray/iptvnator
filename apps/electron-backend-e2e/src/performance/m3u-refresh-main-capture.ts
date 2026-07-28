@@ -1814,7 +1814,7 @@ export async function installMainCapture(
                     );
                 }
                 await Promise.all(
-                    currentDatabaseRecords.map((record) =>
+                    currentWorkerRecords.map((record) =>
                         joinFinalWorkerSample(record)
                     )
                 );

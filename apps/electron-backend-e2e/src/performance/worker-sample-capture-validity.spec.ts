@@ -49,3 +49,25 @@ test('plain capture stop and rollover both enforce worker sample validity', () =
         /assertWorkerSampleCaptureValid\(transport\.xtream\.invalidReasons\)/
     );
 });
+
+test('capture stop settles final samples for every current worker', () => {
+    const source = readFileSync(
+        new URL('./m3u-refresh-main-capture.ts', import.meta.url),
+        'utf8'
+    );
+    const stopStart = source.indexOf('stop: async (');
+    const stopEnd = source.indexOf(
+        'xtreamStatus: (): XtreamMainCaptureStatus',
+        stopStart
+    );
+    const stop = source.slice(stopStart, stopEnd);
+
+    assert.match(
+        stop,
+        /await Promise\.all\(\s*currentWorkerRecords\.map\(\(record\) =>\s*joinFinalWorkerSample\(record\)/
+    );
+    assert.doesNotMatch(
+        stop,
+        /currentDatabaseRecords\.map\(\(record\) =>\s*joinFinalWorkerSample\(record\)/
+    );
+});
