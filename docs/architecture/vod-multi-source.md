@@ -151,6 +151,11 @@ matter, and each rules out the other's shortcut:
   for a different film — pin Dune (2021), open Dune (1984) before its year
   arrives, and it starts the 2021 source.
 
+A write stores the new key **before** retiring the old rows. The other order
+destroys the stored preference and can then fail to replace it, leaving nothing
+persisted while the row still shows the old pin; lookups are most-trusted-first,
+so a leftover alias never outranks the key just written.
+
 The pin a rediscovery reads is applied **immediately**, not after its source
 lookup returns: holding that snapshot across the await lets it overwrite a pin
 the user makes in the meantime, leaving the row and the primary Play naming a
@@ -354,6 +359,13 @@ matcher AND the playback-position bridge. They cannot be allowed to disagree —
 a page that shows a Stop button for a session whose progress it discards keeps
 the resume point at wherever playback began, so a switch an hour later rewinds
 the whole session.
+
+Whichever source ends up playing, the "playing" badge follows it: starting the
+route's own stream (Play, Resume, Restart, or the fallback after a pin does not
+apply) hands the badge back to the route row, or the picker and caption go on
+naming an alternative that is no longer running. And a source started through
+the picker or a pin is recorded in Recently Viewed exactly as an ordinary Play
+is — it is the same film, watched.
 
 Stop then has to win over the pin. The primary action consults the pin first —
 that is what makes "make this the main source" decide where playback starts —

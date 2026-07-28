@@ -22,7 +22,7 @@ import {
     type VodMultiSourceMovie,
 } from './vod-multi-source-identity';
 import {
-    applyDiscoveredSources,
+    runDiscovery,
     runFailover,
     switchToSource,
     type SwitchOutcome,
@@ -31,7 +31,6 @@ import type { VodMultiSourceSwitchNotice } from './vod-multi-source-notice';
 import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
-    pinnedCopyInPlaylist,
     pinnedSourceAwaitingPlay,
     pinnedSourceIdOf,
     playPinned,
@@ -84,6 +83,8 @@ export class VodMultiSourceHostService {
     private switchToken = 0;
     private lastMovieKey: string | null = null;
     private movieIdentity: string | null = null;
+    /** The row standing for the playlist the route is on. */
+    private routeSourceId: string | null = null;
     /** Resolves once the discovery on the way has published its sources. */
     private loadInFlight: Promise<void> | null = null;
 
@@ -114,9 +115,8 @@ export class VodMultiSourceHostService {
     /** Alternative STREAMS — what the "Sources N" chip counts. */
     readonly alternativeCount = computed(() => this.alternatives().length);
     /**
-     * Alternative PLAYLISTS. The popover groups one playlist's three copies
-     * under that playlist, so "also found in N other playlists" must count
-     * portals, not copies, or it contradicts the list it opens.
+     * Alternative PLAYLISTS: the popover groups a playlist's copies under it,
+     * so "also found in N other playlists" counts portals, not copies.
      */
     readonly alternativePlaylistCount = computed(
         () => new Set(this.alternatives().map((s) => s.playlistId)).size
@@ -168,12 +168,10 @@ export class VodMultiSourceHostService {
      *
      * A DIFFERENT film starts a fresh session — the router REUSES this
      * component for detail→detail navigation, so everything resets, above all
-     * the tried-source set that makes failover terminate.
-     *
-     * The SAME film arriving again is a refresh, not a new session: enrichment
-     * changes the movie key on purpose, but nothing about what is playing.
-     * Resetting there would take the film off the source the user switched to
-     * and hand failover a clean tried-set for sources it has already burned.
+     * the tried-source set that makes failover terminate. The SAME film
+     * arriving again is a refresh: enrichment changes the movie key on
+     * purpose, but nothing about what is playing, and resetting would take the
+     * film off the source the user switched to.
      */
     async load(movie: VodMultiSourceMovie): Promise<void> {
         const finished = this.discover(movie);
@@ -207,39 +205,29 @@ export class VodMultiSourceHostService {
             return;
         }
 
-        // Read FIRST, because discovery has to be told which copy to keep.
-        const pin = await readPin(this.pins, this.pinKeys.lookup);
-        if (token !== this.discoveryToken) {
-            return;
-        }
+        const routeSource = currentSourceRow(movie);
+        this.routeSourceId = routeSource.id;
 
-        // Applied NOW, not after the discovery below: holding this snapshot
-        // across that await lets it overwrite a pin made in the meantime, and
-        // the row would name a source the database no longer holds. `loaded`
-        // records where it was found — the only ambiguous key an unpin may
-        // remove, being the row the user can actually see.
-        if (pin) {
-            this.controller.setPinnedSource(pinnedSourceIdOf(pin));
-            this.pinKeys = { ...this.pinKeys, loaded: pin.matchKey };
-        }
-
-        const result = await this.discovery.discover({
-            title: movie.title,
-            year: movie.year,
-            currentPlaylistId: movie.playlistId,
-            keepContentId: pinnedCopyInPlaylist(pin, movie.playlistId),
+        await runDiscovery({
+            controller: this.controller,
+            isCurrent: () => token === this.discoveryToken,
+            readPin: () => readPin(this.pins, this.pinKeys.lookup),
+            applyPin: (pin) => {
+                this.controller.setPinnedSource(pinnedSourceIdOf(pin));
+                // Where it was found is the only ambiguous key an unpin may
+                // remove, being the row the user can actually see.
+                this.pinKeys = { ...this.pinKeys, loaded: pin.matchKey };
+            },
+            discover: (keepContentId) =>
+                this.discovery.discover({
+                    title: movie.title,
+                    year: movie.year,
+                    currentPlaylistId: movie.playlistId,
+                    keepContentId,
+                }),
+            routeSource,
+            publish: () => this.publish(),
         });
-        if (token !== this.discoveryToken) {
-            return;
-        }
-
-        applyDiscoveredSources(
-            this.controller,
-            currentSourceRow(movie),
-            result.sources,
-            result.matchKind
-        );
-        this.publish();
     }
 
     /** The pinned source, when it is not the one the route already plays. */
@@ -362,6 +350,18 @@ export class VodMultiSourceHostService {
             this.switchTo(candidate)
         );
         return switched ? this._lastSwitch() : null;
+    }
+
+    /**
+     * Hand the "playing" badge back to the route's own row: closing an
+     * alternative and pressing Play starts the route stream, and the picker
+     * and caption must stop naming a source that is not running.
+     */
+    markRouteSourceActive(): void {
+        if (this.routeSourceId) {
+            this.controller.setActiveSource(this.routeSourceId);
+            this.publish();
+        }
     }
 
     /** The live position, fed ahead of the persist throttle. */

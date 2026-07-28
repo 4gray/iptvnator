@@ -458,10 +458,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // position this page was seeded with, and a failure before the first
         // timeupdate would otherwise resolve the next source back at it.
         this.multiSource.reportPosition(0);
+        this.multiSource.markRouteSourceActive();
         this.playback.playVod(vodItem);
     }
 
     resumeVod(vodItem: XtreamVodDetails | null): void {
+        this.multiSource.markRouteSourceActive();
         this.playback.resumeVod(vodItem);
     }
 
@@ -481,6 +483,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             return;
         }
 
+        // Falling through to the route's own stream: whatever alternative was
+        // last active is not what will be playing.
+        this.multiSource.markRouteSourceActive();
         this.playback.onPrimaryAction(vodItem);
     }
 

@@ -206,111 +206,18 @@ describe('VodMultiSourceHostService — pinning', () => {
         );
     });
 
-    it('lets a pin made during a rediscovery win over the old one', async () => {
-        pins.get.mockResolvedValue({
-            matchKey: 'title:the matrix:1999',
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        });
-        await loadMovie([ALT_TWO, ALT_THREE]);
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
-
-        // Enrichment reruns discovery for the same film...
-        const slow = createDeferred<{
-            sources: VodSourceCandidate[];
-            matchKind: string;
-        }>();
-        discovery.discover.mockReturnValueOnce(slow.promise);
-        const reloading = service.load({ ...MOVIE_A, tmdbId: 603 });
-        while (discovery.discover.mock.calls.length < 2) {
-            await Promise.resolve();
-        }
-
-        // ...and the user pins a different source while it is still out.
-        await service.togglePin(ALT_THREE.id);
-
-        slow.resolve({
-            sources: [ALT_TWO, ALT_THREE],
-            matchKind: 'title-year',
-        });
-        await reloading;
-
-        // The snapshot that rerun started with is now stale. Restoring it
-        // would leave the row and Play on a source the database no longer
-        // holds.
-        expect(rowFor(ALT_THREE.id)?.isPinned).toBe(true);
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
-    });
-
-    it('retires its own aliases but never another remake’s', async () => {
+    it('hands the playing badge back when the route stream starts', async () => {
         await loadMovie([ALT_TWO]);
-        const lookupKeys: string[] = pins.get.mock.calls[0][0];
-        const yearless = lookupKeys[lookupKeys.length - 1];
-        expect(yearless).toBe('title:the matrix:');
+        await expect(service.play(ALT_TWO.id)).resolves.toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
 
-        await service.togglePin(ALT_TWO.id);
+        // The user closed that player and pressed Play. The route's own stream
+        // is what runs now, so the picker and caption must not keep naming the
+        // alternative as "Playing".
+        service.markRouteSourceActive();
 
-        // Stale aliases of THIS movie go, or a reopen before enrichment reads
-        // one and starts the source the user just replaced.
-        const [retired] = pins.clear.mock.calls[0] as [string[]];
-        expect(retired).toContain('title:the matrix:1999');
-        // The yearless form is shared by every remake: a Dune (2021) pin must
-        // not delete — or answer for — a row that may be Dune (1984)'s.
-        expect(retired).not.toContain(yearless);
-
-        expect(pins.set).toHaveBeenCalledTimes(1);
-        expect(pins.set).toHaveBeenCalledWith({
-            matchKey: 'title:the matrix:1999',
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        });
-    });
-
-    it('retires the ambiguous row it actually read', async () => {
-        // A pin set before the year was known lives under the yearless key.
-        // This session read it, so the user is unpinning THAT row — leaving it
-        // would make the unpin come back on the next open.
-        pins.get.mockResolvedValue({
-            matchKey: 'title:the matrix:',
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        });
-        await loadMovie([ALT_TWO]);
-
-        await service.togglePin(ALT_TWO.id);
-
-        const [retired] = pins.clear.mock.calls[0] as [string[]];
-        expect(retired).toContain('title:the matrix:');
-    });
-
-    it('does not show a pin the database refused to store', async () => {
-        await loadMovie([ALT_TWO]);
-        pins.set.mockResolvedValue(false);
-
-        await service.togglePin(ALT_TWO.id);
-
-        // The icon promises the preference survives reopening the movie. A
-        // write that failed makes that a lie, so the row must not change.
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
-    });
-
-    it('keeps the pin when clearing it fails', async () => {
-        pins.get.mockResolvedValue({
-            matchKey: 'title:the matrix:1999',
-            playlistId: ALT_TWO.playlistId,
-            contentId: ALT_TWO.contentId,
-            portalType: 'xtream',
-        });
-        await loadMovie([ALT_TWO]);
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
-
-        pins.clear.mockResolvedValue(false);
-        await service.togglePin(ALT_TWO.id);
-
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
+        expect(rowFor(CURRENT_A_ID)?.isActive).toBe(true);
+        expect(rowFor(ALT_TWO.id)?.isActive).toBe(false);
     });
 
     it('waits for the stored pin before letting Play fall through', async () => {

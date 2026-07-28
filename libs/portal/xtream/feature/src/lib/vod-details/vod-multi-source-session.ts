@@ -3,11 +3,13 @@ import type {
     ResolvedPortalPlayback,
     VodSourceCandidate,
     VodSourceMatchKind,
+    VodSourcePin,
 } from '@iptvnator/shared/interfaces';
 import {
     buildSwitchNotice,
     type VodMultiSourceSwitchNotice,
 } from './vod-multi-source-notice';
+import { pinnedCopyInPlaylist } from './vod-multi-source-pin';
 
 /**
  * Session mechanics for one open movie: how a discovery folds into the state
@@ -177,4 +179,55 @@ export async function runFailover(
         // 'unresolvable': the candidate is now marked tried, so the next pick
         // is strictly a different source and the loop terminates.
     }
+}
+
+/** What one discovery pass needs from the host, without reaching into it. */
+export interface DiscoveryRunDeps {
+    controller: VodMultiSourceController;
+    /** False once a newer `load()` superseded this one. */
+    isCurrent: () => boolean;
+    readPin: () => Promise<VodSourcePin | null>;
+    /** Applied the moment it is read — see below. */
+    applyPin: (pin: VodSourcePin) => void;
+    discover: (keepContentId: number | null) => Promise<{
+        sources: VodSourceCandidate[];
+        matchKind: VodSourceMatchKind;
+    }>;
+    routeSource: VodSourceCandidate;
+    publish: () => void;
+}
+
+/**
+ * One discovery pass, from the pin lookup to the published source list.
+ *
+ * The pin is read first because discovery has to be told which copy of the
+ * film to keep, and applied immediately rather than after the source lookup:
+ * holding that snapshot across the await lets it overwrite a pin the user
+ * makes in the meantime, leaving the row naming a source the database no
+ * longer holds. Applying it first makes the later write simply win.
+ */
+export async function runDiscovery(deps: DiscoveryRunDeps): Promise<void> {
+    const pin = await deps.readPin();
+    if (!deps.isCurrent()) {
+        return;
+    }
+
+    if (pin) {
+        deps.applyPin(pin);
+    }
+
+    const result = await deps.discover(
+        pinnedCopyInPlaylist(pin, deps.routeSource.playlistId)
+    );
+    if (!deps.isCurrent()) {
+        return;
+    }
+
+    applyDiscoveredSources(
+        deps.controller,
+        deps.routeSource,
+        result.sources,
+        result.matchKind
+    );
+    deps.publish();
 }

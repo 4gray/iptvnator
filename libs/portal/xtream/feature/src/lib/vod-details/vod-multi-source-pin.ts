@@ -84,16 +84,26 @@ export async function writePin(
         return false;
     }
 
-    await erasePin(pins, retirablePinKeys(keys));
-
-    // The write can fail — no bridge, or the DB refused it. Reporting success
-    // then would show a pin the next visit does not have.
-    return pins.set({
+    // The write goes FIRST, and the old rows only go once it landed. The
+    // other order destroys the stored preference and then fails to replace it
+    // — leaving nothing persisted while the UI still shows the old pin.
+    // Lookups are most-trusted-first, so a leftover alias never outranks the
+    // key just written.
+    const stored = await pins.set({
         matchKey,
         playlistId: candidate.playlistId,
         contentId: candidate.contentId,
         portalType: candidate.portalType,
     });
+    if (!stored) {
+        return false;
+    }
+
+    await erasePin(
+        pins,
+        retirablePinKeys(keys).filter((key) => key !== matchKey)
+    );
+    return true;
 }
 
 /** Clears every alias, so unpinning is not undone by a stale row. */

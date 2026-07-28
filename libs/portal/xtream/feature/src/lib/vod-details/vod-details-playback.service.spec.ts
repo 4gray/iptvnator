@@ -27,6 +27,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     let service: VodDetailsPlaybackService;
     /** The bridge callback the service registers at construction. */
     let positionListener: ((data: PlaybackPositionData) => void) | undefined;
+    const addRecentItem = jest.fn();
     const activeSession = signal<unknown>(null);
     const activeSource = signal<PlayerContentInfo | null>(null);
 
@@ -46,6 +47,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         activeSession.set(null);
         activeSource.set(null);
         positionListener = undefined;
+        addRecentItem.mockClear();
 
         TestBed.configureTestingModule({
             providers: [
@@ -54,7 +56,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                     provide: XtreamStore,
                     useValue: {
                         currentPlaylist: signal({ id: ROUTE_PLAYLIST }),
-                        addRecentItem: jest.fn(),
+                        addRecentItem,
                     },
                 },
                 {
@@ -137,6 +139,23 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         // No active alternative: the switch was undone, so that session is
         // no longer this page's to stop.
         expect(service.matchedExternalPlayback()).toBeNull();
+    });
+
+    it('records a source started through multi-source as recently viewed', () => {
+        // Playing an alternative from the picker, or letting a pin decide the
+        // primary Play, is still watching the movie — it belongs in Recently
+        // Viewed exactly as an ordinary Play does.
+        service.startResolvedPlayback({
+            streamUrl: 'https://example.com/alt.mkv',
+            title: 'Example Movie',
+            contentInfo: {
+                playlistId: 'playlist-2',
+                contentXtreamId: 991,
+                contentType: 'vod',
+            },
+        });
+
+        expect(addRecentItem).toHaveBeenCalled();
     });
 
     describe('position updates from the bridge', () => {

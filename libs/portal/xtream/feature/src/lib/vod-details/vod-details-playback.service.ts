@@ -85,10 +85,9 @@ export class VodDetailsPlaybackService {
      * Whether this page owns the content an external session or a position
      * update refers to.
      *
-     * Multi-source can put playback on a movie in ANOTHER playlist, and its
-     * session ids and position rows then carry that playlist's identity. One
-     * predicate for both consumers: when they disagree, the page shows a Stop
-     * button for a session whose progress it is throwing away.
+     * Multi-source can put playback on a movie in ANOTHER playlist, whose ids
+     * its session and position rows then carry. One predicate for both: when
+     * they disagree the page shows Stop for a session whose progress it drops.
      */
     private ownsContent(
         info:
@@ -174,10 +173,8 @@ export class VodDetailsPlaybackService {
         const unsubscribePositionUpdates =
             this.playbackPositionBridge.onPlaybackPositionUpdate(
                 (data: PlaybackPositionData) => {
-                    // An external player running an ALTERNATIVE reports under
-                    // that playlist's ids. Dropping those updates would leave
-                    // the resume point at wherever playback started, and a
-                    // later switch would rewind the whole session.
+                    // An external player on an ALTERNATIVE reports under
+                    // that playlist's ids; dropping those rewinds a switch.
                     if (this.ownsContent(data)) {
                         this.vodPlaybackPosition.set(data);
                     }
@@ -383,6 +380,9 @@ export class VodDetailsPlaybackService {
      * engine survive and simply re-seek to `playback.startTime`.
      */
     startResolvedPlayback(playback: ResolvedPortalPlayback): void {
+        // Same movie, different source: still a view, and the picker and
+        // pin paths would otherwise leave it out of Recently Viewed.
+        this.addToRecentlyViewed();
         this.startPlayback(playback);
     }
 
