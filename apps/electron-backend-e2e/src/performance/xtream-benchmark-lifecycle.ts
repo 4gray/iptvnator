@@ -75,3 +75,19 @@ export async function persistXtreamIterationFailureEvidence(
         validForComparison: false,
     });
 }
+
+export async function persistXtreamIterationFailureEvidenceAndThrow(
+    failure: unknown,
+    options: PersistXtreamIterationFailureEvidenceOptions
+): Promise<never> {
+    try {
+        await persistXtreamIterationFailureEvidence(options);
+    } catch (persistenceFailure) {
+        throw new AggregateError(
+            [failure, persistenceFailure],
+            'Xtream benchmark iteration and failure evidence persistence failed',
+            { cause: failure }
+        );
+    }
+    throw failure;
+}

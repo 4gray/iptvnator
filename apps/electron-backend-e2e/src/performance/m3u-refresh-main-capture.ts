@@ -1266,6 +1266,7 @@ export async function installMainCapture(
                             state.active &&
                             state.measurementPhase === 'measuring' &&
                             kind === 'database.worker' &&
+                            state.captureOptions?.deferMeasurement === true &&
                             (!isCurrentCaptureRecord(record) ||
                                 !record.samplingStarted)
                         ) {
@@ -1508,9 +1509,11 @@ export async function installMainCapture(
                 throw new Error('xtream-main-measurement-boundary-unavailable');
             }
             const options = state.captureOptions;
-            const databaseRecords = [...records.values()].filter(
-                (record) => record.kind === 'database.worker'
-            );
+            const databaseRecords = options.deferMeasurement
+                ? [...records.values()].filter(
+                      (record) => record.kind === 'database.worker'
+                  )
+                : [];
             if (options.deferMeasurement && databaseRecords.length !== 1) {
                 throw new Error('xtream-database-worker-boundary-unavailable');
             }

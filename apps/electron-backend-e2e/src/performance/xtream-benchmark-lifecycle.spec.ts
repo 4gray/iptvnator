@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import {
     createXtreamSingleAttemptCapture,
     persistXtreamIterationFailureEvidence,
+    persistXtreamIterationFailureEvidenceAndThrow,
 } from './xtream-benchmark-lifecycle';
 
 const performanceDirectory = resolve(process.cwd(), 'src/performance');
@@ -147,6 +148,48 @@ describe('Xtream benchmark failure lifecycle', () => {
         );
     });
 
+    it('rethrows the original iteration failure after evidence persistence succeeds', async () => {
+        const originalFailure = new Error('fixed-original-failure');
+
+        await assert.rejects(
+            persistXtreamIterationFailureEvidenceAndThrow(originalFailure, {
+                evidence: {},
+                persist: async () => undefined,
+                stage: 'capture-setup',
+            }),
+            (failure: unknown) => {
+                assert.strictEqual(failure, originalFailure);
+                return true;
+            }
+        );
+    });
+
+    it('preserves both the original and evidence persistence failures', async () => {
+        const originalFailure = new Error('fixed-original-failure');
+        const persistenceFailure = new Error('fixed-persistence-failure');
+
+        await assert.rejects(
+            persistXtreamIterationFailureEvidenceAndThrow(originalFailure, {
+                evidence: {},
+                persist: async (filename) => {
+                    if (filename === 'failure.json') {
+                        throw persistenceFailure;
+                    }
+                },
+                stage: 'capture-setup',
+            }),
+            (failure: unknown) => {
+                assert.ok(failure instanceof AggregateError);
+                assert.deepEqual(failure.errors, [
+                    originalFailure,
+                    persistenceFailure,
+                ]);
+                assert.strictEqual(failure.cause, originalFailure);
+                return true;
+            }
+        );
+    });
+
     it('collects failure evidence before teardown and writes summary before its guard', () => {
         const iteration = readFileSync(
             resolve(performanceDirectory, 'xtream-benchmark-iteration.ts'),
@@ -154,7 +197,7 @@ describe('Xtream benchmark failure lifecycle', () => {
         );
         const failureCatch = iteration.indexOf('} catch (failure) {');
         const failurePersistence = iteration.indexOf(
-            'persistXtreamIterationFailureEvidence(',
+            'persistXtreamIterationFailureEvidenceAndThrow(',
             failureCatch
         );
         const teardown = iteration.indexOf('} finally {', failureCatch);

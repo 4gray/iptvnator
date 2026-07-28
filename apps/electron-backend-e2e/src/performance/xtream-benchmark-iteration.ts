@@ -45,7 +45,7 @@ import {
 } from './xtream-benchmark-artifacts';
 import {
     createXtreamSingleAttemptCapture,
-    persistXtreamIterationFailureEvidence,
+    persistXtreamIterationFailureEvidenceAndThrow,
     type XtreamBenchmarkFailureStage,
 } from './xtream-benchmark-lifecycle';
 import {
@@ -362,7 +362,7 @@ export async function runXtreamBenchmarkIteration(
         );
     } catch (failure) {
         const electronApp = app?.electronApp;
-        await persistXtreamIterationFailureEvidence({
+        await persistXtreamIterationFailureEvidenceAndThrow(failure, {
             evidence: {
                 control: async () => controlState ?? control.state(),
                 ...(electronApp
@@ -388,7 +388,6 @@ export async function runXtreamBenchmarkIteration(
                 ),
             stage: failureStage,
         });
-        throw failure;
     } finally {
         await prepared?.dispose().catch(() => undefined);
         await renderer?.dispose().catch(() => undefined);
