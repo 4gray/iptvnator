@@ -56,6 +56,63 @@ describe('worker performance capture resilience', () => {
         });
     });
 
+    it('allows the second required histogram turn after a delayed first turn', async () => {
+        const harness = createFakeRuntime({
+            armHistogramAfterTimeoutCount: 2,
+            timeoutElapsedMs: [86.202, 1, 1],
+        });
+        const capture = startWorkerPerformanceCapture({
+            enabled: true,
+            runtime: harness.runtime,
+        });
+
+        await armWorkerPerformanceCapture(capture);
+        const execution = await executeWithWorkerPerformanceCapture(
+            capture,
+            async () => 'result'
+        );
+
+        expect(harness.scheduledTimeouts.slice(0, 2)).toEqual([1, 1]);
+        expect(execution.performance).toMatchObject({
+            eventLoopDelay: {
+                maxMs: 24,
+                p95Ms: 18,
+                p99Ms: 22,
+            },
+            eventLoopDelayUnavailableReason: null,
+            histogramFlushedEpochMs: 145,
+            invalidReason: null,
+        });
+    });
+
+    it('times out after the second required turn when delayed arming never samples', async () => {
+        const harness = createFakeRuntime({
+            armHistogram: false,
+            timeoutElapsedMs: [86.202, 1],
+        });
+        const capture = startWorkerPerformanceCapture({
+            enabled: true,
+            runtime: harness.runtime,
+        });
+
+        await armWorkerPerformanceCapture(capture);
+        const execution = await executeWithWorkerPerformanceCapture(
+            capture,
+            async () => 'result'
+        );
+
+        expect(harness.scheduledTimeouts).toEqual([1, 1]);
+        expect(execution).toMatchObject({
+            result: 'result',
+            success: true,
+            performance: {
+                eventLoopDelay: null,
+                eventLoopDelayUnavailableReason:
+                    WORKER_PERFORMANCE_UNAVAILABLE_REASON.EVENT_LOOP_DELAY_ARM_TIMEOUT,
+            },
+        });
+    });
+
     it('cannot poll forever when the monotonic runtime clock stalls', async () => {
         const harness = createFakeRuntime({
             armHistogram: false,

@@ -4,11 +4,13 @@ import type {
 } from './worker-performance-capture';
 
 interface FakeRuntimeOptions {
+    armHistogramAfterTimeoutCount?: number;
     armHistogram?: boolean;
     flushHistogram?: boolean;
     histogramDisableResult?: boolean;
     stallMonotonicClock?: boolean;
     threadCpuAvailable?: boolean;
+    timeoutElapsedMs?: readonly number[];
     throwBoundaryCallbacks?: boolean;
     throwHistogramDisable?: boolean;
     throwHistogramCountAtRead?: number;
@@ -130,15 +132,21 @@ export function createFakeRuntime(
                 throw new Error('timer callback unavailable');
             }
             if (options.stallMonotonicClock !== true) {
-                monotonicMs += delayMs;
+                monotonicMs +=
+                    options.timeoutElapsedMs?.[timeoutCount] ?? delayMs;
             } else if (timeoutCount >= 55) {
                 throw new Error('test scheduler fail-safe');
             }
             timeoutCount += 1;
-            if (timeoutCount === 1 && options.armHistogram !== false) {
+            const armAfterTimeoutCount =
+                options.armHistogramAfterTimeoutCount ?? 1;
+            if (
+                timeoutCount === armAfterTimeoutCount &&
+                options.armHistogram !== false
+            ) {
                 histogramCount += 1;
             } else if (
-                timeoutCount > 1 &&
+                timeoutCount > armAfterTimeoutCount &&
                 options.armHistogram !== false &&
                 options.flushHistogram !== false
             ) {
