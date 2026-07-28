@@ -6,8 +6,10 @@ import type {
     WorkerRequestPerformanceMetrics,
 } from './m3u-refresh-cancellation-contract';
 import { WORKER_POST_GC_HEAP_UNAVAILABLE_REASON } from './m3u-refresh-cancellation-contract';
+import { parseWorkerPerformancePhaseEvents } from './worker-performance-phase-events';
 
 export interface WorkerRequestPerformanceOutcomeTransport {
+    readonly ipcCallId: number | null;
     readonly operation: string | null;
     readonly operationId: string | null;
     readonly operationIdUnavailableReason: string | null;
@@ -15,6 +17,7 @@ export interface WorkerRequestPerformanceOutcomeTransport {
     readonly playlistId: string | null;
     readonly requestId: string | null;
     readonly responseEpochMs: number;
+    readonly sourceEpochMs: number | null;
     readonly success: boolean;
 }
 
@@ -39,7 +42,9 @@ type ParsedWorkerPerformanceCapture = Pick<
     | 'eventLoopUtilizationUnavailableReason'
     | 'histogramFlushedEpochMs'
     | 'invalidReason'
+    | 'phaseEvents'
     | 'requestReceivedEpochMs'
+    | 'responsePostedEpochMs'
     | 'threadCpuSystemMicros'
     | 'threadCpuUnavailableReason'
     | 'threadCpuUserMicros'
@@ -146,7 +151,9 @@ function parseEventLoopDelay(
 }
 
 function parseWorkerPerformanceCapture(
-    input: unknown
+    input: unknown,
+    operation: string | null,
+    requestSucceeded: boolean
 ): ParsedWorkerPerformanceCapture | null {
     if (!isRecord(input)) {
         return null;
@@ -161,6 +168,7 @@ function parseWorkerPerformanceCapture(
     const histogramFlushedEpochMs = input['histogramFlushedEpochMs'];
     const invalidReason = input['invalidReason'];
     const requestReceivedEpochMs = input['requestReceivedEpochMs'];
+    const responsePostedEpochMs = input['responsePostedEpochMs'];
     const threadCpuSystemMicros = input['threadCpuSystemMicros'];
     const threadCpuUnavailableReason = input['threadCpuUnavailableReason'];
     const threadCpuUserMicros = input['threadCpuUserMicros'];
@@ -182,6 +190,7 @@ function parseWorkerPerformanceCapture(
         !isNullableFiniteNonNegativeNumber(histogramFlushedEpochMs) ||
         !isNullableReason(invalidReason, INVALID_REASONS) ||
         !isFiniteNonNegativeNumber(requestReceivedEpochMs) ||
+        !isFiniteNonNegativeNumber(responsePostedEpochMs) ||
         !isNullableFiniteNonNegativeNumber(threadCpuSystemMicros) ||
         !isNullableReason(threadCpuUnavailableReason, THREAD_CPU_REASONS) ||
         !isNullableFiniteNonNegativeNumber(threadCpuUserMicros) ||
@@ -191,11 +200,24 @@ function parseWorkerPerformanceCapture(
         return null;
     }
 
+    const phaseEvents = parseWorkerPerformancePhaseEvents(
+        operation,
+        input['phaseEvents'],
+        workStartedEpochMs,
+        workEndedEpochMs,
+        requestSucceeded
+    );
+    if (phaseEvents === null) {
+        return null;
+    }
+
     const timestampsAreOrdered =
         requestReceivedEpochMs <= workStartedEpochMs &&
         workStartedEpochMs <= workEndedEpochMs &&
+        workEndedEpochMs <= responsePostedEpochMs &&
         (histogramFlushedEpochMs === null ||
-            workEndedEpochMs <= histogramFlushedEpochMs);
+            (workEndedEpochMs <= histogramFlushedEpochMs &&
+                histogramFlushedEpochMs <= responsePostedEpochMs));
     const eventLoopDelayIsCoherent =
         eventLoopDelay === null
             ? eventLoopDelayUnavailableReason !== null &&
@@ -241,7 +263,9 @@ function parseWorkerPerformanceCapture(
         eventLoopUtilizationUnavailableReason,
         histogramFlushedEpochMs,
         invalidReason,
+        phaseEvents,
         requestReceivedEpochMs,
+        responsePostedEpochMs,
         threadCpuSystemMicros,
         threadCpuUnavailableReason,
         threadCpuUserMicros,
@@ -254,12 +278,14 @@ export function normalizeWorkerRequestPerformanceOutcome(
     input: WorkerRequestPerformanceOutcomeTransport
 ): WorkerRequestPerformanceMetrics {
     const identity = {
+        ipcCallId: input.ipcCallId,
         operation: input.operation,
         operationId: input.operationId,
         operationIdUnavailableReason: input.operationIdUnavailableReason,
         playlistId: input.playlistId,
         requestId: input.requestId,
         responseEpochMs: input.responseEpochMs,
+        sourceEpochMs: input.sourceEpochMs,
         success: input.success,
     };
     const unavailable = (
@@ -275,7 +301,9 @@ export function normalizeWorkerRequestPerformanceOutcome(
         invalidReason: null,
         ...identity,
         performanceCaptureUnavailableReason: reason,
+        phaseEvents: [],
         requestReceivedEpochMs: null,
+        responsePostedEpochMs: null,
         threadCpuSystemMicros: null,
         threadCpuUnavailableReason: null,
         threadCpuUserMicros: null,
@@ -291,9 +319,26 @@ export function normalizeWorkerRequestPerformanceOutcome(
     }
 
     const performanceCapture = parseWorkerPerformanceCapture(
-        input.performanceCapture
+        input.performanceCapture,
+        input.operation,
+        input.success
     );
     if (!performanceCapture) {
+        return unavailable('worker-performance-capture-invalid');
+    }
+    if (
+        !isFiniteNonNegativeNumber(input.responseEpochMs) ||
+        performanceCapture.responsePostedEpochMs > input.responseEpochMs
+    ) {
+        return unavailable('worker-performance-capture-invalid');
+    }
+    if (
+        performanceCapture.phaseEvents.length > 0 &&
+        (input.requestId === null ||
+            performanceCapture.phaseEvents.some(
+                (event) => event.requestId !== input.requestId
+            ))
+    ) {
         return unavailable('worker-performance-capture-invalid');
     }
 

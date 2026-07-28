@@ -38,6 +38,7 @@ import {
 } from './app/services/embedded-mpv-frame-copy-platform.util';
 import { isEmbeddedMpvFeatureEnabled } from './app/services/embedded-mpv-runtime-policy.util';
 import { runEmbeddedMpvRuntimeDiagnosticOrContinue } from './app/services/embedded-mpv-runtime-diagnostic';
+import { acquireSingleInstanceLock } from './app/services/single-instance';
 import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
@@ -150,10 +151,10 @@ export default class Main {
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
 
-        // Set main window for downloads and reset stale downloads
-        if (App.mainWindow) {
-            setDownloadsMainWindow(App.mainWindow);
-        }
+        // Keep the downloads broadcaster bound to the live window. macOS can
+        // rebuild the window while the process runs, and a stale reference
+        // silently swallows every DOWNLOADS_UPDATE_EVENT.
+        App.onMainWindowCreated(setDownloadsMainWindow);
 
         // Load the renderer only after IPC handlers are registered. On slower
         // Linux CI hosts the renderer can otherwise invoke Electron bridge IPC
@@ -195,6 +196,20 @@ export default class Main {
 runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
     // handle setup events as quickly as possible
     Main.initialize();
+
+    // A second instance sharing this userData directory cannot take the
+    // Chromium storage lock, so its renderer silently loses every settings
+    // write. Focus the window that already owns the profile instead — or
+    // re-create it, since on macOS the process outlives its last window.
+    if (
+        !acquireSingleInstanceLock(
+            app,
+            () => App.mainWindow,
+            () => App.ensureMainWindow()
+        )
+    ) {
+        return;
+    }
 
     // bootstrap app
     Main.bootstrapApp();

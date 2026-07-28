@@ -17,6 +17,7 @@ This file provides guidance to coding agents working in this repository.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json` so `@nx/enforce-module-boundaries` remains useful for humans and agents.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
 - ESLint enforces `max-lines` on TypeScript files (target under 300, hard maximum 400). Files that predate the rule are baselined in `tools/eslint/max-lines-baseline.mjs`; after splitting a file, regenerate it with `node tools/eslint/generate-max-lines-baseline.mjs`. Never add new files to the baseline — the list must only shrink. A new file that genuinely cannot be split (for example a function serialized into another process) instead carries its own file-wide `/* eslint-disable max-lines -- <why> */`; the generator skips those files, so a justified exemption never lands in the baseline.
+- Project `lint` targets that shell out to eslint must quote the glob, e.g. `eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX shell on Linux and macOS (which has no `globstar`, so it matches only a shallow subset of files) while Windows passes the literal pattern to ESLint, which expands it recursively — the two hosts then lint different file sets. The target still reports success either way, so a broken glob hides missing coverage instead of failing. After changing such a target, compare the linted file count against `find <project> -name '*.ts' | wc -l`.
 - Repository-specific skills are committed under `.codex/skills/`. Claude Code only discovers skills under `.claude/skills/`, so `release-notes` and `release-cut` are mirrored there and the two copies must be kept in sync; every other entry in `.claude/skills/` is personal and stays gitignored. If an external agent does not support skills, treat those files as concise ownership docs.
 
 ## Documentation After Changes
@@ -69,6 +70,7 @@ This file provides guidance to coding agents working in this repository.
 - Do not auto-open DevTools during normal CDP automation. In development, DevTools is opt-in via `ELECTRON_OPEN_DEVTOOLS=1`.
 - If DevTools is open, `agent-browser --cdp 9222 ...` may attach to the DevTools page instead of the IPTVnator window. Symptoms: `tab list` shows `about:blank`, snapshots are empty, and screenshots are black.
 - If that happens, inspect targets with `curl http://127.0.0.1:9222/json/list` and connect directly to the IPTVnator page websocket from the `webSocketDebuggerUrl` field.
+- The app holds a single-instance lock (`acquireSingleInstanceLock` in `apps/electron-backend/src/app/services/single-instance.ts`): a second launch against the same `userData` quits immediately and focuses the running window. To attach a second CDP-enabled instance to the same profile, set `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` — knowing that only one of the two processes will own the renderer's IndexedDB, so settings written by the other are lost.
 
 ### Trace / Debug Startup
 
@@ -85,8 +87,8 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
     - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
     - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
-    - `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted preload IPC phase markers for refresh/DB benchmark correlation; benchmark tooling sets it explicitly, and production launches must leave it unset
-    - `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker timestamps, thread CPU, event-loop utilization, and event-loop delay metrics in database and playlist-refresh responses, plus the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
+    - `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted M3U and Xtream preload IPC request/completion markers plus count-only M3U acquire/parse/normalize, Xtream main network/JSON-transform/success-response-ready/cancel-dispatch, and renderer store phase capture; renderer wrappers emit only while the benchmark installs its Symbol hook, benchmark tooling sets the flag explicitly, and production launches must leave it unset
+    - `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker receive/work/response-post timestamps, thread CPU, event-loop utilization/delay, count-only playlist serialization/SQLite write/read/deserialization plus Xtream category/content/cache-clear/delete/in-source-search phase events, profiling-only worker cancel-receipt acknowledgements, valid-sample-counted isolate peak memory, and the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
 
 - Settings, portal request/response, and trace payloads must use
   `@iptvnator/shared/logging` or the redacting portal logger before reaching

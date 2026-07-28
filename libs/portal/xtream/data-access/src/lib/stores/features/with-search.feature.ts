@@ -7,6 +7,10 @@ import {
 } from '@ngrx/signals';
 import { GlobalSearchResult } from '@iptvnator/shared/interfaces';
 import {
+    measureRendererPerformancePhase,
+    RENDERER_PERFORMANCE_PHASE,
+} from '@iptvnator/shared/logging';
+import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '../../data-sources/xtream-data-source.interface';
@@ -127,10 +131,15 @@ export function withSearch() {
                             return results;
                         }
 
-                        patchState(store, {
-                            searchResults: results,
-                            isSearching: false,
-                        });
+                        measureRendererPerformancePhase(
+                            RENDERER_PERFORMANCE_PHASE.XTREAM_SEARCH_RESULTS,
+                            () =>
+                                patchState(store, {
+                                    searchResults: results,
+                                    isSearching: false,
+                                }),
+                            () => ({ items: results.length })
+                        );
 
                         return results;
                     } catch (error) {

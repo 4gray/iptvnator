@@ -1,9 +1,10 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
-import type {
-    XtreamBackupFavoriteItem,
-    XtreamBackupHiddenCategory,
-    XtreamBackupRecentlyViewedItem,
+import {
+    XTREAM_DATABASE_PERFORMANCE_PHASE,
+    type XtreamBackupFavoriteItem,
+    type XtreamBackupHiddenCategory,
+    type XtreamBackupRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
@@ -12,6 +13,7 @@ import {
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
+import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 
 const DEFAULT_BATCH_SIZE = 100;
 
@@ -28,16 +30,18 @@ function toContentIdentityKey(
     return `${contentType}:${xtreamId}`;
 }
 
-export async function deleteXtreamContent(
+interface XtreamDeletionCollection {
+    readonly categoryIds: number[];
+    readonly contentRows: Array<{ id: number }>;
+    readonly favorites: XtreamBackupFavoriteItem[];
+    readonly hiddenCategories: XtreamBackupHiddenCategory[];
+    readonly recentlyViewed: XtreamBackupRecentlyViewedItem[];
+}
+
+async function collectXtreamDeletionRows(
     db: AppDatabase,
-    playlistId: string,
-    control?: OperationControl
-): Promise<{
-    success: boolean;
-    favorites: XtreamBackupFavoriteItem[];
-    recentlyViewed: XtreamBackupRecentlyViewedItem[];
-    hiddenCategories: XtreamBackupHiddenCategory[];
-}> {
+    playlistId: string
+): Promise<XtreamDeletionCollection> {
     const categories = await db
         .select({
             id: schema.categories.id,
@@ -58,6 +62,7 @@ export async function deleteXtreamContent(
 
     let favorites: XtreamBackupFavoriteItem[] = [];
     let recentlyViewed: XtreamBackupRecentlyViewedItem[] = [];
+    let contentRows: Array<{ id: number }> = [];
 
     if (categoryIds.length > 0) {
         const favoritedContent = await db
@@ -110,43 +115,58 @@ export async function deleteXtreamContent(
             viewedAt: item.viewedAt || new Date().toISOString(),
         }));
 
-        const contentRows = await db
+        contentRows = await db
             .select({ id: schema.content.id })
             .from(schema.content)
             .where(inArray(schema.content.categoryId, categoryIds));
+    }
 
-        let deletedContent = 0;
-        const totalContent = contentRows.length;
+    return {
+        categoryIds,
+        contentRows,
+        favorites,
+        hiddenCategories,
+        recentlyViewed,
+    };
+}
 
-        for (const chunk of chunkValues(
-            contentRows.map((content) => content.id),
-            DEFAULT_BATCH_SIZE
-        )) {
-            await checkpointOperation(control);
-            await db.transaction((tx) => {
-                tx
-                    .delete(schema.content)
-                    .where(inArray(schema.content.id, chunk))
-                    .run();
-            });
-            deletedContent += chunk.length;
-            await reportOperationProgress(control, {
-                phase: 'deleting-content',
-                current: deletedContent,
-                total: totalContent,
-                increment: chunk.length,
-            });
-        }
+async function deleteCollectedXtreamRows(
+    db: AppDatabase,
+    collection: XtreamDeletionCollection,
+    control?: OperationControl
+): Promise<number> {
+    let deletedContent = 0;
+    const totalContent = collection.contentRows.length;
+
+    for (const chunk of chunkValues(
+        collection.contentRows.map((content) => content.id),
+        DEFAULT_BATCH_SIZE
+    )) {
+        await checkpointOperation(control);
+        await db.transaction((tx) => {
+            tx.delete(schema.content)
+                .where(inArray(schema.content.id, chunk))
+                .run();
+        });
+        deletedContent += chunk.length;
+        await reportOperationProgress(control, {
+            phase: 'deleting-content',
+            current: deletedContent,
+            total: totalContent,
+            increment: chunk.length,
+        });
     }
 
     let deletedCategories = 0;
-    const totalCategories = categoryIds.length;
+    const totalCategories = collection.categoryIds.length;
 
-    for (const chunk of chunkValues(categoryIds, DEFAULT_BATCH_SIZE)) {
+    for (const chunk of chunkValues(
+        collection.categoryIds,
+        DEFAULT_BATCH_SIZE
+    )) {
         await checkpointOperation(control);
         await db.transaction((tx) => {
-            tx
-                .delete(schema.categories)
+            tx.delete(schema.categories)
                 .where(inArray(schema.categories.id, chunk))
                 .run();
         });
@@ -159,11 +179,46 @@ export async function deleteXtreamContent(
         });
     }
 
+    return totalContent + totalCategories;
+}
+
+export async function deleteXtreamContent(
+    db: AppDatabase,
+    playlistId: string,
+    control?: OperationControl,
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
+): Promise<{
+    success: boolean;
+    favorites: XtreamBackupFavoriteItem[];
+    recentlyViewed: XtreamBackupRecentlyViewedItem[];
+    hiddenCategories: XtreamBackupHiddenCategory[];
+}> {
+    const collection = capturePhase
+        ? await capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_COLLECT_USER_DATA,
+              () => collectXtreamDeletionRows(db, playlistId),
+              (result) => ({
+                  itemCount:
+                      result.contentRows.length + result.categoryIds.length,
+              })
+          )
+        : await collectXtreamDeletionRows(db, playlistId);
+
+    if (capturePhase) {
+        await capturePhase.captureAsync(
+            XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_XTREAM_DELETE_WRITE_TRANSACTIONS,
+            () => deleteCollectedXtreamRows(db, collection, control),
+            (itemCount) => ({ itemCount })
+        );
+    } else {
+        await deleteCollectedXtreamRows(db, collection, control);
+    }
+
     return {
         success: true,
-        favorites,
-        recentlyViewed,
-        hiddenCategories,
+        favorites: collection.favorites,
+        recentlyViewed: collection.recentlyViewed,
+        hiddenCategories: collection.hiddenCategories,
     };
 }
 

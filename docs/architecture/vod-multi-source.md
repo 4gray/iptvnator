@@ -248,7 +248,10 @@ for "Up".
 One row inside the excluded playlist is kept when the caller names it
 (`keepContentId`): a pin can point at another copy of the film in the playlist
 being viewed, and dropping that row would leave the preference pointing at
-nothing. The host therefore reads the pin BEFORE discovery.
+nothing. The host therefore reads the pin BEFORE discovery. When that pin is
+the route's *own* row, the kept copy and `currentSourceRow()` are the same
+stream, so `applyDiscoveredSources` drops the duplicate rather than listing it
+twice.
 
 ### Same title, different film
 
@@ -384,7 +387,9 @@ play.
 Whichever source ends up playing, the "playing" badge follows it: starting the
 route's own stream (Play, Resume, Restart, or the fallback after a pin does not
 apply) hands the badge back to the route row, or the picker and caption go on
-naming an alternative that is no longer running. And a source started through
+naming an alternative that is no longer running. That hand-back also
+invalidates a switch still resolving — the user chose the route stream, and an
+older resolution arriving afterwards would replace what they just asked for. And a source started through
 the picker or a pin is recorded in Recently Viewed exactly as an ordinary Play
 is — it is the same film, watched.
 

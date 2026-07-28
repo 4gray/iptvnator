@@ -327,11 +327,9 @@ export class VodMultiSourceHostService {
     }
 
     /**
-     * Automatically move to the best untried source after a playback failure.
-     *
-     * Returns the notice to announce, or null when auto-failover is off or
-     * every source has been tried — in which case the caller shows the honest
-     * error screen instead.
+     * Move to the best untried source after a playback failure. Null when
+     * auto-failover is off or every source has been tried, and the caller
+     * shows the honest error screen instead.
      */
     async failover(): Promise<VodMultiSourceSwitchNotice | null> {
         if (!this.autoFailoverEnabled()) {
@@ -353,11 +351,12 @@ export class VodMultiSourceHostService {
     }
 
     /**
-     * Hand the "playing" badge back to the route's own row: closing an
-     * alternative and pressing Play starts the route stream, and the picker
-     * and caption must stop naming a source that is not running.
+     * Hand the "playing" badge back to the route's own row, and retire a
+     * switch still resolving — every caller is starting the route's stream,
+     * so an older resolution would replace what the user just asked for.
      */
     markRouteSourceActive(): void {
+        this.switchToken++;
         if (this.routeSourceId) {
             this.controller.setActiveSource(this.routeSourceId);
             this.publish();

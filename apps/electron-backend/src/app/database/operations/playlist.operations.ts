@@ -1,6 +1,14 @@
 import { eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
+import {
+    APP_PLAYLIST_GET_PERFORMANCE_PHASE,
+    APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE,
+    XTREAM_DATABASE_PERFORMANCE_PHASE,
+    type AppPlaylistGetPerformancePhase,
+    type AppPlaylistUpsertPerformancePhase,
+    type PerformancePhaseMetadata,
+} from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
     checkpointOperation,
@@ -8,6 +16,7 @@ import {
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
+import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 
 const PLAYLIST_TYPES = {
     XTREAM: 'xtream',
@@ -18,6 +27,32 @@ const PLAYLIST_TYPES = {
 } as const;
 
 const DEFAULT_BATCH_SIZE = 100;
+
+export interface AppPlaylistUpsertPhaseCapture {
+    captureAsync: <TResult>(
+        phase: AppPlaylistUpsertPerformancePhase,
+        execute: () => Promise<TResult>,
+        metadata?: (result: TResult) => PerformancePhaseMetadata
+    ) => Promise<TResult>;
+    captureSync: <TResult>(
+        phase: AppPlaylistUpsertPerformancePhase,
+        execute: () => TResult,
+        metadata?: (result: TResult) => PerformancePhaseMetadata
+    ) => TResult;
+}
+
+export interface AppPlaylistGetPhaseCapture {
+    captureAsync: <TResult>(
+        phase: AppPlaylistGetPerformancePhase,
+        execute: () => Promise<TResult>,
+        metadata?: (result: TResult) => PerformancePhaseMetadata
+    ) => Promise<TResult>;
+    captureSync: <TResult>(
+        phase: AppPlaylistGetPerformancePhase,
+        execute: () => TResult,
+        metadata?: (result: TResult) => PerformancePhaseMetadata
+    ) => TResult;
+}
 
 type PlaylistType = (typeof PLAYLIST_TYPES)[keyof typeof PLAYLIST_TYPES];
 const PLAYLIST_TYPE_VALUES = new Set<PlaylistType>(
@@ -196,6 +231,21 @@ function buildPlaylistRow(
     };
 }
 
+function getPlaylistItemCount(
+    playlist: Record<string, unknown>
+): number | undefined {
+    try {
+        const value = playlist.playlist;
+        if (typeof value !== 'object' || value === null) {
+            return undefined;
+        }
+        const items = Reflect.get(value, 'items');
+        return Array.isArray(items) ? items.length : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 export function parseAppPlaylist(
     row: schema.Playlist
 ): Record<string, unknown> {
@@ -300,17 +350,39 @@ export async function createPlaylist(
 
 export async function upsertAppPlaylist(
     db: AppDatabase,
-    playlist: Record<string, unknown>
+    playlist: Record<string, unknown>,
+    capturePhase?: AppPlaylistUpsertPhaseCapture
 ): Promise<{ success: boolean }> {
-    const row = buildPlaylistRow(playlist);
+    const row = capturePhase
+        ? capturePhase.captureSync(
+              APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE.SERIALIZE_PLAYLIST,
+              () => buildPlaylistRow(playlist),
+              () => ({
+                  itemCount: getPlaylistItemCount(playlist),
+              })
+          )
+        : buildPlaylistRow(playlist);
     if (!row) {
         throw new Error('Playlist ID is required for upsert');
     }
 
-    await db.insert(schema.playlists).values(row).onConflictDoUpdate({
-        target: schema.playlists.id,
-        set: row,
-    });
+    const write = async () => {
+        await db.insert(schema.playlists).values(row).onConflictDoUpdate({
+            target: schema.playlists.id,
+            set: row,
+        });
+    };
+    if (capturePhase) {
+        await capturePhase.captureAsync(
+            APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE.SQLITE_WRITE,
+            write,
+            () => ({
+                itemCount: 1,
+            })
+        );
+    } else {
+        await write();
+    }
 
     return { success: true };
 }
@@ -392,14 +464,35 @@ export async function getAppPlaylistMetas(db: AppDatabase) {
     );
 }
 
-export async function getAppPlaylist(db: AppDatabase, playlistId: string) {
-    const rows = await db
-        .select()
-        .from(schema.playlists)
-        .where(eq(schema.playlists.id, playlistId))
-        .limit(1);
+export async function getAppPlaylist(
+    db: AppDatabase,
+    playlistId: string,
+    capturePhase?: AppPlaylistGetPhaseCapture
+) {
+    const read = () =>
+        db
+            .select()
+            .from(schema.playlists)
+            .where(eq(schema.playlists.id, playlistId))
+            .limit(1);
+    const rows = capturePhase
+        ? await capturePhase.captureAsync(
+              APP_PLAYLIST_GET_PERFORMANCE_PHASE.SQLITE_READ,
+              read,
+              (value) => ({ itemCount: value.length })
+          )
+        : await read();
+    const deserialize = () => (rows[0] ? parseAppPlaylist(rows[0]) : null);
 
-    return rows[0] ? parseAppPlaylist(rows[0]) : null;
+    return capturePhase
+        ? capturePhase.captureSync(
+              APP_PLAYLIST_GET_PERFORMANCE_PHASE.DESERIALIZE_PLAYLIST,
+              deserialize,
+              (value) => ({
+                  itemCount: value ? (getPlaylistItemCount(value) ?? 0) : 0,
+              })
+          )
+        : deserialize();
 }
 
 export async function getAppPlaylistFavoriteChannels(
@@ -495,11 +588,19 @@ export async function updatePlaylist(
     return { success: true };
 }
 
-export async function deletePlaylist(
+interface PlaylistDeletionCollection {
+    readonly categoryIds: number[];
+    readonly contentRows: Array<{ id: number }>;
+    readonly downloadRows: Array<{ id: number }>;
+    readonly favoriteRows: Array<{ id: number }>;
+    readonly playbackPositionRows: Array<{ id: number }>;
+    readonly recentlyViewedRows: Array<{ id: number }>;
+}
+
+async function collectPlaylistDeletionRows(
     db: AppDatabase,
-    playlistId: string,
-    control?: OperationControl
-): Promise<{ success: boolean }> {
+    playlistId: string
+): Promise<PlaylistDeletionCollection> {
     const [
         favoriteRows,
         recentlyViewedRows,
@@ -537,40 +638,69 @@ export async function deletePlaylist(
                   .where(inArray(schema.content.categoryId, categoryIds))
             : [];
 
+    return {
+        categoryIds,
+        contentRows,
+        downloadRows,
+        favoriteRows,
+        playbackPositionRows,
+        recentlyViewedRows,
+    };
+}
+
+function countPlaylistDeletionRows(
+    collection: PlaylistDeletionCollection
+): number {
+    return (
+        collection.favoriteRows.length +
+        collection.recentlyViewedRows.length +
+        collection.playbackPositionRows.length +
+        collection.downloadRows.length +
+        collection.contentRows.length +
+        collection.categoryIds.length
+    );
+}
+
+async function deleteCollectedPlaylistRows(
+    db: AppDatabase,
+    playlistId: string,
+    collection: PlaylistDeletionCollection,
+    control?: OperationControl
+): Promise<number> {
     for (const [phase, ids, column, table] of [
         [
             'deleting-favorites',
-            favoriteRows.map((row) => row.id),
+            collection.favoriteRows.map((row) => row.id),
             schema.favorites.id,
             schema.favorites,
         ],
         [
             'deleting-recently-viewed',
-            recentlyViewedRows.map((row) => row.id),
+            collection.recentlyViewedRows.map((row) => row.id),
             schema.recentlyViewed.id,
             schema.recentlyViewed,
         ],
         [
             'deleting-playback-positions',
-            playbackPositionRows.map((row) => row.id),
+            collection.playbackPositionRows.map((row) => row.id),
             schema.playbackPositions.id,
             schema.playbackPositions,
         ],
         [
             'deleting-downloads',
-            downloadRows.map((row) => row.id),
+            collection.downloadRows.map((row) => row.id),
             schema.downloads.id,
             schema.downloads,
         ],
         [
             'deleting-content',
-            contentRows.map((row) => row.id),
+            collection.contentRows.map((row) => row.id),
             schema.content.id,
             schema.content,
         ],
         [
             'deleting-categories',
-            categoryIds,
+            collection.categoryIds,
             schema.categories.id,
             schema.categories,
         ],
@@ -603,6 +733,41 @@ export async function deletePlaylist(
         total: 1,
         increment: 1,
     });
+
+    return countPlaylistDeletionRows(collection) + 1;
+}
+
+export async function deletePlaylist(
+    db: AppDatabase,
+    playlistId: string,
+    control?: OperationControl,
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
+): Promise<{ success: boolean }> {
+    const collection = capturePhase
+        ? await capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_COLLECT_IDS,
+              () => collectPlaylistDeletionRows(db, playlistId),
+              (result) => ({
+                  itemCount: countPlaylistDeletionRows(result),
+              })
+          )
+        : await collectPlaylistDeletionRows(db, playlistId);
+
+    if (capturePhase) {
+        await capturePhase.captureAsync(
+            XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_WRITE_TRANSACTIONS,
+            () =>
+                deleteCollectedPlaylistRows(
+                    db,
+                    playlistId,
+                    collection,
+                    control
+                ),
+            (itemCount) => ({ itemCount })
+        );
+    } else {
+        await deleteCollectedPlaylistRows(db, playlistId, collection, control);
+    }
 
     return { success: true };
 }

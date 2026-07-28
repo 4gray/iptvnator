@@ -1,11 +1,15 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
+import { XTREAM_DATABASE_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 
 type XtreamCategoryInput = {
     category_name: string;
     category_id: string | number;
 };
+
+type XtreamCategoryValue = typeof schema.categories.$inferInsert;
 
 // Category rows cross the DB-worker IPC boundary in the snake_case wire
 // shape declared by XCategoryFromDb/XtreamCategoryFromDb. A bare select()
@@ -29,6 +33,49 @@ function normalizeXtreamCategoryId(
     return Number.isNaN(xtreamId) ? null : xtreamId;
 }
 
+function normalizeXtreamCategories(
+    playlistId: string,
+    categories: XtreamCategoryInput[],
+    type: 'live' | 'movies' | 'series',
+    hiddenCategoryXtreamIds?: number[]
+): XtreamCategoryValue[] {
+    const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
+
+    return categories.flatMap((category) => {
+        const xtreamId = normalizeXtreamCategoryId(category.category_id);
+
+        if (xtreamId === null) {
+            return [];
+        }
+
+        return [
+            {
+                playlistId,
+                name: category.category_name,
+                type,
+                xtreamId,
+                hidden: hiddenSet.has(xtreamId),
+            },
+        ];
+    });
+}
+
+async function insertXtreamCategories(
+    db: AppDatabase,
+    values: XtreamCategoryValue[]
+): Promise<void> {
+    await db
+        .insert(schema.categories)
+        .values(values)
+        .onConflictDoNothing({
+            target: [
+                schema.categories.playlistId,
+                schema.categories.type,
+                schema.categories.xtreamId,
+            ],
+        });
+}
+
 export async function hasCategories(
     db: AppDatabase,
     playlistId: string,
@@ -50,13 +97,14 @@ export async function hasCategories(
 export async function getCategories(
     db: AppDatabase,
     playlistId: string,
-    type: 'live' | 'movies' | 'series'
+    type: 'live' | 'movies' | 'series',
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
 ) {
     // Xtream categories are inserted once in provider order and existing
     // xtream IDs are preserved, so row id order represents server order.
     // If partial category re-inserts are added later, persist a provider
     // sort index instead of relying on the insertion id.
-    return db
+    const query = db
         .select(categoryWireShape)
         .from(schema.categories)
         .where(
@@ -67,6 +115,14 @@ export async function getCategories(
             )
         )
         .orderBy(schema.categories.id);
+
+    return capturePhase
+        ? capturePhase.captureAsync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CATEGORIES_READ,
+              async () => query,
+              (rows) => ({ itemCount: rows.length })
+          )
+        : query;
 }
 
 export async function saveCategories(
@@ -74,7 +130,8 @@ export async function saveCategories(
     playlistId: string,
     categories: XtreamCategoryInput[],
     type: 'live' | 'movies' | 'series',
-    hiddenCategoryXtreamIds?: number[]
+    hiddenCategoryXtreamIds?: number[],
+    capturePhase?: DatabaseOperationPerformancePhaseCapture
 ): Promise<{ success: boolean }> {
     if (!categories || categories.length === 0) {
         return { success: true };
@@ -94,39 +151,38 @@ export async function saveCategories(
         return { success: true };
     }
 
-    const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
-    const values = categories.flatMap((category) => {
-        const xtreamId = normalizeXtreamCategoryId(category.category_id);
-
-        if (xtreamId === null) {
-            return [];
-        }
-
-        return [
-            {
-                playlistId,
-                name: category.category_name,
-                type,
-                xtreamId,
-                hidden: hiddenSet.has(xtreamId),
-            },
-        ];
-    });
+    const values = capturePhase
+        ? capturePhase.captureSync(
+              XTREAM_DATABASE_PERFORMANCE_PHASE.NORMALIZE_CATEGORIES,
+              () =>
+                  normalizeXtreamCategories(
+                      playlistId,
+                      categories,
+                      type,
+                      hiddenCategoryXtreamIds
+                  ),
+              (result) => ({ itemCount: result.length })
+          )
+        : normalizeXtreamCategories(
+              playlistId,
+              categories,
+              type,
+              hiddenCategoryXtreamIds
+          );
 
     if (values.length === 0) {
         return { success: true };
     }
 
-    await db
-        .insert(schema.categories)
-        .values(values)
-        .onConflictDoNothing({
-            target: [
-                schema.categories.playlistId,
-                schema.categories.type,
-                schema.categories.xtreamId,
-            ],
-        });
+    if (capturePhase) {
+        await capturePhase.captureAsync(
+            XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_CATEGORIES_WRITE_TRANSACTIONS,
+            () => insertXtreamCategories(db, values),
+            () => ({ itemCount: values.length })
+        );
+    } else {
+        await insertXtreamCategories(db, values);
+    }
 
     return { success: true };
 }

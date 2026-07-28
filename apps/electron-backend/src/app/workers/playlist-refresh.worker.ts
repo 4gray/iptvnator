@@ -25,6 +25,7 @@ import { PLAYLIST_FETCH_TIMEOUT_MS } from '../events/playlist-source';
 import {
     armWorkerPerformanceCapture,
     executeWithWorkerPerformanceCapture,
+    stampWorkerPerformanceResponsePostedEpoch,
     startWorkerPerformanceCapture,
 } from './worker-performance-capture';
 
@@ -229,7 +230,10 @@ parentPort.on(
                     type: 'response',
                     success: true,
                     result: execution.result,
-                    performance: execution.performance,
+                    performance: stampWorkerPerformanceResponsePostedEpoch(
+                        performanceCapture,
+                        execution.performance
+                    ),
                 });
             } else {
                 const error = execution.error;
@@ -237,7 +241,10 @@ parentPort.on(
                     type: 'response',
                     success: false,
                     error: serializeError(error),
-                    performance: execution.performance,
+                    performance: stampWorkerPerformanceResponsePostedEpoch(
+                        performanceCapture,
+                        execution.performance
+                    ),
                 });
             }
         } finally {

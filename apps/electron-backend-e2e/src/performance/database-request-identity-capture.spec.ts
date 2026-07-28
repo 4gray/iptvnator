@@ -52,9 +52,123 @@ test('correlates the real preload marker to a DB request whose payload omits ope
     });
 
     assert.deepEqual(identity, {
+        ipcCallId: 2,
         operationId: 'refresh-operation-1',
         operationIdUnavailableReason: null,
+        sourceEpochMs: 100,
     });
+});
+
+test('retains the initial-import upsert marker when its operationId is intentionally uncorrelated', () => {
+    const { api, ipcMain } = createCapture();
+    ipcMain.emit(
+        CHANNEL,
+        {},
+        marker({
+            correlationState: 'uncorrelated',
+            ipcCallId: 7,
+            method: 'dbUpsertAppPlaylist',
+            operationId: null,
+            sourceEpochMs: 1_077.25,
+        })
+    );
+
+    const identity = api.matchDatabaseRequest({
+        operation: 'DB_UPSERT_APP_PLAYLIST',
+        payload: { _id: 'playlist-1' },
+        requestId: 'initial-import-upsert',
+        type: 'request',
+    });
+
+    assert.deepEqual(identity, {
+        ipcCallId: 7,
+        operationId: null,
+        operationIdUnavailableReason: 'preload-performance-marker-uncorrelated',
+        sourceEpochMs: 1_077.25,
+    });
+});
+
+test('captures exact successful preload completion markers for DB return-clone attribution', () => {
+    const { api, ipcMain } = createCapture();
+    ipcMain.emit(
+        CHANNEL,
+        {},
+        marker({
+            correlationState: 'uncorrelated',
+            ipcCallId: 7,
+            method: 'dbUpsertAppPlaylist',
+            operationId: null,
+            phase: 'success',
+            sourceEpochMs: 140.25,
+        })
+    );
+    ipcMain.emit(
+        CHANNEL,
+        {},
+        marker({
+            correlationState: 'uncorrelated',
+            ipcCallId: 8,
+            operationId: null,
+            phase: 'success',
+            sourceEpochMs: 175.5,
+        })
+    );
+
+    assert.equal(api.successMarkerCount(), 2);
+    assert.deepEqual(api.takeSuccessMarkers(), [
+        {
+            ipcCallId: 7,
+            operation: 'DB_UPSERT_APP_PLAYLIST',
+            operationId: null,
+            playlistId: 'playlist-1',
+            sourceEpochMs: 140.25,
+        },
+        {
+            ipcCallId: 8,
+            operation: 'DB_GET_APP_PLAYLIST',
+            operationId: null,
+            playlistId: 'playlist-1',
+            sourceEpochMs: 175.5,
+        },
+    ]);
+    assert.equal(api.successMarkerCount(), 0);
+    assert.deepEqual(api.takeSuccessMarkers(), []);
+});
+
+test('fails closed for malformed or invalid successful preload markers and resets completions', () => {
+    const { api, ipcMain } = createCapture();
+    for (const invalid of [
+        { invalidReason: 'out-of-order' },
+        { correlationState: 'invalid' },
+        { ipcCallId: 0 },
+        { playlistId: '' },
+        { sourceEpochMs: Number.NaN },
+        { method: 'refreshPlaylist' },
+        { correlationState: 'correlated', operationId: null },
+    ]) {
+        ipcMain.emit(
+            CHANNEL,
+            {},
+            marker({
+                phase: 'success',
+                ...invalid,
+            })
+        );
+    }
+    assert.equal(api.successMarkerCount(), 0);
+    assert.deepEqual(api.takeSuccessMarkers(), []);
+
+    ipcMain.emit(
+        CHANNEL,
+        {},
+        marker({
+            phase: 'success',
+        })
+    );
+    api.stop();
+    api.start();
+    assert.equal(api.successMarkerCount(), 0);
+    assert.deepEqual(api.takeSuccessMarkers(), []);
 });
 
 test('resolves a response-retained request identity when the marker arrives later and resets between captures', () => {
@@ -73,8 +187,10 @@ test('resolves a response-retained request identity when the marker arrives late
 
     ipcMain.emit(CHANNEL, {}, marker());
     assert.deepEqual(responseOutcome.identity, {
+        ipcCallId: 2,
         operationId: 'refresh-operation-1',
         operationIdUnavailableReason: null,
+        sourceEpochMs: 100,
     });
 
     api.stop();
@@ -87,8 +203,10 @@ test('resolves a response-retained request identity when the marker arrives late
         type: 'request',
     });
     assert.deepEqual(afterReset, {
+        ipcCallId: null,
         operationId: null,
         operationIdUnavailableReason: 'preload-performance-marker-missing',
+        sourceEpochMs: null,
     });
 });
 
@@ -101,8 +219,10 @@ test('fails closed for missing and ambiguous preload markers', () => {
         type: 'request',
     });
     assert.deepEqual(missing, {
+        ipcCallId: null,
         operationId: null,
         operationIdUnavailableReason: 'preload-performance-marker-missing',
+        sourceEpochMs: null,
     });
 
     const ambiguousCapture = createCapture();
@@ -122,8 +242,10 @@ test('fails closed for missing and ambiguous preload markers', () => {
         type: 'request',
     });
     assert.deepEqual(ambiguous, {
+        ipcCallId: null,
         operationId: null,
         operationIdUnavailableReason: 'preload-performance-marker-ambiguous',
+        sourceEpochMs: null,
     });
 });
 
@@ -191,19 +313,25 @@ test('quarantines a key after response-before-marker ambiguity', () => {
     });
 
     const ambiguousIdentity = {
+        ipcCallId: null,
         operationId: null,
         operationIdUnavailableReason: 'preload-performance-marker-ambiguous',
+        sourceEpochMs: null,
     };
     assert.deepEqual(requestA, ambiguousIdentity);
     assert.deepEqual(requestB, ambiguousIdentity);
     assert.deepEqual(requestC, ambiguousIdentity);
     assert.deepEqual(otherPlaylist, {
+        ipcCallId: 4,
         operationId: 'other-playlist-operation',
         operationIdUnavailableReason: null,
+        sourceEpochMs: 100,
     });
     assert.deepEqual(otherOperation, {
+        ipcCallId: 5,
         operationId: 'other-db-operation',
         operationIdUnavailableReason: null,
+        sourceEpochMs: 100,
     });
 
     api.stop();
@@ -223,7 +351,9 @@ test('quarantines a key after response-before-marker ambiguity', () => {
         type: 'request',
     });
     assert.deepEqual(freshCaptureIdentity, {
+        ipcCallId: 6,
         operationId: 'fresh-capture-operation',
         operationIdUnavailableReason: null,
+        sourceEpochMs: 100,
     });
 });

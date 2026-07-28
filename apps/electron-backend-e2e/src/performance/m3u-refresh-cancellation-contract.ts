@@ -1,7 +1,9 @@
+import type { RendererProcessRssCapture } from './renderer-process-rss-capture';
+import type { RendererRssValidity } from './renderer-rss-validity';
 import type {
-    RendererProcessRssCapture,
-    RendererProcessRssUnavailableReason,
-} from './renderer-process-rss-capture';
+    DatabaseWorkerPerformancePhase,
+    PerformancePhaseEvent,
+} from '@iptvnator/shared/interfaces';
 
 export const PERFORMANCE_ITERATION_KIND = {
     DIAGNOSTIC: 'diagnostic',
@@ -54,6 +56,11 @@ export type WorkerPostGcHeapCapture =
           readonly postGcHeapUsedBytes: null;
       };
 
+export const WORKER_PEAK_MEMORY_UNAVAILABLE_REASON = {
+    EXTERNAL_MEMORY_SAMPLES_MISSING: 'worker-external-memory-samples-missing',
+    HEAP_USED_SAMPLES_MISSING: 'worker-heap-used-samples-missing',
+} as const;
+
 export interface NumericDistribution {
     readonly count: number;
     readonly max: number | null;
@@ -78,12 +85,25 @@ export interface ProcessMemoryMetrics {
 }
 
 export interface MainTimelineRecord {
+    readonly action?: string | null;
+    readonly boundary?: 'end' | 'start';
+    readonly byteCount?: number;
+    readonly categoryType?: string | null;
+    readonly contentType?: string | null;
+    readonly durationMs?: number | null;
     readonly epochMs: number;
+    readonly ipcCallId?: number;
+    readonly itemCount?: number | null;
+    readonly method?: string;
     readonly operation?: string;
-    readonly operationId?: string;
-    readonly playlistId?: string;
+    readonly operationId?: string | null;
+    readonly outcome?: 'error' | 'success' | null;
+    readonly phase?: string;
+    readonly playlistId?: string | null;
     readonly requestId?: string;
+    readonly sessionId?: string | null;
     readonly success?: boolean;
+    readonly sourceEpochMs?: number;
     readonly type: string;
 }
 
@@ -93,15 +113,19 @@ export interface WorkerRequestPerformanceMetrics {
     readonly eventLoopUtilization: number | null;
     readonly eventLoopUtilizationUnavailableReason: string | null;
     readonly histogramFlushedEpochMs: number | null;
+    readonly ipcCallId: number | null;
     readonly invalidReason: string | null;
     readonly operation: string | null;
     readonly operationId: string | null;
     readonly operationIdUnavailableReason: string | null;
     readonly performanceCaptureUnavailableReason: string | null;
+    readonly phaseEvents: readonly PerformancePhaseEvent<DatabaseWorkerPerformancePhase>[];
     readonly playlistId: string | null;
     readonly requestId: string | null;
     readonly requestReceivedEpochMs: number | null;
     readonly responseEpochMs: number;
+    readonly responsePostedEpochMs: number | null;
+    readonly sourceEpochMs: number | null;
     readonly success: boolean;
     readonly threadCpuSystemMicros: number | null;
     readonly threadCpuUnavailableReason: string | null;
@@ -117,11 +141,19 @@ export type WorkerCaptureMetrics = {
     readonly eventLoopDelay: EventLoopDelayMetrics | null;
     readonly eventLoopDelayUnavailableReason: string | null;
     readonly eventLoopUtilization: number | null;
+    readonly externalMemorySampleCount: number;
+    readonly heapUsedSampleCount: number;
     readonly kind: PerformanceWorkerKind;
     readonly operationId: string | null;
     readonly ordinal: number;
-    readonly peakExternalBytes: number;
-    readonly peakHeapUsedBytes: number;
+    readonly peakExternalBytes: number | null;
+    readonly peakExternalUnavailableReason:
+        | typeof WORKER_PEAK_MEMORY_UNAVAILABLE_REASON.EXTERNAL_MEMORY_SAMPLES_MISSING
+        | null;
+    readonly peakHeapUsedBytes: number | null;
+    readonly peakHeapUsedUnavailableReason:
+        | typeof WORKER_PEAK_MEMORY_UNAVAILABLE_REASON.HEAP_USED_SAMPLES_MISSING
+        | null;
     readonly playlistId: string | null;
     readonly profilePath: string | null;
     readonly requests: readonly WorkerRequestPerformanceMetrics[];
@@ -252,22 +284,6 @@ export interface DatabaseWorkerPostGcValidity {
     readonly invalidMeasuredRuns: readonly InvalidDatabaseWorkerPostGcMeasuredRun[];
     readonly measuredRunCount: number;
     readonly notApplicableMeasuredRuns: readonly NotApplicableDatabaseWorkerPostGcMeasuredRun[];
-    readonly validForBenchmark: boolean;
-    readonly validForComparison: boolean;
-    readonly validMeasuredRunCount: number;
-}
-
-export interface InvalidRendererRssMeasuredRun {
-    readonly missingSampleCount: number;
-    readonly reason:
-        RendererProcessRssUnavailableReason | 'renderer-rss-capture-invalid';
-    readonly runId: string;
-    readonly validSampleCount: number;
-}
-
-export interface RendererRssValidity {
-    readonly invalidMeasuredRuns: readonly InvalidRendererRssMeasuredRun[];
-    readonly measuredRunCount: number;
     readonly validForBenchmark: boolean;
     readonly validForComparison: boolean;
     readonly validMeasuredRunCount: number;

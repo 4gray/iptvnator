@@ -1,8 +1,8 @@
 /* eslint-disable max-lines -- Renderer CDP and injected-page lifecycle are kept together so raw artifact boundaries stay auditable. */
-import { once } from 'node:events';
 import { createWriteStream } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { finished } from 'node:stream/promises';
 
 import type { CDPSession, Page } from '@playwright/test';
 
@@ -106,7 +106,8 @@ export async function startRendererCapture(
         await session.send('Profiler.enable');
         await session.send('Profiler.start');
         traceOutput = createWriteStream(
-            requireArtifactPath(tracePath, 'renderer trace')
+            requireArtifactPath(tracePath, 'renderer trace'),
+            { flags: 'wx', mode: 0o600 }
         );
         traceOutput.write('{"traceEvents":[');
         session.on('Tracing.dataCollected', onTraceData);
@@ -143,7 +144,7 @@ export async function startRendererCapture(
                 await writeFile(
                     requireArtifactPath(cpuProfilePath, 'renderer CPU profile'),
                     JSON.stringify(cpuProfile['profile']),
-                    'utf8'
+                    { encoding: 'utf8', flag: 'wx', mode: 0o600 }
                 );
                 await session.send('Tracing.end');
                 await traceComplete;
@@ -152,7 +153,7 @@ export async function startRendererCapture(
                 traceOutput?.write(']}');
                 traceOutput?.end();
                 if (traceOutput) {
-                    await once(traceOutput, 'finish');
+                    await finished(traceOutput);
                 }
             }
 
@@ -167,7 +168,8 @@ export async function startRendererCapture(
                     requireArtifactPath(
                         heapSnapshotPath,
                         'renderer heap snapshot'
-                    )
+                    ),
+                    { flags: 'wx', mode: 0o600 }
                 );
                 const onSnapshotChunk = (message: {
                     readonly chunk: string;
@@ -186,7 +188,7 @@ export async function startRendererCapture(
                     onSnapshotChunk
                 );
                 output.end();
-                await once(output, 'finish');
+                await finished(output);
             }
 
             await session.detach();
@@ -211,8 +213,7 @@ export async function startRendererCapture(
                             unknown
                         >;
                         const state = target[stateKey] as
-                            | { cancelClickEpochMs: number | null }
-                            | undefined;
+                            { cancelClickEpochMs: number | null } | undefined;
                         return typeof state?.cancelClickEpochMs === 'number';
                     },
                     RENDERER_CAPTURE_STATE_KEY,
@@ -228,8 +229,7 @@ export async function startRendererCapture(
                             unknown
                         >;
                         const state = target[stateKey] as
-                            | { uiPaintedEpochMs: number | null }
-                            | undefined;
+                            { uiPaintedEpochMs: number | null } | undefined;
                         return typeof state?.uiPaintedEpochMs === 'number';
                     },
                     RENDERER_CAPTURE_STATE_KEY,

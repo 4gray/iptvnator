@@ -126,6 +126,7 @@ nx run electron-backend:make
 - When the task is Electron automation/debugging, use the `electron` skill
 - Do not auto-open DevTools during normal CDP automation. In development, DevTools is opt-in via `ELECTRON_OPEN_DEVTOOLS=1`.
 - If DevTools is open, `agent-browser --cdp 9222 ...` may attach to the DevTools page instead of the IPTVnator window (symptoms: `tab list` shows `about:blank`, empty snapshots, black screenshots). Inspect targets with `curl http://127.0.0.1:9222/json/list` and connect directly to the app page's `webSocketDebuggerUrl`.
+- The app holds a single-instance lock (`acquireSingleInstanceLock` in `apps/electron-backend/src/app/services/single-instance.ts`): a second launch against the same `userData` quits immediately and focuses the running window. To attach a second CDP-enabled instance to the same profile, set `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` — knowing that only one of the two processes will own the renderer's IndexedDB, so settings written by the other are lost.
 
 For startup tracing or white-screen debugging:
 
@@ -141,8 +142,8 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow navigation/load lifecycle
 - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
-- `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted preload IPC phase markers for refresh/DB benchmark correlation; benchmark tooling sets it explicitly, and production launches must leave it unset
-- `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker timestamps, thread CPU, event-loop utilization, and event-loop delay metrics in database and playlist-refresh responses, plus the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
+- `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted M3U and Xtream preload IPC request/completion markers plus count-only M3U acquire/parse/normalize, Xtream main network/JSON-transform/success-response-ready/cancel-dispatch, and renderer store phase capture; renderer wrappers emit only while the benchmark installs its Symbol hook, benchmark tooling sets the flag explicitly, and production launches must leave it unset
+- `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker receive/work/response-post timestamps, thread CPU, event-loop utilization/delay, count-only playlist serialization/SQLite write/read/deserialization plus Xtream category/content/cache-clear/delete/in-source-search phase events, profiling-only worker cancel-receipt acknowledgements, valid-sample-counted isolate peak memory, and the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
 
 Settings, portal request/response, and trace payloads must use
 `@iptvnator/shared/logging` or the redacting portal logger before reaching
@@ -226,6 +227,15 @@ that genuinely cannot be split (for example a function serialized into another
 process) instead carries its own file-wide
 `/* eslint-disable max-lines -- <why> */`; the generator skips those files, so
 a justified exemption never lands in the baseline.
+
+Project `lint` targets that shell out to eslint must quote the glob, e.g.
+`eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX
+shell on Linux and macOS (which has no `globstar`, so it matches only a
+shallow subset of files) while Windows passes the literal pattern to ESLint,
+which expands it recursively — the two hosts then lint different file sets.
+The target still reports success either way, so a broken glob hides missing
+coverage instead of failing. After changing such a target, compare the linted
+file count against `find <project> -name '*.ts' | wc -l`.
 
 ## Architecture
 
@@ -581,6 +591,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 - Bootstraps Electron app and initializes database
 - Registers event handlers for IPC communication
+- Holds a single-instance lock (`app/services/single-instance.ts`), requested after the `userData` override so E2E runs with their own data dir keep independent locks. A second launch quits and focuses the running window; concurrent instances would otherwise share a Chromium profile whose IndexedDB only one of them can lock, silently breaking renderer-side settings persistence. `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` opts out for local debugging.
 
 **Database**:
 

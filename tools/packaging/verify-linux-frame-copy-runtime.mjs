@@ -26,8 +26,9 @@ const {
 } = require('./linux-frame-copy-profile.cjs');
 const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
 const {
+    PACKAGE_VERIFICATION_PROBE_MAX_ATTEMPTS,
+    PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS,
     RUNTIME_PROBE_MAX_BUFFER_BYTES,
-    RUNTIME_PROBE_TIMEOUT_MS,
 } = require('../embedded-mpv/runtime-probe-contract.cjs');
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -1501,6 +1502,56 @@ export function createRuntimeProbeEnvironment({
     return probeEnvironment;
 }
 
+function writeVerifierWarning(message) {
+    process.stderr.write(message);
+}
+
+function isProbeTimeoutResult(result) {
+    const error = result?.error;
+    return Boolean(
+        error && typeof error === 'object' && error.code === 'ETIMEDOUT'
+    );
+}
+
+/**
+ * Executes the bounded packaged helper capability probe.
+ *
+ * A hard timeout is the only retried outcome: it proves nothing about the
+ * payload, and a cold sandbox can spend seconds merely loading libmpv plus the
+ * EGL/GL/GBM stack. Every other outcome — spawn error, signal, nonzero exit,
+ * malformed protocol line — is a real capability verdict and is returned
+ * unchanged after the first attempt. A helper that genuinely hangs still fails
+ * verification once the bounded attempts are exhausted.
+ */
+export function runBoundedRuntimeProbe({
+    probeRunner,
+    helperPath,
+    probeEnvironment,
+    warn = writeVerifierWarning,
+}) {
+    const probeOptions = {
+        encoding: 'utf8',
+        env: probeEnvironment,
+        killSignal: 'SIGKILL',
+        maxBuffer: RUNTIME_PROBE_MAX_BUFFER_BYTES,
+        timeout: PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS,
+        windowsHide: true,
+    };
+    let result = probeRunner(helperPath, ['--runtime-probe'], probeOptions);
+    for (
+        let attempt = 2;
+        attempt <= PACKAGE_VERIFICATION_PROBE_MAX_ATTEMPTS &&
+        isProbeTimeoutResult(result);
+        attempt += 1
+    ) {
+        warn(
+            `Linux frame-copy runtime probe timed out after ${PACKAGE_VERIFICATION_PROBE_TIMEOUT_MS} ms; retrying (attempt ${attempt} of ${PACKAGE_VERIFICATION_PROBE_MAX_ATTEMPTS}).\n`
+        );
+        result = probeRunner(helperPath, ['--runtime-probe'], probeOptions);
+    }
+    return result;
+}
+
 function validateNoEmbeddedMpvNativeArchiveEntries(
     resourceDir,
     asarListPackage
@@ -1542,6 +1593,7 @@ export function verifyExtractedLinuxFrameCopyRuntime({
     elfInspector = defaultElfInspector,
     probeRunner = runVerifierCommand,
     environment = process.env,
+    warn = writeVerifierWarning,
     asarListPackage = listAsarPackageEntries,
 }) {
     const errors = [];
@@ -1625,18 +1677,12 @@ export function verifyExtractedLinuxFrameCopyRuntime({
         nativeDir,
         runtimeMode: profile.runtimeMode,
     });
-    const probeResult = probeRunner(
-        path.join(nativeDir, 'iptvnator_mpv_helper'),
-        ['--runtime-probe'],
-        {
-            encoding: 'utf8',
-            env: probeEnvironment,
-            killSignal: 'SIGKILL',
-            maxBuffer: RUNTIME_PROBE_MAX_BUFFER_BYTES,
-            timeout: RUNTIME_PROBE_TIMEOUT_MS,
-            windowsHide: true,
-        }
-    );
+    const probeResult = runBoundedRuntimeProbe({
+        probeRunner,
+        helperPath: path.join(nativeDir, 'iptvnator_mpv_helper'),
+        probeEnvironment,
+        warn,
+    });
     errors.push(...validateProbeResult(probeResult));
     return errors;
 }

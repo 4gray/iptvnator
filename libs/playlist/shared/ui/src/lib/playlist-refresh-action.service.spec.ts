@@ -23,8 +23,25 @@ import {
     PlaylistMeta,
     SECURITY_ERROR_PREFIX,
 } from '@iptvnator/shared/interfaces';
+import {
+    RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
+    type RendererPerformancePhaseEvent,
+} from '@iptvnator/shared/logging';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
+
+const performanceHookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);
+
+function setPerformanceHook(
+    hook: ((event: RendererPerformancePhaseEvent) => void) | null
+): void {
+    const target = globalThis as unknown as Record<symbol, unknown>;
+    if (hook === null) {
+        delete target[performanceHookSymbol];
+    } else {
+        target[performanceHookSymbol] = hook;
+    }
+}
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -233,6 +250,7 @@ describe('PlaylistRefreshActionService', () => {
     });
 
     afterEach(() => {
+        setPerformanceHook(null);
         jest.restoreAllMocks();
         localStorage.clear();
     });
@@ -382,6 +400,11 @@ describe('PlaylistRefreshActionService', () => {
     it('stores Xtream restore data before updating playlist meta and navigating', async () => {
         const item = createPlaylistMeta();
         const executionOrder: string[] = [];
+        const performanceEvents: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => {
+            performanceEvents.push(event);
+            executionOrder.push(event.boundary);
+        });
         let confirmPromise: Promise<void> | undefined;
         const dateNowSpy = jest
             .spyOn(Date, 'now')
@@ -456,7 +479,34 @@ describe('PlaylistRefreshActionService', () => {
             'xtreams',
             item._id,
         ]);
-        expect(executionOrder).toEqual(['setItem', 'dispatch', 'navigate']);
+        expect(executionOrder).toEqual([
+            'setItem',
+            'start',
+            'dispatch',
+            'end',
+            'navigate',
+        ]);
+        expect(
+            performanceEvents.map(({ boundary, metadata, outcome, phase }) => ({
+                boundary,
+                items: metadata?.items,
+                outcome,
+                phase,
+            }))
+        ).toEqual([
+            {
+                boundary: 'start',
+                items: 1,
+                outcome: undefined,
+                phase: 'store.xtream-refresh-meta',
+            },
+            {
+                boundary: 'end',
+                items: 1,
+                outcome: 'success',
+                phase: 'store.xtream-refresh-meta',
+            },
+        ]);
 
         setItemSpy.mockRestore();
         dateNowSpy.mockRestore();

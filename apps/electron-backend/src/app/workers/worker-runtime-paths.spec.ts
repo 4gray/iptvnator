@@ -6,67 +6,101 @@ import {
     resolveWorkerRuntimeBootstrap,
 } from './worker-runtime-paths';
 
+// The implementation joins candidate paths with the host path module, so the
+// expected values are built with path.join too — hardcoded POSIX strings
+// would fail on win32 checkouts.
+function packagedWorkerPath(root: string, workerFilename: string): string {
+    return path.join(
+        root,
+        'dist',
+        'apps',
+        'electron-backend',
+        'workers',
+        workerFilename
+    );
+}
+
+function unpackedNodeModulesPaths(root: string): string[] {
+    return [
+        path.join(root, 'app.asar.unpacked', 'node_modules'),
+        path.join(
+            root,
+            'app.asar.unpacked',
+            'electron-backend',
+            'node_modules'
+        ),
+        path.join(
+            root,
+            'app.asar.unpacked',
+            'dist',
+            'apps',
+            'electron-backend',
+            'node_modules'
+        ),
+    ];
+}
+
 describe('worker-runtime-paths', () => {
     it('resolves the development worker path when the worker file exists', () => {
+        const developmentWorkerDir =
+            '/workspace/dist/apps/electron-backend/workers';
+        const workerPath = path.join(
+            developmentWorkerDir,
+            'database.worker.js'
+        );
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: false,
             workerFilename: 'database.worker.js',
-            developmentWorkerDir: '/workspace/dist/apps/electron-backend/workers',
-            fileExists: (filePath) =>
-                filePath ===
-                '/workspace/dist/apps/electron-backend/workers/database.worker.js',
+            developmentWorkerDir,
+            fileExists: (filePath) => filePath === workerPath,
         });
 
         expect(bootstrap).toEqual({
-            workerPath:
-                '/workspace/dist/apps/electron-backend/workers/database.worker.js',
-            workerPathCandidates: [
-                '/workspace/dist/apps/electron-backend/workers/database.worker.js',
-            ],
+            workerPath,
+            workerPathCandidates: [workerPath],
         });
     });
 
     it('prefers process.resourcesPath for packaged worker resolution', () => {
+        const resourcesPath = '/Applications/IPTVnator.app/Contents/Resources';
+        const resourcesWorkerPath = packagedWorkerPath(
+            resourcesPath,
+            'epg-parser.worker.js'
+        );
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: true,
             workerFilename: 'epg-parser.worker.js',
             developmentWorkerDir: '/unused',
-            resourcesPath: '/Applications/IPTVnator.app/Contents/Resources',
+            resourcesPath,
             appPath:
                 '/Applications/IPTVnator.app/Contents/Resources/app.asar',
-            fileExists: (filePath) =>
-                filePath ===
-                '/Applications/IPTVnator.app/Contents/Resources/dist/apps/electron-backend/workers/epg-parser.worker.js',
+            fileExists: (filePath) => filePath === resourcesWorkerPath,
         });
 
-        expect(bootstrap.workerPath).toBe(
-            '/Applications/IPTVnator.app/Contents/Resources/dist/apps/electron-backend/workers/epg-parser.worker.js'
+        expect(bootstrap.workerPath).toBe(resourcesWorkerPath);
+        expect(bootstrap.nativeModuleSearchPaths).toEqual(
+            unpackedNodeModulesPaths(resourcesPath)
         );
-        expect(bootstrap.nativeModuleSearchPaths).toEqual([
-            '/Applications/IPTVnator.app/Contents/Resources/app.asar.unpacked/node_modules',
-            '/Applications/IPTVnator.app/Contents/Resources/app.asar.unpacked/electron-backend/node_modules',
-            '/Applications/IPTVnator.app/Contents/Resources/app.asar.unpacked/dist/apps/electron-backend/node_modules',
-        ]);
     });
 
     it('falls back to appPath dirname when the resourcesPath candidate is missing', () => {
+        const appWorkerPath = packagedWorkerPath(
+            '/opt/IPTVnator/resources',
+            'database.worker.js'
+        );
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: true,
             workerFilename: 'database.worker.js',
             developmentWorkerDir: '/unused',
             resourcesPath: '/tmp/runtime-resources',
             appPath: '/opt/IPTVnator/resources/app.asar',
-            fileExists: (filePath) =>
-                filePath ===
-                '/opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js',
+            fileExists: (filePath) => filePath === appWorkerPath,
         });
 
-        expect(bootstrap.workerPath).toBe(
-            '/opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js'
-        );
+        expect(bootstrap.workerPath).toBe(appWorkerPath);
         expect(bootstrap.workerPathCandidates).toEqual([
-            '/tmp/runtime-resources/dist/apps/electron-backend/workers/database.worker.js',
-            '/opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js',
+            packagedWorkerPath('/tmp/runtime-resources', 'database.worker.js'),
+            appWorkerPath,
         ]);
     });
 
@@ -84,8 +118,11 @@ describe('worker-runtime-paths', () => {
             [
                 'Unable to resolve worker "database.worker.js".',
                 'Tried:',
-                '- /resources/dist/apps/electron-backend/workers/database.worker.js',
-                '- /opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js',
+                `- ${packagedWorkerPath('/resources', 'database.worker.js')}`,
+                `- ${packagedWorkerPath(
+                    '/opt/IPTVnator/resources',
+                    'database.worker.js'
+                )}`,
             ].join('\n')
         );
     });
@@ -96,11 +133,7 @@ describe('worker-runtime-paths', () => {
                 resourcesPath: '/resources',
                 appPath: '/resources/app.asar',
             })
-        ).toEqual([
-            '/resources/app.asar.unpacked/node_modules',
-            '/resources/app.asar.unpacked/electron-backend/node_modules',
-            '/resources/app.asar.unpacked/dist/apps/electron-backend/node_modules',
-        ]);
+        ).toEqual(unpackedNodeModulesPaths('/resources'));
     });
 
     it('loads native modules from the first working candidate path', () => {

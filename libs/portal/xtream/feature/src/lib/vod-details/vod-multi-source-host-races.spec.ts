@@ -289,6 +289,24 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         expect(startPlayback).not.toHaveBeenCalled();
     });
 
+    it('drops a switch the route’s own Play superseded', async () => {
+        await loadMovie([ALT_TWO]);
+
+        const slow = createDeferred<ReturnType<typeof resolvedFor>>();
+        resolver.resolve.mockReturnValueOnce(slow.promise);
+        const pending = service.play(ALT_TWO.id);
+
+        // The user gave up waiting and pressed Play on the route's own stream.
+        // The older resolution must not come back and replace it.
+        service.markRouteSourceActive();
+        startPlayback.mockClear();
+
+        slow.resolve(resolvedFor(ALT_TWO, 0));
+        await expect(pending).resolves.toBe(false);
+
+        expect(startPlayback).not.toHaveBeenCalled();
+    });
+
     it('drops a pin change whose movie was navigated away from', async () => {
         const pinFor = (candidate: VodSourceCandidate) => ({
             matchKey: 'title:the matrix:1999',

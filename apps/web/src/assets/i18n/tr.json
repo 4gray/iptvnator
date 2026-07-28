@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "MPV veya VLC oynatımı başlamadan önce kanal satırlarına çift tıklanmasını gerektirir.",
         "LANGUAGE": "Dil",
         "SETTINGS_SAVED": "Başarılı! Yapılandırma kaydedildi.",
+        "SETTINGS_SAVE_FAILED": "Ayarlar kaydedilemedi. Değişiklikleriniz uygulama yeniden başlatıldığında kaybolacak.",
+        "SETTINGS_LOAD_FAILED": "Kaydedilmiş ayarlar yüklenemedi — varsayılanlar gösteriliyor. Uygulamanın başka bir kopyasının çalışmadığından emin olun.",
         "THEME": "Görünüm teması",
         "SHOW_CAPTIONS": "Altyazıları göster",
         "SHOW_DASHBOARD": "Panoyu göster",

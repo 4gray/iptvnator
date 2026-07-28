@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Erfordert einen Doppelklick auf Kanalzeilen, bevor die Wiedergabe mit MPV oder VLC startet.",
         "LANGUAGE": "Sprache",
         "SETTINGS_SAVED": "Einstellungen wurden erfolgreich gespeichert!",
+        "SETTINGS_SAVE_FAILED": "Einstellungen konnten nicht gespeichert werden. Die Änderungen gehen beim Neustart der App verloren.",
+        "SETTINGS_LOAD_FAILED": "Gespeicherte Einstellungen konnten nicht geladen werden — es werden Standardwerte angezeigt. Stelle sicher, dass die App nicht bereits läuft.",
         "THEME": "Farbdesign",
         "SHOW_CAPTIONS": "Untertitel anzeigen",
         "SHOW_DASHBOARD": "Dashboard anzeigen",

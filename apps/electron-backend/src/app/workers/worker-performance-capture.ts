@@ -57,7 +57,13 @@ export function startWorkerPerformanceCapture(
         histogramDisabled: false,
         histogramFlushedEpochMs: null,
         invalidReason: null,
+        phaseEvents: [],
         requestReceivedEpochMs: safeReadEpochMs(runtime),
+        requestId:
+            typeof options.requestId === 'string' &&
+            options.requestId.length > 0
+                ? options.requestId
+                : null,
         runtime,
         threadCpuEnd: null,
         threadCpuStart: null,
@@ -267,5 +273,23 @@ export function releaseDatabaseWorkerPerformanceCapture(
 ): void {
     if (capture) {
         activeCaptures.delete(capture);
+    }
+}
+
+export function stampWorkerPerformanceResponsePostedEpoch(
+    capture: WorkerPerformanceCapture | null,
+    performance: WorkerPerformanceCaptureResult | undefined
+): WorkerPerformanceCaptureResult | undefined {
+    if (!capture || !performance) {
+        return performance;
+    }
+
+    try {
+        return {
+            ...performance,
+            responsePostedEpochMs: safeReadEpochMs(capture.runtime),
+        };
+    } catch {
+        return performance;
     }
 }

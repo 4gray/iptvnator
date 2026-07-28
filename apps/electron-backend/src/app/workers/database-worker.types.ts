@@ -92,11 +92,7 @@ export const DB_OPERATION_PHASES = {
 } as const;
 
 export type DbOperationStatus =
-    | 'started'
-    | 'progress'
-    | 'completed'
-    | 'cancelled'
-    | 'error';
+    'started' | 'progress' | 'completed' | 'cancelled' | 'error';
 
 export interface DbOperationEvent {
     operationId?: string;
@@ -138,6 +134,13 @@ export interface DbWorkerEventMessage {
     event: DbOperationEvent;
 }
 
+export interface DbWorkerPerformanceCancelReceivedMessage {
+    type: 'performance-cancel-received';
+    operationId: string;
+    requestId: string;
+    epochMs: number;
+}
+
 export interface DbWorkerResponseMessage<TResult = unknown> {
     type: 'response';
     requestId: string;
@@ -148,10 +151,10 @@ export interface DbWorkerResponseMessage<TResult = unknown> {
 }
 
 export type DbWorkerIncomingMessage =
-    | DbWorkerRequestMessage
-    | DbWorkerCancelMessage;
+    DbWorkerRequestMessage | DbWorkerCancelMessage;
 
 export type DbWorkerMessage =
     | DbWorkerReadyMessage
     | DbWorkerEventMessage
+    | DbWorkerPerformanceCancelReceivedMessage
     | DbWorkerResponseMessage;

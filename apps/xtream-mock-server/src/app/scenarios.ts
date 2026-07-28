@@ -17,6 +17,10 @@ export interface ScenarioConfig {
     vodDetailsFixture?: 'empty-metadata';
     /** Optional fictional release-marketing dataset with local demo artwork. */
     marketingFixture?: true;
+    /** Optional deterministic catalog profile reserved for performance tests. */
+    performanceFixture?: 'catalog-100k';
+    /** Build series details on demand instead of during portal initialization. */
+    deferSeriesDetails?: true;
 }
 
 /**
@@ -59,9 +63,23 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
     },
+    'performance:performance': {
+        name: 'performance-100k',
+        description: 'Deterministic local-only 100k performance catalog',
+        seed: 91001,
+        categoryCount: { live: 60, vod: 20, series: 20 },
+        itemsPerCategory: 1000,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 1,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        performanceFixture: 'catalog-100k',
+        deferSeriesDetails: true,
+    },
     'series:series': {
         name: 'series-heavy',
-        description: 'Series-heavy — 15 series categories, 6 seasons × 10 episodes',
+        description:
+            'Series-heavy — 15 series categories, 6 seasons × 10 episodes',
         seed: 2002,
         categoryCount: { live: 3, vod: 4, series: 15 },
         itemsPerCategory: 30,
@@ -172,11 +190,18 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
 /** Convert credential pair to a numeric seed for unknown credentials. */
 export function credentialsToSeed(username: string, password: string): number {
     const str = `${username}:${password}`;
-    return str.split('').reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) | 0, 0) >>> 0;
+    return (
+        str
+            .split('')
+            .reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) | 0, 0) >>> 0
+    );
 }
 
 /** Return the scenario config for a given username+password pair. */
-export function getScenario(username: string, password: string): ScenarioConfig {
+export function getScenario(
+    username: string,
+    password: string
+): ScenarioConfig {
     const key = `${username}:${password}`;
     if (SCENARIOS[key]) return SCENARIOS[key];
     return {

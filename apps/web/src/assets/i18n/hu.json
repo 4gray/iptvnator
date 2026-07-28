@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Az MPV- vagy VLC-lejátszás csak a csatornasorra történő dupla kattintással induljon el.",
         "LANGUAGE": "Nyelv",
         "SETTINGS_SAVED": "A beállítások mentése sikerült.",
+        "SETTINGS_SAVE_FAILED": "A beállítások mentése nem sikerült. A módosítások az alkalmazás újraindításakor elvesznek.",
+        "SETTINGS_LOAD_FAILED": "A mentett beállítások betöltése nem sikerült — az alapértelmezett értékek láthatók. Ellenőrizd, hogy nem fut-e az alkalmazás másik példánya.",
         "THEME": "Megjelenési téma",
         "SHOW_CAPTIONS": "Feliratok megjelenítése",
         "SHOW_DASHBOARD": "Vezérlőpult megjelenítése",

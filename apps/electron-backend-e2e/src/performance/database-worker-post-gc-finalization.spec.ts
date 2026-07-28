@@ -370,21 +370,22 @@ test('worker capture failures use an artifact-neutral timeline label', () => {
     assert.doesNotMatch(source, /worker-profile-error:\$\{stage\}/);
 });
 
-test('capture generation resets artifact paths and always emits current DB records', () => {
+test('capture generation resets artifact paths while arming and always emits current DB records', () => {
     const source = readFileSync(
         new URL('./m3u-refresh-main-capture.ts', import.meta.url),
         'utf8'
     );
     const start = source.indexOf('const startCapture = async (');
-    const diagnostic = source.indexOf('if (state.diagnostic)', start);
+    const api = source.indexOf('const api =', start);
     const profileReset = source.indexOf('state.mainProfilePath = null', start);
     const snapshotReset = source.indexOf(
         'state.mainSnapshotPath = null',
         start
     );
 
-    assert.ok(profileReset > start && profileReset < diagnostic);
-    assert.ok(snapshotReset > start && snapshotReset < diagnostic);
+    assert.ok(profileReset > start && profileReset < api);
+    assert.ok(snapshotReset > start && snapshotReset < api);
+    assert.doesNotMatch(source.slice(start, api), /'Profiler\.start'/);
     assert.match(
         source,
         /record\.captureGeneration === state\.captureGeneration[\s\S]*record\.kind === 'database\.worker'/

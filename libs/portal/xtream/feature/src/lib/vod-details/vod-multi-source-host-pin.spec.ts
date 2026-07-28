@@ -206,6 +206,32 @@ describe('VodMultiSourceHostService — pinning', () => {
         );
     });
 
+    it('lists the route’s own copy once when the pin keeps it', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: MOVIE_A.playlistId,
+            contentId: MOVIE_A.contentId,
+            portalType: 'xtream',
+        });
+
+        // Pinning the copy the route is on makes discovery return that very
+        // row, and prepending the current source again would list one stream
+        // twice — a phantom copy in the grouping and a chip that counts it.
+        await loadMovie([
+            {
+                ...ALT_TWO,
+                id: CURRENT_A_ID,
+                playlistId: MOVIE_A.playlistId,
+                contentId: MOVIE_A.contentId,
+            },
+        ]);
+
+        expect(service.sources().map((source) => source.id)).toEqual([
+            CURRENT_A_ID,
+        ]);
+        expect(service.hasAlternatives()).toBe(false);
+    });
+
     it('hands the playing badge back when the route stream starts', async () => {
         await loadMovie([ALT_TWO]);
         await expect(service.play(ALT_TWO.id)).resolves.toBe(true);

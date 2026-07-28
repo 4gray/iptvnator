@@ -38,9 +38,16 @@ export type SwitchOutcome = 'switched' | 'unresolvable' | 'superseded';
 export function applyDiscoveredSources(
     controller: VodMultiSourceController,
     current: VodSourceCandidate,
-    discovered: VodSourceCandidate[],
+    allDiscovered: VodSourceCandidate[],
     matchKind: VodSourceMatchKind
 ): void {
+    // The kept-copy exception can return the route's OWN row when the pin
+    // points at it, and prepending `current` again would list one stream
+    // twice — a phantom "copy" in the grouping and a chip counting it.
+    const discovered = allDiscovered.filter(
+        (source) => source.id !== current.id
+    );
+
     const activeId = controller.activeSourceId();
     // Only a source the user actually switched to needs protecting. When the
     // route's own row is playing, the refreshed one supersedes it — it is the

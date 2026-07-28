@@ -13,6 +13,7 @@ const validCapture = {
     histogramFlushedEpochMs: 1_050,
     invalidReason: null,
     requestReceivedEpochMs: 1_000,
+    responsePostedEpochMs: 1_055,
     threadCpuSystemMicros: 50,
     threadCpuUnavailableReason: null,
     threadCpuUserMicros: 100,
@@ -20,17 +21,23 @@ const validCapture = {
     workStartedEpochMs: 1_010,
 } as const;
 
-function normalize(performanceCapture: unknown) {
+function normalizeForOperation(operation: string, performanceCapture: unknown) {
     return normalizeWorkerRequestPerformanceOutcome({
-        operation: 'DB_GET_APP_PLAYLIST',
+        ipcCallId: 2,
+        operation,
         operationId: 'operation-42',
         operationIdUnavailableReason: null,
         performanceCapture,
         playlistId: 'playlist-1',
         requestId: 'request-1',
         responseEpochMs: 1_060,
+        sourceEpochMs: 990,
         success: true,
     });
+}
+
+function normalize(performanceCapture: unknown) {
+    return normalizeForOperation('DB_HAS_CONTENT', performanceCapture);
 }
 
 function assertClosedCapture(
@@ -47,6 +54,7 @@ function assertClosedCapture(
         capture.histogramFlushedEpochMs,
         capture.invalidReason,
         capture.requestReceivedEpochMs,
+        capture.responsePostedEpochMs,
         capture.threadCpuSystemMicros,
         capture.threadCpuUnavailableReason,
         capture.threadCpuUserMicros,
@@ -55,6 +63,7 @@ function assertClosedCapture(
     ]) {
         assert.equal(value, null);
     }
+    assert.deepEqual(capture.phaseEvents, []);
 }
 
 test('absent captures are missing while present non-record captures are invalid', () => {
@@ -118,6 +127,9 @@ test('malformed nested fields and cross-field invariants fail the whole capture 
             histogramFlushedEpochMs: null,
         },
         { ...validCapture, histogramFlushedEpochMs: 1_039 },
+        { ...validCapture, responsePostedEpochMs: undefined },
+        { ...validCapture, responsePostedEpochMs: 1_039 },
+        { ...validCapture, responsePostedEpochMs: 1_061 },
         { ...validCapture, workStartedEpochMs: 999 },
         {
             ...validCapture,
@@ -169,4 +181,206 @@ test('coherent metric-unavailable and invalid worker results remain valid raw ca
     });
     assert.equal(legitimateInvalid.performanceCaptureUnavailableReason, null);
     assert.equal(legitimateInvalid.invalidReason, invalidReason);
+});
+
+test('requires the exact operation-specific worker phase sequence', () => {
+    const upsertPhaseEvents = [
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_015,
+            phase: 'serialize.playlist',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 5,
+            epochMs: 1_020,
+            metadata: { byteCount: 2048, itemCount: 10_000 },
+            phase: 'serialize.playlist',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_021,
+            phase: 'sqlite.write',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 12,
+            epochMs: 1_033,
+            metadata: { byteCount: 2048, itemCount: 1 },
+            phase: 'sqlite.write',
+            requestId: 'request-1',
+        },
+    ] as const;
+    const getPhaseEvents = [
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_015,
+            phase: 'sqlite.read',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 5,
+            epochMs: 1_020,
+            metadata: { itemCount: 1 },
+            phase: 'sqlite.read',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_021,
+            phase: 'deserialize.playlist',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 12,
+            epochMs: 1_033,
+            metadata: { itemCount: 10_000 },
+            phase: 'deserialize.playlist',
+            requestId: 'request-1',
+        },
+    ] as const;
+
+    assert.deepEqual(
+        normalizeForOperation('DB_UPSERT_APP_PLAYLIST', {
+            ...validCapture,
+            phaseEvents: upsertPhaseEvents,
+        }).phaseEvents,
+        upsertPhaseEvents
+    );
+    assert.deepEqual(
+        normalizeForOperation('DB_GET_APP_PLAYLIST', {
+            ...validCapture,
+            phaseEvents: getPhaseEvents,
+        }).phaseEvents,
+        getPhaseEvents
+    );
+
+    for (const invalidPhaseEvents of [
+        getPhaseEvents.slice(0, 2),
+        getPhaseEvents.slice(1),
+        [...getPhaseEvents].reverse(),
+        getPhaseEvents.map((event) => ({
+            ...event,
+            requestId: 'other-request',
+        })),
+        [
+            getPhaseEvents[0],
+            {
+                ...getPhaseEvents[1],
+                metadata: { itemCount: 1, secret: 'not allowed' },
+            },
+        ],
+        [
+            getPhaseEvents[0],
+            {
+                ...getPhaseEvents[1],
+                phase: 'arbitrary.phase',
+            },
+        ],
+    ]) {
+        assertClosedCapture(
+            normalizeForOperation('DB_GET_APP_PLAYLIST', {
+                ...validCapture,
+                phaseEvents: invalidPhaseEvents,
+            }),
+            'worker-performance-capture-invalid'
+        );
+    }
+
+    for (const [operation, phaseEvents] of [
+        ['DB_GET_APP_PLAYLIST', upsertPhaseEvents],
+        ['DB_UPSERT_APP_PLAYLIST', getPhaseEvents],
+        ['DB_GET_CONTENT', getPhaseEvents],
+    ] as const) {
+        assertClosedCapture(
+            normalizeForOperation(operation, {
+                ...validCapture,
+                phaseEvents,
+            }),
+            'worker-performance-capture-invalid'
+        );
+    }
+
+    for (const operation of ['DB_GET_APP_PLAYLIST', 'DB_UPSERT_APP_PLAYLIST']) {
+        assertClosedCapture(
+            normalizeForOperation(operation, validCapture),
+            'worker-performance-capture-invalid'
+        );
+    }
+
+    assert.deepEqual(normalize(validCapture).phaseEvents, []);
+});
+
+test('routes finalized Xtream phase sequences before the legacy M3U parser', () => {
+    const xtreamPhaseEvents = [
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_015,
+            phase: 'sqlite.content.category-map-read',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 2,
+            epochMs: 1_017,
+            metadata: { itemCount: 60 },
+            phase: 'sqlite.content.category-map-read',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_018,
+            phase: 'normalize.content',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 5,
+            epochMs: 1_023,
+            metadata: { itemCount: 60_000 },
+            phase: 'normalize.content',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'start',
+            durationMs: null,
+            epochMs: 1_024,
+            phase: 'sqlite.content.write-transactions',
+            requestId: 'request-1',
+        },
+        {
+            boundary: 'end',
+            durationMs: 10,
+            epochMs: 1_034,
+            metadata: { itemCount: 60_000 },
+            phase: 'sqlite.content.write-transactions',
+            requestId: 'request-1',
+        },
+    ] as const;
+
+    assert.deepEqual(
+        normalizeForOperation('DB_SAVE_CONTENT', {
+            ...validCapture,
+            phaseEvents: xtreamPhaseEvents,
+        }).phaseEvents,
+        xtreamPhaseEvents
+    );
+    assertClosedCapture(
+        normalizeForOperation('DB_SAVE_CONTENT', {
+            ...validCapture,
+            phaseEvents: xtreamPhaseEvents.slice(0, -2),
+        }),
+        'worker-performance-capture-invalid'
+    );
 });

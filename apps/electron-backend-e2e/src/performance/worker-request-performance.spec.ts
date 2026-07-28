@@ -35,9 +35,10 @@ function requestPerformance(
                 eventLoopDelayUnavailableReason: null,
                 eventLoopUtilization: p95Ms / 100,
                 eventLoopUtilizationUnavailableReason: null,
-                histogramFlushedEpochMs: 1_050 + p95Ms,
+                histogramFlushedEpochMs: 1_050,
                 invalidReason: null,
                 requestReceivedEpochMs: 1_000,
+                responsePostedEpochMs: 1_055,
                 threadCpuSystemMicros: threadCpuUserMicros / 2,
                 threadCpuUnavailableReason: null,
                 threadCpuUserMicros,
@@ -53,13 +54,15 @@ function requestTransport(
     requestId = 'request-1'
 ) {
     return {
-        operation: 'DB_GET_APP_PLAYLIST',
+        ipcCallId: 7,
+        operation: 'DB_HAS_CONTENT',
         operationId: 'operation-42',
         operationIdUnavailableReason: null,
         performanceCapture,
         playlistId: 'playlist-1',
         requestId,
         responseEpochMs: 1_060,
+        sourceEpochMs: 990,
         success: true,
     } as const;
 }
@@ -77,6 +80,7 @@ function assertClosedCapture(
         capture.histogramFlushedEpochMs,
         capture.invalidReason,
         capture.requestReceivedEpochMs,
+        capture.responsePostedEpochMs,
         capture.threadCpuSystemMicros,
         capture.threadCpuUnavailableReason,
         capture.threadCpuUserMicros,
@@ -220,13 +224,22 @@ test('main capture retains raw request identity, timestamps, metrics, and reason
     assert.match(source, /requestPerformance: \[\]/);
     assert.match(source, /record\.requestPerformance\.map/);
     assert.match(source, /operationId: request\.identity\.operationId/);
+    assert.match(source, /ipcCallId: request\.identity\.ipcCallId/);
     assert.match(source, /identity: request\.identity/);
     assert.match(source, /performanceCapture:\s+message\['performance'\]/);
+    assert.match(source, /sourceEpochMs:\s+request\.identity\.sourceEpochMs/);
     assert.match(source, /captureGeneration: state\.captureGeneration/);
     assert.doesNotMatch(
         source,
         /record\.eventLoopDelay = record\.eventLoopDelay/
     );
+});
+
+test('normalized raw request metrics retain the exact preload IPC call identity', () => {
+    const capture = requestPerformance('request-1', 5, 100);
+
+    assert.equal(capture.ipcCallId, 7);
+    assert.equal(capture.sourceEpochMs, 990);
 });
 
 test('benchmark resolves one exact BrowserWindow and main capture never scans all windows', () => {

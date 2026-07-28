@@ -271,6 +271,10 @@ regular development experiment flag) and one process-wide capability decision
 has succeeded. On Linux x64 that decision validates the profile manifest,
 regular-file/access modes, the complete declared bundled closure and hashes,
 then runs `iptvnator_mpv_helper --runtime-probe` with a three-second timeout.
+That short budget belongs to the application gate alone, because it blocks the
+main process and a timeout there degrades to the native-view fallback;
+`tools/packaging/verify-linux-frame-copy-runtime.mjs` runs the same probe under
+a deliberately larger bound described under "Same-Version Desktop Release Gate".
 The probe loads dependencies through the normal ELF loader, initializes an
 idle libmpv client, creates EGL/OpenGL plus mpv render contexts, then
 creates, maps, validates, and destroys a minimal `16x16` shared-memory ring
@@ -951,6 +955,17 @@ packaging passes with `IPTVNATOR_EMBEDDED_MPV_PLATFORM=linux`,
 `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1`, and one exact
 `IPTVNATOR_LINUX_FRAME_COPY_PROFILE`. Each produced artifact is extracted and
 verified, and the x64 helper probe runs in the intended runtime environment.
+That extracted-artifact probe uses its own 15-second bound rather than the
+application gate's three seconds: nothing waits on it but the CI job, which
+already has a job-level timeout, while a premature kill would report a healthy
+package as broken. Cold sandboxes — Flatpak most of all — can spend seconds
+merely loading libmpv plus EGL/GL/GBM. A hard timeout is also the only probe
+outcome that says nothing about the payload, so the verifier repeats it once
+(two attempts in total, announced on stderr) before failing. Every other
+outcome — spawn error, termination by signal, nonzero exit, or a malformed
+protocol line — remains fail-closed on the first attempt, so a wrapper launched
+instead of the real ELF, a missing helper, or a hung helper still fails
+verification.
 The packaged x64 Playwright smoke first runs its fixture-contract target and
 passes Chromium `--ignore-gpu-blocklist` so Mesa llvmpipe can expose WebGL2 in
 CI. That launch-only flag does not bypass any manifest, hash, loader, or helper

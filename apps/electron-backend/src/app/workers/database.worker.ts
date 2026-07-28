@@ -65,6 +65,8 @@ import {
     getAppState,
     getPlaylist,
     setAppState,
+    type AppPlaylistGetPhaseCapture,
+    type AppPlaylistUpsertPhaseCapture,
     updatePlaylist,
     upsertAppPlaylist,
     upsertAppPlaylists,
@@ -103,13 +105,20 @@ import {
     executeWithWorkerPerformanceCapture,
     registerDatabaseWorkerPerformanceCapture,
     releaseDatabaseWorkerPerformanceCapture,
+    stampWorkerPerformanceResponsePostedEpoch,
     startWorkerPerformanceCapture,
     type WorkerPerformanceCapture,
 } from './worker-performance-capture';
 import {
+    captureWorkerPerformancePhase,
+    captureWorkerPerformancePhaseAsync,
+    createWorkerPerformancePhaseAdapter,
+} from './worker-performance-phase';
+import {
     handleDatabaseWorkerPostGcHeapRequest,
     isDatabaseWorkerPostGcHeapRequest,
 } from './database-worker-post-gc-heap';
+import { publishDatabaseWorkerCancelReceipt } from './database-worker-cancel-receipt';
 
 const loggerLabel = '[DB Worker]';
 const batchDelayMs = Number.parseInt(
@@ -119,6 +128,7 @@ const batchDelayMs = Number.parseInt(
 
 type ActiveOperationState = {
     cancelled: boolean;
+    performanceRequestId?: string;
 };
 
 type PreRegisteredActiveOperation = {
@@ -195,6 +205,7 @@ function postEvent(requestId: string, event: DbOperationEvent): void {
 
 async function pauseBetweenBatches(): Promise<void> {
     if (batchDelayMs <= 0) {
+        await new Promise<void>((resolve) => setImmediate(resolve));
         return;
     }
 
@@ -359,7 +370,8 @@ function releasePreRegisteredOperation(
 
 async function executeRequest(
     message: DbWorkerRequestMessage,
-    preRegisteredState?: ActiveOperationState
+    preRegisteredState?: ActiveOperationState,
+    performanceCapture: WorkerPerformanceCapture | null = null
 ) {
     const db = await getWorkerDatabase();
 
@@ -377,7 +389,14 @@ async function executeRequest(
                 playlistId: string;
                 type: 'live' | 'movies' | 'series';
             };
-            return getCategories(db, payload.playlistId, payload.type);
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
+            return getCategories(
+                db,
+                payload.playlistId,
+                payload.type,
+                capturePhase
+            );
         }
 
         case 'DB_SAVE_CATEGORIES': {
@@ -390,12 +409,15 @@ async function executeRequest(
                 type: 'live' | 'movies' | 'series';
                 hiddenCategoryXtreamIds?: number[];
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
             return saveCategories(
                 db,
                 payload.playlistId,
                 payload.categories,
                 payload.type,
-                payload.hiddenCategoryXtreamIds
+                payload.hiddenCategoryXtreamIds,
+                capturePhase
             );
         }
 
@@ -432,7 +454,14 @@ async function executeRequest(
                 playlistId: string;
                 type: 'live' | 'movie' | 'series';
             };
-            return getContent(db, payload.playlistId, payload.type);
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
+            return getContent(
+                db,
+                payload.playlistId,
+                payload.type,
+                capturePhase
+            );
         }
 
         case 'DB_GET_GLOBAL_RECENTLY_ADDED': {
@@ -440,11 +469,7 @@ async function executeRequest(
                 kind?: 'all' | 'vod' | 'series';
                 limit?: number;
                 playlistType?:
-                    | 'xtream'
-                    | 'stalker'
-                    | 'm3u-file'
-                    | 'm3u-text'
-                    | 'm3u-url';
+                    'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
             };
             return getGlobalRecentlyAdded(
                 db,
@@ -461,6 +486,8 @@ async function executeRequest(
                 type: 'live' | 'movie' | 'series';
                 operationId?: string;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
             return executeTrackedOperation(
                 {
@@ -481,7 +508,8 @@ async function executeRequest(
                         payload.playlistId,
                         payload.streams,
                         payload.type,
-                        controller.control
+                        controller.control,
+                        capturePhase
                     );
 
                     controller.emitCompleted({
@@ -501,8 +529,15 @@ async function executeRequest(
                 playlistId: string;
                 type: 'live' | 'movie' | 'series';
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
-            return clearXtreamImportCache(db, payload.playlistId, payload.type);
+            return clearXtreamImportCache(
+                db,
+                payload.playlistId,
+                payload.type,
+                capturePhase
+            );
         }
 
         case 'DB_GET_CONTENT_BY_XTREAM_ID': {
@@ -538,12 +573,15 @@ async function executeRequest(
                 types: string[];
                 excludeHidden?: boolean;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
             return searchContent(
                 db,
                 payload.playlistId,
                 payload.searchTerm,
                 payload.types,
-                payload.excludeHidden
+                payload.excludeHidden,
+                capturePhase
             );
         }
 
@@ -585,9 +623,29 @@ async function executeRequest(
         }
 
         case 'DB_UPSERT_APP_PLAYLIST': {
+            const capturePhase: AppPlaylistUpsertPhaseCapture | undefined =
+                performanceCapture
+                    ? {
+                          captureAsync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhaseAsync(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                          captureSync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhase(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                      }
+                    : undefined;
             return upsertAppPlaylist(
                 db,
-                message.payload as Record<string, unknown>
+                message.payload as Record<string, unknown>,
+                capturePhase
             );
         }
 
@@ -606,7 +664,26 @@ async function executeRequest(
 
         case 'DB_GET_APP_PLAYLIST': {
             const payload = message.payload as { playlistId: string };
-            return getAppPlaylist(db, payload.playlistId);
+            const capturePhase: AppPlaylistGetPhaseCapture | undefined =
+                performanceCapture
+                    ? {
+                          captureAsync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhaseAsync(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                          captureSync: (phase, execute, metadata) =>
+                              captureWorkerPerformancePhase(
+                                  performanceCapture,
+                                  phase,
+                                  execute,
+                                  metadata
+                              ),
+                      }
+                    : undefined;
+            return getAppPlaylist(db, payload.playlistId, capturePhase);
         }
 
         case 'DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS': {
@@ -638,6 +715,8 @@ async function executeRequest(
                 playlistId: string;
                 operationId?: string;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
             return executeTrackedOperation(
                 {
@@ -655,7 +734,8 @@ async function executeRequest(
                     const result = await deletePlaylist(
                         db,
                         payload.playlistId,
-                        controller.control
+                        controller.control,
+                        capturePhase
                     );
 
                     controller.emitCompleted({
@@ -772,6 +852,8 @@ async function executeRequest(
                 playlistId: string;
                 operationId?: string;
             };
+            const capturePhase =
+                createWorkerPerformancePhaseAdapter(performanceCapture);
 
             return executeTrackedOperation(
                 {
@@ -789,7 +871,8 @@ async function executeRequest(
                     const result = await deleteXtreamContent(
                         db,
                         payload.playlistId,
-                        controller.control
+                        controller.control,
+                        capturePhase
                     );
 
                     controller.emitCompleted({
@@ -1037,6 +1120,13 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
         const activeOperation = activeOperations.get(message.operationId);
         if (activeOperation) {
             activeOperation.cancelled = true;
+            if (activeOperation.performanceRequestId !== undefined) {
+                publishDatabaseWorkerCancelReceipt(
+                    message.operationId,
+                    activeOperation.performanceRequestId,
+                    postMessage
+                );
+            }
         }
         return;
     }
@@ -1045,7 +1135,13 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
     let performanceCapture: WorkerPerformanceCapture | null = null;
     const execution = await (async () => {
         try {
-            performanceCapture = startWorkerPerformanceCapture();
+            performanceCapture = startWorkerPerformanceCapture({
+                requestId: message.requestId,
+            });
+            if (performanceCapture && preRegisteredOperation) {
+                preRegisteredOperation.state.performanceRequestId =
+                    message.requestId;
+            }
             registerDatabaseWorkerPerformanceCapture(
                 activePerformanceCaptures,
                 performanceCapture
@@ -1053,7 +1149,12 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             await armWorkerPerformanceCapture(performanceCapture);
             return await executeWithWorkerPerformanceCapture(
                 performanceCapture,
-                () => executeRequest(message, preRegisteredOperation?.state)
+                () =>
+                    executeRequest(
+                        message,
+                        preRegisteredOperation?.state,
+                        performanceCapture
+                    )
             );
         } finally {
             releaseDatabaseWorkerPerformanceCapture(
@@ -1070,7 +1171,10 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             requestId: message.requestId,
             success: true,
             result: execution.result,
-            performance: execution.performance,
+            performance: stampWorkerPerformanceResponsePostedEpoch(
+                performanceCapture,
+                execution.performance
+            ),
         });
     } else {
         console.error(
@@ -1083,7 +1187,10 @@ parentPort.on('message', async (message: DbWorkerIncomingMessage) => {
             requestId: message.requestId,
             success: false,
             error: serializeError(execution.error),
-            performance: execution.performance,
+            performance: stampWorkerPerformanceResponsePostedEpoch(
+                performanceCapture,
+                execution.performance
+            ),
         });
     }
 });

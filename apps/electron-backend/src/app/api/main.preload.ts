@@ -15,6 +15,11 @@ import {
     createPreloadPerformanceCapture,
     toPreloadPerformanceTargetMethod,
 } from './preload-performance-capture';
+import {
+    createXtreamPreloadPerformanceCapture,
+    isXtreamPreloadPerformanceCaptureEnabled,
+    toXtreamPreloadPerformanceTargetMethod,
+} from './xtream-preload-performance-capture';
 import type {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
@@ -80,10 +85,17 @@ const dbSaveContentProgressListeners = new Set<
 
 const shouldTraceRendererApi = isRendererApiTraceEnabled();
 const shouldCapturePerformance = isPerformanceCaptureEnabled();
+const shouldCaptureXtreamPerformance =
+    isXtreamPreloadPerformanceCaptureEnabled();
 const preloadPerformanceCapture = createPreloadPerformanceCapture(
     shouldCapturePerformance,
     (channel, marker) => ipcRenderer.send(channel, marker)
 );
+const xtreamPreloadPerformanceCapture = shouldCaptureXtreamPerformance
+    ? createXtreamPreloadPerformanceCapture(true, (channel, marker) =>
+          ipcRenderer.send(channel, marker)
+      )
+    : null;
 
 function emitRendererTrace(payload: {
     method: string;
@@ -107,12 +119,18 @@ function wrapElectronApi<T extends object>(api: T): T {
 
     return Object.fromEntries(
         Object.entries(api).map(([name, value]) => {
+            const isPreloadPerformanceTarget =
+                toPreloadPerformanceTargetMethod(name) !== null;
+            const isXtreamPreloadPerformanceTarget =
+                shouldCaptureXtreamPerformance &&
+                toXtreamPreloadPerformanceTargetMethod(name) !== null;
             if (
                 typeof value !== 'function' ||
                 name.startsWith('on') ||
                 name.startsWith('remove') ||
                 (!shouldTraceRendererApi &&
-                    !toPreloadPerformanceTargetMethod(name))
+                    !isPreloadPerformanceTarget &&
+                    !isXtreamPreloadPerformanceTarget)
             ) {
                 return [name, value];
             }
@@ -136,6 +154,9 @@ function wrapElectronApi<T extends object>(api: T): T {
                         name,
                         args
                     );
+                    const xtreamPerformanceCall =
+                        xtreamPreloadPerformanceCapture?.start(name, args) ??
+                        null;
 
                     try {
                         const result = original(...args);
@@ -164,6 +185,9 @@ function wrapElectronApi<T extends object>(api: T): T {
                                         performanceCall,
                                         resolvedValue
                                     );
+                                    xtreamPreloadPerformanceCapture?.success(
+                                        xtreamPerformanceCall
+                                    );
                                     return resolvedValue;
                                 })
                                 .catch((error: unknown) => {
@@ -180,6 +204,9 @@ function wrapElectronApi<T extends object>(api: T): T {
                                     }
                                     preloadPerformanceCapture.error(
                                         performanceCall
+                                    );
+                                    xtreamPreloadPerformanceCapture?.error(
+                                        xtreamPerformanceCall
                                     );
                                     throw error;
                                 });
@@ -200,6 +227,9 @@ function wrapElectronApi<T extends object>(api: T): T {
                             performanceCall,
                             result
                         );
+                        xtreamPreloadPerformanceCapture?.success(
+                            xtreamPerformanceCall
+                        );
 
                         return result;
                     } catch (error) {
@@ -215,6 +245,9 @@ function wrapElectronApi<T extends object>(api: T): T {
                             });
                         }
                         preloadPerformanceCapture.error(performanceCall);
+                        xtreamPreloadPerformanceCapture?.error(
+                            xtreamPerformanceCall
+                        );
                         throw error;
                     }
                 },
@@ -745,11 +778,7 @@ const electronApi: ElectronBridgeApi = {
         kind: 'all' | 'vod' | 'series',
         limit?: number,
         playlistType?:
-            | 'xtream'
-            | 'stalker'
-            | 'm3u-file'
-            | 'm3u-text'
-            | 'm3u-url'
+            'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url'
     ) =>
         ipcRenderer.invoke(
             'DB_GET_GLOBAL_RECENTLY_ADDED',

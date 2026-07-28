@@ -49,6 +49,7 @@ import { MockModule, MockProvider } from 'ng-mocks';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { from, of } from 'rxjs';
 import { ElectronServiceStub } from '../../services/electron.service.stub';
+import { SettingsStorageFailure } from '@iptvnator/services';
 import { SettingsStore } from '../../services/settings-store.service';
 import { SettingsService } from '../../services/settings.service';
 import { SettingsComponent } from '../settings.component';
@@ -148,6 +149,8 @@ export class MockSettingsStore {
     loadSettings = jest.fn().mockResolvedValue(undefined);
 
     updateSettings = jest.fn().mockResolvedValue(undefined);
+
+    storageFailure = signal<SettingsStorageFailure | null>(null);
 
     // Helper method for tests to modify settings
     _setSettings(newSettings: Partial<typeof DEFAULT_SETTINGS>) {

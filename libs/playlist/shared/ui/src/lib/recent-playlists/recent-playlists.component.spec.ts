@@ -27,7 +27,24 @@ import {
     SortService,
 } from '@iptvnator/services';
 import { PLAYLIST_UPDATE, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
+    type RendererPerformancePhaseEvent,
+} from '@iptvnator/shared/logging';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
+
+const performanceHookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);
+
+function setPerformanceHook(
+    hook: ((event: RendererPerformancePhaseEvent) => void) | null
+): void {
+    const target = globalThis as unknown as Record<symbol, unknown>;
+    if (hook === null) {
+        delete target[performanceHookSymbol];
+    } else {
+        target[performanceHookSymbol] = hook;
+    }
+}
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -233,11 +250,14 @@ describe('RecentPlaylistsComponent busy state', () => {
     });
 
     afterEach(() => {
+        setPerformanceHook(null);
         jest.restoreAllMocks();
         localStorage.clear();
     });
 
     it('tracks delete progress and clears the busy row after completion', async () => {
+        const events: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => events.push(event));
         const item = createPlaylistMeta({ _id: 'playlist-delete-1' });
         const deletion = createDeferred<boolean>();
 
@@ -290,9 +310,32 @@ describe('RecentPlaylistsComponent busy state', () => {
             undefined,
             { duration: 2000 }
         );
+        expect(
+            events.map(({ boundary, metadata, outcome, phase }) => ({
+                boundary,
+                items: metadata?.items,
+                outcome,
+                phase,
+            }))
+        ).toEqual([
+            {
+                boundary: 'start',
+                items: 1,
+                outcome: undefined,
+                phase: 'store.xtream-delete-row',
+            },
+            {
+                boundary: 'end',
+                items: 1,
+                outcome: 'success',
+                phase: 'store.xtream-delete-row',
+            },
+        ]);
     });
 
     it('delegates playlist deletion and updates local UI state after success', async () => {
+        const events: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => events.push(event));
         const item = createPlaylistMeta({
             _id: 'pwa-playlist-1',
             serverUrl: undefined,
@@ -316,6 +359,43 @@ describe('RecentPlaylistsComponent busy state', () => {
             undefined,
             { duration: 2000 }
         );
+        expect(events).toEqual([]);
+    });
+
+    it('records dispatch failure and still clears delete-row busy state', async () => {
+        const events: RendererPerformancePhaseEvent[] = [];
+        const item = createPlaylistMeta({ _id: 'dispatch-failure' });
+        const dispatchError = new Error('dispatch failed');
+        setPerformanceHook((event) => events.push(event));
+        (store.dispatch as jest.Mock).mockImplementation(() => {
+            throw dispatchError;
+        });
+
+        await expect(component.removePlaylist(item)).rejects.toBe(
+            dispatchError
+        );
+
+        expect(component.isDeletePending(item._id)).toBe(false);
+        expect(component.getBusyProgress(item._id)).toBeNull();
+        expect(snackBar.open).not.toHaveBeenCalled();
+        expect(
+            events.map(({ boundary, outcome, phase }) => ({
+                boundary,
+                outcome,
+                phase,
+            }))
+        ).toEqual([
+            {
+                boundary: 'start',
+                outcome: undefined,
+                phase: 'store.xtream-delete-row',
+            },
+            {
+                boundary: 'end',
+                outcome: 'error',
+                phase: 'store.xtream-delete-row',
+            },
+        ]);
     });
 
     it('tracks Xtream refresh progress and clears the busy row after abort', async () => {
@@ -388,6 +468,11 @@ describe('RecentPlaylistsComponent busy state', () => {
         const item = createPlaylistMeta({ _id: 'playlist-refresh-success-1' });
         let confirmPromise: Promise<void> | undefined;
         const executionOrder: string[] = [];
+        const performanceEvents: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => {
+            performanceEvents.push(event);
+            executionOrder.push(event.boundary);
+        });
         const dateNowSpy = jest
             .spyOn(Date, 'now')
             .mockReturnValue(1712145600000);
@@ -476,7 +561,38 @@ describe('RecentPlaylistsComponent busy state', () => {
             'xtreams',
             item._id,
         ]);
-        expect(executionOrder).toEqual(['setItem', 'dispatch', 'navigate']);
+        expect(executionOrder).toEqual([
+            'setItem',
+            'start',
+            'dispatch',
+            'end',
+            'navigate',
+        ]);
+        expect(performanceEvents).toHaveLength(2);
+        expect(performanceEvents[0]?.phaseId).toBe(
+            performanceEvents[1]?.phaseId
+        );
+        expect(
+            performanceEvents.map(({ boundary, metadata, outcome, phase }) => ({
+                boundary,
+                metadata,
+                outcome,
+                phase,
+            }))
+        ).toEqual([
+            {
+                boundary: 'start',
+                metadata: { items: 1 },
+                outcome: undefined,
+                phase: 'store.xtream-refresh-meta',
+            },
+            {
+                boundary: 'end',
+                metadata: { items: 1 },
+                outcome: 'success',
+                phase: 'store.xtream-refresh-meta',
+            },
+        ]);
 
         setItemSpy.mockRestore();
         dateNowSpy.mockRestore();

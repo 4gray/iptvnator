@@ -290,6 +290,8 @@
         "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "在 MPV 或 VLC 開始播放前，要求雙擊頻道列。",
         "LANGUAGE": "語言",
         "SETTINGS_SAVED": "成功！設定已儲存。",
+        "SETTINGS_SAVE_FAILED": "無法儲存設定。重新啟動應用程式後所做的變更將會遺失。",
+        "SETTINGS_LOAD_FAILED": "無法載入已儲存的設定，正在顯示預設值。請確認沒有重複執行的應用程式。",
         "THEME": "視覺主題",
         "SHOW_CAPTIONS": "顯示字幕",
         "SHOW_DASHBOARD": "顯示儀表板",

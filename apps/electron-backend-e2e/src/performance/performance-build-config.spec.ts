@@ -270,3 +270,34 @@ test('the cancellation benchmark exposes GC to Electron worker isolates', () => 
     assert.match(source, /'--js-flags=--expose-gc'/);
     assert.doesNotMatch(source, /execArgv/);
 });
+
+test('the initial M3U import benchmark uses the production-equivalent performance build', () => {
+    const target = e2eProject.targets['benchmark-m3u-import'];
+
+    assert.ok(target, 'electron-backend-e2e must define benchmark-m3u-import');
+    assert.deepEqual(target.dependsOn, ['electron-backend:build-performance']);
+});
+
+test('the initial M3U import benchmark command is pinned to its Playwright test file', () => {
+    const target = e2eProject.targets['benchmark-m3u-import'];
+
+    assert.equal(
+        target.options?.['command'],
+        'pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts'
+    );
+});
+
+test('the initial M3U import benchmark enables opt-in capture and worker GC', () => {
+    const source = readFileSync(
+        join(
+            workspaceRoot,
+            'apps/electron-backend-e2e/src/performance/m3u-import.benchmark.ts'
+        ),
+        'utf8'
+    );
+
+    assert.match(source, /IPTVNATOR_PERF_CAPTURE:\s*'1'/);
+    assert.match(source, /IPTVNATOR_PERF_WORKER_PROFILING:\s*'1'/);
+    assert.match(source, /'--js-flags=--expose-gc'/);
+    assert.doesNotMatch(source, /execArgv/);
+});

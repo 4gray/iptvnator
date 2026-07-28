@@ -30,9 +30,18 @@ describe('worker performance integration order', () => {
         expect(
             handler.indexOf('executeWithWorkerPerformanceCapture')
         ).toBeLessThan(handler.indexOf('console.error'));
+        const executionIndex = handler.indexOf(
+            'executeWithWorkerPerformanceCapture'
+        );
+        expect(executionIndex).toBeLessThan(
+            handler.indexOf('postMessage', executionIndex)
+        );
         expect(
-            handler.indexOf('executeWithWorkerPerformanceCapture')
-        ).toBeLessThan(handler.indexOf('postMessage'));
+            handler.match(/stampWorkerPerformanceResponsePostedEpoch/g)
+        ).toHaveLength(2);
+        expect(handler).toMatch(
+            /postMessage\(\{[\s\S]*?performance:\s*stampWorkerPerformanceResponsePostedEpoch\([\s\S]*?execution\.performance[\s\S]*?\),[\s\S]*?\}\)/
+        );
         expect(handler).not.toContain('await previous');
         expect(handler).not.toContain('requestQueue');
     });
@@ -52,6 +61,34 @@ describe('worker performance integration order', () => {
         expect(executionIndex).toBeLessThan(
             handler.indexOf('postMessage', executionIndex)
         );
+        expect(
+            handler.match(/stampWorkerPerformanceResponsePostedEpoch/g)
+        ).toHaveLength(2);
+    });
+
+    it('passes the request capture into the single-playlist upsert boundary', () => {
+        const source = readWorkerSource('database.worker.ts');
+        const upsertCase = source.slice(
+            source.indexOf("case 'DB_UPSERT_APP_PLAYLIST':"),
+            source.indexOf("case 'DB_UPSERT_APP_PLAYLISTS':")
+        );
+
+        expect(upsertCase).toContain('captureWorkerPerformancePhase');
+        expect(upsertCase).toContain('performanceCapture');
+        expect(upsertCase).toContain('upsertAppPlaylist');
+    });
+
+    it('passes async read and sync deserialize capture into the single-playlist GET boundary', () => {
+        const source = readWorkerSource('database.worker.ts');
+        const getCase = source.slice(
+            source.indexOf("case 'DB_GET_APP_PLAYLIST':"),
+            source.indexOf("case 'DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS':")
+        );
+
+        expect(getCase).toContain('captureWorkerPerformancePhaseAsync');
+        expect(getCase).toContain('captureWorkerPerformancePhase');
+        expect(getCase).toContain('performanceCapture');
+        expect(getCase).toContain('getAppPlaylist');
     });
 
     it('preserves success and business errors when the finish seam throws once', async () => {

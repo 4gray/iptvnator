@@ -130,8 +130,11 @@ export class ExternalPlayerSessionRegistry {
 
         try {
             await runtime.close?.();
-        } finally {
-            return this.markClosed(id);
+        } catch {
+            // Close failures must not keep the session in a live state; the
+            // registry still reports it as closed below.
         }
+
+        return this.markClosed(id);
     }
 }

@@ -12,6 +12,10 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
+import {
+    measureRendererPerformancePhase,
+    RENDERER_PERFORMANCE_PHASE,
+} from '@iptvnator/shared/logging';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     DatabaseService,
@@ -861,18 +865,28 @@ export function withContent() {
                         logger.error('Error initializing content', error);
                     }
                 } finally {
-                    patchState(store, {
-                        isImporting: false,
-                        isCancellingImport: false,
-                        importCount: 0,
-                        importPhase: null,
-                        itemsToImport: 0,
-                        activeImportContentType: null,
-                        activeImportCurrentCount: 0,
-                        activeImportTotalCount: 0,
-                        activeImportSessionId: null,
-                        activeImportOperationIds: [],
-                    });
+                    measureRendererPerformancePhase(
+                        RENDERER_PERFORMANCE_PHASE.XTREAM_IMPORT_TERMINAL,
+                        () =>
+                            patchState(store, {
+                                isImporting: false,
+                                isCancellingImport: false,
+                                importCount: 0,
+                                importPhase: null,
+                                itemsToImport: 0,
+                                activeImportContentType: null,
+                                activeImportCurrentCount: 0,
+                                activeImportTotalCount: 0,
+                                activeImportSessionId: null,
+                                activeImportOperationIds: [],
+                            }),
+                        () => ({
+                            items:
+                                store.liveStreams().length +
+                                store.vodStreams().length +
+                                store.serialStreams().length,
+                        })
+                    );
                 }
             };
 
@@ -962,12 +976,21 @@ export function withContent() {
                             ),
                         ]);
 
-                        patchState(store, {
-                            liveCategories: live,
-                            vodCategories: vod,
-                            serialCategories: series,
-                            isLoadingCategories: false,
-                        });
+                        // This span ends after synchronous store publication;
+                        // the renderer probe owns paint observation.
+                        measureRendererPerformancePhase(
+                            RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_CATEGORIES,
+                            () =>
+                                patchState(store, {
+                                    liveCategories: live,
+                                    vodCategories: vod,
+                                    serialCategories: series,
+                                    isLoadingCategories: false,
+                                }),
+                            () => ({
+                                items: live.length + vod.length + series.length,
+                            })
+                        );
                     } catch (error) {
                         if (!isDbAbortError(error)) {
                             logger.error('Error fetching categories', error);
@@ -1044,9 +1067,14 @@ export function withContent() {
                             'completed'
                         );
                         options?.completedTypes?.add('live');
-                        patchState(store, {
-                            liveStreams: live,
-                        });
+                        measureRendererPerformancePhase(
+                            RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_LIVE,
+                            () =>
+                                patchState(store, {
+                                    liveStreams: live,
+                                }),
+                            () => ({ items: live.length })
+                        );
                         updateContentTypeLoadState('live', 'ready');
 
                         throwIfImportCancelled(options?.importSessionId);
@@ -1080,9 +1108,14 @@ export function withContent() {
                             'completed'
                         );
                         options?.completedTypes?.add('vod');
-                        patchState(store, {
-                            vodStreams: vod,
-                        });
+                        measureRendererPerformancePhase(
+                            RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_VOD,
+                            () =>
+                                patchState(store, {
+                                    vodStreams: vod,
+                                }),
+                            () => ({ items: vod.length })
+                        );
                         updateContentTypeLoadState('vod', 'ready');
 
                         throwIfImportCancelled(options?.importSessionId);
@@ -1116,10 +1149,15 @@ export function withContent() {
                             'completed'
                         );
                         options?.completedTypes?.add('series');
-                        patchState(store, {
-                            serialStreams: series,
-                            isLoadingContent: false,
-                        });
+                        measureRendererPerformancePhase(
+                            RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_SERIES,
+                            () =>
+                                patchState(store, {
+                                    serialStreams: series,
+                                    isLoadingContent: false,
+                                }),
+                            () => ({ items: series.length })
+                        );
                         updateContentTypeLoadState('series', 'ready');
                     } catch (error) {
                         if (!isDbAbortError(error)) {
