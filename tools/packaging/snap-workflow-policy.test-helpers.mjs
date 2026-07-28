@@ -13,9 +13,9 @@ const PUBLISH_ACTION_ALLOWLIST = Object.freeze([
     PINNED_UPLOAD_ARTIFACT_ACTION,
 ]);
 const BUILD_ACTION_ALLOWLIST = Object.freeze([
-    'actions/cache/restore@v4',
-    'actions/cache/save@v4',
-    'actions/cache@v4',
+    'actions/cache/restore@v6',
+    'actions/cache/save@v6',
+    'actions/cache@v6',
     'actions/checkout@v7',
     'actions/download-artifact@v8',
     'actions/setup-node@v4',
