@@ -67,9 +67,45 @@ export function resolveXtreamVodCatalogCategoryId(
     categories: readonly XtreamVodCatalogCategory[],
     categoryId: string | number
 ): string | number | null {
-    const category = categories.find(
-        (item) => Number(item.id ?? item.category_id) === Number(categoryId)
+    return (
+        resolveXtreamVodCatalogCategoryIds(categories, categoryId)[0] ?? null
     );
+}
 
-    return category?.xtream_id ?? category?.category_id ?? null;
+export function resolveXtreamVodCatalogCategoryIds(
+    categories: readonly XtreamVodCatalogCategory[],
+    categoryId: string | number
+): (string | number)[] {
+    const normalizedCategoryId = Number(categoryId);
+    if (!Number.isFinite(normalizedCategoryId)) {
+        return [];
+    }
+
+    const candidates: (string | number)[] = [];
+    const seen = new Set<number>();
+    const addProviderId = (category: XtreamVodCatalogCategory): void => {
+        const providerId = category.xtream_id ?? category.category_id;
+        if (providerId === undefined || providerId === null) {
+            return;
+        }
+        const normalizedProviderId = Number(providerId);
+        if (
+            Number.isFinite(normalizedProviderId) &&
+            !seen.has(normalizedProviderId)
+        ) {
+            seen.add(normalizedProviderId);
+            candidates.push(providerId);
+        }
+    };
+    const matches = (value: string | number | undefined): boolean =>
+        value !== undefined && Number(value) === normalizedCategoryId;
+
+    categories
+        .filter((item) => item.xtream_id !== undefined && matches(item.id))
+        .forEach(addProviderId);
+    categories
+        .filter((item) => matches(item.xtream_id) || matches(item.category_id))
+        .forEach(addProviderId);
+
+    return candidates;
 }

@@ -133,6 +133,18 @@ describe('Xtream VOD selection helpers', () => {
         ).toBe('702');
     });
 
+    it('accepts a provider category id from cross-portal detail links', () => {
+        expect(
+            resolveXtreamVodCatalogCategoryId([{ id: 7, xtream_id: 701 }], 701)
+        ).toBe(701);
+    });
+
+    it('does not treat an optional PWA id as a database category id', () => {
+        expect(
+            resolveXtreamVodCatalogCategoryId([{ id: 7, category_id: 701 }], 7)
+        ).toBeNull();
+    });
+
     it('does not treat an unresolved database category id as a provider id', () => {
         expect(resolveXtreamVodCatalogCategoryId([], 7)).toBeNull();
     });

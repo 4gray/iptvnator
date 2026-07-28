@@ -30,38 +30,44 @@ describe('Xtream details request coordination', () => {
         expect(thirdRequestIsCurrent()).toBe(false);
     });
 
-    it('recovers a provider category id from hidden Electron categories', async () => {
-        const getAllCategories = jest.fn().mockResolvedValue([
-            {
-                id: 7,
-                xtream_id: 701,
-            },
-        ]);
-        const getCategories = jest.fn().mockResolvedValue([]);
-        const getVodStream = jest.fn().mockResolvedValue({
-            stream_id: 42,
-            container_extension: 'mp4',
-        });
+    it.each([7, 701])(
+        'recovers from Electron route category id %s',
+        async (routeCategoryId) => {
+            const getAllCategories = jest.fn().mockResolvedValue([
+                {
+                    id: 7,
+                    xtream_id: 701,
+                },
+            ]);
+            const getCategories = jest.fn().mockResolvedValue([]);
+            const getVodStream = jest.fn().mockResolvedValue({
+                stream_id: 42,
+                container_extension: 'mp4',
+            });
 
-        await expect(
-            recoverXtreamVodCatalogItem({
-                apiService: { getVodStream },
-                currentCategories: [],
-                credentials,
-                dataSource: { getAllCategories, getCategories },
-                isCurrent: () => true,
-                playlistId: 'playlist-a',
-                routeCategoryId: 7,
-                vodId: 42,
-            })
-        ).resolves.toEqual({
-            stream_id: 42,
-            container_extension: 'mp4',
-        });
-        expect(getAllCategories).toHaveBeenCalledWith('playlist-a', 'movies');
-        expect(getCategories).not.toHaveBeenCalled();
-        expect(getVodStream).toHaveBeenCalledWith(credentials, 42, 701);
-    });
+            await expect(
+                recoverXtreamVodCatalogItem({
+                    apiService: { getVodStream },
+                    currentCategories: [],
+                    credentials,
+                    dataSource: { getAllCategories, getCategories },
+                    isCurrent: () => true,
+                    playlistId: 'playlist-a',
+                    routeCategoryId,
+                    vodId: 42,
+                })
+            ).resolves.toEqual({
+                stream_id: 42,
+                container_extension: 'mp4',
+            });
+            expect(getAllCategories).toHaveBeenCalledWith(
+                'playlist-a',
+                'movies'
+            );
+            expect(getCategories).not.toHaveBeenCalled();
+            expect(getVodStream).toHaveBeenCalledWith(credentials, 42, 701);
+        }
+    );
 
     it('falls back to the visible API categories when PWA has no persisted categories', async () => {
         const getAllCategories = jest.fn().mockResolvedValue([]);

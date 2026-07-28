@@ -7,7 +7,7 @@ import { resolveXtreamVodPlaybackSource } from '../services/xtream-vod-playback-
 import {
     buildXtreamVodSelection,
     findXtreamVodCatalogItem,
-    resolveXtreamVodCatalogCategoryId,
+    resolveXtreamVodCatalogCategoryIds,
     XtreamVodCatalogCategory,
     XtreamVodSelection,
 } from './xtream-vod-selection';
@@ -122,49 +122,67 @@ export async function recoverXtreamVodCatalogItem({
         return null;
     }
 
-    let providerCategoryId = resolveXtreamVodCatalogCategoryId(
-        currentCategories,
-        routeCategoryId
-    );
-    if (providerCategoryId === null) {
-        const persistedCategories = await dataSource.getAllCategories(
-            playlistId,
-            'movies'
-        );
-        if (!isCurrent()) {
-            return null;
-        }
-        providerCategoryId = resolveXtreamVodCatalogCategoryId(
-            persistedCategories,
-            routeCategoryId
-        );
-    }
-
-    if (providerCategoryId === null) {
-        const categories = await dataSource.getCategories(
-            playlistId,
-            credentials,
-            'vod'
-        );
-        if (!isCurrent()) {
-            return null;
-        }
-        providerCategoryId = resolveXtreamVodCatalogCategoryId(
+    const attemptedCategoryIds = new Set<number>();
+    const findInCategories = async (
+        categories: readonly XtreamVodCatalogCategory[]
+    ): Promise<XtreamVodStream | null> => {
+        const providerCategoryIds = resolveXtreamVodCatalogCategoryIds(
             categories,
             routeCategoryId
         );
+        for (const providerCategoryId of providerCategoryIds) {
+            const normalizedProviderId = Number(providerCategoryId);
+            if (attemptedCategoryIds.has(normalizedProviderId)) {
+                continue;
+            }
+            attemptedCategoryIds.add(normalizedProviderId);
+            if (!isCurrent()) {
+                return null;
+            }
+
+            const item = await apiService.getVodStream(
+                credentials,
+                vodId,
+                providerCategoryId
+            );
+            if (!isCurrent()) {
+                return null;
+            }
+            if (item) {
+                return item;
+            }
+        }
+
+        return null;
+    };
+
+    let item = await findInCategories(currentCategories);
+    if (item || !isCurrent()) {
+        return item;
     }
 
-    if (providerCategoryId === null || !isCurrent()) {
+    const persistedCategories = await dataSource.getAllCategories(
+        playlistId,
+        'movies'
+    );
+    if (!isCurrent()) {
+        return null;
+    }
+    item = await findInCategories(persistedCategories);
+    if (item || !isCurrent()) {
+        return item;
+    }
+
+    const categories = await dataSource.getCategories(
+        playlistId,
+        credentials,
+        'vod'
+    );
+    if (!isCurrent()) {
         return null;
     }
 
-    const item = await apiService.getVodStream(
-        credentials,
-        vodId,
-        providerCategoryId
-    );
-    return isCurrent() ? item : null;
+    return findInCategories(categories);
 }
 
 export function resolveXtreamVodDetailsSelection({

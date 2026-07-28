@@ -104,14 +104,18 @@ merged detail response and cached row still cannot resolve a source, the detail
 loader requests the exact VOD from its provider category and merges that raw
 catalog row in memory. An Electron route category uses the SQLite row id, so
 the loader maps it through the complete persisted category set, including
-hidden categories, before sending the provider `category_id`; PWA falls back
-to its API-backed visible categories, and an unresolved database id is never
-sent as though it were a provider id. This recovery request is skipped when
-the detail response or owner-valid cached catalog fields are already
-sufficient. Recovery is best-effort and never gates the detail page: the
-initial sparse selection is published and the loading shell ends before the
-category lookup completes, then a successful result upgrades that same
-fallback reactively with playback actions. Detail, recovered, and cached
+hidden categories, before sending the provider `category_id`. Cross-portal
+Similar links already carry that provider id, so recovery accepts either the
+SQLite `id` or `xtream_id` representation while preserving local-id lookup
+precedence. If the numeric representations collide, candidate provider ids are
+deduplicated and tried in that order until the exact VOD is found. PWA falls
+back to its API-backed visible categories, and an unresolved database id is
+never sent as though it were a provider id. This recovery request is skipped
+when the detail response or owner-valid cached catalog fields are already
+sufficient. Recovery is best-effort and never gates the detail page: the initial
+sparse selection is published and the loading shell ends before the category
+lookup completes, then a successful result upgrades that same fallback
+reactively with playback actions. Detail, recovered, and cached
 playback fields remain separate candidates: the first complete pair wins, so
 two incomplete rows can never synthesize a source. A failed lookup leaves the
 already-rendered item safely unplayable. Detail requests are generation- and
