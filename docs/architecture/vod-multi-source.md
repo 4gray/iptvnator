@@ -304,7 +304,10 @@ the save throttle and applying it would visibly rewind.
 
 A resuming engine can emit a `timeupdate` at ~0 before it finishes seeking.
 `VodDetailsPlaybackService` guards this with a one-shot `resumeSettled` latch —
-a filter would have broken deliberate seek-backwards. `handleInlineTimeUpdate`
+a filter would have broken deliberate seek-backwards. The latch also releases
+when the target is out of reach: switching a two-hour position into a
+90-minute cut means the engine can never report it, and waiting would suppress
+every save for the rest of the session. `handleInlineTimeUpdate`
 returns that verdict and the route feeds multi-source the `startTime` it asked
 for until the engine gets there, so a switch or a failure during the initial
 seek does not resolve the next source at zero and restart the film. One latch

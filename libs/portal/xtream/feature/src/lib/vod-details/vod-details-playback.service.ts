@@ -31,10 +31,9 @@ export interface VodDetailsPlaybackBindings {
     /** Usable metadata of the selected VOD, if any */
     vodInfo: Signal<XtreamVodInfo | null>;
     /**
-     * The source actually playing when it is NOT the route's own — supplied by
-     * multi-source. An external player launched for an alternative carries
-     * that playlist's ids, so without this the session belongs to no page and
-     * its Stop button never appears.
+     * The source playing when it is NOT the route's own. An external player
+     * launched for an alternative carries that playlist's ids, so without
+     * this the session belongs to no page and never offers Stop.
      */
     activeSource?: Signal<PlayerContentInfo | null>;
 }
@@ -56,9 +55,7 @@ export class VodDetailsPlaybackService {
     private readonly logger = createLogger('VodDetailsPlayback');
 
     /** Signals bound from the host component via `bind()` */
-    private readonly bindings = signal<VodDetailsPlaybackBindings | null>(
-        null
-    );
+    private readonly bindings = signal<VodDetailsPlaybackBindings | null>(null);
     private lastSaveTime = 0;
     /** Cleared on every start; latches once playback reaches startTime. */
     private resumeSettled = false;
@@ -323,7 +320,11 @@ export class VodDetailsPlaybackService {
         // is still saved normally.
         if (!this.resumeSettled) {
             const startTime = playback.startTime ?? 0;
-            if (startTime > 0 && event.currentTime < startTime - 5)
+            // A shorter cut can never reach a position carried into it, and
+            // latching on that would suppress every save for the session.
+            const reachable =
+                !(event.duration > 0) || startTime < event.duration;
+            if (reachable && startTime > 0 && event.currentTime < startTime - 5)
                 return false;
             this.resumeSettled = true;
         }
@@ -380,8 +381,7 @@ export class VodDetailsPlaybackService {
      * engine survive and simply re-seek to `playback.startTime`.
      */
     startResolvedPlayback(playback: ResolvedPortalPlayback): void {
-        // Same movie, different source: still a view, and the picker and
-        // pin paths would otherwise leave it out of Recently Viewed.
+        // Same movie, different source: still a view.
         this.addToRecentlyViewed();
         this.startPlayback(playback);
     }

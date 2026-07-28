@@ -158,6 +158,43 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(addRecentItem).toHaveBeenCalled();
     });
 
+    it('gives up on a resume point the source cannot reach', () => {
+        // Carrying a two-hour position into a 90-minute cut: the engine can
+        // never report that time, so latching on it would suppress every save
+        // for the whole session and keep re-reporting the impossible start.
+        service.inlinePlayback.set({
+            streamUrl: 'https://example.com/short-cut.mkv',
+            title: 'Example Movie',
+            startTime: 7200,
+            contentInfo: {
+                playlistId: ROUTE_PLAYLIST,
+                contentXtreamId: ROUTE_VOD_ID,
+                contentType: 'vod',
+            },
+        });
+
+        expect(
+            service.handleInlineTimeUpdate({ currentTime: 12, duration: 5400 })
+        ).toBe(true);
+    });
+
+    it('still waits for a resume point the source can reach', () => {
+        service.inlinePlayback.set({
+            streamUrl: 'https://example.com/full.mkv',
+            title: 'Example Movie',
+            startTime: 2538,
+            contentInfo: {
+                playlistId: ROUTE_PLAYLIST,
+                contentXtreamId: ROUTE_VOD_ID,
+                contentType: 'vod',
+            },
+        });
+
+        expect(
+            service.handleInlineTimeUpdate({ currentTime: 12, duration: 7744 })
+        ).toBe(false);
+    });
+
     describe('position updates from the bridge', () => {
         function emit(playlistId: string, contentXtreamId: number, at: number) {
             positionListener?.({
