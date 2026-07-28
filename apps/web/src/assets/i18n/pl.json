@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "dopasowano na podstawie tytułu",
             "MATCH_BY_TITLE": "wg tytułu",
             "PLAYING": "Odtwarzane",
+            "CURRENT": "Bieżące",
             "PLAY_FROM_SOURCE": "Odtwórz z tego źródła",
             "PIN_SOURCE": "Ustaw jako główne źródło",
             "UNPIN_SOURCE": "Przestań używać jako główne źródło",

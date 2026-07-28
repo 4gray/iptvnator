@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "Başlığa göre eşleştirildi",
             "MATCH_BY_TITLE": "başlığa göre",
             "PLAYING": "Oynatılıyor",
+            "CURRENT": "Geçerli",
             "PLAY_FROM_SOURCE": "Bu kaynaktan oynat",
             "PIN_SOURCE": "Bunu ana kaynak yap",
             "UNPIN_SOURCE": "Bu kaynağın sabitlemesini kaldır",

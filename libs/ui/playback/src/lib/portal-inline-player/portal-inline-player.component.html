@@ -38,6 +38,7 @@
                             [autoFailoverSupported]="
                                 sourcesAutoFailoverSupported()
                             "
+                            [playbackLive]="sourcesPlaybackLive()"
                             (playRequested)="
                                 alternativeSourceRequested.emit($event)
                             "

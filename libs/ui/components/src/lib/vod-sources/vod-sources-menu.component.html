@@ -55,6 +55,7 @@
                 <app-vod-source-row
                     [source]="group.primary"
                     [showPin]="showPin()"
+                    [playbackLive]="playbackLive()"
                     (playRequested)="playRequested.emit($event)"
                     (pinRequested)="pinRequested.emit($event)"
                     (checkRequested)="checkRequested.emit($event)"
@@ -95,6 +96,7 @@
                                         <app-vod-source-row
                                             [source]="variant"
                                             [showPin]="showPin()"
+                                            [playbackLive]="playbackLive()"
                                             (playRequested)="
                                                 playRequested.emit($event)
                                             "

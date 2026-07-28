@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "correspondência por título",
             "MATCH_BY_TITLE": "por título",
             "PLAYING": "Reproduzindo",
+            "CURRENT": "Atual",
             "PLAY_FROM_SOURCE": "Reproduzir desta fonte",
             "PIN_SOURCE": "Definir como fonte principal",
             "UNPIN_SOURCE": "Remover como fonte principal",

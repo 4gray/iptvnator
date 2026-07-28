@@ -461,12 +461,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.multiSource.reportPosition(0);
         this.multiSource.markRouteSourceActive();
         this.playbackFailed.set(false);
+        this.inlineTimeSeen.set(false);
         this.playback.playVod(vodItem);
     }
 
     resumeVod(vodItem: XtreamVodDetails | null): void {
         this.multiSource.markRouteSourceActive();
         this.playbackFailed.set(false);
+        this.inlineTimeSeen.set(false);
         this.playback.resumeVod(vodItem);
     }
 
@@ -556,10 +558,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // source active as soon as the page opens, so gating on that alone
         // makes the line a claim about a player that has not started, one the
         // user has since closed, or one that failed and is showing an error.
-        const playing =
-            (!!this.inlinePlayback() && !this.playbackFailed()) ||
-            !!this.matchedExternalPlayback();
-        if (!active || !playing) {
+        if (!active || !this.playbackLive()) {
             return null;
         }
 
@@ -677,12 +676,42 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     /** True from a playback failure until something plays again. */
     private readonly playbackFailed = signal(false);
 
+    /**
+     * Cleared on every start; set by the first timeupdate.
+     *
+     * `inlinePlayback()` is the REQUEST to play — it is non-null while the
+     * engine is still opening the stream, and stays non-null after it fails.
+     * A timeupdate is the engine reporting that it is producing frames, which
+     * is the only evidence the page has that something is really playing.
+     */
+    private readonly inlineTimeSeen = signal(false);
+
+    /**
+     * Whether a stream is on screen right now.
+     *
+     * Both the "Playing from" caption and the row's Playing badge are claims
+     * about the present, and discovery marks a source active the moment the
+     * page opens — long before anything plays, and again after the player is
+     * closed. Gating both on this keeps them from lying.
+     */
+    readonly playbackLive = computed(() => {
+        if (this.inlinePlayback()) {
+            return !this.playbackFailed() && this.inlineTimeSeen();
+        }
+
+        // The external player is a window of its own: once it is open the film
+        // is on screen, and only 'launching' means it is not there yet.
+        const status = this.matchedExternalPlayback()?.status;
+        return status === 'opened' || status === 'playing';
+    });
+
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
         // The engine is producing time, so whatever failed before is over.
         this.playbackFailed.set(false);
+        this.inlineTimeSeen.set(true);
         const settled = this.playback.handleInlineTimeUpdate(event);
 
         // Ahead of the service's 15s persistence throttle, so a source switch

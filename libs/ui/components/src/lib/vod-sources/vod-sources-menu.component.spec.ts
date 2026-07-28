@@ -21,6 +21,7 @@ class FakeTranslateLoader implements TranslateLoader {
                     MATCH_BY_TITLE: 'by title',
                     AUTO_FAILOVER: 'Auto-switch on error',
                     PLAYING: 'Playing',
+                    CURRENT: 'Current',
                     PLAY_FROM_SOURCE: 'Play from this source',
                     PIN_SOURCE: 'Make this the main source',
                     UNPIN_SOURCE: 'Unpin this source',
@@ -257,6 +258,26 @@ describe('VodSourcesMenuComponent', () => {
         expect(fixture.nativeElement.textContent).not.toContain(
             'Auto-switch on error'
         );
+    });
+
+    it('badges the active row as Playing only while a player is running', () => {
+        // Discovery marks a source active the moment the page opens, and the
+        // row keeps that state after the player is closed — so an
+        // unconditional "Playing" badge is a claim about nothing.
+        render([createSource({ isActive: true })]);
+
+        const badge = () =>
+            (
+                fixture.debugElement.query(By.css('.source-row__badge'))
+                    ?.nativeElement.textContent ?? ''
+            ).trim();
+
+        expect(badge()).toBe('Current');
+
+        fixture.componentRef.setInput('playbackLive', true);
+        fixture.detectChanges();
+
+        expect(badge()).toBe('Playing');
     });
 
     it('shows the match kind in the header, or the resume label when given', () => {

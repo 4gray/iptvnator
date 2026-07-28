@@ -68,6 +68,8 @@ export class VodSourcesMenuComponent {
      */
     readonly resumeLabel = input<string | null>(null);
     readonly showPin = input(true);
+    /** See `VodSourceRowComponent.playbackLive`. */
+    readonly playbackLive = input(false);
 
     readonly playRequested = output<string>();
     readonly pinRequested = output<string>();

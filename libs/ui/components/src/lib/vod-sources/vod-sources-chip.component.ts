@@ -44,6 +44,8 @@ export class VodSourcesChipComponent {
     readonly autoFailoverEnabled = input(false);
     /** See `VodSourcesMenuComponent.autoFailoverSupported`. */
     readonly autoFailoverSupported = input(true);
+    /** See `VodSourceRowComponent.playbackLive`. */
+    readonly playbackLive = input(false);
     readonly resumeLabel = input<string | null>(null);
     readonly showPin = input(true);
     /** Falls back to the number of sources when the host does not override it. */

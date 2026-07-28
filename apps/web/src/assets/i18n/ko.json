@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "제목으로 매칭됨",
             "MATCH_BY_TITLE": "제목 기준",
             "PLAYING": "재생 중",
+            "CURRENT": "현재",
             "PLAY_FROM_SOURCE": "이 소스에서 재생",
             "PIN_SOURCE": "기본 소스로 지정",
             "UNPIN_SOURCE": "기본 소스 지정 해제",

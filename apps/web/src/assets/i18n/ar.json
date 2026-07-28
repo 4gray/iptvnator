@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "تمت المطابقة حسب العنوان",
             "MATCH_BY_TITLE": "حسب العنوان",
             "PLAYING": "قيد التشغيل",
+            "CURRENT": "الحالي",
             "PLAY_FROM_SOURCE": "التشغيل من هذا المصدر",
             "PIN_SOURCE": "اجعله المصدر الرئيسي",
             "UNPIN_SOURCE": "إلغاء تثبيت هذا المصدر",

@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "gekoppeld op titel",
             "MATCH_BY_TITLE": "op titel",
             "PLAYING": "Speelt nu",
+            "CURRENT": "Huidige",
             "PLAY_FROM_SOURCE": "Afspelen vanaf deze bron",
             "PIN_SOURCE": "Instellen als hoofdbron",
             "UNPIN_SOURCE": "Niet meer als hoofdbron gebruiken",

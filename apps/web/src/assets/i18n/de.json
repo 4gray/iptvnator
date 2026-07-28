@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "über den Titel zugeordnet",
             "MATCH_BY_TITLE": "per Titel",
             "PLAYING": "Läuft",
+            "CURRENT": "Aktuell",
             "PLAY_FROM_SOURCE": "Von dieser Quelle abspielen",
             "PIN_SOURCE": "Als Hauptquelle festlegen",
             "UNPIN_SOURCE": "Hauptquelle aufheben",

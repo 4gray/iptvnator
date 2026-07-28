@@ -10,7 +10,10 @@
             }}</span>
             @if (source().isActive) {
                 <span class="source-row__badge">{{
-                    'PORTALS.MULTI_SOURCE.PLAYING' | translate
+                    (playbackLive()
+                        ? 'PORTALS.MULTI_SOURCE.PLAYING'
+                        : 'PORTALS.MULTI_SOURCE.CURRENT'
+                    ) | translate
                 }}</span>
             }
         </div>

@@ -411,6 +411,22 @@ Every entry point is gated on a bridge `typeof` check (`isAvailable`), matching
 `CatalogTitleMatchService`. In the PWA the chip renders nothing and the
 auto-failover setting is hidden.
 
+## Claims about the present
+
+`isActive` means "the source a switch or Play would use". Discovery sets it the
+moment the page opens, and it survives closing the player — so it cannot, on
+its own, back a statement in the present tense.
+
+`VodDetailsRouteComponent.playbackLive` is that statement. Inline, it needs a
+`timeupdate`: `inlinePlayback()` is only the REQUEST to play, non-null while
+the engine is still opening the stream and still non-null after it fails, while
+a timeupdate is the engine reporting frames. External, it needs the session
+past `launching`.
+
+Two things read it, and they must agree: the "Playing from" caption, and the
+source row's badge — which reads `Current` when a source is merely selected and
+`Playing` once one really is.
+
 ## Which engines can fail over
 
 Only the built-in web players (HTML5, Video.js, ArtPlayer) raise the playback

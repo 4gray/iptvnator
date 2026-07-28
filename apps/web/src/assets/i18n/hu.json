@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "Cím alapján párosítva",
             "MATCH_BY_TITLE": "cím alapján",
             "PLAYING": "Lejátszás alatt",
+            "CURRENT": "Aktuális",
             "PLAY_FROM_SOURCE": "Lejátszás erről a forrásról",
             "PIN_SOURCE": "Beállítás fő forrásként",
             "UNPIN_SOURCE": "Fő forrás beállításának visszavonása",

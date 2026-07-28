@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "通过标题匹配",
             "MATCH_BY_TITLE": "标题匹配",
             "PLAYING": "正在播放",
+            "CURRENT": "当前",
             "PLAY_FROM_SOURCE": "从此播放源播放",
             "PIN_SOURCE": "设为主播放源",
             "UNPIN_SOURCE": "取消主播放源",

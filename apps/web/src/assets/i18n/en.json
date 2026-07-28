@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "matched by title",
             "MATCH_BY_TITLE": "by title",
             "PLAYING": "Playing",
+            "CURRENT": "Current",
             "PLAY_FROM_SOURCE": "Play from this source",
             "PIN_SOURCE": "Make this the main source",
             "UNPIN_SOURCE": "Unpin this source",

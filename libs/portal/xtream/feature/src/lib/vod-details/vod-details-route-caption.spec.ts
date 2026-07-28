@@ -95,14 +95,70 @@ describe('VodDetailsRouteComponent — source caption', () => {
         // pressed — and again after the player is closed.
         expect(component.activeSourceCaption()).toBeNull();
 
+        // Mounting the player is a REQUEST to play. The stream may still be
+        // opening, or about to fail; naming a source now is a guess.
         playback.inlinePlayback.set({
             streamUrl: 'http://example.com/movie.mkv',
             title: 'Example',
         });
+        expect(component.activeSourceCaption()).toBeNull();
+
+        // The engine reporting time is the evidence that it really is playing.
+        component.handleInlineTimeUpdate({ currentTime: 3, duration: 90 });
         expect(component.activeSourceCaption()).not.toBeNull();
 
         playback.inlinePlayback.set(null);
         expect(component.activeSourceCaption()).toBeNull();
+    });
+
+    it('waits for the next stream to start after Play is pressed again', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        // The inline path, or Restart would tear the host down and the test
+        // would pass on the player being gone rather than on the latch.
+        stubs.isEmbeddedPlayer.mockReturnValue(true);
+        withActiveSource('playlist-1', 650020);
+        playback.inlinePlayback.set({
+            streamUrl: 'http://example.com/movie.mkv',
+            title: 'Example',
+        });
+        component.handleInlineTimeUpdate({ currentTime: 3, duration: 90 });
+        expect(component.activeSourceCaption()).not.toBeNull();
+
+        // Restart keeps the same host mounted, so without clearing the latch
+        // the caption would carry the previous stream's claim into the new one.
+        component.playVod({
+            movie_data: { stream_id: 650020, name: 'Example' },
+        } as never);
+        expect(playback.inlinePlayback()).not.toBeNull();
+        expect(component.activeSourceCaption()).toBeNull();
+    });
+
+    it('says nothing while an external player is still launching', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        withActiveSource('playlist-1', 650020);
+
+        const session = (status: string) => ({
+            player: 'mpv',
+            status,
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+
+        // MPV has been asked to open; nothing is on screen yet.
+        activeSession.set(session('launching'));
+        expect(component.activeSourceCaption()).toBeNull();
+
+        // Its window is up, so the film really is playing — just not here.
+        activeSession.set(session('playing'));
+        expect(component.activeSourceCaption()).not.toBeNull();
     });
 
     it('stops claiming playback once the error screen is up', async () => {
@@ -116,6 +172,7 @@ describe('VodDetailsRouteComponent — source caption', () => {
             streamUrl: 'http://example.com/movie.mkv',
             title: 'Example',
         });
+        component.handleInlineTimeUpdate({ currentTime: 3, duration: 90 });
         expect(component.activeSourceCaption()).not.toBeNull();
 
         // The host stays mounted through a failure, so the caption would go on
@@ -139,6 +196,7 @@ describe('VodDetailsRouteComponent — source caption', () => {
             streamUrl: 'http://example.com/movie.mkv',
             title: 'Example',
         });
+        component.handleInlineTimeUpdate({ currentTime: 3, duration: 90 });
         await component.onPlaybackFailed();
         expect(component.activeSourceCaption()).toBeNull();
 

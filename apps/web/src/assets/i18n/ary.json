@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "تطابق عن طريق العنوان",
             "MATCH_BY_TITLE": "بالعنوان",
             "PLAYING": "كيتشغل",
+            "CURRENT": "الحالي",
             "PLAY_FROM_SOURCE": "شغل من هاد المصدر",
             "PIN_SOURCE": "دير هاد المصدر هو الرئيسي",
             "UNPIN_SOURCE": "حيد هاد المصدر من الرئيسي",

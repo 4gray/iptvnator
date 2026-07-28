@@ -34,6 +34,13 @@ export class VodSourceRowComponent {
     readonly source = input.required<VodSourceDescriptor>();
     /** The error screen lists alternatives without offering the pin action. */
     readonly showPin = input(true);
+    /**
+     * Whether a stream is on screen right now. The active row is the one a
+     * switch or Play would use, which is true from the moment the page opens —
+     * so without this the badge claims "Playing" before anything has started
+     * and again after the player is closed.
+     */
+    readonly playbackLive = input(false);
 
     readonly playRequested = output<string>();
     readonly pinRequested = output<string>();

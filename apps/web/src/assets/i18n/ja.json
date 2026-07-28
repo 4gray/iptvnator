@@ -1012,6 +1012,7 @@
             "MATCHED_BY_TITLE": "タイトルで一致",
             "MATCH_BY_TITLE": "タイトル一致",
             "PLAYING": "再生中",
+            "CURRENT": "現在",
             "PLAY_FROM_SOURCE": "このソースから再生",
             "PIN_SOURCE": "メインのソースに設定",
             "UNPIN_SOURCE": "メインのソース設定を解除",
