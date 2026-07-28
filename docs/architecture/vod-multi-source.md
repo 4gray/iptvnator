@@ -235,8 +235,11 @@ one that does not exist — the chip simply does not appear. So:
   silently decide which valid sources the user may see, and it would not even
   buy anything: the GLOB cannot use an index, so SQLite reads every row either
   way and a `LIMIT` saves transfer, not work. What bounds the scan instead is
-  its predicate — reaching it means the movie's entire title is one or two
-  characters, and only films carrying that exact word come back.
+  its predicate: reaching it means NO token cleared the trigram minimum — a
+  one-or-two-character title like "It", but also an all-short multiword one
+  like "I Am" — and EVERY token must then appear as a word. Matching on the
+  first token alone would return most of a large catalog for the confirmation
+  pass to discard, which on the single database worker is real blocking.
 
   Like the `LIKE` it replaces it compares ASCII-lowercased text, so a non-ASCII
   short title is no better and no worse served than before.
@@ -495,6 +498,13 @@ source actions, and the failover toast. The "Similar" rail and offline
 downloads sit in their own component-provided services beside it.
 
 ## Backup
+
+A pin is written and its old aliases retired in ONE transaction
+(`setVodSourcePin(db, pin, retireKeys)`). Split in two there is no honest
+outcome for a half-failure: a surviving alias is read before the canonical key
+on the next open, so reporting success starts the source the user just
+replaced — while reporting failure leaves the canonical row durable and the UI
+showing a pin that is no longer the stored one.
 
 Pins ride along with playlist backup, under the playlist they point at, as the
 optional `sourcePins` collection. See

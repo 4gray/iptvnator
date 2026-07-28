@@ -357,7 +357,8 @@ describe('VodMultiSourceHostService — pinning', () => {
 
         await service.togglePin(ALT_TWO.id);
 
-        expect(pins.set).toHaveBeenCalledWith(pin);
+        // The aliases to retire travel with the write, in one transaction.
+        expect(pins.set).toHaveBeenCalledWith(pin, []);
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
 
         await service.togglePin(ALT_TWO.id);

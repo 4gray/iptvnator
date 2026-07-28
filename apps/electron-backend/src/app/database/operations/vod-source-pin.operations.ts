@@ -71,13 +71,28 @@ export async function listVodSourcePinsForPlaylist(
     return rows.map(toPin);
 }
 
+/**
+ * Store the pin and retire its old aliases as ONE unit.
+ *
+ * Split across two calls there is no honest answer to a half-failure: report
+ * success and a surviving alias silently wins the next lookup; report failure
+ * and the canonical row is already durable, so a later reopen selects the
+ * source the UI said was rejected. A transaction removes the question.
+ */
 export async function setVodSourcePin(
     db: AppDatabase,
-    pin: VodSourcePin
+    pin: VodSourcePin,
+    retireKeys: string[] = []
 ): Promise<{ success: boolean }> {
     const updatedAt = new Date().toISOString();
+    const retire = (retireKeys ?? [])
+        .filter(
+            (key) =>
+                typeof key === 'string' && key !== '' && key !== pin.matchKey
+        )
+        .slice(0, MAX_KEYS_PER_LOOKUP);
 
-    await db
+    const insert = db
         .insert(schema.vodSourcePins)
         .values({
             matchKey: pin.matchKey,
@@ -95,6 +110,19 @@ export async function setVodSourcePin(
                 updatedAt,
             },
         });
+
+    await db.transaction(() => {
+        // `.run()`, not `.execute()`: on better-sqlite3 the latter defers the
+        // write to a promise that never settles inside this synchronous
+        // callback, so the statement would be a silent no-op.
+        insert.run();
+
+        if (retire.length > 0) {
+            db.delete(schema.vodSourcePins)
+                .where(inArray(schema.vodSourcePins.matchKey, retire))
+                .run();
+        }
+    });
 
     return { success: true };
 }

@@ -33,12 +33,16 @@ const titleRow = {
     updatedAt: '2026-07-01T10:00:00.000Z',
 };
 
-/** `createDbMock` resolves `.values()` directly; pins upsert on top of it. */
+/**
+ * Pins upsert, and run inside a transaction — so the chain has to end in a
+ * synchronous `.run()` rather than resolving, exactly as the driver requires.
+ */
 function createUpsertDbMock() {
     const mock = createDbMock();
-    const onConflictDoUpdate = jest.fn().mockResolvedValue(undefined);
+    const insertRun = jest.fn();
+    const onConflictDoUpdate = jest.fn().mockReturnValue({ run: insertRun });
     mock.insertValues.mockReturnValue({ onConflictDoUpdate });
-    return { ...mock, onConflictDoUpdate };
+    return { ...mock, onConflictDoUpdate, insertRun };
 }
 
 describe('vod-source-pin.operations', () => {
@@ -160,6 +164,40 @@ describe('vod-source-pin.operations', () => {
                     }),
                 })
             );
+        });
+
+        it('retires the aliases in the same transaction as the write', async () => {
+            const { db, transaction, insertRun, deleteRun, deleteWhere } =
+                createUpsertDbMock();
+
+            await setVodSourcePin(db, pin, [
+                'title:the matrix:1999',
+                'title:the matrix:',
+            ]);
+
+            // Two calls could half-apply, and neither half-outcome has an
+            // honest answer: a surviving alias wins the next lookup, while a
+            // rolled-back-looking failure leaves the canonical row durable.
+            expect(transaction).toHaveBeenCalledTimes(1);
+            expect(insertRun).toHaveBeenCalledTimes(1);
+            expect(deleteRun).toHaveBeenCalledTimes(1);
+            expect(deleteWhere).toHaveBeenCalled();
+        });
+
+        it('never retires the key it just wrote', async () => {
+            const { db, deleteRun } = createUpsertDbMock();
+
+            await setVodSourcePin(db, pin, ['tmdb:603']);
+
+            expect(deleteRun).not.toHaveBeenCalled();
+        });
+
+        it('touches nothing else when there is no alias to retire', async () => {
+            const { db, deleteRun } = createUpsertDbMock();
+
+            await setVodSourcePin(db, pin);
+
+            expect(deleteRun).not.toHaveBeenCalled();
         });
 
         it('writes an ISO timestamp on both the insert and the update', async () => {

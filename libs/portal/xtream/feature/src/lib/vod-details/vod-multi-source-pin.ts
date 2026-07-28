@@ -94,27 +94,21 @@ export async function writePin(
         return false;
     }
 
-    // The write goes FIRST, and the old rows only go once it landed. The
-    // other order destroys the stored preference and then fails to replace it
-    // — leaving nothing persisted while the UI still shows the old pin.
-    // Lookups are most-trusted-first, so a leftover alias never outranks the
-    // key just written.
-    const stored = await pins.set({
-        matchKey,
-        playlistId: candidate.playlistId,
-        contentId: candidate.contentId,
-        portalType: candidate.portalType,
-    });
-    if (!stored) {
-        return false;
-    }
-
-    const retire = retirablePinKeys(keys).filter((key) => key !== matchKey);
-    // A surviving alias is read BEFORE the canonical key on the next open, so
-    // a failed retire means reopening the movie picks the OLD source until
-    // enrichment supplies the tmdb id again. Report that rather than claiming
-    // the change stuck.
-    return retire.length === 0 || (await erasePin(pins, retire));
+    // ONE transaction, not a write followed by a clear. Split in two there is
+    // no honest outcome for a half-failure: a surviving alias is read BEFORE
+    // the canonical key on the next open, so reporting success starts the
+    // source the user just replaced — while reporting failure leaves the
+    // canonical row durable and the UI showing a pin that is no longer the
+    // stored one.
+    return pins.set(
+        {
+            matchKey,
+            playlistId: candidate.playlistId,
+            contentId: candidate.contentId,
+            portalType: candidate.portalType,
+        },
+        retirablePinKeys(keys).filter((key) => key !== matchKey)
+    );
 }
 
 /** Clears every alias, so unpinning is not undone by a stale row. */

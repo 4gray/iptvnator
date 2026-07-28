@@ -420,9 +420,11 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
     },
     {
         method: 'dbSetVodSourcePin',
-        args: [vodSourcePin],
+        args: [vodSourcePin, ['title:dune:']],
         channel: 'DB_SET_VOD_SOURCE_PIN',
-        forwardedArgs: [vodSourcePin],
+        // The aliases to retire ride along, so the write and the retirement
+        // are one transaction rather than two calls that can half-apply.
+        forwardedArgs: [vodSourcePin, ['title:dune:']],
     },
     {
         method: 'dbClearVodSourcePin',

@@ -20,7 +20,10 @@ handleWorkerRequest('DB_LIST_VOD_SOURCE_PINS', (playlistId: string) => ({
     playlistId,
 }));
 
-handleWorkerRequest('DB_SET_VOD_SOURCE_PIN', (pin: VodSourcePin) => ({ pin }));
+handleWorkerRequest(
+    'DB_SET_VOD_SOURCE_PIN',
+    (pin: VodSourcePin, retireKeys: string[] = []) => ({ pin, retireKeys })
+);
 
 handleWorkerRequest('DB_CLEAR_VOD_SOURCE_PIN', (matchKeys: string[]) => ({
     matchKeys,

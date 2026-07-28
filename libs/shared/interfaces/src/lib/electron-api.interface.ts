@@ -882,7 +882,11 @@ export interface ElectronBridgeApi {
     dbGetVodSourcePin: (matchKeys: string[]) => Promise<VodSourcePin | null>;
     /** Every pin pointing at this playlist — used by playlist backup. */
     dbListVodSourcePins: (playlistId: string) => Promise<VodSourcePin[]>;
-    dbSetVodSourcePin: (pin: VodSourcePin) => Promise<ElectronBridgeResult>;
+    /** `retireKeys` are removed in the SAME transaction as the write. */
+    dbSetVodSourcePin: (
+        pin: VodSourcePin,
+        retireKeys?: string[]
+    ) => Promise<ElectronBridgeResult>;
     dbClearVodSourcePin: (
         matchKeys: string[]
     ) => Promise<ElectronBridgeResult>;

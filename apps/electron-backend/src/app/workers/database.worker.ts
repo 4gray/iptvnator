@@ -811,8 +811,11 @@ async function executeRequest(
         }
 
         case 'DB_SET_VOD_SOURCE_PIN': {
-            const payload = message.payload as { pin: VodSourcePin };
-            return setVodSourcePin(db, payload.pin);
+            const payload = message.payload as {
+                pin: VodSourcePin;
+                retireKeys?: string[];
+            };
+            return setVodSourcePin(db, payload.pin, payload.retireKeys ?? []);
         }
 
         case 'DB_CLEAR_VOD_SOURCE_PIN': {

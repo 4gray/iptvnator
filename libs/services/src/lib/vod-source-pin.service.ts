@@ -60,13 +60,20 @@ export class VodSourcePinService {
         }
     }
 
-    async set(pin: VodSourcePin): Promise<boolean> {
+    /**
+     * Store the pin, retiring `retireKeys` in the same transaction — a
+     * half-applied change has no honest outcome to report.
+     */
+    async set(pin: VodSourcePin, retireKeys: string[] = []): Promise<boolean> {
         if (!this.isAvailable) {
             return false;
         }
 
         try {
-            const result = await window.electron.dbSetVodSourcePin(pin);
+            const result = await window.electron.dbSetVodSourcePin(
+                pin,
+                retireKeys
+            );
             return result?.success === true;
         } catch (error) {
             console.warn(

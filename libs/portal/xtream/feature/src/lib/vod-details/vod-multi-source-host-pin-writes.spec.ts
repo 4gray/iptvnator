@@ -142,9 +142,11 @@ describe('VodMultiSourceHostService — pin persistence', () => {
         await service.togglePin(ALT_TWO.id);
 
         expect(pins.set).toHaveBeenCalledWith(
-            expect.objectContaining({ matchKey: 'tmdb:603' })
+            expect.objectContaining({ matchKey: 'tmdb:603' }),
+            expect.any(Array)
         );
-        const [retired] = pins.clear.mock.calls[0] as [string[]];
+        // The aliases ride along with the write, so the two cannot half-apply.
+        const [, retired] = pins.set.mock.calls[0] as [unknown, string[]];
         // This film's other key goes, so a reopen before enrichment cannot
         // read a row still pointing at the source just replaced.
         expect(retired).toContain('title:the matrix:1999');
@@ -161,8 +163,7 @@ describe('VodMultiSourceHostService — pin persistence', () => {
 
         await service.togglePin(ALT_TWO.id);
 
-        // Retiring first would destroy the stored preference and then fail to
-        // replace it: nothing persisted, while the row still shows the old pin.
+        // One transaction: a refused write retires nothing either.
         expect(pins.clear).not.toHaveBeenCalled();
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
     });
@@ -196,21 +197,19 @@ describe('VodMultiSourceHostService — pin persistence', () => {
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
     });
 
-    it('does not claim a pin whose stale alias survived', async () => {
-        // A tmdb id AND a title/year, so the canonical key is written and the
-        // title alias is left to retire — the case where a failed clear can
-        // actually strand a stale row.
+    it('retires the aliases in the same call that writes the pin', async () => {
         await loadMovie([ALT_TWO], { ...MOVIE_A, tmdbId: 603 });
-        pins.set.mockResolvedValue(true);
-        // The canonical key is written, but retiring the alias fails.
-        pins.clear.mockResolvedValue(false);
 
         await service.togglePin(ALT_TWO.id);
 
-        // Lookups read the alias BEFORE the key just written, so reopening
-        // this movie before enrichment lands would start the OLD source. The
-        // icon must not promise otherwise.
-        expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
+        // Previously a write followed by a clear: if the clear failed, the
+        // surviving alias was read BEFORE the canonical key on the next open
+        // and started the source the user had just replaced. Neither
+        // half-outcome had an honest answer, so there is only one call now.
+        expect(pins.set).toHaveBeenCalledTimes(1);
+        expect(pins.clear).not.toHaveBeenCalled();
+        const [, retired] = pins.set.mock.calls[0] as [unknown, string[]];
+        expect(retired).toContain('title:the matrix:1999');
     });
 
     it('keeps the pin when clearing it fails', async () => {
