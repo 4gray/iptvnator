@@ -132,6 +132,21 @@ describe('Xtream benchmark failure lifecycle', () => {
         });
     });
 
+    it('fails when aggregate failure evidence cannot be persisted', async () => {
+        await assert.rejects(
+            persistXtreamIterationFailureEvidence({
+                evidence: {},
+                persist: async (filename) => {
+                    if (filename === 'failure.json') {
+                        throw new Error('fixed-persistence-failure');
+                    }
+                },
+                stage: 'capture-setup',
+            }),
+            /fixed-persistence-failure/
+        );
+    });
+
     it('collects failure evidence before teardown and writes summary before its guard', () => {
         const iteration = readFileSync(
             resolve(performanceDirectory, 'xtream-benchmark-iteration.ts'),

@@ -67,13 +67,11 @@ export async function persistXtreamIterationFailureEvidence(
             status[name] = 'capture-failed';
         }
     }
-    await options
-        .persist('failure.json', {
-            evidence: status,
-            reason: 'xtream-benchmark-iteration-failed',
-            stage: options.stage,
-            status: 'failed',
-            validForComparison: false,
-        })
-        .catch(() => undefined);
+    await options.persist('failure.json', {
+        evidence: status,
+        reason: 'xtream-benchmark-iteration-failed',
+        stage: options.stage,
+        status: 'failed',
+        validForComparison: false,
+    });
 }
