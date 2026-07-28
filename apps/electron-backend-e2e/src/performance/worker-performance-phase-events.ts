@@ -2,9 +2,12 @@ import {
     APP_PLAYLIST_GET_PERFORMANCE_PHASE,
     APP_PLAYLIST_UPSERT_PERFORMANCE_PHASE,
     type AppPlaylistPerformancePhase,
+    type DatabaseWorkerPerformancePhase,
     type PerformancePhaseEvent,
     type PerformancePhaseMetadata,
 } from '@iptvnator/shared/interfaces';
+import { fitsPerformanceDurationEnvelope } from './performance-phase-duration-envelope';
+import { parseXtreamWorkerPerformancePhaseEvents } from './xtream-worker-phase-events';
 
 const PHASE_SEQUENCES = {
     DB_GET_APP_PLAYLIST: [
@@ -31,8 +34,20 @@ export function parseWorkerPerformancePhaseEvents(
     operation: string | null,
     input: unknown,
     workStartedEpochMs: number,
-    workEndedEpochMs: number
-): readonly PerformancePhaseEvent<AppPlaylistPerformancePhase>[] | null {
+    workEndedEpochMs: number,
+    requestSucceeded: boolean
+): readonly PerformancePhaseEvent<DatabaseWorkerPerformancePhase>[] | null {
+    const xtreamEvents = parseXtreamWorkerPerformancePhaseEvents(
+        operation,
+        input,
+        workStartedEpochMs,
+        workEndedEpochMs,
+        requestSucceeded
+    );
+    if (xtreamEvents !== undefined) {
+        return xtreamEvents;
+    }
+
     const phaseSequence = getPhaseSequence(operation);
     if (phaseSequence.length === 0) {
         return input === undefined ||
@@ -40,15 +55,11 @@ export function parseWorkerPerformancePhaseEvents(
             ? []
             : null;
     }
-    if (
-        !Array.isArray(input) ||
-        input.length !== phaseSequence.length * 2
-    ) {
+    if (!Array.isArray(input) || input.length !== phaseSequence.length * 2) {
         return null;
     }
 
-    const parsed: PerformancePhaseEvent<AppPlaylistPerformancePhase>[] =
-        [];
+    const parsed: PerformancePhaseEvent<AppPlaylistPerformancePhase>[] = [];
     let lastEpochMs = workStartedEpochMs;
     for (let index = 0; index < input.length; index += 1) {
         const raw = input[index];
@@ -78,6 +89,18 @@ export function parseWorkerPerformancePhaseEvents(
             (boundary === 'end' && !isFiniteNonNegativeNumber(durationMs)) ||
             metadata === null ||
             (parsed.length > 0 && parsed[0]?.requestId !== requestId)
+        ) {
+            return null;
+        }
+        const phaseStart = parsed[parsed.length - 1];
+        if (
+            boundary === 'end' &&
+            (!phaseStart ||
+                !fitsPerformanceDurationEnvelope(
+                    Number(durationMs),
+                    workStartedEpochMs,
+                    workEndedEpochMs
+                ))
         ) {
             return null;
         }

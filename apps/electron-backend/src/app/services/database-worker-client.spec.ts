@@ -148,6 +148,40 @@ describe('DatabaseWorkerClient', () => {
         });
     });
 
+    it('ignores profiling-only cancel receipts without settling or exposing the pending request', async () => {
+        const client = createClient();
+        const onEvent = jest.fn();
+        const requestPromise = client.request(
+            'DB_DELETE_XTREAM_CONTENT',
+            { operationId: 'operation-1', playlistId: 'xtream-1' },
+            { onEvent }
+        );
+        const worker = mockWorkerInstances[0];
+
+        worker.emit('message', { type: 'ready' });
+        await flushPromises();
+
+        const request = worker.postMessage.mock.calls[0][0];
+        worker.emit('message', {
+            type: 'performance-cancel-received',
+            operationId: 'operation-1',
+            requestId: request.requestId,
+            epochMs: 123,
+        });
+
+        expect(onEvent).not.toHaveBeenCalled();
+
+        const resultIdentity = { success: true };
+        worker.emit('message', {
+            type: 'response',
+            requestId: request.requestId,
+            success: true,
+            result: resultIdentity,
+        });
+
+        await expect(requestPromise).resolves.toBe(resultIdentity);
+    });
+
     it('turns serialized worker errors into rejected Error instances', async () => {
         const client = createClient();
         const requestPromise = client.request('DB_DELETE_PLAYLIST', {

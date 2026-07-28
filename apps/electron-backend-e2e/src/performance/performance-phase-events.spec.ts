@@ -2,11 +2,74 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+    createDiagnosticsPerformancePhaseEventParser,
     pairPerformancePhaseEvents,
     requirePerformancePhase,
 } from './performance-phase-events';
 
 describe('performance phase event pairing', () => {
+    it('restores and invokes the diagnostics parser without module-scoped helpers', () => {
+        const restore = <T>(source: string): T =>
+            new Function(`"use strict"; return (${source});`)() as T;
+        const restored = restore<
+            typeof createDiagnosticsPerformancePhaseEventParser
+        >(createDiagnosticsPerformancePhaseEventParser.toString());
+        const parse = restored({
+            allowedPhases: ['xtream.network.total'],
+            timelineType: 'xtream-main-phase',
+        });
+
+        assert.deepEqual(
+            parse({
+                boundary: 'start',
+                durationMs: null,
+                epochMs: 100,
+                phase: 'xtream.network.total',
+                requestId: 'xtream-mock1-1',
+            }),
+            {
+                boundary: 'start',
+                durationMs: null,
+                epochMs: 100,
+                phase: 'xtream.network.total',
+                requestId: 'xtream-mock1-1',
+                type: 'xtream-main-phase',
+            }
+        );
+    });
+
+    it('keeps the valid M3U diagnostics normalization byte-identical when subscriptions are parameterized', () => {
+        const parse = createDiagnosticsPerformancePhaseEventParser({
+            allowedPhases: ['data.acquire', 'parse.m3u', 'normalize'],
+            timelineType: 'm3u-import-phase',
+        });
+        const incoming = {
+            boundary: 'end',
+            durationMs: 12.5,
+            epochMs: 113,
+            metadata: { byteCount: 2048, itemCount: 10 },
+            phase: 'data.acquire',
+            requestId: 'request-1',
+        };
+        const legacyNormalized = {
+            boundary: 'end',
+            byteCount: 2048,
+            durationMs: 12.5,
+            epochMs: 113,
+            itemCount: 10,
+            phase: 'data.acquire',
+            requestId: 'request-1',
+            type: 'm3u-import-phase',
+        };
+
+        assert.equal(
+            JSON.stringify(parse(incoming)),
+            JSON.stringify(legacyNormalized)
+        );
+        assert.equal(parse({ ...incoming, secret: 'not allowed' }), null);
+        assert.equal(parse({ ...incoming, metadata: { itemCount: -1 } }), null);
+    });
+
     it('pairs request-scoped boundaries and preserves end metadata', () => {
         const phases = pairPerformancePhaseEvents([
             {

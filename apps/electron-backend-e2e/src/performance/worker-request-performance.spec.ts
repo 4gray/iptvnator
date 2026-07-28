@@ -55,7 +55,7 @@ function requestTransport(
 ) {
     return {
         ipcCallId: 7,
-        operation: 'DB_GET_CONTENT',
+        operation: 'DB_HAS_CONTENT',
         operationId: 'operation-42',
         operationIdUnavailableReason: null,
         performanceCapture,
@@ -227,7 +227,7 @@ test('main capture retains raw request identity, timestamps, metrics, and reason
     assert.match(source, /ipcCallId: request\.identity\.ipcCallId/);
     assert.match(source, /identity: request\.identity/);
     assert.match(source, /performanceCapture:\s+message\['performance'\]/);
-    assert.match(source, /sourceEpochMs: request\.identity\.sourceEpochMs/);
+    assert.match(source, /sourceEpochMs:\s+request\.identity\.sourceEpochMs/);
     assert.match(source, /captureGeneration: state\.captureGeneration/);
     assert.doesNotMatch(
         source,

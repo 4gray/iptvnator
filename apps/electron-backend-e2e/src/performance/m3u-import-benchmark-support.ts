@@ -69,7 +69,10 @@ export async function resolveM3uImportBenchmarkConfiguration(): Promise<M3uImpor
     );
     await assertMissing(layout.variantDirectory);
     await assertPerformanceArtifactCapacity(layout.variantDirectory);
-    await mkdir(layout.variantDirectory, { recursive: true });
+    await mkdir(layout.variantDirectory, {
+        mode: 0o700,
+        recursive: true,
+    });
     return Object.freeze({
         ...layout,
         electronVersion: electronPackage.version,

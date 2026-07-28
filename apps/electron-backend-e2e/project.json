@@ -39,6 +39,16 @@
                 "command": "pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts"
             }
         },
+        "benchmark-xtream": {
+            "dependsOn": ["electron-backend:build-performance"],
+            "executor": "nx:run-commands",
+            "cache": false,
+            "parallelism": false,
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "pnpm exec playwright test --config=playwright.xtream-performance.config.ts src/xtream.performance.ts"
+            }
+        },
         "packaged-frame-copy-smoke": {
             "dependsOn": ["test-packaged-frame-copy-fixtures"],
             "executor": "nx:run-commands",

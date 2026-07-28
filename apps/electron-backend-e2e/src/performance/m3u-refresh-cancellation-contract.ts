@@ -1,7 +1,7 @@
 import type { RendererProcessRssCapture } from './renderer-process-rss-capture';
 import type { RendererRssValidity } from './renderer-rss-validity';
 import type {
-    AppPlaylistPerformancePhase,
+    DatabaseWorkerPerformancePhase,
     PerformancePhaseEvent,
 } from '@iptvnator/shared/interfaces';
 
@@ -57,8 +57,7 @@ export type WorkerPostGcHeapCapture =
       };
 
 export const WORKER_PEAK_MEMORY_UNAVAILABLE_REASON = {
-    EXTERNAL_MEMORY_SAMPLES_MISSING:
-        'worker-external-memory-samples-missing',
+    EXTERNAL_MEMORY_SAMPLES_MISSING: 'worker-external-memory-samples-missing',
     HEAP_USED_SAMPLES_MISSING: 'worker-heap-used-samples-missing',
 } as const;
 
@@ -86,17 +85,23 @@ export interface ProcessMemoryMetrics {
 }
 
 export interface MainTimelineRecord {
+    readonly action?: string | null;
     readonly boundary?: 'end' | 'start';
     readonly byteCount?: number;
+    readonly categoryType?: string | null;
+    readonly contentType?: string | null;
     readonly durationMs?: number | null;
     readonly epochMs: number;
     readonly ipcCallId?: number;
-    readonly itemCount?: number;
+    readonly itemCount?: number | null;
+    readonly method?: string;
     readonly operation?: string;
-    readonly operationId?: string;
+    readonly operationId?: string | null;
+    readonly outcome?: 'error' | 'success' | null;
     readonly phase?: string;
-    readonly playlistId?: string;
+    readonly playlistId?: string | null;
     readonly requestId?: string;
+    readonly sessionId?: string | null;
     readonly success?: boolean;
     readonly sourceEpochMs?: number;
     readonly type: string;
@@ -114,7 +119,7 @@ export interface WorkerRequestPerformanceMetrics {
     readonly operationId: string | null;
     readonly operationIdUnavailableReason: string | null;
     readonly performanceCaptureUnavailableReason: string | null;
-    readonly phaseEvents: readonly PerformancePhaseEvent<AppPlaylistPerformancePhase>[];
+    readonly phaseEvents: readonly PerformancePhaseEvent<DatabaseWorkerPerformancePhase>[];
     readonly playlistId: string | null;
     readonly requestId: string | null;
     readonly requestReceivedEpochMs: number | null;

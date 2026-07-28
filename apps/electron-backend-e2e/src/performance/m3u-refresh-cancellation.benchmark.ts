@@ -186,7 +186,10 @@ async function runIteration(
 ): Promise<CancellationIterationResult> {
     const iterationDirectory = join(config.outputDirectory, definition.runId);
     await assertPerformanceArtifactCapacity(iterationDirectory);
-    await mkdir(iterationDirectory, { recursive: false });
+    await mkdir(iterationDirectory, {
+        mode: 0o700,
+        recursive: false,
+    });
     const dataDirectory = await mkdtemp(
         join(tmpdir(), 'iptvnator-m3u-performance-')
     );
@@ -204,6 +207,7 @@ async function runIteration(
                 `--remote-debugging-port=${RENDERER_CDP_PORT}`,
                 `--user-data-dir=${join(dataDirectory, 'user-data')}`,
             ],
+            environmentInheritance: 'runtime-only',
             env: {
                 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: '0',
                 IPTVNATOR_PERF_CAPTURE: '1',
@@ -448,7 +452,10 @@ async function resolveConfiguration(): Promise<BenchmarkConfiguration> {
     const outputDirectory = join(outputRoot, variant);
     await assertMissing(outputDirectory);
     await assertPerformanceArtifactCapacity(outputDirectory);
-    await mkdir(outputDirectory, { recursive: true });
+    await mkdir(outputDirectory, {
+        mode: 0o700,
+        recursive: true,
+    });
     return Object.freeze({
         electronVersion: electronPackage.version,
         gitCommit: sourceState.commit,

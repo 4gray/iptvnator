@@ -30,9 +30,12 @@ describe('worker performance integration order', () => {
         expect(
             handler.indexOf('executeWithWorkerPerformanceCapture')
         ).toBeLessThan(handler.indexOf('console.error'));
-        expect(
-            handler.indexOf('executeWithWorkerPerformanceCapture')
-        ).toBeLessThan(handler.indexOf('postMessage'));
+        const executionIndex = handler.indexOf(
+            'executeWithWorkerPerformanceCapture'
+        );
+        expect(executionIndex).toBeLessThan(
+            handler.indexOf('postMessage', executionIndex)
+        );
         expect(
             handler.match(/stampWorkerPerformanceResponsePostedEpoch/g)
         ).toHaveLength(2);

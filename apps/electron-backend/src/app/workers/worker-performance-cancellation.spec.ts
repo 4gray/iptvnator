@@ -6,91 +6,17 @@ import type {
     PlaylistRefreshWorkerIncomingMessage,
     PlaylistRefreshWorkerMessage,
 } from './playlist-refresh.worker.types';
-
-type WorkerMessageHandler<TMessage> = (
-    message: TMessage
-) => Promise<void> | void;
-
-interface ArmGate {
-    readonly promise: Promise<void>;
-    readonly release: () => void;
-}
-
-function createArmGate(): ArmGate {
-    let release = (): void => undefined;
-    const promise = new Promise<void>((resolvePromise) => {
-        release = resolvePromise;
-    });
-    return { promise, release };
-}
-
-function createParentPortHarness<TIncoming, TOutgoing>() {
-    let messageHandler: WorkerMessageHandler<TIncoming> | null = null;
-    const postMessage = jest.fn<void, [TOutgoing]>();
-    const parentPort = {
-        on: jest.fn(
-            (event: string, handler: WorkerMessageHandler<TIncoming>): void => {
-                if (event === 'message') {
-                    messageHandler = handler;
-                }
-            }
-        ),
-        postMessage,
-    };
-
-    return {
-        getMessageHandler: (): WorkerMessageHandler<TIncoming> => {
-            if (!messageHandler) {
-                throw new Error('Worker message handler was not registered');
-            }
-            return messageHandler;
-        },
-        parentPort,
-        postMessage,
-    };
-}
-
-function mockPerformanceCapture(
-    armGate: ArmGate,
-    failureGates?: {
-        readonly observed: ArmGate;
-        readonly profilingFinished: ArmGate;
-    }
-): void {
-    jest.doMock('./worker-performance-capture', () => ({
-        armWorkerPerformanceCapture: jest.fn(() => armGate.promise),
-        executeWithWorkerPerformanceCapture: jest.fn(
-            async (_capture: unknown, execute: () => Promise<unknown>) => {
-                try {
-                    return {
-                        error: null,
-                        performance: undefined,
-                        result: await execute(),
-                        success: true,
-                    };
-                } catch (error) {
-                    failureGates?.observed.release();
-                    await failureGates?.profilingFinished.promise;
-                    return {
-                        error,
-                        performance: undefined,
-                        result: undefined,
-                        success: false,
-                    };
-                }
-            }
-        ),
-        registerDatabaseWorkerPerformanceCapture: jest.fn(),
-        releaseDatabaseWorkerPerformanceCapture: jest.fn(),
-        stampWorkerPerformanceResponsePostedEpoch: jest.fn(
-            (_capture: unknown, performance: unknown) => performance
-        ),
-        startWorkerPerformanceCapture: jest.fn(() => ({})),
-    }));
-}
+import {
+    createArmGate,
+    createParentPortHarness,
+    mockPerformanceCapture,
+    restoreWorkerProfilingEnvironment,
+    WORKER_PROFILING_ENV,
+} from './worker-performance-cancellation.test-helpers';
 
 describe('worker cancellation while performance capture arms', () => {
     afterEach(() => {
+        restoreWorkerProfilingEnvironment();
         jest.restoreAllMocks();
         jest.resetModules();
     });
@@ -175,7 +101,8 @@ describe('worker cancellation while performance capture arms', () => {
         );
     });
 
-    it('cancels cancellable database work when cancel arrives during arming', async () => {
+    it('acknowledges receipt separately before cancellable database work terminates', async () => {
+        process.env[WORKER_PROFILING_ENV] = '1';
         const armGate = createArmGate();
         const port = createParentPortHarness<
             DbWorkerIncomingMessage,
@@ -225,6 +152,24 @@ describe('worker cancellation while performance capture arms', () => {
             type: 'cancel',
             operationId: 'database-operation-1',
         });
+
+        const receipt = port.postMessage.mock.calls.find(
+            ([message]) => message.type === 'performance-cancel-received'
+        )?.[0];
+        expect(receipt).toEqual({
+            type: 'performance-cancel-received',
+            operationId: 'database-operation-1',
+            requestId: 'request-1',
+            epochMs: expect.any(Number),
+        });
+        expect(
+            port.postMessage.mock.calls.some(
+                ([message]) =>
+                    message.type === 'event' &&
+                    message.event.status === 'cancelled'
+            )
+        ).toBe(false);
+
         armGate.release();
         await requestPromise;
 
@@ -245,6 +190,79 @@ describe('worker cancellation while performance capture arms', () => {
                 requestId: 'request-1',
                 success: false,
                 type: 'response',
+            })
+        );
+    });
+
+    it('does not acknowledge receipt when request capture is unavailable', async () => {
+        process.env[WORKER_PROFILING_ENV] = '1';
+        const armGate = createArmGate();
+        const port = createParentPortHarness<
+            DbWorkerIncomingMessage,
+            DbWorkerMessage
+        >();
+        const saveContent = jest.fn(
+            async (
+                _db: unknown,
+                _playlistId: string,
+                _streams: unknown[],
+                _type: string,
+                control: { checkpoint: () => Promise<void> }
+            ) => {
+                await control.checkpoint();
+                return { count: 0 };
+            }
+        );
+        mockPerformanceCapture(armGate, undefined, null);
+        jest.doMock('worker_threads', () => ({
+            parentPort: port.parentPort,
+        }));
+        jest.doMock('./database.worker-connection', () => ({
+            closeWorkerDatabase: jest.fn(),
+            getWorkerDatabase: jest.fn().mockResolvedValue({}),
+        }));
+        jest.doMock('../database/operations/content.operations', () => ({
+            saveContent,
+        }));
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+        await import('./database.worker');
+        port.postMessage.mockClear();
+        const handleMessage = port.getMessageHandler();
+        const requestPromise = handleMessage({
+            type: 'request',
+            operation: 'DB_SAVE_CONTENT',
+            payload: {
+                operationId: 'database-operation-no-capture',
+                playlistId: 'playlist-1',
+                streams: [],
+                type: 'movie',
+            },
+            requestId: 'request-no-capture',
+        });
+
+        await handleMessage({
+            type: 'cancel',
+            operationId: 'database-operation-no-capture',
+        });
+
+        expect(
+            port.postMessage.mock.calls.some(
+                ([message]) => message.type === 'performance-cancel-received'
+            )
+        ).toBe(false);
+
+        armGate.release();
+        await requestPromise;
+
+        expect(port.postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: expect.objectContaining({
+                    operationId: 'database-operation-no-capture',
+                    status: 'cancelled',
+                }),
+                requestId: 'request-no-capture',
+                type: 'event',
             })
         );
     });
@@ -317,6 +335,7 @@ describe('worker cancellation while performance capture arms', () => {
 
 describe('database worker performance control messages', () => {
     afterEach(() => {
+        restoreWorkerProfilingEnvironment();
         jest.restoreAllMocks();
         jest.resetModules();
     });

@@ -82,7 +82,10 @@ async function runScenario(
         assertSyntheticM3uImportUrl(server.resourceUrl);
         await server.prime();
         await assertPerformanceArtifactCapacity(scenarioDirectory);
-        await mkdir(scenarioDirectory, { recursive: false });
+        await mkdir(scenarioDirectory, {
+            mode: 0o700,
+            recursive: false,
+        });
         for (const definition of definitions) {
             console.log(
                 `[performance] ${config.variant}/${scenario.id}/${definition.runId} starting`
@@ -163,7 +166,10 @@ async function runIteration(
 ): Promise<M3uImportIterationResult> {
     const iterationDirectory = join(scenarioDirectory, definition.runId);
     await assertPerformanceArtifactCapacity(iterationDirectory);
-    await mkdir(iterationDirectory, { recursive: false });
+    await mkdir(iterationDirectory, {
+        mode: 0o700,
+        recursive: false,
+    });
     const dataDirectory = await mkdtemp(
         join(tmpdir(), 'iptvnator-m3u-import-performance-')
     );
@@ -179,6 +185,7 @@ async function runIteration(
                 `--remote-debugging-port=${config.rendererCdpPort}`,
                 `--user-data-dir=${join(dataDirectory, 'user-data')}`,
             ],
+            environmentInheritance: 'runtime-only',
             env: {
                 IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: '0',
                 IPTVNATOR_PERF_CAPTURE: '1',
@@ -188,10 +195,7 @@ async function runIteration(
             },
         });
         app.mainWindow.setDefaultTimeout(120_000);
-        await assertRendererCdpTarget(
-            app.mainWindow,
-            config.rendererCdpPort
-        );
+        await assertRendererCdpTarget(app.mainWindow, config.rendererCdpPort);
         await installMainCapture(app.electronApp);
         const rendererWindowIdentity = await resolveRendererWindowIdentity(app);
         const requestsBefore = server.requestCount();

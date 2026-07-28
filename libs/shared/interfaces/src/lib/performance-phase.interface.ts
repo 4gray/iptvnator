@@ -35,8 +35,35 @@ export type AppPlaylistGetPerformancePhase =
     (typeof APP_PLAYLIST_GET_PERFORMANCE_PHASE)[keyof typeof APP_PLAYLIST_GET_PERFORMANCE_PHASE];
 
 export type AppPlaylistPerformancePhase =
-    | AppPlaylistGetPerformancePhase
-    | AppPlaylistUpsertPerformancePhase;
+    AppPlaylistGetPerformancePhase | AppPlaylistUpsertPerformancePhase;
+
+export const XTREAM_DATABASE_PERFORMANCE_PHASE = {
+    NORMALIZE_CATEGORIES: 'normalize.categories',
+    NORMALIZE_CONTENT: 'normalize.content',
+    NORMALIZE_SEARCH_RANK: 'normalize.search-rank',
+    SQLITE_CATEGORIES_READ: 'sqlite.categories.read',
+    SQLITE_CATEGORIES_WRITE_TRANSACTIONS:
+        'sqlite.categories.write-transactions',
+    SQLITE_CONTENT_CATEGORY_MAP_READ: 'sqlite.content.category-map-read',
+    SQLITE_CONTENT_READ: 'sqlite.content.read',
+    SQLITE_CONTENT_WRITE_TRANSACTIONS: 'sqlite.content.write-transactions',
+    SQLITE_PLAYLIST_DELETE_COLLECT_IDS: 'sqlite.playlist-delete.collect-ids',
+    SQLITE_PLAYLIST_DELETE_WRITE_TRANSACTIONS:
+        'sqlite.playlist-delete.write-transactions',
+    SQLITE_SEARCH_QUERY: 'sqlite.search.query',
+    SQLITE_XTREAM_CACHE_CLEAR_WRITE_TRANSACTIONS:
+        'sqlite.xtream-cache-clear.write-transactions',
+    SQLITE_XTREAM_DELETE_COLLECT_USER_DATA:
+        'sqlite.xtream-delete.collect-user-data',
+    SQLITE_XTREAM_DELETE_WRITE_TRANSACTIONS:
+        'sqlite.xtream-delete.write-transactions',
+} as const;
+
+export type XtreamDatabasePerformancePhase =
+    (typeof XTREAM_DATABASE_PERFORMANCE_PHASE)[keyof typeof XTREAM_DATABASE_PERFORMANCE_PHASE];
+
+export type DatabaseWorkerPerformancePhase =
+    AppPlaylistPerformancePhase | XtreamDatabasePerformancePhase;
 
 export interface PerformancePhaseMetadata {
     readonly byteCount?: number;

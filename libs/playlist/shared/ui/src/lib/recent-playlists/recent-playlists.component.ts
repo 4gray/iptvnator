@@ -46,6 +46,10 @@ import {
     PlaylistMeta,
     PlaylistRefreshEvent,
 } from '@iptvnator/shared/interfaces';
+import {
+    measureRendererPerformancePhase,
+    RENDERER_PERFORMANCE_PHASE,
+} from '@iptvnator/shared/logging';
 
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import type { PlaylistType } from '../add-playlist-menu/playlist-type';
@@ -271,9 +275,24 @@ export class RecentPlaylistsComponent {
                 }
             );
             if (deleted) {
-                this.store.dispatch(
-                    PlaylistActions.removePlaylist({ playlistId: item._id })
-                );
+                if (item.serverUrl) {
+                    measureRendererPerformancePhase(
+                        RENDERER_PERFORMANCE_PHASE.XTREAM_DELETE_ROW,
+                        () =>
+                            this.store.dispatch(
+                                PlaylistActions.removePlaylist({
+                                    playlistId: item._id,
+                                })
+                            ),
+                        () => ({ items: 1 })
+                    );
+                } else {
+                    this.store.dispatch(
+                        PlaylistActions.removePlaylist({
+                            playlistId: item._id,
+                        })
+                    );
+                }
                 this.snackBar.open(
                     this.translate.instant(
                         'HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'
@@ -389,10 +408,15 @@ export class RecentPlaylistsComponent {
                     });
 
                     // Update the timestamp in NgRx / IndexedDB
-                    this.store.dispatch(
-                        PlaylistActions.updatePlaylistMeta({
-                            playlist: { ...item, updateDate },
-                        })
+                    measureRendererPerformancePhase(
+                        RENDERER_PERFORMANCE_PHASE.XTREAM_REFRESH_META,
+                        () =>
+                            this.store.dispatch(
+                                PlaylistActions.updatePlaylistMeta({
+                                    playlist: { ...item, updateDate },
+                                })
+                            ),
+                        () => ({ items: 1 })
                     );
 
                     // Navigate to the playlist to trigger re-import

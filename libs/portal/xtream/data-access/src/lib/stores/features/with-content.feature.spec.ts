@@ -2,6 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { DatabaseService } from '@iptvnator/services';
 import {
+    RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
+    type RendererPerformancePhaseEvent,
+} from '@iptvnator/shared/logging';
+import {
     XTREAM_DATA_SOURCE,
     XtreamPlaylistData,
 } from '../../data-sources/xtream-data-source.interface';
@@ -28,6 +32,18 @@ const PLAYLIST: XtreamPlaylistData = {
     password: 'secret',
     type: 'xtream',
 };
+const performanceHookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);
+
+function setPerformanceHook(
+    hook: ((event: RendererPerformancePhaseEvent) => void) | null
+): void {
+    const target = globalThis as unknown as Record<symbol, unknown>;
+    if (hook === null) {
+        delete target[performanceHookSymbol];
+    } else {
+        target[performanceHookSymbol] = hook;
+    }
+}
 
 let checkPortalStatusMock: jest.Mock<Promise<PortalStatusType>, []>;
 
@@ -120,14 +136,16 @@ describe('withContent import state', () => {
         databaseService = {
             clearXtreamImportCache: jest.fn().mockResolvedValue(true),
             cancelOperation: jest.fn().mockResolvedValue(true),
-            createOperationId: jest.fn().mockImplementation((prefix?: string) => {
-                if (prefix === 'xtream-import-session') {
-                    return 'xtream-import-session';
-                }
+            createOperationId: jest
+                .fn()
+                .mockImplementation((prefix?: string) => {
+                    if (prefix === 'xtream-import-session') {
+                        return 'xtream-import-session';
+                    }
 
-                operationCounter += 1;
-                return `${prefix ?? 'db-op'}-${operationCounter}`;
-            }),
+                    operationCounter += 1;
+                    return `${prefix ?? 'db-op'}-${operationCounter}`;
+                }),
             getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
             setXtreamImportStatus: jest.fn().mockResolvedValue(true),
             supportsDbOperationCancellation: jest.fn().mockReturnValue(true),
@@ -159,7 +177,109 @@ describe('withContent import state', () => {
     });
 
     afterEach(() => {
+        setPerformanceHook(null);
         localStorage.clear();
+    });
+
+    it('emits ordered count-only publication markers for a successful import', async () => {
+        const events: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => events.push(event));
+        const categories = {
+            live: [{ category_id: '1' }],
+            vod: [{ category_id: '2' }, { category_id: '3' }],
+            series: [{ category_id: '4' }],
+        };
+        const content = {
+            live: [{ xtream_id: 1 }, { xtream_id: 2 }],
+            movie: [{ xtream_id: 3 }],
+            series: [{ xtream_id: 4 }, { xtream_id: 5 }],
+        };
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: keyof typeof categories
+            ) => Promise.resolve(categories[type])
+        );
+        dataSource.getContent.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: keyof typeof content
+            ) => Promise.resolve(content[type])
+        );
+
+        await store.initializeContent();
+
+        expect(
+            events.map(({ boundary, metadata, outcome, phase }) => ({
+                boundary,
+                items: metadata?.items,
+                outcome,
+                phase,
+            }))
+        ).toEqual([
+            {
+                boundary: 'start',
+                items: 4,
+                outcome: undefined,
+                phase: 'store.xtream-publish-categories',
+            },
+            {
+                boundary: 'end',
+                items: 4,
+                outcome: 'success',
+                phase: 'store.xtream-publish-categories',
+            },
+            {
+                boundary: 'start',
+                items: 2,
+                outcome: undefined,
+                phase: 'store.xtream-publish-live',
+            },
+            {
+                boundary: 'end',
+                items: 2,
+                outcome: 'success',
+                phase: 'store.xtream-publish-live',
+            },
+            {
+                boundary: 'start',
+                items: 1,
+                outcome: undefined,
+                phase: 'store.xtream-publish-vod',
+            },
+            {
+                boundary: 'end',
+                items: 1,
+                outcome: 'success',
+                phase: 'store.xtream-publish-vod',
+            },
+            {
+                boundary: 'start',
+                items: 2,
+                outcome: undefined,
+                phase: 'store.xtream-publish-series',
+            },
+            {
+                boundary: 'end',
+                items: 2,
+                outcome: 'success',
+                phase: 'store.xtream-publish-series',
+            },
+            {
+                boundary: 'start',
+                items: 5,
+                outcome: undefined,
+                phase: 'store.xtream-import-terminal',
+            },
+            {
+                boundary: 'end',
+                items: 5,
+                outcome: 'success',
+                phase: 'store.xtream-import-terminal',
+            },
+        ]);
     });
 
     it('tracks aggregated import progress while content is loading', async () => {
@@ -350,11 +470,8 @@ describe('withContent import state', () => {
             ) => pendingCategories[type].promise
         );
         dataSource.getContent.mockImplementation(
-            (
-                _playlistId: string,
-                _credentials: unknown,
-                type: ContentType
-            ) => pending[type].promise
+            (_playlistId: string, _credentials: unknown, type: ContentType) =>
+                pending[type].promise
         );
 
         const initialization = store.initializeContent();
@@ -741,6 +858,8 @@ describe('withContent import state', () => {
     });
 
     it('ignores concurrent initializeContent calls while an import is already running', async () => {
+        const events: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => events.push(event));
         const pendingCategories = {
             live: createDeferred<any[]>(),
             vod: createDeferred<any[]>(),
@@ -772,6 +891,11 @@ describe('withContent import state', () => {
 
         expect(dataSource.getCategories).toHaveBeenCalledTimes(3);
         expect(dataSource.getContent).toHaveBeenCalledTimes(3);
+        expect(
+            events.filter(
+                ({ phase }) => phase === 'store.xtream-import-terminal'
+            )
+        ).toHaveLength(2);
     });
 
     it('blocks auto restart after cancelling during category loading until retry is explicit', async () => {
@@ -936,6 +1060,8 @@ describe('withContent import state', () => {
     });
 
     it('cancels active imports and clears stale progress after worker aborts', async () => {
+        const events: RendererPerformancePhaseEvent[] = [];
+        setPerformanceHook((event) => events.push(event));
         const pendingCategories = {
             live: createDeferred<any[]>(),
             vod: createDeferred<any[]>(),
@@ -1042,5 +1168,17 @@ describe('withContent import state', () => {
         expect(store.activeImportTotalCount()).toBe(0);
         expect(store.importCount()).toBe(0);
         expect(store.itemsToImport()).toBe(0);
+        expect(
+            events
+                .filter(({ phase }) => phase === 'store.xtream-import-terminal')
+                .map(({ boundary, metadata, outcome }) => ({
+                    boundary,
+                    items: metadata?.items,
+                    outcome,
+                }))
+        ).toEqual([
+            { boundary: 'start', items: 0, outcome: undefined },
+            { boundary: 'end', items: 0, outcome: 'success' },
+        ]);
     });
 });

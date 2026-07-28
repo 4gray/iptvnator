@@ -152,7 +152,8 @@ function parseEventLoopDelay(
 
 function parseWorkerPerformanceCapture(
     input: unknown,
-    operation: string | null
+    operation: string | null,
+    requestSucceeded: boolean
 ): ParsedWorkerPerformanceCapture | null {
     if (!isRecord(input)) {
         return null;
@@ -203,7 +204,8 @@ function parseWorkerPerformanceCapture(
         operation,
         input['phaseEvents'],
         workStartedEpochMs,
-        workEndedEpochMs
+        workEndedEpochMs,
+        requestSucceeded
     );
     if (phaseEvents === null) {
         return null;
@@ -318,7 +320,8 @@ export function normalizeWorkerRequestPerformanceOutcome(
 
     const performanceCapture = parseWorkerPerformanceCapture(
         input.performanceCapture,
-        input.operation
+        input.operation,
+        input.success
     );
     if (!performanceCapture) {
         return unavailable('worker-performance-capture-invalid');
