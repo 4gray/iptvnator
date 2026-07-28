@@ -10,6 +10,8 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    createExternalPlaybackButtonState,
+    createInlinePlaybackPositionWriter,
     createLogger,
     getPortalPlaybackProgressPercent,
 } from '@iptvnator/portal/shared/util';
@@ -52,79 +54,21 @@ export class VodDetailsPlaybackService {
     private readonly bindings = signal<VodDetailsPlaybackBindings | null>(
         null
     );
-    private lastSaveTime = 0;
 
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
 
-    readonly matchedExternalPlayback = computed(() => {
-        const session = this.externalPlayback.activeSession();
-        const vodId = this.bindings()?.vodId();
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-
-        if (
-            !session?.contentInfo ||
-            !playlistId ||
-            session.status === 'error' ||
-            session.status === 'closed'
-        ) {
-            return null;
-        }
-
-        const contentInfo = session.contentInfo;
-        if (
-            contentInfo.playlistId !== playlistId ||
-            contentInfo.contentType !== 'vod' ||
-            contentInfo.contentXtreamId !== vodId
-        ) {
-            return null;
-        }
-
-        return session;
+    private readonly externalButton = createExternalPlaybackButtonState({
+        session: this.externalPlayback.activeSession,
+        playlistId: computed(() => this.xtreamStore.currentPlaylist()?.id),
+        contentId: computed(() => this.bindings()?.vodId()),
     });
-    readonly externalPrimaryLabel = computed(() => {
-        const session = this.matchedExternalPlayback();
-        if (!session) {
-            return null;
-        }
-
-        const player = session.player.toUpperCase();
-        switch (session.status) {
-            case 'launching':
-                return `Opening in ${player}...`;
-            case 'opened':
-            case 'playing':
-                return `Stop ${player}`;
-            default:
-                return null;
-        }
-    });
-    readonly externalPrimaryIcon = computed(() => {
-        const session = this.matchedExternalPlayback();
-        switch (session?.status) {
-            case 'launching':
-                return 'hourglass_top';
-            case 'opened':
-            case 'playing':
-                return 'stop_circle';
-            default:
-                return 'play_arrow';
-        }
-    });
-    readonly isExternalLaunchPending = computed(
-        () => this.matchedExternalPlayback()?.status === 'launching'
-    );
-    readonly isExternalStopAction = computed(() => {
-        const status = this.matchedExternalPlayback()?.status;
-        return status === 'opened' || status === 'playing';
-    });
-    readonly externalPrimaryButtonState = computed(() => {
-        if (this.isExternalLaunchPending()) {
-            return 'launching';
-        }
-
-        return this.isExternalStopAction() ? 'stop' : 'idle';
-    });
+    readonly matchedExternalPlayback = this.externalButton.matchedSession;
+    readonly externalPrimaryLabel = this.externalButton.primaryLabel;
+    readonly externalPrimaryIcon = this.externalButton.primaryIcon;
+    readonly isExternalLaunchPending = this.externalButton.isLaunchPending;
+    readonly isExternalStopAction = this.externalButton.isStopAction;
+    readonly externalPrimaryButtonState = this.externalButton.buttonState;
     readonly vodPlaybackProgress = computed(() =>
         getPortalPlaybackProgressPercent(this.vodPlaybackPosition())
     );
@@ -273,30 +217,24 @@ export class VodDetailsPlaybackService {
 
     closeInlinePlayer(): void {
         this.inlinePlayback.set(null);
-        this.lastSaveTime = 0;
+        this.positionWriter.reset();
     }
+
+    private readonly positionWriter = createInlinePlaybackPositionWriter({
+        playback: this.inlinePlayback,
+        save: (playlistId, position) =>
+            void this.playbackPositions.savePlaybackPosition(
+                playlistId,
+                position
+            ),
+        onSaved: (position) => this.vodPlaybackPosition.set(position),
+    });
 
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
-        const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) return;
-
-        const now = Date.now();
-        if (now - this.lastSaveTime <= 15000) return;
-
-        this.lastSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
-        this.vodPlaybackPosition.set(position);
+        this.positionWriter.handleTimeUpdate(event);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -325,7 +263,7 @@ export class VodDetailsPlaybackService {
     }
 
     private startPlayback(playback: ResolvedPortalPlayback): void {
-        this.lastSaveTime = 0;
+        this.positionWriter.reset();
         if (this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);
             return;
