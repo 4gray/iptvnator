@@ -26,6 +26,12 @@ export interface PrimaryActionPositionDeps {
     routeContentId: Signal<number>;
     /** The route copy's position, as loaded by the page. */
     routePosition: Signal<PlaybackPositionData | null>;
+    /**
+     * The last position seen from any copy. The pinned copy's stored row goes
+     * stale the moment the user watches it, and re-reading the database on
+     * every update would be a round-trip per timeupdate.
+     */
+    livePosition: Signal<PlaybackPositionData | null>;
     load: (source: VodSourceDescriptor) => Promise<PlaybackPositionData | null>;
 }
 
@@ -80,11 +86,20 @@ export function createPrimaryActionPosition(
         });
     });
 
-    const position = computed(() =>
-        foreignPin() && pinnedLoadedFor()
-            ? pinnedPosition()
-            : deps.routePosition()
-    );
+    const position = computed(() => {
+        const pinned = foreignPin();
+        if (!pinned || !pinnedLoadedFor()) {
+            return deps.routePosition();
+        }
+
+        // What just played beats what was stored before it did.
+        const live = deps.livePosition();
+        const isPinnedCopy =
+            live?.playlistId === pinned.playlistId &&
+            live?.contentXtreamId === pinned.contentId;
+
+        return isPinnedCopy ? live : pinnedPosition();
+    });
 
     const hasPosition = computed(() => {
         const progress = getPortalPlaybackProgressPercent(position());

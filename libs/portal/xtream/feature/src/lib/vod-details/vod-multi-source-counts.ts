@@ -29,8 +29,19 @@ export function createVodSourceCounts(
         alternatives,
         hasAlternatives: computed(() => alternatives().length > 0),
         alternativeCount: computed(() => alternatives().length),
-        alternativePlaylistCount: computed(
-            () => new Set(alternatives().map((s) => s.playlistId)).size
-        ),
+        alternativePlaylistCount: computed(() => {
+            const playlists = new Set(
+                alternatives().map((source) => source.playlistId)
+            );
+            // A playlist holding two copies puts its own id in that set via
+            // the copy that is not playing, and the caption would then count
+            // the playlist the user is already watching as an "other".
+            const active = sources().find((source) => source.isActive);
+            if (active) {
+                playlists.delete(active.playlistId);
+            }
+
+            return playlists.size;
+        }),
     };
 }

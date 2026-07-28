@@ -430,7 +430,14 @@ seen — whichever copy produced it — and feeds the progress bar and the switc
 handoff. `routePlaybackPosition` is the route copy's own row, and everything
 that acts on the route's stream reads that: Resume, its label, its timecode.
 Collapsing them lets an alternative's progress resume the route copy at a
-timecode nobody reached in it.
+timecode nobody reached in it. Route reuse (the Similar rail) clears
+both, so the button cannot describe the previous movie while the new lookup is
+still in flight, and every route start — including the primary button's
+fall-through past an unresolvable pin — goes through the route's own wrappers,
+which replace whatever timecode an alternative left in the controller.
+
+While the pinned copy is the one playing, its live position wins over the row
+that was stored before this session started.
 
 A pin means the button plays a copy the page did not load a position for.
 `createPrimaryActionPosition` therefore looks that copy's row up and lets it

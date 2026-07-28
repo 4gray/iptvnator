@@ -245,6 +245,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         routePlaylistId: computed(() => this.xtreamStore.currentPlaylist()?.id),
         routeContentId: this.selectedVodId,
         routePosition: this.playback.routePlaybackPosition,
+        livePosition: this.playback.vodPlaybackPosition,
         load: (source) => this.positionFor(source),
     });
     readonly hasPlaybackPosition = this.primaryAction.hasPosition;
@@ -409,7 +410,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.lastInitKey.set(initKey);
 
             this.inlinePlayback.set(null);
+            // Both, or the primary button keeps the previous movie's Resume
+            // label until the new lookup lands — and starts the new stream
+            // there. `loadPosition` is guarded on the same key, so an older
+            // lookup cannot repopulate either one.
             this.vodPlaybackPosition.set(null);
+            this.playback.routePlaybackPosition.set(null);
+            this.inlineTimeSeen.set(false);
             this.initializeVodDetails(playlistId, vodId);
         });
 
@@ -494,6 +501,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.multiSource.markRouteSourceActive();
         this.playbackFailed.set(false);
         this.inlineTimeSeen.set(false);
+        // The controller can still hold an ALTERNATIVE's timecode. A failure
+        // before the first timeupdate would otherwise resolve the next source
+        // at a position that belongs to a different copy.
+        this.multiSource.reportPosition(
+            this.playback.routePlaybackPosition()?.positionSeconds ?? 0
+        );
         this.playback.resumeVod(vodItem);
     }
 
@@ -513,10 +526,15 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             return;
         }
 
-        // Falling through to the route's own stream: whatever alternative was
-        // last active is not what will be playing.
-        this.multiSource.markRouteSourceActive();
-        this.playback.onPrimaryAction(vodItem);
+        // Through the route's OWN wrappers, not the service's: they carry the
+        // bookkeeping a route start needs — clearing the playback evidence and
+        // replacing whatever timecode an alternative left in the controller.
+        if (this.playback.hasPlaybackPosition()) {
+            this.resumeVod(vodItem);
+            return;
+        }
+
+        this.playVod(vodItem);
     }
 
     /**

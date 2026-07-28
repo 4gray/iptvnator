@@ -64,16 +64,18 @@ function setup(
     load: (source: VodSourceDescriptor) => Promise<PlaybackPositionData | null>
 ) {
     const sourcesSignal = signal(sources);
+    const livePosition = signal<PlaybackPositionData | null>(null);
     const api = TestBed.runInInjectionContext(() =>
         createPrimaryActionPosition({
             sources: sourcesSignal,
             routePlaylistId: signal<string | undefined>(ROUTE_PLAYLIST),
             routeContentId: signal(ROUTE_CONTENT),
             routePosition: signal(routePosition),
+            livePosition,
             load,
         })
     );
-    return { api, sourcesSignal };
+    return { api, sourcesSignal, livePosition };
 }
 
 describe('createPrimaryActionPosition', () => {
@@ -114,6 +116,53 @@ describe('createPrimaryActionPosition', () => {
         // route copy here would show "Resume 42:18" on a copy that starts at 0.
         expect(api.position()).toBeNull();
         expect(api.hasPosition()).toBe(false);
+    });
+
+    it('follows the pinned copy while it is being watched', async () => {
+        const { api, livePosition } = setup(
+            [source(), ALT],
+            position(2538),
+            async () => position(600)
+        );
+        TestBed.tick();
+        await Promise.resolve();
+        TestBed.tick();
+        expect(api.position()?.positionSeconds).toBe(600);
+
+        // Playing the pinned copy leaves its stored row behind; the button
+        // would keep offering the timecode it had before this session.
+        livePosition.set({
+            playlistId: ALT.playlistId,
+            contentXtreamId: ALT.contentId,
+            contentType: 'vod',
+            positionSeconds: 3000,
+            durationSeconds: 7200,
+        });
+        TestBed.tick();
+
+        expect(api.position()?.positionSeconds).toBe(3000);
+    });
+
+    it('ignores live progress from a copy the button will not play', async () => {
+        const { api, livePosition } = setup(
+            [source(), ALT],
+            position(2538),
+            async () => position(600)
+        );
+        TestBed.tick();
+        await Promise.resolve();
+        TestBed.tick();
+
+        livePosition.set({
+            playlistId: 'playlist-9',
+            contentXtreamId: 5,
+            contentType: 'vod',
+            positionSeconds: 3000,
+            durationSeconds: 7200,
+        });
+        TestBed.tick();
+
+        expect(api.position()?.positionSeconds).toBe(600);
     });
 
     it('ignores a pin on the route’s own copy', () => {

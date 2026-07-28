@@ -201,6 +201,77 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(reported).toHaveBeenLastCalledWith(12);
     });
 
+    it('drops the previous movie’s resume point on a reused route', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        fixture.detectChanges();
+        playback.routePlaybackPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            positionSeconds: 2538,
+            durationSeconds: 7744,
+        });
+
+        // The Similar rail reuses this component. Until the new lookup lands
+        // the button would offer the PREVIOUS movie's "Resume 42:18" — and
+        // start the new stream there.
+        currentPlaylist.set({ id: 'playlist-2' });
+        fixture.detectChanges();
+
+        expect(playback.routePlaybackPosition()).toBeNull();
+        expect(playback.hasPlaybackPosition()).toBe(false);
+    });
+
+    it('replaces an alternative’s timecode when Resume starts the route copy', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        withActiveSource('playlist-1', 650020);
+        playback.routePlaybackPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            positionSeconds: 120,
+            durationSeconds: 7744,
+        });
+        const reported = jest.spyOn(component.multiSource, 'reportPosition');
+
+        // An alternative left its own timecode in the controller. Resuming the
+        // ROUTE copy has to overwrite it, or a failure before the first
+        // timeupdate resolves the next source at a position from another copy.
+        component.multiSource.reportPosition(4200);
+        component.resumeVod({
+            movie_data: { stream_id: 650020, name: 'Example' },
+        } as never);
+
+        expect(reported).toHaveBeenLastCalledWith(120);
+    });
+
+    it('takes the route wrappers when the primary button falls through', () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        const component = fixture.componentInstance;
+        withActiveSource('playlist-1', 650020);
+        jest.spyOn(component.multiSource, 'playPinnedSource').mockResolvedValue(
+            false
+        );
+        const reported = jest.spyOn(component.multiSource, 'reportPosition');
+
+        // Reaching the service directly would skip the bookkeeping a route
+        // start needs — the controller would keep an alternative's timecode.
+        void component.onPrimaryAction({
+            movie_data: { stream_id: 650020, name: 'Example' },
+        } as never);
+
+        return Promise.resolve().then(() => {
+            expect(reported).toHaveBeenCalledWith(0);
+        });
+    });
+
     describe('auto-failover toggle', () => {
         beforeEach(() => {
             selectedPlayer.set(VideoPlayer.Html5Player);
@@ -215,9 +286,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
                 // calls onPlaybackFailed(), so the switch could never happen.
                 selectedPlayer.set(player);
 
-                expect(
-                    fixture.componentInstance.autoFailoverSupported()
-                ).toBe(false);
+                expect(fixture.componentInstance.autoFailoverSupported()).toBe(
+                    false
+                );
             }
         );
 
