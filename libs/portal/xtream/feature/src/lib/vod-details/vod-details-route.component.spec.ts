@@ -163,4 +163,21 @@ describe('VodDetailsRouteComponent', () => {
         ).componentInstance as ContentHeroComponent;
         expect(hero.backdropUrl()).toBeUndefined();
     });
+
+    it('downloads the movie the route currently shows', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        fixture.detectChanges();
+
+        await fixture.componentInstance.downloadVod({
+            movie_data: { stream_id: 111, name: 'Example' },
+        } as never);
+
+        // The id comes from the route params SIGNAL, not `snapshot.params`:
+        // the router reuses this component for detail-to-detail navigation
+        // (the Similar rail), and the snapshot still names the film the user
+        // came from — so the download would fetch the wrong movie.
+        expect(stubs.startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ xtreamId: 650020 })
+        );
+    });
 });

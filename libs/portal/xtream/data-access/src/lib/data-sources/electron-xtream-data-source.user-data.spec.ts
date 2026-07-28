@@ -194,7 +194,55 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 favorites,
                 recentlyViewed,
                 playbackPositions: [position],
+                sourcePins: [],
             });
+        });
+
+        it('applies parked source pins against the imported playlist', async () => {
+            // The fresh-import path: a new playlist has no content when the
+            // archive is read, so its user state is parked and replayed here.
+            // Without this the backup's pins are dropped for every new import.
+            const restoreState = {
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+                sourcePins: [
+                    {
+                        matchKey: 'tmdb:603',
+                        contentId: 501,
+                        updatedAt: '2026-07-06T09:00:00.000Z',
+                    },
+                ],
+            } as never;
+
+            await harness.dataSource.restoreUserData(playlistId, restoreState);
+
+            expect(harness.vodSourcePinService.set).toHaveBeenCalledWith({
+                matchKey: 'tmdb:603',
+                playlistId,
+                contentId: 501,
+                portalType: 'xtream',
+                updatedAt: '2026-07-06T09:00:00.000Z',
+            });
+        });
+
+        it('keeps the pending state when a pin cannot be written', async () => {
+            harness.vodSourcePinService.set.mockResolvedValue(false);
+            const restoreState = {
+                hiddenCategories: [],
+                favorites: [],
+                recentlyViewed: [],
+                playbackPositions: [],
+                sourcePins: [{ matchKey: 'tmdb:603', contentId: 501 }],
+            } as never;
+
+            // The caller clears the parked state only when this resolves, so
+            // resolving here would drop the preference on a transient DB
+            // failure while the import still reported success.
+            await expect(
+                harness.dataSource.restoreUserData(playlistId, restoreState)
+            ).rejects.toThrow('tmdb:603');
         });
 
         it('restores user data, then resets and replays playback positions', async () => {

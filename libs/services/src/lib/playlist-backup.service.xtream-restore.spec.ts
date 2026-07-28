@@ -254,6 +254,31 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         });
     });
 
+    it('reports a pin that could not be written', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                listForPlaylist: jest.fn().mockResolvedValue([]),
+                // `set` reports failure rather than throwing, so ignoring the
+                // result would drop the preference while the summary claims
+                // the import succeeded.
+                set: jest.fn().mockResolvedValue(false),
+            },
+        });
+
+        const manifest = createXtreamManifest(
+            [],
+            [{ matchKey: 'tmdb:603', contentId: 501 }]
+        );
+
+        const summary = await service.importBackup(JSON.stringify(manifest));
+
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 0, failed: 1 })
+        );
+    });
+
     it('imports an archive written before pins existed', async () => {
         const collaborators = createRestoreCollaborators();
         const setPin = jest.fn().mockResolvedValue(true);

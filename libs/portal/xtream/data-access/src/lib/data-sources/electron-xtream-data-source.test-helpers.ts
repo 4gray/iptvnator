@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import {
     DatabaseService,
     PlaybackPositionService,
+    VodSourcePinService,
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import {
@@ -56,6 +57,13 @@ export function createDbServiceMock() {
     };
 }
 
+export function createVodSourcePinServiceMock() {
+    return {
+        listForPlaylist: jest.fn().mockResolvedValue([]),
+        set: jest.fn().mockResolvedValue(true),
+    };
+}
+
 export function createPlaybackServiceMock() {
     return {
         savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
@@ -85,6 +93,7 @@ export interface ElectronXtreamDataSourceHarness {
     dataSource: ElectronXtreamDataSource;
     dbService: ReturnType<typeof createDbServiceMock>;
     playbackService: ReturnType<typeof createPlaybackServiceMock>;
+    vodSourcePinService: ReturnType<typeof createVodSourcePinServiceMock>;
     pendingRestoreService: ReturnType<typeof createPendingRestoreServiceMock>;
     apiService: ReturnType<typeof createApiServiceMock>;
 }
@@ -92,6 +101,7 @@ export interface ElectronXtreamDataSourceHarness {
 export function setupElectronXtreamDataSource(): ElectronXtreamDataSourceHarness {
     const dbService = createDbServiceMock();
     const playbackService = createPlaybackServiceMock();
+    const vodSourcePinService = createVodSourcePinServiceMock();
     const pendingRestoreService = createPendingRestoreServiceMock();
     const apiService = createApiServiceMock();
 
@@ -100,6 +110,10 @@ export function setupElectronXtreamDataSource(): ElectronXtreamDataSourceHarness
             ElectronXtreamDataSource,
             { provide: DatabaseService, useValue: dbService },
             { provide: PlaybackPositionService, useValue: playbackService },
+            {
+                provide: VodSourcePinService,
+                useValue: vodSourcePinService,
+            },
             {
                 provide: XtreamPendingRestoreService,
                 useValue: pendingRestoreService,
@@ -112,6 +126,7 @@ export function setupElectronXtreamDataSource(): ElectronXtreamDataSourceHarness
         dataSource: TestBed.inject(ElectronXtreamDataSource),
         dbService,
         playbackService,
+        vodSourcePinService,
         pendingRestoreService,
         apiService,
     };

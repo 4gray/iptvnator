@@ -867,13 +867,22 @@ export class PlaylistBackupService {
         // The match key identifies the film and survives untouched; only the
         // playlist has a new id in this installation.
         for (const pin of state.sourcePins ?? []) {
-            await this.vodSourcePinService.set({
+            const written = await this.vodSourcePinService.set({
                 matchKey: pin.matchKey,
                 playlistId,
                 contentId: pin.contentId,
                 portalType: 'xtream',
                 ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
             });
+
+            // `set` reports a failed write rather than throwing, so ignoring
+            // it would drop the preference while the summary claims the
+            // import succeeded.
+            if (!written) {
+                throw new PlaylistBackupError(
+                    `Restoring the pinned source for "${pin.matchKey}" failed.`
+                );
+            }
         }
     }
 

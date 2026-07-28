@@ -478,6 +478,14 @@ Two things read it, and they must agree: the "Playing from" caption, and the
 source row's badge — which reads `Current` when a source is merely selected and
 `Playing` once one really is.
 
+## Where the route's code lives
+
+`VodDetailsRouteComponent` is a thin host. The multi-source concerns it grew
+live in `VodDetailsMultiSourceUiService` (component-provided): the
+`playbackLive` evidence, the caption, the primary button's position, the
+source actions, and the failover toast. The "Similar" rail and offline
+downloads sit in their own component-provided services beside it.
+
 ## Backup
 
 Pins ride along with playlist backup, under the playlist they point at, as the

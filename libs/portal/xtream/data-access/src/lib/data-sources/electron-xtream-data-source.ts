@@ -4,6 +4,7 @@ import {
     PlaybackPositionService,
     XtreamPendingRestoreService,
     XtreamImportStatus,
+    VodSourcePinService,
 } from '@iptvnator/services';
 import {
     PlaybackPositionData,
@@ -39,6 +40,7 @@ import {
 export class ElectronXtreamDataSource implements IXtreamDataSource {
     private readonly dbService = inject(DatabaseService);
     private readonly playbackService = inject(PlaybackPositionService);
+    private readonly vodSourcePinService = inject(VodSourcePinService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -540,9 +542,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     async clearPlaylistContent(
         playlistId: string
     ): Promise<XtreamPendingRestoreState> {
-        const [result, playbackPositions] = await Promise.all([
+        const [result, playbackPositions, sourcePins] = await Promise.all([
             this.dbService.deleteXtreamPlaylistContent(playlistId),
             this.playbackService.getAllPlaybackPositions(playlistId),
+            this.vodSourcePinService.listForPlaylist(playlistId),
         ]);
 
         return {
@@ -550,6 +553,11 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             favorites: result.favorites,
             recentlyViewed: result.recentlyViewed,
             playbackPositions,
+            sourcePins: sourcePins.map((pin) => ({
+                matchKey: pin.matchKey,
+                contentId: pin.contentId,
+                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+            })),
         };
     }
 
@@ -572,6 +580,28 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 playlistId,
                 playbackPosition
             );
+        }
+
+        // The fresh-import path lands here rather than in the backup service:
+        // a new playlist has no content yet when the archive is read, so its
+        // user state is parked and applied once the import finishes.
+        for (const pin of restoreState.sourcePins ?? []) {
+            const written = await this.vodSourcePinService.set({
+                matchKey: pin.matchKey,
+                playlistId,
+                contentId: pin.contentId,
+                portalType: 'xtream',
+                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+            });
+
+            // Throwing keeps the pending state for a later retry — the caller
+            // only clears it when this resolves. Dropping it here would lose
+            // the preference with the import still reporting success.
+            if (!written) {
+                throw new Error(
+                    `Restoring the pinned source for "${pin.matchKey}" failed.`
+                );
+            }
         }
     }
 }
