@@ -22,6 +22,12 @@ export interface VodSourceDiscoveryRequest {
     year?: number | null;
     /** The playlist being viewed; never offered back as an alternative. */
     currentPlaylistId: string;
+    /**
+     * One stream id inside it to keep anyway — a pin can point at another copy
+     * of the film in the playlist the user is currently on, and excluding it
+     * would silently ignore an explicit preference.
+     */
+    keepContentId?: number | null;
 }
 
 export interface VodSourceDiscoveryResult {
@@ -61,6 +67,7 @@ export class VodSourceDiscoveryService {
                 title: request.title,
                 year: request.year ?? null,
                 excludePlaylistId: request.currentPlaylistId,
+                keepContentId: request.keepContentId ?? null,
             });
 
             return {

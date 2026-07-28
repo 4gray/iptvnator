@@ -210,6 +210,21 @@ Both remain necessary-not-sufficient filters: the two-tier normalized
 confirmation still runs afterwards, so the looser query never admits "Upgrade"
 for "Up".
 
+One row inside the excluded playlist is kept when the caller names it
+(`keepContentId`): a pin can point at another copy of the film in the playlist
+being viewed, and dropping that row would leave the preference pointing at
+nothing. The host therefore reads the pin BEFORE discovery.
+
+### Same title, different film
+
+The year gate applies to **both** match tiers, not just the year-stripped one.
+`normalizeTitleKeys` strips bracketed segments wholesale — they usually hold
+quality and language tags — so "Dune (1984)" and "Dune" normalize to the same
+string and the exact tier would accept the remake without ever consulting a
+year, ranked *above* every fuzzy match. Discovery reads a bracketed year out of
+the raw title first, and when both sides state a year and they disagree, it is
+not the same movie. An unknown year still never blocks.
+
 ## Why resolution is lazy
 
 The `content` table stores no `container_extension`, and

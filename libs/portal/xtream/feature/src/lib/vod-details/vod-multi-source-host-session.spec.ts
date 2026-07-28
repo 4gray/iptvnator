@@ -107,6 +107,7 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
             title: 'The Matrix',
             year: 1999,
             currentPlaylistId: 'playlist-1',
+            keepContentId: null,
         });
 
         movie.set({ ...MOVIE_A });
@@ -187,25 +188,21 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
 
     it('discards a discovery that resolves after the movie changed', async () => {
         const first = createDeferred<DiscoveryResult>();
-        const second = createDeferred<DiscoveryResult>();
-        discovery.discover
-            .mockReturnValueOnce(first.promise)
-            .mockReturnValueOnce(second.promise);
+        discovery.discover.mockReturnValueOnce(first.promise);
 
         const loadA = service.load(MOVIE_A);
-        const loadB = service.load(MOVIE_B);
+        // A's pin lookup runs before its discovery, so wait for the call that
+        // actually matters rather than guessing at microtask counts.
+        while (discovery.discover.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
 
+        const loadB = loadMovie([ALT_THREE], MOVIE_B);
         first.resolve({ sources: [ALT_TWO], matchKind: 'title-year' });
         await loadA;
-
-        expect(service.sources()).toEqual([]);
-        // Abandoned on arrival: it never even looks the stale pin up.
-        expect(pins.get).not.toHaveBeenCalled();
-
-        second.resolve({ sources: [ALT_THREE], matchKind: 'title-year' });
         await loadB;
 
-        expect(pins.get).toHaveBeenCalledTimes(1);
+        // A's alternatives must not appear anywhere in B's session.
         expect(service.sources().map((source) => source.id)).toEqual([
             'playlist-1:xtream:202',
             ALT_THREE.id,

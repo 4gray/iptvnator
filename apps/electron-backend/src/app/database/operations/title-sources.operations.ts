@@ -39,6 +39,28 @@ export interface FindTitleSourcesRequest {
     year?: number | null;
     /** The playlist the user is already on — never returned as an alternative. */
     excludePlaylistId?: string | null;
+    /**
+     * One stream id inside that playlist to keep anyway.
+     *
+     * A pin can point at another copy of the film in the playlist the user is
+     * currently on. Excluding the playlist wholesale would drop the pinned row
+     * from the list, and the explicit preference would be silently ignored.
+     */
+    keepContentId?: number | null;
+}
+
+/**
+ * A year written in brackets — "Dune (1984)", the commonest catalog form.
+ *
+ * `normalizeTitleKeys` strips bracketed segments wholesale, because they
+ * usually hold quality and language tags. A year written that way therefore
+ * survives in neither key, and both Dunes normalize to exactly "dune" — which
+ * the exact tier accepts without ever consulting the year, so failover could
+ * switch the user to the other film entirely.
+ */
+function bracketedYear(title: string): number | null {
+    const match = title.match(/[([{]\s*(19\d{2}|20\d{2})\s*[)\]}]/);
+    return match ? Number(match[1]) : null;
 }
 
 function buildFtsMatchQuery(normalizedTitle: string): string {
@@ -59,11 +81,16 @@ function buildFtsMatchQuery(normalizedTitle: string): string {
  * never be read at all.
  */
 function excludePlaylistClause(
-    excludePlaylistId: string | null | undefined
+    excludePlaylistId: string | null | undefined,
+    keepContentId: number | null | undefined
 ): SQL {
-    return excludePlaylistId
-        ? sql`AND cat.playlist_id <> ${excludePlaylistId}`
-        : sql``;
+    if (!excludePlaylistId) {
+        return sql``;
+    }
+
+    return typeof keepContentId === 'number'
+        ? sql`AND (cat.playlist_id <> ${excludePlaylistId} OR c.xtream_id = ${keepContentId})`
+        : sql`AND cat.playlist_id <> ${excludePlaylistId}`;
 }
 
 /**
@@ -166,14 +193,19 @@ export async function findTitleSources(
         return [];
     }
 
-    // The year the caller knows, falling back to a release tag on the title.
-    const wantedYear = request.year ?? wanted.trailingYear ?? null;
+    // The year the caller knows, falling back to a release tag on the title
+    // in either of the two forms providers write it.
+    const wantedYear =
+        request.year ?? wanted.trailingYear ?? bracketedYear(rawTitle);
 
     // Search on the year-stripped form so a portal that tags the year and one
     // that does not still find each other; the year gate below re-tightens it.
     const matchQuery = buildFtsMatchQuery(wanted.base);
 
-    const excludePlaylist = excludePlaylistClause(request.excludePlaylistId);
+    const excludePlaylist = excludePlaylistClause(
+        request.excludePlaylistId,
+        request.keepContentId
+    );
 
     let rows: TitleSourceRow[];
     try {
@@ -196,23 +228,30 @@ export async function findTitleSources(
 
     for (const row of rows) {
         // SQL already excluded these; this keeps the guarantee a property of
-        // the function rather than of one WHERE clause.
+        // the function rather than of one WHERE clause — minus the one copy
+        // the caller asked to keep.
         if (
             request.excludePlaylistId &&
-            row.playlist_id === request.excludePlaylistId
+            row.playlist_id === request.excludePlaylistId &&
+            row.xtream_id !== request.keepContentId
         ) {
             continue;
         }
 
         const rowKeys = normalizeTitleKeys(row.title);
+        const rowYear = rowKeys.trailingYear ?? bracketedYear(row.title);
+        // Two films share a title far too often for this to be optional, and
+        // it applies to BOTH tiers: "Dune (1984)" normalizes to exactly the
+        // same string as "Dune", so an exact match says nothing about which
+        // film it is. When each side states a year and they disagree, it is
+        // not the same movie. An unknown year still never blocks.
+        const yearsAgree = titleYearsCompatible(rowYear, wantedYear);
         const exactMatch =
-            rowKeys.exact !== '' && rowKeys.exact === wanted.exact;
+            rowKeys.exact !== '' &&
+            rowKeys.exact === wanted.exact &&
+            yearsAgree;
         const baseMatch =
-            !exactMatch &&
-            rowKeys.base === wanted.base &&
-            // A year-stripped match is only trustworthy when the two sides do
-            // not actively disagree about the year ("Dune" 1984 vs 2021).
-            titleYearsCompatible(rowKeys.trailingYear, wantedYear);
+            !exactMatch && rowKeys.base === wanted.base && yearsAgree;
 
         if (!exactMatch && !baseMatch) {
             continue;
@@ -232,7 +271,7 @@ export async function findTitleSources(
             title: row.title,
             posterUrl: row.poster_url,
             matchConfidence: exactMatch ? 'exact' : 'fuzzy',
-            year: rowKeys.trailingYear,
+            year: rowYear,
         });
     }
 

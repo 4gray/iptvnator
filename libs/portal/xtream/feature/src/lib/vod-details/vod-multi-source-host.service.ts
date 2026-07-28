@@ -31,7 +31,10 @@ import type { VodMultiSourceSwitchNotice } from './vod-multi-source-notice';
 import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
+    pinnedCopyInPlaylist,
+    pinnedSourceAwaitingPlay,
     pinnedSourceIdOf,
+    playPinned,
     readPin,
     togglePinnedSource,
 } from './vod-multi-source-pin';
@@ -75,10 +78,7 @@ export class VodMultiSourceHostService {
     private discoveryToken = 0;
     /**
      * Bumped when the FILM changes, and only then — a rediscovery of the same
-     * film (enrichment described it better) must not cancel a switch or probe
-     * in flight for it. Without this guard the continuation would activate the
-     * old film's source in the new session and restart it from that session's
-     * zero resume position.
+     * film must not cancel a switch or probe in flight for it.
      */
     private sessionToken = 0;
     /**
@@ -132,8 +132,7 @@ export class VodMultiSourceHostService {
         () => this.settingsStore.vodAutoFailover?.() === true
     );
 
-    /** Live getter, not a snapshot: `isAvailable` is itself a getter over
-     * the Electron bridge, so copying it once could disagree with it. */
+    /** Live getter: the bridge's own `isAvailable` can change under us. */
     get isAvailable(): boolean {
         return this.discovery.isAvailable;
     }
@@ -176,11 +175,9 @@ export class VodMultiSourceHostService {
      * the tried-source set that makes failover terminate.
      *
      * The SAME film arriving again is a refresh, not a new session: enrichment
-     * supplies its year and TMDB id after the page opened, which changes the
-     * movie key on purpose (discovery gets the year, a `tmdb:` pin becomes
-     * findable) but changes nothing about what is playing. Resetting there
-     * would take the film back off the source the user switched to and hand
-     * failover a clean tried-set for sources it has already burned.
+     * changes the movie key on purpose, but nothing about what is playing.
+     * Resetting there would take the film off the source the user switched to
+     * and hand failover a clean tried-set for sources it has already burned.
      */
     async load(movie: VodMultiSourceMovie): Promise<void> {
         const finished = this.discover(movie);
@@ -214,10 +211,17 @@ export class VodMultiSourceHostService {
             return;
         }
 
+        // Read FIRST, because discovery has to be told which copy to keep.
+        const pin = await readPin(this.pins, this.matchKeys);
+        if (token !== this.discoveryToken) {
+            return;
+        }
+
         const result = await this.discovery.discover({
             title: movie.title,
             year: movie.year,
             currentPlaylistId: movie.playlistId,
+            keepContentId: pinnedCopyInPlaylist(pin, movie.playlistId),
         });
         if (token !== this.discoveryToken) {
             return;
@@ -229,11 +233,6 @@ export class VodMultiSourceHostService {
             result.sources,
             result.matchKind
         );
-
-        const pin = await readPin(this.pins, this.matchKeys);
-        if (token !== this.discoveryToken) {
-            return;
-        }
         if (pin) {
             this.controller.setPinnedSource(pinnedSourceIdOf(pin));
         }
@@ -241,32 +240,30 @@ export class VodMultiSourceHostService {
         this.publish();
     }
 
-    /**
-     * The pinned source, when it is not the one the route already plays.
-     *
-     * "Make this the main source" has to survive reopening the movie, or the
-     * persisted preference is just an icon. The host consults this before its
-     * normal Play so the pin decides where playback starts.
-     */
-    readonly pendingPinnedSourceId = computed(() => {
-        const pinned = this._sources().find((source) => source.isPinned);
-        return pinned && !pinned.isActive ? pinned.id : null;
-    });
+    /** The pinned source, when it is not the one the route already plays. */
+    readonly pendingPinnedSourceId = computed(() =>
+        pinnedSourceAwaitingPlay(this._sources())
+    );
 
     /**
      * Start from the pinned source if there is one. Returns false when there is
      * nothing pinned to honour, leaving the caller's own Play path in charge.
      */
-    async playPinnedSource(): Promise<boolean> {
-        // The pin arrives with discovery. Concluding "nothing is pinned"
-        // before the lookup returns would start the route's own source and
-        // make the persisted preference a coin toss on worker latency.
+    async playPinnedSource(
+        resumeFor?: (source: VodSourceCandidate) => Promise<number | null>
+    ): Promise<boolean> {
+        // The pin arrives with discovery; answering before the lookup lands
+        // would make a persisted preference lose to worker latency.
         if (!(await this.stillOwnsScreen())) {
             return false;
         }
 
-        const pinnedId = this.pendingPinnedSourceId();
-        return pinnedId ? this.play(pinnedId) : false;
+        return playPinned({
+            controller: this.controller,
+            pinnedSourceId: this.pendingPinnedSourceId(),
+            resumeFor,
+            play: (sourceId) => this.play(sourceId),
+        });
     }
 
     /**

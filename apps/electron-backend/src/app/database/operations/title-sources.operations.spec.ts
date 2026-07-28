@@ -157,6 +157,31 @@ describe('title-sources.operations', () => {
             ).resolves.toEqual([]);
         });
 
+        it('rejects a remake whose year is written in brackets', async () => {
+            // "Dune (1984)" normalizes to exactly "dune" — the brackets are
+            // stripped as tag noise — so without reading the year out first it
+            // is an EXACT match for the 2021 film, ranked above every fuzzy
+            // one, and auto-failover would switch to the wrong movie.
+            const { db } = createDbMock([{ ...duneRow, title: 'Dune (1984)' }]);
+
+            await expect(
+                findTitleSources(db, { title: 'Dune', year: 2021 })
+            ).resolves.toEqual([]);
+        });
+
+        it('matches a bracketed year against the same film', async () => {
+            const { db } = createDbMock([{ ...duneRow, title: 'Dune (2021)' }]);
+
+            const matches = await findTitleSources(db, {
+                title: 'Dune',
+                year: 2021,
+            });
+
+            expect(matches).toHaveLength(1);
+            // Reported too, so the row can say which film it is.
+            expect(matches[0].year).toBe(2021);
+        });
+
         it('rejects a base-tier match whose year contradicts the request', async () => {
             const { db } = createDbMock([{ ...duneRow, title: 'Dune 1984' }]);
 
@@ -265,6 +290,27 @@ describe('title-sources.operations', () => {
             expect(query.sql.indexOf('GROUP BY')).toBeLessThan(
                 query.sql.indexOf('LIMIT')
             );
+        });
+
+        it('keeps one named copy of the excluded playlist', async () => {
+            // A pin can point at another copy of the film inside the playlist
+            // being viewed. Excluding the playlist wholesale would drop that
+            // row, and the explicit preference would be silently ignored.
+            const { db, all } = createDbMock([
+                { ...duneRow, xtream_id: 777, content_id: 9 },
+            ]);
+
+            const matches = await findTitleSources(db, {
+                title: 'Dune',
+                excludePlaylistId: 'playlist-1',
+                keepContentId: 777,
+            });
+
+            const query = compiledQuery(all);
+            expect(query.sql).toContain('OR c.xtream_id = ?');
+            expect(query.params).toContain(777);
+            // And the TypeScript pass must not throw it away either.
+            expect(matches.map((match) => match.xtreamId)).toEqual([777]);
         });
 
         it('leaves the queries unfiltered when no playlist is excluded', async () => {

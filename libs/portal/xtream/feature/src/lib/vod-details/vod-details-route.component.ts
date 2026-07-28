@@ -23,7 +23,10 @@ import {
     VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import {
+    createLogger,
+    PORTAL_PLAYBACK_POSITIONS,
+} from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     type PlaybackFallbackRequest,
@@ -45,6 +48,7 @@ import {
     XtreamVodInfo,
     XtreamVodStream,
     youtubeEmbedUrl,
+    type VodSourceCandidate,
 } from '@iptvnator/shared/interfaces';
 import {
     SimilarCatalogItem,
@@ -90,6 +94,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly playback = inject(VodDetailsPlaybackService);
+    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     /** Alternative sources for this movie in the user's other playlists */
     readonly multiSource = inject(VodMultiSourceHostService);
     private readonly logger = createLogger('VodDetailsRoute');
@@ -461,12 +466,29 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // A pinned source is an explicit "play this movie from here", so it
         // outranks the playlist the route happens to be on. Falls through to
         // the normal path when nothing is pinned or the pin cannot resolve.
-        if (await this.multiSource.playPinnedSource()) {
+        if (await this.multiSource.playPinnedSource(this.resumeSecondsFor)) {
             return;
         }
 
         this.playback.onPrimaryAction(vodItem);
     }
+
+    /**
+     * Where a specific source was last watched.
+     *
+     * Positions are keyed by (playlist, stream), so a pinned alternative has
+     * its own row — the one this page loaded belongs to the route's copy.
+     */
+    private readonly resumeSecondsFor = async (
+        source: VodSourceCandidate
+    ): Promise<number | null> => {
+        const position = await this.playbackPositions.getPlaybackPosition(
+            source.playlistId,
+            source.contentId,
+            'vod'
+        );
+        return position?.positionSeconds ?? null;
+    };
 
     stopExternalPlayback(): Promise<void> {
         return this.playback.stopExternalPlayback();

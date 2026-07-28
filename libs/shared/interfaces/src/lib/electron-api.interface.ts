@@ -875,6 +875,8 @@ export interface ElectronBridgeApi {
         title: string;
         year?: number | null;
         excludePlaylistId?: string | null;
+        /** A stream id inside the excluded playlist to keep anyway (a pin). */
+        keepContentId?: number | null;
     }) => Promise<VodSourceCandidateRow[]>;
     /** Per-movie pinned source; keys are passed most-trusted first */
     dbGetVodSourcePin: (matchKeys: string[]) => Promise<VodSourcePin | null>;

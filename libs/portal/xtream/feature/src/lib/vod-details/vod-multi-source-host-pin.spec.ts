@@ -125,6 +125,87 @@ describe('VodMultiSourceHostService — pinning', () => {
         );
     });
 
+    it('asks discovery to keep a copy pinned inside the current playlist', async () => {
+        // The pin was set on another copy of the film in the playlist the user
+        // is now opening. Excluding that playlist wholesale would leave the pin
+        // pointing at a row that is not in the list, so Play would ignore it.
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: MOVIE_A.playlistId,
+            contentId: 4242,
+            portalType: 'xtream',
+        });
+
+        await loadMovie([]);
+
+        expect(discovery.discover).toHaveBeenCalledWith(
+            expect.objectContaining({
+                currentPlaylistId: MOVIE_A.playlistId,
+                keepContentId: 4242,
+            })
+        );
+    });
+
+    it('asks for no exception when the pin is in another playlist', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+
+        await loadMovie([ALT_TWO]);
+
+        expect(discovery.discover).toHaveBeenCalledWith(
+            expect.objectContaining({ keepContentId: null })
+        );
+    });
+
+    it('resumes a pinned alternative from its OWN stored position', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+
+        // What the page loaded belongs to the ROUTE's copy — a different row
+        // entirely from the one the user has been watching through the pin.
+        service.seedResumePosition(12);
+
+        const resumeFor = jest.fn().mockResolvedValue(3600);
+        await expect(service.playPinnedSource(resumeFor)).resolves.toBe(true);
+
+        expect(resumeFor).toHaveBeenCalledWith(
+            expect.objectContaining({ id: ALT_TWO.id })
+        );
+        expect(resolver.resolve).toHaveBeenCalledWith(
+            expect.objectContaining({ id: ALT_TWO.id }),
+            { startTime: 3600 }
+        );
+    });
+
+    it('keeps the page position when the pinned source has none', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+        service.seedResumePosition(2538);
+
+        await expect(
+            service.playPinnedSource(jest.fn().mockResolvedValue(null))
+        ).resolves.toBe(true);
+
+        expect(resolver.resolve).toHaveBeenCalledWith(
+            expect.objectContaining({ id: ALT_TWO.id }),
+            { startTime: 2538 }
+        );
+    });
+
     it('retires every stale alias and writes only the canonical key', async () => {
         await loadMovie([ALT_TWO]);
         const matchKeys: string[] = pins.get.mock.calls[0][0];

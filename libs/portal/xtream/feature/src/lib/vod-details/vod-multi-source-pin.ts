@@ -1,7 +1,9 @@
+import type { VodMultiSourceController } from '@iptvnator/portal/shared/data-access';
 import type { VodSourcePinService } from '@iptvnator/services';
 import {
     buildVodSourceMatchKey,
     type VodSourceCandidate,
+    type VodSourceDescriptor,
     type VodSourcePin,
 } from '@iptvnator/shared/interfaces';
 
@@ -12,6 +14,34 @@ import {
  * self-contained errand with its own key handling, and nothing else in the
  * host needs to know how a match key is chosen.
  */
+
+/**
+ * The one copy inside the playlist being viewed that discovery must keep.
+ *
+ * A pin can point at another copy of the film in that same playlist, and
+ * excluding the playlist wholesale would drop the pinned row from the list —
+ * leaving the preference pointing at nothing and silently ignored.
+ */
+export function pinnedCopyInPlaylist(
+    pin: VodSourcePin | null,
+    playlistId: string
+): number | null {
+    return pin && pin.playlistId === playlistId ? pin.contentId : null;
+}
+
+/**
+ * The pinned row, when it is not the one already playing.
+ *
+ * "Make this the main source" has to survive reopening the movie, or the
+ * persisted preference is just an icon. The host consults this before its
+ * normal Play, so the pin decides where playback starts.
+ */
+export function pinnedSourceAwaitingPlay(
+    sources: readonly VodSourceDescriptor[]
+): string | null {
+    const pinned = sources.find((source) => source.isPinned);
+    return pinned && !pinned.isActive ? pinned.id : null;
+}
 
 /** The row id the controller uses, derived from a stored pin. */
 export function pinnedSourceIdOf(pin: VodSourcePin): string {
@@ -102,4 +132,36 @@ export async function togglePinnedSource(
     return (await writePin(pins, matchKeys, candidate))
         ? candidate.id
         : undefined;
+}
+
+/** What starting the pinned source needs from the host. */
+export interface PinnedPlayDeps {
+    controller: VodMultiSourceController;
+    pinnedSourceId: string | null;
+    /** Where THAT source was last watched, when the host can look it up. */
+    resumeFor?: (source: VodSourceCandidate) => Promise<number | null>;
+    play: (sourceId: string) => Promise<boolean>;
+}
+
+/**
+ * Start the movie from its pinned source, at the position that source was
+ * last left at.
+ *
+ * Playback positions are keyed by (playlist, stream), so watching through a
+ * pinned alternative stores progress under ITS ids. The page loaded the ROUTE
+ * row, which for this source is stale or missing entirely — resuming from it
+ * would restart the film or jump to where a different copy was left.
+ */
+export async function playPinned(deps: PinnedPlayDeps): Promise<boolean> {
+    const pinned = deps.controller.findSource(deps.pinnedSourceId ?? '');
+    if (!pinned) {
+        return false;
+    }
+
+    const stored = await deps.resumeFor?.(pinned);
+    if (stored !== null && stored !== undefined) {
+        deps.controller.setResumeSeconds(stored);
+    }
+
+    return deps.play(pinned.id);
 }

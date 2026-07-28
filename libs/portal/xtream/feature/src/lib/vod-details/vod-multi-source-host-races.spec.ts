@@ -186,6 +186,9 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         vodAutoFailover.set(true);
 
         const loading = service.load(MOVIE_A);
+        while (discovery.discover.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
 
         // The stream died faster than the database answered. Concluding
         // "nowhere to go" here would strand the user on the error screen with
@@ -207,6 +210,11 @@ describe('VodMultiSourceHostService — stale resolutions', () => {
         vodAutoFailover.set(true);
 
         const loadingA = service.load(MOVIE_A);
+        // The pin lookup runs first now, so wait until A is genuinely inside
+        // discovery before the failure arrives.
+        while (discovery.discover.mock.calls.length === 0) {
+            await Promise.resolve();
+        }
         const failingOver = service.failover();
 
         // The user navigates while A's discovery is still out. Running against
