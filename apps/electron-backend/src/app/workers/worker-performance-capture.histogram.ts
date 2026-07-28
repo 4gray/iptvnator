@@ -37,7 +37,10 @@ export function markEventLoopDelayUnavailable(
 
 export async function waitForHistogramCondition(
     capture: WorkerPerformanceCapture,
-    condition: (histogram: WorkerEventLoopDelayHistogram) => boolean
+    condition: (histogram: WorkerEventLoopDelayHistogram) => boolean,
+    options: {
+        readonly minimumPollsBeforeElapsedDeadline?: number;
+    } = {}
 ): Promise<boolean> {
     const histogram = capture.eventLoopDelay;
     if (
@@ -58,6 +61,8 @@ export async function waitForHistogramCondition(
     const maximumPolls = Math.ceil(
         HISTOGRAM_WAIT_CAP_MS / HISTOGRAM_POLL_INTERVAL_MS
     );
+    const minimumPollsBeforeElapsedDeadline =
+        options.minimumPollsBeforeElapsedDeadline ?? 0;
     let pollCount = 0;
 
     while (true) {
@@ -80,16 +85,20 @@ export async function waitForHistogramCondition(
         }
         if (
             !Number.isFinite(elapsedMs) ||
-            elapsedMs >= HISTOGRAM_WAIT_CAP_MS ||
-            pollCount >= maximumPolls
+            pollCount >= maximumPolls ||
+            (pollCount >= minimumPollsBeforeElapsedDeadline &&
+                elapsedMs >= HISTOGRAM_WAIT_CAP_MS)
         ) {
             return false;
         }
 
-        const delayMs = Math.min(
-            HISTOGRAM_POLL_INTERVAL_MS,
-            HISTOGRAM_WAIT_CAP_MS - Math.max(0, elapsedMs)
-        );
+        const delayMs =
+            elapsedMs >= HISTOGRAM_WAIT_CAP_MS
+                ? HISTOGRAM_POLL_INTERVAL_MS
+                : Math.min(
+                      HISTOGRAM_POLL_INTERVAL_MS,
+                      HISTOGRAM_WAIT_CAP_MS - Math.max(0, elapsedMs)
+                  );
         try {
             pollCount += 1;
             await new Promise<void>((resolvePromise) => {

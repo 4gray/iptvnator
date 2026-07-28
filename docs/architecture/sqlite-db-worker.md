@@ -137,11 +137,13 @@ Each enabled request gets a fresh event-loop-delay histogram and records:
 
 Histogram arming waits until the histogram has a sample; flushing waits for its
 sample count to advance after work ends. Both waits use condition-based timer
-polling. Each wait stops after 50 ms of observed monotonic time or its bounded
-poll count; arming and flushing have separate caps, and timer scheduling may
-overshoot wall-clock time. A timeout or profiling API failure never replaces
-the business response: timestamps and any independently available CPU/ELU
-metrics remain valid, while event-loop delay is `null` with a fixed reason.
+polling. Arming permits the two poll turns that `monitorEventLoopDelay()` needs
+before its first sample, then applies the 50 ms elapsed deadline; it always
+stops by the 50-poll ceiling. Flushing has no poll floor and stops after 50 ms
+or 50 polls. The waits have separate caps, and timer scheduling may overshoot
+wall-clock time. A timeout or profiling API failure never replaces the business
+response: timestamps and any independently available CPU/ELU metrics remain
+valid, while event-loop delay is `null` with a fixed reason.
 
 The long-lived database worker still executes concurrent requests without a
 profiling queue. If captures overlap, every overlapping response carries

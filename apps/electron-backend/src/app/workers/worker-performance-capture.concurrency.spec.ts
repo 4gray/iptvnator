@@ -6,42 +6,13 @@ import {
     releaseDatabaseWorkerPerformanceCapture,
     startWorkerPerformanceCapture,
     type WorkerPerformanceCapture,
-    type WorkerPerformanceCaptureRuntime,
 } from './worker-performance-capture';
-import { DEFAULT_WORKER_PERFORMANCE_RUNTIME } from './worker-performance-capture.runtime';
 import { createFakeRuntime } from './worker-performance-capture.test-harness';
 
 const PROFILING_ENV = 'IPTVNATOR_PERF_WORKER_PROFILING';
 
 const BLOCK_DURATION_MS = 20;
 const REAL_TIMER_TEST_TIMEOUT_MS = 30_000;
-
-/**
- * `monitorEventLoopDelay()` records nothing on its first internal timer tick —
- * that tick only seeds the previous timestamp, so the first delay sample lands
- * on the second tick. Condition-based arming therefore needs two event-loop
- * turns, and it budgets for them with a 50ms deadline read from
- * `readMonotonicMs()`. A machine running the full Jest suite in parallel can
- * stretch a single turn past 20ms, so that deadline expires against the
- * scheduler rather than against any defect in the capture code.
- *
- * Slowing only that deadline clock leaves the wait bounded by its other limit,
- * the 50-poll ceiling, which is ~25x the two turns arming actually needs.
- * Everything else stays production code: the real `monitorEventLoopDelay()`
- * histogram, real `setTimeout()` polling, and real epoch/CPU/ELU boundaries.
- * The scaled clock reaches nothing but the wait budgets — its only other
- * consumer records phase events, and this spec records none.
- */
-const WAIT_DEADLINE_CLOCK_SCALE = 50;
-
-function createRuntimeWithScaledWaitDeadline(): WorkerPerformanceCaptureRuntime {
-    return {
-        ...DEFAULT_WORKER_PERFORMANCE_RUNTIME,
-        readMonotonicMs: () =>
-            DEFAULT_WORKER_PERFORMANCE_RUNTIME.readMonotonicMs() /
-            WAIT_DEADLINE_CLOCK_SCALE,
-    };
-}
 
 describe('worker performance capture concurrency and real timers', () => {
     const originalProfilingValue = process.env[PROFILING_ENV];
@@ -108,9 +79,7 @@ describe('worker performance capture concurrency and real timers', () => {
             process.env[PROFILING_ENV] = '1';
 
             // No `enabled` override: the env variable is the opt-in under test.
-            const capture = startWorkerPerformanceCapture({
-                runtime: createRuntimeWithScaledWaitDeadline(),
-            });
+            const capture = startWorkerPerformanceCapture();
 
             expect(capture).not.toBeNull();
 

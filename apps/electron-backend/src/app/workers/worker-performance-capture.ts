@@ -103,7 +103,11 @@ export async function armWorkerPerformanceCapture(
         }
         const armed = await waitForHistogramCondition(
             capture,
-            (histogram) => histogram.count > 0
+            (histogram) => histogram.count > 0,
+            {
+                // The histogram needs two turns before its first sample.
+                minimumPollsBeforeElapsedDeadline: 2,
+            }
         );
         if (!armed && capture.invalidReason === null) {
             markEventLoopDelayUnavailable(
