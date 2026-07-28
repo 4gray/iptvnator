@@ -28,6 +28,7 @@ import {
     enrichVodSelectionWithTmdb,
 } from './xtream-tmdb-enrichment';
 import {
+    applyRecoveredXtreamVodCatalogItem,
     createXtreamDetailsRequestGuard,
     resolveXtreamVodDetailsSelection,
 } from './xtream-details-request';
@@ -144,11 +145,11 @@ export const XtreamStore = signalStore(
                 store.setDetailsError(null);
                 xtreamApiService
                     .getVodInfo(credentials, params.vodId)
-                    .then(async (vodDetails: XtreamVodDetails) => {
+                    .then((vodDetails: XtreamVodDetails) => {
                         if (!isCurrentRequest()) return;
 
-                        const { recoveryError, selection } =
-                            await resolveXtreamVodDetailsSelection({
+                        const { recovery, selection } =
+                            resolveXtreamVodDetailsSelection({
                                 apiService: xtreamApiService,
                                 currentCategories: store.vodCategories(),
                                 currentCategoriesPlaylistId:
@@ -164,13 +165,6 @@ export const XtreamStore = signalStore(
                                 vodDetails,
                                 vodId: params.vodId,
                             });
-                        if (recoveryError && isCurrentRequest()) {
-                            logger.warn(
-                                'Failed to recover sparse VOD playback source from the catalog',
-                                recoveryError
-                            );
-                        }
-
                         if (!isCurrentRequest()) return;
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem(selection);
@@ -178,6 +172,38 @@ export const XtreamStore = signalStore(
                             store,
                             tmdbEnrichment,
                             params.vodId
+                        );
+
+                        if (!recovery) {
+                            return;
+                        }
+
+                        void recovery.then(
+                            ({ recoveredCatalogItem, recoveryError }) => {
+                                if (!isCurrentRequest()) {
+                                    return;
+                                }
+                                if (recoveryError) {
+                                    logger.warn(
+                                        'Failed to recover sparse VOD playback source from the catalog',
+                                        recoveryError
+                                    );
+                                    return;
+                                }
+                                if (!recoveredCatalogItem) {
+                                    return;
+                                }
+
+                                const recoveredSelection =
+                                    applyRecoveredXtreamVodCatalogItem(
+                                        store.selectedItem(),
+                                        recoveredCatalogItem,
+                                        params.vodId
+                                    );
+                                if (recoveredSelection) {
+                                    store.setSelectedItem(recoveredSelection);
+                                }
+                            }
                         );
                     })
                     .catch((error: unknown) => {

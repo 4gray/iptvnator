@@ -128,7 +128,7 @@ describe('Xtream details request coordination', () => {
             stream_id: 42,
             container_extension: 'mkv',
         });
-        const result = await resolveXtreamVodDetailsSelection({
+        const resolution = resolveXtreamVodDetailsSelection({
             apiService: { getVodStream },
             currentCategories: [{ id: 7, xtream_id: 999 }],
             currentCategoriesPlaylistId: 'playlist-a',
@@ -149,6 +149,13 @@ describe('Xtream details request coordination', () => {
             vodId: 42,
         });
 
+        expect(resolveXtreamVodPlaybackSource(resolution.selection)).toBeNull();
+        expect(resolution.recovery).not.toBeNull();
+        if (!resolution.recovery) {
+            throw new Error('Expected catalog recovery to start');
+        }
+        const result = await resolution.recovery;
+
         expect(resolveXtreamVodPlaybackSource(result.selection)).toEqual({
             streamId: 42,
             containerExtension: 'mkv',
@@ -158,11 +165,11 @@ describe('Xtream details request coordination', () => {
         expect(getVodStream).toHaveBeenCalledWith(credentials, 42, 701);
     });
 
-    it('uses a catalog pair owned by the active playlist without recovery', async () => {
+    it('uses a catalog pair owned by the active playlist without recovery', () => {
         const getAllCategories = jest.fn();
         const getCategories = jest.fn();
         const getVodStream = jest.fn();
-        const result = await resolveXtreamVodDetailsSelection({
+        const result = resolveXtreamVodDetailsSelection({
             apiService: { getVodStream },
             currentCategories: [],
             currentCategoriesPlaylistId: 'playlist-b',
@@ -187,8 +194,94 @@ describe('Xtream details request coordination', () => {
             streamId: 42,
             containerExtension: 'mp4',
         });
+        expect(result.recovery).toBeNull();
         expect(getAllCategories).not.toHaveBeenCalled();
         expect(getCategories).not.toHaveBeenCalled();
         expect(getVodStream).not.toHaveBeenCalled();
+    });
+
+    it('returns sparse details before catalog recovery completes', async () => {
+        let resolveCatalogItem!: (item: XtreamVodStream | null) => void;
+        const getVodStream = jest.fn(
+            () =>
+                new Promise<XtreamVodStream | null>((resolve) => {
+                    resolveCatalogItem = resolve;
+                })
+        );
+        const resolution = resolveXtreamVodDetailsSelection({
+            apiService: { getVodStream },
+            currentCategories: [{ id: 7, xtream_id: 701 }],
+            currentCategoriesPlaylistId: 'playlist-b',
+            currentStreams: [],
+            currentStreamsPlaylistId: 'playlist-b',
+            credentials,
+            dataSource: {
+                getAllCategories: jest.fn(),
+                getCategories: jest.fn(),
+            },
+            isCurrent: () => true,
+            playlistId: 'playlist-b',
+            routeCategoryId: 7,
+            vodDetails: { info: [] },
+            vodId: 42,
+        });
+
+        expect(resolution).not.toBeInstanceOf(Promise);
+        expect(resolveXtreamVodPlaybackSource(resolution.selection)).toBeNull();
+        expect(resolution.recovery).not.toBeNull();
+        if (!resolution.recovery) {
+            return;
+        }
+
+        let recoverySettled = false;
+        void resolution.recovery.finally(() => {
+            recoverySettled = true;
+        });
+        await Promise.resolve();
+        expect(recoverySettled).toBe(false);
+
+        resolveCatalogItem({
+            stream_id: 42,
+            container_extension: 'mkv',
+        } as XtreamVodStream);
+
+        await expect(resolution.recovery).resolves.toEqual(
+            expect.objectContaining({
+                selection: expect.objectContaining({
+                    stream_id: 42,
+                    container_extension: 'mkv',
+                }),
+            })
+        );
+    });
+
+    it('contains catalog recovery errors without rejecting the fallback', async () => {
+        const recoveryError = new Error('Catalog unavailable');
+        const resolution = resolveXtreamVodDetailsSelection({
+            apiService: {
+                getVodStream: jest.fn().mockRejectedValue(recoveryError),
+            },
+            currentCategories: [{ id: 7, xtream_id: 701 }],
+            currentCategoriesPlaylistId: 'playlist-b',
+            currentStreams: [],
+            currentStreamsPlaylistId: 'playlist-b',
+            credentials,
+            dataSource: {
+                getAllCategories: jest.fn(),
+                getCategories: jest.fn(),
+            },
+            isCurrent: () => true,
+            playlistId: 'playlist-b',
+            routeCategoryId: 7,
+            vodDetails: { info: [] },
+            vodId: 42,
+        });
+
+        expect(resolution.recovery).not.toBeNull();
+        await expect(resolution.recovery).resolves.toEqual({
+            recoveredCatalogItem: null,
+            recoveryError,
+            selection: resolution.selection,
+        });
     });
 });

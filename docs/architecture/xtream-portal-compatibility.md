@@ -108,12 +108,15 @@ hidden categories, before sending the provider `category_id`; PWA falls back
 to its API-backed visible categories, and an unresolved database id is never
 sent as though it were a provider id. This recovery request is skipped when
 the detail response or owner-valid cached catalog fields are already
-sufficient. Detail, recovered, and cached playback fields remain separate
-candidates: the first complete pair wins, so two incomplete rows can never
-synthesize a source. A failed lookup leaves the item safely unplayable. Detail
-requests are generation- and playlist-guarded, and detail teardown invalidates
-the active generation, so a late response cannot replace a newer selection or
-repopulate a closed detail.
+sufficient. Recovery is best-effort and never gates the detail page: the
+initial sparse selection is published and the loading shell ends before the
+category lookup completes, then a successful result upgrades that same
+fallback reactively with playback actions. Detail, recovered, and cached
+playback fields remain separate candidates: the first complete pair wins, so
+two incomplete rows can never synthesize a source. A failed lookup leaves the
+already-rendered item safely unplayable. Detail requests are generation- and
+playlist-guarded, and detail teardown invalidates the active generation, so a
+late response cannot replace a newer selection or repopulate a closed detail.
 In-memory VOD category and stream arrays record the playlist that populated
 them. Cross-portal Favorites/Recent details ignore arrays owned by another
 playlist, so colliding Xtream ids cannot suppress recovery or contribute a

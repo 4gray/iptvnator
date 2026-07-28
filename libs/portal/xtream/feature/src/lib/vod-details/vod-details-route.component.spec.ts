@@ -288,18 +288,28 @@ describe('VodDetailsRouteComponent', () => {
         expect(host.querySelector('button.play-btn')).not.toBeNull();
     });
 
-    it('hides actions when the fallback item has no usable playback source', () => {
-        selectedItem.set({ info: [] });
+    it('reveals fallback actions when async catalog recovery adds a source', () => {
+        selectedItem.set({
+            info: [],
+            stream_id: 650020,
+            container_extension: null,
+        } as unknown as XtreamVodDetails);
 
         fixture.detectChanges();
 
         const host = fixture.nativeElement as HTMLElement;
-        expect(
-            host.querySelector('[data-testid="xtream-vod-fallback"]')
-        ).not.toBeNull();
         expect(host.querySelector('button.play-btn')).toBeNull();
         expect(host.querySelector('button.favorite-btn')).toBeNull();
-        expect(host.querySelector('button.download-btn')).toBeNull();
+
+        selectedItem.set({
+            info: [],
+            stream_id: 650020,
+            container_extension: 'mkv',
+        } as unknown as XtreamVodDetails);
+        fixture.detectChanges();
+
+        expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(host.querySelector('button.favorite-btn')).not.toBeNull();
     });
 
     it('keeps the full Xtream detail view when usable metadata exists', () => {
