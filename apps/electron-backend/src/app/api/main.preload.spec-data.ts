@@ -434,6 +434,14 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [vodSourcePin, ['title:dune:'], ['title:dune:2021']],
     },
     {
+        method: 'dbReplaceVodSourcePins',
+        args: ['playlist-1', [vodSourcePin]],
+        channel: 'DB_REPLACE_VOD_SOURCE_PINS',
+        // One statement for the whole playlist: restore cannot afford a clear
+        // and a write that can half-apply.
+        forwardedArgs: ['playlist-1', [vodSourcePin]],
+    },
+    {
         method: 'dbClearVodSourcePin',
         args: [vodSourceMatchKeys],
         channel: 'DB_CLEAR_VOD_SOURCE_PIN',

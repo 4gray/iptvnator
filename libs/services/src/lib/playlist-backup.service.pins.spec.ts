@@ -31,6 +31,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
             playlistsService: collaborators.playlistsService,
             databaseService: collaborators.databaseService,
             vodSourcePinService: {
+                isAvailable: true,
                 listForPlaylistOrThrow: jest
                     .fn()
                     .mockRejectedValue(new Error('database is locked')),
@@ -52,6 +53,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
             playlistsService: collaborators.playlistsService,
             databaseService: collaborators.databaseService,
             vodSourcePinService: {
+                isAvailable: true,
                 listForPlaylistOrThrow: jest.fn().mockResolvedValue([
                     {
                         matchKey: 'tmdb:603',
@@ -82,14 +84,13 @@ describe('PlaylistBackupService Xtream source pins', () => {
 
     it('restores pins against the imported playlist, not the exported one', async () => {
         const collaborators = createRestoreCollaborators();
-        const setPin = jest.fn().mockResolvedValue(true);
+        const replacePins = jest.fn().mockResolvedValue(true);
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
+                isAvailable: true,
                 listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
-                set: setPin,
-                clear: jest.fn().mockResolvedValue(true),
-                clearForPlaylist: jest.fn().mockResolvedValue(true),
+                replaceForPlaylist: replacePins,
             },
         });
 
@@ -100,26 +101,32 @@ describe('PlaylistBackupService Xtream source pins', () => {
 
         await service.importBackup(JSON.stringify(manifest));
 
-        // The match key identifies the film and carries over as-is; the
-        // playlist id is this installation's, not the archive's.
-        expect(setPin).toHaveBeenCalledWith({
-            matchKey: 'tmdb:603',
-            playlistId: 'xtream-1',
-            contentId: 501,
-            portalType: 'xtream',
-        });
+        // One call, not a clear plus writes: a write failing partway would
+        // leave the old pins gone and the archive half-applied. The match key
+        // identifies the film and carries over as-is; the playlist id is this
+        // installation's, not the archive's.
+        expect(replacePins).toHaveBeenCalledTimes(1);
+        expect(replacePins).toHaveBeenCalledWith('xtream-1', [
+            {
+                matchKey: 'tmdb:603',
+                playlistId: 'xtream-1',
+                contentId: 501,
+                portalType: 'xtream',
+            },
+        ]);
     });
 
-    it('reports a pin that could not be written', async () => {
+    it('reports pins that could not be written', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
+                isAvailable: true,
                 listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
-                // `set` reports failure rather than throwing, so ignoring the
-                // result would drop the preference while the summary claims
-                // the import succeeded.
-                set: jest.fn().mockResolvedValue(false),
+                // Reported rather than thrown, so ignoring the result would
+                // drop every preference while the summary claims the import
+                // succeeded.
+                replaceForPlaylist: jest.fn().mockResolvedValue(false),
             },
         });
 
@@ -141,6 +148,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
+                isAvailable: true,
                 listForPlaylistOrThrow: jest.fn().mockResolvedValue([
                     {
                         matchKey: 'tmdb:999',
@@ -149,43 +157,41 @@ describe('PlaylistBackupService Xtream source pins', () => {
                         portalType: 'xtream',
                     },
                 ]),
-                set: jest.fn().mockResolvedValue(true),
-                clear: jest.fn().mockResolvedValue(true),
-                clearForPlaylist: clearPins,
+                replaceForPlaylist: clearPins,
             },
         });
 
         // Present-but-empty is an answer, like the playback positions cleared
         // beside it: leaving the current pins would resurrect preferences the
         // archive deliberately does not contain.
-        await service.importBackup(JSON.stringify(createXtreamManifest([], [])));
-
-        // By playlist, not by key list: the keyed clear caps its input and
-        // would have left the surplus behind while reporting success.
-        expect(clearPins).toHaveBeenCalledWith('xtream-1');
-    });
-
-    it('fails the entry when the existing pins cannot be cleared', async () => {
-        const collaborators = createRestoreCollaborators();
-        const service = createPlaylistBackupService({
-            ...collaborators,
-            vodSourcePinService: {
-                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
-                set: jest.fn().mockResolvedValue(true),
-                clear: jest.fn().mockResolvedValue(true),
-                clearForPlaylist: jest.fn().mockResolvedValue(false),
-            },
-        });
-
-        const summary = await service.importBackup(
+        await service.importBackup(
             JSON.stringify(createXtreamManifest([], []))
         );
 
-        // Writing the archive's pins over pins that are still there produces a
-        // union of both, which is neither state the user asked for.
-        expect(summary).toEqual(
-            expect.objectContaining({ merged: 0, failed: 1 })
-        );
+        // By playlist and in one statement, so the surplus cannot survive and
+        // a partial application cannot be left behind.
+        expect(clearPins).toHaveBeenCalledWith('xtream-1', []);
+    });
+
+    it('omits the collection entirely when it cannot read pins', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService({
+            playlistsService: collaborators.playlistsService,
+            databaseService: collaborators.databaseService,
+            vodSourcePinService: {
+                // The PWA, where pins do not exist at all.
+                isAvailable: false,
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
+            },
+        });
+
+        const backup = await service.exportBackup();
+
+        const entry = backup.manifest.playlists[0] as XtreamPlaylistBackupEntry;
+        // NOT `[]`. "Could not look" is a third answer, and writing it as
+        // "there are none" turns a web-made archive into an instruction that
+        // deletes every pin when imported on the desktop.
+        expect(entry.userState.sourcePins).toBeUndefined();
     });
 
     it('leaves pins alone for an archive that has no opinion', async () => {
@@ -223,6 +229,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
+                isAvailable: true,
                 listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
                 set: setPin,
                 clear: jest.fn().mockResolvedValue(true),

@@ -14,6 +14,7 @@ import {
     getVodSourcePin,
     setVodSourcePin,
     clearVodSourcePinsForPlaylist,
+    replaceVodSourcePinsForPlaylist,
 } from './vod-source-pin.operations';
 
 const tmdbRow = {
@@ -296,6 +297,62 @@ describe('vod-source-pin.operations', () => {
                 schema.vodSourcePins.matchKey,
                 ['tmdb:603', 'title:the matrix:1999']
             );
+        });
+    });
+
+    describe('replaceVodSourcePinsForPlaylist', () => {
+        const pin: VodSourcePin = {
+            matchKey: 'tmdb:603',
+            playlistId: 'playlist-1',
+            contentId: 501,
+            portalType: 'xtream',
+        };
+
+        it('clears and rewrites inside ONE transaction', async () => {
+            const { db, transaction, deleteRun, insertRun } =
+                createUpsertDbMock();
+
+            await expect(
+                replaceVodSourcePinsForPlaylist(db, 'playlist-1', [pin, pin])
+            ).resolves.toEqual({ success: true });
+
+            // Split into a clear and per-pin writes, a write failing partway
+            // leaves the old pins gone and the archive half-applied — a state
+            // belonging to neither, which the user cannot undo.
+            expect(transaction).toHaveBeenCalledTimes(1);
+            expect(deleteRun).toHaveBeenCalledTimes(1);
+            expect(insertRun).toHaveBeenCalledTimes(2);
+        });
+
+        it('clears without writing for an empty set', async () => {
+            const { db, deleteRun, insertRun } = createUpsertDbMock();
+
+            // Present-but-empty means the user had none; the clear still runs.
+            await replaceVodSourcePinsForPlaylist(db, 'playlist-1', []);
+
+            expect(deleteRun).toHaveBeenCalledTimes(1);
+            expect(insertRun).not.toHaveBeenCalled();
+        });
+
+        it('refuses a blank playlist id rather than clearing everything', async () => {
+            const { db, transaction } = createUpsertDbMock();
+
+            await expect(
+                replaceVodSourcePinsForPlaylist(db, '', [pin])
+            ).resolves.toEqual({ success: false });
+            expect(transaction).not.toHaveBeenCalled();
+        });
+
+        it('drops rows that name no film', async () => {
+            const { db, insertRun } = createUpsertDbMock();
+
+            await replaceVodSourcePinsForPlaylist(db, 'playlist-1', [
+                { ...pin, matchKey: '' },
+                { ...pin, contentId: undefined as unknown as number },
+                pin,
+            ]);
+
+            expect(insertRun).toHaveBeenCalledTimes(1);
         });
     });
 

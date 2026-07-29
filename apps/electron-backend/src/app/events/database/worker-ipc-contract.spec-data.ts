@@ -380,6 +380,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         },
     },
     {
+        operation: 'DB_REPLACE_VOD_SOURCE_PINS',
+        args: ['playlist-1', [vodSourcePin]],
+        payload: { playlistId: 'playlist-1', pins: [vodSourcePin] },
+    },
+    {
         operation: 'DB_CLEAR_VOD_SOURCE_PIN',
         args: [vodSourceMatchKeys],
         payload: { matchKeys: vodSourceMatchKeys },

@@ -62,6 +62,7 @@ export const DB_WORKER_OPERATIONS = [
     'DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST',
     'DB_SET_VOD_SOURCE_PIN',
     'DB_CLEAR_VOD_SOURCE_PIN',
+    'DB_REPLACE_VOD_SOURCE_PINS',
 ] as const;
 
 export type DbWorkerOperation = (typeof DB_WORKER_OPERATIONS)[number];

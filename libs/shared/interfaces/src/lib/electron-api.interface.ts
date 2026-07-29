@@ -923,6 +923,11 @@ export interface ElectronBridgeApi {
         retireKeys?: string[],
         aliasKeys?: string[]
     ) => Promise<ElectronBridgeResult>;
+    /** Makes the playlist's pins exactly `pins`, in one transaction. */
+    dbReplaceVodSourcePins: (
+        playlistId: string,
+        pins: VodSourcePin[]
+    ) => Promise<ElectronBridgeResult>;
     dbClearVodSourcePin: (
         matchKeys: string[]
     ) => Promise<ElectronBridgeResult>;

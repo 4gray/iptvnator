@@ -41,3 +41,8 @@ handleWorkerRequest(
 handleWorkerRequest('DB_CLEAR_VOD_SOURCE_PIN', (matchKeys: string[]) => ({
     matchKeys,
 }));
+
+handleWorkerRequest(
+    'DB_REPLACE_VOD_SOURCE_PINS',
+    (playlistId: string, pins: VodSourcePin[] = []) => ({ playlistId, pins })
+);

@@ -139,6 +139,37 @@ export class VodSourcePinService {
         }
     }
 
+    /**
+     * Make this playlist's pins exactly `pins`, in one transaction.
+     *
+     * Restore needs the clear and the writes to be indivisible. Done in steps,
+     * a write that fails partway leaves the user's previous pins already gone
+     * and only part of the archive applied — a state belonging to neither, and
+     * reported as a failure the user cannot act on.
+     */
+    async replaceForPlaylist(
+        playlistId: string,
+        pins: VodSourcePin[]
+    ): Promise<boolean> {
+        if (!this.isAvailable || !playlistId) {
+            return false;
+        }
+
+        try {
+            const result = await window.electron.dbReplaceVodSourcePins(
+                playlistId,
+                pins
+            );
+            return result?.success === true;
+        } catch (error) {
+            console.warn(
+                'Replacing pinned VOD sources failed:',
+                redactSensitiveData(error)
+            );
+            return false;
+        }
+    }
+
     /** Clears the pin under every alias, so unpinning cannot be undone by a
      * stale row stored under the other key form. */
     async clear(matchKeys: string[]): Promise<boolean> {

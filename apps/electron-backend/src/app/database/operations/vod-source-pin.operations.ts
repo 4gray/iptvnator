@@ -198,6 +198,69 @@ export async function clearVodSourcePinsForPlaylist(
     return { success: true };
 }
 
+/**
+ * Make this playlist's pins exactly `pins`, in ONE transaction.
+ *
+ * Restore cannot do this as a clear followed by writes. If a write fails
+ * partway the user's previous pins are already gone and only a prefix of the
+ * archive has landed — the import reports failure, and the state it leaves
+ * behind belongs to neither the backup nor what was there before. One
+ * statement group means the playlist either ends up as the archive describes
+ * it or exactly as it was.
+ */
+export async function replaceVodSourcePinsForPlaylist(
+    db: AppDatabase,
+    playlistId: string,
+    pins: VodSourcePin[]
+): Promise<{ success: boolean }> {
+    if (typeof playlistId !== 'string' || playlistId === '') {
+        return { success: false };
+    }
+
+    const updatedAt = new Date().toISOString();
+    const rows = (pins ?? [])
+        .filter(
+            (pin) =>
+                typeof pin?.matchKey === 'string' &&
+                pin.matchKey !== '' &&
+                Number.isInteger(pin?.contentId)
+        )
+        .map((pin) => ({
+            matchKey: pin.matchKey,
+            playlistId,
+            contentId: pin.contentId,
+            portalType: pin.portalType,
+            updatedAt: pin.updatedAt ?? updatedAt,
+        }));
+
+    const inserts = rows.map((row) =>
+        db
+            .insert(schema.vodSourcePins)
+            .values(row)
+            .onConflictDoUpdate({
+                target: schema.vodSourcePins.matchKey,
+                set: {
+                    playlistId: row.playlistId,
+                    contentId: row.contentId,
+                    portalType: row.portalType,
+                    updatedAt: row.updatedAt,
+                },
+            })
+    );
+
+    await db.transaction(() => {
+        db.delete(schema.vodSourcePins)
+            .where(eq(schema.vodSourcePins.playlistId, playlistId))
+            .run();
+
+        for (const insert of inserts) {
+            insert.run();
+        }
+    });
+
+    return { success: true };
+}
+
 function toPin(row: schema.VodSourcePinRow): VodSourcePin {
     return {
         matchKey: row.matchKey,
