@@ -18,10 +18,6 @@ interface ImportProbe {
 }
 
 interface RendererCaptureModule {
-    advanceM3uImportHeartbeatDeadline?: (
-        deadlineEpochMs: number,
-        nowEpochMs: number
-    ) => number;
     assertCompleteM3uImportRendererProbe?: (probe: ImportProbe) => void;
     startM3uImportRendererCapture?: unknown;
 }
@@ -32,7 +28,7 @@ interface RendererProbeModule {
     recordM3uImportHeartbeat?: (
         page: unknown,
         deadlineEpochMs: number
-    ) => Promise<void>;
+    ) => Promise<number>;
     stopM3uImportRendererProbe?: (page: unknown) => Promise<ImportProbe>;
 }
 
@@ -248,12 +244,14 @@ test('clips drained long tasks and heartbeat samples to the operation window', a
         );
 
         browser.setNow(250);
-        await module.recordM3uImportHeartbeat?.(browser.page, 90);
-        await module.recordM3uImportHeartbeat?.(browser.page, 150);
-        await module.recordM3uImportHeartbeat?.(browser.page, 210);
+        const nextDeadline = await module.recordM3uImportHeartbeat?.(
+            browser.page,
+            150
+        );
         const metrics = await module.stopM3uImportRendererProbe?.(browser.page);
 
-        assert.deepEqual(metrics?.heartbeatDelaysMs, [50]);
+        assert.equal(nextDeadline, 250);
+        assert.deepEqual(metrics?.heartbeatDelaysMs, [50, 0]);
         assert.deepEqual(metrics?.longTasksMs, [20, 10]);
     } finally {
         browser.cleanup();
@@ -285,17 +283,6 @@ test('records the terminal animation-frame gap exactly once', async () => {
     } finally {
         browser.cleanup();
     }
-});
-
-test('advances the external heartbeat on its fixed 50ms deadline grid', async () => {
-    const module = await captureModulePromise;
-    assert.ok(module);
-    const advance = module.advanceM3uImportHeartbeatDeadline;
-    assert.equal(typeof advance, 'function');
-
-    assert.equal(advance?.(1_000, 1_005), 1_050);
-    assert.equal(advance?.(1_000, 1_060), 1_100);
-    assert.equal(advance?.(1_000, 1_200), 1_250);
 });
 
 test('installs the production renderer phase hook and returns its raw events', () => {
@@ -377,6 +364,15 @@ test('fails closed when any terminal proof or the probe itself is missing', asyn
 test('clears the harness heap sampler even when the renderer probe is missing', () => {
     const source = readSource(captureUrl);
     assert.ok(source);
+    const stopBackgroundWork = source.indexOf('const stopBackgroundWork');
+    const stopScheduling = source.indexOf(
+        'stopSchedulingBackgroundWork()',
+        stopBackgroundWork
+    );
+    const finalHeartbeat = source.indexOf(
+        'await flushHeartbeat()',
+        stopScheduling
+    );
     const backgroundStop = source.indexOf(
         'await stopBackgroundWork()',
         source.indexOf('const stopCapture')
@@ -384,6 +380,9 @@ test('clears the harness heap sampler even when the renderer probe is missing', 
     const probeStop = source.indexOf('probe = await stopProbe()', backgroundStop);
 
     assert.match(source, /clearInterval\(heapSampleTimer\)/);
+    assert.ok(stopScheduling >= 0);
+    assert.ok(finalHeartbeat > stopScheduling);
     assert.ok(backgroundStop >= 0);
     assert.ok(probeStop > backgroundStop);
+    assert.match(source, /assertFixedGridRendererHeartbeatCoverage\(/);
 });

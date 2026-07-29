@@ -30,8 +30,10 @@ import {
     recordXtreamRendererConsoleError,
     type XtreamRendererConsoleErrorBreakdown,
 } from './xtream-renderer-console-errors';
-
-const HEARTBEAT_INTERVAL_MS = 50;
+import {
+    assertFixedGridRendererHeartbeatCoverage,
+    RENDERER_HEARTBEAT_INTERVAL_MS,
+} from './renderer-heartbeat-fixed-grid';
 
 export interface XtreamRendererCaptureOptions {
     readonly diagnostic: boolean;
@@ -210,26 +212,45 @@ export async function startXtreamRendererCapture(
         heartbeatTimer = setTimeout(
             () => {
                 heartbeatTimer = null;
+                if (stopped) return;
                 heartbeatInFlight = recordXtreamRendererHeartbeat(
                     page,
                     deadline
                 )
+                    .then((nextDeadlineEpochMs) => {
+                        heartbeatDeadlineEpochMs = nextDeadlineEpochMs;
+                    })
                     .catch((error: unknown) => {
                         heartbeatError ??= error;
                     })
                     .finally(() => {
                         heartbeatInFlight = null;
-                        if (stopped) return;
-                        heartbeatDeadlineEpochMs =
-                            advanceXtreamRendererHeartbeatDeadline(
-                                deadline,
-                                Date.now()
-                            );
+                        const gridClosed =
+                            heartbeatDeadlineEpochMs === deadline;
+                        if (stopped || heartbeatError !== null || gridClosed)
+                            return;
                         scheduleHeartbeat();
                     });
             },
             Math.max(0, deadline - Date.now())
         );
+    };
+    const flushHeartbeat = async (): Promise<void> => {
+        await heartbeatInFlight;
+        if (
+            heartbeatError !== null ||
+            heartbeatDeadlineEpochMs === null
+        ) {
+            return;
+        }
+        try {
+            heartbeatDeadlineEpochMs = await recordXtreamRendererHeartbeat(
+                page,
+                heartbeatDeadlineEpochMs
+            );
+        } catch (error) {
+            heartbeatError ??= error;
+        }
     };
     const stopCapture = async (): Promise<XtreamRendererCaptureMetrics> => {
         try {
@@ -238,10 +259,10 @@ export async function startXtreamRendererCapture(
             if (measurementStartEpochMs === null) {
                 throw new Error('xtream-renderer-operation-not-started');
             }
+            await flushHeartbeat();
             if (options.diagnostic) {
                 await stopRendererDiagnosticCapture(session, artifacts);
             }
-            await heartbeatInFlight;
             await heapInFlight;
             const probe = await stopXtreamRendererProbe(page);
             await session.send('HeapProfiler.enable');
@@ -260,6 +281,11 @@ export async function startXtreamRendererCapture(
             throwIfError(heapError, 'xtream-renderer-heap-sampling-failed');
             throwIfError(heartbeatError, 'xtream-renderer-heartbeat-failed');
             assertCompleteXtreamRendererProbe(probe);
+            assertFixedGridRendererHeartbeatCoverage(
+                probe.heartbeatDelaysMs,
+                probe.operationStartEpochMs,
+                probe.terminalEpochMs
+            );
             assertRendererMeasurementWindow({
                 captureCutoffEpochMs,
                 measurementStartEpochMs,
@@ -328,7 +354,8 @@ export async function startXtreamRendererCapture(
             await sampleHeap();
             throwIfError(heapError, 'xtream-renderer-heap-sampling-failed');
             heapTimer = setInterval(() => void sampleHeap(), 20);
-            heartbeatDeadlineEpochMs = startedAt + HEARTBEAT_INTERVAL_MS;
+            heartbeatDeadlineEpochMs =
+                startedAt + RENDERER_HEARTBEAT_INTERVAL_MS;
             scheduleHeartbeat();
             return startedAt;
         },
@@ -346,19 +373,6 @@ export async function startXtreamRendererCapture(
         targetId,
         waitForTerminal: () => waitForXtreamRendererTerminal(page),
     });
-}
-
-export function advanceXtreamRendererHeartbeatDeadline(
-    deadlineEpochMs: number,
-    nowEpochMs: number
-): number {
-    const next = deadlineEpochMs + HEARTBEAT_INTERVAL_MS;
-    if (next > nowEpochMs) return next;
-    return (
-        next +
-        (Math.floor((nowEpochMs - next) / HEARTBEAT_INTERVAL_MS) + 1) *
-            HEARTBEAT_INTERVAL_MS
-    );
 }
 
 function removePageErrorListeners(

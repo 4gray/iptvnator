@@ -19,8 +19,10 @@ import {
     waitForM3uImportTerminal,
 } from './m3u-import-renderer-probe';
 import { summarizeNumbers } from './performance-statistics';
-
-const HEARTBEAT_INTERVAL_MS = 50;
+import {
+    assertFixedGridRendererHeartbeatCoverage,
+    RENDERER_HEARTBEAT_INTERVAL_MS,
+} from './renderer-heartbeat-fixed-grid';
 
 export interface M3uImportRendererCaptureStartOptions {
     readonly diagnostic: boolean;
@@ -156,30 +158,49 @@ export async function startM3uImportRendererCapture(
         heartbeatTimer = setTimeout(
             () => {
                 heartbeatTimer = null;
+                if (stopped) {
+                    return;
+                }
                 heartbeatInFlight = recordM3uImportHeartbeat(page, deadline)
+                    .then((nextDeadlineEpochMs) => {
+                        heartbeatDeadlineEpochMs = nextDeadlineEpochMs;
+                    })
                     .catch((error: unknown) => {
                         heartbeatError ??= error;
                     })
                     .finally(() => {
                         heartbeatInFlight = null;
-                        if (stopped) {
+                        const gridClosed =
+                            heartbeatDeadlineEpochMs === deadline;
+                        if (stopped || heartbeatError !== null || gridClosed)
                             return;
-                        }
-                        heartbeatDeadlineEpochMs =
-                            advanceM3uImportHeartbeatDeadline(
-                                deadline,
-                                Date.now()
-                            );
                         scheduleHeartbeat();
                     });
             },
             Math.max(0, deadline - Date.now())
         );
     };
+    const flushHeartbeat = async (): Promise<void> => {
+        await heartbeatInFlight;
+        if (
+            heartbeatError !== null ||
+            heartbeatDeadlineEpochMs === null
+        ) {
+            return;
+        }
+        try {
+            heartbeatDeadlineEpochMs = await recordM3uImportHeartbeat(
+                page,
+                heartbeatDeadlineEpochMs
+            );
+        } catch (error) {
+            heartbeatError ??= error;
+        }
+    };
     const stopBackgroundWork = (): Promise<void> => {
         backgroundStopPromise ??= (async () => {
             stopSchedulingBackgroundWork();
-            await heartbeatInFlight;
+            await flushHeartbeat();
             await heapSamplePromise;
             await sampleHeap();
         })();
@@ -243,6 +264,11 @@ export async function startM3uImportRendererCapture(
                 throwCaptureError(heartbeatError, 'Renderer heartbeat failed');
                 throwCaptureError(probeError, 'Renderer probe stop failed');
                 assertCompleteM3uImportRendererProbe(probe);
+                assertFixedGridRendererHeartbeatCoverage(
+                    probe.heartbeatDelaysMs,
+                    probe.operationStartEpochMs,
+                    probe.terminalEpochMs
+                );
                 return Object.freeze({
                     cpuProfilePath: artifacts.cpuProfilePath,
                     frameGap: summarizeNumbers(probe.frameGapsMs),
@@ -292,25 +318,12 @@ export async function startM3uImportRendererCapture(
         triggerImport: async () => {
             const operationStartEpochMs = await triggerM3uImport(page);
             heartbeatDeadlineEpochMs =
-                operationStartEpochMs + HEARTBEAT_INTERVAL_MS;
+                operationStartEpochMs + RENDERER_HEARTBEAT_INTERVAL_MS;
             scheduleHeartbeat();
             return operationStartEpochMs;
         },
         waitForTerminal: () => waitForM3uImportTerminal(page),
     });
-}
-
-export function advanceM3uImportHeartbeatDeadline(
-    deadlineEpochMs: number,
-    nowEpochMs: number
-): number {
-    const nextDeadline = deadlineEpochMs + HEARTBEAT_INTERVAL_MS;
-    if (nextDeadline > nowEpochMs) {
-        return nextDeadline;
-    }
-    const missedIntervals =
-        Math.floor((nowEpochMs - nextDeadline) / HEARTBEAT_INTERVAL_MS) + 1;
-    return nextDeadline + missedIntervals * HEARTBEAT_INTERVAL_MS;
 }
 
 export function assertCompleteM3uImportRendererProbe(

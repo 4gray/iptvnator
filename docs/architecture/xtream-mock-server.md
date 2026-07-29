@@ -488,6 +488,13 @@ installing main capture. Its result is discarded: this pre-arm only guarantees
 that the exact worker can be profiled and happens before seed or measured
 capture.
 
+The renderer heartbeat is sampled on a fixed 50 ms deadline grid. One CDP
+delivery records every elapsed grid point, and successful capture shutdown
+waits for an in-flight delivery before performing one terminal-clipped drain.
+The iteration fails closed if the resulting sample count does not cover the
+complete operation window; this avoids coordinated omission when renderer work
+delays multiple heartbeat deadlines.
+
 Diagnostic profiles are evidence envelopes, not comparison totals. Starting
 Chromium tracing and the CPU profilers can add a short pre-trigger setup segment
 that contains no application workload; the raw boundary timestamps preserve

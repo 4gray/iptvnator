@@ -7,6 +7,9 @@ import {
     XTREAM_RENDERER_STOPPED_KEY,
     type XtreamRendererProbeMetrics,
 } from './xtream-renderer-probe-contract';
+import {
+    recordFixedGridRendererHeartbeats,
+} from './renderer-heartbeat-fixed-grid';
 
 export async function beginXtreamRendererOperation(
     page: Page
@@ -33,37 +36,12 @@ export async function beginXtreamRendererOperation(
 export async function recordXtreamRendererHeartbeat(
     page: Page,
     deadlineEpochMs: number
-): Promise<void> {
-    await page.evaluate(
-        ({ deadlineEpochMs, stateKey }) => {
-            const state = (globalThis as unknown as Record<string, unknown>)[
-                stateKey
-            ] as
-                | {
-                      heartbeatDelaysMs: number[];
-                      operationStartEpochMs: number;
-                      terminalEpochMs: number | null;
-                  }
-                | undefined;
-            if (!state || state.operationStartEpochMs <= 0) {
-                throw new Error('xtream-renderer-probe-unavailable');
-            }
-            if (
-                deadlineEpochMs >= state.operationStartEpochMs &&
-                (state.terminalEpochMs === null ||
-                    deadlineEpochMs <= state.terminalEpochMs)
-            ) {
-                const received = performance.timeOrigin + performance.now();
-                state.heartbeatDelaysMs.push(
-                    Math.max(
-                        0,
-                        Math.min(received, state.terminalEpochMs ?? received) -
-                            deadlineEpochMs
-                    )
-                );
-            }
-        },
-        { deadlineEpochMs, stateKey: XTREAM_RENDERER_STATE_KEY }
+): Promise<number> {
+    return recordFixedGridRendererHeartbeats(
+        page,
+        XTREAM_RENDERER_STATE_KEY,
+        deadlineEpochMs,
+        'xtream-renderer-probe-unavailable'
     );
 }
 

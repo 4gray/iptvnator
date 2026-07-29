@@ -128,11 +128,16 @@ therefore `N/A` with
 Instrumentation is development-only, opt-in, fail-neutral, and count-only. It
 must not scan or log playlist payloads to generate metadata. Renderer
 long-task, frame-gap, and heartbeat samples are clipped to the measured
-operation boundary. Main capture stops only after the upsert and route-reload
-GET responses plus both asynchronous preload success markers have arrived, so
-return-clone attribution cannot race capture shutdown. Formal comparison fails
-closed after writing raw results if exact-window renderer RSS, database-worker
-peak heap/external samples, or the database worker's explicit post-GC heap is
+operation boundary. The external heartbeat uses a fixed 50 ms deadline grid:
+each renderer delivery records every elapsed deadline, and successful shutdown
+performs one terminal-clipped drain after any in-flight delivery. The capture
+fails closed unless the final sample count matches the complete operation
+grid, preventing coordinated omission when an import blocks several ticks.
+Main capture stops only after the upsert and route-reload GET responses plus
+both asynchronous preload success markers have arrived, so return-clone
+attribution cannot race capture shutdown. Formal comparison fails closed after
+writing raw results if exact-window renderer RSS, database-worker peak
+heap/external samples, or the database worker's explicit post-GC heap is
 missing or incoherent. Both initial-import database requests in every measured
 run must also contain coherent event-loop delay, event-loop utilization, and
 thread-CPU metrics; the validity record exposes the exact expected and valid

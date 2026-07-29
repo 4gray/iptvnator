@@ -3,10 +3,6 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 interface CaptureModule {
-    advanceXtreamRendererHeartbeatDeadline?: (
-        deadlineEpochMs: number,
-        nowEpochMs: number
-    ) => number;
     selectXtreamRendererTarget?: (session: FakeSession) => Promise<string>;
     startXtreamRendererCapture?: unknown;
 }
@@ -122,7 +118,7 @@ test('arms the renderer without sampling heap or starting diagnostics before the
     assert.ok(diagnosticStart > operationBoundary);
     assert.ok(heapTimerStart > operationBoundary);
     assert.equal(source.match(/await sampleHeap\(\)/g)?.length, 1);
-    assert.match(source, /HEARTBEAT_INTERVAL_MS\s*=\s*50/);
+    assert.match(source, /RENDERER_HEARTBEAT_INTERVAL_MS/);
     assert.match(source, /Runtime\.getHeapUsage/);
     assert.match(source, /HeapProfiler\.collectGarbage/);
     assert.match(source, /createRendererArtifactCapture/);
@@ -202,6 +198,10 @@ test('cuts off scheduling and diagnostics before forced GC and snapshot work', (
     const source = readFileSync(captureUrl, 'utf8');
     const stopCapture = source.indexOf('const stopCapture');
     const stopScheduling = source.indexOf('stopScheduling()', stopCapture);
+    const finalHeartbeat = source.indexOf(
+        'await flushHeartbeat()',
+        stopScheduling
+    );
     const diagnosticStop = source.indexOf(
         'await stopRendererDiagnosticCapture(session, artifacts)',
         stopCapture
@@ -217,9 +217,11 @@ test('cuts off scheduling and diagnostics before forced GC and snapshot work', (
 
     assert.ok(stopCapture >= 0);
     assert.ok(stopScheduling > stopCapture);
-    assert.ok(diagnosticStop > stopScheduling);
+    assert.ok(finalHeartbeat > stopScheduling);
+    assert.ok(diagnosticStop > finalHeartbeat);
     assert.ok(forcedGc > diagnosticStop);
     assert.ok(heapSnapshot > forcedGc);
+    assert.match(source, /assertFixedGridRendererHeartbeatCoverage\(/);
 });
 
 test('persists only error counts and cleans up listeners/session idempotently', () => {
@@ -231,12 +233,4 @@ test('persists only error counts and cleans up listeners/session idempotently', 
     assert.match(source, /page\.off\('console'/);
     assert.match(source, /page\.off\('pageerror'/);
     assert.match(source, /disposePromise/);
-});
-
-test('uses deadline-based heartbeat catch-up without accumulating drift', async () => {
-    const module = await modulePromise;
-    assert.ok(module?.advanceXtreamRendererHeartbeatDeadline);
-
-    assert.equal(module.advanceXtreamRendererHeartbeatDeadline(150, 149), 200);
-    assert.equal(module.advanceXtreamRendererHeartbeatDeadline(150, 251), 300);
 });
