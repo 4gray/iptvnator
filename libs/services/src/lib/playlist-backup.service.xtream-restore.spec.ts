@@ -86,6 +86,19 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         expect(
             collaborators.databaseService.updateCategoryVisibility
         ).toHaveBeenCalledTimes(3);
+        expect(
+            collaborators.pendingRestoreService.applyAndConsume
+        ).toHaveBeenCalledWith(
+            'xtream-1',
+            expect.objectContaining({
+                state: expect.objectContaining({
+                    hiddenCategories: [
+                        { categoryType: 'live', xtreamId: 101 },
+                    ],
+                }),
+            }),
+            expect.any(Function)
+        );
         expect(collaborators.pendingRestoreService.clear).toHaveBeenCalledWith(
             'xtream-1',
             expect.objectContaining({

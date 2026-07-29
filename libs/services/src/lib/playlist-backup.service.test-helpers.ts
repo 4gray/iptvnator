@@ -5,9 +5,13 @@ import {
     VodSourcePin,
     XtreamBackupFavoriteItem,
     XtreamBackupRecentlyViewedItem,
+    XtreamPendingRestoreState,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistBackupService } from './playlist-backup.service';
-import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
+import {
+    XtreamPendingRestoreService,
+    XtreamPendingRestoreSnapshot,
+} from './xtream-pending-restore.service';
 
 /**
  * Shared factory for PlaylistBackupService specs. Instantiates the service
@@ -20,6 +24,58 @@ export function createPlaylistBackupService(
     const service = Object.create(
         PlaylistBackupService.prototype
     ) as PlaylistBackupService;
+    let nextRevision = 0;
+    let pendingSnapshot: XtreamPendingRestoreSnapshot | null = null;
+    let lastConsumedRevision: number | null = null;
+    const pendingRestoreService = {
+        set: jest.fn(
+            (
+                playlistId: string,
+                state: XtreamPendingRestoreState
+            ): XtreamPendingRestoreSnapshot | null => {
+                pendingSnapshot = {
+                    playlistId,
+                    revision: ++nextRevision,
+                    state,
+                };
+                lastConsumedRevision = null;
+                return pendingSnapshot;
+            }
+        ),
+        clear: jest.fn().mockReturnValue(true),
+        applyAndConsume: jest.fn(),
+    };
+    pendingRestoreService.applyAndConsume.mockImplementation(
+        async (
+            playlistId: string,
+            expectedSnapshot: XtreamPendingRestoreSnapshot,
+            apply: (state: XtreamPendingRestoreState) => Promise<void>
+        ) => {
+            if (!pendingSnapshot) {
+                return lastConsumedRevision === expectedSnapshot.revision
+                    ? 'consumed'
+                    : 'superseded';
+            }
+            if (
+                pendingSnapshot.revision !== expectedSnapshot.revision
+            ) {
+                return 'superseded';
+            }
+
+            await apply(pendingSnapshot.state);
+            if (
+                !pendingRestoreService.clear(
+                    playlistId,
+                    pendingSnapshot.state
+                )
+            ) {
+                return 'consume-failed';
+            }
+            lastConsumedRevision = pendingSnapshot.revision;
+            pendingSnapshot = null;
+            return 'consumed';
+        }
+    );
 
     Object.assign(service as object, {
         playlistsService: {
@@ -68,10 +124,7 @@ export function createPlaylistBackupService(
             clear: jest.fn().mockResolvedValue(true),
             clearForPlaylist: jest.fn().mockResolvedValue(true),
         },
-        pendingRestoreService: {
-            set: jest.fn(),
-            clear: jest.fn().mockReturnValue(true),
-        },
+        pendingRestoreService,
         ...overrides,
     });
 

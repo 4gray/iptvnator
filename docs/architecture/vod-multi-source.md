@@ -684,8 +684,13 @@ prefix from being visible before the parked state is retried.
 The parked state is consumed only after that atomic replacement succeeds, and
 its removal is verified (with an empty tombstone as the safe fallback when
 storage removal fails). Consumption compares the current parked snapshot with
-the one that was applied, and backup imports are serialized so an older restore
-cannot finish after and overwrite a newer one. Either restore path reports a
+the one that was applied. Store-owned replay and direct backup restore share a
+playlist-scoped FIFO coordinator and consume a revision captured for the
+content generation they restored. Duplicate consumers of that revision
+coalesce, while a newer revision remains parked for its own post-import
+consumer; an older asynchronous replacement therefore cannot clear or finish
+after a newer one. Parking is verified before an import can report success, and
+whole backup imports are serialized as well. Either restore path reports a
 failed import instead of claiming success when consumption cannot be
 confirmed. Fresh-import initialization stays blocked and retryable on either
 failure. Cached content is not exposed while parked state exists: a complete

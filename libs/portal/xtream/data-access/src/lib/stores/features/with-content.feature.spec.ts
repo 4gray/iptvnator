@@ -10,6 +10,7 @@ import {
     createAbortError,
     createContentTestStore,
     createDeferred,
+    createPendingRestoreServiceMock,
     PENDING_RESTORE_STATE,
     readPendingRestoreBlocked,
     setPerformanceHook,
@@ -56,10 +57,9 @@ describe('withContent import state', () => {
     let xtreamApiService: {
         cancelSession: jest.Mock;
     };
-    let pendingRestoreService: {
-        getOrThrow: jest.Mock;
-        clear: jest.Mock;
-    };
+    let pendingRestoreService: ReturnType<
+        typeof createPendingRestoreServiceMock
+    >;
 
     beforeEach(() => {
         localStorage.clear();
@@ -94,10 +94,7 @@ describe('withContent import state', () => {
         xtreamApiService = {
             cancelSession: jest.fn().mockResolvedValue(true),
         };
-        pendingRestoreService = {
-            getOrThrow: jest.fn().mockReturnValue(null),
-            clear: jest.fn().mockReturnValue(true),
-        };
+        pendingRestoreService = createPendingRestoreServiceMock();
         checkPortalStatusMock = jest.fn().mockResolvedValue('active');
 
         TestBed.configureTestingModule({
@@ -1069,7 +1066,7 @@ describe('withContent import state', () => {
         expect(store.contentInitBlockReason()).toBeNull();
     });
 
-    it('consumes pending state parked during an active import', async () => {
+    it('leaves state parked during an active import for the next content generation', async () => {
         const pendingSeries = createDeferred<any[]>();
         dataSource.getContent.mockImplementation(
             (_playlistId: string, _credentials: unknown, type: ContentType) =>
@@ -1092,18 +1089,30 @@ describe('withContent import state', () => {
         pendingSeries.resolve([]);
         await initialization;
 
+        expect(dataSource.restoreUserData).not.toHaveBeenCalled();
+        expect(readPendingRestoreBlocked(store)).toBe(true);
+        expect(store.isContentInitialized()).toBe(false);
+
+        dataSource.getContent.mockResolvedValue([]);
+        await store.initializeContent();
+
         expect(dataSource.restoreUserData).toHaveBeenCalledWith(
             PLAYLIST.id,
             PENDING_RESTORE_STATE,
             expect.any(Object)
+        );
+        expect(pendingRestoreService.applyAndConsume).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            expect.objectContaining({
+                state: PENDING_RESTORE_STATE,
+            }),
+            expect.any(Function)
         );
         expect(pendingRestoreService.clear).toHaveBeenCalledWith(
             PLAYLIST.id,
             PENDING_RESTORE_STATE
         );
         expect(readPendingRestoreBlocked(store)).toBe(false);
-        expect(store.isImporting()).toBe(false);
-        expect(store.activeImportSessionId()).toBeNull();
         expect(store.isContentInitialized()).toBe(true);
     });
 

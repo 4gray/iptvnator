@@ -217,6 +217,33 @@ describe('PlaylistBackupService Xtream source pins', () => {
         expect(summary.errors[0]).toMatch(/pending restore state/i);
     });
 
+    it('reports a restore whose pending state could not be parked', async () => {
+        const collaborators = createRestoreCollaborators();
+        collaborators.pendingRestoreService.set.mockReturnValueOnce(null);
+        const replacePins = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                isAvailable: true,
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
+                replaceForPlaylist: replacePins,
+            },
+        });
+
+        const manifest = createXtreamManifest(
+            [],
+            [{ matchKey: 'tmdb:603', contentId: 501 }]
+        );
+
+        const summary = await service.importBackup(JSON.stringify(manifest));
+
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 0, failed: 1 })
+        );
+        expect(summary.errors[0]).toMatch(/parking pending restore state/i);
+        expect(replacePins).not.toHaveBeenCalled();
+    });
+
     it('drops pins the backup does not contain', async () => {
         const collaborators = createRestoreCollaborators();
         const clearPins = jest.fn().mockResolvedValue(true);

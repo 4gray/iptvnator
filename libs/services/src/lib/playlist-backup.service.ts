@@ -841,7 +841,15 @@ export class PlaylistBackupService {
         const restoreState: XtreamPendingRestoreState =
             normalizeXtreamPendingRestoreState(entry.userState);
 
-        this.pendingRestoreService.set(playlistId, restoreState);
+        const restoreSnapshot = this.pendingRestoreService.set(
+            playlistId,
+            restoreState
+        );
+        if (!restoreSnapshot) {
+            throw new PlaylistBackupError(
+                `Parking pending restore state for "${playlistId}" failed.`
+            );
+        }
 
         if (!this.hasElectronApi()) {
             return;
@@ -851,8 +859,14 @@ export class PlaylistBackupService {
             return;
         }
 
-        await this.applyXtreamRestoreState(playlistId, restoreState);
-        if (!this.pendingRestoreService.clear(playlistId, restoreState)) {
+        const restoreResult =
+            await this.pendingRestoreService.applyAndConsume(
+                playlistId,
+                restoreSnapshot,
+                (pendingState) =>
+                    this.applyXtreamRestoreState(playlistId, pendingState)
+            );
+        if (restoreResult !== 'consumed') {
             throw new PlaylistBackupError(
                 `Clearing pending restore state for "${playlistId}" failed.`
             );

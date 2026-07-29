@@ -855,11 +855,13 @@ export function withContent() {
                     // content. A retry may load each type from the DB without
                     // emitting an import phase, so the store-owned gate is what
                     // prevents source-pin edits until replay is consumed.
-                    const initialRestoreData = pendingRestoreService.getOrThrow(
-                        ctx.playlistId
-                    );
+                    const initialRestoreSnapshot =
+                        pendingRestoreService.getSnapshotOrThrow(
+                            ctx.playlistId
+                        );
                     patchState(store, {
-                        isPendingRestoreBlocked: initialRestoreData !== null,
+                        isPendingRestoreBlocked:
+                            initialRestoreSnapshot !== null,
                     });
 
                     // Electron content persistence maps remote category IDs
@@ -876,19 +878,21 @@ export function withContent() {
                     });
                     throwIfImportCancelled(importSessionId);
 
-                    // A backup may be imported while this initialization is
-                    // awaiting network or DB work. Use the latest snapshot;
-                    // restoreUserData applies category visibility too, so a
-                    // late arrival is complete rather than pin-only.
-                    const restoreData = pendingRestoreService.getOrThrow(
-                        ctx.playlistId
-                    );
+                    // Only the revision captured before import belongs to this
+                    // content generation. A newer revision may come from a
+                    // refresh that has deleted the catalog and must remain
+                    // parked until its own replacement import completes.
+                    const currentRestoreSnapshot =
+                        pendingRestoreService.getSnapshotOrThrow(
+                            ctx.playlistId
+                        );
                     patchState(store, {
-                        isPendingRestoreBlocked: restoreData !== null,
+                        isPendingRestoreBlocked:
+                            currentRestoreSnapshot !== null,
                     });
 
                     // Restore user data if needed
-                    if (restoreData) {
+                    if (initialRestoreSnapshot) {
                         try {
                             throwIfImportCancelled(importSessionId);
                             const restoreOperationId =
@@ -899,28 +903,29 @@ export function withContent() {
                             patchState(store, {
                                 importPhase: 'restoring-favorites',
                             });
-                            await dataSource.restoreUserData(
-                                ctx.playlistId,
-                                restoreData,
-                                {
-                                    onEvent: trackImportEvent,
-                                    operationId: restoreOperationId,
-                                }
-                            );
-                            throwIfImportCancelled(importSessionId);
-                            if (
-                                !pendingRestoreService.clear(
+                            const restoreResult =
+                                await pendingRestoreService.applyAndConsume(
                                     ctx.playlistId,
-                                    restoreData
-                                )
-                            ) {
+                                    initialRestoreSnapshot,
+                                    async (pendingState) => {
+                                        throwIfImportCancelled(importSessionId);
+                                        await dataSource.restoreUserData(
+                                            ctx.playlistId,
+                                            pendingState,
+                                            {
+                                                onEvent: trackImportEvent,
+                                                operationId:
+                                                    restoreOperationId,
+                                            }
+                                        );
+                                        throwIfImportCancelled(importSessionId);
+                                    }
+                                );
+                            if (restoreResult === 'consume-failed') {
                                 throw new Error(
                                     `Clearing pending restore state for "${ctx.playlistId}" failed.`
                                 );
                             }
-                            patchState(store, {
-                                isPendingRestoreBlocked: false,
-                            });
                         } catch (err) {
                             throwIfImportCancelled(importSessionId);
 
@@ -930,6 +935,15 @@ export function withContent() {
 
                             throw err;
                         }
+                    }
+
+                    const isRestoreStillPending =
+                        hasPendingRestoreOrReadFailure(ctx.playlistId);
+                    patchState(store, {
+                        isPendingRestoreBlocked: isRestoreStillPending,
+                    });
+                    if (isRestoreStillPending) {
+                        return;
                     }
 
                     throwIfImportCancelled(importSessionId);
