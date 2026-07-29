@@ -164,6 +164,31 @@ describe('applyApiMetadata', () => {
         ).toEqual({ value: '576p', provenance: 'api' });
     });
 
+    it('refuses a wide frame taller than the format its width names', () => {
+        // 1440x1080 is anamorphic 1080 and 1600x900 is 900p. Both fall in the
+        // 1200-1699 band, so both were published as "720p" — with `api`
+        // provenance, which is the one that means the provider said so.
+        expect(
+            applyApiMetadata(candidate(), { width: 1440, height: 1080 }).quality
+        ).toBeUndefined();
+        expect(
+            applyApiMetadata(candidate(), { width: 1600, height: 900 }).quality
+        ).toBeUndefined();
+    });
+
+    it('still names a letterboxed wide master by its width', () => {
+        // Cropping only removes lines, so a short frame is this format.
+        expect(
+            applyApiMetadata(candidate(), { width: 1920, height: 800 }).quality
+        ).toEqual({ value: '1080p', provenance: 'api' });
+        expect(
+            applyApiMetadata(candidate(), { width: 1920, height: 1080 }).quality
+        ).toEqual({ value: '1080p', provenance: 'api' });
+        expect(
+            applyApiMetadata(candidate(), { width: 3840, height: 2160 }).quality
+        ).toEqual({ value: '2160p', provenance: 'api' });
+    });
+
     it('gives no quality for a width between the known formats', () => {
         // 1100 wide is no standard shape. The old range answered "576p" for
         // it; an absent tag and a check chip is the honest reply.

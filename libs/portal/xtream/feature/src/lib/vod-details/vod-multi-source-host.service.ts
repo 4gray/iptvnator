@@ -7,6 +7,7 @@ import {
     type Signal,
 } from '@angular/core';
 import {
+    applyApiMetadata,
     VodMultiSourceController,
     VodSourceDiscoveryService,
     VodSourceResolverService,
@@ -93,6 +94,8 @@ export class VodMultiSourceHostService {
     private movieIdentity: string | null = null;
     /** The row standing for the playlist the route is on. */
     private routeSourceId: string | null = null;
+    /** The provider facts already overlaid on that row, to overlay each once. */
+    private routeFactsKey: string | null = null;
     /** Resolves once the discovery on the way has published its sources. */
     private loadInFlight: Promise<void> | null = null;
 
@@ -154,12 +157,52 @@ export class VodMultiSourceHostService {
 
             const key = vodMultiSourceMovieKey(movie);
             if (this.lastMovieKey === key) {
+                // Same film, described the same way — but `get_vod_info` can
+                // land without touching title, year or TMDB id while adding
+                // the provider's facts about the stream. Rediscovery would be
+                // wasted work; only the route's own row is missing anything.
+                this.refreshRouteFacts(movie);
                 return;
             }
             this.lastMovieKey = key;
+            this.routeFactsKey = null;
 
             void this.load(movie);
         });
+    }
+
+    /**
+     * Overlay the provider's facts onto the route's own row, in place.
+     *
+     * The row is built when discovery runs, which on a sparse panel happens
+     * before `get_vod_info` answers — and if that answer adds no year and no
+     * TMDB id, the movie key does not change, so nothing rebuilds the row and
+     * it keeps stating nothing. Every comparison against it is then one-sided:
+     * the dub warning in particular cannot fire at all.
+     *
+     * Merged onto the existing row rather than rebuilt from the movie, so a
+     * probe result already sitting on it survives.
+     */
+    private refreshRouteFacts(movie: VodMultiSourceMovie): void {
+        const facts = movie.metadata;
+        const routeSourceId = this.routeSourceId;
+        if (!facts || !routeSourceId) {
+            return;
+        }
+
+        const factsKey = JSON.stringify(facts);
+        if (this.routeFactsKey === factsKey) {
+            return;
+        }
+
+        const existing = this.controller.findSource(routeSourceId);
+        if (!existing) {
+            return;
+        }
+
+        this.routeFactsKey = factsKey;
+        this.controller.updateSource(applyApiMetadata(existing, facts));
+        this.publish();
     }
 
     /**

@@ -61,14 +61,20 @@ Three rules follow, and each is enforced in code rather than by convention:
    letterboxed masters are cropped vertically — a 2.39:1 1080p film is 1920×800,
    and 800 alone is indistinguishable from a 1280×800 encode. With no width, a
    height is trusted only within 5% of a standard frame height; otherwise no tag
-   is emitted. Below the HD widths the ranges stop working: 800×600
-   and 800×450 are neither 480p nor each other, and 720 wide is NTSC 480p or
-   PAL 576p depending only on the height. Those formats are therefore matched
-   rather than bucketed, and an unrecognised shape returns nothing rather than
-   a label that would be published as an `api` fact. A known height still has
-   to be consistent with the match: cropping only ever *removes* lines, so a
-   shorter frame is a letterboxed master of that format, while a taller one
-   (640×480 against 640×360) is a different shape and gets no tag.
+   is emitted. Below the HD widths the ranges stop working: 960×540 and 1024×576
+   are two formats inside one 900–1199 range, 800×600 and 800×450 are neither
+   480p nor each other, and 720 wide is NTSC 480p or PAL 576p depending only on
+   the height. Those formats are therefore matched rather than bucketed, and an
+   unrecognised shape returns nothing rather than a label that would be
+   published as an `api` fact.
+
+   A known height has to be consistent with the width **on every tier**,
+   ranges included. Cropping only ever *removes* lines, so a shorter frame is a
+   letterboxed master of that format, while a taller one is a different shape:
+   640×480 against 640×360 below, and 1440×1080 (anamorphic 1080) or 1600×900
+   against the 720p range above. All of those get no tag. Bucketing HD widths is
+   otherwise sound — the standard widths really are far apart — but only once
+   the height is allowed to veto the answer.
 
 Provenance is per-field and changes over time: at discovery a row has only
 `parsed` tags, because the `content` table stores no container, codec or audio.

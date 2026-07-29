@@ -232,4 +232,45 @@ describe('VodMultiSourceHostService — session lifecycle', () => {
             ALT_THREE.id,
         ]);
     });
+
+    it('takes on provider facts that arrive without changing the identity', async () => {
+        movie.set(MOVIE_A);
+        await flushEffects();
+        expect(rowFor(CURRENT_A_ID)?.audio).toBeUndefined();
+
+        // A sparse panel answers `get_vod_info` with no year and no TMDB id,
+        // so the movie key is unchanged and nothing reruns discovery. The
+        // route row would keep stating nothing, and every comparison against
+        // it stays one-sided — the dub warning could never fire.
+        movie.set({
+            ...MOVIE_A,
+            metadata: { audioCodec: 'ac3', containerExtension: 'mkv' },
+        });
+        await flushEffects();
+
+        expect(discovery.discover).toHaveBeenCalledTimes(1);
+        expect(rowFor(CURRENT_A_ID)?.audio).toEqual({
+            value: 'ac3',
+            provenance: 'api',
+        });
+        expect(rowFor(CURRENT_A_ID)?.container).toEqual({
+            value: 'mkv',
+            provenance: 'api',
+        });
+    });
+
+    it('keeps what the row already knows when facts arrive', async () => {
+        movie.set(MOVIE_A);
+        await flushEffects();
+        await service.check(CURRENT_A_ID);
+        expect(rowFor(CURRENT_A_ID)?.probe?.status).toBe('ok');
+
+        movie.set({ ...MOVIE_A, metadata: { audioCodec: 'ac3' } });
+        await flushEffects();
+
+        // Rebuilding the row from the movie would be the obvious way to do
+        // this, and it would silently throw away a probe the user asked for.
+        expect(rowFor(CURRENT_A_ID)?.probe?.status).toBe('ok');
+        expect(rowFor(CURRENT_A_ID)?.audio?.value).toBe('ac3');
+    });
 });

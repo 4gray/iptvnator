@@ -251,6 +251,20 @@ function isPositiveNumber(value: number | null | undefined): value is number {
  * Anything that is not one of these shapes gets no tag at all, because a guess
  * here would be read as a measurement.
  */
+/**
+ * HD and up, as `[minimum width, frame height, label]`.
+ *
+ * Ranges are honest here — the standard widths really are far apart — but the
+ * height still has to agree, for the same reason it does below: a frame TALLER
+ * than the format is a different shape, not a crop of it.
+ */
+const WIDE_FORMATS: ReadonlyArray<[number, number, string]> = [
+    [3400, 2160, '2160p'],
+    [2400, 1440, '1440p'],
+    [1700, 1080, '1080p'],
+    [1200, 720, '720p'],
+];
+
 const KNOWN_FORMATS: ReadonlyArray<[number, number, string]> = [
     [1024, 576, '576p'],
     [960, 540, '540p'],
@@ -303,18 +317,21 @@ function qualityFromDimensions(
     height: number | null | undefined
 ): string | null {
     if (isPositiveNumber(width)) {
-        if (width >= 3400) {
-            return '2160p';
+        const wide = WIDE_FORMATS.find(([minWidth]) => width >= minWidth);
+        if (wide) {
+            const [, formatHeight, label] = wide;
+            // The same rule the matched formats use. Cropping only ever
+            // REMOVES lines, so a shorter frame is a letterboxed master of this
+            // format and the width still names it — but a TALLER one is a
+            // different shape: 1440x1080 is anamorphic 1080 and 1600x900 is
+            // 900p, and calling either "720p" states a measurement its own
+            // pixels contradict, under the provenance that means the provider
+            // said so.
+            return isPositiveNumber(height) && height > formatHeight * 1.05
+                ? null
+                : label;
         }
-        if (width >= 2400) {
-            return '1440p';
-        }
-        if (width >= 1700) {
-            return '1080p';
-        }
-        if (width >= 1200) {
-            return '720p';
-        }
+
         return knownFormatQuality(width, height);
     }
 
