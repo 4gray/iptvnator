@@ -54,6 +54,16 @@ const completedMigrationStateRule: HandlerRule = [
     { get: () => ({ value: 'done' }) },
 ];
 
+/** The live title index, already carrying the folding tokenizer. */
+const foldedIndexRule: HandlerRule = [
+    'SELECT sql FROM sqlite_master',
+    {
+        get: () => ({
+            sql: "CREATE VIRTUAL TABLE content_title_fts USING fts5(title, tokenize='trigram remove_diacritics 1')",
+        }),
+    },
+];
+
 describe('createTables', () => {
     it('executes every fresh-install statement against the connection in order', () => {
         const { exec, sqlite } = createSqliteMock([]);
@@ -86,7 +96,7 @@ describe('runMigrations error tolerance', () => {
             }
         });
         const { sqlite } = createSqliteMock(
-            [completedMigrationStateRule],
+            [completedMigrationStateRule, foldedIndexRule],
             exec
         );
 
@@ -111,7 +121,7 @@ describe('runMigrations error tolerance', () => {
             }
         });
         const { sqlite } = createSqliteMock(
-            [completedMigrationStateRule],
+            [completedMigrationStateRule, foldedIndexRule],
             exec
         );
 
@@ -299,11 +309,40 @@ describe('content title FTS tokenizer upgrade', () => {
     it('does nothing once the migration has completed', () => {
         const { sqlite, exec } = createSqliteMock([
             completedMigrationStateRule,
+            foldedIndexRule,
         ]);
 
         upgradeContentTitleFtsTokenizer(sqlite);
 
         expect(exec).not.toHaveBeenCalled();
+    });
+
+    it('rebuilds when the record says done but the index is not folded', () => {
+        const rebuild = { run: jest.fn() };
+        const { sqlite, exec } = createSqliteMock([
+            completedMigrationStateRule,
+            [
+                'SELECT sql FROM sqlite_master',
+                {
+                    get: () => ({
+                        sql: "CREATE VIRTUAL TABLE content_title_fts USING fts5(title, tokenize='trigram')",
+                    }),
+                },
+            ],
+            ['INSERT INTO content_title_fts(content_title_fts)', rebuild],
+        ]);
+
+        upgradeContentTitleFtsTokenizer(sqlite);
+
+        // `createTables` declares this table too, with the plain tokenizer, so
+        // the marker and the live table can disagree. Trusting the marker
+        // leaves a silently degraded index: discovery simply stops finding
+        // "Pokémon" for "pokemon", with nothing to show that it should have.
+        const statements = exec.mock.calls.map(([sql]) => compactSql(sql));
+        expect(statements).toContainEqual(
+            expect.stringContaining("tokenize='trigram remove_diacritics 1'")
+        );
+        expect(rebuild.run).toHaveBeenCalled();
     });
 
     it('leaves the index alone when the runtime rejects the tokenizer', () => {

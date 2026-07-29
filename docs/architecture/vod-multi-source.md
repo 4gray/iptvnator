@@ -531,7 +531,16 @@ CREATE time, so existing databases are recreated and rebuilt once behind
 `remove_diacritics` needs SQLite 3.45+. The migration probes support on a temp
 table first and does nothing when the runtime rejects it, leaving the working
 index in place — and does NOT record itself as done, so a later app version
-shipping a newer SQLite upgrades then.
+shipping a newer SQLite upgrades then. (better-sqlite3 currently bundles 3.53,
+so the fallback is defensive rather than a path anyone is on.)
+
+The completed marker is not taken as proof. `createTables` declares this table
+too, with the plain tokenizer, and `CREATE TABLE IF NOT EXISTS` would recreate
+it unfolded if it ever went missing after the marker was written — leaving two
+sources of truth for one tokenizer. The migration therefore reads the live
+table's own DDL out of `sqlite_master` and rebuilds unless it really folds. A
+degraded index is otherwise invisible: discovery simply stops finding "Pokémon"
+for "pokemon", with nothing to indicate it should have.
 
 **Case folding for non-ASCII, on the FTS tier, is still not possible.**
 `LOWER()` and the trigram tokenizer both fold ASCII only, so a Cyrillic title

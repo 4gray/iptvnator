@@ -647,6 +647,26 @@ function contentTitleFtsStatement(removeDiacritics: boolean): string {
 }
 
 /** Whether this SQLite accepts the folding tokenizer, asked without risk. */
+/**
+ * Whether the title index that actually exists folds diacritics, read from its
+ * own stored DDL rather than from the migration record.
+ *
+ * A missing table answers `false`, which is the useful answer: there is nothing
+ * folded to keep, so the caller rebuilds.
+ */
+function contentTitleFtsFoldsDiacritics(sqliteDb: Database.Database): boolean {
+    const row = sqliteDb
+        .prepare(
+            `SELECT sql FROM sqlite_master
+             WHERE type = 'table' AND name = 'content_title_fts'`
+        )
+        .get() as { sql?: unknown } | undefined;
+
+    return (
+        typeof row?.sql === 'string' && row.sql.includes('remove_diacritics')
+    );
+}
+
 function supportsTrigramDiacriticFolding(sqliteDb: Database.Database): boolean {
     try {
         sqliteDb.exec(
@@ -676,7 +696,15 @@ function upgradeContentTitleFtsTokenizer(sqliteDb: Database.Database): boolean {
             | { value?: unknown }
             | undefined;
 
-        if (migrationState?.value === 'done') {
+        // The marker alone is not evidence. `createTables` declares this table
+        // too, with the plain tokenizer, so a table recreated by that path
+        // after the marker was written would be silently unfolded — and a
+        // degraded index is invisible: discovery just stops finding "Pokémon"
+        // for "pokemon". Ask the live table instead of trusting the record.
+        if (
+            migrationState?.value === 'done' &&
+            contentTitleFtsFoldsDiacritics(sqliteDb)
+        ) {
             return false;
         }
 
