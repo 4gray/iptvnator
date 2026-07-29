@@ -24,6 +24,14 @@ describe('Xtream raw iteration assembler', () => {
                 input.mainCapture.captureGeneration
             );
             assert.equal(
+                result.processIdentity.startupAttemptCount,
+                input.process.startupAttemptCount
+            );
+            assert.deepEqual(
+                result.processIdentity.startupRetryReasons,
+                input.process.startupRetryReasons
+            );
+            assert.equal(
                 result.databaseWorker.requests.evidence.length,
                 input.mainCapture.requests.length
             );

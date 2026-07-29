@@ -225,6 +225,28 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(playback.hasPlaybackPosition()).toBe(false);
     });
 
+    it('downloads the movie the route currently shows', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        fixture.detectChanges();
+
+        await fixture.componentInstance.downloadVod({
+            // A DIFFERENT id in the payload: the route's id must win.
+            movie_data: {
+                stream_id: 111,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never);
+
+        // The id comes from the route params SIGNAL, not `snapshot.params`:
+        // the router reuses this component for detail-to-detail navigation
+        // (the Similar rail), and the snapshot still names the film the user
+        // came from — so the download would fetch the wrong movie.
+        expect(stubs.startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ xtreamId: 650020 })
+        );
+    });
+
     it('replaces an alternative’s timecode when Resume starts the route copy', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         const component = fixture.componentInstance;
@@ -246,7 +268,11 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // timeupdate resolves the next source at a position from another copy.
         component.multiSource.reportPosition(4200);
         component.resumeVod({
-            movie_data: { stream_id: 650020, name: 'Example' },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
         } as never);
 
         expect(reported).toHaveBeenLastCalledWith(120);
@@ -265,7 +291,11 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         const reported = jest.spyOn(component.multiSource, 'reportPosition');
 
         await component.onPrimaryAction({
-            movie_data: { stream_id: 650020, name: 'Example' },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
         } as never);
 
         expect(reported).not.toHaveBeenCalled();
@@ -283,7 +313,11 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // Reaching the service directly would skip the bookkeeping a route
         // start needs — the controller would keep an alternative's timecode.
         void component.onPrimaryAction({
-            movie_data: { stream_id: 650020, name: 'Example' },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
         } as never);
 
         return Promise.resolve().then(() => {
@@ -347,7 +381,11 @@ describe('VodDetailsRouteComponent — playback actions', () => {
             .mockResolvedValue('played');
 
         await component.restartVod({
-            movie_data: { stream_id: 650020, name: 'Example' },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
         } as never);
 
         expect(pinnedPlay).toHaveBeenCalled();

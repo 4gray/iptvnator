@@ -1,12 +1,11 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { LaunchedElectronApp } from '../electron-test-fixtures';
 import {
-    closeElectronApp,
-    launchElectronApp,
-    type LaunchedElectronApp,
-} from '../electron-test-fixtures';
+    disposeXtreamBenchmarkApp,
+    launchXtreamBenchmarkApp,
+} from './xtream-benchmark-app-startup';
 import {
     type XtreamIterationDefinition,
     type XtreamPerformanceManifest,
@@ -24,18 +23,12 @@ import { readXtreamCatalogDatabaseSnapshot } from './xtream-catalog-database-rea
 import { assembleXtreamRawIteration } from './xtream-iteration-assembler';
 import {
     beginXtreamMainMeasurement,
-    installMainCapture,
     readXtreamMainCaptureStatus,
     rolloverXtreamMainCapture,
     startMainCapture,
     stopXtreamMainCapture,
     type MainCaptureStartOptions,
 } from './m3u-refresh-main-capture';
-import {
-    assertRendererCdpTarget,
-    assertTcpPortAvailable,
-    resolveRendererWindowIdentity,
-} from './m3u-import-benchmark-support';
 import { assertPerformanceArtifactCapacity } from './performance-artifact-preflight';
 import {
     createXtreamArtifactSafetyContext,
@@ -46,25 +39,21 @@ import {
 import {
     createXtreamSingleAttemptCapture,
     persistXtreamIterationFailureEvidenceAndThrow,
+    runXtreamFinalTeardown,
     type XtreamBenchmarkFailureStage,
+    type XtreamPropagatedFailure,
 } from './xtream-benchmark-lifecycle';
 import {
-    assertXtreamBenchmarkEnvironmentIsolated,
     createXtreamDiagnosticEvidence,
     createXtreamSourceTitle,
     finalizeXtreamCaptureAfterRendererTerminal,
-    prearmXtreamDatabaseWorker,
     seedXtreamExistingPortal,
 } from './xtream-benchmark-iteration-support';
 import {
     deriveXtreamMeasuredPlaylistId,
-    disableGenericElectronFixtureProbes,
     xtreamScenarioRequiresSeed,
 } from './xtream-benchmark-runtime';
-import {
-    captureXtreamLaunchIdentity,
-    createXtreamIterationProcessEvidence,
-} from './xtream-process-evidence';
+import { createXtreamIterationProcessEvidence } from './xtream-process-evidence';
 import {
     startXtreamRendererCapture,
     type RunningXtreamRendererCapture,
@@ -95,13 +84,12 @@ export async function runXtreamBenchmarkIteration(
         mode: 0o700,
         recursive: false,
     });
-    const dataDirectory = await mkdtemp(
-        join(tmpdir(), 'iptvnator-xtream-performance-')
-    );
     const safety = createXtreamArtifactSafetyContext(
         configuration.controlToken
     );
     let app: LaunchedElectronApp | null = null;
+    let dataDirectory: string | null = null;
+    let propagatedFailure: XtreamPropagatedFailure | null = null;
     let renderer: RunningXtreamRendererCapture | null = null;
     let prepared: PreparedXtreamScenario | null = null;
     let controlState: Awaited<ReturnType<XtreamControlClient['state']>> | null =
@@ -117,44 +105,23 @@ export async function runXtreamBenchmarkIteration(
         await control.resetAll();
         const fixture = await control.prepare();
         assertXtreamManifestIdentity(context.expectedFixture, fixture);
-        await assertTcpPortAvailable(configuration.cdpPort);
-        app = await launchElectronApp(dataDirectory, {
-            args: [
-                '--js-flags=--expose-gc',
-                '--remote-debugging-address=127.0.0.1',
-                `--remote-debugging-port=${configuration.cdpPort}`,
-                `--user-data-dir=${join(dataDirectory, 'user-data')}`,
-            ],
-            environmentInheritance: 'runtime-only',
-            env: {
-                IPTVNATOR_DB_WORKER_BATCH_DELAY_MS: '0',
-                IPTVNATOR_PERF_CAPTURE: '1',
-                IPTVNATOR_PERF_WORKER_PROFILING: '1',
-                IPTVNATOR_TRACE_RENDERER_CONSOLE: '0',
-            },
-            omitEnvKeys: [
-                'IPTVNATOR_XTREAM_MOCK_CONTROL',
-                'IPTVNATOR_XTREAM_MOCK_CONTROL_TOKEN',
-            ],
+        const started = await launchXtreamBenchmarkApp({
+            configuration,
+            seenElectronPids: context.seenElectronPids,
         });
-        app.mainWindow.setDefaultTimeout(10 * 60 * 1_000);
-        await assertXtreamBenchmarkEnvironmentIsolated(app);
-        await disableGenericElectronFixtureProbes(app.mainWindow);
-        await assertRendererCdpTarget(app.mainWindow, configuration.cdpPort);
-        await installMainCapture(app.electronApp);
-        await prearmXtreamDatabaseWorker(app);
-        const electronApp = app.electronApp;
-        const launch = await captureXtreamLaunchIdentity(
-            app.electronApp,
-            app.electronApp.process().pid,
-            context.seenElectronPids
+        app = started.app;
+        dataDirectory = started.dataDirectory;
+        await writeXtreamSafeJson(
+            join(iterationDirectory, 'startup-evidence.json'),
+            started.startupEvidence,
+            safety
         );
-        const rendererWindowIdentity = await resolveRendererWindowIdentity(app);
+        const electronApp = app.electronApp;
         const captureOptions: MainCaptureStartOptions = {
             deferMeasurement: true,
             diagnostic: definition.kind === 'diagnostic',
             outputDirectory: iterationDirectory,
-            rendererWindowIdentity,
+            rendererWindowIdentity: started.rendererWindowIdentity,
         };
         const sourceTitle = createXtreamSourceTitle(definition);
         const seeded = xtreamScenarioRequiresSeed(definition.scenarioId);
@@ -260,7 +227,7 @@ export async function runXtreamBenchmarkIteration(
         const finalized = await finalizeXtreamCaptureAfterRendererTerminal({
             captureGeneration,
             driverTerminal: terminalPromise,
-            readStatus: () => readXtreamMainCaptureStatus(app.electronApp),
+            readStatus: () => readXtreamMainCaptureStatus(electronApp),
             rendererTerminal: renderer.waitForTerminal(),
             scenarioId: definition.scenarioId,
             stopMain: stopMainCaptureOnce,
@@ -313,7 +280,7 @@ export async function runXtreamBenchmarkIteration(
             app.electronApp,
             {
                 captureStoppedEpochMs: mainCapture.captureStoppedEpochMs,
-                dataDirectory,
+                dataDirectory: started.dataDirectory,
                 playlistId,
                 requireFromPath: join(
                     configuration.workspaceRoot,
@@ -338,10 +305,12 @@ export async function runXtreamBenchmarkIteration(
             iterationDirectory
         );
         const processEvidence = await createXtreamIterationProcessEvidence({
-            ...launch,
+            ...started.launch,
             diagnosticDirectorySha256:
                 diagnosticEvidence?.directorySha256 ?? null,
             iterationDirectory,
+            startupAttemptCount: started.startupEvidence.attemptCount,
+            startupRetryReasons: started.startupEvidence.retryReasons,
         });
         const raw = assembleXtreamRawIteration({
             catalogVerification,
@@ -362,38 +331,48 @@ export async function runXtreamBenchmarkIteration(
         );
     } catch (failure) {
         const electronApp = app?.electronApp;
-        await persistXtreamIterationFailureEvidenceAndThrow(failure, {
-            evidence: {
-                control: async () => controlState ?? control.state(),
-                ...(electronApp
-                    ? {
-                          mainStatus: () =>
-                              readXtreamMainCaptureStatus(electronApp),
-                      }
-                    : {}),
-                ...(stopMainCaptureOnce
-                    ? { mainCapture: stopMainCaptureOnce }
-                    : {}),
-                ...(stopRendererCaptureOnce
-                    ? { rendererCapture: stopRendererCaptureOnce }
-                    : {}),
-                ...(terminal ? { terminal: async () => terminal } : {}),
-                ...(trigger ? { trigger: async () => trigger } : {}),
-            },
-            persist: (filename, value) =>
-                writeXtreamSafeJson(
-                    join(iterationDirectory, filename),
-                    value,
-                    safety
-                ),
-            stage: failureStage,
-        });
+        try {
+            return await persistXtreamIterationFailureEvidenceAndThrow(
+                failure,
+                {
+                    evidence: {
+                        control: async () => controlState ?? control.state(),
+                        ...(electronApp
+                            ? {
+                                  mainStatus: () =>
+                                      readXtreamMainCaptureStatus(electronApp),
+                              }
+                            : {}),
+                        ...(stopMainCaptureOnce
+                            ? { mainCapture: stopMainCaptureOnce }
+                            : {}),
+                        ...(stopRendererCaptureOnce
+                            ? { rendererCapture: stopRendererCaptureOnce }
+                            : {}),
+                        ...(terminal ? { terminal: async () => terminal } : {}),
+                        ...(trigger ? { trigger: async () => trigger } : {}),
+                    },
+                    persist: (filename, value) =>
+                        writeXtreamSafeJson(
+                            join(iterationDirectory, filename),
+                            value,
+                            safety
+                        ),
+                    stage: failureStage,
+                }
+            );
+        } catch (failureToPropagate) {
+            propagatedFailure = { failure: failureToPropagate };
+            throw failureToPropagate;
+        }
     } finally {
         await prepared?.dispose().catch(() => undefined);
         await renderer?.dispose().catch(() => undefined);
-        if (app) await closeElectronApp(app);
-        await rm(dataDirectory, { force: true, recursive: true }).catch(
-            () => undefined
-        );
+        if (app && dataDirectory) {
+            await runXtreamFinalTeardown(
+                () => disposeXtreamBenchmarkApp(app, dataDirectory),
+                propagatedFailure
+            );
+        }
     }
 }

@@ -1,4 +1,4 @@
-import { Location, SlicePipe } from '@angular/common';
+import { Location, NgTemplateOutlet, SlicePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -23,11 +23,11 @@ import {
     VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import {
-    createLogger,
-    PORTAL_PLAYBACK_POSITIONS,
-} from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+    resolveXtreamVodPlaybackSource,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
@@ -67,10 +67,6 @@ import { VodDetailsDownloadsService } from './vod-details-downloads.service';
 import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
-import {
-    createPrimaryActionPosition,
-    formatPlaybackPosition,
-} from './vod-primary-action-position';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -91,6 +87,7 @@ import {
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
         MatIcon,
+        NgTemplateOutlet,
         PortalDetailShellComponent,
         SafePipe,
         SlicePipe,
@@ -110,7 +107,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly playback = inject(VodDetailsPlaybackService);
-    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     /** Alternative sources for this movie in the user's other playlists */
     readonly multiSource = inject(VodMultiSourceHostService);
     private readonly msUi = inject(VodDetailsMultiSourceUiService);
@@ -122,6 +118,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly backdropBackfillKey = signal<string | null>(null);
     readonly inlinePlayback = this.playback.inlinePlayback;
     readonly vodPlaybackPosition = this.playback.vodPlaybackPosition;
+    /** The route copy's own row — what Resume acts on. */
+    readonly routePlaybackPosition = this.playback.routePlaybackPosition;
 
     /**
      * Reactive route params: the component is reused when navigating
@@ -141,6 +139,20 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
     );
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    private readonly scopedVodCategories = computed(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        return playlistId &&
+            this.xtreamStore.vodCategoriesPlaylistId() === playlistId
+            ? this.xtreamStore.vodCategories()
+            : [];
+    });
+    private readonly scopedVodStreams = computed(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        return playlistId &&
+            this.xtreamStore.vodStreamsPlaylistId() === playlistId
+            ? this.xtreamStore.vodStreams()
+            : [];
+    });
     readonly selectedCategory = computed<Partial<XtreamCategory> | null>(() => {
         const categoryId = this.routeParams().categoryId;
         if (!categoryId) {
@@ -148,7 +160,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore.vodCategories().find(
+            this.scopedVodCategories().find(
                 (category) =>
                     String(
                         (
@@ -180,7 +192,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore.vodStreams().find(
+            this.scopedVodStreams().find(
                 (item) =>
                     Number(
                         (
@@ -223,6 +235,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         return item && hasUsableXtreamVodMetadata(item)
             ? getXtreamVodInfo(item)
             : null;
+    });
+    readonly playableVodItem = computed(() => {
+        const item = this.selectedItem();
+        return item && resolveXtreamVodPlaybackSource(item) ? item : null;
     });
     readonly fallbackView = computed(() => {
         const item = this.selectedItem();
@@ -405,6 +421,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.xtreamStore.cancelDetailsRequest();
         this.playback.closeInlinePlayer();
         this.xtreamStore.setSelectedItem(null);
     }

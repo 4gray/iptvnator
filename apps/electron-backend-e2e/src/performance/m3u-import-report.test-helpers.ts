@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- The deterministic fixture keeps the full production-shaped import sequence visible. */
 import type { M3uImportRendererCaptureMetrics } from './m3u-import-renderer-capture';
 import type { MainCaptureMetrics } from './m3u-refresh-cancellation-contract';
 import type { M3uImportBenchmarkManifest } from './m3u-import-summary';

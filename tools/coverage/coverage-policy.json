@@ -278,6 +278,12 @@
                 "reason": "Node tests validate release-note parsing, rendering and gate policy; the scripts are release tooling, not shipped source."
             },
             {
+                "name": "eslint-tools",
+                "root": "tools/eslint",
+                "validationCommand": "pnpm nx test eslint-tools",
+                "reason": "Node tests assert the committed max-lines baseline still matches what the generator produces; the scripts are lint tooling, not shipped source, and percentage coverage over a generated list would not mean anything."
+            },
+            {
                 "name": "shared-marketing-fixtures",
                 "root": "libs/shared/marketing-fixtures",
                 "validationCommand": "pnpm nx test shared-marketing-fixtures",

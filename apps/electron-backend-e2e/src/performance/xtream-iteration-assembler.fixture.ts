@@ -136,6 +136,8 @@ export function createXtreamAssemblerFixture(
             profileDirectorySha256: String(scenarioOrdinal(scenarioId)).repeat(
                 64
             ),
+            startupAttemptCount: 1,
+            startupRetryReasons: [],
         },
         rendererCapture,
         terminal: createTerminal(raw, background),

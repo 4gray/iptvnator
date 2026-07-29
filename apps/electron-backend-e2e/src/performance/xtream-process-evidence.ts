@@ -4,6 +4,10 @@ import { lstat, realpath } from 'node:fs/promises';
 import type { ElectronApplication } from '@playwright/test';
 
 import type { XtreamIterationProcessEvidence } from './xtream-iteration-assembler';
+import {
+    XTREAM_STARTUP_RETRY_REASON,
+    type XtreamStartupRetryReason,
+} from './xtream-summary-contract';
 
 export interface XtreamLaunchIdentity {
     readonly electronPid: number;
@@ -13,6 +17,8 @@ export interface XtreamLaunchIdentity {
 export interface XtreamIterationProcessEvidenceOptions extends XtreamLaunchIdentity {
     readonly diagnosticDirectorySha256: string | null;
     readonly iterationDirectory: string;
+    readonly startupAttemptCount: number;
+    readonly startupRetryReasons: readonly XtreamStartupRetryReason[];
 }
 
 export async function captureXtreamLaunchIdentity(
@@ -58,7 +64,11 @@ export async function createXtreamIterationProcessEvidence(
         if (
             !Number.isSafeInteger(options.electronPid) ||
             options.electronPid <= 0 ||
-            !/^launch-[a-f0-9-]{36}$/u.test(options.launchId)
+            !/^launch-[a-f0-9-]{36}$/u.test(options.launchId) ||
+            !validStartupEvidence(
+                options.startupAttemptCount,
+                options.startupRetryReasons
+            )
         ) {
             invalidProcess();
         }
@@ -78,6 +88,10 @@ export async function createXtreamIterationProcessEvidence(
             freshProcessVerified: true,
             launchId: options.launchId,
             profileDirectorySha256,
+            startupAttemptCount: options.startupAttemptCount as 1 | 2,
+            startupRetryReasons: Object.freeze([
+                ...options.startupRetryReasons,
+            ]),
         });
     } catch (error) {
         if (
@@ -88,6 +102,20 @@ export async function createXtreamIterationProcessEvidence(
         }
         invalidProcess();
     }
+}
+
+function validStartupEvidence(
+    attemptCount: number,
+    retryReasons: readonly XtreamStartupRetryReason[]
+): boolean {
+    return (
+        (attemptCount === 1 || attemptCount === 2) &&
+        Array.isArray(retryReasons) &&
+        retryReasons.length === attemptCount - 1 &&
+        retryReasons.every((reason) =>
+            Object.values(XTREAM_STARTUP_RETRY_REASON).includes(reason)
+        )
+    );
 }
 
 function sha256(value: string): string {

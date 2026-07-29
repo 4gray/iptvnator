@@ -52,6 +52,8 @@ export function createVodDetailsRouteStubs() {
             .fn()
             .mockReturnValue('http://example.com/movie/650020.mp4'),
         addRecentItem: jest.fn(),
+        cancelDetailsRequest: jest.fn(),
+        vodStreamsPlaylistId: signal<string | null>(null),
         downloads: signal([]),
         getPlaybackPosition: jest.fn().mockResolvedValue(null),
         savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
@@ -174,6 +176,8 @@ export async function configureVodDetailsRouteTestBed(
                     toggleFavorite: stubs.toggleFavorite,
                     constructVodStreamUrl: stubs.constructVodStreamUrl,
                     addRecentItem: stubs.addRecentItem,
+                    cancelDetailsRequest: stubs.cancelDetailsRequest,
+                    vodStreamsPlaylistId: stubs.vodStreamsPlaylistId,
                 },
             },
             {

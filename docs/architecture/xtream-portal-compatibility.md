@@ -91,6 +91,48 @@ If stored Xtream playback credentials contain an invalid server URL or blank
 username/password, stream URL construction returns an empty URL instead of
 throwing during playback.
 
+VOD playback uses the standard
+`/movie/{username}/{password}/{streamId}.{containerExtension}` URL after
+resolving the stream id and container extension as one source. Fields from
+`movie_data` take priority, with the top-level catalog fields used as a
+fallback when extended metadata is absent or incomplete. A source requires a
+positive integer id and a non-empty container extension; otherwise URL
+construction returns an empty string.
+
+The Electron catalog cache does not persist the container extension. If the
+merged detail response and cached row still cannot resolve a source, the detail
+loader requests the exact VOD from its provider category and merges that raw
+catalog row in memory. An Electron route category uses the SQLite row id, so
+the loader maps it through the complete persisted category set, including
+hidden categories, before sending the provider `category_id`. Cross-portal
+Similar links already carry that provider id, so recovery accepts either the
+SQLite `id` or `xtream_id` representation while preserving local-id lookup
+precedence. If the numeric representations collide, candidate provider ids are
+deduplicated and tried in that order until the exact VOD is found. PWA falls
+back to its API-backed visible categories, and an unresolved database id is
+never sent as though it were a provider id. This recovery request is skipped
+when the detail response or owner-valid cached catalog fields are already
+sufficient. Recovery is best-effort and never gates the detail page: the initial
+sparse selection is published and the loading shell ends before the category
+lookup completes, then a successful result upgrades that same fallback
+reactively with playback actions. Detail, recovered, and cached
+playback fields remain separate candidates: the first complete pair wins, so
+two incomplete rows can never synthesize a source. A failed lookup leaves the
+already-rendered item safely unplayable. Detail requests are generation- and
+playlist-guarded, and detail teardown invalidates the active generation, so a
+late response cannot replace a newer selection or repopulate a closed detail.
+In-memory VOD category and stream arrays record the playlist that populated
+them. Cross-portal Favorites/Recent details ignore arrays owned by another
+playlist, so colliding Xtream ids cannot suppress recovery or contribute a
+foreign playback extension, title, poster, category, or recommendation.
+
+Metadata availability and VOD playability are independent. An empty or sparse
+`get_vod_info` response keeps the curated fallback detail page, but that page
+offers the same Play/Resume, Favorite, and Download actions when the source
+resolves. An unresolved source exposes no actions. Playback and download
+descriptors also fall back to the catalog title and poster after `info` and
+`movie_data`.
+
 ## Catch-Up Playback URLs
 
 Xtream-compatible portals differ on archive playback URL shape. IPTVnator

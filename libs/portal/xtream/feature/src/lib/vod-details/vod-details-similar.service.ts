@@ -48,6 +48,18 @@ export class VodDetailsSimilarService {
         this.routeContentId = bindings.routeContentId;
     }
 
+    /**
+     * The catalog only when it belongs to the playlist on screen — otherwise
+     * a rail would match against another portal's streams.
+     */
+    private readonly scopedVodStreams = computed(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        return playlistId &&
+            this.xtreamStore.vodStreamsPlaylistId() === playlistId
+            ? this.xtreamStore.vodStreams()
+            : [];
+    });
+
     /** TMDB recommendations matched against the loaded VOD catalog. */
     readonly similarItems = computed<SimilarCatalogItem[]>(() => {
         const info = this.vodInfo();
@@ -57,7 +69,7 @@ export class VodDetailsSimilarService {
 
         return matchRecommendationsToCatalog(
             info.tmdb_recommendations,
-            this.xtreamStore.vodStreams(),
+            this.scopedVodStreams(),
             { excludeId: this.routeContentId() }
         );
     });

@@ -7,6 +7,7 @@ import {
     createXtreamSingleAttemptCapture,
     persistXtreamIterationFailureEvidence,
     persistXtreamIterationFailureEvidenceAndThrow,
+    runXtreamFinalTeardown,
 } from './xtream-benchmark-lifecycle';
 
 const performanceDirectory = resolve(process.cwd(), 'src/performance');
@@ -190,6 +191,40 @@ describe('Xtream benchmark failure lifecycle', () => {
         );
     });
 
+    it('preserves both the propagated iteration and final teardown failures', async () => {
+        const iterationFailure = new Error('fixed-iteration-failure');
+        const teardownFailure = new Error('fixed-teardown-failure');
+
+        await assert.rejects(
+            runXtreamFinalTeardown(
+                async () => {
+                    throw teardownFailure;
+                },
+                { failure: iterationFailure }
+            ),
+            (failure: unknown) => {
+                assert.ok(failure instanceof AggregateError);
+                assert.deepEqual(failure.errors, [
+                    iterationFailure,
+                    teardownFailure,
+                ]);
+                assert.strictEqual(failure.cause, iterationFailure);
+                return true;
+            }
+        );
+    });
+
+    it('preserves an exact teardown failure when the iteration succeeded', async () => {
+        const teardownFailure = new Error('fixed-teardown-failure');
+
+        await assert.rejects(
+            runXtreamFinalTeardown(async () => {
+                throw teardownFailure;
+            }, null),
+            (failure: unknown) => failure === teardownFailure
+        );
+    });
+
     it('collects failure evidence before teardown and writes summary before its guard', () => {
         const iteration = readFileSync(
             resolve(performanceDirectory, 'xtream-benchmark-iteration.ts'),
@@ -201,6 +236,10 @@ describe('Xtream benchmark failure lifecycle', () => {
             failureCatch
         );
         const teardown = iteration.indexOf('} finally {', failureCatch);
+        const preservingTeardown = iteration.indexOf(
+            'runXtreamFinalTeardown(',
+            teardown
+        );
 
         assert.ok(failureCatch >= 0, 'iteration failure catch is missing');
         assert.ok(
@@ -210,6 +249,10 @@ describe('Xtream benchmark failure lifecycle', () => {
         assert.ok(
             teardown > failurePersistence,
             'teardown occurs before failure evidence persistence'
+        );
+        assert.ok(
+            preservingTeardown > teardown,
+            'final teardown does not preserve an iteration failure'
         );
         assert.doesNotMatch(
             iteration.slice(failureCatch, teardown),

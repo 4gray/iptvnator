@@ -115,6 +115,43 @@ describe('XtreamApiService', () => {
         );
     });
 
+    it('loads one VOD catalog item from its category', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: [
+                {
+                    stream_id: 41,
+                    category_id: '7',
+                    container_extension: 'mkv',
+                },
+                {
+                    stream_id: 42,
+                    category_id: '7',
+                    container_extension: 'mp4',
+                },
+            ],
+        });
+
+        const item = await service.getVodStream(credentials, 42, 7);
+
+        expect(item).toEqual(
+            expect.objectContaining({
+                stream_id: 42,
+                container_extension: 'mp4',
+            })
+        );
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            XTREAM_REQUEST,
+            expect.objectContaining({
+                params: {
+                    action: 'get_vod_streams',
+                    category_id: '7',
+                    password: 'secret',
+                    username: 'demo',
+                },
+            })
+        );
+    });
+
     it('falls back to the legacy full-epg action and normalizes the response', async () => {
         dataService.sendIpcEvent.mockImplementation(
             async (_type: string, payload: unknown) => {

@@ -27,6 +27,10 @@ import {
     reapOrphanedDataDirs,
     writeDataDirOwnerMarker,
 } from './data-dir-reaper';
+import {
+    closeElectronApplicationAndConfirmExit,
+    prepareElectronApplication,
+} from './electron-process-lifecycle';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -223,18 +227,26 @@ export async function launchElectronApp(
         args,
         env: buildElectronLaunchEnvironment(dataDir, options),
     });
-    attachElectronProcessDiagnostics(electronApp);
-
-    const mainWindow = await findMainWindow(electronApp);
-    await waitForAppReady(mainWindow);
-    await startPortalDebugCapture(mainWindow);
-    await startDbOperationCapture(mainWindow);
-    await startRendererFrameCapture(mainWindow);
-
-    return {
-        electronApp,
-        mainWindow,
-    };
+    return prepareElectronApplication({
+        application: electronApp,
+        dispose: (application) =>
+            closeElectronApplicationAndConfirmExit(application, {
+                closeTimeoutMs: electronAppCloseTimeoutMs,
+                exitTimeoutMs: electronAppKillWaitMs,
+            }),
+        prepare: async (application) => {
+            attachElectronProcessDiagnostics(application);
+            const mainWindow = await findMainWindow(application);
+            await waitForAppReady(mainWindow);
+            await startPortalDebugCapture(mainWindow);
+            await startDbOperationCapture(mainWindow);
+            await startRendererFrameCapture(mainWindow);
+            return {
+                electronApp: application,
+                mainWindow,
+            };
+        },
+    });
 }
 
 export function buildElectronLaunchEnvironment(
@@ -495,15 +507,19 @@ export async function launchCompetingElectronInstance(
     const { appArgs = [], timeoutMs = 30000 } = options;
     // In a Node context the `electron` package resolves to its binary path.
     const electronBinaryPath = require('electron') as unknown as string;
-    const child = spawn(electronBinaryPath, buildElectronLaunchArgs([], appArgs), {
-        env: {
-            ...process.env,
-            ELECTRON_IS_DEV: '0',
-            IPTVNATOR_E2E_DATA_DIR: dataDir,
-            NODE_ENV: 'test',
-        },
-        stdio: ['ignore', 'ignore', 'pipe'],
-    });
+    const child = spawn(
+        electronBinaryPath,
+        buildElectronLaunchArgs([], appArgs),
+        {
+            env: {
+                ...process.env,
+                ELECTRON_IS_DEV: '0',
+                IPTVNATOR_E2E_DATA_DIR: dataDir,
+                NODE_ENV: 'test',
+            },
+            stdio: ['ignore', 'ignore', 'pipe'],
+        }
+    );
 
     // Kept for the assertion message: a competing launch that dies for an
     // unrelated reason (missing sandbox, missing GPU) looks exactly like a
@@ -568,6 +584,15 @@ export async function closeElectronApp(
     } catch (error) {
         console.warn('Failed to close Electron app cleanly:', error);
     }
+}
+
+export async function closeElectronAppAndConfirmExit(
+    app: LaunchedElectronApp
+): Promise<void> {
+    await closeElectronApplicationAndConfirmExit(app.electronApp, {
+        closeTimeoutMs: electronAppCloseTimeoutMs,
+        exitTimeoutMs: electronAppKillWaitMs,
+    });
 }
 
 async function waitForPromiseWithTimeout(

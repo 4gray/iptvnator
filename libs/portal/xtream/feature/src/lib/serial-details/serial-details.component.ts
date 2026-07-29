@@ -302,6 +302,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.xtreamStore.cancelDetailsRequest();
         this.playback.closeInlinePlayer();
         this.xtreamStore.setSelectedItem(null);
     }

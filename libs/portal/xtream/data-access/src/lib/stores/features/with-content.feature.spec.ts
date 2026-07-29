@@ -486,6 +486,9 @@ describe('withContent import state', () => {
         pendingCategories.live.resolve([]);
         pendingCategories.vod.resolve([]);
         pendingCategories.series.resolve([]);
+        await waitForCondition(
+            () => store.vodCategoriesPlaylistId() === PLAYLIST.id
+        );
 
         pending.live.resolve(liveItems);
         await waitForCondition(
@@ -506,6 +509,7 @@ describe('withContent import state', () => {
         );
 
         expect(store.vodStreams()).toEqual(vodItems);
+        expect(store.vodStreamsPlaylistId()).toBe(PLAYLIST.id);
         expect(store.contentLoadStateByType()).toEqual({
             live: 'ready',
             vod: 'ready',
@@ -523,6 +527,21 @@ describe('withContent import state', () => {
             series: 'ready',
         });
         expect(store.isContentInitialized()).toBe(true);
+    });
+
+    it('records the VOD category owner when categories are reloaded', async () => {
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: 'live' | 'vod' | 'series'
+            ) => Promise.resolve([{ category_id: type }])
+        );
+
+        await store.reloadCategories();
+
+        expect(store.vodCategories()).toEqual([{ category_id: 'vod' }]);
+        expect(store.vodCategoriesPlaylistId()).toBe(PLAYLIST.id);
     });
 
     it('loads categories before starting content import', async () => {
@@ -653,10 +672,23 @@ describe('withContent import state', () => {
         expect(dataSource.getContent).not.toHaveBeenCalled();
         expect(store.vodCategories()).toHaveLength(1);
         expect(store.vodStreams()).toHaveLength(1);
+        expect(store.vodCategoriesPlaylistId()).toBe(PLAYLIST.id);
+        expect(store.vodStreamsPlaylistId()).toBe(PLAYLIST.id);
         expect(store.contentLoadStateByType().vod).toBe('ready');
         expect(store.isCachedContentScopeReady('vod')).toBe(true);
         expect(store.isContentInitialized()).toBe(true);
         expect(store.contentInitBlockReason()).toBeNull();
+    });
+
+    it('clears VOD catalog owners with the content state', async () => {
+        await store.hydrateCachedContent('vod');
+        expect(store.vodCategoriesPlaylistId()).toBe(PLAYLIST.id);
+        expect(store.vodStreamsPlaylistId()).toBe(PLAYLIST.id);
+
+        store.resetContent();
+
+        expect(store.vodCategoriesPlaylistId()).toBeNull();
+        expect(store.vodStreamsPlaylistId()).toBeNull();
     });
 
     it('exposes loading state while cached section content is hydrating', async () => {

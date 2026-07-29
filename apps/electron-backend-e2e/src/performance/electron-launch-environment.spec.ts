@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
@@ -8,6 +10,33 @@ import {
 import { assertXtreamBenchmarkEnvironmentIsolated } from './xtream-benchmark-iteration-support';
 
 describe('Electron launch environment isolation', () => {
+    it('makes post-spawn fixture preparation exception-safe', () => {
+        const fixture = readFileSync(
+            resolve(process.cwd(), 'src/electron-test-fixtures.ts'),
+            'utf8'
+        );
+        const launch = fixture.indexOf(
+            'const electronApp = await electron.launch'
+        );
+        const guardedPreparation = fixture.indexOf(
+            'return prepareElectronApplication',
+            launch
+        );
+        const strictDisposal = fixture.indexOf(
+            'closeElectronApplicationAndConfirmExit',
+            guardedPreparation
+        );
+        const mainWindow = fixture.indexOf(
+            'const mainWindow = await findMainWindow',
+            guardedPreparation
+        );
+
+        assert.ok(launch >= 0);
+        assert.ok(guardedPreparation > launch);
+        assert.ok(strictDisposal > guardedPreparation);
+        assert.ok(mainWindow > strictDisposal);
+    });
+
     it('inherits only portable runtime keys for a profiled benchmark child', () => {
         const environment = buildElectronLaunchEnvironment(
             '/tmp/iptvnator-performance',

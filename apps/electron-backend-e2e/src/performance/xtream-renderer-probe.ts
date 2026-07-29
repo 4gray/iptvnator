@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- Playwright serializes this self-contained renderer probe; external helpers would be unavailable in page context. */
 import type { Page } from '@playwright/test';
 import {
     RENDERER_PERFORMANCE_PHASE_HOOK_KEY,

@@ -219,14 +219,32 @@ nx lint electron-backend
 CI lints affected projects on PRs (`nx affected`) and every project on master
 pushes (`.github/workflows/ci.yml`). This enforces the
 Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
-rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
-are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
-with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
-Never add new files to the baseline — the list must only shrink. A new file
-that genuinely cannot be split (for example a function serialized into another
-process) instead carries its own file-wide
+rule. The limits and their rationale live in one place,
+`tools/eslint/max-lines-config.mjs`, which both `eslint.config.mjs` and the
+baseline generator import so the enforced rule and the generated list cannot
+drift:
+
+- **Production TypeScript: hard maximum 400 lines.**
+- **Tests: 1200.** `**/*.spec.ts`, `**/*.e2e.ts` and everything under
+  `apps/*-e2e/**` — a spec is a flat list of independent cases, so splitting one
+  at the production limit yields arbitrary `-2.spec.ts` files, and length there
+  signals coverage rather than the design debt the production limit catches.
+- **Blank lines and comments are not counted** (`skipBlankLines`,
+  `skipComments`), so a docblock is never the reason a file must be split.
+
+Pre-existing oversized files are baselined in
+`tools/eslint/max-lines-baseline.mjs`; regenerate the baseline with
+`node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file. The
+generator decides who belongs on the list by running ESLint's own `max-lines`
+rule, not by counting lines itself — a private reimplementation would silently
+disagree with the rule and produce a baseline that turns CI red while looking
+correct. Never add new files to the baseline — the list must only shrink. A new
+file that genuinely cannot be split (for example a function serialized into
+another process) instead carries its own file-wide
 `/* eslint-disable max-lines -- <why> */`; the generator skips those files, so
-a justified exemption never lands in the baseline.
+a justified exemption never lands in the baseline. If such a directive later
+becomes unnecessary, ESLint reports it as an unused disable directive — remove
+it rather than leaving a stale justification behind.
 
 Project `lint` targets that shell out to eslint must quote the glob, e.g.
 `eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX
@@ -490,7 +508,11 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 
 **TypeScript File Size Rule**:
 
-Keep TypeScript files under **300 lines**. Hard maximum is **350–400 lines**.
+Keep production TypeScript files under **300 lines**. Hard maximum is
+**350–400 lines**, and CI enforces the 400. Blank lines and comments do not
+count toward it, so documenting a file never costs you headroom. Tests
+(`**/*.spec.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held to 1200 instead — the
+guidance below is about production code.
 
 - When creating new files, design them to stay within this limit from the start.
 - When adding a feature to an existing file that would push it past 350 lines, **refactor first**: extract helpers, sub-services, or feature modules before adding the new code.
@@ -673,12 +695,12 @@ with its own `mimeType`. Electron Builder derives all three platform
 registrations from it: macOS `CFBundleDocumentTypes` (which is what makes
 `open-file` fire from Finder), the NSIS registry entries, and, on Linux, the
 desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
-deb/rpm/pacman. Two traps: it assigns the derived `MimeType` *after* spreading
+deb/rpm/pacman. Two traps: it assigns the derived `MimeType` _after_ spreading
 `linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
 must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
 over percent-encoded `file://` URIs rather than paths —
 `createPlaylistOpenRequest` decodes them before the extension check. `%U` is
-also the *plural* exec code, so a multi-file selection arrives as one launch
+also the _plural_ exec code, so a multi-file selection arrives as one launch
 with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
 of them and `enqueueAll` queues the batch, because stopping at the first match
 would silently drop the rest of the selection. Adding an exec code to
@@ -862,6 +884,7 @@ engine` (restart required) or
 - The inline player (`PortalInlinePlayerComponent`) renders a full-width **theater stage** (`.player-shell__viewport`): the 16:9 player is centered and letterboxed so the leftover on wide-short windows is always the stage's black background, never app surface. An opt-in `playerAmbientMode` setting (Settings → Playback, default off, built-in web players only) fills that leftover with a blurred, dimmed copy of the poster (YouTube "Ambient mode" style)
 - For inline **series** playback on wide windows the stage instead docks the player left and shows an **"Up Next" episode rail** in the leftover column (`app-up-next-rail` in `libs/ui/playback/src/lib/portal-inline-player/`): rest of the current season plus next-season spillover, playing episode highlighted, watch-progress bars from playback positions; clicking plays inline via the host's episode flow (both Xtream and Stalker). Gated by the `playerUpNextRail` setting (default on, web players only) and a ≥320px leftover-width check via ResizeObserver — narrower windows keep the centered theater/ambient stage; movies and live never show the rail. The rail is opaque and sits on top of the ambient fill
 - Watch state derives from `inlinePlayback() !== null` only; external MPV/VLC playback keeps the browse layout. Esc and "Close player" exit to browse without navigation; the now-playing back arrow is route-level back (straight to the list via the host's `goBack()`)
+- Xtream VOD treats metadata presentation and playability as separate contracts. Empty or sparse `get_vod_info` data keeps the curated fallback detail page, while Play/Resume, Favorite, and Download remain available whenever a positive stream id and non-empty container extension resolve from `movie_data` or the catalog fields. Playback fields are selected as one atomic pair in detail → recovered catalog → owner-valid cached catalog order; incomplete candidates never combine into a synthetic source. In-memory VOD categories/streams carry their owner playlist, and cross-portal Favorites/Recent details ignore arrays from another playlist so colliding Xtream ids cannot inject stale playback or presentation data. When Electron's normalized catalog cache lacks the extension, the detail loader immediately publishes the sparse fallback and ends its loading state, then performs a best-effort category-scoped raw catalog lookup and reactively upgrades the same item with actions on success. It maps the normal SQLite route category through all persisted categories, including hidden ones, while also accepting the provider `xtream_id` carried by cross-portal Similar links; ambiguous numeric matches keep local-id precedence, deduplicate provider candidates, and try the next candidate when the exact VOD is absent. PWA falls back to API categories. It skips that request when existing data is sufficient, never sends an unresolved database id as a provider id, preserves concurrent metadata enrichment, and drops late detail/recovery responses after replacement, playlist reset, or detail teardown. Inline playback moves either detail page into Watch; external MPV/VLC remains in Browse. Unresolvable items expose no actions, and playback/download titles and posters fall back through `info`, `movie_data`, then catalog fields.
 - A successful external MPV/VLC episode launch immediately persists the selected episode as the latest playback-position entry and retargets the series CTA to `Play episode N`; real player telemetry overwrites that marker when available, so episode identity is reliable while exact external timestamps remain best-effort.
 - Stalker preserves this contract for regular `/series`, embedded VOD `series[]`, and lazy Ministra VOD `is_series` items: quick-start translation parameters must reach the CTA, and inline/external episode handoffs must include the parent series id plus resolved season and episode numbers. This metadata lets the dashboard render the tracked S/E badge for VOD-backed series. Existing playback rows without it remain badge-less until the episode is played again.
 - Hosts pass hero chips/meta/actions as `*appDetailTags`/`*appDetailMeta`/`*appDetailActions` templates; the shell stamps them into both the hero and the About block

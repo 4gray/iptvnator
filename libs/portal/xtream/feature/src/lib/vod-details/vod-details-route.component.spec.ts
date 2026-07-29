@@ -1,54 +1,231 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ActivatedRoute } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
+import { NEVER, of } from 'rxjs';
+import { Location } from '@angular/common';
 import { ContentHeroComponent } from '@iptvnator/ui/components';
-import { VodDetailsPlaybackService } from './vod-details-playback.service';
-import { VodDetailsRouteComponent } from './vod-details-route.component';
 import {
-    configureVodDetailsRouteTestBed,
-    createVodDetailsRouteStubs,
-    resetVodDetailsRouteStubs,
-    silenceRouteLogging,
-} from './vod-details-route.harness';
+    PORTAL_EXTERNAL_PLAYBACK,
+    PORTAL_PLAYBACK_POSITIONS,
+    PORTAL_PLAYER,
+} from '@iptvnator/portal/shared/util';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XtreamCategory,
+    XtreamVodDetails,
+    XtreamVodStream,
+} from '@iptvnator/shared/interfaces';
+import { DownloadsService, SettingsStore } from '@iptvnator/services';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 describe('VodDetailsRouteComponent', () => {
     let fixture: ComponentFixture<VodDetailsRouteComponent>;
-    let restoreLogging: (() => void) | undefined;
-    const stubs = createVodDetailsRouteStubs();
-    const {
-        activeSession,
-        addRecentItem,
-        checkFavoriteStatus,
-        closeSession,
-        constructVodStreamUrl,
-        currentPlaylist,
-        detailsError,
-        fetchVodDetailsWithMetadata,
-        getPlaybackPosition,
-        isFavorite,
-        isLoadingDetails,
-        selectedItem,
-        setSelectedItem,
-        toggleFavorite,
-        vodCategories,
-        vodStreams,
-    } = stubs;
+    let consoleDebugSpy: jest.SpyInstance | undefined;
+    let consoleWarnSpy: jest.SpyInstance | undefined;
+    const selectedItem = signal<XtreamVodDetails | null>(null);
+    const isLoadingDetails = signal(false);
+    const detailsError = signal<string | null>(null);
+    const isFavorite = signal(false);
+    const currentPlaylist = signal<{
+        id: string;
+        userAgent?: string;
+        referrer?: string;
+        origin?: string;
+    } | null>(null);
+    const vodStreams = signal<Partial<XtreamVodStream>[]>([]);
+    const vodCategories = signal<Partial<XtreamCategory>[]>([]);
+    const vodStreamsPlaylistId = signal<string | null>(null);
+    const vodCategoriesPlaylistId = signal<string | null>(null);
+    const fetchVodDetailsWithMetadata = jest.fn();
+    const cancelDetailsRequest = jest.fn();
+    const checkFavoriteStatus = jest.fn();
+    const setSelectedItem = jest.fn();
+    const toggleFavorite = jest.fn();
+    const constructVodStreamUrl = jest
+        .fn()
+        .mockReturnValue('http://example.com/movie/650020.mp4');
+    const addRecentItem = jest.fn();
+    const downloads = signal([]);
+    const getPlaybackPosition = jest.fn().mockResolvedValue(null);
 
     beforeEach(async () => {
-        restoreLogging = silenceRouteLogging();
-        resetVodDetailsRouteStubs(stubs);
-        await configureVodDetailsRouteTestBed(stubs);
+        const consoleDebug = console.debug.bind(console);
+        const consoleWarn = console.warn.bind(console);
+        consoleDebugSpy = jest
+            .spyOn(console, 'debug')
+            .mockImplementation((...args: unknown[]) => {
+                if (
+                    args[0] === '[VodDetailsRoute]' ||
+                    args[0] === '[VodDetailsPlayback]'
+                ) {
+                    return;
+                }
+
+                consoleDebug(...args);
+            });
+        consoleWarnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation((...args: unknown[]) => {
+                if (
+                    args[0] === '[VodDetailsRoute]' &&
+                    args[1] === 'Deferring VOD details init: playlist not ready'
+                ) {
+                    return;
+                }
+
+                consoleWarn(...args);
+            });
+
+        selectedItem.set(null);
+        isLoadingDetails.set(false);
+        detailsError.set(null);
+        isFavorite.set(false);
+        currentPlaylist.set(null);
+        vodStreams.set([]);
+        vodCategories.set([]);
+        vodStreamsPlaylistId.set(null);
+        vodCategoriesPlaylistId.set(null);
+        fetchVodDetailsWithMetadata.mockClear();
+        cancelDetailsRequest.mockClear();
+        checkFavoriteStatus.mockClear();
+        setSelectedItem.mockClear();
+        toggleFavorite.mockClear();
+        constructVodStreamUrl.mockClear();
+        addRecentItem.mockClear();
+        getPlaybackPosition.mockClear();
+
+        await TestBed.configureTestingModule({
+            imports: [VodDetailsRouteComponent],
+            providers: [
+                {
+                    provide: ActivatedRoute,
+                    useValue: {
+                        params: of({
+                            vodId: '650020',
+                            categoryId: '235',
+                        }),
+                        snapshot: {
+                            params: {
+                                vodId: '650020',
+                                categoryId: '235',
+                            },
+                        },
+                    },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: NEVER,
+                        onTranslationChange: NEVER,
+                        onDefaultLangChange: NEVER,
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+                {
+                    provide: XtreamStore,
+                    useValue: {
+                        selectedItem,
+                        isLoadingDetails,
+                        detailsError,
+                        isFavorite,
+                        currentPlaylist,
+                        vodStreams,
+                        vodCategories,
+                        vodStreamsPlaylistId,
+                        vodCategoriesPlaylistId,
+                        fetchVodDetailsWithMetadata,
+                        cancelDetailsRequest,
+                        checkFavoriteStatus,
+                        setSelectedItem,
+                        toggleFavorite,
+                        constructVodStreamUrl,
+                        addRecentItem,
+                    },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        theme: signal('dark'),
+                    },
+                },
+                {
+                    provide: DownloadsService,
+                    useValue: {
+                        isAvailable: signal(false),
+                        downloads,
+                        isDownloaded: jest.fn().mockReturnValue(false),
+                        isDownloading: jest.fn().mockReturnValue(false),
+                        startDownload: jest.fn(),
+                        getDownloadedFilePath: jest.fn(),
+                        playDownload: jest.fn(),
+                    },
+                },
+                {
+                    provide: PORTAL_EXTERNAL_PLAYBACK,
+                    useValue: {
+                        activeSession: signal(null),
+                        closeSession: jest.fn(),
+                    },
+                },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: {
+                        getPlaybackPosition,
+                        savePlaybackPosition: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
+                {
+                    provide: PORTAL_PLAYER,
+                    useValue: {
+                        isEmbeddedPlayer: jest.fn().mockReturnValue(false),
+                        openResolvedPlayback: jest.fn(),
+                    },
+                },
+                {
+                    provide: MatSnackBar,
+                    useValue: {
+                        open: jest.fn(),
+                    },
+                },
+                {
+                    provide: Location,
+                    useValue: {
+                        back: jest.fn(),
+                    },
+                },
+            ],
+        }).compileComponents();
 
         fixture = TestBed.createComponent(VodDetailsRouteComponent);
     });
 
     afterEach(() => {
-        restoreLogging?.();
+        consoleDebugSpy?.mockRestore();
+        consoleWarnSpy?.mockRestore();
     });
 
-    it('renders an informational fallback without playback controls when Xtream returns empty metadata', () => {
+    it('keeps the fallback visible and exposes actions when catalog playback fields are usable', () => {
         selectedItem.set({
             info: [],
-        } as XtreamVodDetails);
+            stream_id: 650020,
+            name: 'Die Kühe sind Los! (2004) DE',
+            stream_icon: 'https://example.com/cows.jpg',
+            container_extension: 'mp4',
+        } as XtreamVodDetails & {
+            container_extension: string;
+            name: string;
+            stream_icon: string;
+            stream_id: number;
+        });
         vodStreams.set([
             {
                 name: 'Die Kühe sind Los! (2004) DE',
@@ -80,9 +257,59 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback-status"]')
                 ?.textContent
         ).toContain('XTREAM.DETAIL_FALLBACK.STATUS');
+        expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(host.querySelector('button.favorite-btn')).not.toBeNull();
+        expect(host.querySelector('button.download-btn')).toBeNull();
+    });
+
+    it('keeps the fallback visible for a minimal info object', () => {
+        selectedItem.set({
+            info: {
+                name: 'Only a provider title',
+            },
+            stream_id: 650020,
+            name: 'Catalog title',
+            container_extension: 'mp4',
+        } as unknown as XtreamVodDetails);
+        vodStreams.set([
+            {
+                name: 'Catalog title',
+                stream_id: 650020,
+                container_extension: 'mp4',
+            },
+        ]);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+        ).not.toBeNull();
+        expect(host.querySelector('button.play-btn')).not.toBeNull();
+    });
+
+    it('reveals fallback actions when async catalog recovery adds a source', () => {
+        selectedItem.set({
+            info: [],
+            stream_id: 650020,
+            container_extension: null,
+        } as unknown as XtreamVodDetails);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
         expect(host.querySelector('button.play-btn')).toBeNull();
         expect(host.querySelector('button.favorite-btn')).toBeNull();
-        expect(host.querySelector('button.download-btn')).toBeNull();
+
+        selectedItem.set({
+            info: [],
+            stream_id: 650020,
+            container_extension: 'mkv',
+        } as unknown as XtreamVodDetails);
+        fixture.detectChanges();
+
+        expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(host.querySelector('button.favorite-btn')).not.toBeNull();
     });
 
     it('keeps the full Xtream detail view when usable metadata exists', () => {
@@ -164,20 +391,9 @@ describe('VodDetailsRouteComponent', () => {
         expect(hero.backdropUrl()).toBeUndefined();
     });
 
-    it('downloads the movie the route currently shows', async () => {
-        currentPlaylist.set({ id: 'playlist-1' });
-        fixture.detectChanges();
+    it('invalidates an in-flight detail request on teardown', () => {
+        fixture.componentInstance.ngOnDestroy();
 
-        await fixture.componentInstance.downloadVod({
-            movie_data: { stream_id: 111, name: 'Example' },
-        } as never);
-
-        // The id comes from the route params SIGNAL, not `snapshot.params`:
-        // the router reuses this component for detail-to-detail navigation
-        // (the Similar rail), and the snapshot still names the film the user
-        // came from — so the download would fetch the wrong movie.
-        expect(stubs.startDownload).toHaveBeenCalledWith(
-            expect.objectContaining({ xtreamId: 650020 })
-        );
+        expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
     });
 });

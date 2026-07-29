@@ -7,6 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DatabaseService, SettingsStore } from '@iptvnator/services';
 import { XtreamCredentials } from './xtream-api.service';
+import { resolveXtreamVodPlaybackSource } from './xtream-vod-playback-source';
 
 /**
  * Extended playlist with optional HTTP headers
@@ -27,10 +28,6 @@ export interface LiveStreamItem {
     xtream_id: number;
     [key: string]: unknown;
 }
-
-type XtreamVodStreamLike = XtreamVodDetails & {
-    readonly stream_id?: number;
-};
 
 const XTREAM_CATCHUP_SCHEME = {
     LEGACY: 'legacy',
@@ -124,10 +121,8 @@ export class XtreamUrlService {
         credentials: XtreamCredentials,
         vodItem: XtreamVodDetails
     ): string {
-        const vod = vodItem as XtreamVodStreamLike;
-        const streamId = vod.movie_data?.stream_id ?? vod.stream_id;
-        const extension = vodItem.movie_data?.container_extension;
-        if (!streamId || !extension) {
+        const source = resolveXtreamVodPlaybackSource(vodItem);
+        if (!source) {
             return '';
         }
         const normalizedCredentials = this.normalizeCredentials(credentials);
@@ -135,7 +130,7 @@ export class XtreamUrlService {
             return '';
         }
 
-        return `${normalizedCredentials.serverUrl}/movie/${normalizedCredentials.username}/${normalizedCredentials.password}/${streamId}.${extension}`;
+        return `${normalizedCredentials.serverUrl}/movie/${normalizedCredentials.username}/${normalizedCredentials.password}/${source.streamId}.${source.containerExtension}`;
     }
 
     /**

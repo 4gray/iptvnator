@@ -1,16 +1,16 @@
 import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withMethods } from '@ngrx/signals';
-import { XtreamSerieDetails, XtreamVodDetails } from '@iptvnator/shared/interfaces';
+import {
+    XtreamSerieDetails,
+    XtreamVodDetails,
+} from '@iptvnator/shared/interfaces';
 
-// Import existing features that are already separate
 import { withFavorites } from '../with-favorites.feature';
 import { withRecentItems } from '../with-recent-items';
 
-// Import service
 import { XTREAM_DATA_SOURCE } from '../data-sources/xtream-data-source.interface';
 import { XtreamApiService } from '../services/xtream-api.service';
 
-// Import new feature stores
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -27,25 +27,13 @@ import {
     enrichSerialSelectionWithTmdb,
     enrichVodSelectionWithTmdb,
 } from './xtream-tmdb-enrichment';
+import {
+    applyRecoveredXtreamVodCatalogItem,
+    createXtreamDetailsRequestGuard,
+    resolveXtreamVodDetailsSelection,
+} from './xtream-details-request';
 
-/**
- * XtreamStore - Facade composing all feature stores.
- *
- * This store provides a unified API for components while delegating
- * to specialized feature stores for different concerns:
- *
- * - withPortal: Playlist and portal status management
- * - withContent: Categories and streams management
- * - withSelection: UI selection and pagination
- * - withSearch: Search functionality
- * - withEpg: EPG (Electronic Program Guide) data
- * - withPlayer: Stream URL construction and player integration
- * - withFavorites: Favorites management
- * - withRecentItems: Recently viewed items
- * - withPlaybackPositions: Playback position tracking
- *
- * @see docs/XTREAM_STORE_REFACTORING_PLAN.md
- */
+/** Facade composing the Xtream feature stores and cross-feature workflows. */
 export const XtreamStore = signalStore(
     { providedIn: 'root' },
 
@@ -60,7 +48,6 @@ export const XtreamStore = signalStore(
     withRecentItems(),
     withPlaybackPositions(),
 
-    // Cross-feature computed properties
     withComputed((store) => ({
         /**
          * Get global recent items (from withRecentItems)
@@ -76,21 +63,20 @@ export const XtreamStore = signalStore(
         const dataSource = inject(XTREAM_DATA_SOURCE);
         const tmdbEnrichment = inject(TmdbEnrichmentService);
         const logger = createLogger('XtreamStore');
-        const findVodCatalogItem = (vodId: string | number) =>
-            store.vodStreams().find((item) => {
-                const candidateId =
-                    item.xtream_id ??
-                    item.stream_id ??
-                    (item as { id?: string | number }).id;
-
-                return Number(candidateId) === Number(vodId);
-            });
-
+        const detailsRequestGuard = createXtreamDetailsRequestGuard(
+            () => store.currentPlaylist()?.id
+        );
         return {
+            cancelDetailsRequest(): void {
+                detailsRequestGuard.invalidate();
+                store.setIsLoadingDetails(false);
+            },
+
             /**
              * Full store reset for switching between playlists
              */
             resetStore(newPlaylistId?: string): void {
+                detailsRequestGuard.invalidate();
                 // Clear the session cache for the playlist we're leaving so
                 // stale data cannot bleed into the new playlist (PWA path).
                 const leavingPlaylistId = store.playlistId();
@@ -148,38 +134,80 @@ export const XtreamStore = signalStore(
             }): void {
                 const playlist = store.currentPlaylist();
                 if (!playlist) return;
+                const isCurrentRequest = detailsRequestGuard.begin(playlist.id);
+                const credentials = {
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                };
 
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
                 xtreamApiService
-                    .getVodInfo(
-                        {
-                            serverUrl: playlist.serverUrl,
-                            username: playlist.username,
-                            password: playlist.password,
-                        },
-                        params.vodId
-                    )
+                    .getVodInfo(credentials, params.vodId)
                     .then((vodDetails: XtreamVodDetails) => {
-                        const catalogItem = findVodCatalogItem(params.vodId);
+                        if (!isCurrentRequest()) return;
 
+                        const { recovery, selection } =
+                            resolveXtreamVodDetailsSelection({
+                                apiService: xtreamApiService,
+                                currentCategories: store.vodCategories(),
+                                currentCategoriesPlaylistId:
+                                    store.vodCategoriesPlaylistId(),
+                                currentStreams: store.vodStreams(),
+                                currentStreamsPlaylistId:
+                                    store.vodStreamsPlaylistId(),
+                                credentials,
+                                dataSource,
+                                isCurrent: isCurrentRequest,
+                                playlistId: playlist.id,
+                                routeCategoryId: params.categoryId,
+                                vodDetails,
+                                vodId: params.vodId,
+                            });
+                        if (!isCurrentRequest()) return;
                         store.setSelectedCategory(params.categoryId);
-                        store.setSelectedItem({
-                            ...catalogItem,
-                            ...vodDetails,
-                            stream_id: params.vodId,
-                            xtream_id:
-                                catalogItem?.xtream_id ?? Number(params.vodId),
-                        });
-                        // Async, best-effort: patches the selection with a
-                        // field-level TMDB merge once metadata arrives
+                        store.setSelectedItem(selection);
                         void enrichVodSelectionWithTmdb(
                             store,
                             tmdbEnrichment,
                             params.vodId
                         );
+
+                        if (!recovery) {
+                            return;
+                        }
+
+                        void recovery.then(
+                            ({ recoveredCatalogItem, recoveryError }) => {
+                                if (!isCurrentRequest()) {
+                                    return;
+                                }
+                                if (recoveryError) {
+                                    logger.warn(
+                                        'Failed to recover sparse VOD playback source from the catalog',
+                                        recoveryError
+                                    );
+                                    return;
+                                }
+                                if (!recoveredCatalogItem) {
+                                    return;
+                                }
+
+                                const recoveredSelection =
+                                    applyRecoveredXtreamVodCatalogItem(
+                                        store.selectedItem(),
+                                        recoveredCatalogItem,
+                                        params.vodId
+                                    );
+                                if (recoveredSelection) {
+                                    store.setSelectedItem(recoveredSelection);
+                                }
+                            }
+                        );
                     })
                     .catch((error: unknown) => {
+                        if (!isCurrentRequest()) return;
                         logger.error('Error fetching VOD details', error);
                         store.setDetailsError(
                             error instanceof Error
@@ -188,7 +216,9 @@ export const XtreamStore = signalStore(
                         );
                     })
                     .finally(() => {
-                        store.setIsLoadingDetails(false);
+                        if (isCurrentRequest()) {
+                            store.setIsLoadingDetails(false);
+                        }
                     });
             },
 
@@ -202,19 +232,19 @@ export const XtreamStore = signalStore(
             }): void {
                 const playlist = store.currentPlaylist();
                 if (!playlist) return;
+                const isCurrentRequest = detailsRequestGuard.begin(playlist.id);
+                const credentials = {
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                };
 
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
                 xtreamApiService
-                    .getSeriesInfo(
-                        {
-                            serverUrl: playlist.serverUrl,
-                            username: playlist.username,
-                            password: playlist.password,
-                        },
-                        params.serialId
-                    )
+                    .getSeriesInfo(credentials, params.serialId)
                     .then((serialDetails: XtreamSerieDetails) => {
+                        if (!isCurrentRequest()) return;
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem({
                             ...serialDetails,
@@ -227,6 +257,7 @@ export const XtreamStore = signalStore(
                         );
                     })
                     .catch((error: unknown) => {
+                        if (!isCurrentRequest()) return;
                         logger.error('Error fetching series details', error);
                         store.setDetailsError(
                             error instanceof Error
@@ -235,7 +266,9 @@ export const XtreamStore = signalStore(
                         );
                     })
                     .finally(() => {
-                        store.setIsLoadingDetails(false);
+                        if (isCurrentRequest()) {
+                            store.setIsLoadingDetails(false);
+                        }
                     });
             },
 

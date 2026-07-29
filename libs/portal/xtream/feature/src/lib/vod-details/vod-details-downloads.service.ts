@@ -1,10 +1,9 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { DownloadsService } from '@iptvnator/services';
-import {
-    XtreamVodDetails,
-    getXtreamVodInfo,
-} from '@iptvnator/shared/interfaces';
+import { resolveXtreamVodPlaybackSource } from '@iptvnator/portal/xtream/data-access';
+import { XtreamVodDetails } from '@iptvnator/shared/interfaces';
+import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
 
 /**
  * Offline downloads for the movie on screen.
@@ -83,22 +82,27 @@ export class VodDetailsDownloadsService {
             return;
         }
 
-        const info = getXtreamVodInfo(vodItem);
+        // A provider can omit the route id entirely (sparse details), and the
+        // resolved source is then the only place the stream id exists.
+        const source = resolveXtreamVodPlaybackSource(vodItem);
+        if (!source) {
+            return;
+        }
+
+        const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         const routeVodId = this.routeContentId();
-        const id = Number.isFinite(routeVodId)
-            ? routeVodId
-            : Number(
-                  vodItem.movie_data?.stream_id ||
-                      (vodItem as { stream_id?: number }).stream_id
-              );
+        const id =
+            Number.isSafeInteger(routeVodId) && routeVodId > 0
+                ? routeVodId
+                : source.streamId;
 
         await this.downloadsService.startDownload({
             playlistId: playlist.id,
             xtreamId: id,
             contentType: 'vod',
-            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
+            title: presentation.title,
             url: this.xtreamStore.constructVodStreamUrl(vodItem),
-            posterUrl: info?.movie_image,
+            posterUrl: presentation.posterUrl,
             headers: {
                 userAgent: playlist.userAgent,
                 referer: playlist.referrer,

@@ -225,7 +225,11 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
 
         // The user presses Play on the route copy while that close is pending.
         service.playVod({
-            movie_data: { stream_id: ROUTE_VOD_ID, name: 'Example Movie' },
+            movie_data: {
+                stream_id: ROUTE_VOD_ID,
+                name: 'Example Movie',
+                container_extension: 'mp4',
+            },
         } as never);
         releaseClose?.();
         await switching;

@@ -69,6 +69,14 @@ export const XTREAM_WORKER_WHOLE_METRIC_SCOPE = {
     OPERATION_WINDOW: 'whole-worker-operation-window',
 } as const;
 
+export const XTREAM_STARTUP_RETRY_REASON = {
+    SQLITE_DATABASE_LOCKED: 'sqlite-database-locked',
+    SQLITE_SCHEMA_NOT_READY: 'sqlite-schema-not-ready',
+} as const;
+
+export type XtreamStartupRetryReason =
+    (typeof XTREAM_STARTUP_RETRY_REASON)[keyof typeof XTREAM_STARTUP_RETRY_REASON];
+
 export const XTREAM_STRUCTURED_CLONE_ATTRIBUTION = {
     SELECTED_IPC_PROXY: 'selected-ipc-proxy-includes-queueing-and-scheduling',
 } as const;
@@ -215,6 +223,8 @@ export interface XtreamIterationProcessIdentity {
     readonly generationIdentitySha256: string;
     readonly launchId: string;
     readonly profileDirectorySha256: string;
+    readonly startupAttemptCount: 1 | 2;
+    readonly startupRetryReasons: readonly XtreamStartupRetryReason[];
 }
 
 export interface XtreamRawIterationResult extends XtreamIterationDefinition {

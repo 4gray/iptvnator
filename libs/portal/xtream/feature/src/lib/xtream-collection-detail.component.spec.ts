@@ -26,6 +26,7 @@ describe('XtreamCollectionDetailComponent', () => {
     let selectedItem: ReturnType<typeof signal<unknown>>;
     let isLoadingDetails: ReturnType<typeof signal<boolean>>;
     let detailsError: ReturnType<typeof signal<string | null>>;
+    let cancelDetailsRequest: jest.Mock;
 
     beforeEach(async () => {
         playlistId = signal('');
@@ -35,6 +36,7 @@ describe('XtreamCollectionDetailComponent', () => {
         selectedItem = signal<unknown>(null);
         isLoadingDetails = signal(false);
         detailsError = signal<string | null>(null);
+        cancelDetailsRequest = jest.fn();
 
         await TestBed.configureTestingModule({
             imports: [XtreamCollectionDetailComponent],
@@ -49,6 +51,7 @@ describe('XtreamCollectionDetailComponent', () => {
                         selectedItem,
                         isLoadingDetails,
                         detailsError,
+                        cancelDetailsRequest,
                         setPlaylistId: jest.fn((value: string) =>
                             playlistId.set(value)
                         ),
@@ -157,5 +160,11 @@ describe('XtreamCollectionDetailComponent', () => {
                 .detailInjector()
                 ?.get(XTREAM_SERIES_RESUME_TARGET)()
         ).toEqual(seriesResume);
+    });
+
+    it('invalidates detail loading before restoring the underlying store', () => {
+        fixture.componentInstance.ngOnDestroy();
+
+        expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
     });
 });
