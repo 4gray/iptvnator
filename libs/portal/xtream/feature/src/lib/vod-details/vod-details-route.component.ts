@@ -228,6 +228,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             vodId: this.selectedVodId(),
             vodInfo: this.selectedVodInfo(),
             catalogItem: this.selectedCatalogItem(),
+            containerExtension:
+                this.selectedItem()?.movie_data?.container_extension,
         })
     );
     readonly selectedVodInfo = computed(() => {

@@ -148,6 +148,30 @@ describe('applyApiMetadata', () => {
         ).toBeUndefined();
     });
 
+    it('tells 540p apart from 576p instead of bucketing both', () => {
+        // 960x540 and 1024x576 are two standard formats inside what used to be
+        // one 900-1199 range, so every 540p encode was published as "576p"
+        // with `api` provenance — a measurement its own pixels contradict.
+        expect(
+            applyApiMetadata(candidate(), { width: 960, height: 540 }).quality
+        ).toEqual({ value: '540p', provenance: 'api' });
+        expect(
+            applyApiMetadata(candidate(), { width: 1024, height: 576 }).quality
+        ).toEqual({ value: '576p', provenance: 'api' });
+        // Letterboxing only ever removes lines, so the width still names it.
+        expect(
+            applyApiMetadata(candidate(), { width: 1024, height: 432 }).quality
+        ).toEqual({ value: '576p', provenance: 'api' });
+    });
+
+    it('gives no quality for a width between the known formats', () => {
+        // 1100 wide is no standard shape. The old range answered "576p" for
+        // it; an absent tag and a check chip is the honest reply.
+        expect(
+            applyApiMetadata(candidate(), { width: 1100, height: 620 }).quality
+        ).toBeUndefined();
+    });
+
     it('rejects a height the width cannot account for', () => {
         // 640x480 is 4:3 VGA, not a letterboxed 360p — the width alone would
         // have called it 360p and published that as a measurement.

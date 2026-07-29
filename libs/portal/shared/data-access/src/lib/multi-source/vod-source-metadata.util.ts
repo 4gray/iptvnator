@@ -241,13 +241,19 @@ function isPositiveNumber(value: number | null | undefined): value is number {
 /**
  * The sub-HD formats, matched rather than bucketed.
  *
- * Ranges work above 900 because the encodes cluster there. Below it they do
- * not: 800×600 and 800×450 are neither 480p nor each other, and 720 is NTSC
- * 480p or PAL 576p depending only on the height. Anything that is not one of
- * these shapes gets no tag at all — a bucket here would be published with
- * `api` provenance and read as a measurement.
+ * Bucketing only survives above 1200, where the standard widths are far apart.
+ * Below that they are not: 960×540 and 1024×576 are two different formats
+ * inside what used to be one 900–1199 range, so every 540p encode was published
+ * as "576p" with `api` provenance — a measurement the pixels contradict. Lower
+ * still, 800×600 and 800×450 are neither 480p nor each other, and 720 is NTSC
+ * 480p or PAL 576p depending only on the height.
+ *
+ * Anything that is not one of these shapes gets no tag at all, because a guess
+ * here would be read as a measurement.
  */
-const SMALL_FORMATS: ReadonlyArray<[number, number, string]> = [
+const KNOWN_FORMATS: ReadonlyArray<[number, number, string]> = [
+    [1024, 576, '576p'],
+    [960, 540, '540p'],
     [854, 480, '480p'],
     [720, 576, '576p'],
     [720, 480, '480p'],
@@ -258,11 +264,11 @@ function within5Percent(value: number, reference: number): boolean {
     return Math.abs(value - reference) / reference <= 0.05;
 }
 
-function smallFormatQuality(
+function knownFormatQuality(
     width: number,
     height: number | null | undefined
 ): string | null {
-    const byWidth = SMALL_FORMATS.filter(([reference]) =>
+    const byWidth = KNOWN_FORMATS.filter(([reference]) =>
         within5Percent(width, reference)
     );
     if (byWidth.length === 0) {
@@ -309,10 +315,7 @@ function qualityFromDimensions(
         if (width >= 1200) {
             return '720p';
         }
-        if (width >= 900) {
-            return '576p';
-        }
-        return smallFormatQuality(width, height);
+        return knownFormatQuality(width, height);
     }
 
     if (!isPositiveNumber(height)) {

@@ -11,7 +11,10 @@ import type {
     VodSourceCandidate,
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { applyApiMetadata } from './vod-source-metadata.util';
+import {
+    applyApiMetadata,
+    type ProviderVodMetadata,
+} from './vod-source-metadata.util';
 
 /**
  * Turns a discovered source into something playable.
@@ -177,12 +180,6 @@ export class VodSourceResolverService {
                 candidate.contentId
             );
 
-            const info = Array.isArray(vodDetails?.info)
-                ? undefined
-                : vodDetails?.info;
-            const video = readStreamInfo(info?.video);
-            const audio = readStreamInfo(info?.audio);
-
             const container = vodDetails?.movie_data?.container_extension;
             if (container) {
                 this.containerCache.set(cacheKey, container);
@@ -190,13 +187,7 @@ export class VodSourceResolverService {
 
             return {
                 vodDetails,
-                metadata: {
-                    containerExtension: container ?? null,
-                    videoCodec: video?.codec_name ?? null,
-                    audioCodec: audio?.codec_name ?? null,
-                    width: video?.width ?? null,
-                    height: video?.height ?? null,
-                },
+                metadata: providerVodMetadataOf(vodDetails),
             };
         } catch (error) {
             this.logger.warn('Reading alternative VOD details failed:', error);
@@ -230,6 +221,39 @@ export class VodSourceResolverService {
  * the codec on every array-shaped response — so the source rows showed no
  * provider-stated codec and the "dub may differ" warning could never fire.
  */
+/**
+ * The provider's own stated facts about one movie, in the shape
+ * `applyApiMetadata` consumes.
+ *
+ * Shared with the ROUTE's source row, which the page can build from details it
+ * has already loaded. Without it the row the user is switching *from* carries
+ * no facts at all, so `audioDiffersFactually` has nothing to compare and the
+ * "dub may differ" warning cannot fire on the commonest switch there is.
+ */
+export function providerVodMetadataOf(
+    vodDetails:
+        | { info?: unknown; movie_data?: { container_extension?: string } }
+        | null
+        | undefined
+): ProviderVodMetadata {
+    // A provider can send `info` as an array, which carries no stream data.
+    const info = Array.isArray(vodDetails?.info)
+        ? undefined
+        : (vodDetails?.info as
+              | { video?: unknown; audio?: unknown }
+              | undefined);
+    const video = readStreamInfo(info?.video);
+    const audio = readStreamInfo(info?.audio);
+
+    return {
+        containerExtension: vodDetails?.movie_data?.container_extension ?? null,
+        videoCodec: video?.codec_name ?? null,
+        audioCodec: audio?.codec_name ?? null,
+        width: video?.width ?? null,
+        height: video?.height ?? null,
+    };
+}
+
 export function readStreamInfo(
     value: unknown
 ): { codec_name?: string; width?: number; height?: number } | undefined {

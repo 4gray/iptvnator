@@ -1,4 +1,8 @@
 import {
+    providerVodMetadataOf,
+    type ProviderVodMetadata,
+} from '@iptvnator/portal/shared/data-access';
+import {
     extractYear,
     releaseTagYear,
     type XtreamVodInfo,
@@ -18,6 +22,13 @@ export interface VodMultiSourceMovie {
     title: string;
     year: number | null;
     tmdbId?: number | string | null;
+    /**
+     * The provider's stated facts about THIS copy, when `get_vod_info` has
+     * landed. Deliberately outside `vodMultiSourceMovieKey`: it describes the
+     * stream, not which film this is, and rediscovering on a codec string
+     * would restart the search for no gain.
+     */
+    metadata?: ProviderVodMetadata;
 }
 
 type CatalogItem =
@@ -39,6 +50,8 @@ export function resolveVodMultiSourceMovie(input: {
     vodId: number;
     vodInfo: XtreamVodInfo | null;
     catalogItem: CatalogItem;
+    /** From `movie_data`, which sits beside `info` rather than inside it. */
+    containerExtension?: string | null;
 }): VodMultiSourceMovie | null {
     const { playlistId, vodId, vodInfo, catalogItem } = input;
 
@@ -66,6 +79,17 @@ export function resolveVodMultiSourceMovie(input: {
         // supplies the real one.
         year: extractYear(vodInfo?.releasedate) ?? releaseTagYear(title),
         tmdbId: vodInfo?.tmdb_id,
+        // Only once `get_vod_info` has landed. Before that the row simply
+        // states nothing, which is the honest reading of "not known yet".
+        metadata: vodInfo
+            ? providerVodMetadataOf({
+                  info: vodInfo,
+                  movie_data: {
+                      container_extension:
+                          input.containerExtension ?? undefined,
+                  },
+              })
+            : undefined,
     };
 }
 
