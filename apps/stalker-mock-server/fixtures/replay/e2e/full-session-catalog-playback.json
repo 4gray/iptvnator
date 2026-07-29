@@ -673,7 +673,10 @@
                             "kind": "json",
                             "value": {
                                 "js": {
-                                    "cmd": "/stream/ready.m3u8"
+                                    "cmd": "/stream/ready.m3u8",
+                                    "error": "",
+                                    "load": "",
+                                    "streamer_id": "1"
                                 }
                             }
                         },

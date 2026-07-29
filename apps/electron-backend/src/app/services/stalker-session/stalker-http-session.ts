@@ -118,6 +118,11 @@ export class StalkerHttpSession {
                         request.params === undefined
                             ? undefined
                             : { ...request.params },
+                    paramsSerializer: hasOwnCommandParameter(request.params)
+                        ? {
+                              serialize: serializeStalkerHttpParameters,
+                          }
+                        : undefined,
                     redirectHooks: {
                         beforeValidatedRedirect: (redirect) => {
                             validateRedirectTarget(
@@ -192,6 +197,30 @@ export class StalkerHttpSession {
                 : failure(STALKER_FAILURE_REASONS.IncompatibleResponse, false);
         }
     }
+}
+
+function serializeStalkerHttpParameters(
+    parameters: StalkerHttpParameters
+): string {
+    return Object.entries(parameters)
+        .map(([key, value]) => {
+            const encodedValue = encodeURIComponent(String(value));
+            const compatibleValue =
+                key === 'cmd'
+                    ? encodedValue.replace(/%2F/gi, '/')
+                    : encodedValue;
+            return `${encodeURIComponent(key)}=${compatibleValue}`;
+        })
+        .join('&');
+}
+
+function hasOwnCommandParameter(
+    parameters: StalkerHttpParameters | undefined
+): boolean {
+    return (
+        parameters !== undefined &&
+        Object.prototype.hasOwnProperty.call(parameters, 'cmd')
+    );
 }
 
 function assertTransportConfig(config: StalkerTransportConfig): void {

@@ -65,6 +65,12 @@ Stalker has two deliberately separate request paths:
    `STALKER_REQUEST`/HTTP adapter. They do not acquire a main-owned full
    session.
 
+Stalker query serialization is a compatibility contract: `cmd` values retain
+literal forward slashes while query separators and all other parameter data
+remain percent-encoded. Do not replace this behavior with Axios default
+parameter serialization; some Ministra portals inspect the raw `create_link`
+query and reject encoded playback-path separators.
+
 The primary ownership points are:
 
 - pure URL, response, identity, state-machine, and request-policy rules:
@@ -133,6 +139,11 @@ for the next bounded candidate. A valid API envelope with an incompatible MIME
 type remains fail-closed for ordinary candidates; only a persisted learned
 endpoint may treat a body rejected solely by media type as a stale-hint miss
 and continue bounded discovery.
+
+Some successful Stalker responses, including `create_link`, carry an exact
+empty `error` string alongside their payload. The response classifier treats
+that compatibility sentinel as no error; non-empty error strings and all other
+error indicators remain fail-closed.
 
 Persisted compatibility fields are:
 

@@ -96,6 +96,36 @@ describe('StalkerHttpSession', () => {
         expect(config.headers).not.toHaveProperty('Authorization');
         expect(config.headers).not.toHaveProperty('Cookie');
         expect(config.headers).not.toHaveProperty('Proxy-Authorization');
+        expect(config.paramsSerializer).toBeUndefined();
+    });
+
+    it('preserves only cmd slashes while encoding reserved query characters', async () => {
+        axiosMock.mockResolvedValueOnce({
+            data: Buffer.from('{}'),
+            headers: {},
+            status: 200,
+        });
+        const session = new StalkerHttpSession(
+            new StalkerCookieJar(),
+            DEFAULT_TRANSPORT
+        );
+
+        await session.request({
+            mode: STALKER_HTTP_REQUEST_MODES.Anonymous,
+            params: {
+                type: 'vod',
+                action: 'create_link',
+                cmd: '/media/file 4?quality=hd&label=x=y#preview.mpg',
+                search: '/catalog value&mode=all#anchor',
+                page: 2,
+            },
+            url: 'http://192.168.1.20/server/load.php',
+        });
+
+        const config = axiosMock.mock.calls[0][0];
+        expect(axios.getUri(config)).toBe(
+            'http://192.168.1.20/server/load.php?type=vod&action=create_link&cmd=/media/file%204%3Fquality%3Dhd%26label%3Dx%3Dy%23preview.mpg&search=%2Fcatalog%20value%26mode%3Dall%23anchor&page=2'
+        );
     });
 
     it('blocks an anonymous public-to-private redirect before target contact', async () => {

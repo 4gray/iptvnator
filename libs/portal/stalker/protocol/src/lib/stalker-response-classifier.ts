@@ -344,11 +344,13 @@ function extractBodyError(
 ): string | undefined {
     const envelope = asRecord(value);
     const js = asRecord(envelope?.['js']);
-    if (typeof js?.['error'] === 'string') {
-        return js['error'];
+    const jsError = js?.['error'];
+    if (typeof jsError === 'string' && jsError !== '') {
+        return jsError;
     }
-    if (typeof envelope?.['error'] === 'string') {
-        return envelope['error'];
+    const envelopeError = envelope?.['error'];
+    if (typeof envelopeError === 'string' && envelopeError !== '') {
+        return envelopeError;
     }
     if (value !== undefined) {
         return undefined;

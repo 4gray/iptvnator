@@ -242,6 +242,21 @@ describe('Stalker response classifier', () => {
         ).toEqual({ kind: 'none' });
     });
 
+    it('accepts the empty error field returned by successful create_link responses', () => {
+        expect(
+            classifyStalkerResponseFailure({
+                httpStatus: 200,
+                value: {
+                    js: {
+                        cmd: 'ffmpeg http://media.invalid/movie.ts',
+                        error: '',
+                        load: '',
+                    },
+                },
+            })
+        ).toEqual({ kind: 'none' });
+    });
+
     it.each([
         ['Authorization failed', { kind: 'token-rejected' }],
         ['Access denied', { kind: 'failure', reason: 'account-access-denied' }],
