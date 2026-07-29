@@ -28,7 +28,11 @@ export interface OwnedContentIds {
  */
 export function ownsContent(
     info:
-        | { playlistId?: string; contentXtreamId?: number; contentType?: string }
+        | {
+              playlistId?: string;
+              contentXtreamId?: number;
+              contentType?: string;
+          }
         | undefined,
     owned: OwnedContentIds
 ): boolean {

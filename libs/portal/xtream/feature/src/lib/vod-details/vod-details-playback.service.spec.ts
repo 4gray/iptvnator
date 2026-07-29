@@ -146,11 +146,6 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(service.matchedExternalPlayback()).toBeNull();
     });
 
-
-
-
-
-
     it('records a source started through multi-source as recently viewed', async () => {
         // Playing an alternative from the picker, or letting a pin decide the
         // primary Play, is still watching the movie — it belongs in Recently
