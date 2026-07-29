@@ -6,9 +6,37 @@ import {
 } from './server.js';
 import { startLoopbackServer } from './testing/http-server.fixture.js';
 
-jest.mock('@faker-js/faker', () => ({
-    faker: { seed: jest.fn() },
-}));
+jest.mock('@faker-js/faker', () => {
+    const fixedDate = new Date('2020-01-01T00:00:00.000Z');
+    const fixedText = 'Fixture value';
+    return {
+        faker: {
+            seed: jest.fn(),
+            company: {
+                catchPhrase: () => fixedText,
+                name: () => fixedText,
+            },
+            date: {
+                past: () => fixedDate,
+                recent: () => fixedDate,
+            },
+            location: { country: () => fixedText },
+            lorem: {
+                paragraph: () => fixedText,
+                sentence: () => fixedText,
+                words: () => fixedText,
+            },
+            music: {
+                genre: () => fixedText,
+                songName: () => fixedText,
+            },
+            number: {
+                int: ({ min = 0 }: { min?: number }) => min,
+            },
+            person: { fullName: () => fixedText },
+        },
+    };
+});
 
 jest.setTimeout(60_000);
 
@@ -84,6 +112,26 @@ describe('Xtream mock server factory', () => {
             expect(stream.headers.get('location')).toBe(
                 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
             );
+        } finally {
+            await running.close();
+        }
+    });
+
+    it('keeps a non-EPG timezone stream empty across repeated short-EPG requests', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        const requestUrl = `${running.origin}/player_api.php?username=epg&password=epg&action=get_short_epg&stream_id=10001`;
+        try {
+            const firstResponse = await fetch(requestUrl).then((response) =>
+                response.json()
+            );
+            const secondResponse = await fetch(requestUrl).then((response) =>
+                response.json()
+            );
+
+            expect(firstResponse.epg_listings).toHaveLength(0);
+            expect(secondResponse.epg_listings).toHaveLength(0);
         } finally {
             await running.close();
         }

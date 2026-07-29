@@ -49,6 +49,10 @@
     }
 }
 
+.channel-list-item:not(.compact) {
+    height: 68px;
+}
+
 .drag-icon {
     flex-shrink: 0;
     cursor: move;
@@ -73,7 +77,11 @@
     place-items: center;
     overflow: hidden;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.12),
+            rgba(255, 255, 255, 0)
+        ),
         rgba(127, 127, 127, 0.12);
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.08),
@@ -180,7 +188,8 @@
         rgba(255, 255, 255, 0)
     );
     box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--app-selection-border) 82%, transparent),
+        0 0 0 1px
+            color-mix(in srgb, var(--app-selection-border) 82%, transparent),
         0 0 10px -2px var(--app-selection-glow);
     transition: width 0.35s ease;
 }
@@ -260,7 +269,7 @@
 
 @container (max-width: 310px) {
     .epg-timeline {
-        grid-template-columns: 1fr;
+        grid-template-columns: auto minmax(24px, 1fr);
         gap: 5px;
     }
 
@@ -271,35 +280,48 @@
 
 @container (max-width: 270px) {
     .channel-list-item {
-        min-height: 52px;
         gap: 8px;
         padding-inline: 8px 6px;
     }
 
-    .channel-logo-shell {
-        width: 34px;
-        height: 34px;
+    .channel-list-item:not(.compact) {
+        padding-block: 7px;
     }
 
-    .epg-title,
-    .epg-timeline,
-    .epg-placeholder,
-    .program-info-button {
+    .channel-list-item:not(.compact) .channel-logo-shell {
         display: none;
+    }
+
+    .channel-list-item:not(.compact) .channel-content {
+        gap: 0;
+    }
+
+    .channel-list-item.compact .channel-logo-shell {
+        width: 34px;
+        height: 34px;
     }
 }
 
 @container (max-width: 220px) {
-    .channel-logo-shell,
-    .action-buttons {
+    .channel-list-item:not(.compact) .epg-timeline {
+        grid-template-columns: minmax(24px, 1fr);
+    }
+
+    .channel-list-item:not(.compact) .epg-time:first-child {
         display: none;
     }
 
-    .channel-content {
+    .channel-list-item.compact .channel-logo-shell,
+    .channel-list-item.compact .action-buttons {
+        display: none;
+    }
+
+    .channel-list-item.compact .channel-content {
         gap: 0;
     }
 }
 
-.favorite-button, .program-info-button {
+.favorite-button,
+.program-info-button {
     padding: 0;
 }

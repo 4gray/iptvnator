@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import {
     addXtreamPortal,
     channelItemByTitle,
@@ -124,6 +125,103 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
     });
 }
 
+test('@epg @xtream @electron keeps EPG context and actions at narrow channel-row widths', async ({
+    dataDir,
+    request,
+}) => {
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, epgCredentials);
+    const currentProgram = fixture.shortEpg[0];
+    if (!currentProgram) {
+        throw new Error(
+            'Expected the Xtream EPG fixture to include a current program.'
+        );
+    }
+    const app = await launchElectronApp(dataDir, {
+        env: { TZ: 'UTC' },
+    });
+
+    try {
+        await addXtreamPortal(app.mainWindow, {
+            name: `${epgPortalName} Narrow`,
+            username: epgCredentials.username,
+            password: epgCredentials.password,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+
+        const currentProgramRow = channelItemByTitle(
+            app.mainWindow,
+            fixture.stream.name ?? ''
+        ).first();
+        const noProgramRow = channelItemByTitle(
+            app.mainWindow,
+            'Night Sports'
+        ).first();
+        await expect(currentProgramRow).toBeVisible({ timeout: 20000 });
+        await expect(noProgramRow).toBeVisible({ timeout: 20000 });
+
+        const currentTitle = currentProgramRow.locator('.epg-title');
+        const progressTrack = currentProgramRow.locator('.epg-progress-track');
+        const favoriteAction = currentProgramRow.locator('.favorite-button');
+        const placeholder = noProgramRow.locator('.epg-placeholder');
+        const logo = currentProgramRow.locator('.channel-logo-shell');
+        const timeLabels = currentProgramRow.locator('.epg-time');
+
+        await setPortalChannelItemWidth(app.mainWindow, 300);
+
+        await expect(currentTitle).toHaveText(currentProgram.title);
+        await expect(currentTitle).toBeVisible();
+        await expect(progressTrack).toBeVisible();
+        await expect(favoriteAction).toBeVisible();
+        await expect(placeholder).toBeVisible();
+        await expect(logo).toBeVisible();
+        await expect(timeLabels).toHaveCount(2);
+        await expect(timeLabels.first()).toBeVisible();
+        await expect(timeLabels.last()).toBeHidden();
+        await expectPortalRowHeightAndStride(currentProgramRow, 'Night Sports');
+        await expectPortalRowHeightAndStride(noProgramRow, 'Archive Cinema');
+        await expectTimelineStartAndProgressAligned(currentProgramRow);
+        await expectNarrowRowContentFits(currentProgramRow);
+        await expectNarrowRowContentFits(noProgramRow);
+
+        await setPortalChannelItemWidth(app.mainWindow, 232);
+
+        await expect(currentTitle).toHaveText(currentProgram.title);
+        await expect(currentTitle).toBeVisible();
+        await expect(progressTrack).toBeVisible();
+        await expect(favoriteAction).toBeVisible();
+        await expect(placeholder).toBeVisible();
+        await expect(logo).toBeHidden();
+        await expect(timeLabels).toHaveCount(2);
+        await expect(timeLabels.first()).toBeVisible();
+        await expect(timeLabels.last()).toBeHidden();
+        await expectPortalRowHeightAndStride(currentProgramRow, 'Night Sports');
+        await expectPortalRowHeightAndStride(noProgramRow, 'Archive Cinema');
+        await expectTimelineStartAndProgressAligned(currentProgramRow);
+        await expectNarrowRowContentFits(currentProgramRow);
+        await expectNarrowRowContentFits(noProgramRow);
+
+        await setPortalChannelItemWidth(app.mainWindow, 200);
+
+        await expect(currentTitle).toHaveText(currentProgram.title);
+        await expect(currentTitle).toBeVisible();
+        await expect(progressTrack).toBeVisible();
+        await expect(favoriteAction).toBeVisible();
+        await expect(placeholder).toBeVisible();
+        await expect(logo).toBeHidden();
+        await expect(timeLabels.first()).toBeHidden();
+        await expect(timeLabels.last()).toBeHidden();
+        await expectPortalRowHeightAndStride(currentProgramRow, 'Night Sports');
+        await expectPortalRowHeightAndStride(noProgramRow, 'Archive Cinema');
+        await expectNarrowRowContentFits(currentProgramRow);
+        await expectNarrowRowContentFits(noProgramRow);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
 test('@epg @xtream @electron renders the vertical list view when the setting is "list"', async ({
     dataDir,
     request,
@@ -167,9 +265,7 @@ test('@epg @xtream @electron renders the vertical list view when the setting is 
         await expect(app.mainWindow.locator('app-epg-list-view')).toBeVisible({
             timeout: 20000,
         });
-        await expect(
-            app.mainWindow.locator('app-epg-timeline')
-        ).toHaveCount(0);
+        await expect(app.mainWindow.locator('app-epg-timeline')).toHaveCount(0);
 
         // The on-air programme is the highlighted "now" row.
         await expect(
@@ -189,6 +285,178 @@ function formatTimeInZone(timestampSeconds: number, timeZone: string): string {
         minute: '2-digit',
         hour12: false,
     }).format(new Date(timestampSeconds * 1000));
+}
+
+async function setPortalChannelItemWidth(
+    page: Parameters<typeof channelItemByTitle>[0],
+    width: number
+) {
+    const channelItems = page.locator(
+        'app-portal-channels-list app-channel-list-item'
+    );
+    await channelItems.evaluateAll((elements, itemWidth) => {
+        for (const element of elements) {
+            (element as HTMLElement).style.width = `${itemWidth}px`;
+        }
+    }, width);
+    await expect
+        .poll(() =>
+            channelItems
+                .first()
+                .evaluate((element) =>
+                    Math.round(element.getBoundingClientRect().width)
+                )
+        )
+        .toBe(width);
+}
+
+const portalChannelItemSize = 68;
+const rowGeometryTolerance = 0.25;
+const contentGeometryTolerance = 1;
+
+type ElementBox = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+async function expectPortalRowHeightAndStride(
+    row: ReturnType<typeof channelItemByTitle>,
+    expectedFollowingTitle: string
+) {
+    const followingRow = row
+        .locator('xpath=ancestor::app-channel-list-item')
+        .locator('xpath=following-sibling::app-channel-list-item[1]')
+        .getByTestId('channel-item');
+    await expect(followingRow.locator('.channel-name')).toHaveText(
+        expectedFollowingTitle
+    );
+
+    const [rowBox, followingRowBox] = await Promise.all([
+        row.boundingBox(),
+        followingRow.boundingBox(),
+    ]);
+    if (!rowBox || !followingRowBox) {
+        throw new Error(
+            `Expected visible channel-row geometry before "${expectedFollowingTitle}" for the virtual-stride assertion.`
+        );
+    }
+
+    expect(Math.abs(rowBox.height - portalChannelItemSize)).toBeLessThanOrEqual(
+        rowGeometryTolerance
+    );
+    expect(
+        Math.abs(followingRowBox.y - rowBox.y - portalChannelItemSize)
+    ).toBeLessThanOrEqual(rowGeometryTolerance);
+}
+
+async function expectTimelineStartAndProgressAligned(
+    row: ReturnType<typeof channelItemByTitle>
+) {
+    const [startTimeBox, progressBox] = await Promise.all([
+        row.locator('.epg-time').first().boundingBox(),
+        row.locator('.epg-progress-track').first().boundingBox(),
+    ]);
+    if (!startTimeBox || !progressBox) {
+        throw new Error(
+            'Expected visible start-time and progress geometry in the narrow channel row.'
+        );
+    }
+
+    expect(
+        Math.abs(boxCenterY(startTimeBox) - boxCenterY(progressBox))
+    ).toBeLessThanOrEqual(contentGeometryTolerance);
+}
+
+async function expectNarrowRowContentFits(
+    row: ReturnType<typeof channelItemByTitle>
+) {
+    const [rowBox, detailsBox, actionsBox] = await Promise.all([
+        row.boundingBox(),
+        row.locator('.channel-details').boundingBox(),
+        row.locator('.action-buttons').boundingBox(),
+    ]);
+
+    if (!rowBox || !detailsBox || !actionsBox) {
+        throw new Error(
+            'Expected visible narrow channel-row, details, and action geometry.'
+        );
+    }
+
+    expectBoxContainedWithin(detailsBox, rowBox);
+    expectBoxContainedWithin(actionsBox, rowBox);
+    expect(boxRight(detailsBox)).toBeLessThanOrEqual(
+        actionsBox.x + contentGeometryTolerance
+    );
+    await expectVisibleElementsContainedWithin(
+        row.locator(
+            '.channel-details > .channel-name:visible, .channel-details > .epg-title:visible, .channel-details > .epg-placeholder:visible, .channel-details > .epg-timeline:visible'
+        ),
+        detailsBox,
+        'channel-details child'
+    );
+    await expectVisibleElementsContainedWithin(
+        row.locator('.action-buttons > button:visible'),
+        actionsBox,
+        'channel action button'
+    );
+
+    const progressTrack = row.locator('.epg-progress-track');
+    if ((await progressTrack.count()) > 0) {
+        const progressBox = await progressTrack.first().boundingBox();
+        if (!progressBox) {
+            throw new Error(
+                'Expected visible progress-track geometry in the narrow channel row.'
+            );
+        }
+        expectBoxContainedWithin(progressBox, detailsBox);
+        expect(progressBox.width).toBeGreaterThanOrEqual(24);
+    }
+}
+
+async function expectVisibleElementsContainedWithin(
+    elements: Locator,
+    outer: ElementBox,
+    description: string
+) {
+    const count = await elements.count();
+    if (count === 0) {
+        throw new Error(`Expected at least one visible ${description}.`);
+    }
+
+    for (let index = 0; index < count; index += 1) {
+        const elementBox = await elements.nth(index).boundingBox();
+        if (!elementBox) {
+            throw new Error(
+                `Expected visible ${description} geometry at index ${index}.`
+            );
+        }
+        expectBoxContainedWithin(elementBox, outer);
+    }
+}
+
+function expectBoxContainedWithin(inner: ElementBox, outer: ElementBox) {
+    expect(inner.x).toBeGreaterThanOrEqual(outer.x - contentGeometryTolerance);
+    expect(inner.y).toBeGreaterThanOrEqual(outer.y - contentGeometryTolerance);
+    expect(boxRight(inner)).toBeLessThanOrEqual(
+        boxRight(outer) + contentGeometryTolerance
+    );
+    expect(boxBottom(inner)).toBeLessThanOrEqual(
+        boxBottom(outer) + contentGeometryTolerance
+    );
+}
+
+function boxRight(box: ElementBox) {
+    return box.x + box.width;
+}
+
+function boxBottom(box: ElementBox) {
+    return box.y + box.height;
+}
+
+function boxCenterY(box: ElementBox) {
+    return box.y + box.height / 2;
 }
 
 async function timelineBlockTitles(

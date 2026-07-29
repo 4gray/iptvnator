@@ -296,6 +296,8 @@ function buildTimezoneFixture(): Pick<
 
     const epgListingsByStreamId = new Map<number, RawEpgListing[]>();
     epgListingsByStreamId.set(10_000, buildTimezoneNewsEpg(10_000));
+    epgListingsByStreamId.set(10_001, []);
+    epgListingsByStreamId.set(10_002, []);
 
     return {
         liveCategories,
