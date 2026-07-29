@@ -40,7 +40,10 @@ const describeWithSqlite = hasSqlite() ? describe : describe.skip;
 
 describe('caseInsensitiveGlobPattern', () => {
     it('builds a case class for each cased character', () => {
-        expect(caseInsensitiveGlobPattern('Он')).toBe('*[Оо][нН]*');
+        // ᲂ is U+1C82, the historic narrow o, which also uppercases to О. It
+        // is in the class for the same reason ς is in sigma's: the fold groups
+        // every character sharing an uppercase, rather than listing pairs.
+        expect(caseInsensitiveGlobPattern('Он')).toBe('*[Ооᲂ][нН]*');
     });
 
     it('leaves uncased characters alone', () => {
@@ -49,18 +52,24 @@ describe('caseInsensitiveGlobPattern', () => {
 
     it('covers a letter with two lowercase spellings', () => {
         // Greek Σ lowercases to σ, but a word-final sigma is written ς and is
-        // just as much a lowercase of it. Going back down from the uppercase
-        // form reaches the spelling the character in hand does not name.
+        // just as much a lowercase of it.
         expect(caseInsensitiveGlobPattern('ς')).toBe('*[ςΣσ]*');
     });
 
-    it('reaches the second spelling in one direction only', () => {
-        // σ → Σ → σ never arrives at ς, so a request spelled with a medial
-        // sigma does not match a stored final one. Left as is: ς is only ever
-        // correct at the end of a word, which is exactly where the request's
-        // own last character sits, so the pair that occurs in real titles is
-        // the one above. Closing the other direction needs a fold table.
-        expect(caseInsensitiveGlobPattern('σ')).toBe('*[σΣ]*');
+    it('reaches the second spelling from every spelling', () => {
+        // Case mapping alone only arrives at ς when it starts from ς: both
+        // σ → Σ → σ and Σ → σ miss it, so a request for "ΑΣ" or "ασ" did not
+        // match a stored "Ας". The fold group is keyed on the shared uppercase
+        // instead, so every spelling reaches every other one.
+        expect(caseInsensitiveGlobPattern('σ')).toBe('*[σΣς]*');
+        expect(caseInsensitiveGlobPattern('Σ')).toBe('*[Σσς]*');
+    });
+
+    it('groups characters beyond sigma', () => {
+        // The group is derived from the code point ranges, not tabulated, so
+        // the dotless ı — which uppercases to I like i does — is covered by
+        // the same rule without anyone having to think of it.
+        expect(caseInsensitiveGlobPattern('i')).toBe('*[iIı]*');
     });
 
     it('refuses a token holding a GLOB metacharacter', () => {
@@ -118,6 +127,42 @@ describeWithSqlite('caseInsensitiveGlobPattern against SQLite', () => {
         expect(sqliteGlob('ΟΣ', pattern)).toBe(true);
         // The spelling a class built from the request alone would miss.
         expect(sqliteGlob('οσ', pattern)).toBe(true);
+    });
+
+    it('matches every sigma spelling from every other', () => {
+        // The bug this closes: a request for "ΑΣ" did not match a stored
+        // "Ας", because case mapping reaches the word-final ς only when it
+        // starts from ς. Upper and lower case are both requests a user can
+        // type, so the reach has to be symmetric — asserted as the full
+        // matrix rather than the one direction that used to work.
+        const spellings = ['ΑΣ', 'Ας', 'ασ', 'ας'];
+        const matrix = (found: (a: string, b: string) => boolean) =>
+            spellings.flatMap((requested) =>
+                spellings.map(
+                    (stored) =>
+                        `${requested} finds ${stored}: ${found(requested, stored)}`
+                )
+            );
+
+        // One assertion over the whole matrix, so a regression names the exact
+        // pair that stopped matching instead of just "false".
+        expect(
+            matrix((requested, stored) =>
+                sqliteGlob(
+                    stored,
+                    caseInsensitiveGlobPattern(requested) as string
+                )
+            )
+        ).toEqual(matrix(() => true));
+    });
+
+    it('still tells two different Greek words apart', () => {
+        // The fold widens each class; it must not make every Greek word match
+        // every other. Confirms the widening did not turn into a wildcard.
+        const pattern = caseInsensitiveGlobPattern('ΑΣ') as string;
+
+        expect(sqliteGlob('ΑΝ', pattern)).toBe(false);
+        expect(sqliteGlob('ΟΣ', pattern)).toBe(false);
     });
 
     it('finds an accented title from its folded ASCII token', () => {

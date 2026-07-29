@@ -228,6 +228,15 @@ export function normalizeTitleKeys(
         .normalize('NFD')
         .replace(/[\u0300-\u036F]/g, '')
         .toLowerCase()
+        // Greek \u03A3 has two lowercase forms and `toLowerCase` picks by position:
+        // "\u0391\u03A3" becomes "\u03B1\u03C2" while an already-lowercase "\u03B1\u03C3" stays medial, so
+        // the same word reaches this line spelled two ways. Both SQL tiers
+        // fold them together \u2014 SQLite's trigram tokenizer does it natively,
+        // and the scan's GLOB classes do it in `caseInsensitiveGlobPattern` \u2014
+        // so without this the candidate is admitted by the query and then
+        // thrown away by the confirmation. Folding to the medial form is what
+        // Unicode case folding does.
+        .replace(/\u03C2/g, '\u03C3')
         .replace(/[^\p{L}\p{N}]+/gu, ' ')
         .split(' ')
         .filter((token) => token !== '' && !QUALITY_TAGS.has(token))

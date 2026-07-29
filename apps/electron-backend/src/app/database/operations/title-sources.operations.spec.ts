@@ -37,7 +37,10 @@ describe('title-sources.operations', () => {
             expect(all).toHaveBeenCalledTimes(1);
             expect(result).toHaveLength(1);
             expect(result[0]).toEqual(
-                expect.objectContaining({ xtreamId: 77, matchConfidence: 'exact' })
+                expect.objectContaining({
+                    xtreamId: 77,
+                    matchConfidence: 'exact',
+                })
             );
         });
 
@@ -83,7 +86,16 @@ describe('title-sources.operations', () => {
             // code points — so the case is folded in JavaScript and handed
             // over one class per character. Without this a title stored in
             // any case other than the two below is simply never found.
-            expect(scanQuery.params).toContain('*[Оо][нН]*');
+            // Asserted by shape rather than by literal: the class also carries
+            // every other character folding to the same uppercase, so pinning
+            // the exact members here would make this spec fail for a change
+            // that only ever widens the fold. What it owes is a class per
+            // character holding BOTH cases of that character.
+            expect(scanQuery.params).toContainEqual(
+                expect.stringMatching(
+                    /^\*(\[[^\]]*О[^\]]*о[^\]]*\])(\[[^\]]*н[^\]]*Н[^\]]*\])\*$/
+                )
+            );
             expect(scanQuery.sql).toContain('instr');
             // Both the folded and the as-typed form, since the class is built
             // from the raw token and cannot cover a diacritic difference.
