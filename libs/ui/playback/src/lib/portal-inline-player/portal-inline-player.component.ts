@@ -19,8 +19,11 @@ import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
     VideoPlayer,
+    type VodSourceDescriptor,
+    type VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
+import type { PlaybackDiagnosticCode } from '../playback-diagnostics/playback-diagnostics.model';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { PlayerMediaTitle } from '../player-controls';
@@ -29,6 +32,7 @@ import type {
     SeriesEpisodeMetadata,
     SeriesPlaybackNavigation,
 } from './series-playback-navigation';
+import { VodSourcesChipComponent } from '@iptvnator/ui/components';
 import { UpNextRailComponent } from './up-next-rail.component';
 import type { UpNextRailItem } from './up-next-rail.util';
 
@@ -49,6 +53,7 @@ const RAIL_STAGE_GAP = 18;
         MatTooltipModule,
         TranslateModule,
         UpNextRailComponent,
+        VodSourcesChipComponent,
         WebPlayerViewComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -201,6 +206,31 @@ export class PortalInlinePlayerComponent {
     }>();
     readonly streamUrlCopied = output<void>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    /** Alternatives offered on the playback-error screen. */
+    readonly alternativeSources = input<VodSourceDescriptor[]>([]);
+    /** Every source incl. the playing one — powers the in-player picker. */
+    readonly allSources = input<VodSourceDescriptor[]>([]);
+    /** Formatted resume timecode shown in the picker header. */
+    readonly sourcesResumeLabel = input<string | null>(null);
+    /** How the sources were matched — the picker states it, so it must be true. */
+    readonly sourcesMatchKind = input<VodSourceMatchKind>('title-year');
+    /**
+     * Auto-failover is one persisted setting, and this picker is the same
+     * picker as the detail page's. Without these two the in-player copy would
+     * show the toggle off while it is on, and switching it would change
+     * nothing.
+     */
+    readonly sourcesAutoFailoverEnabled = input(false);
+    /** See `VodSourcesMenuComponent.autoFailoverSupported`. */
+    readonly sourcesAutoFailoverSupported = input(true);
+    /** See `VodSourceRowComponent.playbackLive`. */
+    readonly sourcesPlaybackLive = input(false);
+    readonly sourcesAutoFailoverToggled = output<boolean>();
+    readonly sourcePinRequested = output<string>();
+    readonly sourceCheckRequested = output<string>();
+    readonly alternativeSourceRequested = output<string>();
+    /** Relayed playback failure, so hosts can offer/auto-pick a source. */
+    readonly playbackFailed = output<PlaybackDiagnosticCode>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();

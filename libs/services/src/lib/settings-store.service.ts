@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: Settings = {
     webPlayerSharedControls: false,
     playerAmbientMode: false,
     playerUpNextRail: true,
+    vodAutoFailover: false,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
@@ -222,6 +223,9 @@ export const SettingsStore = signalStore(
                     playerUpNextRail:
                         store.playerUpNextRail?.() ??
                         DEFAULT_SETTINGS.playerUpNextRail,
+                    vodAutoFailover:
+                        store.vodAutoFailover?.() ??
+                        DEFAULT_SETTINGS.vodAutoFailover,
                     streamFormat: store.streamFormat(),
                     openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
                     language: store.language(),

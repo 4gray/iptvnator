@@ -4,6 +4,7 @@ import {
 } from './database.worker-connection';
 import { parentPort } from 'worker_threads';
 import type {
+    VodSourcePin,
     XtreamBackupFavoriteItem,
     XtreamBackupRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
@@ -81,11 +82,23 @@ import {
 } from '../database/operations/recently-viewed.operations';
 import { matchTitles } from '../database/operations/title-match.operations';
 import {
+    findTitleSources,
+    type FindTitleSourcesRequest,
+} from '../database/operations/title-sources.operations';
+import {
     clearTmdbMetadata,
     getTmdbCacheStats,
     getTmdbMetadata,
     setTmdbMetadata,
 } from '../database/operations/tmdb.operations';
+import {
+    clearVodSourcePin,
+    getVodSourcePin,
+    clearVodSourcePinsForPlaylist,
+    replaceVodSourcePinsForPlaylist,
+    listVodSourcePinsForPlaylist,
+    setVodSourcePin,
+} from '../database/operations/vod-source-pin.operations';
 import {
     deleteXtreamContent,
     restoreXtreamUserData,
@@ -780,6 +793,59 @@ async function executeRequest(
         case 'DB_MATCH_TITLES': {
             const payload = message.payload as { titles: string[] };
             return matchTitles(db, payload.titles);
+        }
+
+        case 'DB_FIND_TITLE_SOURCES': {
+            const payload = message.payload as {
+                request: FindTitleSourcesRequest;
+            };
+            return findTitleSources(db, payload.request);
+        }
+
+        case 'DB_GET_VOD_SOURCE_PIN': {
+            const payload = message.payload as { matchKeys: string[] };
+            return getVodSourcePin(db, payload.matchKeys);
+        }
+
+        case 'DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST': {
+            const payload = message.payload as { playlistId: string };
+            return clearVodSourcePinsForPlaylist(db, payload.playlistId);
+        }
+
+        case 'DB_LIST_VOD_SOURCE_PINS': {
+            const payload = message.payload as { playlistId: string };
+            return listVodSourcePinsForPlaylist(db, payload.playlistId);
+        }
+
+        case 'DB_SET_VOD_SOURCE_PIN': {
+            const payload = message.payload as {
+                pin: VodSourcePin;
+                retireKeys?: string[];
+                aliasKeys?: string[];
+            };
+            return setVodSourcePin(
+                db,
+                payload.pin,
+                payload.retireKeys ?? [],
+                payload.aliasKeys ?? []
+            );
+        }
+
+        case 'DB_REPLACE_VOD_SOURCE_PINS': {
+            const payload = message.payload as {
+                playlistId: string;
+                pins: VodSourcePin[];
+            };
+            return replaceVodSourcePinsForPlaylist(
+                db,
+                payload.playlistId,
+                payload.pins ?? []
+            );
+        }
+
+        case 'DB_CLEAR_VOD_SOURCE_PIN': {
+            const payload = message.payload as { matchKeys: string[] };
+            return clearVodSourcePin(db, payload.matchKeys);
         }
 
         case 'DB_DELETE_ALL_PLAYLISTS': {

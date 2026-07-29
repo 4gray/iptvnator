@@ -75,6 +75,30 @@
     flex-wrap: wrap;
     gap: 10px;
     justify-content: flex-end;
+    align-items: center;
+}
+
+// The sources chip sits between a plain text button (Copy Stream URL) and an
+// outlined one (Close player). It is a peer of the latter, so it borrows that
+// shape — outlined pill, transparent fill, Material's 40px button height —
+// rather than carrying the filled surface it wears in the detail hero.
+.player-shell__actions ::ng-deep app-vod-sources-chip .sources-chip {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--mat-sys-outline, rgb(255 255 255 / 24%));
+    border-radius: 20px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition:
+        background-color 140ms ease,
+        border-color 140ms ease;
+
+    &:hover {
+        background: rgb(255 255 255 / 8%);
+        border-color: rgb(255 255 255 / 38%);
+    }
 }
 
 // The viewport is the "theater stage": it spans the full content width and,

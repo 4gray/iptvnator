@@ -1,6 +1,8 @@
 import { normalizeXtreamPendingRestoreState } from './xtream-restore-state.util';
 
 describe('normalizeXtreamPendingRestoreState', () => {
+    // No `sourcePins`: absent has to stay absent, or an older archive would
+    // read as "there are no pins" and restore would clear the user's.
     const emptyState = {
         hiddenCategories: [],
         favorites: [],
@@ -16,6 +18,60 @@ describe('normalizeXtreamPendingRestoreState', () => {
             );
         }
     );
+
+    describe('source pins', () => {
+        it('leaves the field absent when the input has none', () => {
+            expect(
+                normalizeXtreamPendingRestoreState({ favorites: [] })
+            ).not.toHaveProperty('sourcePins');
+        });
+
+        it('keeps a present-but-empty collection, which is an answer', () => {
+            expect(
+                normalizeXtreamPendingRestoreState({ sourcePins: [] })
+            ).toHaveProperty('sourcePins', []);
+        });
+
+        it('keeps usable pins and drops the rest', () => {
+            const state = normalizeXtreamPendingRestoreState({
+                sourcePins: [
+                    { matchKey: 'tmdb:603', contentId: 501 },
+                    // Nothing addressable: writing either would occupy the
+                    // unique key of a film it does not describe.
+                    { matchKey: '', contentId: 7 },
+                    { matchKey: 'title:dune:1984' },
+                    { contentId: 9 },
+                    'not an object',
+                ],
+            });
+
+            expect(state.sourcePins).toEqual([
+                { matchKey: 'tmdb:603', contentId: 501 },
+            ]);
+        });
+
+        it('keeps a string updatedAt and drops anything else', () => {
+            const state = normalizeXtreamPendingRestoreState({
+                sourcePins: [
+                    {
+                        matchKey: 'tmdb:603',
+                        contentId: 501,
+                        updatedAt: '2026-07-06T09:00:00.000Z',
+                    },
+                    { matchKey: 'tmdb:604', contentId: 502, updatedAt: 17 },
+                ],
+            });
+
+            expect(state.sourcePins).toEqual([
+                {
+                    matchKey: 'tmdb:603',
+                    contentId: 501,
+                    updatedAt: '2026-07-06T09:00:00.000Z',
+                },
+                { matchKey: 'tmdb:604', contentId: 502 },
+            ]);
+        });
+    });
 
     it('falls back to empty arrays for missing or non-array fields', () => {
         expect(

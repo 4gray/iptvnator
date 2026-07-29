@@ -1,5 +1,8 @@
 import { computed, type Signal } from '@angular/core';
-import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import type {
+    ExternalPlayerSession,
+    PlayerContentInfo,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Derives the primary Play/Stop button's state from the active external
@@ -21,6 +24,15 @@ export interface ExternalPlaybackButtonStateConfig {
     contentId: Signal<number | null | undefined>;
     /** Defaults to `'vod'`. */
     contentType?: 'vod' | 'episode';
+    /**
+     * A second pair of ids this page also owns, if any.
+     *
+     * Multi-source can launch an external player on a copy of the same film in
+     * ANOTHER playlist, and the session then carries that playlist's ids.
+     * Without this the page shows Play while its own switch is streaming, and
+     * the user has no way to stop it from here.
+     */
+    alsoOwns?: Signal<PlayerContentInfo | null>;
 }
 
 export interface ExternalPlaybackButtonStateApi {
@@ -53,15 +65,19 @@ export function createExternalPlaybackButtonState(
         }
 
         const info = session.contentInfo;
-        if (
-            info.playlistId !== config.playlistId() ||
-            info.contentType !== contentType ||
-            info.contentXtreamId !== config.contentId()
-        ) {
+        if (info.contentType !== contentType) {
             return null;
         }
 
-        return session;
+        const alsoOwns = config.alsoOwns?.();
+        const owned =
+            (info.playlistId === config.playlistId() &&
+                info.contentXtreamId === config.contentId()) ||
+            (!!alsoOwns &&
+                info.playlistId === alsoOwns.playlistId &&
+                info.contentXtreamId === alsoOwns.contentXtreamId);
+
+        return owned ? session : null;
     });
 
     const primaryLabel = computed(() => {

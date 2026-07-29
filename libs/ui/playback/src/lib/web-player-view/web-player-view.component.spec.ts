@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
+import { VodSourceRowComponent } from '@iptvnator/ui/components';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
@@ -139,6 +140,9 @@ describe('WebPlayerViewComponent', () => {
                         StubEmbeddedMpvPlayerComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
+                        // Real, not stubbed: the point of the test below is
+                        // that this row's Check action reaches the host.
+                        VodSourceRowComponent,
                         ClipboardModule,
                         MatButtonModule,
                         MatIconModule,
@@ -208,6 +212,41 @@ describe('WebPlayerViewComponent', () => {
 
             expect(component.resolvedMediaTitle()).toBeNull();
         });
+    });
+
+    it('relays the alternative row’s Check action out of the error screen', () => {
+        const checked: string[] = [];
+        component.sourceCheckRequested.subscribe((id) => checked.push(id));
+        fixture.componentRef.setInput('alternativeSources', [
+            {
+                id: 'playlist-2:xtream:991',
+                playlistId: 'playlist-2',
+                playlistName: 'Portal Two',
+                portalType: 'xtream',
+                contentId: 991,
+                rawTitle: 'Example Movie',
+                matchConfidence: 'exact',
+                year: null,
+                isActive: false,
+                isPinned: false,
+                isTried: false,
+                probe: { status: 'idle' },
+            },
+        ]);
+
+        fixture.detectChanges();
+        component.handlePlaybackIssue(createUnsupportedContainerDiagnostic());
+        fixture.detectChanges();
+
+        const check = fixture.debugElement.query(
+            By.css('app-vod-source-row .source-tag--action')
+        );
+        expect(check).not.toBeNull();
+        check.nativeElement.click();
+
+        // Without the relay the button is visibly actionable and inert: the
+        // row emits into an output nobody observes, so no probe ever runs.
+        expect(checked).toEqual(['playlist-2:xtream:991']);
     });
 
     it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {

@@ -13,7 +13,6 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import {
     createXtreamMainPerformanceCaptureForRequest,
@@ -323,65 +322,3 @@ type ActiveXtreamRequest = {
 
 const activeXtreamRequests = new Map<string, ActiveXtreamRequest>();
 
-ipcMain.handle(
-    'XTREAM_PROBE_URL',
-    async (
-        _event,
-        payload: {
-            url: string;
-            method?: 'GET' | 'HEAD';
-        }
-    ) => {
-        const method = payload.method ?? 'HEAD';
-        const config: AxiosRequestConfig = {
-            method,
-            url: payload.url,
-            headers: {
-                'User-Agent': XTREAM_CLIENT_USER_AGENT,
-                ...(method === 'GET' ? { Range: 'bytes=0-4095' } : {}),
-            },
-            timeout: 10000,
-            responseType: method === 'GET' ? 'stream' : undefined,
-            validateStatus: () => true,
-        };
-
-        try {
-            const response = await requestWithValidatedRedirects(
-                payload.url,
-                config,
-                {
-                    allowPrivateNetworkRedirects: false,
-                    allowPrivateNetworks: true,
-                    pinAllowedPrivateNetworkHosts: true,
-                }
-            );
-            const responseBody = response.data as
-                { destroy?: () => void } | undefined;
-            responseBody?.destroy?.();
-            return {
-                status: response.status,
-                url: response.config?.url ?? payload.url,
-            };
-        } catch (error) {
-            if (axios.isAxiosError(error) && error.response) {
-                return {
-                    status: error.response.status,
-                    url: payload.url,
-                };
-            }
-
-            if (error instanceof UnsafeUrlError) {
-                return {
-                    status: 0,
-                    url: payload.url,
-                    error: error.message,
-                };
-            }
-
-            return {
-                status: 0,
-                url: payload.url,
-            };
-        }
-    }
-);

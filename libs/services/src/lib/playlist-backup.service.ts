@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { PlaylistsService } from './playlists.service';
 import { SettingsStore } from './settings-store.service';
 import { DatabaseService } from './database-electron.service';
+import { VodSourcePinService } from './vod-source-pin.service';
 import { PlaybackPositionService } from './playback-position.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import {
@@ -21,6 +22,7 @@ import {
     XtreamBackupCategoryType,
     XtreamBackupContentType,
     XtreamPlaylistBackupEntry,
+    XtreamBackupSourcePin,
     XtreamPendingRestoreState,
     createRandomId,
 } from '@iptvnator/shared/interfaces';
@@ -59,6 +61,7 @@ export class PlaylistBackupService {
     private readonly settingsStore = inject(SettingsStore);
     private readonly databaseService = inject(DatabaseService);
     private readonly playbackPositionService = inject(PlaybackPositionService);
+    private readonly vodSourcePinService = inject(VodSourcePinService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -252,6 +255,14 @@ export class PlaylistBackupService {
                     favorites: [],
                     recentlyViewed: [],
                     playbackPositions: [],
+                    // NOT `[]`. Pins are Electron-only, so out here we cannot
+                    // read them — which is not the same as knowing there are
+                    // none. Restore treats the collection as authoritative and
+                    // clears the playlist's pins before applying it, so an
+                    // empty array exported from the web would wipe them the
+                    // moment the archive was imported on the desktop. Omitted,
+                    // the archive says "no opinion", exactly as one written
+                    // before pins existed does.
                 },
             };
         }
@@ -263,6 +274,7 @@ export class PlaylistBackupService {
             favorites,
             recent,
             playbackPositions,
+            sourcePins,
         ] = await Promise.all([
             this.databaseService.getAllXtreamCategories(playlist._id, 'live'),
             this.databaseService.getAllXtreamCategories(playlist._id, 'movies'),
@@ -270,6 +282,12 @@ export class PlaylistBackupService {
             this.databaseService.getFavorites(playlist._id),
             this.databaseService.getRecentItems(playlist._id),
             this.playbackPositionService.getAllPlaybackPositions(playlist._id),
+            // Throws rather than reading a failure as "no pins": restore
+            // treats this collection as authoritative and clears the
+            // playlist's pins before applying it, so an empty list born of a
+            // failed read would wipe them. `null` where the store is not
+            // reachable at all, which is a different answer again — see below.
+            this.readSourcePinsForExport(playlist._id),
         ]);
 
         return {
@@ -305,8 +323,44 @@ export class PlaylistBackupService {
                 playbackPositions: playbackPositions.map((item) => ({
                     ...item,
                 })),
+                // Carried under the playlist they point AT, so a restore that
+                // does not include that portal cannot resurrect a preference
+                // for something the archive never had.
+                //
+                // Present ONLY when this runtime can actually read them. The
+                // collection is authoritative on restore, so stating `[]`
+                // where the answer is "could not look" turns the archive into
+                // an instruction to delete.
+                ...(sourcePins ? { sourcePins } : {}),
             },
         };
+    }
+
+    /**
+     * The playlist's pins for the archive, or `null` when this runtime cannot
+     * read them at all.
+     *
+     * Three outcomes, and conflating any two of them loses data: pins exist,
+     * there are none, and "could not look". Only the first two belong in an
+     * archive — the third has to leave `sourcePins` out entirely, so restore
+     * treats it as no opinion rather than as an instruction to delete. A read
+     * that FAILS is neither: it throws, and the export fails with it.
+     */
+    private async readSourcePinsForExport(
+        playlistId: string
+    ): Promise<XtreamBackupSourcePin[] | null> {
+        if (!this.vodSourcePinService.isAvailable) {
+            return null;
+        }
+
+        const pins =
+            await this.vodSourcePinService.listForPlaylistOrThrow(playlistId);
+
+        return pins.map((pin) => ({
+            matchKey: pin.matchKey,
+            contentId: pin.contentId,
+            ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+        }));
     }
 
     private buildStalkerEntry(playlist: Playlist): StalkerPlaylistBackupEntry {
@@ -455,6 +509,17 @@ export class PlaylistBackupService {
                     !Array.isArray(entry.userState?.favorites) ||
                     !Array.isArray(entry.userState?.recentlyViewed) ||
                     !Array.isArray(entry.userState?.playbackPositions)
+                ) {
+                    throw new PlaylistBackupError(
+                        `Xtream backup "${entry.title}" has incomplete user state.`
+                    );
+                }
+
+                // Absent in archives written before multi-source existed, so
+                // its absence is not damage — only a wrong type is.
+                if (
+                    entry.userState.sourcePins !== undefined &&
+                    !Array.isArray(entry.userState.sourcePins)
                 ) {
                     throw new PlaylistBackupError(
                         `Xtream backup "${entry.title}" has incomplete user state.`
@@ -750,6 +815,7 @@ export class PlaylistBackupService {
         });
     }
 
+
     private async restoreXtreamEntry(
         playlistId: string,
         entry: XtreamPlaylistBackupEntry
@@ -837,6 +903,39 @@ export class PlaylistBackupService {
             await this.playbackPositionService.savePlaybackPosition(
                 playlistId,
                 playbackPosition
+            );
+        }
+
+        // Present-but-empty is an answer, like the positions cleared above: a
+        // backup that holds no pin for this playlist means the user had none,
+        // so leaving the current ones would resurrect preferences the archive
+        // deliberately does not contain. Absent (an older archive) means "no
+        // opinion", and those are left alone.
+        if (!state.sourcePins) {
+            return;
+        }
+
+        // ONE call, not a clear followed by writes. Split up, a write that
+        // fails partway leaves the previous pins already deleted and only part
+        // of the archive applied — a state belonging to neither, reported as a
+        // failure the user has no way to undo. The match key identifies the
+        // film and survives untouched; only the playlist has a new id here.
+        const replaced = await this.vodSourcePinService.replaceForPlaylist(
+            playlistId,
+            state.sourcePins.map((pin) => ({
+                matchKey: pin.matchKey,
+                playlistId,
+                contentId: pin.contentId,
+                portalType: 'xtream' as const,
+                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+            }))
+        );
+
+        // Reported rather than thrown, so ignoring it would drop every
+        // preference while the summary claims the import succeeded.
+        if (!replaced) {
+            throw new PlaylistBackupError(
+                `Restoring the pinned sources for "${playlistId}" failed.`
             );
         }
     }

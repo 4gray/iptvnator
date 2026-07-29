@@ -162,12 +162,34 @@ worker IPC boundary in the snake_case wire shape declared by
 `XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
 their Drizzle rows explicitly to keep that contract true.
 
+Clearing the playlist's existing pins goes through a dedicated
+delete-by-playlist operation, not the keyed clear: that one caps its key list
+to bound an IN clause, so a playlist with more pinned movies than the cap kept
+the surplus while still reporting success. A failure now fails the entry
+rather than leaving the union of old and archived pins.
+
+`sourcePins` (VOD multi-source) is the one **optional** collection, and the
+normalizer preserves that: an absent field stays absent rather than becoming
+`[]`, because restore treats a PRESENT collection as authoritative and clears
+the playlist's existing pins before applying it. Materializing an empty array
+would turn "this archive predates pins" into "this archive says there are
+none": archives
+written before multi-source existed simply do not have it, so its absence is
+age rather than damage and only a wrong type is rejected. A pin is carried
+under the playlist it points AT — exporting it anywhere else would restore a
+preference for a portal the archive never contained. Its `matchKey` identifies
+the film rather than the portal, so it survives untouched; only the playlist id
+is remapped to the imported copy. Pins whose match key or content id is
+unusable are dropped, since writing one would occupy the unique key of a film
+it does not describe.
+
 Electron restore behavior:
 
 1. Category import reads pending hidden-category state while saving categories.
 2. After content import, favorites/recent state is restored by typed
    `{ contentType, xtreamId }` matching.
 3. Playback positions are cleared and re-applied from backup state.
+4. VOD source pins are re-applied against the IMPORTED playlist id.
 
 For existing Xtream playlists with a fully populated offline cache, backup
 import applies the restore immediately. Otherwise the typed restore payload is

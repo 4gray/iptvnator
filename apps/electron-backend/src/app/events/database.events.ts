@@ -14,6 +14,7 @@ import './database/playback-position.events';
 import './database/playlist.events';
 import './database/recently-viewed.events';
 import './database/tmdb.events';
+import './database/vod-sources.events';
 import './database/xtream.events';
 
 export default class DatabaseEvents {

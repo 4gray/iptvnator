@@ -32,6 +32,11 @@ import {
 } from './portal-playback.interface';
 import { PortalDebugEvent } from './portal-debug.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
+import {
+    StreamProbeHeaders,
+    VodSourceCandidateRow,
+    VodSourcePin,
+} from './vod-source.interface';
 import { Settings } from './settings.interface';
 import {
     TmdbCacheEntry,
@@ -266,8 +271,17 @@ export interface ElectronBridgeXtreamCancelResult extends ElectronBridgeResult {
 }
 
 export interface ElectronBridgeXtreamProbeResult {
+    /**
+     * HTTP status, or 0 when no response was obtained.
+     *
+     * 0 covers a timeout and a URL rejected by the redirect-safety policy as
+     * well as a dead host, so it means "could not check" — never "offline".
+     */
     status: number;
     url: string;
+    /** Round-trip time; present whenever the request completed either way. */
+    latencyMs?: number;
+    error?: string;
 }
 
 export interface ElectronBridgeEpgFetchResult extends ElectronBridgeResult {
@@ -699,6 +713,13 @@ export interface ElectronBridgeApi {
         url: string,
         method?: 'GET' | 'HEAD'
     ) => Promise<ElectronBridgeXtreamProbeResult>;
+    /** Generic stream reachability probe (VOD multi-source availability) */
+    probeStreamUrl: (
+        url: string,
+        method?: 'GET' | 'HEAD',
+        /** Playback headers the owning playlist requires, when it has any. */
+        headers?: StreamProbeHeaders
+    ) => Promise<ElectronBridgeXtreamProbeResult>;
     refreshPlaylist: (
         payload: PlaylistRefreshPayload
     ) => Promise<Playlist | PlaylistRefreshCancelledResult>;
@@ -876,6 +897,40 @@ export interface ElectronBridgeApi {
     >;
     /** Cross-playlist title matching (actor page "All portals" scope) */
     dbMatchTitles: (titles: string[]) => Promise<CatalogTitleMatch[]>;
+    /** VOD multi-source: the same movie in the user's other Xtream playlists */
+    dbFindTitleSources: (request: {
+        title: string;
+        year?: number | null;
+        excludePlaylistId?: string | null;
+        /** A stream id inside the excluded playlist to keep anyway (a pin). */
+        keepContentId?: number | null;
+    }) => Promise<VodSourceCandidateRow[]>;
+    /** Per-movie pinned source; keys are passed most-trusted first */
+    dbGetVodSourcePin: (matchKeys: string[]) => Promise<VodSourcePin | null>;
+    /** Every pin pointing at this playlist — used by playlist backup. */
+    dbListVodSourcePins: (playlistId: string) => Promise<VodSourcePin[]>;
+    /** Bulk clear: not keyed, so no `MAX_KEYS_PER_LOOKUP` truncation. */
+    dbClearVodSourcePinsForPlaylist: (
+        playlistId: string
+    ) => Promise<ElectronBridgeResult>;
+    /**
+     * `aliasKeys` receive the same pin, and `retireKeys` are removed, all in
+     * the SAME transaction as the write. Aliases keep a pin readable under the
+     * poorer key forms the movie had before enrichment.
+     */
+    dbSetVodSourcePin: (
+        pin: VodSourcePin,
+        retireKeys?: string[],
+        aliasKeys?: string[]
+    ) => Promise<ElectronBridgeResult>;
+    /** Makes the playlist's pins exactly `pins`, in one transaction. */
+    dbReplaceVodSourcePins: (
+        playlistId: string,
+        pins: VodSourcePin[]
+    ) => Promise<ElectronBridgeResult>;
+    dbClearVodSourcePin: (
+        matchKeys: string[]
+    ) => Promise<ElectronBridgeResult>;
     onChannelChange?: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => () => void;

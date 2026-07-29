@@ -20,6 +20,7 @@ import {
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     PortalDetailShellComponent,
+    VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -40,12 +41,17 @@ import {
 import {
     getXtreamVodInfo,
     normalizeTitleKeys,
+    playlistDisplayLabel,
+    reportsPlaybackFailures,
     TmdbEnrichedCastMember,
     XtreamCategory,
     XtreamVodDetails,
     XtreamVodInfo,
     XtreamVodStream,
     youtubeEmbedUrl,
+    type PlaybackPositionData,
+    type VodSourceCandidate,
+    type VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
 import {
     SimilarCatalogItem,
@@ -56,7 +62,11 @@ import {
     hasUsableXtreamVodMetadata,
 } from './vod-details-fallback.util';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
-import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
+import { VodDetailsMultiSourceUiService } from './vod-details-multi-source-ui.service';
+import { VodDetailsDownloadsService } from './vod-details-downloads.service';
+import { VodDetailsSimilarService } from './vod-details-similar.service';
+import { VodMultiSourceHostService } from './vod-multi-source-host.service';
+import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -65,7 +75,13 @@ import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-pre
         './vod-details-route.component.scss',
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    providers: [VodDetailsPlaybackService],
+    providers: [
+        VodDetailsPlaybackService,
+        VodMultiSourceHostService,
+        VodDetailsMultiSourceUiService,
+        VodDetailsSimilarService,
+        VodDetailsDownloadsService,
+    ],
     imports: [
         DetailActionsTemplateDirective,
         DetailMetaTemplateDirective,
@@ -77,6 +93,7 @@ import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-pre
         SlicePipe,
         TranslateModule,
         PortalInlinePlayerComponent,
+        VodSourcesChipComponent,
     ],
 })
 export class VodDetailsRouteComponent implements OnInit, OnDestroy {
@@ -90,12 +107,19 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly playback = inject(VodDetailsPlaybackService);
+    /** Alternative sources for this movie in the user's other playlists */
+    readonly multiSource = inject(VodMultiSourceHostService);
+    private readonly msUi = inject(VodDetailsMultiSourceUiService);
+    private readonly similar = inject(VodDetailsSimilarService);
+    private readonly downloads = inject(VodDetailsDownloadsService);
     private readonly logger = createLogger('VodDetailsRoute');
     /** `playlistId:vodId` of the last initialized detail view */
     private readonly lastInitKey = signal<string | null>(null);
     private readonly backdropBackfillKey = signal<string | null>(null);
     readonly inlinePlayback = this.playback.inlinePlayback;
     readonly vodPlaybackPosition = this.playback.vodPlaybackPosition;
+    /** The route copy's own row — what Resume acts on. */
+    readonly routePlaybackPosition = this.playback.routePlaybackPosition;
 
     /**
      * Reactive route params: the component is reused when navigating
@@ -191,6 +215,23 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             ) ?? null
         );
     });
+    /** Movie identity for multi-source discovery; null until a title exists */
+    private readonly multiSourceMovie = computed(() =>
+        resolveVodMultiSourceMovie({
+            playlistId: this.xtreamStore.currentPlaylist()?.id,
+            // `title` is the alias the Xtream data source actually writes
+            // (createPlaylist maps name -> title), so reading only `name`
+            // would fall back to the raw playlist UUID in the sources list.
+            playlistName:
+                this.xtreamStore.currentPlaylist()?.name ??
+                this.xtreamStore.currentPlaylist()?.title,
+            vodId: this.selectedVodId(),
+            vodInfo: this.selectedVodInfo(),
+            catalogItem: this.selectedCatalogItem(),
+            containerExtension:
+                this.selectedItem()?.movie_data?.container_extension,
+        })
+    );
     readonly selectedVodInfo = computed(() => {
         const item = this.selectedItem();
         return item && hasUsableXtreamVodMetadata(item)
@@ -224,92 +265,78 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly externalPrimaryButtonState =
         this.playback.externalPrimaryButtonState;
     readonly vodPlaybackProgress = this.playback.vodPlaybackProgress;
-    readonly hasPlaybackPosition = this.playback.hasPlaybackPosition;
 
-    readonly isDownloaded = computed(() => {
-        const vodId = this.selectedVodId();
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (!playlistId) return false;
-        this.downloadsService.downloads();
-        return this.downloadsService.isDownloaded(vodId, playlistId, 'vod');
-    });
+    readonly hasPlaybackPosition = this.msUi.hasPlaybackPosition;
 
-    readonly isDownloading = computed(() => {
-        const vodId = this.selectedVodId();
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (!playlistId) return false;
-        this.downloadsService.downloads();
-        return this.downloadsService.isDownloading(vodId, playlistId, 'vod');
-    });
-
-    readonly isPausedDownload = computed(() => {
-        const vodId = this.selectedVodId();
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (!playlistId) return false;
-        this.downloadsService.downloads();
-        return this.downloadsService.isPaused(vodId, playlistId, 'vod');
-    });
+    readonly isDownloaded = this.downloads.isDownloaded;
+    readonly isDownloading = this.downloads.isDownloading;
+    readonly isPausedDownload = this.downloads.isPausedDownload;
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
     );
 
-    /** TMDB recommendations matched against the loaded VOD catalog */
-    readonly similarItems = computed<SimilarCatalogItem[]>(() => {
-        const info = this.selectedVodInfo();
-        if (!info?.tmdb_recommendations?.length) {
-            return [];
-        }
-        return matchRecommendationsToCatalog(
-            info.tmdb_recommendations,
-            this.scopedVodStreams(),
-            { excludeId: this.selectedVodId() }
-        );
-    });
+    readonly similarItems = this.similar.similarItems;
+    readonly similarInPortals = this.similar.similarInPortals;
 
-    /** Recommendations found in the user's OTHER portals (Electron only) */
-    private readonly crossPortalItems = signal<CrossPortalSimilarItem[]>([]);
-    readonly similarInPortals = computed<CrossPortalSimilarItem[]>(() => {
-        const localTitles = new Set(
-            this.similarItems().map(
-                (item) => normalizeTitleKeys(item.title).exact
-            )
-        );
-        return this.crossPortalItems().filter(
-            (item) => !localTitles.has(normalizeTitleKeys(item.title).exact)
-        );
-    });
-
-    private readonly loadCrossPortalSimilar = effect(() => {
-        const recommendations = this.selectedVodInfo()?.tmdb_recommendations;
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        untracked(() => {
-            this.crossPortalItems.set([]);
-            if (
-                !recommendations?.length ||
-                !this.crossPortalSimilar.isAvailable
-            ) {
-                return;
-            }
-            void this.crossPortalSimilar
-                .matchRecommendations(recommendations, 'movie', {
-                    excludePlaylistId: playlistId,
-                })
-                .then((items) => {
-                    if (
-                        this.selectedVodInfo()?.tmdb_recommendations ===
-                        recommendations
-                    ) {
-                        this.crossPortalItems.set(items);
-                    }
-                });
-        });
-    });
+    /**
+     * The alternative the player is on, in playback's terms — null while the
+     * route's own source is playing, which the matcher already recognises.
+     */
 
     constructor() {
+        this.downloads.bind({ routeContentId: this.selectedVodId });
+
+        this.similar.bind({
+            vodInfo: this.selectedVodInfo,
+            routeContentId: this.selectedVodId,
+        });
+
+        this.msUi.bind({
+            routeContentId: this.selectedVodId,
+            movieTitle: computed(() => this.multiSourceMovie()?.title ?? ''),
+        });
+
         this.playback.bind({
             vodId: this.selectedVodId,
             vodInfo: this.selectedVodInfo,
+            activeSource: this.msUi.activeAlternativeSource,
+        });
+
+        effect(() => {
+            const position = this.playback.vodPlaybackPosition();
+            if (!position) {
+                return;
+            }
+
+            if (this.inlinePlayback()) {
+                // Seeding only: the inline player reports the live timecode
+                // itself, and this stored value lags it by up to the save
+                // throttle — applying it would rewind the switch. Before the
+                // first timeupdate there is nothing to protect, so a switch
+                // made straight off the Resume button still resumes.
+                this.multiSource.seedResumePosition(position.positionSeconds);
+                return;
+            }
+
+            // MPV and VLC have no timeupdate to report; this polled position
+            // IS their live one, so a source switch after an hour in an
+            // external player must not rewind to where it started.
+            this.multiSource.reportPosition(position.positionSeconds);
+        });
+        this.multiSource.bind({
+            // Route every switch through the same inline-vs-external fork a
+            // normal Play uses, so the two paths cannot drift apart.
+            startPlayback: (playback) => {
+                // A switch mounts a DIFFERENT stream in the same host, so the
+                // evidence that the previous one was playing says nothing
+                // about this one — without clearing it the caption and the
+                // badge would claim the new source while it is still opening.
+                this.msUi.reset();
+                void this.playback.startResolvedPlayback(playback);
+            },
+            movie: this.multiSourceMovie,
+            playbackLive: this.playbackLive,
         });
 
         // Initializes on first render and RE-initializes when the route
@@ -324,7 +351,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.lastInitKey.set(initKey);
 
             this.inlinePlayback.set(null);
+            // Both, or the primary button keeps the previous movie's Resume
+            // label until the new lookup lands — and starts the new stream
+            // there. `loadPosition` is guarded on the same key, so an older
+            // lookup cannot repopulate either one.
             this.vodPlaybackPosition.set(null);
+            this.playback.routePlaybackPosition.set(null);
+            this.msUi.reset();
             this.initializeVodDetails(playlistId, vodId);
         });
 
@@ -396,15 +429,78 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     playVod(vodItem: XtreamVodDetails | null): void {
+        // Restart means from the beginning. The controller still holds the
+        // position this page was seeded with, and a failure before the first
+        // timeupdate would otherwise resolve the next source back at it.
+        this.multiSource.reportPosition(0);
+        this.multiSource.markRouteSourceActive();
+        this.msUi.beginPlayback();
         this.playback.playVod(vodItem);
     }
 
+    /**
+     * Restart from the beginning — of whatever the primary button acts on.
+     *
+     * When a pin points at another copy, Resume honours it, so Restart sitting
+     * beside it must too; calling `playVod` there would quietly switch the
+     * user to the route's playlist.
+     */
+    async restartVod(vodItem: XtreamVodDetails | null): Promise<void> {
+        if (this.msUi.primaryIsPinnedCopy()) {
+            const outcome = await this.multiSource.playPinnedSource(async () =>
+                Promise.resolve(0)
+            );
+            if (outcome !== 'unavailable') {
+                return;
+            }
+        }
+
+        this.playVod(vodItem);
+    }
+
     resumeVod(vodItem: XtreamVodDetails | null): void {
+        this.multiSource.markRouteSourceActive();
+        this.msUi.beginPlayback();
+        // The controller can still hold an ALTERNATIVE's timecode. A failure
+        // before the first timeupdate would otherwise resolve the next source
+        // at a position that belongs to a different copy.
+        this.multiSource.reportPosition(
+            this.playback.routePlaybackPosition()?.positionSeconds ?? 0
+        );
         this.playback.resumeVod(vodItem);
     }
 
-    onPrimaryAction(vodItem: XtreamVodDetails | null): void {
-        this.playback.onPrimaryAction(vodItem);
+    async onPrimaryAction(vodItem: XtreamVodDetails | null): Promise<void> {
+        // When the button reads Stop, it stops. Consulting the pin first would
+        // make the control do the opposite of what it says — launching a
+        // second player while the first keeps running.
+        if (this.playback.isExternalStopAction()) {
+            this.playback.onPrimaryAction(vodItem);
+            return;
+        }
+
+        // A pinned source is an explicit "play this movie from here", so it
+        // outranks the playlist the route happens to be on. Falls through to
+        // the normal path when nothing is pinned or the pin cannot resolve.
+        const pinned = await this.multiSource.playPinnedSource(
+            this.msUi.resumeSecondsFor
+        );
+        // Only "no usable pin" falls through. A superseded attempt means a
+        // newer action already owns the screen — starting the route source
+        // here would override the playback that action just began.
+        if (pinned !== 'unavailable') {
+            return;
+        }
+
+        // Through the route's OWN wrappers, not the service's: they carry the
+        // bookkeeping a route start needs — clearing the playback evidence and
+        // replacing whatever timecode an alternative left in the controller.
+        if (this.playback.hasPlaybackPosition()) {
+            this.resumeVod(vodItem);
+            return;
+        }
+
+        this.playVod(vodItem);
     }
 
     stopExternalPlayback(): Promise<void> {
@@ -412,7 +508,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     formatPosition(): string {
-        return this.playback.formatPosition();
+        return this.msUi.formatPosition();
     }
 
     toggleFavorite(): void {
@@ -442,11 +538,38 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.playback.closeInlinePlayer();
     }
 
+    readonly multiSourceTitle = this.msUi.multiSourceTitle;
+    readonly activeSourceCaption = this.msUi.activeSourceCaption;
+
+    playFromSource(sourceId: string): void {
+        this.msUi.playFromSource(sourceId);
+    }
+
+    pinSource(sourceId: string): void {
+        this.msUi.pinSource(sourceId);
+    }
+
+    checkSource(sourceId: string): void {
+        this.msUi.checkSource(sourceId);
+    }
+
+    readonly autoFailoverSupported = this.msUi.autoFailoverSupported;
+
+    setAutoFailover(enabled: boolean): void {
+        this.msUi.setAutoFailover(enabled);
+    }
+
+    onPlaybackFailed(): Promise<void> {
+        return this.msUi.onPlaybackFailed();
+    }
+
+    readonly playbackLive = this.msUi.playbackLive;
+
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
-        this.playback.handleInlineTimeUpdate(event);
+        this.msUi.handleInlineTimeUpdate(event);
     }
 
     showCopyNotification(): void {
@@ -463,70 +586,16 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.playback.handleExternalFallbackRequest(request);
     }
 
-    async resumePausedDownload(): Promise<void> {
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (!playlistId) {
-            return;
-        }
-        await this.downloadsService.resumeDownloadByContent(
-            this.selectedVodId(),
-            playlistId,
-            'vod'
-        );
+    resumePausedDownload(): Promise<void> {
+        return this.downloads.resumePaused();
     }
 
-    async downloadVod(vodItem: XtreamVodDetails | null): Promise<void> {
-        if (!vodItem) {
-            return;
-        }
-
-        const source = resolveXtreamVodPlaybackSource(vodItem);
-        if (!source) {
-            return;
-        }
-
-        const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
-        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
-        const routeVodId = Number(this.route.snapshot.params.vodId);
-        const id =
-            Number.isSafeInteger(routeVodId) && routeVodId > 0
-                ? routeVodId
-                : source.streamId;
-
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return;
-        }
-
-        await this.downloadsService.startDownload({
-            playlistId: playlist.id,
-            xtreamId: id,
-            contentType: 'vod',
-            title: presentation.title,
-            url: streamUrl,
-            posterUrl: presentation.posterUrl,
-            headers: {
-                userAgent: playlist.userAgent,
-                referer: playlist.referrer,
-                origin: playlist.origin,
-            },
-        });
+    downloadVod(vodItem: XtreamVodDetails | null): Promise<void> {
+        return this.downloads.start(vodItem);
     }
 
-    async playFromLocal(): Promise<void> {
-        const vodId = Number(this.route.snapshot.params.vodId);
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (!playlistId) return;
-
-        const filePath = this.downloadsService.getDownloadedFilePath(
-            vodId,
-            playlistId,
-            'vod'
-        );
-
-        if (filePath) {
-            await this.downloadsService.playDownload(filePath);
-        }
+    playFromLocal(): Promise<void> {
+        return this.downloads.playLocal();
     }
 
     private initializeVodDetails(playlistId: string, vodId: number): void {

@@ -125,6 +125,31 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         expiryDate: '2099-12-31',
         vodDetailsFixture: 'empty-metadata',
     },
+    // Two distinct credential pairs sharing one seed, so both portals generate
+    // an IDENTICAL catalog. That overlap is what VOD multi-source discovery
+    // needs: the same movie present in two different playlists.
+    'multisrc1:multisrc1': {
+        name: 'multi-source-a',
+        description: 'Multi-source portal A — shares its catalog with portal B',
+        seed: 4242,
+        categoryCount: { live: 1, vod: 2, series: 1 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 2,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+    },
+    'multisrc2:multisrc2': {
+        name: 'multi-source-b',
+        description: 'Multi-source portal B — shares its catalog with portal A',
+        seed: 4242,
+        categoryCount: { live: 1, vod: 2, series: 1 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 2,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+    },
     'marketing:marketing': {
         name: 'marketing-demo',
         description:

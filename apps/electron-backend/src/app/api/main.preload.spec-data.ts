@@ -50,6 +50,18 @@ const tmdbCacheEntry = {
     tmdbId: 603,
     payload: '{"id":603}',
 };
+const vodSourceRequest = {
+    title: 'The Matrix',
+    year: 1999,
+    excludePlaylistId: playlistId,
+};
+const vodSourceMatchKeys = ['tmdb:603', 'title:the matrix:1999'];
+const vodSourcePin = {
+    matchKey: 'tmdb:603',
+    playlistId,
+    contentId: 42,
+    portalType: 'xtream',
+};
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
@@ -387,6 +399,53 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [[['The Matrix', 'Inception']][0]],
         channel: 'DB_MATCH_TITLES',
         forwardedArgs: [['The Matrix', 'Inception']],
+    },
+    {
+        method: 'dbFindTitleSources',
+        args: [vodSourceRequest],
+        channel: 'DB_FIND_TITLE_SOURCES',
+        forwardedArgs: [vodSourceRequest],
+    },
+    {
+        method: 'dbGetVodSourcePin',
+        args: [vodSourceMatchKeys],
+        channel: 'DB_GET_VOD_SOURCE_PIN',
+        forwardedArgs: [vodSourceMatchKeys],
+    },
+    {
+        method: 'dbListVodSourcePins',
+        args: ['playlist-1'],
+        channel: 'DB_LIST_VOD_SOURCE_PINS',
+        forwardedArgs: ['playlist-1'],
+    },
+    {
+        method: 'dbClearVodSourcePinsForPlaylist',
+        args: ['playlist-1'],
+        channel: 'DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST',
+        forwardedArgs: ['playlist-1'],
+    },
+    {
+        method: 'dbSetVodSourcePin',
+        args: [vodSourcePin, ['title:dune:'], ['title:dune:2021']],
+        channel: 'DB_SET_VOD_SOURCE_PIN',
+        // Both key lists ride along, so the write, the extra keys it is also
+        // stored under, and the retirement are one transaction rather than
+        // separate calls that can half-apply.
+        forwardedArgs: [vodSourcePin, ['title:dune:'], ['title:dune:2021']],
+    },
+    {
+        method: 'dbReplaceVodSourcePins',
+        args: ['playlist-1', [vodSourcePin]],
+        channel: 'DB_REPLACE_VOD_SOURCE_PINS',
+        // One statement for the whole playlist: restore cannot afford a clear
+        // and a write that can half-apply.
+        forwardedArgs: ['playlist-1', [vodSourcePin]],
+    },
+    {
+        method: 'dbClearVodSourcePin',
+        args: [vodSourceMatchKeys],
+        channel: 'DB_CLEAR_VOD_SOURCE_PIN',
+        forwardedArgs: [vodSourceMatchKeys],
     },
 ];
 

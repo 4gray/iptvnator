@@ -118,6 +118,41 @@ app-html-video-player {
     overflow-wrap: anywhere;
 }
 
+// "Try another source" — the alternatives block that turns the error screen
+// into a recovery point. The overlay is always dark, so these are literals
+// rather than theme tokens, matching the rest of this diagnostic surface.
+.web-player-diagnostic__alternatives {
+    width: min(420px, 100%);
+    margin: 20px auto 0;
+    padding: 6px;
+    border: 1px solid rgb(255 255 255 / 10%);
+    border-radius: 12px;
+    background: rgb(22 27 36 / 90%);
+    text-align: left;
+    // Scrolls itself rather than growing the whole overlay: otherwise a long
+    // list pushes the error headline and message off the top of the screen,
+    // which is precisely the information the user needs first.
+    max-height: min(46vh, 320px);
+    overflow-y: auto;
+}
+
+.web-player-diagnostic__alternatives-more {
+    margin: 0;
+    padding: 6px 12px 8px;
+    color: rgb(255 255 255 / 45%);
+    font-size: 0.75rem;
+}
+
+.web-player-diagnostic__alternatives-title {
+    margin: 0;
+    padding: 8px 12px 4px;
+    color: rgb(255 255 255 / 55%);
+    font-size: 0.594rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
 .web-player-diagnostic__player-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(168px, 192px));

@@ -19,6 +19,7 @@ import {
 // Manual EPG-to-channel mappings live in their own schema module; re-export
 // them so `import * as schema from './schema'` keeps a complete namespace.
 export * from './epg-mapping.schema';
+export * from './vod-source-pins.schema';
 
 // Playlists table
 export const playlists = sqliteTable('playlists', {

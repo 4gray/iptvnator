@@ -57,6 +57,8 @@ import type {
     Settings,
     TmdbCacheEntry,
     TmdbCacheMediaType,
+    StreamProbeHeaders,
+    VodSourcePin,
     XtreamCategory,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -660,6 +662,11 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('XTREAM_CANCEL_SESSION', sessionId),
     xtreamProbeUrl: (url: string, method?: 'GET' | 'HEAD') =>
         ipcRenderer.invoke('XTREAM_PROBE_URL', { url, method }),
+    probeStreamUrl: (
+        url: string,
+        method?: 'GET' | 'HEAD',
+        headers?: StreamProbeHeaders
+    ) => ipcRenderer.invoke('STREAM_PROBE_URL', { url, method, ...headers }),
     refreshPlaylist: (payload: PlaylistRefreshPayload) =>
         ipcRenderer.invoke('PLAYLIST:REFRESH', payload),
     cancelPlaylistRefresh: (operationId: string) =>
@@ -886,6 +893,33 @@ const electronApi: ElectronBridgeApi = {
     dbClearTmdbMetadata: () => ipcRenderer.invoke('DB_CLEAR_TMDB_METADATA'),
     dbMatchTitles: (titles: string[]) =>
         ipcRenderer.invoke('DB_MATCH_TITLES', titles),
+    // VOD multi-source
+    dbFindTitleSources: (request: {
+        title: string;
+        year?: number | null;
+        excludePlaylistId?: string | null;
+    }) => ipcRenderer.invoke('DB_FIND_TITLE_SOURCES', request),
+    dbGetVodSourcePin: (matchKeys: string[]) =>
+        ipcRenderer.invoke('DB_GET_VOD_SOURCE_PIN', matchKeys),
+    dbListVodSourcePins: (playlistId: string) =>
+        ipcRenderer.invoke('DB_LIST_VOD_SOURCE_PINS', playlistId),
+    dbClearVodSourcePinsForPlaylist: (playlistId: string) =>
+        ipcRenderer.invoke('DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST', playlistId),
+    dbSetVodSourcePin: (
+        pin: VodSourcePin,
+        retireKeys?: string[],
+        aliasKeys?: string[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_VOD_SOURCE_PIN',
+            pin,
+            retireKeys ?? [],
+            aliasKeys ?? []
+        ),
+    dbReplaceVodSourcePins: (playlistId: string, pins: VodSourcePin[]) =>
+        ipcRenderer.invoke('DB_REPLACE_VOD_SOURCE_PINS', playlistId, pins),
+    dbClearVodSourcePin: (matchKeys: string[]) =>
+        ipcRenderer.invoke('DB_CLEAR_VOD_SOURCE_PIN', matchKeys),
     // Playback Positions
     dbSavePlaybackPosition: (
         playlistId: string,

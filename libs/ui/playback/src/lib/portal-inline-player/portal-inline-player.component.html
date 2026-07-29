@@ -27,6 +27,28 @@
                     </h3>
                 </div>
                 <div class="player-shell__actions">
+                    @if (allSources().length > 1) {
+                        <app-vod-sources-chip
+                            class="player-shell__sources"
+                            [sources]="allSources()"
+                            [count]="alternativeSources().length"
+                            [matchKind]="sourcesMatchKind()"
+                            [resumeLabel]="sourcesResumeLabel()"
+                            [autoFailoverEnabled]="sourcesAutoFailoverEnabled()"
+                            [autoFailoverSupported]="
+                                sourcesAutoFailoverSupported()
+                            "
+                            [playbackLive]="sourcesPlaybackLive()"
+                            (playRequested)="
+                                alternativeSourceRequested.emit($event)
+                            "
+                            (pinRequested)="sourcePinRequested.emit($event)"
+                            (checkRequested)="sourceCheckRequested.emit($event)"
+                            (autoFailoverToggled)="
+                                sourcesAutoFailoverToggled.emit($event)
+                            "
+                        />
+                    }
                     <button
                         mat-button
                         type="button"
@@ -68,6 +90,12 @@
                 [playback]="playback()"
                 [startTime]="startTime()"
                 [seriesNavigation]="seriesNavigation()"
+                [alternativeSources]="alternativeSources()"
+                (alternativeSourceRequested)="
+                    alternativeSourceRequested.emit($event)
+                "
+                (sourceCheckRequested)="sourceCheckRequested.emit($event)"
+                (playbackFailed)="playbackFailed.emit($event)"
                 (timeUpdate)="onTimeUpdate($event)"
                 (playbackEnded)="onPlaybackEnded()"
                 (previousEpisodeRequested)="onPreviousEpisodeRequested()"

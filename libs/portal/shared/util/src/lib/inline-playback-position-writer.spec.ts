@@ -110,4 +110,76 @@ describe('createInlinePlaybackPositionWriter', () => {
             })
         );
     });
+
+    describe('resume latch', () => {
+        function resuming(startTime: number): ResolvedPortalPlayback {
+            return { ...playbackWithInfo(), startTime };
+        }
+
+        it('drops updates emitted before the engine reaches startTime', () => {
+            // A resuming engine ticks at ~0 while it is still seeking. Writing
+            // one of those overwrites the very position being resumed from.
+            const { writer, save } = setup(resuming(2538));
+
+            expect(
+                writer.handleTimeUpdate({ currentTime: 12, duration: 7744 })
+            ).toBe(false);
+            expect(save).not.toHaveBeenCalled();
+        });
+
+        it('releases once, so a later seek backwards is still saved', () => {
+            jest.useFakeTimers();
+            const { writer, save } = setup(resuming(2538));
+
+            writer.handleTimeUpdate({ currentTime: 12, duration: 7744 });
+            // Reaching the resume point latches the guard open for good.
+            writer.handleTimeUpdate({ currentTime: 2540, duration: 7744 });
+
+            jest.advanceTimersByTime(16000);
+            expect(
+                writer.handleTimeUpdate({ currentTime: 30, duration: 7744 })
+            ).toBe(true);
+            expect(save).toHaveBeenLastCalledWith(
+                'playlist-1',
+                expect.objectContaining({ positionSeconds: 30 })
+            );
+        });
+
+        it('gives up on a resume point the source cannot reach', () => {
+            // Two hours carried into a 90-minute cut: the engine can never
+            // report that time, so latching on it would suppress every save
+            // for the whole session.
+            const { writer, save } = setup(resuming(7200));
+
+            expect(
+                writer.handleTimeUpdate({ currentTime: 12, duration: 5400 })
+            ).toBe(true);
+            expect(save).toHaveBeenCalled();
+        });
+
+        it('keeps the latch closed across an update with no contentInfo', () => {
+            const { writer, playback } = setup(resuming(2538));
+
+            writer.handleTimeUpdate({ currentTime: 12, duration: 7744 });
+            playback.set({ streamUrl: 'http://example.com/x.mkv', title: 'X' });
+
+            // Reporting `true` here would tell multi-source that a timecode of
+            // ~0 can be carried to the next source.
+            expect(
+                writer.handleTimeUpdate({ currentTime: 13, duration: 7744 })
+            ).toBe(false);
+        });
+
+        it('is cleared by reset, so a new resume waits again', () => {
+            const { writer, playback } = setup();
+
+            writer.handleTimeUpdate({ currentTime: 40, duration: 7744 });
+            playback.set(resuming(2538));
+            writer.reset();
+
+            expect(
+                writer.handleTimeUpdate({ currentTime: 12, duration: 7744 })
+            ).toBe(false);
+        });
+    });
 });

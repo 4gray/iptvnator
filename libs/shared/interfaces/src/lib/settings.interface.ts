@@ -15,6 +15,25 @@ export enum VideoPlayer {
     ArtPlayer = 'artplayer',
 }
 
+/**
+ * Whether a failed stream on this player reaches the app at all.
+ *
+ * Only the built-in web players raise a playback diagnostic: Embedded MPV has
+ * its diagnostics suppressed, and MPV/VLC play outside the app entirely. On
+ * those, anything keyed off a playback failure — VOD auto-failover above all —
+ * can never fire, so offering the control there promises a feature that does
+ * nothing.
+ */
+export function reportsPlaybackFailures(
+    player: VideoPlayer | null | undefined
+): boolean {
+    return (
+        player === VideoPlayer.VideoJs ||
+        player === VideoPlayer.Html5Player ||
+        player === VideoPlayer.ArtPlayer
+    );
+}
+
 export enum StartupBehavior {
     FirstView = 'first-view',
     RestoreLastView = 'restore-last-view',
@@ -96,6 +115,16 @@ export interface Settings {
      * missing values mean enabled. Only affects the built-in web players.
      */
     playerUpNextRail?: boolean;
+    /**
+     * When a movie fails to play and the same film exists in another imported
+     * playlist, switch to it automatically instead of showing the error.
+     *
+     * Off by default and deliberately opt-in: another source can carry a
+     * different dub or cut, so switching is never silent — the toast always
+     * announces it and offers an undo. Each source is tried at most once per
+     * session, so this cannot loop.
+     */
+    vodAutoFailover?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;

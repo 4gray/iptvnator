@@ -1,0 +1,200 @@
+import { Injectable } from '@angular/core';
+import type {
+    StreamProbeHeaders,
+    VodSourceProbeResult,
+} from '@iptvnator/shared/interfaces';
+import { redactSensitiveData } from '@iptvnator/shared/logging';
+
+/**
+ * On-demand stream reachability checks via the Electron main process.
+ *
+ * The renderer cannot do this itself: a browser request to an arbitrary IPTV
+ * host is CORS-blocked, and `no-cors` returns an opaque response in which 200,
+ * 403 and 404 are indistinguishable. So in the PWA `isAvailable` is false and
+ * every source stays honestly "unchecked" rather than being guessed at.
+ *
+ * Probing is explicitly user-triggered — this is not a background pinger.
+ */
+
+/** Results older than this are re-fetched; a stream can die at any moment. */
+const CACHE_TTL_MS = 30_000;
+
+interface CacheEntry {
+    result: VodSourceProbeResult;
+    storedAt: number;
+}
+
+@Injectable({ providedIn: 'root' })
+export class StreamProbeService {
+    private readonly cache = new Map<string, CacheEntry>();
+    /** Deduplicates concurrent probes of the same URL into one request. */
+    private readonly inFlight = new Map<string, Promise<VodSourceProbeResult>>();
+
+    get isAvailable(): boolean {
+        return (
+            typeof window !== 'undefined' &&
+            typeof window.electron?.probeStreamUrl === 'function'
+        );
+    }
+
+    /**
+     * The key an answer is stored under.
+     *
+     * Not the URL alone: the same stream URL can be shared by two playlists
+     * that require different headers, and one of them answering 403 says
+     * nothing about the other. Reusing that result would state a source is
+     * dead without ever having asked it.
+     */
+    private cacheKey(
+        url: string,
+        method: 'GET' | 'HEAD',
+        headers?: StreamProbeHeaders
+    ): string {
+        return [
+            url,
+            method,
+            headers?.userAgent ?? '',
+            headers?.referer ?? '',
+            headers?.origin ?? '',
+        ].join('\u0000');
+    }
+
+    /** A cached result for this exact request, if one is still fresh. */
+    peek(
+        url: string,
+        method: 'GET' | 'HEAD' = 'HEAD',
+        headers?: StreamProbeHeaders
+    ): VodSourceProbeResult | null {
+        const entry = this.cache.get(this.cacheKey(url, method, headers));
+        if (!entry || Date.now() - entry.storedAt > CACHE_TTL_MS) {
+            return null;
+        }
+        return entry.result;
+    }
+
+    /**
+     * @param headers what the owning playlist plays this stream with. A panel
+     * that requires them answers 401/403 without them, and a source that plays
+     * fine must never be reported as dead.
+     */
+    async probe(
+        url: string,
+        method: 'GET' | 'HEAD' = 'HEAD',
+        headers?: StreamProbeHeaders
+    ): Promise<VodSourceProbeResult> {
+        if (!this.isAvailable || !url) {
+            // Not "offline" — we are simply unable to find out.
+            return { status: 'unknown' };
+        }
+
+        const key = this.cacheKey(url, method, headers);
+        const cached = this.peek(url, method, headers);
+        if (cached) {
+            return cached;
+        }
+
+        const pending = this.inFlight.get(key);
+        if (pending) {
+            return pending;
+        }
+
+        const request = this.runProbe(url, method, headers).finally(() => {
+            this.inFlight.delete(key);
+        });
+        this.inFlight.set(key, request);
+        return request;
+    }
+
+    /** Drops cached results, e.g. after a playlist refresh changed the URLs. */
+    invalidate(): void {
+        this.cache.clear();
+    }
+
+    private async runProbe(
+        url: string,
+        method: 'GET' | 'HEAD',
+        headers?: StreamProbeHeaders
+    ): Promise<VodSourceProbeResult> {
+        let result: VodSourceProbeResult;
+
+        try {
+            let response = await window.electron.probeStreamUrl(
+                url,
+                method,
+                headers
+            );
+
+            // Plenty of stream servers reject HEAD outright yet serve the media
+            // happily over GET. Reporting those as unavailable would be a
+            // confident lie, so retry once with the ranged GET the main process
+            // already supports.
+            if (method === 'HEAD' && refusesHeadRequests(response.status)) {
+                response = await window.electron.probeStreamUrl(
+                    url,
+                    'GET',
+                    headers
+                );
+            }
+
+            result = {
+                status: toProbeStatus(response.status),
+                httpStatus: response.status,
+                latencyMs: response.latencyMs,
+                probedAt: new Date().toISOString(),
+            };
+        } catch (error) {
+            // The probed URL is a stream URL, and Xtream builds those out
+            // of the username and password — never log one raw.
+            console.warn('Stream probe failed:', redactSensitiveData(error));
+            result = { status: 'unknown' };
+        }
+
+        // Only cache answers. An 'unknown' is a failure to measure, and
+        // caching it would keep a perfectly good source looking unverified
+        // for the whole TTL.
+        if (result.status !== 'unknown') {
+            this.cache.set(this.cacheKey(url, method, headers), {
+                result,
+                storedAt: Date.now(),
+            });
+        }
+
+        return result;
+    }
+}
+
+/**
+ * Map an HTTP status onto a verdict.
+ *
+ * Status 0 means no response was obtained at all — a timeout, or a URL the
+ * redirect-safety policy refused. That is NOT evidence the source is dead, so
+ * it maps to 'unknown' and the UI keeps offering a check.
+ */
+/**
+ * Statuses that may mean "not this method" rather than "not this resource".
+ *
+ * 405/501 say so outright. 403 and 400 are the ones a WAF or a stream server
+ * returns for a HEAD it does not expect while serving the same URL over GET
+ * perfectly well — and calling that source unavailable is a confident lie that
+ * also ranks it below worse ones. The retry is bounded (one ranged GET), so
+ * being generous here costs a request, while being strict costs a working
+ * source.
+ */
+function refusesHeadRequests(httpStatus: number): boolean {
+    return (
+        httpStatus === 400 ||
+        httpStatus === 403 ||
+        httpStatus === 405 ||
+        httpStatus === 501
+    );
+}
+
+function toProbeStatus(httpStatus: number): VodSourceProbeResult['status'] {
+    if (httpStatus === 0) {
+        return 'unknown';
+    }
+    if (httpStatus >= 200 && httpStatus < 400) {
+        return 'ok';
+    }
+    return 'fail';
+}

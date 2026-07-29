@@ -31,6 +31,18 @@ const tmdbCacheEntry = {
     tmdbId: 603,
     payload: '{"id":603}',
 };
+const vodSourceRequest = {
+    title: 'The Matrix',
+    year: 1999,
+    excludePlaylistId: playlistId,
+};
+const vodSourceMatchKeys = ['tmdb:603', 'title:the matrix:1999'];
+const vodSourcePin = {
+    matchKey: 'tmdb:603',
+    playlistId,
+    contentId: 42,
+    portalType: 'xtream',
+};
 
 export const workerIpcContractCases: WorkerIpcContractCase[] = [
     {
@@ -337,5 +349,44 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_MATCH_TITLES',
         args: [['The Matrix', 'Inception']],
         payload: { titles: ['The Matrix', 'Inception'] },
+    },
+    {
+        operation: 'DB_FIND_TITLE_SOURCES',
+        args: [vodSourceRequest],
+        payload: { request: vodSourceRequest },
+    },
+    {
+        operation: 'DB_GET_VOD_SOURCE_PIN',
+        args: [vodSourceMatchKeys],
+        payload: { matchKeys: vodSourceMatchKeys },
+    },
+    {
+        operation: 'DB_LIST_VOD_SOURCE_PINS',
+        args: ['playlist-1'],
+        payload: { playlistId: 'playlist-1' },
+    },
+    {
+        operation: 'DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST',
+        args: ['playlist-1'],
+        payload: { playlistId: 'playlist-1' },
+    },
+    {
+        operation: 'DB_SET_VOD_SOURCE_PIN',
+        args: [vodSourcePin, ['title:dune:'], ['title:dune:2021']],
+        payload: {
+            pin: vodSourcePin,
+            retireKeys: ['title:dune:'],
+            aliasKeys: ['title:dune:2021'],
+        },
+    },
+    {
+        operation: 'DB_REPLACE_VOD_SOURCE_PINS',
+        args: ['playlist-1', [vodSourcePin]],
+        payload: { playlistId: 'playlist-1', pins: [vodSourcePin] },
+    },
+    {
+        operation: 'DB_CLEAR_VOD_SOURCE_PIN',
+        args: [vodSourceMatchKeys],
+        payload: { matchKeys: vodSourceMatchKeys },
     },
 ];

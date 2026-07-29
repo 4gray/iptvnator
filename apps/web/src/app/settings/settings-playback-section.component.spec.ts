@@ -394,5 +394,6 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         vlcPlayerArguments: new FormControl(''),
         vlcReuseInstance: new FormControl(false),
         recordingFolder: new FormControl(''),
+        vodAutoFailover: new FormControl(false),
     });
 }

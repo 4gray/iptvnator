@@ -45,6 +45,7 @@ async function importDatabaseEventModules(): Promise<void> {
     await import('./playlist.events');
     await import('./recently-viewed.events');
     await import('./tmdb.events');
+    await import('./vod-sources.events');
     await import('./xtream.events');
 }
 

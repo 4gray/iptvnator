@@ -1,5 +1,8 @@
 import { signal } from '@angular/core';
-import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import type {
+    ExternalPlayerSession,
+    PlayerContentInfo,
+} from '@iptvnator/shared/interfaces';
 import { createExternalPlaybackButtonState } from './external-playback-button-state';
 
 function session(
@@ -131,6 +134,75 @@ describe('createExternalPlaybackButtonState', () => {
             session: signal<ExternalPlayerSession | null>(session()),
             playlistId: signal<string | null>('playlist-1'),
             contentId: signal<number | null>(null),
+        });
+
+        expect(api.matchedSession()).toBeNull();
+    });
+
+    it('also owns a session launched for another playlist it switched to', () => {
+        // Multi-source: same film, other playlist, other stream id. Without
+        // this the page shows Play while its own switch is streaming, and
+        // clicking it opens a second player instead of stopping the first.
+        const api = createExternalPlaybackButtonState({
+            session: signal<ExternalPlayerSession | null>(
+                session({
+                    contentInfo: {
+                        playlistId: 'playlist-2',
+                        contentXtreamId: 991,
+                        contentType: 'vod',
+                    },
+                })
+            ),
+            playlistId: signal<string | null>('playlist-1'),
+            contentId: signal<number | null>(42),
+            alsoOwns: signal<PlayerContentInfo | null>({
+                playlistId: 'playlist-2',
+                contentXtreamId: 991,
+                contentType: 'vod',
+            }),
+        });
+
+        expect(api.matchedSession()).not.toBeNull();
+        expect(api.isStopAction()).toBe(true);
+    });
+
+    it('disowns that session once playback moved back', () => {
+        const api = createExternalPlaybackButtonState({
+            session: signal<ExternalPlayerSession | null>(
+                session({
+                    contentInfo: {
+                        playlistId: 'playlist-2',
+                        contentXtreamId: 991,
+                        contentType: 'vod',
+                    },
+                })
+            ),
+            playlistId: signal<string | null>('playlist-1'),
+            contentId: signal<number | null>(42),
+            alsoOwns: signal<PlayerContentInfo | null>(null),
+        });
+
+        expect(api.matchedSession()).toBeNull();
+    });
+
+    it('still checks the content type of an owned alternative', () => {
+        const api = createExternalPlaybackButtonState({
+            session: signal<ExternalPlayerSession | null>(
+                session({
+                    contentInfo: {
+                        playlistId: 'playlist-2',
+                        contentXtreamId: 991,
+                        contentType: 'episode',
+                    },
+                })
+            ),
+            playlistId: signal<string | null>('playlist-1'),
+            contentId: signal<number | null>(42),
+            alsoOwns: signal<PlayerContentInfo | null>({
+                playlistId: 'playlist-2',
+                contentXtreamId: 991,
+                contentType: 'vod',
+            }),
         });
 
         expect(api.matchedSession()).toBeNull();

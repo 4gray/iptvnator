@@ -109,7 +109,18 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         return query;
     });
 
-    const insertValues = jest.fn().mockResolvedValue(undefined);
+    // Same `.run()` requirement as the update below: an insert executed inside
+    // a synchronous transaction callback has to be the synchronous form.
+    const insertRun = jest.fn();
+    const insertChain: Record<string, unknown> = {
+        run: insertRun,
+        then: (
+            resolve: (value: unknown) => void,
+            reject: (reason: unknown) => void
+        ) => Promise.resolve(undefined).then(resolve, reject),
+    };
+    insertChain.onConflictDoUpdate = jest.fn().mockReturnValue(insertChain);
+    const insertValues = jest.fn().mockReturnValue(insertChain);
     const insert = jest.fn().mockReturnValue({ values: insertValues });
 
     // Prepared-statement writes MUST use `.run()` (synchronous) rather than
@@ -138,6 +149,8 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         .fn()
         .mockReturnValue({ execute: deleteExecute, run: deleteRun });
     const deleteResult = {
+        // Inside a transaction the delete must be the synchronous form too.
+        run: deleteRun,
         prepare: deletePrepare,
         then: (
             resolve: (value: unknown) => void,
@@ -170,6 +183,7 @@ export function createDbMock(selectResultsByCall: unknown[][] = []) {
         deleteFn,
         deletePrepare,
         deleteRun,
+        insertRun,
         deleteWhere,
         insert,
         insertValues,

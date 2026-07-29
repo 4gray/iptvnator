@@ -3,6 +3,7 @@ import {
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
+    XtreamBackupSourcePin,
 } from './playlist-backup.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 
@@ -11,6 +12,11 @@ export interface XtreamPendingRestoreState {
     favorites: XtreamBackupFavoriteItem[];
     recentlyViewed: XtreamBackupRecentlyViewedItem[];
     playbackPositions: PlaybackPositionData[];
+    /**
+     * Optional: absent from archives and persisted entries written before
+     * multi-source existed. The normalizer always fills it.
+     */
+    sourcePins?: XtreamBackupSourcePin[];
 }
 
 export function getXtreamPendingRestoreStorageKey(playlistId: string): string {
@@ -28,6 +34,7 @@ interface RestoreStateCandidate {
     favorites?: unknown;
     recentlyViewed?: unknown;
     playbackPositions?: unknown;
+    sourcePins?: unknown;
 }
 
 interface RestoreEntryCandidate {
@@ -136,5 +143,43 @@ export function normalizeXtreamPendingRestoreState(
         playbackPositions: toArray(candidate.playbackPositions).filter(
             (item): item is PlaybackPositionData => isRecord(item)
         ),
+        // Absent stays ABSENT. Materializing `[]` here would make an older
+        // archive — which says nothing about pins — look like one that says
+        // "there are none", and restore would clear the user's pins.
+        ...(candidate.sourcePins === undefined
+            ? {}
+            : { sourcePins: normalizeSourcePins(candidate.sourcePins) }),
     };
+}
+
+/**
+ * A pin without a usable match key or content id cannot address anything, and
+ * writing it would occupy the unique key of a film it does not describe.
+ */
+function normalizeSourcePins(value: unknown): XtreamBackupSourcePin[] {
+    const pins: XtreamBackupSourcePin[] = [];
+
+    for (const item of toArray(value)) {
+        if (!isRecord(item)) {
+            continue;
+        }
+
+        const matchKey = (item as { matchKey?: unknown }).matchKey;
+        const contentId = normalizeXtreamBackupId(
+            (item as { contentId?: unknown }).contentId
+        );
+        const updatedAt = (item as { updatedAt?: unknown }).updatedAt;
+
+        if (typeof matchKey !== 'string' || !matchKey || contentId === null) {
+            continue;
+        }
+
+        pins.push({
+            matchKey,
+            contentId,
+            ...(typeof updatedAt === 'string' ? { updatedAt } : {}),
+        });
+    }
+
+    return pins;
 }

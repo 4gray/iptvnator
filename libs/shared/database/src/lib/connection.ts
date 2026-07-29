@@ -28,6 +28,8 @@ const XTREAM_ADDED_EPOCH_SECONDS_MIGRATION_KEY =
     'migration:xtream-content-added-epoch-seconds:v1';
 const CONTENT_TITLE_FTS_MIGRATION_KEY =
     'migration:content-title-fts-trigram:v1';
+const CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY =
+    'migration:content-title-fts-remove-diacritics:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY =
     'migration:epg-program-source-url-backfill:v1';
 const TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY =
@@ -301,6 +303,18 @@ const CREATE_TABLE_STATEMENTS = [
       updated_at TEXT DEFAULT (datetime('now'))
   )`,
     `CREATE INDEX IF NOT EXISTS idx_epg_channel_mappings_playlist ON epg_channel_mappings(playlist_id)`,
+    // VOD multi-source pins — the per-movie preferred playlist. Keyed by a
+    // portal-agnostic match key, since the same film has a different provider
+    // id in every portal.
+    `CREATE TABLE IF NOT EXISTS vod_source_pins (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      match_key TEXT NOT NULL UNIQUE,
+      playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+      content_id INTEGER NOT NULL,
+      portal_type TEXT NOT NULL CHECK (portal_type IN ('xtream', 'stalker', 'm3u')),
+      updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+    `CREATE INDEX IF NOT EXISTS idx_vod_source_pins_playlist ON vod_source_pins(playlist_id)`,
     // Playback Positions table
     `CREATE TABLE IF NOT EXISTS playback_positions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -383,6 +397,8 @@ export const __databaseConnectionTestHooks = {
     ensureDownloadsPauseResumeSchema,
     normalizeXtreamContentAddedEpochs,
     ensureContentTitleFts,
+    upgradeContentTitleFtsTokenizer,
+    contentTitleFtsStatement,
     backfillEpgProgramSourceUrls,
     cleanupLegacyTmdbSearchCache,
     runMigrations,
@@ -603,6 +619,134 @@ function normalizeXtreamContentAddedEpochs(sqliteDb: Database.Database): void {
         console.warn(
             `Xtream added timestamp normalization failed (continuing): ${message}`
         );
+    }
+}
+
+/**
+ * The title index, folding diacritics when the runtime can.
+ *
+ * Cross-playlist matching compares NORMALIZED titles ("Amélie" -> "amelie"),
+ * but the index holds the raw title, and the trigram tokenizer does not fold
+ * diacritics by default. Every accented title was therefore invisible to it:
+ * two identical `Amélie` entries produced no candidates at all.
+ *
+ * `remove_diacritics` needs SQLite 3.45+, so an older runtime keeps the plain
+ * tokenizer rather than losing the index — accented titles stay unmatched
+ * there, which is exactly the behaviour it had before.
+ */
+function contentTitleFtsStatement(removeDiacritics: boolean): string {
+    const tokenize = removeDiacritics
+        ? `'trigram remove_diacritics 1'`
+        : `'trigram'`;
+    return `CREATE VIRTUAL TABLE IF NOT EXISTS content_title_fts USING fts5(
+      title,
+      content='content',
+      content_rowid='id',
+      tokenize=${tokenize}
+  )`;
+}
+
+/** Whether this SQLite accepts the folding tokenizer, asked without risk. */
+/**
+ * Whether the title index that actually exists folds diacritics, read from its
+ * own stored DDL rather than from the migration record.
+ *
+ * A missing table answers `false`, which is the useful answer: there is nothing
+ * folded to keep, so the caller rebuilds.
+ */
+function contentTitleFtsFoldsDiacritics(sqliteDb: Database.Database): boolean {
+    const row = sqliteDb
+        .prepare(
+            `SELECT sql FROM sqlite_master
+             WHERE type = 'table' AND name = 'content_title_fts'`
+        )
+        .get() as { sql?: unknown } | undefined;
+
+    return (
+        typeof row?.sql === 'string' && row.sql.includes('remove_diacritics')
+    );
+}
+
+function supportsTrigramDiacriticFolding(sqliteDb: Database.Database): boolean {
+    try {
+        sqliteDb.exec(
+            `CREATE VIRTUAL TABLE temp.content_title_fts_probe USING fts5(
+                title, tokenize='trigram remove_diacritics 1'
+            )`
+        );
+        sqliteDb.exec(`DROP TABLE temp.content_title_fts_probe`);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Rebuild the title index with diacritic folding.
+ *
+ * The tokenizer is fixed at CREATE time, so an existing database keeps the
+ * old one until the table is recreated. Wrapped in a transaction: if the
+ * CREATE is rejected the drop rolls back and the working index survives.
+ */
+function upgradeContentTitleFtsTokenizer(sqliteDb: Database.Database): boolean {
+    try {
+        const migrationState = sqliteDb
+            .prepare(`SELECT value FROM app_state WHERE key = ?`)
+            .get(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY) as
+            | { value?: unknown }
+            | undefined;
+
+        // The marker alone is not evidence. `createTables` declares this table
+        // too, with the plain tokenizer, so a table recreated by that path
+        // after the marker was written would be silently unfolded — and a
+        // degraded index is invisible: discovery just stops finding "Pokémon"
+        // for "pokemon". Ask the live table instead of trusting the record.
+        if (
+            migrationState?.value === 'done' &&
+            contentTitleFtsFoldsDiacritics(sqliteDb)
+        ) {
+            return false;
+        }
+
+        if (!supportsTrigramDiacriticFolding(sqliteDb)) {
+            // Not marked done: a later app version ships a newer SQLite, and
+            // this should upgrade itself then rather than stay degraded.
+            return false;
+        }
+
+        const executeMigration = sqliteDb.transaction(() => {
+            sqliteDb.exec(`DROP TABLE IF EXISTS content_title_fts`);
+            sqliteDb.exec(contentTitleFtsStatement(true));
+            sqliteDb
+                .prepare(
+                    `INSERT INTO content_title_fts(content_title_fts)
+                     VALUES ('rebuild')`
+                )
+                .run();
+
+            sqliteDb
+                .prepare(
+                    `INSERT INTO app_state (key, value, updated_at)
+                     VALUES (?, 'done', datetime('now'))
+                     ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = excluded.updated_at`
+                )
+                .run(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY);
+        });
+
+        executeMigration();
+        return true;
+    } catch (error) {
+        const message =
+            typeof error === 'object' && error !== null && 'message' in error
+                ? String((error as { message?: unknown }).message ?? error)
+                : String(error);
+
+        console.warn(
+            `Content title FTS tokenizer upgrade failed (continuing): ${message}`
+        );
+        return false;
     }
 }
 
@@ -939,7 +1083,11 @@ function runMigrations(sqliteDb: Database.Database): void {
     cleanupLegacyTmdbSearchCache(sqliteDb);
     ensureDownloadsPauseResumeSchema(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
-    ensureContentTitleFts(sqliteDb);
+    // The tokenizer upgrade recreates and rebuilds the index itself, so the
+    // plain rebuild below would only repeat work it just did.
+    if (!upgradeContentTitleFtsTokenizer(sqliteDb)) {
+        ensureContentTitleFts(sqliteDb);
+    }
     deduplicateXtreamCache(sqliteDb);
     normalizeXtreamContentAddedEpochs(sqliteDb);
     runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);

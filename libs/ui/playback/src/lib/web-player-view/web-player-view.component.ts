@@ -23,9 +23,14 @@ import {
     Settings,
     STORE_KEY,
     VideoPlayer,
+    type VodSourceDescriptor,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { VodSourceRowComponent } from '@iptvnator/ui/components';
+
+/** How many recovery options the error screen shows before it stops helping. */
+const ERROR_SCREEN_ALTERNATIVES = 5;
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
@@ -36,6 +41,7 @@ import {
 } from '../player-controls';
 import {
     type PlaybackDiagnostic,
+    type PlaybackDiagnosticCode,
     type PlaybackFallbackRequest,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
@@ -73,6 +79,7 @@ function resolveWebPlayerSharedControls(): boolean {
         MatTooltipModule,
         TranslatePipe,
         VjsPlayerComponent,
+        VodSourceRowComponent,
     ],
     providers: [
         {
@@ -102,6 +109,33 @@ export class WebPlayerViewComponent {
         duration: number;
     }>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    /**
+     * Alternative sources offered on the error screen, turning a dead end into
+     * a recovery point. Empty (the default) keeps the overlay exactly as it
+     * was for every non-multi-source host.
+     */
+    readonly alternativeSources = input<VodSourceDescriptor[]>([]);
+    readonly alternativeSourceRequested = output<string>();
+    /** The row's Check action, which has to reach the host that can probe. */
+    readonly sourceCheckRequested = output<string>();
+    /**
+     * A playback failure the host may be able to recover from by switching
+     * source. Emitted alongside showing the overlay, never instead of it: if
+     * the host does nothing, the user still sees the honest error.
+     */
+    readonly playbackFailed = output<PlaybackDiagnosticCode>();
+
+    /**
+     * An error screen is a recovery point, not a catalogue. Offering fifty
+     * options here is worse than offering the best few — the full list stays
+     * one click away behind the player's own sources button.
+     */
+    readonly visibleAlternatives = computed(() =>
+        this.alternativeSources().slice(0, ERROR_SCREEN_ALTERNATIVES)
+    );
+    readonly hiddenAlternativeCount = computed(() =>
+        Math.max(0, this.alternativeSources().length - ERROR_SCREEN_ALTERNATIVES)
+    );
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
@@ -264,6 +298,9 @@ export class WebPlayerViewComponent {
         }
 
         this.playbackDiagnostic.set(issue);
+        if (issue) {
+            this.playbackFailed.emit(issue.code);
+        }
     }
 
     requestExternalFallback(player: ExternalPlayerName): void {

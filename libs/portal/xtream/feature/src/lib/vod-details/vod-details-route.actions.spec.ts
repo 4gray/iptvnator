@@ -34,6 +34,19 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
 })
 class StubPortalInlinePlayerComponent {
     readonly playback = input<unknown>(null);
+    // Multi-source wiring: the real player takes these, so the stub has to
+    // accept them or the template binding fails to compile.
+    readonly alternativeSources = input<unknown>([]);
+    readonly allSources = input<unknown>([]);
+    readonly sourcesMatchKind = input<unknown>(null);
+    readonly sourcesAutoFailoverEnabled = input(false);
+    readonly sourcesAutoFailoverSupported = input(true);
+    readonly sourcesPlaybackLive = input(false);
+    readonly sourcesAutoFailoverToggled = output<boolean>();
+    readonly alternativeSourceRequested = output<string>();
+    readonly sourcePinRequested = output<string>();
+    readonly sourceCheckRequested = output<string>();
+    readonly playbackFailed = output<unknown>();
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();
     readonly backClicked = output<void>();
@@ -274,13 +287,18 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         downloadsAvailable.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
-        fixture.componentInstance.vodPlaybackPosition.set({
+        const storedPosition = {
             contentXtreamId: 650020,
             contentType: 'vod',
             playlistId: 'playlist-1',
             positionSeconds: 42,
             durationSeconds: 120,
-        } satisfies PlaybackPositionData);
+        } satisfies PlaybackPositionData;
+        // Both, as `loadPosition` does: the Resume button reads the ROUTE
+        // copy's row, while `vodPlaybackPosition` follows whichever copy last
+        // reported — multi-source can put those on different streams.
+        fixture.componentInstance.vodPlaybackPosition.set(storedPosition);
+        fixture.componentInstance.routePlaybackPosition.set(storedPosition);
         fixture.detectChanges();
         const host = fixture.nativeElement as HTMLElement;
         host.querySelector<HTMLButtonElement>(
