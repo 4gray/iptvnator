@@ -5,6 +5,10 @@ import {
     type RendererPerformancePhaseHook,
 } from '@iptvnator/shared/logging';
 
+import {
+    recordFixedGridRendererHeartbeats,
+} from './renderer-heartbeat-fixed-grid';
+
 export const M3U_IMPORT_RENDERER_STATE_KEY =
     '__iptvnatorM3uImportRendererCapture';
 
@@ -267,37 +271,12 @@ export async function triggerM3uImport(page: Page): Promise<number> {
 export async function recordM3uImportHeartbeat(
     page: Page,
     deadlineEpochMs: number
-): Promise<void> {
-    await page.evaluate(
-        ({ deadlineEpochMs, stateKey }) => {
-            const target = globalThis as unknown as Record<string, unknown>;
-            const state = target[stateKey] as
-                | {
-                      heartbeatDelaysMs: number[];
-                      operationStartEpochMs: number;
-                      terminalEpochMs: number | null;
-                  }
-                | undefined;
-            if (!state || state.operationStartEpochMs <= 0) {
-                throw new Error('m3u-import-renderer-probe-unavailable');
-            }
-            if (
-                deadlineEpochMs >= state.operationStartEpochMs &&
-                (state.terminalEpochMs === null ||
-                    deadlineEpochMs <= state.terminalEpochMs)
-            ) {
-                const receivedEpochMs =
-                    performance.timeOrigin + performance.now();
-                const measuredEpochMs =
-                    state.terminalEpochMs === null
-                        ? receivedEpochMs
-                        : Math.min(receivedEpochMs, state.terminalEpochMs);
-                state.heartbeatDelaysMs.push(
-                    Math.max(0, measuredEpochMs - deadlineEpochMs)
-                );
-            }
-        },
-        { deadlineEpochMs, stateKey: M3U_IMPORT_RENDERER_STATE_KEY }
+): Promise<number> {
+    return recordFixedGridRendererHeartbeats(
+        page,
+        M3U_IMPORT_RENDERER_STATE_KEY,
+        deadlineEpochMs,
+        'm3u-import-renderer-probe-unavailable'
     );
 }
 

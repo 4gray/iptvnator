@@ -26,7 +26,7 @@ interface ProbeModule {
     recordXtreamRendererHeartbeat?: (
         page: unknown,
         deadlineEpochMs: number
-    ) => Promise<void>;
+    ) => Promise<number>;
     stopXtreamRendererProbe?: (page: unknown) => Promise<unknown>;
     waitForXtreamRendererTerminal?: (page: unknown) => Promise<void>;
 }
@@ -79,6 +79,52 @@ test('requires a final store marker, DOM gate, and two rendered frames', () => {
     assert.match(source, /catalog/);
     assert.match(source, /paintFrameCount/);
     assert.match(source, />=\s*2/);
+});
+
+test('records every elapsed fixed-grid heartbeat deadline in one renderer delivery', async () => {
+    const module = await modulePromise;
+    assert.ok(module?.recordXtreamRendererHeartbeat);
+    assert.ok(module.XTREAM_RENDERER_STATE_KEY);
+    const performanceDescriptor = Object.getOwnPropertyDescriptor(
+        globalThis,
+        'performance'
+    );
+    const target = globalThis as unknown as Record<string, unknown>;
+    const stateKey = module.XTREAM_RENDERER_STATE_KEY;
+    const page = {
+        evaluate: async (
+            callback: (argument: unknown) => unknown,
+            argument: unknown
+        ) => callback(argument),
+    };
+    target[stateKey] = {
+        heartbeatDelaysMs: [],
+        operationStartEpochMs: 100,
+        terminalEpochMs: null,
+    };
+    Object.defineProperty(globalThis, 'performance', {
+        configurable: true,
+        value: { now: () => 251, timeOrigin: 0 },
+    });
+
+    try {
+        const nextDeadline = await module.recordXtreamRendererHeartbeat(
+            page,
+            150
+        );
+        assert.equal(nextDeadline, 300);
+        assert.deepEqual(
+            (
+                target[stateKey] as {
+                    heartbeatDelaysMs: number[];
+                }
+            ).heartbeatDelaysMs,
+            [101, 51, 1]
+        );
+    } finally {
+        delete target[stateKey];
+        restoreGlobal('performance', performanceDescriptor);
+    }
 });
 
 test('rejects incomplete and internally inconsistent terminal evidence', async () => {
@@ -207,4 +253,15 @@ function backgroundRefreshState(identity: {
         storeTerminalEpochMs: null,
         terminalEpochMs: null,
     };
+}
+
+function restoreGlobal(
+    key: string,
+    descriptor: PropertyDescriptor | undefined
+): void {
+    if (descriptor) {
+        Object.defineProperty(globalThis, key, descriptor);
+    } else {
+        Reflect.deleteProperty(globalThis, key);
+    }
 }
