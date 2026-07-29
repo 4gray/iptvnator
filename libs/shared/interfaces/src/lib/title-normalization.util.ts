@@ -293,3 +293,36 @@ export function extractYear(
     const fromTitle = rawTitle?.match(YEAR_PATTERN)?.[0];
     return fromTitle ? Number(fromTitle) : null;
 }
+
+/** Bracketed release tag: "Dune (2021)", "Dune [2021]". */
+const BRACKETED_YEAR_PATTERN = /[([{]\s*(19\d{2}|20\d{2})\s*[)\]}]/;
+
+/**
+ * The year a provider title states as a release TAG, never one that belongs to
+ * the film's name.
+ *
+ * `extractYear` reads any year anywhere in the title, which is the right answer
+ * where a year is only a search hint that scoring will confirm. It is the wrong
+ * answer wherever the year becomes part of an IDENTITY: "2001: A Space Odyssey"
+ * is not a 2001 film, and calling it one makes every genuine 1968 copy fail the
+ * year gate — the movie then has no alternative sources at all — while its pin
+ * key moves the moment enrichment supplies the real year.
+ *
+ * Only bracketed and trailing forms count. The trailing form stays ambiguous on
+ * purpose ("Blade Runner 2049" is a title, not a tag); that is what the
+ * `exact`/`base` two-tier match is for, and nothing here can settle it.
+ */
+export function releaseTagYear(
+    rawTitle: string | null | undefined
+): number | null {
+    if (!rawTitle) {
+        return null;
+    }
+
+    // Before `normalizeTitleKeys`, which strips bracketed segments wholesale
+    // and would take the tag with them.
+    const bracketed = rawTitle.match(BRACKETED_YEAR_PATTERN);
+    return bracketed
+        ? Number(bracketed[1])
+        : normalizeTitleKeys(rawTitle).trailingYear;
+}

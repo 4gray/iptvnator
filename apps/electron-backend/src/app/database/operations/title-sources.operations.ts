@@ -5,6 +5,7 @@ import {
     type VodSourceCandidateRow,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import { caseInsensitiveGlobPattern } from './title-token-glob';
 
 /**
  * VOD multi-source discovery: find the SAME movie in the user's other
@@ -121,18 +122,22 @@ function excludePlaylistClause(
 /**
  * One token's presence test.
  *
- * SQLite's `LOWER()` and GLOB character classes are ASCII-only, so a Cyrillic
- * or Greek token cannot be folded or word-bounded in stock SQLite — matching
- * "он" against a stored "Он" would simply fail, and the film stayed invisible
- * in the Sources chip.
+ * SQLite's `LOWER()` is ASCII-only — `LOWER('Он')` is `'Он'` — so a Cyrillic or
+ * Greek token cannot be folded by SQL, and matching "он" against a stored "Он"
+ * simply failed: the film stayed invisible in the Sources chip.
+ *
+ * GLOB character classes are NOT ASCII-only, though; they compare UTF-8 code
+ * points. So the non-ASCII branch folds the case in JavaScript, where Unicode
+ * case mapping is real, and hands SQLite one `[lowerUpper]` class per
+ * character. The two substring tests stay alongside it, because the class is
+ * built from the RAW token and cannot match a title whose diacritics differ
+ * ("Ça" vs a stored "Ca"), which the folded-token test does cover.
  *
  * ASCII tokens keep the word-boundary GLOB, which is what stops "it" matching
- * "Titanic". A non-ASCII token falls back to a substring test tried against
- * both the folded and the as-typed form: that covers a title stored in the
- * same case as the request or in lower case, which is the realistic pair, and
- * it deliberately does NOT claim full Unicode case folding. It is looser than
- * the ASCII branch, and the normalized confirmation afterwards is what makes
- * that safe — a looser filter here costs transfer, never a wrong match.
+ * "Titanic". The non-ASCII branch has no word boundary — `[^a-z0-9]` would
+ * treat any Cyrillic letter as a separator — so it is looser, and the
+ * normalized confirmation afterwards is what makes that safe: a looser filter
+ * here costs transfer, never a wrong match.
  */
 function tokenPredicate(token: string, rawToken: string): SQL {
     // Decided from the RAW token, not the normalized one. Normalization folds
@@ -147,7 +152,11 @@ function tokenPredicate(token: string, rawToken: string): SQL {
         return sql`' ' || LOWER(c.title) || ' ' GLOB ${`*[^a-z0-9]${token}[^a-z0-9]*`}`;
     }
 
-    return sql`(instr(LOWER(c.title), ${token}) > 0 OR instr(c.title, ${rawToken}) > 0)`;
+    const substring = sql`(instr(LOWER(c.title), ${token}) > 0 OR instr(c.title, ${rawToken}) > 0)`;
+    const anyCase = caseInsensitiveGlobPattern(rawToken);
+    // `null` means the token holds a GLOB metacharacter or a case mapping that
+    // changes length, and the substring tests alone are the honest answer.
+    return anyCase ? sql`(c.title GLOB ${anyCase} OR ${substring})` : substring;
 }
 
 function scanCandidateQuery(

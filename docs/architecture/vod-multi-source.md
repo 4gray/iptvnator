@@ -285,6 +285,16 @@ year, ranked *above* every fuzzy match. Discovery reads a bracketed year out of
 the raw title first, and when both sides state a year and they disagree, it is
 not the same movie. An unknown year still never blocks.
 
+Which is why the movie's OWN year is read with `releaseTagYear`, not
+`extractYear`. The latter takes a year from anywhere in the title, which is the
+right answer where a year is only a search hint that scoring will confirm — and
+the wrong one here, where the year is part of an identity. "2001: A Space
+Odyssey" is not a 2001 film: calling it one makes every genuine 1968 copy fail
+the gate above, so the movie has no alternatives at all, and it moves the pin
+key the moment enrichment supplies the real year. Only bracketed and trailing
+forms count. The trailing form stays ambiguous on purpose ("Blade Runner 2049"
+is a title, not a tag) — that is what the two-tier exact/base match is for.
+
 ## Why resolution is lazy
 
 The `content` table stores no `container_extension`, and
@@ -513,23 +523,29 @@ table first and does nothing when the runtime rejects it, leaving the working
 index in place — and does NOT record itself as done, so a later app version
 shipping a newer SQLite upgrades then.
 
-**Case folding for non-ASCII is still not possible.** `LOWER()`, GLOB classes
-and the trigram tokenizer all fold ASCII only, so a Cyrillic title stored with
-different capitalisation in two playlists ("ОН" vs "Он") cannot be matched by
-any predicate available in stock SQLite. Closing that needs a stored
-normalized-title column, which is deliberately out of scope here.
+**Case folding for non-ASCII, on the FTS tier, is still not possible.**
+`LOWER()` and the trigram tokenizer both fold ASCII only, so a Cyrillic title
+stored with different capitalisation in two playlists ("ОН" vs "Он") cannot be
+folded by the indexed path. Closing that needs a stored normalized-title
+column, which is deliberately out of scope here.
 
+The **scan** tier does fold it, because GLOB character classes are *not*
+ASCII-only — `patternCompare` reads them as UTF-8 code points, and
+`'Он' GLOB '*[Оо][Нн]*'` is true. `caseInsensitiveGlobPattern` therefore folds
+the case in JavaScript, where Unicode case mapping is real, and hands SQLite one
+`[lowerUpper]` class per character. It returns `null` — leaving the substring
+tests as the whole answer — for a token holding a GLOB metacharacter (SQLite
+GLOB has no escape character, so an unescaped `*` would become a wildcard) or a
+case mapping that changes length (`ß` uppercases to `SS`).
 
-SQLite's `LOWER()` and GLOB character classes are ASCII-only, so a short
-non-ASCII title could not be folded or word-bounded and simply never matched —
-the film stayed absent from the chip. The ASCII/Unicode branch is decided from the RAW token, not the normalized
-one: normalization folds diacritics, so "Ça" arrives as "ca" and looks like
-plain ASCII while the stored title still reads "Ça". ASCII tokens keep the
-word-boundary GLOB
-(what stops "it" matching "Titanic"); a non-ASCII token falls back to a
-substring test against both the folded and the as-typed form. That covers a
-title stored in the same case as the request or in lower case, and deliberately
-does not claim full Unicode case folding. It is looser, and the normalized
+The ASCII/Unicode branch is decided from the RAW token, not the normalized one:
+normalization folds diacritics, so "Ça" arrives as "ca" and looks like plain
+ASCII while the stored title still reads "Ça". ASCII tokens keep the
+word-boundary GLOB (what stops "it" matching "Titanic"). The non-ASCII branch
+keeps both substring tests alongside the folded class, because the class is
+built from the raw token and cannot match across a diacritic difference, which
+the folded-token test does. It has no word boundary — `[^a-z0-9]` would treat
+every Cyrillic letter as a separator — so it is looser, and the normalized
 confirmation afterwards is what makes looser safe.
 
 ## Claims about the present

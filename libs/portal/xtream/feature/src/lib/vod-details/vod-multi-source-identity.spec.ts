@@ -66,6 +66,47 @@ describe('resolveVodMultiSourceMovie', () => {
         expect(resolved?.tmdbId).toBe(693134);
     });
 
+    it('ignores a year that belongs to the movie’s name', () => {
+        const resolved = resolveVodMultiSourceMovie({
+            ...BASE,
+            catalogItem: { title: '2001: A Space Odyssey' },
+        });
+
+        // Reading any year anywhere calls this a 2001 film. Every genuine copy
+        // states 1968 and fails the year gate, so the movie has no alternative
+        // sources at all — and its pin key moves as soon as enrichment
+        // supplies the real year.
+        expect(resolved?.year).toBeNull();
+    });
+
+    it('reads a release tag in either shape', () => {
+        expect(
+            resolveVodMultiSourceMovie({
+                ...BASE,
+                catalogItem: { title: 'Dune (2021)' },
+            })?.year
+        ).toBe(2021);
+        expect(
+            resolveVodMultiSourceMovie({
+                ...BASE,
+                catalogItem: { title: 'The Matrix 1999' },
+            })?.year
+        ).toBe(1999);
+    });
+
+    it('prefers the stated release date over anything in the title', () => {
+        const resolved = resolveVodMultiSourceMovie({
+            ...BASE,
+            catalogItem: { title: 'The Matrix 1999' },
+            vodInfo: {
+                name: 'The Matrix 1999',
+                releasedate: '1999-03-31',
+            } as never,
+        });
+
+        expect(resolved?.year).toBe(1999);
+    });
+
     it('falls back to the playlist id when the name is empty', () => {
         const resolved = resolveVodMultiSourceMovie({
             ...BASE,

@@ -1,5 +1,6 @@
 import {
     extractYear,
+    releaseTagYear,
     type XtreamVodInfo,
     type XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
@@ -58,7 +59,12 @@ export function resolveVodMultiSourceMovie(input: {
         playlistName: input.playlistName?.trim() || playlistId,
         contentId: vodId,
         title,
-        year: extractYear(vodInfo?.releasedate, title),
+        // The title is read for a release TAG only. Here the year is part of
+        // the movie's identity — it gates discovery and keys the pin — so a
+        // year that is part of the NAME ("2001: A Space Odyssey") would reject
+        // every genuine 1968 copy and move the pin key the moment enrichment
+        // supplies the real one.
+        year: extractYear(vodInfo?.releasedate) ?? releaseTagYear(title),
         tmdbId: vodInfo?.tmdb_id,
     };
 }

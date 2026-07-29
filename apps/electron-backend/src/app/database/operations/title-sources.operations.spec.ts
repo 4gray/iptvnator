@@ -66,16 +66,20 @@ describe('title-sources.operations', () => {
         });
 
         it('can still find a short non-ASCII title', async () => {
-            // SQLite's LOWER() and GLOB classes are ASCII-only, so folding
-            // "Он" to "он" never happened and the film stayed invisible in
-            // the Sources chip entirely.
+            // SQLite's LOWER() is ASCII-only, so folding "Он" to "он" never
+            // happened and the film stayed invisible in the Sources chip.
             const scan = createDbMock([]);
             await findTitleSources(scan.db, { title: 'Он' });
             const scanQuery = compiledQuery(scan.all);
 
+            // GLOB character classes are NOT ASCII-only — they compare UTF-8
+            // code points — so the case is folded in JavaScript and handed
+            // over one class per character. Without this a title stored in
+            // any case other than the two below is simply never found.
+            expect(scanQuery.params).toContain('*[оО][нН]*');
             expect(scanQuery.sql).toContain('instr');
-            // Both the folded and the as-typed form, since neither alone
-            // matches a title stored in the other case.
+            // Both the folded and the as-typed form, since the class is built
+            // from the raw token and cannot cover a diacritic difference.
             expect(scanQuery.params).toContain('он');
             expect(scanQuery.params).toContain('Он');
         });
