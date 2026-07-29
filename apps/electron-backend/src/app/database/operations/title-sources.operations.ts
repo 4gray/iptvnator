@@ -5,7 +5,10 @@ import {
     type VodSourceCandidateRow,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
-import { caseInsensitiveGlobPattern } from './title-token-glob';
+import {
+    caseInsensitiveGlobBody,
+    caseInsensitiveGlobPattern,
+} from './title-token-glob';
 
 /**
  * VOD multi-source discovery: find the SAME movie in the user's other
@@ -149,7 +152,15 @@ function tokenPredicate(token: string, rawToken: string): SQL {
     // Normalized ASCII tokens hold letters and digits only, so nothing here
     // is a GLOB metacharacter.
     if (/^[\x20-\x7e]*$/.test(rawToken) && /^[a-z0-9]+$/.test(token)) {
-        return sql`' ' || LOWER(c.title) || ' ' GLOB ${`*[^a-z0-9]${token}[^a-z0-9]*`}`;
+        // Each letter also carries its accented forms. The token has already
+        // had its own diacritics folded, so without this an ASCII "ca" cannot
+        // find a stored "Ça" while "Ça" finds "Ca" through the branch below —
+        // making discovery depend on which playlist the user happens to have
+        // open. The word boundary is kept: it is what stops "it" matching
+        // "Titanic".
+        const anyForm =
+            caseInsensitiveGlobBody(token, { foldDiacritics: true }) ?? token;
+        return sql`' ' || LOWER(c.title) || ' ' GLOB ${`*[^a-z0-9]${anyForm}[^a-z0-9]*`}`;
     }
 
     const substring = sql`(instr(LOWER(c.title), ${token}) > 0 OR instr(c.title, ${rawToken}) > 0)`;

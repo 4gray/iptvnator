@@ -120,6 +120,31 @@ describeWithSqlite('caseInsensitiveGlobPattern against SQLite', () => {
         expect(sqliteGlob('οσ', pattern)).toBe(true);
     });
 
+    it('finds an accented title from its folded ASCII token', () => {
+        // The token has already had its own diacritics folded, so "ca" is what
+        // a search for "Ça" arrives as. Without the accented forms this
+        // direction fails while the reverse works, and whether two playlists
+        // can see each other then depends on which one is open.
+        const pattern = caseInsensitiveGlobPattern('ca', {
+            foldDiacritics: true,
+        }) as string;
+
+        expect(sqliteGlob('Ça', pattern)).toBe(true);
+        expect(sqliteGlob('ÇA', pattern)).toBe(true);
+        expect(sqliteGlob('ca', pattern)).toBe(true);
+        expect(sqliteGlob('Ca', pattern)).toBe(true);
+    });
+
+    it('does not fold diacritics unless asked', () => {
+        const pattern = caseInsensitiveGlobPattern('ca') as string;
+
+        // The non-ASCII branch pairs the raw token with the folded one and
+        // relies on that, so widening this by default would be a silent
+        // behaviour change for every caller.
+        expect(sqliteGlob('Ça', pattern)).toBe(false);
+        expect(sqliteGlob('Ca', pattern)).toBe(true);
+    });
+
     it('matches Greek and accented Latin in any case', () => {
         expect(
             sqliteGlob('ΟΙ', caseInsensitiveGlobPattern('οι') as string)

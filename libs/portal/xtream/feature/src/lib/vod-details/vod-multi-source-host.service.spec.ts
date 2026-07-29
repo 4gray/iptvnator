@@ -21,11 +21,16 @@ import {
     ALT_TWO,
     API_AAC,
     API_AC3,
+    API_LANG_ENG,
+    API_LANG_RUS,
     CURRENT_A_ID,
     MOVIE_A,
     PARSED_DUB,
     PROBE_OK,
+    createDeferred,
     resolveWith,
+    type AudioFacts,
+    type DiscoveryResult,
 } from './vod-multi-source-host.fixtures';
 
 describe('VodMultiSourceHostService', () => {
@@ -64,13 +69,13 @@ describe('VodMultiSourceHostService', () => {
 
     /** Two consecutive switches, so the "previous" side carries real audio. */
     async function switchTwice(
-        firstAudio: VodSourceField | undefined,
-        secondAudio: VodSourceField
+        first: Partial<AudioFacts> | undefined,
+        second: Partial<AudioFacts>
     ) {
         await loadMovie([ALT_TWO, ALT_THREE]);
         resolver.resolve.mockImplementation(
             resolveWith((candidate) =>
-                candidate.id === ALT_TWO.id ? firstAudio : secondAudio
+                candidate.id === ALT_TWO.id ? (first ?? {}) : second
             )
         );
 
@@ -194,10 +199,41 @@ describe('VodMultiSourceHostService', () => {
         expect(service.previousSourceId()).toBe(CURRENT_A_ID);
     });
 
-    it.each<[string, VodSourceField | undefined, VodSourceField, boolean]>([
-        ['fires when both audio values are facts', API_AC3, API_AAC, true],
-        ['is silent for a guessed audio', PARSED_DUB, API_AAC, false],
-        ['is silent without both audio values', undefined, API_AAC, false],
+    it.each<
+        [string, Partial<AudioFacts> | undefined, Partial<AudioFacts>, boolean]
+    >([
+        [
+            'fires when both sides state a different language',
+            { audioLanguage: API_LANG_RUS },
+            { audioLanguage: API_LANG_ENG },
+            true,
+        ],
+        [
+            'is silent when the language is the same',
+            { audioLanguage: API_LANG_RUS },
+            { audioLanguage: API_LANG_RUS },
+            false,
+        ],
+        [
+            // A codec is not a dub: AAC and AC3 routinely carry the same one,
+            // so this fired on every identical-language re-encode.
+            'is silent for a codec change alone',
+            { audio: API_AC3 },
+            { audio: API_AAC },
+            false,
+        ],
+        [
+            'is silent for a guessed dub marker',
+            { audioLanguage: PARSED_DUB },
+            { audioLanguage: API_LANG_ENG },
+            false,
+        ],
+        [
+            'is silent without both languages',
+            undefined,
+            { audioLanguage: API_LANG_ENG },
+            false,
+        ],
     ])('the dub warning %s', async (_name, first, second, expected) => {
         expect(await switchTwice(first, second)).toEqual(
             expect.objectContaining({ audioMayDiffer: expected })
@@ -267,6 +303,35 @@ describe('VodMultiSourceHostService', () => {
         // Each attempt marks its source tried, so this terminates rather than
         // spinning through the same candidate forever.
         await expect(service.failover()).resolves.toBeNull();
+        expect(startPlayback).not.toHaveBeenCalled();
+    });
+
+    it('abandons a waiting failover once the user starts something else', async () => {
+        await loadMovie([ALT_TWO, ALT_THREE]);
+        vodAutoFailover.set(true);
+
+        // A same-movie rediscovery is still out when the stream fails.
+        const slow = createDeferred<DiscoveryResult>();
+        discovery.discover.mockReturnValueOnce(slow.promise);
+        const reloading = service.load({ ...MOVIE_A, tmdbId: 603 });
+        while (discovery.discover.mock.calls.length < 2) {
+            await Promise.resolve();
+        }
+        const failingOver = service.failover();
+
+        // Across that wait the user restarts the route's own stream. The
+        // session is unchanged — it only moves when the FILM does — so
+        // checking it alone lets failover treat what they just started as the
+        // thing that failed and switch away from it.
+        service.markRouteSourceActive();
+
+        slow.resolve({
+            sources: [ALT_TWO, ALT_THREE],
+            matchKind: 'title-year',
+        });
+        await reloading;
+
+        await expect(failingOver).resolves.toBeNull();
         expect(startPlayback).not.toHaveBeenCalled();
     });
 

@@ -249,14 +249,22 @@ export function providerVodMetadataOf(
         containerExtension: vodDetails?.movie_data?.container_extension ?? null,
         videoCodec: video?.codec_name ?? null,
         audioCodec: audio?.codec_name ?? null,
+        // ffprobe puts the language in `tags`; some panels hoist it.
+        audioLanguage: audio?.tags?.language ?? audio?.language ?? null,
         width: video?.width ?? null,
         height: video?.height ?? null,
     };
 }
 
-export function readStreamInfo(
-    value: unknown
-): { codec_name?: string; width?: number; height?: number } | undefined {
+export function readStreamInfo(value: unknown):
+    | {
+          codec_name?: string;
+          width?: number;
+          height?: number;
+          language?: string;
+          tags?: { language?: string };
+      }
+    | undefined {
     if (Array.isArray(value)) {
         const codec = value.find(
             (entry): entry is string =>

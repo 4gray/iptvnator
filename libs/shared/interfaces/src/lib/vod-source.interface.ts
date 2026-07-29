@@ -116,7 +116,22 @@ export interface VodSourceCandidate {
     quality?: VodSourceField;
     codec?: VodSourceField;
     container?: VodSourceField;
+    /**
+     * The audio track as a LABEL, whatever kind the source could supply: a
+     * dub marker guessed from the title, or the codec the provider stated.
+     * Display only — the two are not comparable with each other.
+     */
     audio?: VodSourceField;
+    /**
+     * The spoken language, when the provider names one.
+     *
+     * Kept apart from `audio` because that field holds a codec whenever the
+     * fact came from the API, and a codec says nothing about which dub this
+     * is: AAC and AC3 can carry the same language, and two AC3 tracks can
+     * carry different ones. This is the only field allowed to answer "would
+     * the dub change".
+     */
+    audioLanguage?: VodSourceField;
 
     /** ISO timestamp of the last failed playback attempt, if any. */
     lastFailedAt?: string;

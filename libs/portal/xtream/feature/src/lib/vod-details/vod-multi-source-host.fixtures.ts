@@ -42,13 +42,29 @@ export const PARSED_DUB: VodSourceField = {
     value: 'Дубляж',
     provenance: 'parsed',
 };
+export const API_LANG_RUS: VodSourceField = {
+    value: 'rus',
+    provenance: 'api',
+};
+export const API_LANG_ENG: VodSourceField = {
+    value: 'eng',
+    provenance: 'api',
+};
 export const PROBE_OK = { status: 'ok', httpStatus: 200, latencyMs: 42 };
 
 export type DiscoveryResult = {
     sources: VodSourceCandidate[];
     matchKind: string;
 };
-export type AudioPicker = (c: VodSourceCandidate) => VodSourceField | undefined;
+/**
+ * What a resolve should state about the audio.
+ *
+ * Two fields, because they answer different questions: `audio` is the codec
+ * (or a guessed dub marker) and is display-only, while `audioLanguage` is the
+ * one thing allowed to drive the "dub may differ" warning.
+ */
+export type AudioFacts = Pick<VodSourceCandidate, 'audio' | 'audioLanguage'>;
+export type AudioPicker = (c: VodSourceCandidate) => Partial<AudioFacts>;
 
 export function alternative(index: number): VodSourceCandidate {
     return {
@@ -68,7 +84,7 @@ export const [ALT_TWO, ALT_THREE] = [alternative(2), alternative(3)];
 export function resolvedFor(
     candidate: VodSourceCandidate,
     startTime: number | undefined,
-    audio?: VodSourceField
+    audio?: Partial<AudioFacts>
 ) {
     const playback: ResolvedPortalPlayback = {
         streamUrl: `http://${candidate.playlistId}/${candidate.contentId}.mkv`,
@@ -76,7 +92,7 @@ export function resolvedFor(
         isLive: false,
         startTime,
     };
-    return { playback, candidate: { ...candidate, audio } };
+    return { playback, candidate: { ...candidate, ...audio } };
 }
 
 /** Stands in for the resolver: echoes the start time, injects audio facts. */

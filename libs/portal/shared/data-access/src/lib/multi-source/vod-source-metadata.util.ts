@@ -108,6 +108,8 @@ export interface ProviderVodMetadata {
     containerExtension?: string | null;
     videoCodec?: string | null;
     audioCodec?: string | null;
+    /** The audio track's spoken language, when the provider tags one. */
+    audioLanguage?: string | null;
     /** Pixel width from the provider's own video stream info. */
     width?: number | null;
     /** Pixel height from the provider's own video stream info. */
@@ -142,6 +144,14 @@ export function applyApiMetadata(
         next.audio = { value: audio, provenance: 'api' };
     }
 
+    const language = cleanString(api.audioLanguage);
+    if (language) {
+        next.audioLanguage = {
+            value: language.toLowerCase(),
+            provenance: 'api',
+        };
+    }
+
     const quality = qualityFromDimensions(api.width, api.height);
     if (quality) {
         next.quality = { value: quality, provenance: 'api' };
@@ -173,20 +183,31 @@ export function factualOnly(
 }
 
 /**
- * True when both sides state an audio track AS FACT and those facts differ.
+ * True when both sides name a spoken LANGUAGE as fact and those differ.
  *
- * Deliberately conservative: two guesses, or a guess against a fact, are not
- * enough to claim the dub changed. The warning must be trustworthy, so it
- * fires only when both sides are known — and stays silent when we simply do
- * not know, which is the common case.
+ * Reads `audioLanguage`, never `audio`. The latter holds a codec whenever the
+ * fact came from the API, and a codec cannot answer this question: AAC and AC3
+ * routinely carry the same dub, while two AC3 tracks can carry different ones.
+ * Warning on a codec change would fire on identical-language re-encodes and
+ * stay silent on the actual dub changes it exists for — and a warning that is
+ * wrong in both directions is worse than no warning, because people learn to
+ * ignore it.
+ *
+ * Deliberately conservative beyond that: two guesses, or a guess against a
+ * fact, are not enough. It stays silent when we do not know, which — since few
+ * panels tag a language at all — is the common case.
  */
 export function audioDiffersFactually(
     from: VodSourceCandidate | null | undefined,
     to: VodSourceCandidate | null | undefined
 ): boolean {
-    const a = from && factualOnly(from).audio?.value;
-    const b = to && factualOnly(to).audio?.value;
+    const a = from && keepFactual(from.audioLanguage)?.value;
+    const b = to && keepFactual(to.audioLanguage)?.value;
     return Boolean(a && b && a !== b);
+}
+
+function keepFactual(field?: VodSourceField): VodSourceField | undefined {
+    return field && field.provenance !== 'parsed' ? field : undefined;
 }
 
 function cleanString(raw: string | null | undefined): string | null {

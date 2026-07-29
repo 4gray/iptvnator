@@ -18,7 +18,7 @@ const MOVIE = {
     catalogItem: { title: 'Dune' },
 };
 
-function alternative(audio: string): VodSourceCandidate {
+function alternative(language: string): VodSourceCandidate {
     return {
         id: 'playlist-2:xtream:991',
         playlistId: 'playlist-2',
@@ -28,7 +28,7 @@ function alternative(audio: string): VodSourceCandidate {
         rawTitle: 'Dune',
         matchConfidence: 'exact',
         year: null,
-        audio: { value: audio, provenance: 'api' },
+        audioLanguage: { value: language, provenance: 'api' },
     } as VodSourceCandidate;
 }
 
@@ -68,7 +68,10 @@ describe('currentSourceRow', () => {
     it('lets the dub warning fire on a route-to-alternative switch', () => {
         const movie = resolveVodMultiSourceMovie({
             ...MOVIE,
-            vodInfo: { name: 'Dune', audio: { codec_name: 'ac3' } } as never,
+            vodInfo: {
+                name: 'Dune',
+                audio: { codec_name: 'ac3', tags: { language: 'rus' } },
+            } as never,
         });
 
         const row = currentSourceRow(movie as never);
@@ -77,7 +80,23 @@ describe('currentSourceRow', () => {
         // route row made the warning structurally unreachable on the
         // commonest switch there is — route to alternative. It only ever
         // fired between two alternatives that had both been resolved.
-        expect(audioDiffersFactually(row, alternative('aac'))).toBe(true);
-        expect(audioDiffersFactually(row, alternative('ac3'))).toBe(false);
+        expect(audioDiffersFactually(row, alternative('eng'))).toBe(true);
+        expect(audioDiffersFactually(row, alternative('rus'))).toBe(false);
+    });
+
+    it('does not call a codec change a dub change', () => {
+        const movie = resolveVodMultiSourceMovie({
+            ...MOVIE,
+            vodInfo: { name: 'Dune', audio: { codec_name: 'ac3' } } as never,
+        });
+
+        const row = currentSourceRow(movie as never);
+
+        // The row states a codec and nothing about language. AAC and AC3
+        // routinely carry the same dub, so there is nothing to warn about —
+        // and warning anyway trains people to ignore the one that matters.
+        expect(row.audio?.value).toBe('ac3');
+        expect(row.audioLanguage).toBeUndefined();
+        expect(audioDiffersFactually(row, alternative('eng'))).toBe(false);
     });
 });

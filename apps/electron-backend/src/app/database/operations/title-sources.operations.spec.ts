@@ -53,7 +53,14 @@ describe('title-sources.operations', () => {
 
             expect(scanQuery.sql).toContain('GLOB ?');
             expect(scanQuery.sql).not.toContain('LIKE ?');
-            expect(scanQuery.params).toContain('*[^a-z0-9]it[^a-z0-9]*');
+            // Each letter is a class of its own forms, so the assertion is
+            // about the SHAPE: a word boundary either side of one class per
+            // character.
+            expect(scanQuery.params).toContainEqual(
+                expect.stringMatching(
+                    /^\*\[\^a-z0-9\](\[[^\]]*i[^\]]*\])(\[[^\]]*t[^\]]*\])\[\^a-z0-9\]\*$/
+                )
+            );
             expect(scanQuery.sql).toContain('ORDER BY LENGTH(c.title)');
             // No window at all: unlike FTS this cannot rank, so a limit would
             // silently decide which valid sources the user may see — and the
@@ -130,8 +137,16 @@ describe('title-sources.operations', () => {
             await findTitleSources(scan.db, { title: 'I Am' });
             const scanQuery = compiledQuery(scan.all);
 
-            expect(scanQuery.params).toContain('*[^a-z0-9]i[^a-z0-9]*');
-            expect(scanQuery.params).toContain('*[^a-z0-9]am[^a-z0-9]*');
+            expect(scanQuery.params).toContainEqual(
+                expect.stringMatching(
+                    /^\*\[\^a-z0-9\]\[[^\]]*i[^\]]*\]\[\^a-z0-9\]\*$/
+                )
+            );
+            expect(scanQuery.params).toContainEqual(
+                expect.stringMatching(
+                    /^\*\[\^a-z0-9\]\[[^\]]*a[^\]]*\]\[[^\]]*m[^\]]*\]\[\^a-z0-9\]\*$/
+                )
+            );
             expect(scanQuery.sql.match(/GLOB \?/g)).toHaveLength(2);
         });
 

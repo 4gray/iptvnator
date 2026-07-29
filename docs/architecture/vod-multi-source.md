@@ -515,8 +515,19 @@ route's own row changes nothing; the loaded position already IS that copy's.
 `info.video` / `info.audio` come back in two shapes: the declared string array
 (`['H.264']`, which the mock server and many panels send) and the ffprobe
 object carrying `codec_name`/`width`/`height`. `readStreamInfo` accepts both —
-reading only the object silently lost the codec on every array response, and
-with it the "dub may differ" warning, which compares stated audio tracks.
+reading only the object silently lost the codec on every array response.
+
+That codec is a **display** fact and nothing more. The "dub may differ" warning
+reads `audioLanguage`, which comes from the track's language tag
+(`info.audio.tags.language`, or `language` on panels that hoist it) and never
+from `audio`. A codec cannot answer the question the warning asks: AAC and AC3
+routinely carry the same dub, and two AC3 tracks can carry different ones, so
+comparing codecs fired on every identical-language re-encode and stayed silent
+on the dub changes it exists for. Wrong in both directions is worse than
+absent, because a warning people learn to ignore is not a warning. Few panels
+tag a language at all, so in practice it is usually silent — which is the
+honest state, and the same one the rest of this feature takes when it does not
+know.
 
 Switching sources through `startResolvedPlayback` closes the external session
 it LAUNCHED first — tracked separately from the controller's active source,

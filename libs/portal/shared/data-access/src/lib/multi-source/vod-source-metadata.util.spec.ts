@@ -289,19 +289,21 @@ describe('factualOnly', () => {
 describe('audioDiffersFactually', () => {
     it('warns only when both sides are known facts that differ', () => {
         const from = candidate({
-            audio: { value: 'Дубляж', provenance: 'api' },
+            audioLanguage: { value: 'rus', provenance: 'api' },
         });
-        const to = candidate({ audio: { value: 'Eng', provenance: 'api' } });
+        const to = candidate({
+            audioLanguage: { value: 'eng', provenance: 'api' },
+        });
 
         expect(audioDiffersFactually(from, to)).toBe(true);
     });
 
     it('stays silent when either side is only a guess', () => {
         const from = candidate({
-            audio: { value: 'Дубляж', provenance: 'api' },
+            audioLanguage: { value: 'rus', provenance: 'api' },
         });
         const guessed = candidate({
-            audio: { value: 'MVO', provenance: 'parsed' },
+            audioLanguage: { value: 'eng', provenance: 'parsed' },
         });
 
         expect(audioDiffersFactually(from, guessed)).toBe(false);
@@ -309,7 +311,7 @@ describe('audioDiffersFactually', () => {
 
     it('stays silent when either side is unknown', () => {
         const known = candidate({
-            audio: { value: 'Дубляж', provenance: 'api' },
+            audioLanguage: { value: 'rus', provenance: 'api' },
         });
 
         expect(audioDiffersFactually(known, candidate())).toBe(false);
@@ -319,9 +321,11 @@ describe('audioDiffersFactually', () => {
 
     it('stays silent when both sides state the same track', () => {
         const from = candidate({
-            audio: { value: 'Дубляж', provenance: 'api' },
+            audioLanguage: { value: 'rus', provenance: 'api' },
         });
-        const to = candidate({ audio: { value: 'Дубляж', provenance: 'api' } });
+        const to = candidate({
+            audioLanguage: { value: 'rus', provenance: 'api' },
+        });
 
         expect(audioDiffersFactually(from, to)).toBe(false);
     });

@@ -375,9 +375,17 @@ export class VodMultiSourceHostService {
         // "nowhere to go" against a controller whose discovery has not landed
         // yet would strand the user on the error screen with alternatives
         // arriving a moment later and nothing left to retry them.
+        //
+        // The switch generation is claimed up front and rechecked after, as
+        // the pinned path does. The session alone is not enough: it only
+        // changes when the FILM does, and the user can pick another source —
+        // or restart the route's own — across this wait. Failover would then
+        // treat what they just started as the stream that failed and switch
+        // away from it.
         const session = this.sessionToken;
+        const attempt = ++this.switchToken;
         await this.loadInFlight;
-        if (session !== this.sessionToken) {
+        if (!this.isCurrentSwitch(session, attempt)) {
             return null;
         }
 
