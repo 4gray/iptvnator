@@ -183,6 +183,50 @@ describe('DownloadLibraryNavigationService', () => {
         ]);
     });
 
+    it('returns false when the router refuses an Xtream navigation', async () => {
+        db.getContentByXtreamId.mockResolvedValue({
+            category_id: 7,
+        } as never);
+        router.navigate.mockResolvedValue(false);
+
+        await expect(navigation.open(download())).resolves.toBe(false);
+
+        expect(router.navigate).toHaveBeenCalledWith([
+            '/workspace',
+            'xtreams',
+            PLAYLIST_ID,
+            'vod',
+            '7',
+            '41',
+        ]);
+    });
+
+    it.each(['xtream', 'stalker'] as const)(
+        'returns false instead of rejecting when %s navigation fails',
+        async (source) => {
+            if (source === 'stalker') {
+                playlists.getPlaylistById.mockReturnValue(
+                    of(STALKER_PLAYLIST)
+                );
+            }
+            router.navigate.mockRejectedValue(
+                new Error('navigation rejected')
+            );
+
+            await expect(navigation.open(download())).resolves.toBe(false);
+
+            expect(router.navigate).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('returns false when the Xtream content lookup fails', async () => {
+        db.getContentByXtreamId.mockRejectedValue(new Error('database failed'));
+
+        await expect(navigation.open(download())).resolves.toBe(false);
+
+        expect(router.navigate).not.toHaveBeenCalled();
+    });
+
     it('opens an Xtream episode at its series detail route', async () => {
         const item = download({
             contentType: 'episode',

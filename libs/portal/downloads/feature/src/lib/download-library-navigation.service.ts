@@ -34,18 +34,18 @@ export class DownloadLibraryNavigationService {
             return false;
         }
 
-        const source = await this.resolveSourceType(item.playlistId);
-        if (source === null) {
+        try {
+            const source = await this.resolveSourceType(item.playlistId);
+            if (source === null) {
+                return false;
+            }
+
+            return source === 'xtream'
+                ? await this.openXtreamItem(item, targetId)
+                : await this.openStalkerItem(item, targetId);
+        } catch {
             return false;
         }
-
-        if (source === 'xtream') {
-            await this.openXtreamItem(item, targetId);
-        } else {
-            await this.openStalkerItem(item, targetId);
-        }
-
-        return true;
     }
 
     private targetId(item: DownloadItem): number | null {
@@ -92,7 +92,7 @@ export class DownloadLibraryNavigationService {
     private async openXtreamItem(
         item: DownloadItem,
         targetId: number
-    ): Promise<void> {
+    ): Promise<boolean> {
         const contentType =
             item.contentType === 'episode' ? 'series' : 'vod';
         const content = await this.db.getContentByXtreamId(
@@ -105,7 +105,7 @@ export class DownloadLibraryNavigationService {
                 ? [contentType]
                 : [contentType, String(categoryId), String(targetId)];
 
-        await this.router.navigate(
+        return this.router.navigate(
             this.route('xtream', item.playlistId, segments)
         );
     }
@@ -193,7 +193,7 @@ export class DownloadLibraryNavigationService {
     private async openStalkerItem(
         item: DownloadItem,
         targetId: number
-    ): Promise<void> {
+    ): Promise<boolean> {
         const fallback =
             item.contentType === 'episode' ? 'series' : 'vod';
         const openRecentItem = await this.stalkerOpenState(
@@ -202,7 +202,7 @@ export class DownloadLibraryNavigationService {
             fallback
         );
 
-        await this.router.navigate(
+        return this.router.navigate(
             this.route('stalker', item.playlistId, ['recent']),
             { state: { openRecentItem } }
         );
