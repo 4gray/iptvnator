@@ -481,6 +481,26 @@ both sources running and Stop owning only the newer one.
 
 ## Short titles and Unicode
 
+The title index folds diacritics. `content_title_fts` is created with
+`tokenize='trigram remove_diacritics 1'`, because matching compares NORMALIZED
+titles ("Amélie" → "amelie") against an index built from the raw one — without
+folding, every accented title was invisible to the FTS path, and two identical
+`Amélie` entries produced no candidates at all. The tokenizer is fixed at
+CREATE time, so existing databases are recreated and rebuilt once behind
+`migration:content-title-fts-remove-diacritics:v1`.
+
+`remove_diacritics` needs SQLite 3.45+. The migration probes support on a temp
+table first and does nothing when the runtime rejects it, leaving the working
+index in place — and does NOT record itself as done, so a later app version
+shipping a newer SQLite upgrades then.
+
+**Case folding for non-ASCII is still not possible.** `LOWER()`, GLOB classes
+and the trigram tokenizer all fold ASCII only, so a Cyrillic title stored with
+different capitalisation in two playlists ("ОН" vs "Он") cannot be matched by
+any predicate available in stock SQLite. Closing that needs a stored
+normalized-title column, which is deliberately out of scope here.
+
+
 SQLite's `LOWER()` and GLOB character classes are ASCII-only, so a short
 non-ASCII title could not be folded or word-bounded and simply never matched —
 the film stayed absent from the chip. The ASCII/Unicode branch is decided from the RAW token, not the normalized
