@@ -135,6 +135,22 @@ The shared row should be reused instead of rebuilding channel markup per view.
   start time, progress bar, end time
 - Action buttons sit on the trailing edge and inherit row color
 
+### Responsive Information Priority
+
+- EPG-enabled, noncompact rows keep a fixed `68px` height that matches the
+  virtual-scroll stride. EPG-disabled, compact rows retain their existing
+  `52px` minimum height.
+- At `310px` and below, hide the end time while keeping the start time and
+  progress bar.
+- At `270px` and below, hide the decorative logo while retaining program
+  context and actions, and tighten horizontal padding to preserve the remaining
+  content.
+- At `220px` and below, hide the start time while keeping the progress bar.
+- Narrow width alone must not remove the channel name, program title or
+  no-program placeholder, progress bar, drag affordance when applicable, or
+  enabled actions.
+- Loading skeletons mirror the same responsive hierarchy and row geometry.
+
 ### Logo Rules
 
 - Show fallback icon only when no image is available or image loading fails
