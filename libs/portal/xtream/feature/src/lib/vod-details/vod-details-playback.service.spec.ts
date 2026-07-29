@@ -59,6 +59,9 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                     useValue: {
                         currentPlaylist: signal({ id: ROUTE_PLAYLIST }),
                         addRecentItem,
+                        constructVodStreamUrl: jest
+                            .fn()
+                            .mockReturnValue('https://example.com/route.mkv'),
                     },
                 },
                 {
@@ -204,6 +207,39 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 }),
             })
         );
+    });
+
+    it('drops a switch that a plain Play overtook', async () => {
+        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
+        let releaseClose: (() => void) | undefined;
+        const closing = new Promise<void>((resolve) => {
+            releaseClose = () => resolve();
+        });
+        closeSession.mockReturnValue(closing);
+        openResolvedPlayback.mockClear();
+
+        const switching = service.startResolvedPlayback({
+            streamUrl: 'https://example.com/alt.mkv',
+            title: 'Example Movie',
+        });
+
+        // The user presses Play on the route copy while that close is pending.
+        service.playVod({
+            movie_data: { stream_id: ROUTE_VOD_ID, name: 'Example Movie' },
+        } as never);
+        releaseClose?.();
+        await switching;
+
+        // Only the route copy may be playing; the switch was overtaken.
+        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
+        expect(openResolvedPlayback).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/alt.mkv',
+            }),
+            true
+        );
+
+        closeSession.mockResolvedValue(undefined);
     });
 
     it('launches only the newest source when two switches overlap', async () => {

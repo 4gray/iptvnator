@@ -2,6 +2,7 @@ import {
     buildVodSourceMatchKey,
     buildVodSourceMatchKeyCandidates,
     isTmdbMatchKey,
+    buildVodSourceMatchKeyWriteKeys,
 } from './vod-source-match-key.util';
 
 const MOVIE = { title: 'The Matrix', year: 1999, tmdbId: 603 };
@@ -55,5 +56,36 @@ describe('buildVodSourceMatchKeyCandidates', () => {
 
     it('is empty when the movie cannot be identified at all', () => {
         expect(buildVodSourceMatchKeyCandidates({ title: '' })).toEqual([]);
+    });
+});
+
+describe('buildVodSourceMatchKeyWriteKeys — the ambiguous alias', () => {
+    it('is not written beside a precise key', () => {
+        // `title:dune:` names every remake. Retiring it while storing the
+        // tmdb pin could delete another film's pre-enrichment preference.
+        expect(
+            buildVodSourceMatchKeyWriteKeys({
+                tmdbId: 603,
+                title: 'Dune',
+                year: null,
+            })
+        ).toEqual(['tmdb:603']);
+    });
+
+    it('is still used when it is the only key there is', () => {
+        // Refusing to pin at all would be worse than an imprecise pin.
+        expect(
+            buildVodSourceMatchKeyWriteKeys({ title: 'Dune', year: null })
+        ).toEqual(['title:dune:']);
+    });
+
+    it('is unnecessary once a year disambiguates the title', () => {
+        expect(
+            buildVodSourceMatchKeyWriteKeys({
+                tmdbId: 603,
+                title: 'Dune',
+                year: 2021,
+            })
+        ).toEqual(['tmdb:603', 'title:dune:2021']);
     });
 });

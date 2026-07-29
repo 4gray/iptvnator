@@ -99,7 +99,19 @@ export function buildVodSourceMatchKeyWriteKeys(input: {
     }
 
     const titleKey = buildVodSourceMatchKey({ ...input, tmdbId: null });
-    if (titleKey && !keys.includes(titleKey)) {
+    // The yearless form (`title:dune:`) names every remake at once, so once a
+    // precise key exists it must not be written OR retired alongside it — the
+    // row may hold a different film's pre-enrichment preference. When it is
+    // the ONLY key we have, it is still better than refusing to pin at all,
+    // and `retirablePinKeys` re-adds it whenever this session actually read
+    // it.
+    const isAmbiguous = titleKey?.endsWith(':') === true;
+    const hasPreciseKey = keys.length > 0;
+    if (
+        titleKey &&
+        !keys.includes(titleKey) &&
+        !(isAmbiguous && hasPreciseKey)
+    ) {
         keys.push(titleKey);
     }
 

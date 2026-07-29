@@ -93,6 +93,18 @@ describe('title-sources.operations', () => {
             expect(scanQuery.params).toContain('Ça');
         });
 
+        it('pairs raw tokens by meaning, not by position', async () => {
+            // Normalization drops whole words, so "FR: Ça" becomes just "ca".
+            // Pairing positionally would hand "ca" the raw token "FR:" and
+            // send it down the ASCII branch, where it cannot match "Ça".
+            const scan = createDbMock([]);
+            await findTitleSources(scan.db, { title: 'FR: Ça' });
+            const scanQuery = compiledQuery(scan.all);
+
+            expect(scanQuery.sql).toContain('instr');
+            expect(scanQuery.params).toContain('Ça');
+        });
+
         it('keeps the word boundary for ASCII tokens', async () => {
             // The looser substring test must not leak into the ASCII path,
             // where it would let "it" match "Titanic".

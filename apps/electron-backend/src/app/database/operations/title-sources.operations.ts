@@ -160,10 +160,20 @@ function scanCandidateQuery(
     // multiword titles like "I Am" — matching on "i" alone would return most
     // of the catalog and hand it all to the TypeScript pass to throw away.
     const tokens = base.split(' ').filter(Boolean);
-    const rawTokens = rawTitle.split(/\s+/).filter(Boolean);
+    // Paired by NORMALIZED form, not by position: normalization drops whole
+    // words ("FR: Ça" -> "ca"), so a positional pairing hands "ca" the raw
+    // token "FR:" and picks the wrong branch for it.
+    const rawByBase = new Map<string, string>();
+    for (const raw of rawTitle.split(/\s+/).filter(Boolean)) {
+        const normalized = normalizeTitleKeys(raw).base;
+        if (normalized && !rawByBase.has(normalized)) {
+            rawByBase.set(normalized, raw);
+        }
+    }
+
     const wordMatches = sql.join(
-        tokens.map((token, index) =>
-            tokenPredicate(token, rawTokens[index] ?? token)
+        tokens.map((token) =>
+            tokenPredicate(token, rawByBase.get(token) ?? token)
         ),
         sql` AND `
     );

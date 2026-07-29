@@ -106,7 +106,6 @@ export function normalizeXtreamPendingRestoreState(
             favorites: [],
             recentlyViewed: [],
             playbackPositions: [],
-            sourcePins: [],
         };
     }
 
@@ -144,7 +143,12 @@ export function normalizeXtreamPendingRestoreState(
         playbackPositions: toArray(candidate.playbackPositions).filter(
             (item): item is PlaybackPositionData => isRecord(item)
         ),
-        sourcePins: normalizeSourcePins(candidate.sourcePins),
+        // Absent stays ABSENT. Materializing `[]` here would make an older
+        // archive — which says nothing about pins — look like one that says
+        // "there are none", and restore would clear the user's pins.
+        ...(candidate.sourcePins === undefined
+            ? {}
+            : { sourcePins: normalizeSourcePins(candidate.sourcePins) }),
     };
 }
 

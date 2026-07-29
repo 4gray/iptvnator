@@ -162,7 +162,12 @@ worker IPC boundary in the snake_case wire shape declared by
 `XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
 their Drizzle rows explicitly to keep that contract true.
 
-`sourcePins` (VOD multi-source) is the one **optional** collection: archives
+`sourcePins` (VOD multi-source) is the one **optional** collection, and the
+normalizer preserves that: an absent field stays absent rather than becoming
+`[]`, because restore treats a PRESENT collection as authoritative and clears
+the playlist's existing pins before applying it. Materializing an empty array
+would turn "this archive predates pins" into "this archive says there are
+none": archives
 written before multi-source existed simply do not have it, so its absence is
 age rather than damage and only a wrong type is rejected. A pin is carried
 under the playlist it points AT — exporting it anywhere else would restore a

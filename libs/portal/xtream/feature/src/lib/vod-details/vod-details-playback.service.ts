@@ -376,6 +376,11 @@ export class VodDetailsPlaybackService {
 
 
     private startPlayback(playback: ResolvedPortalPlayback): void {
+        // EVERY start claims the generation, not just the switch path. Play,
+        // Resume and Restart reach here directly, and a switch still waiting
+        // on its `closeSession` would otherwise pass the check afterwards and
+        // launch on top of what the user just chose.
+        this.startGeneration++;
         this.positionWriter.reset();
         if (this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);

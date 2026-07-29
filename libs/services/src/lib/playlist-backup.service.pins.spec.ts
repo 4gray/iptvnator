@@ -25,7 +25,6 @@ describe('PlaylistBackupService Xtream source pins', () => {
         localStorage.clear();
     });
 
-
     it('exports the pins that point at this playlist', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService({
@@ -147,7 +146,16 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
+                // A pin EXISTS, or an empty list would make this pass whether
+                // or not the clear was skipped.
+                listForPlaylist: jest.fn().mockResolvedValue([
+                    {
+                        matchKey: 'tmdb:999',
+                        playlistId: 'xtream-1',
+                        contentId: 7,
+                        portalType: 'xtream',
+                    },
+                ]),
                 set: jest.fn().mockResolvedValue(true),
                 clear: clearPins,
             },

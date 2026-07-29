@@ -1,12 +1,13 @@
 import { normalizeXtreamPendingRestoreState } from './xtream-restore-state.util';
 
 describe('normalizeXtreamPendingRestoreState', () => {
+    // No `sourcePins`: absent has to stay absent, or an older archive would
+    // read as "there are no pins" and restore would clear the user's.
     const emptyState = {
         hiddenCategories: [],
         favorites: [],
         recentlyViewed: [],
         playbackPositions: [],
-        sourcePins: [],
     };
 
     it.each([null, undefined, 'text', 42, []])(
@@ -19,6 +20,18 @@ describe('normalizeXtreamPendingRestoreState', () => {
     );
 
     describe('source pins', () => {
+        it('leaves the field absent when the input has none', () => {
+            expect(
+                normalizeXtreamPendingRestoreState({ favorites: [] })
+            ).not.toHaveProperty('sourcePins');
+        });
+
+        it('keeps a present-but-empty collection, which is an answer', () => {
+            expect(
+                normalizeXtreamPendingRestoreState({ sourcePins: [] })
+            ).toHaveProperty('sourcePins', []);
+        });
+
         it('keeps usable pins and drops the rest', () => {
             const state = normalizeXtreamPendingRestoreState({
                 sourcePins: [

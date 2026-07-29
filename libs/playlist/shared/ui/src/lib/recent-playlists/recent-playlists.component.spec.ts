@@ -555,8 +555,6 @@ describe('RecentPlaylistsComponent busy state', () => {
                 },
             ],
             playbackPositions: [],
-            // Normalized state always carries every collection, empty or not.
-            sourcePins: [],
         });
         expect(router.navigate).toHaveBeenCalledWith([
             '/workspace',
