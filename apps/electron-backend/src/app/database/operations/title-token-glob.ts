@@ -33,24 +33,33 @@ export function caseInsensitiveGlobPattern(token: string): string | null {
 
     let pattern = '*';
     for (const character of token) {
-        const lower = character.toLowerCase();
         const upper = character.toUpperCase();
+        // Going back down from the uppercase form catches letters with more
+        // than one lowercase spelling: Greek Σ lowercases to σ, but ς is an
+        // equally valid lowercase of it, and a class built only from the
+        // character in hand would know just one of the two.
+        const forms = new Set([
+            character,
+            character.toLowerCase(),
+            upper,
+            upper.toLowerCase(),
+        ]);
 
-        if (lower === upper) {
+        if (forms.size === 1) {
             pattern += character;
             continue;
         }
 
         if (
-            [...lower].length !== 1 ||
-            [...upper].length !== 1 ||
-            GLOB_METACHARACTERS.test(lower) ||
-            GLOB_METACHARACTERS.test(upper)
+            [...forms].some(
+                (form) =>
+                    [...form].length !== 1 || GLOB_METACHARACTERS.test(form)
+            )
         ) {
             return null;
         }
 
-        pattern += `[${lower}${upper}]`;
+        pattern += `[${[...forms].join('')}]`;
     }
 
     return `${pattern}*`;

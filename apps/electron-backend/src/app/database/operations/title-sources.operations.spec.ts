@@ -76,7 +76,7 @@ describe('title-sources.operations', () => {
             // code points — so the case is folded in JavaScript and handed
             // over one class per character. Without this a title stored in
             // any case other than the two below is simply never found.
-            expect(scanQuery.params).toContain('*[оО][нН]*');
+            expect(scanQuery.params).toContain('*[Оо][нН]*');
             expect(scanQuery.sql).toContain('instr');
             // Both the folded and the as-typed form, since the class is built
             // from the raw token and cannot cover a diacritic difference.

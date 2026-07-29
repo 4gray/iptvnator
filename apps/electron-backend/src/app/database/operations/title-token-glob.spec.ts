@@ -39,12 +39,28 @@ function hasSqlite(): boolean {
 const describeWithSqlite = hasSqlite() ? describe : describe.skip;
 
 describe('caseInsensitiveGlobPattern', () => {
-    it('builds a two-case class for each cased character', () => {
-        expect(caseInsensitiveGlobPattern('Он')).toBe('*[оО][нН]*');
+    it('builds a case class for each cased character', () => {
+        expect(caseInsensitiveGlobPattern('Он')).toBe('*[Оо][нН]*');
     });
 
     it('leaves uncased characters alone', () => {
         expect(caseInsensitiveGlobPattern('7')).toBe('*7*');
+    });
+
+    it('covers a letter with two lowercase spellings', () => {
+        // Greek Σ lowercases to σ, but a word-final sigma is written ς and is
+        // just as much a lowercase of it. Going back down from the uppercase
+        // form reaches the spelling the character in hand does not name.
+        expect(caseInsensitiveGlobPattern('ς')).toBe('*[ςΣσ]*');
+    });
+
+    it('reaches the second spelling in one direction only', () => {
+        // σ → Σ → σ never arrives at ς, so a request spelled with a medial
+        // sigma does not match a stored final one. Left as is: ς is only ever
+        // correct at the end of a word, which is exactly where the request's
+        // own last character sits, so the pair that occurs in real titles is
+        // the one above. Closing the other direction needs a fold table.
+        expect(caseInsensitiveGlobPattern('σ')).toBe('*[σΣ]*');
     });
 
     it('refuses a token holding a GLOB metacharacter', () => {
@@ -93,6 +109,15 @@ describeWithSqlite('caseInsensitiveGlobPattern against SQLite', () => {
         const pattern = caseInsensitiveGlobPattern('Он') as string;
 
         expect(sqliteGlob('Дюна', pattern)).toBe(false);
+    });
+
+    it('matches a Greek word written with either sigma', () => {
+        const pattern = caseInsensitiveGlobPattern('ος') as string;
+
+        expect(sqliteGlob('ος', pattern)).toBe(true);
+        expect(sqliteGlob('ΟΣ', pattern)).toBe(true);
+        // The spelling a class built from the request alone would miss.
+        expect(sqliteGlob('οσ', pattern)).toBe(true);
     });
 
     it('matches Greek and accented Latin in any case', () => {

@@ -533,10 +533,20 @@ The **scan** tier does fold it, because GLOB character classes are *not*
 ASCII-only — `patternCompare` reads them as UTF-8 code points, and
 `'Он' GLOB '*[Оо][Нн]*'` is true. `caseInsensitiveGlobPattern` therefore folds
 the case in JavaScript, where Unicode case mapping is real, and hands SQLite one
-`[lowerUpper]` class per character. It returns `null` — leaving the substring
-tests as the whole answer — for a token holding a GLOB metacharacter (SQLite
-GLOB has no escape character, so an unescaped `*` would become a wildcard) or a
-case mapping that changes length (`ß` uppercases to `SS`).
+class per character. Each class also carries the uppercase form's OWN lowercase,
+which is what covers a letter spelled two ways in lower case: Greek `Σ`
+lowercases to `σ`, but a word-final sigma is written `ς` and is equally a
+lowercase of it. That reach is one-way — `σ → Σ → σ` never arrives at `ς` — and
+left so deliberately, because `ς` is only correct at the end of a word, exactly
+where the request's own last character sits; closing the other direction needs a
+fold table.
+
+It returns `null` — leaving the substring tests as the whole answer — for a
+token holding a GLOB metacharacter (SQLite GLOB has no escape character, so an
+unescaped `*` would become a wildcard matching every row) or a case mapping that
+changes length (`ß` uppercases to `SS`, `İ` lowercases to two code points).
+Neither has a single-character class that means the same thing, and a wrong
+pattern is worse than an absent one.
 
 The ASCII/Unicode branch is decided from the RAW token, not the normalized one:
 normalization folds diacritics, so "Ça" arrives as "ca" and looks like plain
