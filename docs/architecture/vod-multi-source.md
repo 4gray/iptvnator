@@ -172,6 +172,15 @@ The renderer passes `write[0]` as the pin's own `matchKey` and the rest as
 `aliasKeys`; `setVodSourcePin` upserts one row per key and retires the leftovers
 inside the same transaction, so no key list can half-apply.
 
+Known limit, inherent to addressing rows by key alone: a write can only touch
+keys the renderer can *name*. Re-pin a film during a pre-enrichment window and
+the `tmdb:{id}` row from an earlier, enriched session is not among them, so it
+survives pointing at the old source — and outranks the title key once the id
+arrives again. Nothing can enumerate it from the page's side; closing it needs a
+reverse index from film to key. The window is small in practice (TMDB responses
+are cached in `tmdb_metadata`, so a revisit usually resolves the id at once) and
+does not exist at all with enrichment off.
+
 A write stores the new key **before** retiring the old rows. The other order
 destroys the stored preference and can then fail to replace it, leaving nothing
 persisted while the row still shows the old pin; lookups are most-trusted-first,
