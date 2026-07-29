@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- Renderer CDP and injected-page lifecycle are kept together so raw artifact boundaries stay auditable. */
 import { createWriteStream } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

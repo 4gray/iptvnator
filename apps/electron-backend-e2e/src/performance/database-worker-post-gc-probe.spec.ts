@@ -1,5 +1,4 @@
 /* eslint-disable playwright/expect-expect -- These are Node assertion-based performance contract tests. */
-/* eslint-disable max-lines -- The one-shot transport contract keeps all terminal-path fixtures together. */
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';

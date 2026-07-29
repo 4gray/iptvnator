@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- Benchmark lifecycle, local fixture server, and artifact safeguards stay auditable in one entry point. */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';

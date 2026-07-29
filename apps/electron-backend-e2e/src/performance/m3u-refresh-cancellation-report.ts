@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- Summary distributions and correlated phase derivation share one auditable schema mapping. */
 import type {
     CancellationBenchmarkManifest,
     CancellationBenchmarkSummary,
