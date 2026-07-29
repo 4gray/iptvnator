@@ -86,9 +86,11 @@ const clearCancelledPlaylistInitializationLock = (playlistId: string): void => {
 export interface ContentState {
     liveCategories: (XtreamCategory | XtreamCategoryFromDb)[];
     vodCategories: (XtreamCategory | XtreamCategoryFromDb)[];
+    vodCategoriesPlaylistId: string | null;
     serialCategories: (XtreamCategory | XtreamCategoryFromDb)[];
     liveStreams: XtreamLiveStream[];
     vodStreams: XtreamVodStream[];
+    vodStreamsPlaylistId: string | null;
     serialStreams: XtreamSerieItem[];
     isLoadingCategories: boolean;
     isLoadingContent: boolean;
@@ -119,9 +121,11 @@ const initialContentLoadStateByType: XtreamContentLoadStateByType = {
 const initialContentState: ContentState = {
     liveCategories: [],
     vodCategories: [],
+    vodCategoriesPlaylistId: null,
     serialCategories: [],
     liveStreams: [],
     vodStreams: [],
+    vodStreamsPlaylistId: null,
     serialStreams: [],
     isLoadingCategories: false,
     isLoadingContent: false,
@@ -541,10 +545,12 @@ export function withContent() {
                                 break;
                             case 'vod':
                                 updates.vodCategories = entry.categories;
+                                updates.vodCategoriesPlaylistId = playlistId;
                                 updates.vodStreams =
                                     asCachedContent<XtreamVodStream>(
                                         entry.content
                                     );
+                                updates.vodStreamsPlaylistId = playlistId;
                                 break;
                             case 'series':
                                 updates.serialCategories = entry.categories;
@@ -984,6 +990,7 @@ export function withContent() {
                                 patchState(store, {
                                     liveCategories: live,
                                     vodCategories: vod,
+                                    vodCategoriesPlaylistId: ctx.playlistId,
                                     serialCategories: series,
                                     isLoadingCategories: false,
                                 }),
@@ -1113,6 +1120,7 @@ export function withContent() {
                             () =>
                                 patchState(store, {
                                     vodStreams: vod,
+                                    vodStreamsPlaylistId: ctx.playlistId,
                                 }),
                             () => ({ items: vod.length })
                         );
@@ -1308,6 +1316,7 @@ export function withContent() {
                         patchState(store, {
                             liveCategories: live,
                             vodCategories: vod,
+                            vodCategoriesPlaylistId: ctx.playlistId,
                             serialCategories: series,
                         });
                     } catch (error) {

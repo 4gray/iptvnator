@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { Location } from '@angular/common';
 import { ContentHeroComponent } from '@iptvnator/ui/components';
 import {
@@ -37,7 +37,10 @@ describe('VodDetailsRouteComponent', () => {
     } | null>(null);
     const vodStreams = signal<Partial<XtreamVodStream>[]>([]);
     const vodCategories = signal<Partial<XtreamCategory>[]>([]);
+    const vodStreamsPlaylistId = signal<string | null>(null);
+    const vodCategoriesPlaylistId = signal<string | null>(null);
     const fetchVodDetailsWithMetadata = jest.fn();
+    const cancelDetailsRequest = jest.fn();
     const checkFavoriteStatus = jest.fn();
     const setSelectedItem = jest.fn();
     const toggleFavorite = jest.fn();
@@ -83,7 +86,10 @@ describe('VodDetailsRouteComponent', () => {
         currentPlaylist.set(null);
         vodStreams.set([]);
         vodCategories.set([]);
+        vodStreamsPlaylistId.set(null);
+        vodCategoriesPlaylistId.set(null);
         fetchVodDetailsWithMetadata.mockClear();
+        cancelDetailsRequest.mockClear();
         checkFavoriteStatus.mockClear();
         setSelectedItem.mockClear();
         toggleFavorite.mockClear();
@@ -115,9 +121,9 @@ describe('VodDetailsRouteComponent', () => {
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        onLangChange: NEVER,
+                        onTranslationChange: NEVER,
+                        onDefaultLangChange: NEVER,
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
@@ -132,7 +138,10 @@ describe('VodDetailsRouteComponent', () => {
                         currentPlaylist,
                         vodStreams,
                         vodCategories,
+                        vodStreamsPlaylistId,
+                        vodCategoriesPlaylistId,
                         fetchVodDetailsWithMetadata,
+                        cancelDetailsRequest,
                         checkFavoriteStatus,
                         setSelectedItem,
                         toggleFavorite,
@@ -204,10 +213,19 @@ describe('VodDetailsRouteComponent', () => {
         consoleWarnSpy?.mockRestore();
     });
 
-    it('renders an informational fallback without playback controls when Xtream returns empty metadata', () => {
+    it('keeps the fallback visible and exposes actions when catalog playback fields are usable', () => {
         selectedItem.set({
             info: [],
-        } as XtreamVodDetails);
+            stream_id: 650020,
+            name: 'Die Kühe sind Los! (2004) DE',
+            stream_icon: 'https://example.com/cows.jpg',
+            container_extension: 'mp4',
+        } as XtreamVodDetails & {
+            container_extension: string;
+            name: string;
+            stream_icon: string;
+            stream_id: number;
+        });
         vodStreams.set([
             {
                 name: 'Die Kühe sind Los! (2004) DE',
@@ -239,9 +257,59 @@ describe('VodDetailsRouteComponent', () => {
             host.querySelector('[data-testid="xtream-vod-fallback-status"]')
                 ?.textContent
         ).toContain('XTREAM.DETAIL_FALLBACK.STATUS');
+        expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(host.querySelector('button.favorite-btn')).not.toBeNull();
+        expect(host.querySelector('button.download-btn')).toBeNull();
+    });
+
+    it('keeps the fallback visible for a minimal info object', () => {
+        selectedItem.set({
+            info: {
+                name: 'Only a provider title',
+            },
+            stream_id: 650020,
+            name: 'Catalog title',
+            container_extension: 'mp4',
+        } as unknown as XtreamVodDetails);
+        vodStreams.set([
+            {
+                name: 'Catalog title',
+                stream_id: 650020,
+                container_extension: 'mp4',
+            },
+        ]);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+        ).not.toBeNull();
+        expect(host.querySelector('button.play-btn')).not.toBeNull();
+    });
+
+    it('reveals fallback actions when async catalog recovery adds a source', () => {
+        selectedItem.set({
+            info: [],
+            stream_id: 650020,
+            container_extension: null,
+        } as unknown as XtreamVodDetails);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
         expect(host.querySelector('button.play-btn')).toBeNull();
         expect(host.querySelector('button.favorite-btn')).toBeNull();
-        expect(host.querySelector('button.download-btn')).toBeNull();
+
+        selectedItem.set({
+            info: [],
+            stream_id: 650020,
+            container_extension: 'mkv',
+        } as unknown as XtreamVodDetails);
+        fixture.detectChanges();
+
+        expect(host.querySelector('button.play-btn')).not.toBeNull();
+        expect(host.querySelector('button.favorite-btn')).not.toBeNull();
     });
 
     it('keeps the full Xtream detail view when usable metadata exists', () => {
@@ -321,5 +389,11 @@ describe('VodDetailsRouteComponent', () => {
             By.directive(ContentHeroComponent)
         ).componentInstance as ContentHeroComponent;
         expect(hero.backdropUrl()).toBeUndefined();
+    });
+
+    it('invalidates an in-flight detail request on teardown', () => {
+        fixture.componentInstance.ngOnDestroy();
+
+        expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
     });
 });

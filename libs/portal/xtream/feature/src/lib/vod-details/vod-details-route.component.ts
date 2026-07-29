@@ -1,4 +1,4 @@
-import { Location, SlicePipe } from '@angular/common';
+import { Location, NgTemplateOutlet, SlicePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -23,7 +23,10 @@ import {
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    resolveXtreamVodPlaybackSource,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
@@ -53,6 +56,7 @@ import {
     hasUsableXtreamVodMetadata,
 } from './vod-details-fallback.util';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
+import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -67,6 +71,7 @@ import { VodDetailsPlaybackService } from './vod-details-playback.service';
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
         MatIcon,
+        NgTemplateOutlet,
         PortalDetailShellComponent,
         SafePipe,
         SlicePipe,
@@ -110,6 +115,20 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
     );
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    private readonly scopedVodCategories = computed(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        return playlistId &&
+            this.xtreamStore.vodCategoriesPlaylistId() === playlistId
+            ? this.xtreamStore.vodCategories()
+            : [];
+    });
+    private readonly scopedVodStreams = computed(() => {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        return playlistId &&
+            this.xtreamStore.vodStreamsPlaylistId() === playlistId
+            ? this.xtreamStore.vodStreams()
+            : [];
+    });
     readonly selectedCategory = computed<Partial<XtreamCategory> | null>(() => {
         const categoryId = this.routeParams().categoryId;
         if (!categoryId) {
@@ -117,7 +136,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore.vodCategories().find(
+            this.scopedVodCategories().find(
                 (category) =>
                     String(
                         (
@@ -149,7 +168,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore.vodStreams().find(
+            this.scopedVodStreams().find(
                 (item) =>
                     Number(
                         (
@@ -177,6 +196,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         return item && hasUsableXtreamVodMetadata(item)
             ? getXtreamVodInfo(item)
             : null;
+    });
+    readonly playableVodItem = computed(() => {
+        const item = this.selectedItem();
+        return item && resolveXtreamVodPlaybackSource(item) ? item : null;
     });
     readonly fallbackView = computed(() => {
         const item = this.selectedItem();
@@ -239,7 +262,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
         return matchRecommendationsToCatalog(
             info.tmdb_recommendations,
-            this.xtreamStore.vodStreams(),
+            this.scopedVodStreams(),
             { excludeId: this.selectedVodId() }
         );
     });
@@ -367,6 +390,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.xtreamStore.cancelDetailsRequest();
         this.playback.closeInlinePlayer();
         this.xtreamStore.setSelectedItem(null);
     }
@@ -456,15 +480,18 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const info = getXtreamVodInfo(vodItem);
+        const source = resolveXtreamVodPlaybackSource(vodItem);
+        if (!source) {
+            return;
+        }
+
+        const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
-        const routeVodId = this.route.snapshot.params.vodId;
-        const id = routeVodId
-            ? Number(routeVodId)
-            : Number(
-                  vodItem.movie_data?.stream_id ||
-                      (vodItem as { stream_id?: number }).stream_id
-              );
+        const routeVodId = Number(this.route.snapshot.params.vodId);
+        const id =
+            Number.isSafeInteger(routeVodId) && routeVodId > 0
+                ? routeVodId
+                : source.streamId;
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) {
@@ -475,9 +502,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             playlistId: playlist.id,
             xtreamId: id,
             contentType: 'vod',
-            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
+            title: presentation.title,
             url: streamUrl,
-            posterUrl: info?.movie_image,
+            posterUrl: presentation.posterUrl,
             headers: {
                 userAgent: playlist.userAgent,
                 referer: playlist.referrer,

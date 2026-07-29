@@ -1,3 +1,132 @@
+<ng-template #vodActions>
+    @if (playableVodItem(); as playableItem) {
+        @if (hasPlaybackPosition()) {
+            <button
+                class="play-btn play-btn--resume"
+                (click)="onPrimaryAction(playableItem)"
+                [disabled]="isExternalLaunchPending()"
+                [class.play-btn--state-launching]="
+                    externalPrimaryButtonState() === 'launching'
+                "
+                [class.play-btn--state-stop]="
+                    externalPrimaryButtonState() === 'stop'
+                "
+            >
+                <span class="play-btn__icon-shell" aria-hidden="true">
+                    <mat-icon class="play-btn__icon">{{
+                        externalPrimaryIcon()
+                    }}</mat-icon>
+                </span>
+                <span class="play-btn__label">
+                    @if (externalPrimaryLabel(); as label) {
+                        {{ label }}
+                    } @else {
+                        {{ 'XTREAM.RESUME' | translate }}
+                        {{ formatPosition() }}
+                    }
+                </span>
+            </button>
+            @if (!isExternalStopAction()) {
+                <button
+                    class="play-btn play-btn--restart"
+                    (click)="playVod(playableItem)"
+                >
+                    <mat-icon>replay</mat-icon>
+                    {{ 'XTREAM.RESTART' | translate }}
+                </button>
+            }
+        } @else {
+            <button
+                class="play-btn"
+                (click)="onPrimaryAction(playableItem)"
+                [disabled]="isExternalLaunchPending()"
+                [class.play-btn--state-launching]="
+                    externalPrimaryButtonState() === 'launching'
+                "
+                [class.play-btn--state-stop]="
+                    externalPrimaryButtonState() === 'stop'
+                "
+            >
+                <span class="play-btn__icon-shell" aria-hidden="true">
+                    <mat-icon class="play-btn__icon">{{
+                        externalPrimaryIcon()
+                    }}</mat-icon>
+                </span>
+                <span class="play-btn__label">
+                    @if (externalPrimaryLabel(); as label) {
+                        {{ label }}
+                    } @else {
+                        {{ 'XTREAM.PLAY' | translate }}
+                    }
+                </span>
+            </button>
+        }
+        @if (!isFavorite()) {
+            <button class="favorite-btn" (click)="toggleFavorite()">
+                <mat-icon>add</mat-icon>
+                {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
+            </button>
+        } @else {
+            <button
+                class="favorite-btn favorite-btn--active"
+                (click)="toggleFavorite()"
+            >
+                <mat-icon>check</mat-icon>
+                {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
+            </button>
+        }
+        @if (isElectron()) {
+            @if (isDownloaded()) {
+                <button
+                    class="download-btn download-btn--completed"
+                    (click)="playFromLocal()"
+                >
+                    <mat-icon>play_circle</mat-icon>
+                    {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
+                </button>
+            } @else if (isPausedDownload()) {
+                <button
+                    class="download-btn download-btn--paused"
+                    (click)="resumePausedDownload()"
+                >
+                    <mat-icon>play_arrow</mat-icon>
+                    {{ 'DOWNLOADS.RESUME' | translate }}
+                </button>
+            } @else if (isDownloading()) {
+                <button class="download-btn download-btn--downloading" disabled>
+                    <mat-icon>downloading</mat-icon>
+                    {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+                </button>
+            } @else {
+                <button
+                    class="download-btn"
+                    (click)="downloadVod(playableItem)"
+                >
+                    <mat-icon>download</mat-icon>
+                    {{ 'DOWNLOADS.DOWNLOAD' | translate }}
+                </button>
+            }
+        }
+    }
+</ng-template>
+
+<ng-template #inlinePlayer>
+    @if (playableVodItem()) {
+        @if (inlinePlayback(); as playback) {
+            <app-portal-inline-player
+                [playback]="playback"
+                (timeUpdate)="handleInlineTimeUpdate($event)"
+                (closed)="closeInlinePlayer()"
+                (backClicked)="goBack()"
+                (streamUrlCopied)="showCopyNotification()"
+                (externalFallbackRequested)="
+                    handleExternalFallbackRequest($event)
+                "
+            />
+        }
+    }
+</ng-template>
+
 @let item = selectedItem();
 @if (selectedVodInfo(); as info) {
     <app-portal-detail-shell
@@ -37,7 +166,12 @@
                     <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
                     @if (info.tmdb_cast?.length) {
                         <div class="details__cast-strip">
-                            @for (member of info.tmdb_cast; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                            @for (
+                                member of info.tmdb_cast;
+                                track member.tmdbPersonId
+                                    ? 'p' + member.tmdbPersonId
+                                    : 'i' + $index
+                            ) {
                                 <span
                                     class="details__cast-chip"
                                     [class.details__cast-chip--clickable]="
@@ -81,10 +215,17 @@
             }
             @if (info.director || info.tmdb_directors?.length) {
                 <div class="details__meta-item">
-                    <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+                    <span class="label">{{
+                        'XTREAM.DIRECTOR' | translate
+                    }}</span>
                     @if (info.tmdb_directors?.length) {
                         <div class="details__cast-strip">
-                            @for (member of info.tmdb_directors; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                            @for (
+                                member of info.tmdb_directors;
+                                track member.tmdbPersonId
+                                    ? 'p' + member.tmdbPersonId
+                                    : 'i' + $index
+                            ) {
                                 <span
                                     class="details__cast-chip"
                                     [class.details__cast-chip--clickable]="
@@ -129,128 +270,9 @@
         </ng-template>
 
         <ng-template appDetailActions>
-            @if (hasPlaybackPosition()) {
-                <button
-                    class="play-btn play-btn--resume"
-                    (click)="onPrimaryAction(item)"
-                    [disabled]="isExternalLaunchPending()"
-                    [class.play-btn--state-launching]="
-                        externalPrimaryButtonState() === 'launching'
-                    "
-                    [class.play-btn--state-stop]="
-                        externalPrimaryButtonState() === 'stop'
-                    "
-                >
-                    <span class="play-btn__icon-shell" aria-hidden="true">
-                        <mat-icon class="play-btn__icon">{{
-                            externalPrimaryIcon()
-                        }}</mat-icon>
-                    </span>
-                    <span class="play-btn__label">
-                        @if (externalPrimaryLabel(); as label) {
-                            {{ label }}
-                        } @else {
-                            {{ 'XTREAM.RESUME' | translate }}
-                            {{ formatPosition() }}
-                        }
-                    </span>
-                </button>
-                @if (!isExternalStopAction()) {
-                    <button
-                        class="play-btn play-btn--restart"
-                        (click)="playVod(item)"
-                    >
-                        <mat-icon>replay</mat-icon>
-                        {{ 'XTREAM.RESTART' | translate }}
-                    </button>
-                }
-            } @else {
-                <button
-                    class="play-btn"
-                    (click)="onPrimaryAction(item)"
-                    [disabled]="isExternalLaunchPending()"
-                    [class.play-btn--state-launching]="
-                        externalPrimaryButtonState() === 'launching'
-                    "
-                    [class.play-btn--state-stop]="
-                        externalPrimaryButtonState() === 'stop'
-                    "
-                >
-                    <span class="play-btn__icon-shell" aria-hidden="true">
-                        <mat-icon class="play-btn__icon">{{
-                            externalPrimaryIcon()
-                        }}</mat-icon>
-                    </span>
-                    <span class="play-btn__label">
-                        @if (externalPrimaryLabel(); as label) {
-                            {{ label }}
-                        } @else {
-                            {{ 'XTREAM.PLAY' | translate }}
-                        }
-                    </span>
-                </button>
-            }
-            @if (!isFavorite()) {
-                <button class="favorite-btn" (click)="toggleFavorite()">
-                    <mat-icon>add</mat-icon>
-                    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
-                </button>
-            } @else {
-                <button
-                    class="favorite-btn favorite-btn--active"
-                    (click)="toggleFavorite()"
-                >
-                    <mat-icon>check</mat-icon>
-                    {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
-                </button>
-            }
-            @if (isElectron()) {
-                @if (isDownloaded()) {
-                    <button
-                        class="download-btn download-btn--completed"
-                        (click)="playFromLocal()"
-                    >
-                        <mat-icon>play_circle</mat-icon>
-                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                    </button>
-                } @else if (isPausedDownload()) {
-                    <button
-                        class="download-btn download-btn--paused"
-                        (click)="resumePausedDownload()"
-                    >
-                        <mat-icon>play_arrow</mat-icon>
-                        {{ 'DOWNLOADS.RESUME' | translate }}
-                    </button>
-                } @else if (isDownloading()) {
-                    <button
-                        class="download-btn download-btn--downloading"
-                        disabled
-                    >
-                        <mat-icon>downloading</mat-icon>
-                        {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
-                    </button>
-                } @else {
-                    <button class="download-btn" (click)="downloadVod(item)">
-                        <mat-icon>download</mat-icon>
-                        {{ 'DOWNLOADS.DOWNLOAD' | translate }}
-                    </button>
-                }
-            }
+            <ng-container [ngTemplateOutlet]="vodActions" />
         </ng-template>
-
-        @if (inlinePlayback(); as playback) {
-            <app-portal-inline-player
-                detail-player
-                [playback]="playback"
-                (timeUpdate)="handleInlineTimeUpdate($event)"
-                (closed)="closeInlinePlayer()"
-                (backClicked)="goBack()"
-                (streamUrlCopied)="showCopyNotification()"
-                (externalFallbackRequested)="
-                    handleExternalFallbackRequest($event)
-                "
-            />
-        }
+        <ng-container detail-player [ngTemplateOutlet]="inlinePlayer" />
 
         <div detail-extras>
             @if (trailerEmbedUrl(); as trailerUrl) {
@@ -308,15 +330,16 @@
                         }
                         @for (
                             item of similarInPortals();
-                            track 'x' + item.match.playlistId + '-' + item.match.xtreamId
+                            track 'x' +
+                                item.match.playlistId +
+                                '-' +
+                                item.match.xtreamId
                         ) {
                             <button
                                 type="button"
                                 class="details__similar-card"
                                 [title]="
-                                    item.title +
-                                    ' — ' +
-                                    item.match.playlistName
+                                    item.title + ' — ' + item.match.playlistName
                                 "
                                 (click)="openSimilarInPortals(item)"
                             >
@@ -351,7 +374,9 @@
     <app-portal-detail-shell
         [title]="fallback.title"
         [posterUrl]="fallback.posterUrl"
+        [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
+        (closePlayerRequested)="closeInlinePlayer()"
     >
         <ng-template appDetailTags>
             <span
@@ -393,6 +418,11 @@
                 </div>
             }
         </ng-template>
+
+        <ng-template appDetailActions>
+            <ng-container [ngTemplateOutlet]="vodActions" />
+        </ng-template>
+        <ng-container detail-player [ngTemplateOutlet]="inlinePlayer" />
     </app-portal-detail-shell>
 } @else if (detailsError()) {
     <app-portal-detail-shell

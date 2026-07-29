@@ -120,6 +120,21 @@ describe('XtreamUrlService', () => {
         expect(url).toBe('http://demo.example/live/demo/secret/101.ts');
     });
 
+    it('constructs a VOD URL from catalog fields when metadata is empty', () => {
+        const vodItem = {
+            info: [],
+            stream_id: 101,
+            container_extension: 'mp4',
+        } as XtreamVodDetails & {
+            stream_id: number;
+            container_extension: string;
+        };
+
+        expect(service.constructVodUrl(credentials, vodItem)).toBe(
+            'http://demo.example/movie/demo/secret/101.mp4'
+        );
+    });
+
     it('returns empty stream URLs instead of throwing for invalid stored server URLs', () => {
         const invalidCredentials: XtreamCredentials = {
             ...credentials,

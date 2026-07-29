@@ -88,6 +88,7 @@ describe('SerialDetailsComponent', () => {
         password: 'pass',
     });
     const fetchSerialDetailsWithMetadata = jest.fn();
+    const cancelDetailsRequest = jest.fn();
     const checkFavoriteStatus = jest.fn();
     const constructEpisodeStreamUrl = jest.fn();
     const addRecentItem = jest.fn();
@@ -142,6 +143,7 @@ describe('SerialDetailsComponent', () => {
         isLoadingDetails.set(false);
         detailsError.set(null);
         fetchSerialDetailsWithMetadata.mockClear();
+        cancelDetailsRequest.mockClear();
         checkFavoriteStatus.mockClear();
         constructEpisodeStreamUrl.mockReset();
         constructEpisodeStreamUrl.mockImplementation(
@@ -192,6 +194,7 @@ describe('SerialDetailsComponent', () => {
                         detailsError,
                         currentPlaylist,
                         fetchSerialDetailsWithMetadata,
+                        cancelDetailsRequest,
                         checkFavoriteStatus,
                         setSelectedItem: jest.fn((value: unknown) =>
                             selectedItem.set(value)
@@ -345,6 +348,12 @@ describe('SerialDetailsComponent', () => {
                 },
             ],
         });
+    });
+
+    it('invalidates an in-flight detail request on teardown', () => {
+        fixture.componentInstance.ngOnDestroy();
+
+        expect(cancelDetailsRequest).toHaveBeenCalledTimes(1);
     });
 
     it('renders series metadata when backdrop_path is absent at runtime', () => {

@@ -41,6 +41,10 @@ export interface XtreamRequestOptions {
     suppressErrorLog?: boolean;
 }
 
+export interface XtreamVodCatalogRequestOptions extends XtreamRequestOptions {
+    categoryId?: string | number;
+}
+
 const XTREAM_ACCOUNT_ACTIONS = [
     XtreamCodeActions.GetAccountInfo,
     null,
@@ -191,7 +195,7 @@ export class XtreamApiService {
      */
     async getVodStreams(
         credentials: XtreamCredentials,
-        options?: XtreamRequestOptions
+        options?: XtreamVodCatalogRequestOptions
     ): Promise<XtreamVodStream[]> {
         const response = await this.sendRequest(
             credentials.serverUrl,
@@ -199,11 +203,32 @@ export class XtreamApiService {
                 action: XtreamCodeActions.GetVodStreams,
                 username: credentials.username,
                 password: credentials.password,
+                ...(options?.categoryId !== undefined
+                    ? { category_id: options.categoryId }
+                    : {}),
             },
             options
         );
 
         return Array.isArray(response) ? response : [];
+    }
+
+    async getVodStream(
+        credentials: XtreamCredentials,
+        vodId: string | number,
+        categoryId: string | number,
+        options?: XtreamRequestOptions
+    ): Promise<XtreamVodStream | null> {
+        const streams = await this.getVodStreams(credentials, {
+            ...options,
+            categoryId,
+        });
+
+        return (
+            streams.find(
+                (stream) => Number(stream.stream_id) === Number(vodId)
+            ) ?? null
+        );
     }
 
     /**
