@@ -164,6 +164,33 @@ describe('applyApiMetadata', () => {
         ).toEqual({ value: '576p', provenance: 'api' });
     });
 
+    it.each([
+        ['eng', 'en'],
+        ['en', 'en'],
+        ['en-US', 'en'],
+        // Both ISO 639-2 spellings of German have to land together.
+        ['ger', 'de'],
+        ['deu', 'de'],
+        // No two-letter code exists for these, so three is canonical.
+        ['fil', 'fil'],
+    ])('canonicalizes the language tag %s', (raw, expected) => {
+        expect(
+            applyApiMetadata(candidate(), { audioLanguage: raw }).audioLanguage
+        ).toEqual({ value: expected, provenance: 'api' });
+    });
+
+    it.each([
+        // ffprobe's marker for "we do not know".
+        ['und'],
+        ['Russian'],
+        ['en_US'],
+        [''],
+    ])('states no language for %s', (raw) => {
+        expect(
+            applyApiMetadata(candidate(), { audioLanguage: raw }).audioLanguage
+        ).toBeUndefined();
+    });
+
     it('refuses a wide frame taller than the format its width names', () => {
         // 1440x1080 is anamorphic 1080 and 1600x900 is 900p. Both fall in the
         // 1200-1699 band, so both were published as "720p" — with `api`
@@ -317,6 +344,20 @@ describe('audioDiffersFactually', () => {
         expect(audioDiffersFactually(known, candidate())).toBe(false);
         expect(audioDiffersFactually(candidate(), known)).toBe(false);
         expect(audioDiffersFactually(null, known)).toBe(false);
+    });
+
+    it('stays silent when two panels spell one language differently', () => {
+        // ffprobe says `eng`, a panel hoists `en`, and both mean English. A
+        // literal comparison turns that into a dub change on every switch
+        // between those two portals.
+        const from = candidate(
+            applyApiMetadata(candidate(), { audioLanguage: 'eng' })
+        );
+        const to = candidate(
+            applyApiMetadata(candidate(), { audioLanguage: 'en-US' })
+        );
+
+        expect(audioDiffersFactually(from, to)).toBe(false);
     });
 
     it('stays silent when both sides state the same track', () => {

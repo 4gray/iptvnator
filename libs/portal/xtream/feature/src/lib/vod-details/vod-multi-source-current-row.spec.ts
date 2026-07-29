@@ -28,6 +28,7 @@ function alternative(language: string): VodSourceCandidate {
         rawTitle: 'Dune',
         matchConfidence: 'exact',
         year: null,
+        // Already canonical, as `applyApiMetadata` would have produced.
         audioLanguage: { value: language, provenance: 'api' },
     } as VodSourceCandidate;
 }
@@ -80,8 +81,8 @@ describe('currentSourceRow', () => {
         // route row made the warning structurally unreachable on the
         // commonest switch there is — route to alternative. It only ever
         // fired between two alternatives that had both been resolved.
-        expect(audioDiffersFactually(row, alternative('eng'))).toBe(true);
-        expect(audioDiffersFactually(row, alternative('rus'))).toBe(false);
+        expect(audioDiffersFactually(row, alternative('en'))).toBe(true);
+        expect(audioDiffersFactually(row, alternative('ru'))).toBe(false);
     });
 
     it('does not call a codec change a dub change', () => {
@@ -97,6 +98,6 @@ describe('currentSourceRow', () => {
         // and warning anyway trains people to ignore the one that matters.
         expect(row.audio?.value).toBe('ac3');
         expect(row.audioLanguage).toBeUndefined();
-        expect(audioDiffersFactually(row, alternative('eng'))).toBe(false);
+        expect(audioDiffersFactually(row, alternative('en'))).toBe(false);
     });
 });

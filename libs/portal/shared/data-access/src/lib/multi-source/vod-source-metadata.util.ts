@@ -144,12 +144,9 @@ export function applyApiMetadata(
         next.audio = { value: audio, provenance: 'api' };
     }
 
-    const language = cleanString(api.audioLanguage);
+    const language = canonicalLanguage(api.audioLanguage);
     if (language) {
-        next.audioLanguage = {
-            value: language.toLowerCase(),
-            provenance: 'api',
-        };
+        next.audioLanguage = { value: language, provenance: 'api' };
     }
 
     const quality = qualityFromDimensions(api.width, api.height);
@@ -209,6 +206,52 @@ export function audioDiffersFactually(
 function keepFactual(field?: VodSourceField): VodSourceField | undefined {
     return field && field.provenance !== 'parsed' ? field : undefined;
 }
+
+/**
+ * A language tag reduced to the one form two panels can be compared on.
+ *
+ * The same spoken language is written several ways in the wild — ffprobe emits
+ * ISO 639-2 (`eng`, and `ger` or `deu` for German), panels hoist 639-1 (`en`),
+ * and either may carry a region (`en-US`). Comparing those literally makes a
+ * dub "change" out of two spellings of English.
+ *
+ * `Intl.Locale` does the canonicalizing: 639-2 collapses to 639-1 where one
+ * exists, both German forms land on `de`, and regions drop away. `und` —
+ * ffprobe's marker for undetermined — canonicalizes to nothing, which is
+ * exactly right: it means the provider does not know either.
+ *
+ * Anything that survives with more than three characters is not a language
+ * code (`Russian` parses as the subtag `russian`), so the comparison is
+ * declined rather than guessed at.
+ */
+function canonicalLanguage(raw: string | null | undefined): string | null {
+    const value = cleanString(raw);
+    if (!value || !LocaleCtor) {
+        return null;
+    }
+
+    try {
+        const language = new LocaleCtor(value).language;
+        return language && language.length <= 3 ? language : null;
+    } catch {
+        // Not a well-formed tag at all; saying nothing beats comparing junk.
+        return null;
+    }
+}
+
+/**
+ * `Intl.Locale` is ES2020 and this workspace compiles against the es2018 lib,
+ * so it is reached through a narrow shim rather than by moving the target.
+ *
+ * Absent — which no supported runtime actually is — the comparison is declined
+ * rather than half-canonicalized, since `eng` measured against `en` by a
+ * partial fold is exactly the false warning this function exists to prevent.
+ */
+const LocaleCtor = (
+    Intl as unknown as {
+        Locale?: new (tag: string) => { language?: string };
+    }
+).Locale;
 
 function cleanString(raw: string | null | undefined): string | null {
     const trimmed = typeof raw === 'string' ? raw.trim() : '';

@@ -274,7 +274,11 @@ export class PlaylistBackupService {
             this.databaseService.getFavorites(playlist._id),
             this.databaseService.getRecentItems(playlist._id),
             this.playbackPositionService.getAllPlaybackPositions(playlist._id),
-            this.vodSourcePinService.listForPlaylist(playlist._id),
+            // Throws rather than reading a failure as "no pins": restore
+            // treats this collection as authoritative and clears the
+            // playlist's pins before applying it, so an empty list born of a
+            // failed read would wipe them.
+            this.vodSourcePinService.listForPlaylistOrThrow(playlist._id),
         ]);
 
         return {

@@ -63,7 +63,7 @@ export function createPlaylistBackupService(
             savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
         },
         vodSourcePinService: {
-            listForPlaylist: jest.fn().mockResolvedValue([]),
+            listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
             set: jest.fn().mockResolvedValue(true),
             clear: jest.fn().mockResolvedValue(true),
             clearForPlaylist: jest.fn().mockResolvedValue(true),
@@ -240,7 +240,7 @@ export function createStatefulBackupCollaborators(
             },
         },
         vodSourcePinService: {
-            listForPlaylist: async (playlistId: string) =>
+            listForPlaylistOrThrow: async (playlistId: string) =>
                 state.sourcePins
                     .filter((pin) => pin.playlistId === playlistId)
                     .map((pin) => ({ ...pin })),

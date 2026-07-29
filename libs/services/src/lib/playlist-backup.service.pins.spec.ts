@@ -25,13 +25,34 @@ describe('PlaylistBackupService Xtream source pins', () => {
         localStorage.clear();
     });
 
+    it('refuses to export a backup whose pin read failed', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService({
+            playlistsService: collaborators.playlistsService,
+            databaseService: collaborators.databaseService,
+            vodSourcePinService: {
+                listForPlaylistOrThrow: jest
+                    .fn()
+                    .mockRejectedValue(new Error('database is locked')),
+                set: jest.fn().mockResolvedValue(true),
+            },
+        });
+
+        // `sourcePins` is authoritative and restore CLEARS the playlist's pins
+        // before applying it, so a read that failed and reported "none" would
+        // produce a file that looks complete and wipes every pin the user had
+        // — through the one feature meant to protect them. Failing the export
+        // is the only honest outcome.
+        await expect(service.exportBackup()).rejects.toThrow();
+    });
+
     it('exports the pins that point at this playlist', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService({
             playlistsService: collaborators.playlistsService,
             databaseService: collaborators.databaseService,
             vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([
                     {
                         matchKey: 'tmdb:603',
                         playlistId: 'xtream-1',
@@ -65,7 +86,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
                 set: setPin,
                 clear: jest.fn().mockResolvedValue(true),
                 clearForPlaylist: jest.fn().mockResolvedValue(true),
@@ -94,7 +115,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
                 // `set` reports failure rather than throwing, so ignoring the
                 // result would drop the preference while the summary claims
                 // the import succeeded.
@@ -120,7 +141,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([
                     {
                         matchKey: 'tmdb:999',
                         playlistId: 'xtream-1',
@@ -149,7 +170,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
                 set: jest.fn().mockResolvedValue(true),
                 clear: jest.fn().mockResolvedValue(true),
                 clearForPlaylist: jest.fn().mockResolvedValue(false),
@@ -175,7 +196,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
             vodSourcePinService: {
                 // A pin EXISTS, or an empty list would make this pass whether
                 // or not the clear was skipped.
-                listForPlaylist: jest.fn().mockResolvedValue([
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([
                     {
                         matchKey: 'tmdb:999',
                         playlistId: 'xtream-1',
@@ -202,7 +223,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
         const service = createPlaylistBackupService({
             ...collaborators,
             vodSourcePinService: {
-                listForPlaylist: jest.fn().mockResolvedValue([]),
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
                 set: setPin,
                 clear: jest.fn().mockResolvedValue(true),
                 clearForPlaylist: jest.fn().mockResolvedValue(true),

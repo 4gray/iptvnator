@@ -25,22 +25,38 @@ const GLOB_METACHARACTERS = /[*?[\]^-]/;
  */
 const ACCENTED_BY_BASE = ((): Map<string, string[]> => {
     const byBase = new Map<string, string[]>();
-    // Latin-1 Supplement through Latin Extended-B, which is where the accented
-    // forms of ASCII letters live.
-    for (let codePoint = 0xc0; codePoint <= 0x24f; codePoint += 1) {
-        const character = String.fromCodePoint(codePoint);
-        const base = character.normalize('NFD').replace(/\p{M}/gu, '');
-        if (base.length !== 1 || !/[a-z]/i.test(base)) {
-            continue;
+    // Latin-1 Supplement through Latin Extended-B, PLUS Latin Extended
+    // Additional — which is where Vietnamese lives (ố is U+1ED1). Stopping at
+    // Latin Extended-B looks tidy and silently leaves a whole language out,
+    // while the normalizer folds it perfectly well. The filter below decides
+    // what actually belongs, so a range only has to be wide enough.
+    const ranges: ReadonlyArray<[number, number]> = [
+        [0x00c0, 0x024f],
+        [0x1e00, 0x1eff],
+    ];
+    for (const [first, last] of ranges) {
+        for (let codePoint = first; codePoint <= last; codePoint += 1) {
+            addAccentedForm(byBase, String.fromCodePoint(codePoint));
         }
-
-        const key = base.toLowerCase();
-        const forms = byBase.get(key) ?? [];
-        forms.push(character);
-        byBase.set(key, forms);
     }
     return byBase;
 })();
+
+/** Files one character under the plain ASCII letter it decomposes to. */
+function addAccentedForm(
+    byBase: Map<string, string[]>,
+    character: string
+): void {
+    const base = character.normalize('NFD').replace(/\p{M}/gu, '');
+    if (base.length !== 1 || !/[a-z]/i.test(base)) {
+        return;
+    }
+
+    const key = base.toLowerCase();
+    const forms = byBase.get(key) ?? [];
+    forms.push(character);
+    byBase.set(key, forms);
+}
 
 /**
  * A `*…*` containment pattern matching `token` in any case, or `null` when the

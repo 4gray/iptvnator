@@ -67,16 +67,13 @@ export class VodSourcePinService {
         }
     }
 
-    /** Every pin pointing at this playlist. Used by playlist backup. */
+    /**
+     * Every pin pointing at this playlist, empty when there are none OR when
+     * the read failed. Only for callers that treat both the same way.
+     */
     async listForPlaylist(playlistId: string): Promise<VodSourcePin[]> {
-        if (!this.isAvailable || !playlistId) {
-            return [];
-        }
-
         try {
-            return (
-                (await window.electron.dbListVodSourcePins(playlistId)) ?? []
-            );
+            return await this.readForPlaylist(playlistId);
         } catch (error) {
             console.warn(
                 'Listing pinned VOD sources failed:',
@@ -84,6 +81,28 @@ export class VodSourcePinService {
             );
             return [];
         }
+    }
+
+    /**
+     * As above, but a failed read THROWS instead of reading as "none".
+     *
+     * Backup needs this distinction and nothing else does. An export writes
+     * `sourcePins` as the authoritative set for the playlist, and restore
+     * clears whatever is there before applying it — so a read that failed and
+     * returned `[]` produces a backup that looks complete and silently wipes
+     * every pin the user had. Losing the preferences is bad; losing them via a
+     * file created to protect them is worse.
+     */
+    async listForPlaylistOrThrow(playlistId: string): Promise<VodSourcePin[]> {
+        return this.readForPlaylist(playlistId);
+    }
+
+    private async readForPlaylist(playlistId: string): Promise<VodSourcePin[]> {
+        if (!this.isAvailable || !playlistId) {
+            return [];
+        }
+
+        return (await window.electron.dbListVodSourcePins(playlistId)) ?? [];
     }
 
     /**

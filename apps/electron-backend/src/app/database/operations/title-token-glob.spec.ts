@@ -135,6 +135,19 @@ describeWithSqlite('caseInsensitiveGlobPattern against SQLite', () => {
         expect(sqliteGlob('Ca', pattern)).toBe(true);
     });
 
+    it('reaches beyond Latin Extended-B for the fold', () => {
+        // "Bố" (U+1ED1) is Vietnamese and normalizes to "bo" like any other
+        // accented o. A range that stops at Latin Extended-B looks tidy and
+        // leaves a whole language filtered out before confirmation.
+        const pattern = caseInsensitiveGlobPattern('bo', {
+            foldDiacritics: true,
+        }) as string;
+
+        expect(sqliteGlob('Bố', pattern)).toBe(true);
+        expect(sqliteGlob('bồ', pattern)).toBe(true);
+        expect(sqliteGlob('Bo', pattern)).toBe(true);
+    });
+
     it('does not fold diacritics unless asked', () => {
         const pattern = caseInsensitiveGlobPattern('ca') as string;
 
