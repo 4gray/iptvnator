@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
     Component,
     input,
@@ -199,5 +201,41 @@ describe('WorkspaceShellHeaderComponent', () => {
                 '[data-test-id="global-download-count"]'
             )
         ).toBeNull();
+    });
+
+    it.each([
+        [0, 'WORKSPACE.SHELL.OPEN_DOWNLOADS'],
+        [1, 'WORKSPACE.SHELL.OPEN_DOWNLOADS (1)'],
+        [3, 'WORKSPACE.SHELL.OPEN_DOWNLOADS (3)'],
+    ])(
+        'exposes %i active downloads in the downloads button accessible name',
+        (activeDownloadsCount, expectedLabel) => {
+            fixture.componentRef.setInput('isElectron', true);
+            fixture.componentRef.setInput(
+                'activeDownloadsCount',
+                activeDownloadsCount
+            );
+            fixture.detectChanges();
+
+            const button: HTMLButtonElement =
+                fixture.nativeElement.querySelector(
+                    '.download-btn-wrap button'
+                );
+
+            expect(button.getAttribute('aria-label')).toBe(expectedLabel);
+        }
+    );
+
+    it('uses the paired Material primary tokens for the download badge', () => {
+        const styleSource = readFileSync(
+            join(__dirname, 'workspace-shell-header.component.scss'),
+            'utf8'
+        );
+        const badgeStyles = styleSource.match(
+            /\.download-count-badge\s*\{([^}]*)\}/
+        )?.[1];
+
+        expect(badgeStyles).toContain('color: var(--mat-sys-on-primary);');
+        expect(badgeStyles).toContain('background: var(--mat-sys-primary);');
     });
 });

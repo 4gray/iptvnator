@@ -227,8 +227,8 @@
     padding: 0 5px;
     border: 1px solid var(--mat-sys-surface-container-low);
     border-radius: 999px;
-    color: var(--app-selection-on-color, var(--mat-sys-on-primary));
-    background: var(--app-selection-color, var(--mat-sys-primary));
+    color: var(--mat-sys-on-primary);
+    background: var(--mat-sys-primary);
     box-shadow: 0 2px 8px var(--app-selection-glow);
     font-size: 0.6875rem;
     font-weight: 700;

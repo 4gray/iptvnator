@@ -141,7 +141,10 @@
                         'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate
                     "
                     [attr.aria-label]="
-                        'WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate
+                        ('WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate) +
+                        (hasActiveDownloads()
+                            ? ' (' + activeDownloadsCount() + ')'
+                            : '')
                     "
                 >
                     <mat-icon>download</mat-icon>
