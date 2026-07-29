@@ -673,6 +673,14 @@ optional `sourcePins` collection. See
 sanitizing rules — the short version is that `matchKey` names the film and
 survives as-is, while the playlist id becomes the imported copy's.
 
+Both restore routes use the same atomic replacement: the direct backup restore
+and the parked replay after a fresh Xtream import call
+`VodSourcePinService.replaceForPlaylist`, whose worker operation clears the
+playlist's pins and inserts the complete restored set in one transaction. For
+direct restore, that preserves the existing pins if an insert fails. A fresh
+import has no pre-existing pins to lose; there it prevents a partially applied
+prefix from being visible before the parked state is retried.
+
 ## Which engines can fail over
 
 Only the built-in web players (HTML5, Video.js, ArtPlayer) raise the playback

@@ -198,7 +198,7 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             });
         });
 
-        it('applies parked source pins against the imported playlist', async () => {
+        it('atomically applies all parked source pins and rejects a failed replacement', async () => {
             // The fresh-import path: a new playlist has no content when the
             // archive is read, so its user state is parked and replayed here.
             // Without this the backup's pins are dropped for every new import.
@@ -213,36 +213,45 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                         contentId: 501,
                         updatedAt: '2026-07-06T09:00:00.000Z',
                     },
+                    {
+                        matchKey: 'title:the-matrix:1999',
+                        contentId: 502,
+                    },
                 ],
             } as never;
 
             await harness.dataSource.restoreUserData(playlistId, restoreState);
 
-            expect(harness.vodSourcePinService.set).toHaveBeenCalledWith({
-                matchKey: 'tmdb:603',
-                playlistId,
-                contentId: 501,
-                portalType: 'xtream',
-                updatedAt: '2026-07-06T09:00:00.000Z',
-            });
-        });
-
-        it('keeps the pending state when a pin cannot be written', async () => {
-            harness.vodSourcePinService.set.mockResolvedValue(false);
-            const restoreState = {
-                hiddenCategories: [],
-                favorites: [],
-                recentlyViewed: [],
-                playbackPositions: [],
-                sourcePins: [{ matchKey: 'tmdb:603', contentId: 501 }],
-            } as never;
+            expect(
+                harness.vodSourcePinService.replaceForPlaylist
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                harness.vodSourcePinService.replaceForPlaylist
+            ).toHaveBeenCalledWith(playlistId, [
+                {
+                    matchKey: 'tmdb:603',
+                    playlistId,
+                    contentId: 501,
+                    portalType: 'xtream',
+                    updatedAt: '2026-07-06T09:00:00.000Z',
+                },
+                {
+                    matchKey: 'title:the-matrix:1999',
+                    playlistId,
+                    contentId: 502,
+                    portalType: 'xtream',
+                },
+            ]);
+            expect(harness.vodSourcePinService.set).not.toHaveBeenCalled();
 
             // The caller clears the parked state only when this resolves, so
-            // resolving here would drop the preference on a transient DB
-            // failure while the import still reported success.
+            // resolving here would drop the retry on a transient DB failure.
+            harness.vodSourcePinService.replaceForPlaylist.mockResolvedValue(
+                false
+            );
             await expect(
                 harness.dataSource.restoreUserData(playlistId, restoreState)
-            ).rejects.toThrow('tmdb:603');
+            ).rejects.toThrow(playlistId);
         });
 
         it('restores user data, then resets and replays playback positions', async () => {

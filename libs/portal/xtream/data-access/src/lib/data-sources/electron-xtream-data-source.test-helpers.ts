@@ -60,6 +60,7 @@ export function createDbServiceMock() {
 export function createVodSourcePinServiceMock() {
     return {
         listForPlaylist: jest.fn().mockResolvedValue([]),
+        replaceForPlaylist: jest.fn().mockResolvedValue(true),
         set: jest.fn().mockResolvedValue(true),
     };
 }
