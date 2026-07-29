@@ -41,6 +41,32 @@ export class VodSourcePinService {
         }
     }
 
+    /**
+     * Drop every pin pointing at this playlist, in one statement.
+     *
+     * `clear()` caps its key list, so clearing a playlist through it would
+     * silently leave the surplus behind while reporting success.
+     */
+    async clearForPlaylist(playlistId: string): Promise<boolean> {
+        if (!this.isAvailable || !playlistId) {
+            return false;
+        }
+
+        try {
+            const result =
+                await window.electron.dbClearVodSourcePinsForPlaylist(
+                    playlistId
+                );
+            return result?.success === true;
+        } catch (error) {
+            console.warn(
+                'Clearing pinned VOD sources failed:',
+                redactSensitiveData(error)
+            );
+            return false;
+        }
+    }
+
     /** Every pin pointing at this playlist. Used by playlist backup. */
     async listForPlaylist(playlistId: string): Promise<VodSourcePin[]> {
         if (!this.isAvailable || !playlistId) {

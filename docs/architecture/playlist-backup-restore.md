@@ -162,6 +162,12 @@ worker IPC boundary in the snake_case wire shape declared by
 `XCategoryFromDb`/`XtreamCategoryFromDb`; the category operations project
 their Drizzle rows explicitly to keep that contract true.
 
+Clearing the playlist's existing pins goes through a dedicated
+delete-by-playlist operation, not the keyed clear: that one caps its key list
+to bound an IN clause, so a playlist with more pinned movies than the cap kept
+the surplus while still reporting success. A failure now fails the entry
+rather than leaving the union of old and archived pins.
+
 `sourcePins` (VOD multi-source) is the one **optional** collection, and the
 normalizer preserves that: an absent field stays absent rather than becoming
 `[]`, because restore treats a PRESENT collection as authoritative and clears

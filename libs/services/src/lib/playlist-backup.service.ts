@@ -774,13 +774,19 @@ export class PlaylistBackupService {
         });
     }
 
-    /** Drops every pin currently pointing at this playlist. */
+    /**
+     * Drops every pin currently pointing at this playlist.
+     *
+     * One statement rather than list-then-clear-by-key: the keyed clear caps
+     * its input, so a playlist with more pinned movies than the cap kept the
+     * surplus while reporting success — and a failed list read silently
+     * became "there was nothing to clear".
+     */
     private async clearPinsForPlaylist(playlistId: string): Promise<void> {
-        const existing =
-            await this.vodSourcePinService.listForPlaylist(playlistId);
-        const matchKeys = existing.map((pin) => pin.matchKey).filter(Boolean);
-        if (matchKeys.length > 0) {
-            await this.vodSourcePinService.clear(matchKeys);
+        if (!(await this.vodSourcePinService.clearForPlaylist(playlistId))) {
+            throw new PlaylistBackupError(
+                `Clearing the existing pinned sources for "${playlistId}" failed.`
+            );
         }
     }
 

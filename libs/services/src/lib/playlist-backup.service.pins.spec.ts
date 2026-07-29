@@ -68,6 +68,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
                 listForPlaylist: jest.fn().mockResolvedValue([]),
                 set: setPin,
                 clear: jest.fn().mockResolvedValue(true),
+                clearForPlaylist: jest.fn().mockResolvedValue(true),
             },
         });
 
@@ -128,7 +129,8 @@ describe('PlaylistBackupService Xtream source pins', () => {
                     },
                 ]),
                 set: jest.fn().mockResolvedValue(true),
-                clear: clearPins,
+                clear: jest.fn().mockResolvedValue(true),
+                clearForPlaylist: clearPins,
             },
         });
 
@@ -137,7 +139,32 @@ describe('PlaylistBackupService Xtream source pins', () => {
         // archive deliberately does not contain.
         await service.importBackup(JSON.stringify(createXtreamManifest([], [])));
 
-        expect(clearPins).toHaveBeenCalledWith(['tmdb:999']);
+        // By playlist, not by key list: the keyed clear caps its input and
+        // would have left the surplus behind while reporting success.
+        expect(clearPins).toHaveBeenCalledWith('xtream-1');
+    });
+
+    it('fails the entry when the existing pins cannot be cleared', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                listForPlaylist: jest.fn().mockResolvedValue([]),
+                set: jest.fn().mockResolvedValue(true),
+                clear: jest.fn().mockResolvedValue(true),
+                clearForPlaylist: jest.fn().mockResolvedValue(false),
+            },
+        });
+
+        const summary = await service.importBackup(
+            JSON.stringify(createXtreamManifest([], []))
+        );
+
+        // Writing the archive's pins over pins that are still there produces a
+        // union of both, which is neither state the user asked for.
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 0, failed: 1 })
+        );
     });
 
     it('leaves pins alone for an archive that has no opinion', async () => {
@@ -157,7 +184,8 @@ describe('PlaylistBackupService Xtream source pins', () => {
                     },
                 ]),
                 set: jest.fn().mockResolvedValue(true),
-                clear: clearPins,
+                clear: jest.fn().mockResolvedValue(true),
+                clearForPlaylist: clearPins,
             },
         });
 
@@ -177,6 +205,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
                 listForPlaylist: jest.fn().mockResolvedValue([]),
                 set: setPin,
                 clear: jest.fn().mockResolvedValue(true),
+                clearForPlaylist: jest.fn().mockResolvedValue(true),
             },
         });
 

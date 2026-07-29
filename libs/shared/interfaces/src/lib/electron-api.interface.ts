@@ -909,6 +909,10 @@ export interface ElectronBridgeApi {
     dbGetVodSourcePin: (matchKeys: string[]) => Promise<VodSourcePin | null>;
     /** Every pin pointing at this playlist — used by playlist backup. */
     dbListVodSourcePins: (playlistId: string) => Promise<VodSourcePin[]>;
+    /** Bulk clear: not keyed, so no `MAX_KEYS_PER_LOOKUP` truncation. */
+    dbClearVodSourcePinsForPlaylist: (
+        playlistId: string
+    ) => Promise<ElectronBridgeResult>;
     /** `retireKeys` are removed in the SAME transaction as the write. */
     dbSetVodSourcePin: (
         pin: VodSourcePin,

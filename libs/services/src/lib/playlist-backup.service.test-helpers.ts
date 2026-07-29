@@ -66,6 +66,7 @@ export function createPlaylistBackupService(
             listForPlaylist: jest.fn().mockResolvedValue([]),
             set: jest.fn().mockResolvedValue(true),
             clear: jest.fn().mockResolvedValue(true),
+            clearForPlaylist: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService: {
             set: jest.fn(),
@@ -255,6 +256,12 @@ export function createStatefulBackupCollaborators(
             clear: async (matchKeys: string[]) => {
                 state.sourcePins = state.sourcePins.filter(
                     (pin) => !matchKeys.includes(pin.matchKey)
+                );
+                return true;
+            },
+            clearForPlaylist: async (playlistId: string) => {
+                state.sourcePins = state.sourcePins.filter(
+                    (pin) => pin.playlistId !== playlistId
                 );
                 return true;
             },

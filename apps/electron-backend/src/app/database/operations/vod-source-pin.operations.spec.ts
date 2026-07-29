@@ -13,6 +13,7 @@ import {
     clearVodSourcePin,
     getVodSourcePin,
     setVodSourcePin,
+    clearVodSourcePinsForPlaylist,
 } from './vod-source-pin.operations';
 
 const tmdbRow = {
@@ -243,6 +244,32 @@ describe('vod-source-pin.operations', () => {
                 schema.vodSourcePins.matchKey,
                 ['tmdb:603', 'title:the matrix:1999']
             );
+        });
+    });
+
+    describe('clearVodSourcePinsForPlaylist', () => {
+        it('deletes by playlist, with no key cap to truncate', async () => {
+            const { db, deleteFn, deleteWhere } = createDbMock();
+
+            await expect(
+                clearVodSourcePinsForPlaylist(db, 'playlist-1')
+            ).resolves.toEqual({ success: true });
+
+            // The keyed clear caps its IN list at MAX_KEYS_PER_LOOKUP, so a
+            // playlist with more pinned movies than that kept the surplus —
+            // and still reported success.
+            expect(deleteFn).toHaveBeenCalledWith(schema.vodSourcePins);
+            expect(deleteWhere).toHaveBeenCalled();
+        });
+
+        it('refuses a blank playlist id rather than clearing everything', async () => {
+            const { db, deleteFn } = createDbMock();
+
+            await expect(
+                clearVodSourcePinsForPlaylist(db, '')
+            ).resolves.toEqual({ success: false });
+
+            expect(deleteFn).not.toHaveBeenCalled();
         });
     });
 });

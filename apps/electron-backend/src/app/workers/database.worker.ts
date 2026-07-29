@@ -94,6 +94,7 @@ import {
 import {
     clearVodSourcePin,
     getVodSourcePin,
+    clearVodSourcePinsForPlaylist,
     listVodSourcePinsForPlaylist,
     setVodSourcePin,
 } from '../database/operations/vod-source-pin.operations';
@@ -803,6 +804,11 @@ async function executeRequest(
         case 'DB_GET_VOD_SOURCE_PIN': {
             const payload = message.payload as { matchKeys: string[] };
             return getVodSourcePin(db, payload.matchKeys);
+        }
+
+        case 'DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST': {
+            const payload = message.payload as { playlistId: string };
+            return clearVodSourcePinsForPlaylist(db, payload.playlistId);
         }
 
         case 'DB_LIST_VOD_SOURCE_PINS': {

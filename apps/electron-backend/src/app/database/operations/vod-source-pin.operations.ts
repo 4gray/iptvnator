@@ -148,6 +148,29 @@ export async function clearVodSourcePin(
     return { success: true };
 }
 
+/**
+ * Drop every pin pointing at one playlist.
+ *
+ * NOT expressible through `clearVodSourcePin`: that takes match keys and caps
+ * them at `MAX_KEYS_PER_LOOKUP` to bound an IN list, so a playlist with more
+ * pinned movies than the cap would have had the rest silently survive — while
+ * the call still reported success.
+ */
+export async function clearVodSourcePinsForPlaylist(
+    db: AppDatabase,
+    playlistId: string
+): Promise<{ success: boolean }> {
+    if (typeof playlistId !== 'string' || playlistId === '') {
+        return { success: false };
+    }
+
+    await db
+        .delete(schema.vodSourcePins)
+        .where(eq(schema.vodSourcePins.playlistId, playlistId));
+
+    return { success: true };
+}
+
 function toPin(row: schema.VodSourcePinRow): VodSourcePin {
     return {
         matchKey: row.matchKey,

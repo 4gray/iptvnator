@@ -419,6 +419,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: ['playlist-1'],
     },
     {
+        method: 'dbClearVodSourcePinsForPlaylist',
+        args: ['playlist-1'],
+        channel: 'DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST',
+        forwardedArgs: ['playlist-1'],
+    },
+    {
         method: 'dbSetVodSourcePin',
         args: [vodSourcePin, ['title:dune:']],
         channel: 'DB_SET_VOD_SOURCE_PIN',
