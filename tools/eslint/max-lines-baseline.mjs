@@ -32,7 +32,6 @@ export const maxLinesBaseline = [
     'libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts',
     'libs/playlist/shared/ui/src/lib/recent-playlists/recent-playlists.component.ts',
     'libs/playlist/shared/util/src/lib/playlist-context.facade.ts',
-    'libs/portal/downloads/feature/src/lib/downloads.component.ts',
     'libs/portal/shared/data-access/src/lib/collection/stream-resolver.service.ts',
     'libs/portal/shared/data-access/src/lib/collection/unified-favorites-data.service.ts',
     'libs/portal/shared/data-access/src/lib/collection/unified-recent-data.service.ts',

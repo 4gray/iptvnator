@@ -15,9 +15,8 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
-import { firstValueFrom, map, startWith } from 'rxjs';
+import { map, startWith } from 'rxjs';
 import {
-    DatabaseService,
     type DownloadItem,
     DownloadsService,
     PlaylistsService,
@@ -32,8 +31,8 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PortalCollectionContextService } from '@iptvnator/portal/shared/util';
 import { Playlist } from '@iptvnator/shared/interfaces';
+import { DownloadLibraryNavigationService } from './download-library-navigation.service';
 
-type PortalSource = 'xtream' | 'stalker';
 const DOWNLOAD_COLLECTION_LABELS = {
     all: 'All',
     movie: 'Movies',
@@ -49,6 +48,7 @@ const DOWNLOAD_COLLECTION_LABELS = {
         '../../../../shared/ui/src/lib/styles/portal-sidebar.scss',
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [DownloadLibraryNavigationService],
     imports: [
         EmptyStateComponent,
         MatButtonModule,
@@ -61,8 +61,10 @@ const DOWNLOAD_COLLECTION_LABELS = {
 export class DownloadsComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly libraryNavigation = inject(
+        DownloadLibraryNavigationService
+    );
     private readonly collectionCtx = inject(PortalCollectionContextService);
     private readonly dialogService = inject(DialogService);
     private readonly translate = inject(TranslateService);
@@ -373,10 +375,9 @@ export class DownloadsComponent {
     }
 
     isItemNavigable(item: DownloadItem): boolean {
-        return (
-            !!item.playlistId &&
-            this.hasSourcePlaylist(item) &&
-            this.getTargetContentId(item) !== null
+        return this.libraryNavigation.canOpen(
+            item,
+            this.availablePlaylistIds()
         );
     }
 
@@ -407,191 +408,7 @@ export class DownloadsComponent {
             return;
         }
 
-        const source = await this.resolveSourceType(item.playlistId);
-        if (!source) {
-            return;
-        }
-
-        if (source === 'xtream') {
-            await this.openXtreamItem(item);
-            return;
-        }
-
-        await this.openStalkerItem(item);
-    }
-
-    private getTargetContentId(item: DownloadItem): number | null {
-        const id =
-            item.contentType === 'episode'
-                ? (item.seriesXtreamId ?? item.xtreamId)
-                : item.xtreamId;
-        const numeric = Number(id);
-        return Number.isFinite(numeric) ? numeric : null;
-    }
-
-    private buildPlaylistRoute(
-        source: PortalSource,
-        playlistId: string,
-        segments: Array<string | number>
-    ): Array<string | number> {
-        const sourceSegment = source === 'stalker' ? 'stalker' : 'xtreams';
-        return ['/workspace', sourceSegment, playlistId, ...segments];
-    }
-
-    private async resolveSourceType(
-        playlistId: string
-    ): Promise<PortalSource | null> {
-        try {
-            const playlist = await firstValueFrom(
-                this.playlistsService.getPlaylistById(playlistId)
-            );
-
-            if (!playlist) {
-                return null;
-            }
-
-            if (playlist.portalUrl && playlist.macAddress) {
-                return 'stalker';
-            }
-
-            return 'xtream';
-        } catch {
-            return null;
-        }
-    }
-
-    private async openXtreamItem(item: DownloadItem): Promise<void> {
-        const targetId = this.getTargetContentId(item);
-        if (targetId === null) return;
-
-        const contentType = item.contentType === 'episode' ? 'series' : 'vod';
-        const content = await this.dbService.getContentByXtreamId(
-            targetId,
-            item.playlistId
-        );
-        const categoryId = content?.category_id;
-
-        if (categoryId === null || categoryId === undefined) {
-            await this.router.navigate(
-                this.buildPlaylistRoute('xtream', item.playlistId, [
-                    contentType,
-                ])
-            );
-            return;
-        }
-
-        await this.router.navigate(
-            this.buildPlaylistRoute('xtream', item.playlistId, [
-                contentType,
-                String(categoryId),
-                String(targetId),
-            ])
-        );
-    }
-
-    private normalizePortalItemId(value: unknown): string {
-        const raw = String(value ?? '').trim();
-        if (!raw) return '';
-        return raw.includes(':') ? raw.split(':')[0] : raw;
-    }
-
-    private normalizeStalkerCategoryId(
-        value: unknown,
-        fallback: 'vod' | 'series'
-    ): 'vod' | 'series' | 'itv' {
-        const normalized = String(value ?? '').toLowerCase();
-        if (normalized === 'movie') return 'vod';
-        if (
-            normalized === 'vod' ||
-            normalized === 'series' ||
-            normalized === 'itv'
-        ) {
-            return normalized;
-        }
-        return fallback;
-    }
-
-    private findMatchingStalkerRecentItem(
-        items: Array<Record<string, unknown>>,
-        targetId: number
-    ): Record<string, unknown> | undefined {
-        const expectedId = String(targetId);
-        return items.find((recentItem) => {
-            const candidates = [
-                recentItem['id'],
-                recentItem['movie_id'],
-                recentItem['series_id'],
-                recentItem['stream_id'],
-            ];
-
-            return candidates.some(
-                (candidate) =>
-                    this.normalizePortalItemId(candidate) === expectedId
-            );
-        });
-    }
-
-    private async buildStalkerOpenState(
-        item: DownloadItem,
-        targetId: number,
-        fallbackCategory: 'vod' | 'series'
-    ): Promise<Record<string, unknown>> {
-        try {
-            const items = (await firstValueFrom(
-                this.playlistsService.getPortalRecentlyViewed(item.playlistId)
-            )) as Array<Record<string, unknown>>;
-
-            const matched = this.findMatchingStalkerRecentItem(items, targetId);
-
-            if (matched) {
-                return {
-                    ...matched,
-                    id:
-                        matched['id'] ??
-                        matched['series_id'] ??
-                        matched['movie_id'] ??
-                        String(targetId),
-                    category_id: this.normalizeStalkerCategoryId(
-                        matched['category_id'],
-                        fallbackCategory
-                    ),
-                    title: matched['title'] ?? item.title,
-                    name: matched['name'] ?? matched['o_name'] ?? item.title,
-                };
-            }
-        } catch {
-            // Ignore and use fallback state below.
-        }
-
-        return {
-            id: String(targetId),
-            category_id: fallbackCategory,
-            title: item.title,
-            name: item.title,
-            o_name: item.title,
-            cover: item.posterUrl,
-            logo: item.posterUrl,
-        };
-    }
-
-    private async openStalkerItem(item: DownloadItem): Promise<void> {
-        const targetId = this.getTargetContentId(item);
-        if (targetId === null) return;
-
-        const fallbackCategory =
-            item.contentType === 'episode' ? 'series' : 'vod';
-        const openRecentItem = await this.buildStalkerOpenState(
-            item,
-            targetId,
-            fallbackCategory
-        );
-
-        await this.router.navigate(
-            this.buildPlaylistRoute('stalker', item.playlistId, ['recent']),
-            {
-                state: { openRecentItem },
-            }
-        );
+        await this.libraryNavigation.open(item);
     }
 
     private getPosterKey(item: DownloadItem): string {
