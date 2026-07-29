@@ -69,6 +69,25 @@ describe('normalizeTitleKeys', () => {
     it('keeps plural "seasons" endings — only singular markers are tags', () => {
         expect(normalizeTitle('Best of 2 Seasons')).toBe('best of 2 seasons');
     });
+
+    it('folds both lowercase spellings of Greek sigma together', () => {
+        // `toLowerCase` picks the form by position — "ΑΣ" becomes "ας" while
+        // an already-lowercase "ασ" stays medial — so one word arrives here
+        // spelled two ways. Both SQL tiers fold them (SQLite's trigram
+        // tokenizer natively, the scan's GLOB classes in JavaScript), so
+        // leaving them apart here admits a candidate and then discards it.
+        expect(normalizeTitle('ΑΣ')).toBe(normalizeTitle('Ας'));
+        expect(normalizeTitle('ασ')).toBe(normalizeTitle('ας'));
+        expect(normalizeTitle('ΑΣ')).toBe(normalizeTitle('ασ'));
+        expect(normalizeTitle('Ο Άρχοντας')).toBe(normalizeTitle('ο αρχοντασ'));
+    });
+
+    it('does not fold sigma into unrelated Greek letters', () => {
+        // The fold is one letter's two lowercase forms, not a general
+        // loosening of Greek — these must stay different titles.
+        expect(normalizeTitle('ΑΣ')).not.toBe(normalizeTitle('ΑΝ'));
+        expect(normalizeTitle('ΟΣ')).not.toBe(normalizeTitle('ΑΣ'));
+    });
 });
 
 describe('provider tag stripping', () => {

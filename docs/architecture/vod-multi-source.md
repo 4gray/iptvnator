@@ -589,6 +589,21 @@ a per-character fold would miss are kept, 24 of 767, since the rest are just
 the scan is a necessary-not-sufficient filter and `normalizeTitleKeys` is what
 confirms a match.
 
+**Admitting a candidate is only half of it.** A class that admits a row the
+confirmation then rejects finds nothing, so sigma has to be folded on both
+tiers. `normalizeTitleKeys` therefore rewrites `ς` to `σ` after lowercasing.
+This is not symmetry for its own sake: `toLowerCase` picks the form by
+position, so `"ΑΣ"` arrives as `"ας"` while an already-lowercase `"ασ"` stays
+medial, and the same word reaches the comparison spelled two ways.
+
+Both SQL tiers were already folding them together — SQLite's trigram tokenizer
+does full Unicode folding natively (unlike `LOWER()`, which is ASCII-only), and
+the scan's GLOB classes now do it in JavaScript. The confirmation was the only
+tier that did not, which made this a **pre-existing gap on the FTS path too**,
+not just on the scan: a stored `"ο αρχοντασ"` was returned as a candidate for
+`"ο αρχοντας"` and then discarded. Folding to the medial form is what Unicode
+case folding does.
+
 It returns `null` — leaving the substring tests as the whole answer — for a
 token holding a GLOB metacharacter (SQLite GLOB has no escape character, so an
 unescaped `*` would become a wildcard matching every row) or a case mapping that

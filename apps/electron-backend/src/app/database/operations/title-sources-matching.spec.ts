@@ -139,6 +139,42 @@ describe('title-sources.operations — confirmation and scoping', () => {
             expect(matches).toHaveLength(1);
             expect(matches[0].matchConfidence).toBe('fuzzy');
         });
+
+        it('confirms a Greek title whichever sigma either side used', async () => {
+            // End to end, not just at the GLOB tier: the widened character
+            // class admits the row, and the confirmation has to agree that it
+            // is the same film. Greek Σ has two lowercase forms and
+            // `toLowerCase` picks by position, so the request and the stored
+            // title can disagree without either being wrong.
+            const spellings = ['ΑΣ', 'Ας', 'ασ', 'ας'];
+
+            for (const requested of spellings) {
+                const rows = spellings.map((stored, index) => ({
+                    ...duneRow,
+                    title: stored,
+                    xtream_id: 600 + index,
+                }));
+                const { db } = createDbMock(rows);
+
+                const matches = await findTitleSources(db, {
+                    title: requested,
+                });
+
+                expect(
+                    `${requested} confirms ${matches.length} of ${rows.length}`
+                ).toBe(`${requested} confirms ${rows.length} of ${rows.length}`);
+            }
+        });
+
+        it('still rejects a different Greek word', async () => {
+            // The sigma fold must not turn into "any short Greek title
+            // matches any other".
+            const { db } = createDbMock([{ ...duneRow, title: 'ΑΝ' }]);
+
+            await expect(
+                findTitleSources(db, { title: 'ΑΣ' })
+            ).resolves.toEqual([]);
+        });
     });
 
     describe('playlist scoping and duplicates', () => {
