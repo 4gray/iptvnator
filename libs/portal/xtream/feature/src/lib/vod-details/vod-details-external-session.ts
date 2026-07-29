@@ -75,3 +75,30 @@ export function runningExternalSession(
 
     return isLaunchedOne ? session : matched;
 }
+
+/**
+ * Close the running external player before its replacement starts.
+ *
+ * A failure is logged rather than propagated: the caller has already
+ * committed the switch, so refusing to launch would leave the page naming a
+ * source with nothing playing — worse than a possibly-lingering process, and
+ * a close that rejects usually means the session was gone already.
+ */
+export async function closeRunningExternalSession(
+    session: ExternalPlayerSession | null,
+    close: (session: ExternalPlayerSession) => Promise<void>,
+    warn: (message: string, error: unknown) => void
+): Promise<void> {
+    if (!session) {
+        return;
+    }
+
+    try {
+        await close(session);
+    } catch (error) {
+        warn(
+            'Closing the previous external player failed; starting the replacement anyway.',
+            error
+        );
+    }
+}

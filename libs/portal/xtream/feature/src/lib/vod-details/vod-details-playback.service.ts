@@ -27,6 +27,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
+    closeRunningExternalSession,
     ownsContent,
     runningExternalSession,
 } from './vod-details-external-session';
@@ -352,26 +353,15 @@ export class VodDetailsPlaybackService {
         // A switch REPLACES what is playing. With MPV or VLC and instance
         // reuse off, the backend spawns a second detached player otherwise —
         // both sources keep running and Stop owns only the newer one.
-        const running = runningExternalSession(
-            this.externalPlayback.activeSession(),
-            this.launchedExternally,
-            this.matchedExternalPlayback()
+        await closeRunningExternalSession(
+            runningExternalSession(
+                this.externalPlayback.activeSession(),
+                this.launchedExternally,
+                this.matchedExternalPlayback()
+            ),
+            (session) => this.externalPlayback.closeSession(session),
+            (message, error) => this.logger.warn(message, error)
         );
-        if (running) {
-            try {
-                await this.externalPlayback.closeSession(running);
-            } catch (error) {
-                // The switch is already committed — the badge names the new
-                // source. Giving up here would leave the page claiming a
-                // source with nothing started, which is worse than the
-                // pre-existing risk of a lingering process (and a close that
-                // rejects usually means the session was gone anyway).
-                this.logger.warn(
-                    'Closing the previous external player failed; starting the replacement anyway.',
-                    error
-                );
-            }
-        }
 
         // Closing is a round-trip, and a second pick across it would otherwise
         // reach this line too: both would have seen the same session, closed

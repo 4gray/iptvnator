@@ -138,7 +138,7 @@ describe('VodDetailsRouteComponent — source caption', () => {
         expect(component.activeSourceCaption()).toBeNull();
     });
 
-    it('waits again after a manual source switch', () => {
+    it('waits again after a manual source switch', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         const component = fixture.componentInstance;
         const playback = fixture.debugElement.injector.get(
@@ -170,6 +170,9 @@ describe('VodDetailsRouteComponent — source caption', () => {
             title: 'Example',
             startTime: 3,
         });
+        // Replacing a running external player is a round-trip, so the handoff
+        // yields once before the new playback is mounted.
+        await Promise.resolve();
 
         expect(playback.inlinePlayback()?.streamUrl).toBe(
             'http://example.com/alt.mkv'

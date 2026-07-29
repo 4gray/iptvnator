@@ -146,163 +146,19 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(service.matchedExternalPlayback()).toBeNull();
     });
 
-    it('stops the running external player before switching sources', async () => {
-        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
 
-        await service.startResolvedPlayback({
-            streamUrl: 'https://example.com/alt.mkv',
-            title: 'Example Movie',
-            contentInfo: {
-                playlistId: 'playlist-2',
-                contentXtreamId: 991,
-                contentType: 'vod',
-            },
-        });
 
-        // A switch REPLACES what is playing. With MPV/VLC and instance reuse
-        // off the backend spawns a second detached player otherwise: both
-        // sources keep running, and Stop owns only the newer one.
-        expect(closeSession).toHaveBeenCalled();
-    });
 
-    it('closes the alternative it launched, once the badge has moved on', async () => {
-        // The controller marks the DESTINATION active before playback is
-        // handed over, so by the time the switch reaches the service the
-        // running process no longer looks like "ours" — and was left playing
-        // beside its replacement.
-        activeSession.set(sessionFor('playlist-2', 991));
-        activeSource.set({
-            playlistId: 'playlist-3',
-            contentXtreamId: 77,
-            contentType: 'vod',
-        });
-        closeSession.mockClear();
 
-        // Pretend the alternative we are replacing is the one we started.
-        await service.startResolvedPlayback({
-            streamUrl: 'https://example.com/first.mkv',
-            title: 'Example Movie',
-            contentInfo: {
-                playlistId: 'playlist-2',
-                contentXtreamId: 991,
-                contentType: 'vod',
-            },
-        });
-        closeSession.mockClear();
 
-        await service.startResolvedPlayback({
-            streamUrl: 'https://example.com/second.mkv',
-            title: 'Example Movie',
-            contentInfo: {
-                playlistId: 'playlist-3',
-                contentXtreamId: 77,
-                contentType: 'vod',
-            },
-        });
-
-        expect(closeSession).toHaveBeenCalledWith(
-            expect.objectContaining({
-                contentInfo: expect.objectContaining({
-                    contentXtreamId: 991,
-                }),
-            })
-        );
-    });
-
-    it('drops a switch that a plain Play overtook', async () => {
-        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
-        let releaseClose: (() => void) | undefined;
-        const closing = new Promise<void>((resolve) => {
-            releaseClose = () => resolve();
-        });
-        closeSession.mockReturnValue(closing);
-        openResolvedPlayback.mockClear();
-
-        const switching = service.startResolvedPlayback({
-            streamUrl: 'https://example.com/alt.mkv',
-            title: 'Example Movie',
-        });
-
-        // The user presses Play on the route copy while that close is pending.
-        service.playVod({
-            movie_data: { stream_id: ROUTE_VOD_ID, name: 'Example Movie' },
-        } as never);
-        releaseClose?.();
-        await switching;
-
-        // Only the route copy may be playing; the switch was overtaken.
-        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
-        expect(openResolvedPlayback).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                streamUrl: 'https://example.com/alt.mkv',
-            }),
-            true
-        );
-
-        closeSession.mockResolvedValue(undefined);
-    });
-
-    it('still starts the replacement when closing the old player fails', async () => {
-        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
-        closeSession.mockRejectedValue(new Error('close ipc failed'));
-        openResolvedPlayback.mockClear();
-
-        await service.startResolvedPlayback({
-            streamUrl: 'https://example.com/alt.mkv',
-            title: 'Example Movie',
-        });
-
-        // The switch is already committed — the badge names the new source.
-        // Bailing out here left the page claiming a source with nothing
-        // started at all.
-        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
-
-        closeSession.mockResolvedValue(undefined);
-    });
-
-    it('launches only the newest source when two switches overlap', async () => {
-        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
-        // One shared promise: both calls see the same running session, so
-        // both await the same close rather than each making its own.
-        let releaseClose: (() => void) | undefined;
-        const closing = new Promise<void>((resolve) => {
-            releaseClose = () => resolve();
-        });
-        closeSession.mockReturnValue(closing);
-        // These spies are module-level and never cleared between cases.
-        openResolvedPlayback.mockClear();
-
-        const first = service.startResolvedPlayback({
-            streamUrl: 'https://example.com/one.mkv',
-            title: 'Example Movie',
-        });
-        const second = service.startResolvedPlayback({
-            streamUrl: 'https://example.com/two.mkv',
-            title: 'Example Movie',
-        });
-
-        releaseClose?.();
-        await Promise.all([first, second]);
-
-        // Both saw the same running session and awaited its close. Launching
-        // both afterwards is how two detached players appear again, with the
-        // older one holding a source the user has already moved on from.
-        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
-        expect(openResolvedPlayback).toHaveBeenCalledWith(
-            expect.objectContaining({
-                streamUrl: 'https://example.com/two.mkv',
-            }),
-            true
-        );
-
-        closeSession.mockResolvedValue(undefined);
-    });
-
-    it('records a source started through multi-source as recently viewed', () => {
+    it('records a source started through multi-source as recently viewed', async () => {
         // Playing an alternative from the picker, or letting a pin decide the
         // primary Play, is still watching the movie — it belongs in Recently
         // Viewed exactly as an ordinary Play does.
-        service.startResolvedPlayback({
+        //
+        // Awaited: the handoff always yields once now, because replacing a
+        // running external player is a round-trip even when there is none.
+        await service.startResolvedPlayback({
             streamUrl: 'https://example.com/alt.mkv',
             title: 'Example Movie',
             contentInfo: {
