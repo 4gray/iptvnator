@@ -43,6 +43,15 @@ export type DownloadLibraryEntity =
     | DownloadSeriesCardViewModel;
 
 const STANDARD_EPISODE_TITLE = /^(.+?) - S\d{2}E\d{2} - /;
+const MALFORMED_DOWNLOAD_ID_CLASS = {
+    NAN: '0:nan',
+    NEGATIVE_INFINITY: '1:negative-infinity',
+    NEGATIVE: '2:negative',
+    ZERO: '3:zero',
+    FRACTIONAL: '4:fractional',
+    UNSAFE: '5:unsafe',
+    POSITIVE_INFINITY: '6:positive-infinity',
+} as const;
 
 export function normalizedDownloadTimestamp(value: string | undefined): number {
     const timestamp = Date.parse(value ?? '');
@@ -52,7 +61,57 @@ export function normalizedDownloadTimestamp(value: string | undefined): number {
 export function isUsableDownloadOrderNumber(
     value: number | undefined
 ): value is number {
-    return Number.isInteger(value) && (value ?? -1) >= 0;
+    return Number.isSafeInteger(value) && value !== undefined && value >= 0;
+}
+
+function malformedDownloadIdKey(value: number): string {
+    if (Number.isNaN(value)) {
+        return MALFORMED_DOWNLOAD_ID_CLASS.NAN;
+    }
+    if (value === Number.NEGATIVE_INFINITY) {
+        return MALFORMED_DOWNLOAD_ID_CLASS.NEGATIVE_INFINITY;
+    }
+    if (value === Number.POSITIVE_INFINITY) {
+        return MALFORMED_DOWNLOAD_ID_CLASS.POSITIVE_INFINITY;
+    }
+    if (value < 0) {
+        return `${MALFORMED_DOWNLOAD_ID_CLASS.NEGATIVE}:${String(value)}`;
+    }
+    if (value === 0) {
+        return MALFORMED_DOWNLOAD_ID_CLASS.ZERO;
+    }
+    if (!Number.isInteger(value)) {
+        return `${MALFORMED_DOWNLOAD_ID_CLASS.FRACTIONAL}:${String(value)}`;
+    }
+    return `${MALFORMED_DOWNLOAD_ID_CLASS.UNSAFE}:${String(value)}`;
+}
+
+function compareText(left: string, right: string): number {
+    return left < right ? -1 : left > right ? 1 : 0;
+}
+
+export function compareDownloadIds(
+    left: number,
+    right: number,
+    descending = false
+): number {
+    const leftValid = Number.isSafeInteger(left) && left > 0;
+    const rightValid = Number.isSafeInteger(right) && right > 0;
+    if (leftValid && rightValid) {
+        const first = descending ? right : left;
+        const second = descending ? left : right;
+        return first < second ? -1 : first > second ? 1 : 0;
+    }
+    if (leftValid) {
+        return -1;
+    }
+    if (rightValid) {
+        return 1;
+    }
+    return compareText(
+        malformedDownloadIdKey(left),
+        malformedDownloadIdKey(right)
+    );
 }
 
 export function deriveStandardizedSeriesTitle(
@@ -85,14 +144,15 @@ function compareMembers(left: DownloadItem, right: DownloadItem): number {
         compareOrderNumber(left.episodeNumber, right.episodeNumber) ||
         normalizedDownloadTimestamp(left.createdAt) -
             normalizedDownloadTimestamp(right.createdAt) ||
-        left.id - right.id
+        compareDownloadIds(left.id, right.id)
     );
 }
 
 function compareNewest(left: DownloadItem, right: DownloadItem): number {
     return (
         normalizedDownloadTimestamp(right.createdAt) -
-            normalizedDownloadTimestamp(left.createdAt) || right.id - left.id
+            normalizedDownloadTimestamp(left.createdAt) ||
+        compareDownloadIds(left.id, right.id, true)
     );
 }
 

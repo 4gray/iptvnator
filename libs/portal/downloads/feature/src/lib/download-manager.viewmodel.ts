@@ -2,6 +2,7 @@ import type { DownloadItem } from '@iptvnator/services';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import {
     buildDownloadLibrary,
+    compareDownloadIds,
     deriveStandardizedSeriesTitle,
     isUsableDownloadOrderNumber,
     normalizedDownloadTimestamp,
@@ -101,7 +102,7 @@ function compareQueued(
     return (
         normalizedDownloadTimestamp(left.item.createdAt) -
             normalizedDownloadTimestamp(right.item.createdAt) ||
-        left.item.id - right.item.id
+        compareDownloadIds(left.item.id, right.item.id)
     );
 }
 

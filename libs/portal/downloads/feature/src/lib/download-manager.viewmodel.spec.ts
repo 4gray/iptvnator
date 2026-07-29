@@ -244,6 +244,41 @@ describe('buildDownloadManagerViewModel', () => {
         expect(hidden.hasClearable).toBe(true);
     });
 
+    it('keeps counts stable under every display filter', () => {
+        const downloads = [
+            download(1, { status: 'queued' }),
+            download(2, {
+                contentType: 'episode',
+                status: 'paused',
+            }),
+            download(3, { status: 'failed' }),
+            download(4),
+            download(5, {
+                contentType: 'episode',
+                seriesXtreamId: 50,
+            }),
+            download(6, {
+                contentType: 'episode',
+                seriesXtreamId: 50,
+            }),
+        ];
+        const expected = {
+            all: 5,
+            movie: 3,
+            series: 2,
+            inProgress: 2,
+        };
+
+        for (const filter of [
+            'all',
+            'movie',
+            'series',
+            'in-progress',
+        ] as const) {
+            expect(build(downloads, { filter }).counts).toEqual(expected);
+        }
+    });
+
     it('searches stored title, derived series title, source, episode label, and error message', () => {
         const downloads = [
             download(1, {
@@ -400,6 +435,43 @@ describe('buildDownloadManagerViewModel', () => {
         ]);
     });
 
+    it('leaves episode labels blank for fractional and unsafe season or episode numbers', () => {
+        const unsafe = Number.MAX_SAFE_INTEGER + 1;
+        const result = build([
+            download(1, {
+                contentType: 'episode',
+                seasonNumber: 1.5,
+                episodeNumber: 2,
+                status: 'queued',
+            }),
+            download(2, {
+                contentType: 'episode',
+                seasonNumber: unsafe,
+                episodeNumber: 2,
+                status: 'queued',
+            }),
+            download(3, {
+                contentType: 'episode',
+                seasonNumber: 1,
+                episodeNumber: 2.5,
+                status: 'queued',
+            }),
+            download(4, {
+                contentType: 'episode',
+                seasonNumber: 1,
+                episodeNumber: unsafe,
+                status: 'queued',
+            }),
+        ]);
+
+        expect(result.active.map(({ episodeLabel }) => episodeLabel)).toEqual([
+            '',
+            '',
+            '',
+            '',
+        ]);
+    });
+
     it('partitions every supported status without leaking items between sections', () => {
         const downloads = [
             download(1, { status: 'queued' }),
@@ -514,6 +586,41 @@ describe('buildDownloadManagerViewModel', () => {
 
         expect(rowIds(result.active)).toEqual([2, 9, 10, 3, 7]);
         expect(rowIds(result.attention)).toEqual([11, 12, 15]);
+    });
+
+    it('totally orders valid and malformed queue ids independent of input order', () => {
+        const createdAt = '2026-01-01T00:00:00Z';
+        const cases = [
+            { id: 7, title: 'valid-7' },
+            { id: Number.NaN, title: 'nan' },
+            { id: Number.POSITIVE_INFINITY, title: 'positive-infinity' },
+            { id: Number.NEGATIVE_INFINITY, title: 'negative-infinity' },
+            { id: -3, title: 'negative' },
+            { id: 0, title: 'zero' },
+            { id: 42.5, title: 'fractional' },
+            { id: Number.MAX_SAFE_INTEGER + 1, title: 'unsafe' },
+            { id: 2, title: 'valid-2' },
+        ];
+        const expected = [
+            'valid-2',
+            'valid-7',
+            'nan',
+            'negative-infinity',
+            'negative',
+            'zero',
+            'fractional',
+            'unsafe',
+            'positive-infinity',
+        ];
+        const titlesFor = (input: typeof cases) =>
+            build(
+                input.map(({ id, title }) =>
+                    download(id, { title, status: 'queued', createdAt })
+                )
+            ).active.map(({ item }) => item.title);
+
+        expect(titlesFor(cases)).toEqual(expected);
+        expect(titlesFor([...cases].reverse())).toEqual(expected);
     });
 
     it('sorts completed library entities by newest timestamp then key', () => {
