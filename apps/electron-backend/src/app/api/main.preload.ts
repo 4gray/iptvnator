@@ -905,8 +905,17 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_LIST_VOD_SOURCE_PINS', playlistId),
     dbClearVodSourcePinsForPlaylist: (playlistId: string) =>
         ipcRenderer.invoke('DB_CLEAR_VOD_SOURCE_PINS_FOR_PLAYLIST', playlistId),
-    dbSetVodSourcePin: (pin: VodSourcePin, retireKeys?: string[]) =>
-        ipcRenderer.invoke('DB_SET_VOD_SOURCE_PIN', pin, retireKeys ?? []),
+    dbSetVodSourcePin: (
+        pin: VodSourcePin,
+        retireKeys?: string[],
+        aliasKeys?: string[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_VOD_SOURCE_PIN',
+            pin,
+            retireKeys ?? [],
+            aliasKeys ?? []
+        ),
     dbClearVodSourcePin: (matchKeys: string[]) =>
         ipcRenderer.invoke('DB_CLEAR_VOD_SOURCE_PIN', matchKeys),
     // Playback Positions

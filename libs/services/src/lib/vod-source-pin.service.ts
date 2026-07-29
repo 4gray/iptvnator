@@ -87,10 +87,19 @@ export class VodSourcePinService {
     }
 
     /**
-     * Store the pin, retiring `retireKeys` in the same transaction — a
-     * half-applied change has no honest outcome to report.
+     * Store the pin, also under `aliasKeys`, retiring `retireKeys` — all in
+     * the same transaction, because a half-applied change has no honest
+     * outcome to report.
+     *
+     * @param aliasKeys further keys naming exactly this film. A movie's
+     * identity grows as enrichment lands, and a pin recorded only under the
+     * richest key is invisible to the next reopen that has not been enriched.
      */
-    async set(pin: VodSourcePin, retireKeys: string[] = []): Promise<boolean> {
+    async set(
+        pin: VodSourcePin,
+        retireKeys: string[] = [],
+        aliasKeys: string[] = []
+    ): Promise<boolean> {
         if (!this.isAvailable) {
             return false;
         }
@@ -98,7 +107,8 @@ export class VodSourcePinService {
         try {
             const result = await window.electron.dbSetVodSourcePin(
                 pin,
-                retireKeys
+                retireKeys,
+                aliasKeys
             );
             return result?.success === true;
         } catch (error) {

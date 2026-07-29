@@ -113,7 +113,11 @@ export function createPrimaryActionPosition(
         // button is not going to start — and a click across this window looks
         // the pinned position up separately and begins somewhere else. Say
         // nothing until the answer is in; empty beats wrong.
-        if (!pinnedLoadedFor()) {
+        //
+        // Compared by identity rather than mere presence: re-pinning leaves
+        // the PREVIOUS copy's row loaded, and "something was loaded once" would
+        // let the button wear that copy's timecode until the new lookup lands.
+        if (pinnedLoadedFor() !== pinned.id) {
             return null;
         }
 

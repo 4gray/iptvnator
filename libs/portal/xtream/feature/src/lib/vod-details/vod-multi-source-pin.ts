@@ -68,28 +68,32 @@ export async function readPin(
 }
 
 /**
- * Persist the pin for `candidate` under the movie's most-trusted key, having
- * first cleared every alias it could otherwise be found under.
+ * Persist the pin for `candidate` under EVERY key that names exactly this
+ * film, having first cleared any remaining alias it could otherwise be found
+ * under.
  *
- * Both halves are load-bearing, and each rules out the other's obvious
- * shortcut:
+ * Storing it once, under the most-trusted key alone, is not enough: a movie's
+ * identity grows. Pin Dune while `tmdb:438631` is known and the decision goes
+ * only there — then reopen it, and the page starts out with nothing but a
+ * title and a year, so its lookup asks for `title:dune:2021` and finds
+ * nothing. The pin is ignored until enrichment lands, and if enrichment is off
+ * or never answers, permanently. Writing both keys makes the preference
+ * readable at every stage of the same film's identity.
  *
- * - Writing ONLY the top key leaves the lower-trust aliases pointing at
- *   whatever was pinned before, and a reopen that reads one of those —
- *   because enrichment has not landed yet — starts the source the user just
- *   replaced. Hence the clear.
- * - Writing the decision INTO every alias is not the fix either: the yearless
- *   `title:{base}:` form is shared by every remake, so a known-year pin stored
- *   there would answer for a different film — pin Dune (2021), open Dune
- *   (1984) before its year arrives, and it would start the 2021 source. That
- *   alias stays readable, for genuinely pre-enrichment pins, and unwritten.
+ * `keys.write` is exactly the right set to spread across, because it holds
+ * only keys that name ONE film. The yearless `title:{base}:` form is
+ * deliberately not among them — every remake shares it, so a known-year pin
+ * stored there would answer for a different film: pin Dune (2021), open Dune
+ * (1984) before its year arrives, and it would start the 2021 source. That
+ * alias stays readable, for genuinely pre-enrichment pins, and unwritten.
  */
 export async function writePin(
     pins: Pick<VodSourcePinService, 'set' | 'clear'>,
     keys: PinKeySets,
     candidate: VodSourceCandidate
 ): Promise<boolean> {
-    const matchKey = keys.write[0] ?? buildVodSourceMatchKey(candidate);
+    const [primary, ...aliases] = keys.write;
+    const matchKey = primary ?? buildVodSourceMatchKey(candidate);
     if (!matchKey) {
         return false;
     }
@@ -100,6 +104,7 @@ export async function writePin(
     // source the user just replaced — while reporting failure leaves the
     // canonical row durable and the UI showing a pin that is no longer the
     // stored one.
+    const written = new Set([matchKey, ...aliases]);
     return pins.set(
         {
             matchKey,
@@ -107,7 +112,10 @@ export async function writePin(
             contentId: candidate.contentId,
             portalType: candidate.portalType,
         },
-        retirablePinKeys(keys).filter((key) => key !== matchKey)
+        // Whatever is left is the ambiguous row this session actually read —
+        // the only one an unpin may take, and one this write must not keep.
+        retirablePinKeys(keys).filter((key) => !written.has(key)),
+        aliases
     );
 }
 

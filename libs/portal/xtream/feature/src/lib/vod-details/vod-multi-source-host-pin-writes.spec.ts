@@ -18,6 +18,7 @@ import {
     ALT_TWO,
     CURRENT_A_ID,
     MOVIE_A,
+    MOVIE_B,
     PROBE_OK,
     createDeferred,
     resolveWith,
@@ -129,9 +130,9 @@ describe('VodMultiSourceHostService — pin persistence', () => {
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(false);
     });
 
-    it('retires its own aliases but never another remake’s', async () => {
+    it('stores itself under its own keys, never under a remake’s', async () => {
         // With a TMDB id there are two keys naming this film and one shared
-        // with every remake, so the retire set is worth asserting on.
+        // with every remake, so both lists are worth asserting on.
         await loadMovie([ALT_TWO], { ...MOVIE_A, tmdbId: 603 });
         expect(pins.get.mock.calls[0][0]).toEqual([
             'tmdb:603',
@@ -143,18 +144,77 @@ describe('VodMultiSourceHostService — pin persistence', () => {
 
         expect(pins.set).toHaveBeenCalledWith(
             expect.objectContaining({ matchKey: 'tmdb:603' }),
+            expect.any(Array),
             expect.any(Array)
         );
-        // The aliases ride along with the write, so the two cannot half-apply.
-        const [, retired] = pins.set.mock.calls[0] as [unknown, string[]];
-        // This film's other key goes, so a reopen before enrichment cannot
-        // read a row still pointing at the source just replaced.
-        expect(retired).toContain('title:the matrix:1999');
+        // Both lists ride along with the write, so none of it can half-apply.
+        const [, retired, aliases] = pins.set.mock.calls[0] as [
+            unknown,
+            string[],
+            string[],
+        ];
+        // This film's pre-enrichment key takes the SAME decision instead of
+        // being deleted: a reopen that has only a title and a year still finds
+        // the pin, and finds this source rather than the one just replaced.
+        expect(aliases).toContain('title:the matrix:1999');
+        expect(retired).not.toContain('title:the matrix:1999');
         // The yearless form is shared by every remake: a Dune (2021) pin must
-        // not delete — or answer for — a row that may be Dune (1984)'s.
+        // not answer for — or delete — a row that may be Dune (1984)'s.
+        expect(aliases).not.toContain('title:the matrix:');
         expect(retired).not.toContain('title:the matrix:');
         // And never the row just written.
         expect(retired).not.toContain('tmdb:603');
+    });
+
+    it('survives a reopen that has not been enriched yet', async () => {
+        // The whole point of the pin is that it outlives the page. Enrichment
+        // is asynchronous and optional, so the movie that owned a `tmdb:` key
+        // when the user pinned it opens again as nothing but a title and a
+        // year — and asks for the pin under THAT identity.
+        const rows = new Map<string, unknown>();
+        pins.set.mockImplementation(
+            async (
+                pin: { matchKey: string },
+                retire: string[] = [],
+                aliases: string[] = []
+            ) => {
+                for (const key of [pin.matchKey, ...aliases]) {
+                    rows.set(key, { ...pin, matchKey: key });
+                }
+                for (const key of retire) {
+                    rows.delete(key);
+                }
+                return true;
+            }
+        );
+        pins.get.mockImplementation(async (keys: string[]) => {
+            for (const key of keys) {
+                if (rows.has(key)) {
+                    return rows.get(key);
+                }
+            }
+            return null;
+        });
+
+        await loadMovie([ALT_TWO, ALT_THREE], { ...MOVIE_A, tmdbId: 603 });
+        await service.togglePin(ALT_THREE.id);
+        expect(rowFor(ALT_THREE.id)?.isPinned).toBe(true);
+
+        // Away to another film and back. That is what makes this a REOPEN:
+        // the session key is (playlist, content), so a different movie is what
+        // drops the in-memory controller and forces the pin to be re-read from
+        // storage — the same thing reopening the page does.
+        await loadMovie([], MOVIE_B);
+        await loadMovie([ALT_TWO, ALT_THREE], MOVIE_A);
+
+        // MOVIE_A carries no TMDB id, so this lookup asks only for the title
+        // forms. Stored under the enriched key alone the preference would be
+        // invisible here, and Play would quietly start the route source.
+        expect(pins.get).toHaveBeenLastCalledWith([
+            'title:the matrix:1999',
+            'title:the matrix:',
+        ]);
+        expect(rowFor(ALT_THREE.id)?.isPinned).toBe(true);
     });
 
     it('keeps the stored pin when the replacement write fails', async () => {
@@ -208,8 +268,12 @@ describe('VodMultiSourceHostService — pin persistence', () => {
         // half-outcome had an honest answer, so there is only one call now.
         expect(pins.set).toHaveBeenCalledTimes(1);
         expect(pins.clear).not.toHaveBeenCalled();
-        const [, retired] = pins.set.mock.calls[0] as [unknown, string[]];
-        expect(retired).toContain('title:the matrix:1999');
+        const [, , aliases] = pins.set.mock.calls[0] as [
+            unknown,
+            string[],
+            string[],
+        ];
+        expect(aliases).toContain('title:the matrix:1999');
     });
 
     it('keeps the pin when clearing it fails', async () => {

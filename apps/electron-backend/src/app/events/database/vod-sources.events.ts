@@ -27,7 +27,15 @@ handleWorkerRequest(
 
 handleWorkerRequest(
     'DB_SET_VOD_SOURCE_PIN',
-    (pin: VodSourcePin, retireKeys: string[] = []) => ({ pin, retireKeys })
+    (
+        pin: VodSourcePin,
+        retireKeys: string[] = [],
+        aliasKeys: string[] = []
+    ) => ({
+        pin,
+        retireKeys,
+        aliasKeys,
+    })
 );
 
 handleWorkerRequest('DB_CLEAR_VOD_SOURCE_PIN', (matchKeys: string[]) => ({

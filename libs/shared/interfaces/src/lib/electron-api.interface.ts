@@ -913,10 +913,15 @@ export interface ElectronBridgeApi {
     dbClearVodSourcePinsForPlaylist: (
         playlistId: string
     ) => Promise<ElectronBridgeResult>;
-    /** `retireKeys` are removed in the SAME transaction as the write. */
+    /**
+     * `aliasKeys` receive the same pin, and `retireKeys` are removed, all in
+     * the SAME transaction as the write. Aliases keep a pin readable under the
+     * poorer key forms the movie had before enrichment.
+     */
     dbSetVodSourcePin: (
         pin: VodSourcePin,
-        retireKeys?: string[]
+        retireKeys?: string[],
+        aliasKeys?: string[]
     ) => Promise<ElectronBridgeResult>;
     dbClearVodSourcePin: (
         matchKeys: string[]

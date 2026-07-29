@@ -426,11 +426,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
     },
     {
         method: 'dbSetVodSourcePin',
-        args: [vodSourcePin, ['title:dune:']],
+        args: [vodSourcePin, ['title:dune:'], ['title:dune:2021']],
         channel: 'DB_SET_VOD_SOURCE_PIN',
-        // The aliases to retire ride along, so the write and the retirement
-        // are one transaction rather than two calls that can half-apply.
-        forwardedArgs: [vodSourcePin, ['title:dune:']],
+        // Both key lists ride along, so the write, the extra keys it is also
+        // stored under, and the retirement are one transaction rather than
+        // separate calls that can half-apply.
+        forwardedArgs: [vodSourcePin, ['title:dune:'], ['title:dune:2021']],
     },
     {
         method: 'dbClearVodSourcePin',

@@ -322,8 +322,10 @@ describe('VodMultiSourceHostService — pinning', () => {
 
         await service.togglePin(ALT_TWO.id);
 
-        // The aliases to retire travel with the write, in one transaction.
-        expect(pins.set).toHaveBeenCalledWith(pin, []);
+        // Both key lists travel with the write, in one transaction. This film
+        // has no TMDB id, so its title key IS the canonical one and there is
+        // nothing further to store it under or retire.
+        expect(pins.set).toHaveBeenCalledWith(pin, [], []);
         expect(rowFor(ALT_TWO.id)?.isPinned).toBe(true);
 
         await service.togglePin(ALT_TWO.id);

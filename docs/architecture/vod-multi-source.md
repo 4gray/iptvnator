@@ -151,16 +151,26 @@ Three key sets, because reading, writing and deleting are different questions
 | `write` | `tmdb:` + `title:{base}:{year}` | keys that name exactly ONE film |
 | `loaded` | the key the pin on screen came from | the only ambiguous row this session may retire |
 
-A write stores the canonical key and clears the stale ones — both halves
-matter, and each rules out the other's shortcut:
+A write stores the decision under **every** key in `write`, and clears whatever
+stale row is left over. Each half rules out the other's shortcut:
 
-- Writing only the top key would leave the lower-trust aliases pointing at
-  whatever was pinned before, and a reopen that reads one of those (enrichment
-  has not landed, or its request failed) starts the source the user replaced.
-- Writing the decision *into* every alias is not the fix either: the yearless
-  form is shared by every remake, so a known-year pin stored there would answer
-  for a different film — pin Dune (2021), open Dune (1984) before its year
-  arrives, and it starts the 2021 source.
+- Writing only the top key leaves the movie unfindable under its own poorer
+  identity. A pin set while `tmdb:438631` was known is invisible to the next
+  reopen, which starts out with nothing but a title and a year and asks for
+  `title:dune:2021` — so the preference is ignored until enrichment lands, and
+  permanently if enrichment is off or never answers. Storing it under both keys
+  makes it readable at every stage of the same film's identity, and overwriting
+  the poorer key is also what stops it from still naming the source the user
+  just replaced.
+- Spreading it across *every* alias is not the fix either: the yearless form is
+  shared by every remake, so a known-year pin stored there would answer for a
+  different film — pin Dune (2021), open Dune (1984) before its year arrives,
+  and it starts the 2021 source. That form is deliberately absent from `write`
+  for exactly this reason; it stays readable and unwritten.
+
+The renderer passes `write[0]` as the pin's own `matchKey` and the rest as
+`aliasKeys`; `setVodSourcePin` upserts one row per key and retires the leftovers
+inside the same transaction, so no key list can half-apply.
 
 A write stores the new key **before** retiring the old rows. The other order
 destroys the stored preference and can then fail to replace it, leaving nothing
@@ -551,12 +561,13 @@ had the losing attempt conclude "no usable pin" and start the route stream over
 the playback the winning one had just begun. Same distinction as `runFailover`'s,
 for the same reason.
 
-A pin is written and its old aliases retired in ONE transaction
-(`setVodSourcePin(db, pin, retireKeys)`). Split in two there is no honest
-outcome for a half-failure: a surviving alias is read before the canonical key
-on the next open, so reporting success starts the source the user just
-replaced — while reporting failure leaves the canonical row durable and the UI
-showing a pin that is no longer the stored one.
+A pin is written under every key naming its film, and its stale aliases retired,
+in ONE transaction (`setVodSourcePin(db, pin, retireKeys, aliasKeys)`). Split in
+two there is no honest outcome for a half-failure: a surviving alias is read
+before the canonical key on the next open, so reporting success starts the
+source the user just replaced — while reporting failure leaves the canonical row
+durable and the UI showing a pin that is no longer the stored one. A call with
+no usable key reports failure rather than claiming a preference it never wrote.
 
 Pins ride along with playlist backup, under the playlist they point at, as the
 optional `sourcePins` collection. See

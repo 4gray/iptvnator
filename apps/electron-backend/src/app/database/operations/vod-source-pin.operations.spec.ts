@@ -193,6 +193,58 @@ describe('vod-source-pin.operations', () => {
             expect(deleteRun).not.toHaveBeenCalled();
         });
 
+        it('stores the pin under every alias it was given', async () => {
+            const { db, insertValues, insertRun, transaction } =
+                createUpsertDbMock();
+
+            await setVodSourcePin(db, pin, [], ['title:the matrix:1999']);
+
+            // A movie's identity grows: the film keyed `tmdb:603` today was
+            // `title:the matrix:1999` before enrichment, and reopening it
+            // cold asks for the poorer key first. One row would answer
+            // nothing until enrichment landed — if it ever did.
+            expect(transaction).toHaveBeenCalledTimes(1);
+            expect(insertRun).toHaveBeenCalledTimes(2);
+            expect(
+                insertValues.mock.calls.map(([row]) => row.matchKey)
+            ).toEqual(['tmdb:603', 'title:the matrix:1999']);
+        });
+
+        it('writes each key once, however often it is passed', async () => {
+            const { db, insertRun } = createUpsertDbMock();
+
+            await setVodSourcePin(db, pin, [], ['tmdb:603', 'tmdb:603']);
+
+            expect(insertRun).toHaveBeenCalledTimes(1);
+        });
+
+        it('never retires an alias it just wrote', async () => {
+            const { db, deleteRun } = createUpsertDbMock();
+
+            // The same key can legitimately appear in both lists — it was an
+            // alias of the PREVIOUS pin and is a write key of this one. Taking
+            // the retirement literally would delete the row just written.
+            await setVodSourcePin(
+                db,
+                pin,
+                ['title:the matrix:1999'],
+                ['title:the matrix:1999']
+            );
+
+            expect(deleteRun).not.toHaveBeenCalled();
+        });
+
+        it('refuses a pin with no usable key rather than reporting success', async () => {
+            const { db, insertRun, transaction } = createUpsertDbMock();
+
+            await expect(
+                setVodSourcePin(db, { ...pin, matchKey: '' })
+            ).resolves.toEqual({ success: false });
+
+            expect(transaction).not.toHaveBeenCalled();
+            expect(insertRun).not.toHaveBeenCalled();
+        });
+
         it('touches nothing else when there is no alias to retire', async () => {
             const { db, deleteRun } = createUpsertDbMock();
 

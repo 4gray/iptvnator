@@ -195,6 +195,43 @@ describe('createPrimaryActionPosition', () => {
         expect(load).not.toHaveBeenCalled();
     });
 
+    it('stops describing the old pin the moment a new one is chosen', async () => {
+        const load = jest
+            .fn()
+            .mockResolvedValueOnce(position(4200))
+            .mockImplementationOnce(
+                () => new Promise<PlaybackPositionData | null>(() => undefined)
+            );
+
+        const { api, sourcesSignal } = setup(
+            [source(), ALT],
+            position(2538),
+            load
+        );
+        TestBed.tick();
+        await Promise.resolve();
+        TestBed.tick();
+        expect(api.position()?.positionSeconds).toBe(4200);
+
+        sourcesSignal.set([
+            source(),
+            source({
+                id: 'playlist-3:xtream:77',
+                playlistId: 'playlist-3',
+                contentId: 77,
+                isPinned: true,
+                isActive: false,
+            }),
+        ]);
+        TestBed.tick();
+
+        // A row IS loaded — the one belonging to the copy that was pinned a
+        // moment ago. Treating "loaded something" as "loaded this" makes the
+        // button offer the old copy's timecode for the new one.
+        expect(api.position()).toBeNull();
+        expect(api.hasPosition()).toBe(false);
+    });
+
     it('drops a lookup the pin outran', async () => {
         let resolveFirst: (value: PlaybackPositionData | null) => void = () => {
             /* replaced below */

@@ -820,8 +820,14 @@ async function executeRequest(
             const payload = message.payload as {
                 pin: VodSourcePin;
                 retireKeys?: string[];
+                aliasKeys?: string[];
             };
-            return setVodSourcePin(db, payload.pin, payload.retireKeys ?? []);
+            return setVodSourcePin(
+                db,
+                payload.pin,
+                payload.retireKeys ?? [],
+                payload.aliasKeys ?? []
+            );
         }
 
         case 'DB_CLEAR_VOD_SOURCE_PIN': {

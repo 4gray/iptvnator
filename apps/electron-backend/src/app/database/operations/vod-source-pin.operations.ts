@@ -72,7 +72,15 @@ export async function listVodSourcePinsForPlaylist(
 }
 
 /**
- * Store the pin and retire its old aliases as ONE unit.
+ * Store the pin under every key that names this film, and retire its old
+ * aliases, as ONE unit.
+ *
+ * `aliasKeys` exist because a movie's identity GROWS: the same film is
+ * `title:dune:2021` before TMDB enrichment lands and `tmdb:438631` after, and
+ * a decision recorded only under the richer key is invisible to the next
+ * reopen that has not been enriched yet. Callers pass every key that names
+ * exactly this one film — never the ambiguous yearless form, which every
+ * remake shares.
  *
  * Split across two calls there is no honest answer to a half-failure: report
  * success and a surviving alias silently wins the next lookup; report failure
@@ -82,40 +90,59 @@ export async function listVodSourcePinsForPlaylist(
 export async function setVodSourcePin(
     db: AppDatabase,
     pin: VodSourcePin,
-    retireKeys: string[] = []
+    retireKeys: string[] = [],
+    aliasKeys: string[] = []
 ): Promise<{ success: boolean }> {
     const updatedAt = new Date().toISOString();
+    const write = [
+        ...new Set(
+            [pin.matchKey, ...(aliasKeys ?? [])].filter(
+                (key) => typeof key === 'string' && key !== ''
+            )
+        ),
+    ].slice(0, MAX_KEYS_PER_LOOKUP);
+
+    // Nothing identifying to store it under. Reporting success here would
+    // promise a preference that was never written.
+    if (write.length === 0) {
+        return { success: false };
+    }
+
     const retire = (retireKeys ?? [])
         .filter(
             (key) =>
-                typeof key === 'string' && key !== '' && key !== pin.matchKey
+                typeof key === 'string' && key !== '' && !write.includes(key)
         )
         .slice(0, MAX_KEYS_PER_LOOKUP);
 
-    const insert = db
-        .insert(schema.vodSourcePins)
-        .values({
-            matchKey: pin.matchKey,
-            playlistId: pin.playlistId,
-            contentId: pin.contentId,
-            portalType: pin.portalType,
-            updatedAt,
-        })
-        .onConflictDoUpdate({
-            target: schema.vodSourcePins.matchKey,
-            set: {
+    const inserts = write.map((matchKey) =>
+        db
+            .insert(schema.vodSourcePins)
+            .values({
+                matchKey,
                 playlistId: pin.playlistId,
                 contentId: pin.contentId,
                 portalType: pin.portalType,
                 updatedAt,
-            },
-        });
+            })
+            .onConflictDoUpdate({
+                target: schema.vodSourcePins.matchKey,
+                set: {
+                    playlistId: pin.playlistId,
+                    contentId: pin.contentId,
+                    portalType: pin.portalType,
+                    updatedAt,
+                },
+            })
+    );
 
     await db.transaction(() => {
         // `.run()`, not `.execute()`: on better-sqlite3 the latter defers the
         // write to a promise that never settles inside this synchronous
         // callback, so the statement would be a silent no-op.
-        insert.run();
+        for (const insert of inserts) {
+            insert.run();
+        }
 
         if (retire.length > 0) {
             db.delete(schema.vodSourcePins)
