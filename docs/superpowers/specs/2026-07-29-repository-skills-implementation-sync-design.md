@@ -11,8 +11,10 @@ automation.
 
 The audit also found two concrete Stalker defects:
 
-1. catalog selection and progress handling bypass the shared `is_series`
-   normalizer and therefore do not recognize boolean `true`;
+1. catalog progress classification bypasses the shared `is_series` normalizer
+   and therefore does not recognize boolean `true`; selection/detail/resource
+   code also repeats local interpretation instead of using one contract, even
+   where the downstream selected-item builder already normalizes the value;
 2. lazy VOD-series episode tracking IDs omit the parent series identity, so two
    shows with the same season and episode coordinates can share one playback
    position key.
@@ -55,7 +57,7 @@ not honor that contract.
 | Release output | `tools/release/extract-changelog-section.mjs`, release tests, `.github/workflows/build-and-make.yaml` | Produce public release text without internal notes |
 | Release guidance | `.codex/skills/release-*`, `.claude/skills/release-*`, `.changes/README.md` | Describe actual release behavior and safe execution |
 | Stalker identity | `stalker-series.adapters.ts` and its spec | Generate series-scoped episode IDs and expose legacy identity |
-| Stalker compatibility | `stalker-catalog-facade.service.ts` and specs | Use the shared `is_series` normalizer everywhere |
+| Stalker compatibility | Stalker catalog/detail/resource decisions and specs | Use the shared `is_series` normalizer everywhere and fix boolean progress classification |
 | Stalker progress migration | Stalker series view helpers/component and specs | Resolve and lazily migrate legacy playback-position IDs |
 | Repository skills | all eight `.codex/skills/*/SKILL.md` files | Update triggers, ownership, invariants, and validation |
 | Architecture docs | Stalker, SQLite worker, UI/theme, release documentation | Remove contradictions and record current contracts |
@@ -79,8 +81,9 @@ mode:
   after which GitHub's generated commit list remains available.
 
 The tag workflow will invoke the extractor in public mode. Tests will cover a
-mixed section, a public-only section, an internal-only section, and an unrelated
-details block.
+mixed section, a public-only section, an internal-only section, an unrelated
+details block, CLI argument parsing, invalid arguments, and the successful
+empty-output CLI result for an internal-only release.
 
 The release skills will also document that:
 
@@ -97,9 +100,12 @@ The release skills will also document that:
 ## Stalker `is_series` Design
 
 All interpretation of a Stalker series flag will use
-`isStalkerSeriesFlag(...)`. Catalog selection and progress classification will
-not repeat local comparisons. Regression tests will cover boolean `true`,
-numeric `1`, string `"1"`, and a non-series value.
+`isStalkerSeriesFlag(...)`. Catalog selection, detail/resource gates, and
+progress classification will not repeat local comparisons or truthiness.
+Regression tests will cover boolean `true`, numeric `1`, string `"1"`, and a
+non-series value. The behavior regression is boolean progress classification;
+selection coverage locks the already-normalized downstream result while the
+redundant local comparison is removed.
 
 This change is deliberately provider-local. Shared portal utilities remain
 provider-neutral.
@@ -127,14 +133,18 @@ Each mapped lazy VOD-series episode will also carry its previous tracking ID as
 
 When playback positions for the current series are loaded:
 
-1. an exact new tracking-ID match wins;
+1. an exact new tracking-ID match wins, while any compatible legacy row is
+   retained only as confirmed cleanup metadata;
 2. otherwise, a position whose ID equals the episode's `legacyTrackingId` and
    whose `seriesXtreamId` matches the current parent is treated as that episode;
 3. season/episode metadata is used as an additional guard when present;
 4. the in-memory position is keyed by the new ID so quick start, badges, and
    playback controls behave normally;
 5. the next successful position write saves the new ID before removing the
-   confirmed legacy row.
+   confirmed legacy row;
+6. clearing an exact or migrated position removes the confirmed legacy ID
+   before the scoped ID, so a partial failure cannot create a resurrection
+   window and old progress cannot reappear after reconciliation.
 
 Legacy rows are never deleted solely by coordinate or legacy ID. Parent-series
 ownership must already have been established from the series-scoped position
@@ -147,8 +157,10 @@ Regression coverage will prove:
 - repeated mapping of the same episode is stable;
 - a legacy position resumes the matching new episode;
 - an exact new position wins when both forms exist;
+- an exact winner still retains its compatible legacy row for safe cleanup;
 - a legacy row belonging to another parent is ignored;
-- migration writes the new row before deleting the old row.
+- migration writes the new row before deleting the old row;
+- clearing exact plus legacy rows prevents old progress from reappearing.
 
 ## Skill Synchronization Design
 
@@ -250,9 +262,10 @@ The validation ladder is:
    `shared-interfaces` tests.
 5. Run dashboard tests if position normalization or badge expectations change.
 6. Run affected lint/build targets discovered through Nx.
-7. Run the closest atomized Stalker E2E target if its fixture covers lazy
-   `is_series`; otherwise record the fixture gap and perform the strongest
-   Electron build/manual verification available.
+7. Run the closest atomized web Stalker flow plus the Electron recent/persistence
+   flow and an Electron build. Record that current fixtures cannot directly seed
+   the old colliding row before lazy episode mapping; keep that migration
+   covered by the focused pure-helper and Angular component regressions.
 8. Re-run literal skill-path validation, frontmatter checks, mirror hashes, and
    `git diff --check`.
 
@@ -278,7 +291,9 @@ The work is complete when:
 5. two Stalker shows cannot generate the same tracking ID solely from matching
    season/episode coordinates;
 6. legacy Stalker progress resumes through the compatibility path;
-7. canonical docs contain no eager-versus-first-playback or release-side-effect
+7. confirmed legacy rows are removed when scoped progress is saved or cleared,
+   so old progress cannot reappear;
+8. canonical docs contain no eager-versus-first-playback or release-side-effect
    contradictions;
-8. targeted tests, affected validation, release-note validation, and repository
+9. targeted tests, affected validation, release-note validation, and repository
    hygiene checks pass.
