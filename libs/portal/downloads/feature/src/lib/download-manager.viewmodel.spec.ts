@@ -159,6 +159,23 @@ describe('buildDownloadManagerViewModel', () => {
         expect(inProgress.library).toEqual([]);
     });
 
+    it('keeps queued, downloading, and paused rows in the in-progress filter only', () => {
+        const result = build(
+            [
+                download(1, { status: 'queued' }),
+                download(2, { status: 'downloading' }),
+                download(3, { status: 'paused' }),
+                download(4, { status: 'failed' }),
+                download(5, { status: 'completed' }),
+            ],
+            { filter: 'in-progress' }
+        );
+
+        expect(rowIds(result.active)).toEqual([1, 2, 3]);
+        expect(result.attention).toEqual([]);
+        expect(result.library).toEqual([]);
+    });
+
     it('keeps scoped counts stable when search hides every displayed item', () => {
         const downloads = [
             download(1, {
@@ -303,6 +320,27 @@ describe('buildDownloadManagerViewModel', () => {
         });
     });
 
+    it('matches a stored movie title when no other search field contains the query', () => {
+        const result = build(
+            [
+                download(1, {
+                    title: 'The Stored Needle',
+                    status: 'queued',
+                }),
+            ],
+            { searchTerm: 'stored needle' }
+        );
+
+        expect(rowIds(result.active)).toEqual([1]);
+        expect(result.active[0].item.title).toBe('The Stored Needle');
+        expect([
+            result.active[0].seriesTitle,
+            result.active[0].sourceName,
+            result.active[0].episodeLabel,
+            result.active[0].item.errorMessage ?? '',
+        ]).toEqual(['', 'Alpha Source', '', '']);
+    });
+
     it('derives labels only from usable episode numbers and preserves legacy titles', () => {
         const downloads = [
             download(1, {
@@ -430,6 +468,15 @@ describe('buildDownloadManagerViewModel', () => {
         expect(activeOnly.hasClearable).toBe(false);
     });
 
+    it.each(['failed', 'canceled'] as const)(
+        'makes a %s-only view clearable',
+        (status) => {
+            const result = build([download(1, { status })]);
+
+            expect(result.hasClearable).toBe(true);
+        }
+    );
+
     it('sorts active and attention rows by normalized timestamp then numeric id', () => {
         const downloads = [
             download(9, { status: 'queued', createdAt: undefined }),
@@ -532,6 +579,7 @@ describe('buildDownloadManagerViewModel', () => {
         ['invalid', Number.NaN],
         ['zero', 0],
         ['negative', -1],
+        ['fractional', 42.5],
         ['unsafe', Number.MAX_SAFE_INTEGER + 1],
         ['missing', undefined],
     ])(
