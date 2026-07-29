@@ -42,6 +42,84 @@ const ACCENTED_BY_BASE = ((): Map<string, string[]> => {
     return byBase;
 })();
 
+/**
+ * The forms a class MUST carry for one character: its own case pair, plus the
+ * uppercase form's own lowercase.
+ *
+ * Kept as one function because it is also what decides which fold groups below
+ * are worth storing — a group that adds nothing to this set is dead weight.
+ */
+function caseForms(character: string): Set<string> {
+    const upper = character.toUpperCase();
+    return new Set([
+        character,
+        character.toLowerCase(),
+        upper,
+        upper.toLowerCase(),
+    ]);
+}
+
+/**
+ * Every character that folds to the same uppercase, keyed by it.
+ *
+ * Derived by scanning the cased ranges once, exactly like `ACCENTED_BY_BASE`,
+ * rather than tabulating the pairs by hand. A letter can have more lowercase
+ * spellings than case mapping alone will reach from any one of them: Greek `Σ`
+ * lowercases to `σ`, but a word-final sigma is written `ς` and is just as much
+ * a lowercase of it, and neither `Σ` nor `σ` can arrive at `ς`. Grouping by the
+ * shared uppercase reaches every spelling from every other one, and does it for
+ * the whole alphabet instead of the one pair someone thought to write down.
+ */
+const CASE_FOLD_GROUPS = ((): Map<string, string[]> => {
+    const byUpper = new Map<string, string[]>();
+    // Wide enough to hold the cased scripts that appear in titles; the filter
+    // below decides what actually earns a place. Greek Extended is in for
+    // U+1FBE, whose uppercase is a plain Greek iota, and Cyrillic Extended-C
+    // for the historic letterforms that fold onto В Д О С Т Ъ Ѣ.
+    const ranges: ReadonlyArray<[number, number]> = [
+        [0x0041, 0x024f],
+        [0x0370, 0x03ff],
+        [0x0400, 0x04ff],
+        [0x1c80, 0x1c8f],
+        [0x1e00, 0x1fff],
+    ];
+    for (const [first, last] of ranges) {
+        for (let codePoint = first; codePoint <= last; codePoint += 1) {
+            const character = String.fromCodePoint(codePoint);
+            const upper = character.toUpperCase();
+            // Both of these are really in the ranges above: 89 characters
+            // uppercase to more than one code point (`ß` → `SS`, `ǰ`, `ΐ`),
+            // which names no single class member and cannot key the map, and
+            // `[`, `]` and `^` are letters' neighbours in Basic Latin. The
+            // map's whole value is that anything in it is safe to put in a
+            // class, so the filtering happens here rather than at every use.
+            if (
+                [...upper].length !== 1 ||
+                GLOB_METACHARACTERS.test(character)
+            ) {
+                continue;
+            }
+
+            const members = byUpper.get(upper) ?? [];
+            members.push(character);
+            byUpper.set(upper, members);
+        }
+    }
+
+    // Almost every group is just {upper, lower}, which `caseForms` already
+    // returns from either one. Keeping only the groups that reach a spelling
+    // it cannot leaves 24 entries out of 767 — and says so as a rule, so
+    // widening a range later cannot quietly refill the map with pairs that
+    // were never needed.
+    return new Map(
+        [...byUpper].filter(([, members]) =>
+            members.some((member) =>
+                members.some((from) => !caseForms(from).has(member))
+            )
+        )
+    );
+})();
+
 /** Files one character under the plain ASCII letter it decomposes to. */
 function addAccentedForm(
     byBase: Map<string, string[]>,
@@ -91,17 +169,7 @@ export function caseInsensitiveGlobBody(
 
     let pattern = '';
     for (const character of token) {
-        const upper = character.toUpperCase();
-        // Going back down from the uppercase form catches letters with more
-        // than one lowercase spelling: Greek Σ lowercases to σ, but ς is an
-        // equally valid lowercase of it, and a class built only from the
-        // character in hand would know just one of the two.
-        const forms = new Set([
-            character,
-            character.toLowerCase(),
-            upper,
-            upper.toLowerCase(),
-        ]);
+        const forms = caseForms(character);
 
         // These are the forms the pattern MUST carry, so one it cannot express
         // means there is no honest pattern to build.
@@ -112,6 +180,17 @@ export function caseInsensitiveGlobBody(
             )
         ) {
             return null;
+        }
+
+        // Every character sharing this uppercase, which is what covers a
+        // letter spelled more than one way in lower case. Case mapping alone
+        // only reaches the second spelling from the second spelling: `ς` finds
+        // `Σ` and `σ`, while a request for `ΑΣ` or `ασ` never arrives at `ς`
+        // and missed a stored `Ας`. Every member of the group is a single
+        // code point and class-safe by construction.
+        for (const member of CASE_FOLD_GROUPS.get(character.toUpperCase()) ??
+            []) {
+            forms.add(member);
         }
 
         // A normalized token has already had its diacritics folded away, so

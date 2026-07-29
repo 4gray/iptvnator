@@ -9,14 +9,14 @@ current source is dead, serves an unsupported codec, or buffers badly.
 
 ## Scope (v1)
 
-| | |
-|---|---|
-| Source types | **Xtream ↔ Xtream only** |
-| Content | Movies only — series are not offered a source chip |
-| Environment | **Electron only** — the chip renders nothing in the PWA |
+|               |                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| Source types  | **Xtream ↔ Xtream only**                                                                          |
+| Content       | Movies only — series are not offered a source chip                                                |
+| Environment   | **Electron only** — the chip renders nothing in the PWA                                           |
 | Auto-failover | Opt-in, **off by default** (`Settings.vodAutoFailover`); offered only on the built-in web players |
-| Pin scope | Per movie (a global portal priority is out of scope) |
-| Stream probe | HEAD → reachable + latency, sent with the playlist's own playback headers. **No codec probing** |
+| Pin scope     | Per movie (a global portal priority is out of scope)                                              |
+| Stream probe  | HEAD → reachable + latency, sent with the playlist's own playback headers. **No codec probing**   |
 
 Stalker never reaches the `content` table (it would need a live authenticated
 `get_ordered_list&search=` per portal), and M3U playlists are stored as a JSON
@@ -24,7 +24,7 @@ blob whose search path forces `content_type: 'live'`. Both are additive later
 without changing the contracts — `VodSourceCandidate.portalType` already carries
 `'xtream' | 'stalker' | 'm3u'` and discovery sits behind a service interface.
 
-A probe answer is cached per *request*, not per URL: two playlists can share a
+A probe answer is cached per _request_, not per URL: two playlists can share a
 stream URL and require different headers, and one of them answering 403 says
 nothing about the other.
 
@@ -39,12 +39,12 @@ This is the part to preserve if anything here is refactored.
 
 Every metadata value carries **where it came from**:
 
-| provenance | produced by | rendered as |
-|---|---|---|
-| `api` | `get_vod_info` — container, codec, audio, dimensions | plain tag |
-| `parsed` | regex over the title/filename | tag prefixed `~`, warn colour |
-| `probe` | HEAD → reachable + latency (retried as a ranged GET when the server answers 405/501, since plenty serve media over GET while refusing HEAD) | `ok` / `fail` status tag |
-| *absent* | — | **no tag at all** + a `check` chip |
+| provenance | produced by                                                                                                                                 | rendered as                        |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `api`      | `get_vod_info` — container, codec, audio, dimensions                                                                                        | plain tag                          |
+| `parsed`   | regex over the title/filename                                                                                                               | tag prefixed `~`, warn colour      |
+| `probe`    | HEAD → reachable + latency (retried as a ranged GET when the server answers 405/501, since plenty serve media over GET while refusing HEAD) | `ok` / `fail` status tag           |
+| _absent_   | —                                                                                                                                           | **no tag at all** + a `check` chip |
 
 Three rules follow, and each is enforced in code rather than by convention:
 
@@ -57,7 +57,7 @@ Three rules follow, and each is enforced in code rather than by convention:
    (contacted and refused) from `unknown` (timed out, blocked by the redirect
    policy, or no probe capability). A probe returning HTTP status `0` maps to
    `unknown`; the UI keeps offering a check and never shows the source as dead.
-3. **Empty beats wrong.** Quality is derived from pixel *width*, because
+3. **Empty beats wrong.** Quality is derived from pixel _width_, because
    letterboxed masters are cropped vertically — a 2.39:1 1080p film is 1920×800,
    and 800 alone is indistinguishable from a 1280×800 encode. With no width, a
    height is trusted only within 5% of a standard frame height; otherwise no tag
@@ -68,13 +68,13 @@ Three rules follow, and each is enforced in code rather than by convention:
    unrecognised shape returns nothing rather than a label that would be
    published as an `api` fact.
 
-   A known height has to be consistent with the width **on every tier**,
-   ranges included. Cropping only ever *removes* lines, so a shorter frame is a
-   letterboxed master of that format, while a taller one is a different shape:
-   640×480 against 640×360 below, and 1440×1080 (anamorphic 1080) or 1600×900
-   against the 720p range above. All of those get no tag. Bucketing HD widths is
-   otherwise sound — the standard widths really are far apart — but only once
-   the height is allowed to veto the answer.
+    A known height has to be consistent with the width **on every tier**,
+    ranges included. Cropping only ever _removes_ lines, so a shorter frame is a
+    letterboxed master of that format, while a taller one is a different shape:
+    640×480 against 640×360 below, and 1440×1080 (anamorphic 1080) or 1600×900
+    against the 720p range above. All of those get no tag. Bucketing HD widths is
+    otherwise sound — the standard widths really are far apart — but only once
+    the height is allowed to veto the answer.
 
 Provenance is per-field and changes over time: at discovery a row has only
 `parsed` tags, because the `content` table stores no container, codec or audio.
@@ -102,17 +102,17 @@ and so its ranking logic is testable without TestBed.
 
 ### Ownership
 
-| Concern | Location |
-|---|---|
-| DTOs, match key | `libs/shared/interfaces/src/lib/vod-source*.ts` |
-| Pin table | `libs/shared/database/src/lib/vod-source-pins.schema.ts` |
-| Discovery SQL | `apps/electron-backend/.../operations/title-sources.operations.ts` |
-| Pin CRUD | `apps/electron-backend/.../operations/vod-source-pin.operations.ts` |
-| Probe handler | `apps/electron-backend/src/app/events/stream-probe.ts` |
-| Discovery / resolve / rank | `libs/portal/shared/data-access/src/lib/multi-source/` |
-| Probe + pin clients | `libs/services/src/lib/{stream-probe,vod-source-pin}.service.ts` |
-| Row / popover / chip | `libs/ui/components/src/lib/vod-sources/` |
-| Page wiring | `libs/portal/xtream/feature/src/lib/vod-details/vod-multi-source-*.ts` |
+| Concern                    | Location                                                               |
+| -------------------------- | ---------------------------------------------------------------------- |
+| DTOs, match key            | `libs/shared/interfaces/src/lib/vod-source*.ts`                        |
+| Pin table                  | `libs/shared/database/src/lib/vod-source-pins.schema.ts`               |
+| Discovery SQL              | `apps/electron-backend/.../operations/title-sources.operations.ts`     |
+| Pin CRUD                   | `apps/electron-backend/.../operations/vod-source-pin.operations.ts`    |
+| Probe handler              | `apps/electron-backend/src/app/events/stream-probe.ts`                 |
+| Discovery / resolve / rank | `libs/portal/shared/data-access/src/lib/multi-source/`                 |
+| Probe + pin clients        | `libs/services/src/lib/{stream-probe,vod-source-pin}.service.ts`       |
+| Row / popover / chip       | `libs/ui/components/src/lib/vod-sources/`                              |
+| Page wiring                | `libs/portal/xtream/feature/src/lib/vod-details/vod-multi-source-*.ts` |
 
 ### One picker, two places, two counts
 
@@ -139,11 +139,11 @@ otherwise `title:{normalizedBase}:{year}` via the shared `normalizeTitleKeys`.
 Enrichment adds BOTH identifying fields late, so the same movie can already be
 pinned under any poorer form of itself:
 
-| pinned when | stored under |
-|---|---|
-| after enrichment | `tmdb:{id}` |
-| before the TMDB id | `title:{base}:{year}` |
-| before the year too | `title:{base}:` |
+| pinned when         | stored under          |
+| ------------------- | --------------------- |
+| after enrichment    | `tmdb:{id}`           |
+| before the TMDB id  | `title:{base}:{year}` |
+| before the year too | `title:{base}:`       |
 
 `buildVodSourceMatchKeyCandidates` returns all three, most-trusted first.
 Reading every alias is what keeps a late TMDB id from orphaning an earlier pin.
@@ -151,11 +151,11 @@ Reading every alias is what keeps a late TMDB id from orphaning an earlier pin.
 Three key sets, because reading, writing and deleting are different questions
 (`pinKeysFor` builds all three so they cannot disagree):
 
-| set | contents | why |
-|---|---|---|
-| `lookup` | every alias above | a pin may sit under any poorer form of the movie |
-| `write` | `tmdb:` + `title:{base}:{year}` | keys that name exactly ONE film |
-| `loaded` | the key the pin on screen came from | the only ambiguous row this session may retire |
+| set      | contents                            | why                                              |
+| -------- | ----------------------------------- | ------------------------------------------------ |
+| `lookup` | every alias above                   | a pin may sit under any poorer form of the movie |
+| `write`  | `tmdb:` + `title:{base}:{year}`     | keys that name exactly ONE film                  |
+| `loaded` | the key the pin on screen came from | the only ambiguous row this session may retire   |
 
 A write stores the decision under **every** key in `write`, and clears whatever
 stale row is left over. Each half rules out the other's shortcut:
@@ -168,7 +168,7 @@ stale row is left over. Each half rules out the other's shortcut:
   makes it readable at every stage of the same film's identity, and overwriting
   the poorer key is also what stops it from still naming the source the user
   just replaced.
-- Spreading it across *every* alias is not the fix either: the yearless form is
+- Spreading it across _every_ alias is not the fix either: the yearless form is
   shared by every remake, so a known-year pin stored there would answer for a
   different film — pin Dune (2021), open Dune (1984) before its year arrives,
   and it starts the 2021 source. That form is deliberately absent from `write`
@@ -179,7 +179,7 @@ The renderer passes `write[0]` as the pin's own `matchKey` and the rest as
 inside the same transaction, so no key list can half-apply.
 
 Known limit, inherent to addressing rows by key alone: a write can only touch
-keys the renderer can *name*. Re-pin a film during a pre-enrichment window and
+keys the renderer can _name_. Re-pin a film during a pre-enrichment window and
 the `tmdb:{id}` row from an earlier, enriched session is not among them, so it
 survives pointing at the old source — and outranks the title key once the id
 arrives again. Nothing can enumerate it from the page's side; closing it needs a
@@ -198,7 +198,7 @@ the user makes in the meantime, leaving the row and the primary Play naming a
 source the database no longer holds. Applying it first makes the later write
 simply win.
 
-For the same reason a write or an unpin never *deletes* the yearless alias on
+For the same reason a write or an unpin never _deletes_ the yearless alias on
 spec: that row may hold another remake's preference. The single exception is
 the row this session actually read, because the user is acting on the pin they
 can see — and leaving that one would make an unpin come back.
@@ -217,7 +217,7 @@ when enrichment lands:
   any of them **re-runs discovery** — that is how a yearless search gets its
   year and a `tmdb:`-keyed pin becomes findable.
 - `vodMultiSourceSessionKey` is `playlistId:contentId` — the film itself. It is
-  what decides whether that rerun is a *refresh* or a *new session*.
+  what decides whether that rerun is a _refresh_ or a _new session_.
 
 A refresh keeps the controller: the source the user switched to stays active
 (with the facts its resolve produced, rather than the catalog's guesses), the
@@ -227,7 +227,7 @@ actually streaming, and hand failover a clean slate for sources it has already
 spent. Only a different film resets — including the tried set, which is what
 makes failover terminate.
 
-A rerun can also legitimately *drop* the playing row: the year the enrichment
+A rerun can also legitimately _drop_ the playing row: the year the enrichment
 supplies makes the year gate reject a copy the yearless search had admitted
 ("Dune" 1984 while watching the 2021 film). Off the list is right — it is not
 the same film. Off the screen is not, so `applyDiscoveredSources` keeps it as a
@@ -255,19 +255,19 @@ one that does not exist — the chip simply does not appear. So:
   (`' ' || LOWER(title) || ' ' GLOB '*[^a-z0-9]it[^a-z0-9]*'`) and orders by
   title length (a match is the title plus decoration: "IT (2017) 1080p").
 
-  The FTS path keeps its 60-row window because it ranks by relevance — the best
-  rows are the ones it keeps. A scan cannot rank, so a window there would
-  silently decide which valid sources the user may see, and it would not even
-  buy anything: the GLOB cannot use an index, so SQLite reads every row either
-  way and a `LIMIT` saves transfer, not work. What bounds the scan instead is
-  its predicate: reaching it means NO token cleared the trigram minimum — a
-  one-or-two-character title like "It", but also an all-short multiword one
-  like "I Am" — and EVERY token must then appear as a word. Matching on the
-  first token alone would return most of a large catalog for the confirmation
-  pass to discard, which on the single database worker is real blocking.
+    The FTS path keeps its 60-row window because it ranks by relevance — the best
+    rows are the ones it keeps. A scan cannot rank, so a window there would
+    silently decide which valid sources the user may see, and it would not even
+    buy anything: the GLOB cannot use an index, so SQLite reads every row either
+    way and a `LIMIT` saves transfer, not work. What bounds the scan instead is
+    its predicate: reaching it means NO token cleared the trigram minimum — a
+    one-or-two-character title like "It", but also an all-short multiword one
+    like "I Am" — and EVERY token must then appear as a word. Matching on the
+    first token alone would return most of a large catalog for the confirmation
+    pass to discard, which on the single database worker is real blocking.
 
-  Like the `LIKE` it replaces it compares ASCII-lowercased text, so a non-ASCII
-  short title is no better and no worse served than before.
+    Like the `LIKE` it replaces it compares ASCII-lowercased text, so a non-ASCII
+    short title is no better and no worse served than before.
 
 Both remain necessary-not-sufficient filters: the two-tier normalized
 confirmation still runs afterwards, so the looser query never admits "Upgrade"
@@ -277,7 +277,7 @@ One row inside the excluded playlist is kept when the caller names it
 (`keepContentId`): a pin can point at another copy of the film in the playlist
 being viewed, and dropping that row would leave the preference pointing at
 nothing. The host therefore reads the pin BEFORE discovery. When that pin is
-the route's *own* row, the kept copy and `currentSourceRow()` are the same
+the route's _own_ row, the kept copy and `currentSourceRow()` are the same
 stream, so `applyDiscoveredSources` drops the duplicate rather than listing it
 twice.
 
@@ -287,7 +287,7 @@ The year gate applies to **both** match tiers, not just the year-stripped one.
 `normalizeTitleKeys` strips bracketed segments wholesale — they usually hold
 quality and language tags — so "Dune (1984)" and "Dune" normalize to the same
 string and the exact tier would accept the remake without ever consulting a
-year, ranked *above* every fuzzy match. Discovery reads a bracketed year out of
+year, ranked _above_ every fuzzy match. Discovery reads a bracketed year out of
 the raw title first, and when both sides state a year and they disagree, it is
 not the same movie. An unknown year still never blocks.
 
@@ -335,7 +335,7 @@ the player component, `WebPlayerView` and the engine all survive, and
 Three details make the position survive:
 
 - The carried position is the **live** one. `handleInlineTimeUpdate` reports to
-  `VodMultiSourceHostService.reportPosition()` *before* the 15-second
+  `VodMultiSourceHostService.reportPosition()` _before_ the 15-second
   persistence throttle, so a switch does not rewind by up to 15 seconds.
   External players have no `timeupdate` at all, so for them the polled
   `playback_positions` value IS the live one and is reported directly —
@@ -346,7 +346,7 @@ Three details make the position survive:
   a switch changes the key. The resolved playback carries the **new** source's
   `contentInfo`, and that source's row takes over.
 
-The position also has to exist *before* anything plays. Nothing reports a live
+The position also has to exist _before_ anything plays. Nothing reports a live
 one until the first `timeupdate`, so a pinned source started straight off the
 Resume button would resolve at zero and restart the film. The controller is
 therefore seeded from the persisted position (`seedResumeSeconds`), one-way:
@@ -565,17 +565,29 @@ stored with different capitalisation in two playlists ("ОН" vs "Он") cannot 
 folded by the indexed path. Closing that needs a stored normalized-title
 column, which is deliberately out of scope here.
 
-The **scan** tier does fold it, because GLOB character classes are *not*
+The **scan** tier does fold it, because GLOB character classes are _not_
 ASCII-only — `patternCompare` reads them as UTF-8 code points, and
 `'Он' GLOB '*[Оо][Нн]*'` is true. `caseInsensitiveGlobPattern` therefore folds
 the case in JavaScript, where Unicode case mapping is real, and hands SQLite one
-class per character. Each class also carries the uppercase form's OWN lowercase,
-which is what covers a letter spelled two ways in lower case: Greek `Σ`
-lowercases to `σ`, but a word-final sigma is written `ς` and is equally a
-lowercase of it. That reach is one-way — `σ → Σ → σ` never arrives at `ς` — and
-left so deliberately, because `ς` is only correct at the end of a word, exactly
-where the request's own last character sits; closing the other direction needs a
-fold table.
+class per character.
+
+A letter can have more lowercase spellings than case mapping reaches from any
+one of them: Greek `Σ` lowercases to `σ`, but a word-final sigma is written `ς`
+and is equally a lowercase of it, and neither `Σ` nor `σ` arrives at `ς`. Each
+class is therefore built from a **fold group** — every character sharing an
+uppercase form — so every spelling reaches every other one. A request for `ΑΣ`
+finds a stored `Ας`, which the earlier one-way reach (`ς` found `Σ` and `σ`, but
+never the reverse) did not: uppercase is just as typeable as lowercase, so
+"`ς` only occurs word-finally" never justified the asymmetry.
+
+`CASE_FOLD_GROUPS` is derived by scanning the cased ranges at module load, the
+same way `ACCENTED_BY_BASE` is, rather than tabulating pairs by hand — so it
+generalises past sigma on its own: dotless `ı` folds with `i`, the long `ſ` with
+`s`, and the historic Cyrillic letterforms with `В Д О С Т Ъ Ѣ`. Only the groups
+a per-character fold would miss are kept, 24 of 767, since the rest are just
+{upper, lower} and add nothing. Widening a class only ever costs candidate rows:
+the scan is a necessary-not-sufficient filter and `normalizeTitleKeys` is what
+confirms a match.
 
 It returns `null` — leaving the substring tests as the whole answer — for a
 token holding a GLOB metacharacter (SQLite GLOB has no escape character, so an
