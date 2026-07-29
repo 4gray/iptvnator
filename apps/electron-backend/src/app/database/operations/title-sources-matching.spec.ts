@@ -86,6 +86,36 @@ describe('title-sources.operations — confirmation and scoping', () => {
             ).resolves.toEqual([]);
         });
 
+        it('keeps an identical title whose tail is part of its name', async () => {
+            const { db } = createDbMock([
+                { ...duneRow, title: 'Blade Runner 2049' },
+            ]);
+
+            // Enrichment supplies the real release year, 2017, while the title
+            // ends in a four-digit number that is part of the NAME. Reading it
+            // as a release tag makes the years "disagree" and the genuine copy
+            // disappears the moment metadata lands — the one point at which the
+            // user has most reason to expect it.
+            const matches = await findTitleSources(db, {
+                title: 'Blade Runner 2049',
+                year: 2017,
+            });
+
+            expect(matches).toHaveLength(1);
+            expect(matches[0].matchConfidence).toBe('exact');
+        });
+
+        it('still rejects a bracketed remake of an otherwise identical title', async () => {
+            const { db } = createDbMock([{ ...duneRow, title: 'Dune (1984)' }]);
+
+            // The relaxation above must not reach a BRACKETED year: brackets
+            // are unambiguously a tag, never part of the name, so a stated
+            // disagreement still means a different film.
+            await expect(
+                findTitleSources(db, { title: 'Dune', year: 2021 })
+            ).resolves.toEqual([]);
+        });
+
         it('keeps a base-tier match when one side has no known year', async () => {
             const { db } = createDbMock([duneRow]);
 

@@ -301,17 +301,29 @@ export async function findTitleSources(
         }
 
         const rowKeys = normalizeTitleKeys(row.title);
-        const rowYear = rowKeys.trailingYear ?? bracketedYear(row.title);
+        const rowBracketedYear = bracketedYear(row.title);
+        const rowYear = rowKeys.trailingYear ?? rowBracketedYear;
         // Two films share a title far too often for this to be optional, and
         // it applies to BOTH tiers: "Dune (1984)" normalizes to exactly the
         // same string as "Dune", so an exact match says nothing about which
         // film it is. When each side states a year and they disagree, it is
         // not the same movie. An unknown year still never blocks.
         const yearsAgree = titleYearsCompatible(rowYear, wantedYear);
+        // The exact tier reads only the BRACKETED year, though. Reaching it
+        // means both titles are the same string, so any trailing four digits
+        // belong to both — and comparing a number that is part of the NAME
+        // against a release year from metadata rejects the very copy it was
+        // meant to confirm: "Blade Runner 2049" against a stated 2017 vanishes
+        // the moment enrichment lands. Brackets are never part of a name, so
+        // that form still decides.
+        const exactYearsAgree = titleYearsCompatible(
+            rowBracketedYear,
+            wantedYear
+        );
         const exactMatch =
             rowKeys.exact !== '' &&
             rowKeys.exact === wanted.exact &&
-            yearsAgree;
+            exactYearsAgree;
         const baseMatch =
             !exactMatch && rowKeys.base === wanted.base && yearsAgree;
 

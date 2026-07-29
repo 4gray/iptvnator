@@ -285,6 +285,16 @@ year, ranked *above* every fuzzy match. Discovery reads a bracketed year out of
 the raw title first, and when both sides state a year and they disagree, it is
 not the same movie. An unknown year still never blocks.
 
+The two tiers read different years, though. The **base** tier accepts either
+form, bracketed or trailing, because it has just stripped a trailing year and
+that year is the only thing standing between "Dune 1984" and "Dune 2021". The
+**exact** tier reads the bracketed form ONLY: reaching it means both titles are
+the same string, so a trailing four digits belong to both, and weighing a number
+that is part of the NAME against a release year out of metadata rejects the very
+copy it was meant to confirm — "Blade Runner 2049" against a stated 2017
+disappears the moment enrichment lands. Brackets are never part of a name, so
+"Dune (1984)" is still rejected against 2021 on the exact tier.
+
 Which is why the movie's OWN year is read with `releaseTagYear`, not
 `extractYear`. The latter takes a year from anywhere in the title, which is the
 right answer where a year is only a search hint that scoring will confirm — and
