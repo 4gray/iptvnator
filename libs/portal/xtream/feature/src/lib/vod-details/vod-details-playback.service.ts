@@ -358,7 +358,19 @@ export class VodDetailsPlaybackService {
             this.matchedExternalPlayback()
         );
         if (running) {
-            await this.externalPlayback.closeSession(running);
+            try {
+                await this.externalPlayback.closeSession(running);
+            } catch (error) {
+                // The switch is already committed — the badge names the new
+                // source. Giving up here would leave the page claiming a
+                // source with nothing started, which is worse than the
+                // pre-existing risk of a lingering process (and a close that
+                // rejects usually means the session was gone anyway).
+                this.logger.warn(
+                    'Closing the previous external player failed; starting the replacement anyway.',
+                    error
+                );
+            }
         }
 
         // Closing is a round-trip, and a second pick across it would otherwise

@@ -242,6 +242,24 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         closeSession.mockResolvedValue(undefined);
     });
 
+    it('still starts the replacement when closing the old player fails', async () => {
+        activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
+        closeSession.mockRejectedValue(new Error('close ipc failed'));
+        openResolvedPlayback.mockClear();
+
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/alt.mkv',
+            title: 'Example Movie',
+        });
+
+        // The switch is already committed — the badge names the new source.
+        // Bailing out here left the page claiming a source with nothing
+        // started at all.
+        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
+
+        closeSession.mockResolvedValue(undefined);
+    });
+
     it('launches only the newest source when two switches overlap', async () => {
         activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));
         // One shared promise: both calls see the same running session, so
