@@ -125,6 +125,13 @@
                 "e2eTags": ["@xtream", "@stalker"]
             },
             {
+                "name": "portal-downloads-feature",
+                "root": "libs/portal/downloads/feature",
+                "sourceRoot": "libs/portal/downloads/feature/src",
+                "validationCommand": "pnpm nx test portal-downloads-feature",
+                "e2eTags": ["@downloads", "@electron", "@persistence"]
+            },
+            {
                 "name": "portal-shared-data-access",
                 "root": "libs/portal/shared/data-access",
                 "sourceRoot": "libs/portal/shared/data-access/src",
@@ -329,11 +336,6 @@
                 "name": "shared-testing",
                 "root": "libs/shared/testing",
                 "reason": "Test helper library."
-            },
-            {
-                "name": "portal-downloads-feature",
-                "root": "libs/portal/downloads/feature",
-                "reason": "No test target yet; add focused tests when feature work changes this area."
             },
             {
                 "name": "remote-control",
