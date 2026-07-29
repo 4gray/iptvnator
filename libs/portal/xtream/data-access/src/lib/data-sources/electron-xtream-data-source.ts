@@ -566,6 +566,48 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         restoreState: XtreamPendingRestoreState,
         options?: XtreamOperationOptions
     ): Promise<void> {
+        const categoriesByType = await Promise.all([
+            this.dbService.getAllXtreamCategories(playlistId, 'live'),
+            this.dbService.getAllXtreamCategories(playlistId, 'movies'),
+            this.dbService.getAllXtreamCategories(playlistId, 'series'),
+        ]);
+        for (const categories of categoriesByType) {
+            if (categories.length === 0) {
+                continue;
+            }
+
+            const reset = await this.dbService.updateCategoryVisibility(
+                categories.map((category) => category.id),
+                false
+            );
+            if (!reset) {
+                throw new Error(
+                    `Resetting category visibility for "${playlistId}" failed.`
+                );
+            }
+
+            const hiddenCategoryIds = categories
+                .filter((category) =>
+                    restoreState.hiddenCategories.some(
+                        (hiddenCategory) =>
+                            hiddenCategory.categoryType === category.type &&
+                            hiddenCategory.xtreamId === category.xtream_id
+                    )
+                )
+                .map((category) => category.id);
+            if (
+                hiddenCategoryIds.length > 0 &&
+                !(await this.dbService.updateCategoryVisibility(
+                    hiddenCategoryIds,
+                    true
+                ))
+            ) {
+                throw new Error(
+                    `Restoring category visibility for "${playlistId}" failed.`
+                );
+            }
+        }
+
         await this.dbService.restoreXtreamUserData(
             playlistId,
             restoreState.favorites,

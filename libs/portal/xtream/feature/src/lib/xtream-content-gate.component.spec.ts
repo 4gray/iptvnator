@@ -32,6 +32,7 @@ describe('XtreamContentGateComponent', () => {
     const contentInitBlockReason =
         signal<XtreamContentInitBlockReason | null>(null);
     const isContentInitialized = signal(false);
+    const isPendingRestoreBlocked = signal(false);
     const portalStatus = signal<'active' | 'inactive' | 'expired' | 'unavailable'>(
         'active'
     );
@@ -40,6 +41,7 @@ describe('XtreamContentGateComponent', () => {
     beforeEach(async () => {
         contentInitBlockReason.set(null);
         isContentInitialized.set(false);
+        isPendingRestoreBlocked.set(false);
         portalStatus.set('active');
         retryContentInitialization.mockClear();
 
@@ -65,6 +67,7 @@ describe('XtreamContentGateComponent', () => {
                     useValue: {
                         contentInitBlockReason,
                         isContentInitialized,
+                        isPendingRestoreBlocked,
                         portalStatus,
                         retryContentInitialization,
                     },
@@ -110,10 +113,19 @@ describe('XtreamContentGateComponent', () => {
     it('keeps the child outlet available when there is no block reason', () => {
         fixture.detectChanges();
 
+        expect(fixture.nativeElement.querySelector('.mock-error')).toBeNull();
+        expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+    });
+
+    it('keeps the child outlet unavailable while parked state is pending', () => {
+        isPendingRestoreBlocked.set(true);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('router-outlet')).toBeNull();
         expect(
             fixture.nativeElement.querySelector('.mock-error')
-        ).toBeNull();
-        expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('button')).not.toBeNull();
     });
 
     it('shows an inline warning when cached content remains available offline', () => {

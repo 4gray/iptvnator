@@ -24,7 +24,7 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
         XtreamCachedOfflineNoticeComponent,
     ],
     template: `
-        @if (contentInitBlockReason(); as blockReason) {
+        @if (effectiveBlockReason(); as blockReason) {
             <div class="xtream-content-gate">
                 <app-playlist-error-view
                     [title]="titleKey() | translate"
@@ -69,8 +69,14 @@ export class XtreamContentGateComponent {
     private readonly xtreamStore = inject(XtreamStore);
 
     readonly contentInitBlockReason = this.xtreamStore.contentInitBlockReason;
+    readonly isPendingRestoreBlocked = this.xtreamStore.isPendingRestoreBlocked;
+    readonly effectiveBlockReason = computed(
+        () =>
+            this.contentInitBlockReason() ??
+            (this.isPendingRestoreBlocked() ? 'error' : null)
+    );
     private readonly errorViewKey = computed(() => {
-        switch (this.contentInitBlockReason()) {
+        switch (this.effectiveBlockReason()) {
             case 'cancelled':
                 return 'IMPORT_CANCELLED';
             case 'expired':

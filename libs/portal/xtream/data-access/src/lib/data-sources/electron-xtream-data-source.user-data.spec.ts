@@ -258,12 +258,31 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
             const positionA = { contentXtreamId: 1 } as never;
             const positionB = { contentXtreamId: 2 } as never;
             const restoreState = {
-                hiddenCategories: [],
+                hiddenCategories: [{ categoryType: 'live', xtreamId: 101 }],
                 favorites: [{ xtreamId: 202, type: 'movie' }],
                 recentlyViewed: [{ xtreamId: 101, type: 'live' }],
                 playbackPositions: [positionA, positionB],
             } as never;
             const options = { operationId: 'op-1' };
+            harness.dbService.getAllXtreamCategories.mockImplementation(
+                (_playlistId: string, type: string) =>
+                    Promise.resolve(
+                        type === 'live'
+                            ? [
+                                  {
+                                      id: 11,
+                                      type: 'live',
+                                      xtream_id: 101,
+                                  },
+                                  {
+                                      id: 12,
+                                      type: 'live',
+                                      xtream_id: 102,
+                                  },
+                              ]
+                            : []
+                    )
+            );
 
             await harness.dataSource.restoreUserData(
                 playlistId,
@@ -279,6 +298,12 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
                 [{ xtreamId: 101, type: 'live' }],
                 options
             );
+            expect(
+                harness.dbService.updateCategoryVisibility.mock.calls
+            ).toEqual([
+                [[11, 12], false],
+                [[11], true],
+            ]);
             expect(
                 harness.playbackService.clearAllPlaybackPositions
             ).toHaveBeenCalledWith(playlistId);

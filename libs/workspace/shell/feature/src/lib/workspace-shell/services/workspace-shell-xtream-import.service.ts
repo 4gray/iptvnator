@@ -67,7 +67,6 @@ export class WorkspaceShellXtreamImportService {
     readonly canCancelXtreamImport = computed(
         () =>
             this.isElectron &&
-            this.xtreamStore.isImporting() &&
             Boolean(this.xtreamStore.activeImportSessionId()) &&
             !this.xtreamStore.isCancellingImport()
     );
@@ -193,7 +192,7 @@ export class WorkspaceShellXtreamImportService {
     readonly isImportRunning = computed(
         () =>
             !this.xtreamStore.contentInitBlockReason() &&
-            this.xtreamStore.isImporting()
+            Boolean(this.xtreamStore.activeImportSessionId())
     );
     readonly isRefreshPreparationRunning = computed(() =>
         Boolean(this.activeRefreshPreparation())

@@ -444,6 +444,18 @@ describe('WorkspaceShellFacade', () => {
         expect(facade.showXtreamImportOverlay()).toBe(true);
     });
 
+    it('keeps a cache-only Xtream import session blocking and cancellable', () => {
+        const xtreamStore = TestBed.inject(
+            XtreamStore
+        ) as unknown as MockXtreamStore;
+        const xtreamImport = TestBed.inject(WorkspaceShellXtreamImportService);
+        xtreamStore.activeImportSessionId.set('xtream-import-session');
+
+        expect(xtreamStore.isImporting()).toBe(false);
+        expect(facade.showXtreamImportOverlay()).toBe(true);
+        expect(xtreamImport.canCancelXtreamImport()).toBe(true);
+    });
+
     it('shows the Xtream overlay during refresh preparation on the dashboard', () => {
         facade.currentUrl.set('/workspace/dashboard');
         refreshPreparationSignal.set({

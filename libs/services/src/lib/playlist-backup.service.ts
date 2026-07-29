@@ -65,6 +65,7 @@ export class PlaylistBackupService {
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
+    private backupImportTail?: Promise<void>;
 
     async exportBackup(): Promise<PlaylistBackupExportPayload> {
         const playlists = await firstValueFrom(
@@ -94,7 +95,20 @@ export class PlaylistBackupService {
         };
     }
 
-    async importBackup(json: string): Promise<PlaylistBackupImportSummary> {
+    importBackup(json: string): Promise<PlaylistBackupImportSummary> {
+        const importResult = (
+            this.backupImportTail ?? Promise.resolve()
+        ).then(() => this.executeImportBackup(json));
+        this.backupImportTail = importResult.then(
+            () => undefined,
+            () => undefined
+        );
+        return importResult;
+    }
+
+    private async executeImportBackup(
+        json: string
+    ): Promise<PlaylistBackupImportSummary> {
         const manifest = this.parseManifest(json);
         const existingPlaylists = await firstValueFrom(
             this.playlistsService.getAllData()
@@ -838,7 +852,11 @@ export class PlaylistBackupService {
         }
 
         await this.applyXtreamRestoreState(playlistId, restoreState);
-        this.pendingRestoreService.clear(playlistId);
+        if (!this.pendingRestoreService.clear(playlistId, restoreState)) {
+            throw new PlaylistBackupError(
+                `Clearing pending restore state for "${playlistId}" failed.`
+            );
+        }
     }
 
     private async hasCompletedOfflineCache(

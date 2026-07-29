@@ -4,6 +4,7 @@ import {
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistBackupService } from '@iptvnator/services';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
@@ -35,6 +36,9 @@ describe('SettingsBackupFacade', () => {
                         .fn()
                         .mockResolvedValue(BACKUP_EXPORT_RESULT),
                     importBackup: jest.fn(),
+                }),
+                MockProvider(XtreamStore, {
+                    reconcilePendingRestoreBlock: jest.fn(),
                 }),
                 provideMockStore({
                     selectors: [
@@ -153,5 +157,47 @@ describe('SettingsBackupFacade', () => {
             undefined,
             expect.objectContaining({ panelClass: ['settings-snackbar'] })
         );
+    });
+
+    it('reconciles a pending Xtream restore before completing an import', async () => {
+        configure();
+        const input = document.createElement('input');
+        const file = {
+            text: jest.fn().mockResolvedValue('{}'),
+        } as unknown as File;
+        Object.defineProperty(input, 'files', { value: [file] });
+        const addEventListener = jest.spyOn(input, 'addEventListener');
+        const createElement = jest
+            .spyOn(document, 'createElement')
+            .mockReturnValue(input);
+        jest.spyOn(input, 'click').mockImplementation();
+        const summary = {
+            imported: 0,
+            merged: 0,
+            skipped: 0,
+            failed: 1,
+            errors: ['pending restore state could not be consumed'],
+        };
+        (playlistBackupService.importBackup as jest.Mock).mockResolvedValue(
+            summary
+        );
+        const onImported = jest.fn();
+        const xtreamStore = TestBed.inject(XtreamStore);
+
+        facade.importData(onImported);
+        const changeListener = addEventListener.mock.calls.find(
+            ([type]) => type === 'change'
+        )?.[1] as (event: Event) => Promise<void>;
+        await changeListener({ target: input } as unknown as Event);
+
+        expect(xtreamStore.reconcilePendingRestoreBlock).toHaveBeenCalledTimes(
+            1
+        );
+        expect(onImported).toHaveBeenCalledTimes(1);
+        expect(
+            (xtreamStore.reconcilePendingRestoreBlock as jest.Mock).mock
+                .invocationCallOrder[0]
+        ).toBeLessThan(onImported.mock.invocationCallOrder[0]);
+        createElement.mockRestore();
     });
 });

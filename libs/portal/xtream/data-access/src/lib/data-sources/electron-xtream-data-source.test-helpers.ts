@@ -33,7 +33,7 @@ export function createDbServiceMock() {
         getXtreamCategories: jest.fn().mockResolvedValue([]),
         saveXtreamCategories: jest.fn().mockResolvedValue(undefined),
         getAllXtreamCategories: jest.fn().mockResolvedValue([]),
-        updateCategoryVisibility: jest.fn().mockResolvedValue(undefined),
+        updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         hasXtreamContent: jest.fn().mockResolvedValue(false),
         getXtreamContent: jest.fn().mockResolvedValue([]),
         saveXtreamContent: jest.fn().mockResolvedValue(0),

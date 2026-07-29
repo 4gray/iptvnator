@@ -70,7 +70,7 @@ export function createPlaylistBackupService(
         },
         pendingRestoreService: {
             set: jest.fn(),
-            clear: jest.fn(),
+            clear: jest.fn().mockReturnValue(true),
         },
         ...overrides,
     });

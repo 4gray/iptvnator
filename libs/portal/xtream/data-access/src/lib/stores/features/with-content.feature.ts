@@ -106,6 +106,7 @@ export interface ContentState {
     activeImportSessionId: string | null;
     activeImportOperationIds: string[];
     isContentInitialized: boolean;
+    isPendingRestoreBlocked: boolean;
     contentInitBlockReason: XtreamContentInitBlockReason | null;
 }
 
@@ -141,6 +142,7 @@ const initialContentState: ContentState = {
     activeImportSessionId: null,
     activeImportOperationIds: [],
     isContentInitialized: false,
+    isPendingRestoreBlocked: false,
     contentInitBlockReason: null,
 };
 
@@ -269,6 +271,18 @@ export function withContent() {
 
             const asCachedContent = <T>(content: unknown): T[] =>
                 content as T[];
+
+            const hasPendingRestoreOrReadFailure = (
+                playlistId: string
+            ): boolean => {
+                try {
+                    return (
+                        pendingRestoreService.getOrThrow(playlistId) !== null
+                    );
+                } catch {
+                    return true;
+                }
+            };
 
             const markContentScopeLoading = (
                 scope?: XtreamCachedContentScope | null,
@@ -404,6 +418,10 @@ export function withContent() {
                 playlistId: string,
                 scope?: XtreamCachedContentScope | null
             ): Promise<boolean> => {
+                if (hasPendingRestoreOrReadFailure(playlistId)) {
+                    return false;
+                }
+
                 const types = getTypesForCacheScope(scope);
 
                 if (
@@ -419,10 +437,16 @@ export function withContent() {
                             )
                         )
                     );
-                    return checks.some(Boolean);
+                    return (
+                        checks.some(Boolean) &&
+                        !hasPendingRestoreOrReadFailure(playlistId)
+                    );
                 }
 
-                return hasCachedContentForType(playlistId, scope);
+                return (
+                    (await hasCachedContentForType(playlistId, scope)) &&
+                    !hasPendingRestoreOrReadFailure(playlistId)
+                );
             };
 
             const isCurrentCachedHydrationContext = (
@@ -449,6 +473,35 @@ export function withContent() {
                 const types = getTypesForCacheScope(scope);
                 const loadStates = store.contentLoadStateByType();
                 return types.every((type) => loadStates[type] === 'ready');
+            };
+
+            const blockCacheForPendingRestore = (
+                playlistId: string,
+                scope?: XtreamCachedContentScope | null
+            ): boolean => {
+                if (!hasPendingRestoreOrReadFailure(playlistId)) {
+                    return false;
+                }
+
+                patchState(store, (state) => {
+                    const nextLoadStates = {
+                        ...state.contentLoadStateByType,
+                    };
+                    for (const type of getTypesForCacheScope(scope)) {
+                        nextLoadStates[type] = 'error';
+                    }
+
+                    return {
+                        isLoadingCategories: false,
+                        isLoadingContent: false,
+                        isContentInitialized: false,
+                        isPendingRestoreBlocked: true,
+                        contentInitBlockReason:
+                            state.contentInitBlockReason ?? 'error',
+                        contentLoadStateByType: nextLoadStates,
+                    };
+                });
+                return true;
             };
 
             const executeCachedContentHydration = async (
@@ -520,6 +573,10 @@ export function withContent() {
                     return;
                 }
 
+                if (blockCacheForPendingRestore(playlistId, scope)) {
+                    return;
+                }
+
                 patchState(store, (state) => {
                     const nextLoadStates = {
                         ...state.contentLoadStateByType,
@@ -529,6 +586,7 @@ export function withContent() {
                         isLoadingContent: false,
                         isImporting: false,
                         isContentInitialized: true,
+                        isPendingRestoreBlocked: false,
                         contentInitBlockReason: null,
                     };
 
@@ -573,11 +631,16 @@ export function withContent() {
                 const ctx = getCredentialsFromStore();
                 if (!ctx) return;
 
+                if (blockCacheForPendingRestore(ctx.playlistId, scope)) {
+                    return;
+                }
+
                 if (isCachedContentScopeReady(scope)) {
                     patchState(store, {
                         isLoadingCategories: false,
                         isLoadingContent: false,
                         isContentInitialized: true,
+                        isPendingRestoreBlocked: false,
                         contentInitBlockReason: null,
                     });
                     return;
@@ -788,6 +851,17 @@ export function withContent() {
                 const completedTypes = new Set<ContentType>();
 
                 try {
+                    // Capture parked state before publishing any imported
+                    // content. A retry may load each type from the DB without
+                    // emitting an import phase, so the store-owned gate is what
+                    // prevents source-pin edits until replay is consumed.
+                    const initialRestoreData = pendingRestoreService.getOrThrow(
+                        ctx.playlistId
+                    );
+                    patchState(store, {
+                        isPendingRestoreBlocked: initialRestoreData !== null,
+                    });
+
                     // Electron content persistence maps remote category IDs
                     // to internal DB category rows, so categories must exist
                     // before content import starts.
@@ -802,10 +876,18 @@ export function withContent() {
                     });
                     throwIfImportCancelled(importSessionId);
 
-                    // Restore user data if needed
-                    const restoreData = pendingRestoreService.get(
+                    // A backup may be imported while this initialization is
+                    // awaiting network or DB work. Use the latest snapshot;
+                    // restoreUserData applies category visibility too, so a
+                    // late arrival is complete rather than pin-only.
+                    const restoreData = pendingRestoreService.getOrThrow(
                         ctx.playlistId
                     );
+                    patchState(store, {
+                        isPendingRestoreBlocked: restoreData !== null,
+                    });
+
+                    // Restore user data if needed
                     if (restoreData) {
                         try {
                             throwIfImportCancelled(importSessionId);
@@ -826,11 +908,27 @@ export function withContent() {
                                 }
                             );
                             throwIfImportCancelled(importSessionId);
-                            pendingRestoreService.clear(ctx.playlistId);
+                            if (
+                                !pendingRestoreService.clear(
+                                    ctx.playlistId,
+                                    restoreData
+                                )
+                            ) {
+                                throw new Error(
+                                    `Clearing pending restore state for "${ctx.playlistId}" failed.`
+                                );
+                            }
+                            patchState(store, {
+                                isPendingRestoreBlocked: false,
+                            });
                         } catch (err) {
+                            throwIfImportCancelled(importSessionId);
+
                             if (!isDbAbortError(err)) {
                                 logger.error('Error restoring user data', err);
                             }
+
+                            throw err;
                         }
                     }
 
@@ -1183,6 +1281,25 @@ export function withContent() {
                     await runContentInitialization();
                 },
 
+                reconcilePendingRestoreBlock(): boolean {
+                    const ctx = getCredentialsFromStore();
+                    if (!ctx) {
+                        return false;
+                    }
+
+                    const isBlocked = hasPendingRestoreOrReadFailure(
+                        ctx.playlistId
+                    );
+                    patchState(store, (state) => ({
+                        isPendingRestoreBlocked: isBlocked,
+                        contentInitBlockReason:
+                            isBlocked && !state.activeImportSessionId
+                                ? (state.contentInitBlockReason ?? 'error')
+                                : state.contentInitBlockReason,
+                    }));
+                    return isBlocked;
+                },
+
                 async hasUsableOfflineCache(
                     scope?: XtreamCachedContentScope | null
                 ): Promise<boolean> {
@@ -1203,7 +1320,12 @@ export function withContent() {
                 isCachedContentScopeReady(
                     scope?: XtreamCachedContentScope | null
                 ): boolean {
-                    return isCachedContentScopeReady(scope);
+                    const ctx = getCredentialsFromStore();
+                    return (
+                        (!ctx ||
+                            !hasPendingRestoreOrReadFailure(ctx.playlistId)) &&
+                        isCachedContentScopeReady(scope)
+                    );
                 },
 
                 async hydrateCachedContent(

@@ -116,6 +116,7 @@ describe('XtreamWorkspaceRouteSession', () => {
         setCurrentPlaylist: jest.fn((playlist: XtreamPlaylistData | null) => {
             currentPlaylist.set(playlist);
         }),
+        reconcilePendingRestoreBlock: jest.fn().mockReturnValue(false),
         fetchXtreamPlaylist: jest.fn().mockResolvedValue(undefined),
         checkPortalStatus: jest.fn(),
         hasUsableOfflineCache: jest.fn().mockImplementation(async () => {
@@ -236,6 +237,7 @@ describe('XtreamWorkspaceRouteSession', () => {
 
         xtreamStore.resetStore.mockClear();
         xtreamStore.setCurrentPlaylist.mockClear();
+        xtreamStore.reconcilePendingRestoreBlock.mockClear();
         xtreamStore.fetchXtreamPlaylist.mockClear();
         xtreamStore.checkPortalStatus.mockReset();
         xtreamStore.hasUsableOfflineCache.mockClear();
@@ -361,6 +363,16 @@ describe('XtreamWorkspaceRouteSession', () => {
         await flushEffects();
 
         expect(xtreamStore.resetStore).toHaveBeenCalledWith(PLAYLIST_ID);
+        expect(
+            xtreamStore.reconcilePendingRestoreBlock.mock.invocationCallOrder[0]
+        ).toBeGreaterThan(
+            xtreamStore.setCurrentPlaylist.mock.invocationCallOrder[0]
+        );
+        expect(
+            xtreamStore.reconcilePendingRestoreBlock.mock.invocationCallOrder[0]
+        ).toBeLessThan(
+            xtreamStore.fetchXtreamPlaylist.mock.invocationCallOrder[0]
+        );
         expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('live');
         expect(xtreamStore.prepareContentLoading).toHaveBeenCalledWith('live');
         expect(selectedContentType()).toBe('live');

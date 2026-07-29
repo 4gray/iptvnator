@@ -113,7 +113,7 @@ export function createRestoreCollaborators() {
         },
         pendingRestoreService: {
             set: jest.fn(),
-            clear: jest.fn(),
+            clear: jest.fn().mockReturnValue(true),
         },
     };
 }

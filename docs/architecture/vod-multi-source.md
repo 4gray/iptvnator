@@ -681,6 +681,22 @@ direct restore, that preserves the existing pins if an insert fails. A fresh
 import has no pre-existing pins to lose; there it prevents a partially applied
 prefix from being visible before the parked state is retried.
 
+The parked state is consumed only after that atomic replacement succeeds, and
+its removal is verified (with an empty tombstone as the safe fallback when
+storage removal fails). Consumption compares the current parked snapshot with
+the one that was applied, and backup imports are serialized so an older restore
+cannot finish after and overwrite a newer one. Either restore path reports a
+failed import instead of claiming success when consumption cannot be
+confirmed. Fresh-import initialization stays blocked and retryable on either
+failure. Cached content is not exposed while parked state exists: a complete
+active initialization must restore and retire the snapshot before the catalog
+opens, because a scope-limited offline cache may not contain every identity
+referenced by the backup. Route bootstrap and Settings import completion
+reconcile that gate before content can be edited. The active content route also
+stays unmounted while replay is pending, and the import overlay follows the
+full initialization session (including cache-only retries), not only
+remote-download events.
+
 ## Which engines can fail over
 
 Only the built-in web players (HTML5, Video.js, ArtPlayer) raise the playback
