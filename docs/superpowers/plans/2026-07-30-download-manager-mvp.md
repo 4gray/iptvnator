@@ -39,6 +39,9 @@ Create:
 Modify:
 
 - `libs/services/src/lib/downloads.service.ts` and `.spec.ts` — make list loading global-only and retain latest-request protection.
+- `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.{ts,spec.ts}` — expose the global active count.
+- `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.{html,spec.ts}` — pass the global count to the header.
+- `libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.{ts,html,scss,spec.ts}` — render the numeric global badge.
 - `libs/portal/downloads/feature/project.json` — add the Jest target.
 - `tools/coverage/coverage-policy.json` — move the feature out of the “no test target” exclusion.
 - `libs/portal/downloads/feature/src/lib/downloads.component.{ts,html,scss}` — reduce to orchestration, fixed header, state switching, and action handling.
@@ -53,6 +56,14 @@ Modify:
 
 - Modify: `libs/services/src/lib/downloads.service.spec.ts`
 - Modify: `libs/services/src/lib/downloads.service.ts`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.spec.ts`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.spec.ts`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.spec.ts`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.ts`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.html`
+- Modify: `libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.scss`
 
 - [ ] **Step 1: Write a failing service test**
 
@@ -129,10 +140,72 @@ pnpm nx test services --runInBand --testPathPatterns=downloads.service.spec.ts
 
 Expected: PASS with the global call and stale-response test both covered.
 
-- [ ] **Step 5: Commit the invariant**
+- [ ] **Step 5: Write failing shell count tests**
+
+Set `DownloadsService.activeCount` to a signal with value `3` and prove:
+
+```ts
+expect(facade.activeDownloadsCount()).toBe(3);
+expect(facade.hasActiveDownloads()).toBe(true);
+```
+
+In the header spec, set `activeDownloadsCount` to `3` and assert the download
+shortcut renders a visible `3` badge; set it to `0` and assert the badge is
+absent. In the shell host spec, assert the facade count is bound through to the
+header stub.
+
+- [ ] **Step 6: Run shell tests and verify RED**
 
 ```bash
-git add libs/services/src/lib/downloads.service.ts libs/services/src/lib/downloads.service.spec.ts
+pnpm nx test workspace-shell-feature --runInBand \
+  --testPathPatterns='workspace-shell.facade.spec.ts|workspace-shell-header.component.spec.ts|workspace-shell.component.spec.ts'
+```
+
+Expected: FAIL because the shell currently exposes only a boolean activity
+indicator.
+
+- [ ] **Step 7: Render the global numeric badge**
+
+Add:
+
+```ts
+readonly activeDownloadsCount = computed(() =>
+    this.supportsDownloads ? this.downloadsService.activeCount() : 0
+);
+readonly hasActiveDownloads = computed(
+    () => this.activeDownloadsCount() > 0
+);
+```
+
+Pass `[activeDownloadsCount]="facade.activeDownloadsCount()"` through the
+shell, declare `readonly activeDownloadsCount = input(0)` on the header, and
+render:
+
+```html
+@if (activeDownloadsCount() > 0) {
+    <span
+        class="download-count-badge"
+        data-test-id="global-download-count"
+        aria-hidden="true"
+    >
+        {{ activeDownloadsCount() }}
+    </span>
+}
+```
+
+Style it with the existing selection/on-selection tokens and preserve the
+current activity animation.
+
+- [ ] **Step 8: Run shell tests and verify GREEN**
+
+Run the focused shell command from Step 6. Expected: PASS.
+
+- [ ] **Step 9: Commit the invariant**
+
+```bash
+git add libs/services/src/lib/downloads.service.ts \
+  libs/services/src/lib/downloads.service.spec.ts \
+  libs/workspace/shell/feature/src/lib/workspace-shell
 git commit -m "fix(downloads): keep renderer download state global"
 ```
 
@@ -190,7 +263,17 @@ setupZoneTestEnv({
 Add the same `test` executor/options as
 `libs/portal/catalog/feature/project.json`, add `tsconfig.spec.json` with
 `jest`/`node` types, and move `portal-downloads-feature` from `tierC` to
-`tierA` with validation command `pnpm nx test portal-downloads-feature`.
+`tierA` with:
+
+```json
+{
+    "name": "portal-downloads-feature",
+    "root": "libs/portal/downloads/feature",
+    "sourceRoot": "libs/portal/downloads/feature/src",
+    "validationCommand": "pnpm nx test portal-downloads-feature",
+    "e2eTags": ["@downloads", "@electron", "@persistence"]
+}
+```
 
 - [ ] **Step 2: Write failing pure-model tests**
 
@@ -1187,6 +1270,7 @@ Omit `CLAUDE.md` from `git add` if it required no change.
 ```bash
 pnpm nx test services --runInBand --testPathPatterns=downloads.service.spec.ts
 pnpm nx test portal-downloads-feature --runInBand
+node tools/coverage/run-tier-a-coverage.mjs --projects=portal-downloads-feature
 pnpm nx lint services
 pnpm nx lint portal-downloads-feature
 pnpm run typecheck:web
@@ -1197,6 +1281,8 @@ pnpm run release:notes:validate
 
 Run the targeted Electron downloads E2E command from Task 7. Every command
 must exit zero; warnings are investigated rather than silently accepted.
+Run `pnpm run coverage:policy:check`; do not lower the merged coverage ratchet
+or exempt a new runtime file to absorb missing tests.
 
 - [ ] **Step 2: Inspect the running UI with agent-browser**
 
