@@ -172,4 +172,32 @@ describe('WorkspaceShellHeaderComponent', () => {
 
         expect(chips).toEqual(['Movies / All Items', 'Loaded channels only']);
     });
+
+    it('renders the global active download count without duplicating the button name', () => {
+        fixture.componentRef.setInput('isElectron', true);
+        fixture.componentRef.setInput('activeDownloadsCount', 3);
+        fixture.detectChanges();
+
+        const badge: HTMLElement | null = fixture.nativeElement.querySelector(
+            '[data-test-id="global-download-count"]'
+        );
+
+        expect(badge?.textContent?.trim()).toBe('3');
+        expect(badge?.getAttribute('aria-hidden')).toBe('true');
+        expect(
+            fixture.nativeElement.querySelector('.download-activity-bar')
+        ).not.toBeNull();
+    });
+
+    it('does not render a global download badge when no downloads are active', () => {
+        fixture.componentRef.setInput('isElectron', true);
+        fixture.componentRef.setInput('activeDownloadsCount', 0);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="global-download-count"]'
+            )
+        ).toBeNull();
+    });
 });

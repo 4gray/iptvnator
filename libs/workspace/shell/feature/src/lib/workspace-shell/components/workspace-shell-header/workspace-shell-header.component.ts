@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     ElementRef,
     input,
     output,
@@ -52,7 +53,10 @@ export class WorkspaceShellHeaderComponent {
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
     readonly isDownloadsView = input(false);
-    readonly hasActiveDownloads = input(false);
+    readonly activeDownloadsCount = input(0);
+    readonly hasActiveDownloads = computed(
+        () => this.activeDownloadsCount() > 0
+    );
     /**
      * When true the playlist switcher + the "+ Add source" / refresh /
      * bulk-action buttons are hidden — those controls scope to a

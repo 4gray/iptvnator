@@ -39,7 +39,7 @@
         [isElectron]="facade.isElectron"
         [hasNoPlaylists]="facade.hasNoPlaylists()"
         [isDownloadsView]="facade.isDownloadsView()"
-        [hasActiveDownloads]="facade.hasActiveDownloads()"
+        [activeDownloadsCount]="facade.activeDownloadsCount()"
         [isSettingsRoute]="facade.isSettingsRoute()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"

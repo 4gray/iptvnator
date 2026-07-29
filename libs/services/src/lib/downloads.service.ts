@@ -106,14 +106,14 @@ export class DownloadsService implements OnDestroy {
     /**
      * Load downloads from the backend
      */
-    async loadDownloads(playlistId?: string): Promise<void> {
+    async loadDownloads(): Promise<void> {
         if (!this.isAvailable()) return;
 
         const requestId = ++this.loadDownloadsRequestId;
         this._isLoadingDownloads.set(true);
 
         try {
-            const list = await window.electron.downloadsGetList(playlistId);
+            const list = await window.electron.downloadsGetList();
             if (requestId === this.loadDownloadsRequestId) {
                 this.downloads.set(list);
                 this._hasLoadedDownloads.set(true);

@@ -37,7 +37,7 @@ type DownloadsElectronStub = {
         [number, string]
     >;
     downloadsSelectFolder?: jest.Mock<Promise<string | null>, []>;
-    downloadsGetList: jest.Mock<Promise<DownloadItem[]>, [string?]>;
+    downloadsGetList: jest.Mock<Promise<DownloadItem[]>, []>;
 };
 
 describe('DownloadsService', () => {
@@ -121,7 +121,7 @@ describe('DownloadsService', () => {
         }
     });
 
-    it('tracks loading and loaded state around a successful download list request', async () => {
+    it('loads the global download list without a playlist filter and tracks request state', async () => {
         const item = createDownload(1);
         const pending = createDeferred<DownloadItem[]>();
         const electron = {
@@ -130,11 +130,11 @@ describe('DownloadsService', () => {
         testWindow.electron = electron;
         const service = createService();
 
-        const request = service.loadDownloads('playlist-1');
+        const request = service.loadDownloads();
 
         expect(service.isLoadingDownloads()).toBe(true);
         expect(service.hasLoadedDownloads()).toBe(false);
-        expect(electron.downloadsGetList).toHaveBeenCalledWith('playlist-1');
+        expect(electron.downloadsGetList).toHaveBeenCalledWith();
 
         pending.resolve([item]);
         await request;
@@ -245,8 +245,8 @@ describe('DownloadsService', () => {
         testWindow.electron = electron;
         const service = createService();
 
-        const firstRequest = service.loadDownloads('playlist-old');
-        const secondRequest = service.loadDownloads('playlist-new');
+        const firstRequest = service.loadDownloads();
+        const secondRequest = service.loadDownloads();
 
         expect(service.isLoadingDownloads()).toBe(true);
 
@@ -262,14 +262,8 @@ describe('DownloadsService', () => {
 
         expect(service.downloads()).toEqual([latestItem]);
         expect(service.isLoadingDownloads()).toBe(false);
-        expect(electron.downloadsGetList).toHaveBeenNthCalledWith(
-            1,
-            'playlist-old'
-        );
-        expect(electron.downloadsGetList).toHaveBeenNthCalledWith(
-            2,
-            'playlist-new'
-        );
+        expect(electron.downloadsGetList).toHaveBeenNthCalledWith(1);
+        expect(electron.downloadsGetList).toHaveBeenNthCalledWith(2);
     });
 
     it('reports paused content and resumes it by content identity', async () => {

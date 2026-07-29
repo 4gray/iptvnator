@@ -58,7 +58,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
     readonly isDownloadsView = input(false);
-    readonly hasActiveDownloads = input(false);
+    readonly activeDownloadsCount = input(0);
     readonly isSettingsRoute = input(false);
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly searchChanged = output<string>();
@@ -154,7 +154,7 @@ class MockWorkspaceShellFacade {
     readonly isRefreshingPlaylist = signal(false);
     readonly hasNoPlaylists = signal(false);
     readonly isDownloadsView = signal(false);
-    readonly hasActiveDownloads = signal(false);
+    readonly activeDownloadsCount = signal(3);
     readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly showContextPanel = signal(true);
     readonly contextPanel = signal<WorkspaceShellContextPanel>('settings');
@@ -246,6 +246,10 @@ describe('WorkspaceShellComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-workspace-shell-header')
         ).not.toBeNull();
+        const header = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellHeaderComponent)
+        ).componentInstance as MockWorkspaceShellHeaderComponent;
+        expect(header.activeDownloadsCount()).toBe(3);
         expect(
             fixture.nativeElement.querySelector(
                 'app-workspace-shell-context-sidebar'

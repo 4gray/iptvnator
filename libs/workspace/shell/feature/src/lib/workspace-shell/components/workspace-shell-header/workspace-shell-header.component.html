@@ -121,6 +121,15 @@
                         <span class="download-activity-bar__fill"></span>
                     </span>
                 }
+                @if (activeDownloadsCount() > 0) {
+                    <span
+                        class="download-count-badge"
+                        data-test-id="global-download-count"
+                        aria-hidden="true"
+                    >
+                        {{ activeDownloadsCount() }}
+                    </span>
+                }
                 <button
                     type="button"
                     class="header-shortcut"

@@ -112,8 +112,11 @@ export class WorkspaceShellFacade {
     readonly isRefreshingPlaylist = this.header.isRefreshingPlaylist;
     readonly headerBulkAction = this.header.headerBulkAction;
     readonly playlistSubtitle = this.header.playlistSubtitle;
+    readonly activeDownloadsCount = computed(() =>
+        this.supportsDownloads ? this.downloadsService.activeCount() : 0
+    );
     readonly hasActiveDownloads = computed(
-        () => this.supportsDownloads && this.downloadsService.activeCount() > 0
+        () => this.activeDownloadsCount() > 0
     );
 
     constructor() {

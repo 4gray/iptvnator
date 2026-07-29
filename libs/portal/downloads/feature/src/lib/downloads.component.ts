@@ -191,9 +191,9 @@ export class DownloadsComponent {
 
     constructor() {
         effect(() => {
-            const playlistId = this.playlistId();
+            this.playlistId();
             this.collectionContext.setCategoryId('all');
-            void this.downloadsService.loadDownloads(playlistId || undefined);
+            void this.downloadsService.loadDownloads();
         });
     }
 
