@@ -35,6 +35,7 @@ const LEGACY_METHODS = Object.freeze({
     DB_GET_APP_PLAYLIST: 'dbGetAppPlaylist',
     DB_UPSERT_APP_PLAYLIST: 'dbUpsertAppPlaylist',
 });
+const LEGACY_RESPONSE_CLOCK_SKEW_TOLERANCE_MS = 1;
 
 export function deriveXtreamPhaseCapture(
     scenarioId: XtreamPhaseAttributionInput['scenarioId'],
@@ -263,6 +264,10 @@ function legacyIpcPair(
     const requestTimeline = oneTimeline(main, request, 'db-request');
     const success = oneTimeline(main, request, 'preload-performance-success');
     const responseStartEpochMs = requireEpoch(request.responseEpochMs);
+    const responseEndEpochMs = normalizeLegacyResponseEndEpochMs(
+        requireEpoch(success.sourceEpochMs),
+        responseStartEpochMs
+    );
     const correlationId = xtreamIpcProducerIdentityKey(
         XTREAM_IPC_PRODUCER_NAMESPACE.LEGACY_PRELOAD,
         ipcCallId
@@ -281,7 +286,7 @@ function legacyIpcPair(
         {
             boundary: 'response',
             correlationId,
-            endEpochMs: requireEpoch(success.sourceEpochMs),
+            endEpochMs: responseEndEpochMs,
             ipcCallId,
             method,
             outcome: 'success',
@@ -289,6 +294,20 @@ function legacyIpcPair(
             startEpochMs: responseStartEpochMs,
         },
     ];
+}
+
+function normalizeLegacyResponseEndEpochMs(
+    endEpochMs: number,
+    startEpochMs: number
+): number {
+    if (endEpochMs >= startEpochMs) return endEpochMs;
+    if (
+        startEpochMs - endEpochMs >=
+        LEGACY_RESPONSE_CLOCK_SKEW_TOLERANCE_MS
+    ) {
+        invalid();
+    }
+    return startEpochMs;
 }
 
 function oneTimeline(
