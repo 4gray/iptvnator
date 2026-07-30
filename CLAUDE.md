@@ -74,7 +74,13 @@ pnpm nx show projects
 - Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json`.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
-- Repository-specific skills are committed under `.codex/skills/`. Claude Code only discovers skills under `.claude/skills/`, so `release-notes` and `release-cut` are mirrored there and the two copies must be kept in sync; every other entry in `.claude/skills/` is personal and stays gitignored. If an agent does not load skills directly, treat those files as concise ownership docs.
+- Repository-specific skills live under `.codex/skills/`.
+- Frontmatter descriptions are trigger-only and begin with `Use when`; keep
+  each skill at or below 500 words.
+- Run `pnpm run skills:validate` after editing a committed skill or a literal
+  path it documents.
+- Keep `.codex` and `.claude` copies of `release-notes` and `release-cut`
+  byte-identical.
 
 ### Building and Serving
 

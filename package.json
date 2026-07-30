@@ -58,6 +58,7 @@
         "serve:website": "nx serve website",
         "build:website": "nx build website",
         "i18n:check": "node tools/i18n/check-drift.mjs",
+        "skills:validate": "node tools/skills/validate-repository-skills.mjs",
         "release:artwork:dry-run": "tsx --tsconfig tsconfig.base.json tools/release/generate-marketing-artwork.ts --dry-run",
         "release:artwork:manifest": "tsx --tsconfig tsconfig.base.json tools/release/generate-marketing-artwork.ts --manifest",
         "release:artwork:generate": "tsx --tsconfig tsconfig.base.json tools/release/generate-marketing-artwork.ts --generate",
