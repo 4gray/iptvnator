@@ -267,6 +267,10 @@ list:
 
 Stalker has multiple real-world data shapes. The current implementation supports all three:
 
+Across catalog, detail, and activity normalization, `is_series` is accepted
+only as boolean `true`, numeric `1`, or string `'1'`. Unsupported
+`is_series` values do not by themselves classify a VOD item as a series.
+
 1. Regular Series (`/series`):
 
 - Seasons come from API resource (`serialSeasonsResource`).
@@ -300,7 +304,11 @@ Stalker has multiple real-world data shapes. The current implementation supports
   ordering cannot start the wrong episode.
 - For unloaded VOD-series seasons, the CTA target label is derived from season
   metadata and rendered as `SxxE01` until episode details are loaded.
-- Uses unique generated tracking IDs for episode playback position compatibility.
+- Lazy VOD-series episodes use scoped tracking IDs derived from the parent
+  series ID, provider episode ID, season key, and episode number. The season
+  key follows the mapping fallback (`season_number`, then name, then ID).
+- The previous season/episode hash remains available only as a compatibility
+  alias. New playback positions always use the scoped tracking ID.
 - Quick-start actions preserve both their translation key and interpolation
   parameters when adapted for the Stalker CTA. Dropping `labelParams` exposes
   the raw `{{episode}}` placeholder.
@@ -322,6 +330,22 @@ Series inline playback behavior is shared across all three modes:
 - Ministra payloads may omit `season_number`. Episode mapping and lazy
   quick-start labels share the same naturally ordered season fallback so later
   seasons are not persisted as season 1.
+
+### Playback Position Identity and Compatibility
+
+Legacy playback positions are reconciled lazily when the current parent
+series' positions and mapped episodes are available:
+
+- The lookup is scoped to the current parent series. A legacy row is eligible
+  only when its stored season and episode metadata, when present, match the
+  mapped episode.
+- An exact scoped tracking-ID row always wins. The old tracking ID may supply
+  an in-memory compatibility alias only when no exact row exists.
+- On the next position write, IPTVnator persists the scoped row through the
+  strict, failure-propagating persistence boundary before removing a confirmed
+  legacy row. If the scoped write fails, the legacy row remains intact.
+- This is an on-read/on-write compatibility path, not a database schema
+  migration or a bulk rewrite of saved positions.
 
 The VOD-series contract is cross-surface:
 
@@ -467,10 +491,13 @@ This reduces duplicate UI logic across portal types and keeps compatibility beha
 
 ## Regression Coverage
 
-Focused regression tests for Stalker VOD mode branching and the cross-surface
-series contract live in:
+The compatibility helper and focused regression coverage for Stalker VOD mode
+branching and the cross-surface series contract live in:
 
 - `libs/portal/stalker/data-access/src/lib/stalker-vod.utils.spec.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-position-compatibility.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-position-compatibility.spec.ts`
+- `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.position-compatibility.spec.ts`
 - `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.spec.ts`
 - `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.spec.ts`
 

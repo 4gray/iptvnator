@@ -23,6 +23,19 @@ describe('extractStalkerItemType', () => {
             })
         ).toBe('live');
     });
+
+    it.each([true, 1, '1'] as const)(
+        'treats is_series=%p as a series item',
+        (isSeries) => {
+            expect(
+                extractStalkerItemType({
+                    id: '50001',
+                    title: 'Portal Series',
+                    is_series: isSeries,
+                })
+            ).toBe('series');
+        }
+    );
 });
 
 describe('isStalkerRadioItem', () => {

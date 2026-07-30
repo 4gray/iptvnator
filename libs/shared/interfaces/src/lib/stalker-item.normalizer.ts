@@ -50,7 +50,7 @@ export function extractStalkerItemPoster(
  * Determine the normalised activity type of a Stalker item.
  *
  * - `itv` / `live` / radio → `'live'`
- * - `series` or `is_series` truthy → `'series'`
+ * - `series` or `is_series` equal to `true`, `1`, or `'1'` → `'series'`
  * - everything else → `'movie'`
  */
 export function extractStalkerItemType(
