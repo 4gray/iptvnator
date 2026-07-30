@@ -75,12 +75,18 @@ class MockHls {
     static isSupported = jest.fn(() => true);
 }
 
+const actualHlsModule =
+    jest.requireActual<typeof import('hls.js')>('hls.js');
+
 jest.unstable_mockModule('artplayer', () => ({
     default: MockArtplayer,
 }));
 
 jest.unstable_mockModule('hls.js', () => ({
+    ...actualHlsModule,
     default: MockHls,
+    ErrorDetails: actualHlsModule.ErrorDetails,
+    ErrorTypes: actualHlsModule.ErrorTypes,
 }));
 
 jest.unstable_mockModule('mpegts.js', () => ({

@@ -92,6 +92,21 @@ export function getDiagnosticDetails(
 }
 
 function formatDiagnosticErrorDetails(issue: PlaybackDiagnostic): string {
+    if (issue.hls) {
+        return [
+            `stage=${issue.hls.stage}`,
+            `failure=${issue.hls.failure}`,
+            `type=${issue.hls.engineType}`,
+            `details=${issue.hls.engineDetails}`,
+            `disposition=${issue.hls.disposition}`,
+            issue.hls.httpStatus === undefined
+                ? ''
+                : `HTTP ${issue.hls.httpStatus}`,
+        ]
+            .filter((value) => value.length > 0)
+            .join(' · ');
+    }
+
     return [
         issue.httpStatus !== undefined ? `HTTP ${issue.httpStatus}` : '',
         issue.nativeErrorType ?? '',

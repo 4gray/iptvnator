@@ -111,7 +111,15 @@ export class MockMpegTsPlayer {
 export const mpegTsCreatePlayer = jest.fn(() => new MockMpegTsPlayer());
 export const mpegTsIsSupported = jest.fn(() => false);
 
-jest.unstable_mockModule('hls.js', () => ({ default: MockHls }));
+const actualHlsModule =
+    jest.requireActual<typeof import('hls.js')>('hls.js');
+
+jest.unstable_mockModule('hls.js', () => ({
+    ...actualHlsModule,
+    default: MockHls,
+    ErrorDetails: actualHlsModule.ErrorDetails,
+    ErrorTypes: actualHlsModule.ErrorTypes,
+}));
 jest.unstable_mockModule('mpegts.js', () => ({
     default: {
         Events: { ERROR: 'error' },

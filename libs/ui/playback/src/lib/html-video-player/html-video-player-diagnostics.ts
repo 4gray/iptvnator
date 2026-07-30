@@ -6,6 +6,7 @@ import {
     classifyHlsPlaybackIssue,
     classifyMpegTsPlaybackIssue,
     classifyUnsupportedHlsManifestCodecs,
+    createHlsPlaybackEvidence,
     createPlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.util';
 
@@ -55,22 +56,15 @@ export function emitFatalHlsPlaybackError(
     data: ErrorData,
     emitPlaybackIssue: (issue: PlaybackDiagnostic) => void
 ): void {
-    if (!data.fatal) {
+    const issue = classifyHlsPlaybackIssue(
+        createHlsPlaybackEvidence(data),
+        createHtml5SourceMetadata(url, 'application/x-mpegURL')
+    );
+    if (!issue) {
         return;
     }
 
-    emitPlaybackIssue(
-        classifyHlsPlaybackIssue(
-            {
-                type: data.type,
-                details: data.details,
-                fatal: data.fatal,
-                message: data.error?.message,
-                error: data.error,
-            },
-            createHtml5SourceMetadata(url, 'application/x-mpegURL')
-        )
-    );
+    emitPlaybackIssue(issue);
 }
 
 export function emitMpegTsPlaybackError(
