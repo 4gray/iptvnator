@@ -70,7 +70,7 @@ it('classifies an explicit Video.js HTTP failure as a network error', () => {
             code: 4,
             message: 'The media could not be loaded',
             status: 404,
-            metadata: { errorType: 'NETWORK_REQUEST_ERR' },
+            metadata: { errorType: 'networkrequestfailed' },
         },
         createPlaybackSourceMetadata({
             url: 'https://example.com/missing/playlist.m3u8',
@@ -83,7 +83,7 @@ it('classifies an explicit Video.js HTTP failure as a network error', () => {
         expect.objectContaining({
             code: PlaybackDiagnosticCode.NetworkError,
             httpStatus: 404,
-            nativeErrorType: 'NETWORK_REQUEST_ERR',
+            nativeErrorType: 'networkrequestfailed',
             externalFallbackRecommended: false,
         })
     );
@@ -309,7 +309,7 @@ it('preserves safe Video.js HTTP context in playback diagnostics', () => {
         code: 4,
         message: 'The media could not be loaded',
         status: 404,
-        metadata: { errorType: 'NETWORK_REQUEST_ERR' },
+        metadata: { errorType: 'networkrequestfailed' },
     };
 
     harness.emit('error');
@@ -320,7 +320,7 @@ it('preserves safe Video.js HTTP context in playback diagnostics', () => {
             source: 'native',
             sourceUrl: 'https://example.test/missing/playlist.m3u8',
             httpStatus: 404,
-            nativeErrorType: 'NETWORK_REQUEST_ERR',
+            nativeErrorType: 'networkrequestfailed',
             externalFallbackRecommended: false,
         })
     );
@@ -419,7 +419,7 @@ function createHttpDiagnostic(): PlaybackDiagnostic {
         httpStatus: 404,
         nativeErrorCode: 4,
         nativeErrorMessage: 'The media could not be loaded',
-        nativeErrorType: 'NETWORK_REQUEST_ERR',
+        nativeErrorType: 'networkrequestfailed',
         externalFallbackRecommended: false,
     };
 }
@@ -450,7 +450,7 @@ it('renders explicit HTTP evidence without recommending an external player', () 
         expect.arrayContaining([
             {
                 labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
-                value: 'HTTP 404 · NETWORK_REQUEST_ERR',
+                value: 'HTTP 404 · networkrequestfailed',
             },
         ])
     );
