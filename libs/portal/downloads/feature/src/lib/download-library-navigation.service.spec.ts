@@ -27,14 +27,9 @@ const STALKER_PLAYLIST = {
 } satisfies Playlist;
 
 type RouterFake = jest.Mocked<Pick<Router, 'navigate'>>;
-type DatabaseFake = jest.Mocked<
-    Pick<DatabaseService, 'getContentByXtreamId'>
->;
+type DatabaseFake = jest.Mocked<Pick<DatabaseService, 'getContentByXtreamId'>>;
 type PlaylistsFake = jest.Mocked<
-    Pick<
-        PlaylistsService,
-        'getPlaylistById' | 'getPortalRecentlyViewed'
-    >
+    Pick<PlaylistsService, 'getPlaylistById' | 'getPortalRecentlyViewed'>
 >;
 
 function download(overrides: Partial<DownloadItem> = {}): DownloadItem {
@@ -114,9 +109,9 @@ describe('DownloadLibraryNavigationService', () => {
         });
 
         it('rejects an item whose source playlist is absent', () => {
-            expect(navigation.canOpen(download(), new Set(['playlist-b']))).toBe(
-                false
-            );
+            expect(
+                navigation.canOpen(download(), new Set(['playlist-b']))
+            ).toBe(false);
         });
 
         it.each([
@@ -130,10 +125,7 @@ describe('DownloadLibraryNavigationService', () => {
             ['unsafe', Number.MAX_SAFE_INTEGER + 1],
         ])('rejects a %s VOD target ID', (_label, xtreamId) => {
             expect(
-                navigation.canOpen(
-                    download({ xtreamId }),
-                    availablePlaylistIds
-                )
+                navigation.canOpen(download({ xtreamId }), availablePlaylistIds)
             ).toBe(false);
         });
 
@@ -205,13 +197,9 @@ describe('DownloadLibraryNavigationService', () => {
         'returns false instead of rejecting when %s navigation fails',
         async (source) => {
             if (source === 'stalker') {
-                playlists.getPlaylistById.mockReturnValue(
-                    of(STALKER_PLAYLIST)
-                );
+                playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
             }
-            router.navigate.mockRejectedValue(
-                new Error('navigation rejected')
-            );
+            router.navigate.mockRejectedValue(new Error('navigation rejected'));
 
             await expect(navigation.open(download())).resolves.toBe(false);
 
@@ -306,8 +294,7 @@ describe('DownloadLibraryNavigationService', () => {
 
             await expect(navigation.open(download())).resolves.toBe(true);
 
-            const expectedId =
-                idKey === 'stream_id' ? '41' : recent[idKey];
+            const expectedId = idKey === 'stream_id' ? '41' : recent[idKey];
             expect(router.navigate).toHaveBeenCalledWith(
                 ['/workspace', 'stalker', PLAYLIST_ID, 'recent'],
                 {

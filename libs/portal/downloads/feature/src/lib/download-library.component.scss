@@ -4,6 +4,21 @@
     display: block;
 }
 
+.download-library {
+    display: grid;
+    gap: 14px;
+}
+
+.download-library__header {
+    h2 {
+        margin: 0;
+        color: var(--app-heading-color);
+        font: var(--mat-sys-title-medium);
+        font-weight: 680;
+        letter-spacing: -0.015em;
+    }
+}
+
 .download-library__grid {
     @include grid.content-grid(
         $min-width: min(100%, 168px),
@@ -53,6 +68,11 @@
     cursor: pointer;
 }
 
+.download-library__title-hint {
+    display: block;
+    min-width: 0;
+}
+
 .download-library__artwork-button {
     display: block;
     width: 100%;
@@ -72,9 +92,17 @@
         transition: transform 180ms ease;
     }
 
-    &:hover img,
-    &:focus-visible img {
+    &:hover:not([aria-disabled='true']) img,
+    &:focus-visible:not([aria-disabled='true']) img {
         transform: scale(1.025);
+    }
+
+    &--disabled {
+        cursor: not-allowed;
+
+        img {
+            filter: saturate(0.72);
+        }
     }
 }
 
@@ -144,6 +172,7 @@
 
 .download-library__title-button {
     display: -webkit-box;
+    width: 100%;
     min-height: 2.6em;
     padding: 0;
     overflow: hidden;
@@ -155,6 +184,11 @@
     text-align: left;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+
+    &--disabled {
+        color: var(--app-muted-color);
+        cursor: not-allowed;
+    }
 }
 
 .download-library__facts,
@@ -176,10 +210,21 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
+    span:last-child {
+        font-family:
+            'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
+            monospace;
+        font-variant-numeric: tabular-nums;
+    }
 }
 
 .download-library__episodes-button {
-    padding: 0;
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    margin: -8px -4px;
+    padding: 8px 4px;
     background: transparent;
     color: var(--mat-sys-primary);
     font-weight: 650;

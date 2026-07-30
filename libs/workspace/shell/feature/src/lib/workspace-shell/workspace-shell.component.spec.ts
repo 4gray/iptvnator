@@ -1,10 +1,4 @@
-import {
-    Component,
-    Directive,
-    input,
-    output,
-    signal,
-} from '@angular/core';
+import { Component, Directive, input, output, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';

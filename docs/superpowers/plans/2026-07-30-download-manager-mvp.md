@@ -183,13 +183,13 @@ render:
 
 ```html
 @if (activeDownloadsCount() > 0) {
-    <span
-        class="download-count-badge"
-        data-test-id="global-download-count"
-        aria-hidden="true"
-    >
-        {{ activeDownloadsCount() }}
-    </span>
+<span
+    class="download-count-badge"
+    data-test-id="global-download-count"
+    aria-hidden="true"
+>
+    {{ activeDownloadsCount() }}
+</span>
 }
 ```
 
@@ -280,8 +280,9 @@ Add the same `test` executor/options as
 Use a `download(overrides)` fixture and cover these exact assertions:
 
 ```ts
-expect(buildDownloadManagerViewModel(input).active.map((x) => x.item.id))
-    .toEqual([oldestId, newestId]);
+expect(
+    buildDownloadManagerViewModel(input).active.map((x) => x.item.id)
+).toEqual([oldestId, newestId]);
 expect(model.attention.map((x) => x.item.id)).toEqual([failedId, canceledId]);
 expect(model.library.map((x) => x.key)).toEqual([
     'series:playlist-a:42',
@@ -402,9 +403,7 @@ export function buildDownloadManagerViewModel(options: {
 }): DownloadManagerViewModel;
 
 export function normalizeDownloadFilter(value: string): DownloadFilterId {
-    return value === 'movie' ||
-        value === 'series' ||
-        value === 'in-progress'
+    return value === 'movie' || value === 'series' || value === 'in-progress'
         ? value
         : 'all';
 }
@@ -715,8 +714,10 @@ Expected: FAIL because the component is absent.
 
 ```ts
 export class DownloadQueueComponent {
-    readonly activeItems = input.required<readonly DownloadListItemViewModel[]>();
-    readonly attentionItems = input.required<readonly DownloadListItemViewModel[]>();
+    readonly activeItems =
+        input.required<readonly DownloadListItemViewModel[]>();
+    readonly attentionItems =
+        input.required<readonly DownloadListItemViewModel[]>();
     readonly pendingIds = input<ReadonlySet<number>>(new Set());
     readonly itemAction = output<DownloadItemAction>();
     readonly openRequested = output<DownloadItem>();
@@ -971,10 +972,10 @@ The rendered hierarchy is:
         <div>
             <h1 id="downloads-title">{{ 'DOWNLOADS.TITLE' | translate }}</h1>
             @if (model().activeCount > 0) {
-                <span data-test-id="downloads-active-count">
-                    {{ 'DOWNLOADS.ACTIVE_COUNT' | translate:
-                        { count: model().activeCount } }}
-                </span>
+            <span data-test-id="downloads-active-count">
+                {{ 'DOWNLOADS.ACTIVE_COUNT' | translate: { count:
+                model().activeCount } }}
+            </span>
             }
         </div>
         <div class="downloads__header-actions">
@@ -985,14 +986,14 @@ The rendered hierarchy is:
                 {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
             </button>
             @if (model().hasClearable) {
-                <button mat-stroked-button (click)="clearFinished()">
-                    {{ 'DOWNLOADS.CLEAR_FINISHED' | translate }}
-                </button>
+            <button mat-stroked-button (click)="clearFinished()">
+                {{ 'DOWNLOADS.CLEAR_FINISHED' | translate }}
+            </button>
             }
         </div>
         <div data-test-id="downloads-tracked-bytes">
-            {{ 'DOWNLOADS.TRACKED_DOWNLOADS' | translate }} ·
-            {{ formatBytes(model().trackedBytes) }}
+            {{ 'DOWNLOADS.TRACKED_DOWNLOADS' | translate }} · {{
+            formatBytes(model().trackedBytes) }}
         </div>
     </header>
     <div
@@ -1001,19 +1002,19 @@ The rendered hierarchy is:
         [attr.aria-label]="'DOWNLOADS.FILTER.LABEL' | translate"
     >
         @for (category of categories(); track category.category_id) {
-            <button
-                type="button"
-                [class.is-selected]="
+        <button
+            type="button"
+            [class.is-selected]="
                     selectedCategoryId() === category.category_id
                 "
-                [attr.aria-pressed]="
+            [attr.aria-pressed]="
                     selectedCategoryId() === category.category_id
                 "
-                (click)="setFilter(category.category_id)"
-            >
-                {{ category.category_name }}
-                <span>{{ category.count }}</span>
-            </button>
+            (click)="setFilter(category.category_id)"
+        >
+            {{ category.category_name }}
+            <span>{{ category.count }}</span>
+        </button>
         }
     </div>
     <main class="downloads__content">
@@ -1046,32 +1047,32 @@ Add consistent keys under `DOWNLOADS` in every locale:
 
 ```json
 {
-  "ACTIVE_COUNT": "{{count}} active",
-  "TRACKED_DOWNLOADS": "Tracked downloads",
-  "CLEAR_FINISHED": "Clear finished",
-  "DOWNLOADING_NOW": "Downloading now",
-  "NEEDS_ATTENTION": "Needs attention",
-  "READY_TO_WATCH": "Ready to watch",
-  "OFFLINE_BADGE": "Offline",
-  "FILTER": {
-    "ALL": "All",
-    "MOVIES": "Movies",
-    "SERIES": "Series",
-    "IN_PROGRESS": "In progress"
-  },
-  "REMOVE_FROM_MANAGER": "Remove from manager",
-  "REMOVE_COMPLETED_DIALOG": {
-    "TITLE": "Remove from manager?",
-    "MESSAGE": "This removes the entry from IPTVnator. The downloaded media file remains on disk."
-  },
-  "REMOVE_PARTIAL_DIALOG": {
-    "TITLE": "Remove partial download?",
-    "MESSAGE": "This removes the entry and any retained partial download. It can no longer be resumed."
-  },
-  "CLEAR_FINISHED_DIALOG": {
-    "TITLE": "Clear finished downloads?",
-    "MESSAGE": "Completed media files remain on disk. Retained partial data for failed or canceled entries is deleted."
-  }
+    "ACTIVE_COUNT": "{{count}} active",
+    "TRACKED_DOWNLOADS": "Tracked downloads",
+    "CLEAR_FINISHED": "Clear finished",
+    "DOWNLOADING_NOW": "Downloading now",
+    "NEEDS_ATTENTION": "Needs attention",
+    "READY_TO_WATCH": "Ready to watch",
+    "OFFLINE_BADGE": "Offline",
+    "FILTER": {
+        "ALL": "All",
+        "MOVIES": "Movies",
+        "SERIES": "Series",
+        "IN_PROGRESS": "In progress"
+    },
+    "REMOVE_FROM_MANAGER": "Remove from manager",
+    "REMOVE_COMPLETED_DIALOG": {
+        "TITLE": "Remove from manager?",
+        "MESSAGE": "This removes the entry from IPTVnator. The downloaded media file remains on disk."
+    },
+    "REMOVE_PARTIAL_DIALOG": {
+        "TITLE": "Remove partial download?",
+        "MESSAGE": "This removes the entry and any retained partial download. It can no longer be resumed."
+    },
+    "CLEAR_FINISHED_DIALOG": {
+        "TITLE": "Clear finished downloads?",
+        "MESSAGE": "Completed media files remain on disk. Retained partial data for failed or canceled entries is deleted."
+    }
 }
 ```
 

@@ -93,8 +93,7 @@ export class DownloadLibraryNavigationService {
         item: DownloadItem,
         targetId: number
     ): Promise<boolean> {
-        const contentType =
-            item.contentType === 'episode' ? 'series' : 'vod';
+        const contentType = item.contentType === 'episode' ? 'series' : 'vod';
         const content = await this.db.getContentByXtreamId(
             targetId,
             item.playlistId
@@ -194,8 +193,7 @@ export class DownloadLibraryNavigationService {
         item: DownloadItem,
         targetId: number
     ): Promise<boolean> {
-        const fallback =
-            item.contentType === 'episode' ? 'series' : 'vod';
+        const fallback = item.contentType === 'episode' ? 'series' : 'vod';
         const openRecentItem = await this.stalkerOpenState(
             item,
             targetId,

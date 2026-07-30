@@ -1,7 +1,7 @@
 :host {
     display: block;
-    min-width: min(680px, calc(100vw - 32px));
-    max-width: 760px;
+    width: 100%;
+    min-width: 0;
     color: var(--app-body-color);
 }
 
@@ -109,8 +109,11 @@ mat-dialog-content {
 
 .downloaded-series-dialog__size {
     color: var(--app-muted-color);
-    font-family: var(--mat-sys-label-small-font);
+    font-family:
+        'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
+        monospace;
     font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .downloaded-series-dialog__actions {
@@ -127,11 +130,11 @@ button:focus-visible {
     outline-offset: 2px;
 }
 
-@media (max-width: 620px) {
-    :host {
-        min-width: min(100%, calc(100vw - 16px));
-    }
+button:disabled {
+    cursor: progress;
+}
 
+@media (max-width: 620px) {
     .downloaded-series-dialog__header {
         padding: 18px 16px 12px;
     }

@@ -1,6 +1,11 @@
 # Download Manager Architecture
 
-The download manager is a desktop-only feature that layers a curated queue, progress tracking, storage configuration, and playback controls on top of the existing Xtream (`libs/portal/xtream`) + Stalker (`libs/portal/stalker`) portal views. Backend work is handled in the Electron process while the Angular renderer surface exposes a dedicated `/downloads` route, contextual buttons, and theme-aware styling.
+The download manager is a desktop-only feature that layers a curated queue,
+progress tracking, storage configuration, and playback controls on top of the
+existing Xtream (`libs/portal/xtream`) + Stalker (`libs/portal/stalker`) portal
+views. Backend work is handled in the Electron process while the Angular
+renderer exposes the global `/workspace/downloads` page, source-scoped route
+variants, contextual buttons, and theme-aware styling.
 
 ## Backend responsibilities
 
@@ -30,10 +35,48 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 ## Renderer architecture
 
 - **Downloads service** (`libs/services/src/lib/downloads.service.ts`)
-  Signals back the current download list while `hasDownloads` and `isAvailable` gates UI rendering. Before each download/resume the service asks the main process for the authorized folder and calls the download IPC command. The backend extracts the file extension from the URL or falls back to `mp4`. `onDownloadsUpdate` updates the signal, while helper methods `pauseDownload`, `resumeDownload`, `retryDownload`, `removeDownload`, `cancelDownload`, and `playDownload` talk to the corresponding IPC commands so retries reuse existing rows and completed items can open the recorded path.
-- **Downloads view** (`libs/portal/downloads/feature`)  
-  A standalone page exposes the queue, desktop-only messaging, folder picker, and action buttons. `downloads.component.html` wraps the list inside a scrollable panel (`downloads__list-wrapper`) so long queues stay reachable, and `downloads.component.scss` drives gradient cards with theme-aware styling through Angular Material system CSS variables (`var(--mat-sys-*)`, `var(--app-*)`, `color-mix`) — theming tracks the active Material theme rather than a `body.dark-theme` hook.
-  Failed/canceled cards show retry/delete controls, queued/downloading cards show pause/cancel controls, paused cards show resume/cancel/delete controls, and completed cards render inline play/open buttons with `mat-icon` cues. Pause/resume/cancel/retry surface backend `success: false` results in a snackbar instead of failing silently. The header also shows the resolved download folder and a `CHANGE FOLDER` action. VOD and episode detail views render a paused download as an active "Resume" button (`DownloadsService.isPaused()` / `resumeDownloadByContent()`) rather than a disabled "Downloading" state.
+  `DownloadsService.downloads` is the renderer's authoritative **global** list.
+  `loadDownloads()` therefore always invokes the Electron list IPC without its
+  legacy optional playlist scope. Route scope, category, and search must never
+  replace or narrow that signal. Overlapping loads are request-ordered so a
+  late response cannot replace a newer snapshot. Before each fresh download or
+  resume the service asks the main process for an authorized folder and calls
+  the corresponding IPC command. The `onDownloadsUpdate` broadcast triggers a
+  new global load.
+- **Pure manager model**
+  (`download-manager.viewmodel.ts` and `download-library.viewmodel.ts`)
+  derives the current route scope, search/category filtering, queue partitions,
+  stable ordering, counts, and tracked byte total without mutating service
+  state. `queued`, `downloading`, and `paused` rows form the active surface;
+  `failed` and `canceled` rows form the attention surface; only `completed`
+  rows enter the offline library. Completed episodes with a valid
+  `seriesXtreamId` are grouped by `(playlistId, seriesXtreamId)`, ordered by
+  season and episode, and represented by one poster card. Episodes without a
+  usable series id remain standalone cards so they never disappear.
+- **Downloads workspace** (`libs/portal/downloads/feature`)
+  keeps orchestration in `DownloadsComponent`, async mutations in the
+  component-scoped `DownloadManagerActionsService`, source-route resolution in
+  `DownloadLibraryNavigationService`, and rendering in the presentational
+  `DownloadQueueComponent`, `DownloadLibraryComponent`, and
+  `DownloadedSeriesDialogComponent`. Presentational children emit typed
+  `DownloadItemAction` values and do not inject the download service, router,
+  dialogs, or snackbars.
+  The fixed header and filter row sit above one vertical scroll owner. The
+  queue uses compact progress rows with status text and icons; completed movies
+  and grouped series reuse the portal's canonical content grid. All surfaces
+  use the existing `--app-*` and Material system tokens. The global workspace
+  download shortcut displays the service's active count, while the page badge
+  and filter counts reflect the current route scope.
+- **Honest interactions**
+  Every asynchronous item command owns a pending id until the IPC result
+  settles, preventing duplicate dispatch without optimistically changing a
+  status. Service failures surface through the established snackbar path.
+  Removing a completed entry explicitly says the finalized media file remains
+  on disk. Removing a paused, failed, or canceled entry says retained partial
+  data is deleted. “Clear finished” communicates both outcomes and preserves
+  playlist scope when the page is opened under a source route. VOD and episode
+  detail views continue to render a paused download as an active Resume button
+  (`DownloadsService.isPaused()` / `resumeDownloadByContent()`).
 
 ## Global API surface
 
@@ -42,7 +85,11 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 
 ## Routing and navigation
 
-- `/downloads` is available under both portal flavors: the Xtream routes already load `DownloadsComponent`, and the Stalker routes now import the same component so the sidebar link can target `/stalker/:id/downloads` without returning to the startup screen.
+- The global workspace is `/workspace/downloads`. Source-scoped variants are
+  available under both portal flavors:
+  `/workspace/xtreams/:id/downloads` and
+  `/workspace/stalker/:id/downloads`. All three routes render the same global
+  store; the `:id` routes derive a view-only playlist scope.
 - Downloads navigation is data-driven: `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts` emits a `downloads` section link (`path: [...root, 'downloads']`) for both portals, so they reuse the same download page.
 
 ## Queuing, persistence, and UX notes
@@ -60,6 +107,12 @@ The download manager is a desktop-only feature that layers a curated queue, prog
   authorized only after native folder selection, and the main process persists
   that selection under Electron `userData`. Renderer settings may display the
   path, but they are not trusted as authorization.
-- The new UI leverages CSS variables for theme-specific backgrounds/borders, ensures `.downloads__list` can scroll inside its panel, and brings consistent badge/typography treatments to each card.
+- The manager's search and All/Movies/Series/In progress filters affect visible
+  queue and library entities only. The tracked-byte summary deliberately
+  ignores search/category filtering while honoring route scope, so hiding a
+  card never makes its disk footprint appear to vanish.
 
-Keeping the backend queue, IPC handlers, shared schema, and renderer signals synchronized minimizes drift between platform rules and the UI. Future work might cover download list filters, cancel-all actions, or integration with upcoming playback analytics.
+Keeping the backend queue, IPC handlers, shared schema, and renderer signals
+synchronized minimizes drift between platform rules and the UI. Future work
+might cover recordings, queue reordering, bulk pause/cancel actions, disk-free
+space telemetry, or playback analytics.

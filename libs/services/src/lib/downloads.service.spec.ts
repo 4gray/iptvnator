@@ -7,10 +7,7 @@ import {
     runInInjectionContext,
     signal,
 } from '@angular/core';
-import {
-    DownloadItem,
-    DownloadsService,
-} from './downloads.service';
+import { DownloadItem, DownloadsService } from './downloads.service';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 type TestDownloadsService = {
@@ -51,7 +48,10 @@ describe('DownloadsService', () => {
         jest.restoreAllMocks();
     });
 
-    function createDownload(id: number, playlistId = 'playlist-1'): DownloadItem {
+    function createDownload(
+        id: number,
+        playlistId = 'playlist-1'
+    ): DownloadItem {
         return {
             id,
             playlistId,
@@ -203,10 +203,7 @@ describe('DownloadsService', () => {
         await expect(service.resumeDownload(42)).resolves.toEqual({
             success: true,
         });
-        expect(electron.downloadsResume).toHaveBeenCalledWith(
-            42,
-            '/downloads'
-        );
+        expect(electron.downloadsResume).toHaveBeenCalledWith(42, '/downloads');
     });
 
     it('marks downloads as loaded after a failed request while preserving existing data', async () => {
@@ -275,9 +272,7 @@ describe('DownloadsService', () => {
             pausedItem,
             createDownload(8),
         ]) as unknown as DownloadsService;
-        const resumeDownload = jest
-            .fn()
-            .mockResolvedValue({ success: true });
+        const resumeDownload = jest.fn().mockResolvedValue({ success: true });
         (service as unknown as { resumeDownload: jest.Mock }).resumeDownload =
             resumeDownload;
 

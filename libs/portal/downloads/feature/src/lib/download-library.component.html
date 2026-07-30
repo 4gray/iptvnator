@@ -1,294 +1,376 @@
-<div class="download-library__grid">
-    @for (entity of entities(); track entity.key) {
-        @if (entity.kind === 'series') {
-            <article
-                class="download-library__card"
-                [attr.data-test-id]="libraryTestId(entity)"
-            >
-                <div class="download-library__artwork">
-                    <button
-                        type="button"
-                        class="download-library__artwork-button"
-                        data-test-id="download-library-series-open"
-                        [attr.aria-label]="
-                            'DOWNLOADS.OPEN_ARTWORK'
-                                | translate: { title: entity.title }
-                        "
-                        (click)="openSeries(entity)"
+@if (entities().length > 0) {
+    <section
+        class="download-library"
+        data-test-id="downloads-library-section"
+        aria-labelledby="downloads-library-heading"
+    >
+        <header class="download-library__header">
+            <h2 id="downloads-library-heading">
+                {{ 'DOWNLOADS.READY_TO_WATCH' | translate }}
+            </h2>
+        </header>
+        <div class="download-library__grid">
+            @for (entity of entities(); track entity.key) {
+                @if (entity.kind === 'series') {
+                    <article
+                        class="download-library__card"
+                        [attr.data-test-id]="libraryTestId(entity)"
                     >
-                        @if (artworkUrl(entity); as artwork) {
-                            <img
-                                [src]="artwork"
-                                alt=""
-                                loading="lazy"
-                                decoding="async"
-                                (error)="markArtworkFailed(entity, $event)"
-                            />
-                        } @else {
-                            <span
-                                class="download-library__placeholder"
-                                role="img"
-                                [attr.aria-label]="
-                                    ('DOWNLOADS.ARTWORK_UNAVAILABLE'
-                                        | translate) +
-                                    ': ' +
-                                    entity.title
-                                "
-                            >
-                                <mat-icon aria-hidden="true">tv</mat-icon>
-                            </span>
-                        }
-                    </button>
-                    <span class="download-library__offline">
-                        <mat-icon aria-hidden="true">download_done</mat-icon>
-                        {{ 'DOWNLOADS.OFFLINE' | translate }}
-                    </span>
-                </div>
-
-                <div class="download-library__body">
-                    <span class="download-library__type">
-                        {{ 'DOWNLOADS.SERIES' | translate }}
-                    </span>
-                    <button
-                        type="button"
-                        class="download-library__title-button"
-                        data-test-id="download-library-series-open"
-                        [attr.aria-label]="
-                            ('DOWNLOADS.OPEN_DETAILS' | translate) +
-                            ': ' +
-                            entity.title
-                        "
-                        (click)="openSeries(entity)"
-                    >
-                        {{ entity.title }}
-                    </button>
-                    <div class="download-library__facts">
-                        <button
-                            type="button"
-                            class="download-library__episodes-button"
-                            [attr.aria-label]="
-                                ('DOWNLOADS.OPEN_EPISODES' | translate) +
-                                ': ' +
-                                entity.title
-                            "
-                            (click)="openEpisodes(entity)"
+                        <div
+                            class="download-library__artwork download-library__artwork-hint"
                         >
-                            {{
-                                'DOWNLOADS.EPISODE_COUNT'
-                                    | translate
-                                        : { count: entity.members.length }
-                            }}
-                        </button>
-                        @if (
-                            entity.firstSeason !== undefined &&
-                            entity.lastSeason !== undefined
-                        ) {
-                            <span aria-hidden="true">·</span>
-                            <span>
-                                @if (entity.firstSeason === entity.lastSeason) {
-                                    {{
-                                        'DOWNLOADS.SEASON'
-                                            | translate
-                                                : {
-                                                      season: entity.firstSeason,
-                                                  }
-                                    }}
+                            <button
+                                type="button"
+                                class="download-library__artwork-button"
+                                data-test-id="download-library-series-open"
+                                [class.download-library__artwork-button--disabled]="
+                                    !canOpenSeries(entity)
+                                "
+                                [attr.aria-disabled]="
+                                    !canOpenSeries(entity) ? 'true' : null
+                                "
+                                [attr.aria-label]="
+                                    'DOWNLOADS.OPEN_ARTWORK'
+                                        | translate: { title: entity.title }
+                                "
+                                [matTooltip]="
+                                    'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
+                                        | translate
+                                "
+                                [matTooltipDisabled]="canOpenSeries(entity)"
+                                (click)="openSeries(entity)"
+                            >
+                                @if (artworkUrl(entity); as artwork) {
+                                    <img
+                                        [src]="artwork"
+                                        alt=""
+                                        loading="lazy"
+                                        decoding="async"
+                                        (error)="
+                                            markArtworkFailed(entity, $event)
+                                        "
+                                    />
                                 } @else {
+                                    <span
+                                        class="download-library__placeholder"
+                                        role="img"
+                                        [attr.aria-label]="
+                                            ('DOWNLOADS.ARTWORK_UNAVAILABLE'
+                                                | translate) +
+                                            ': ' +
+                                            entity.title
+                                        "
+                                    >
+                                        <mat-icon aria-hidden="true"
+                                            >tv</mat-icon
+                                        >
+                                    </span>
+                                }
+                            </button>
+                            <span class="download-library__offline">
+                                <mat-icon aria-hidden="true"
+                                    >download_done</mat-icon
+                                >
+                                {{ 'DOWNLOADS.OFFLINE' | translate }}
+                            </span>
+                        </div>
+
+                        <div class="download-library__body">
+                            <span class="download-library__type">
+                                {{ 'DOWNLOADS.SERIES' | translate }}
+                            </span>
+                            <span class="download-library__title-hint">
+                                <button
+                                    type="button"
+                                    class="download-library__title-button"
+                                    data-test-id="download-library-series-open"
+                                    [class.download-library__title-button--disabled]="
+                                        !canOpenSeries(entity)
+                                    "
+                                    [attr.aria-disabled]="
+                                        !canOpenSeries(entity) ? 'true' : null
+                                    "
+                                    [attr.aria-label]="
+                                        ('DOWNLOADS.OPEN_DETAILS' | translate) +
+                                        ': ' +
+                                        entity.title
+                                    "
+                                    [matTooltip]="
+                                        'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
+                                            | translate
+                                    "
+                                    [matTooltipDisabled]="canOpenSeries(entity)"
+                                    (click)="openSeries(entity)"
+                                >
+                                    {{ entity.title }}
+                                </button>
+                            </span>
+                            <div class="download-library__facts">
+                                <button
+                                    type="button"
+                                    class="download-library__episodes-button"
+                                    [attr.aria-label]="
+                                        ('DOWNLOADS.OPEN_EPISODES'
+                                            | translate) +
+                                        ': ' +
+                                        entity.title
+                                    "
+                                    (click)="openEpisodes(entity)"
+                                >
                                     {{
-                                        'DOWNLOADS.SEASON_RANGE'
+                                        episodeCountKey(entity.members.length)
                                             | translate
                                                 : {
-                                                      first: entity.firstSeason,
-                                                      last: entity.lastSeason,
+                                                      count: entity.members
+                                                          .length,
                                                   }
                                     }}
+                                </button>
+                                @if (
+                                    entity.firstSeason !== undefined &&
+                                    entity.lastSeason !== undefined
+                                ) {
+                                    <span aria-hidden="true">·</span>
+                                    <span>
+                                        @if (
+                                            entity.firstSeason ===
+                                            entity.lastSeason
+                                        ) {
+                                            {{
+                                                'DOWNLOADS.SEASON'
+                                                    | translate
+                                                        : {
+                                                              season: entity.firstSeason,
+                                                          }
+                                            }}
+                                        } @else {
+                                            {{
+                                                'DOWNLOADS.SEASON_RANGE'
+                                                    | translate
+                                                        : {
+                                                              first: entity.firstSeason,
+                                                              last: entity.lastSeason,
+                                                          }
+                                            }}
+                                        }
+                                    </span>
                                 }
-                            </span>
-                        }
-                    </div>
-                    <div class="download-library__metadata">
-                        <span>{{ entity.sourceName }}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{{ formatBytes(entity.trackedBytes) }}</span>
-                    </div>
-                </div>
-            </article>
-        } @else {
-            <article
-                class="download-library__card"
-                [attr.data-test-id]="libraryTestId(entity)"
-            >
-                <div class="download-library__artwork">
-                    <button
-                        type="button"
-                        class="download-library__artwork-button"
-                        [disabled]="isPending(entity.item)"
-                        [attr.aria-label]="
-                            ('DOWNLOADS.PLAY' | translate) +
-                            ': ' +
-                            entity.item.title
-                        "
-                        (click)="emitAction('play', entity.item)"
+                            </div>
+                            <div class="download-library__metadata">
+                                @if (entity.sourceName.trim()) {
+                                    <span>{{ entity.sourceName }}</span>
+                                    <span aria-hidden="true">·</span>
+                                }
+                                <span>{{
+                                    formatBytes(entity.trackedBytes)
+                                }}</span>
+                            </div>
+                        </div>
+                    </article>
+                } @else {
+                    <article
+                        class="download-library__card"
+                        [attr.data-test-id]="libraryTestId(entity)"
                     >
-                        @if (artworkUrl(entity); as artwork) {
-                            <img
-                                [src]="artwork"
-                                alt=""
-                                loading="lazy"
-                                decoding="async"
-                                (error)="markArtworkFailed(entity, $event)"
-                            />
-                        } @else {
-                            <span
-                                class="download-library__placeholder"
-                                role="img"
-                                [attr.aria-label]="
-                                    ('DOWNLOADS.ARTWORK_UNAVAILABLE'
-                                        | translate) +
-                                    ': ' +
-                                    entity.item.title
-                                "
-                            >
-                                <mat-icon aria-hidden="true">
-                                    {{
-                                        entity.kind === 'movie'
-                                            ? 'movie'
-                                            : 'live_tv'
-                                    }}
-                                </mat-icon>
-                            </span>
-                        }
-                    </button>
-                    <span class="download-library__offline">
-                        <mat-icon aria-hidden="true">download_done</mat-icon>
-                        {{ 'DOWNLOADS.OFFLINE' | translate }}
-                    </span>
-                </div>
-
-                <div class="download-library__body">
-                    <span class="download-library__type">
-                        {{
-                            (entity.kind === 'movie'
-                                ? 'DOWNLOADS.MOVIE'
-                                : 'DOWNLOADS.EPISODE'
-                            ) | translate
-                        }}
-                    </span>
-                    <button
-                        type="button"
-                        class="download-library__title-button"
-                        [disabled]="isPending(entity.item)"
-                        [attr.aria-label]="
-                            ('DOWNLOADS.PLAY' | translate) +
-                            ': ' +
-                            entity.item.title
-                        "
-                        (click)="emitAction('play', entity.item)"
-                    >
-                        {{ entity.item.title }}
-                    </button>
-                    @if (entity.kind === 'episode' && entity.episodeLabel) {
-                        <span class="download-library__episode-label">
-                            {{ entity.episodeLabel }}
-                        </span>
-                    }
-                    <div class="download-library__metadata">
-                        <span>{{ entity.sourceName }}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{{ formatBytes(entity.trackedBytes) }}</span>
-                    </div>
-
-                    <div
-                        class="download-library__actions"
-                        [attr.aria-label]="entity.item.title"
-                    >
-                        <button
-                            mat-icon-button
-                            type="button"
-                            [disabled]="isPending(entity.item)"
-                            [attr.aria-label]="
-                                ('DOWNLOADS.PLAY' | translate) +
-                                ': ' +
-                                entity.item.title
-                            "
-                            [matTooltip]="'DOWNLOADS.PLAY' | translate"
-                            (click)="emitAction('play', entity.item)"
-                        >
-                            <mat-icon aria-hidden="true">play_arrow</mat-icon>
-                        </button>
-                        <button
-                            mat-icon-button
-                            type="button"
-                            [disabled]="isPending(entity.item)"
-                            [attr.aria-label]="
-                                ('DOWNLOADS.REVEAL' | translate) +
-                                ': ' +
-                                entity.item.title
-                            "
-                            [matTooltip]="'DOWNLOADS.REVEAL' | translate"
-                            (click)="emitAction('reveal', entity.item)"
-                        >
-                            <mat-icon aria-hidden="true">folder_open</mat-icon>
-                        </button>
-                        <button
-                            mat-icon-button
-                            type="button"
-                            [matMenuTriggerFor]="itemMenu"
-                            [disabled]="isPending(entity.item)"
-                            [attr.aria-label]="
-                                ('DOWNLOADS.MORE_ACTIONS' | translate) +
-                                ': ' +
-                                entity.item.title
-                            "
-                            [matTooltip]="'DOWNLOADS.MORE_ACTIONS' | translate"
-                        >
-                            <mat-icon aria-hidden="true">more_vert</mat-icon>
-                        </button>
-                        <mat-menu #itemMenu="matMenu">
+                        <div class="download-library__artwork">
                             <button
-                                mat-menu-item
                                 type="button"
+                                class="download-library__artwork-button"
                                 [disabled]="isPending(entity.item)"
                                 [attr.aria-label]="
-                                    ('DOWNLOADS.COPY_URL' | translate) +
+                                    ('DOWNLOADS.PLAY' | translate) +
                                     ': ' +
                                     entity.item.title
                                 "
-                                (click)="emitAction('copy-url', entity.item)"
+                                (click)="emitAction('play', entity.item)"
                             >
-                                <mat-icon aria-hidden="true">
-                                    content_copy
-                                </mat-icon>
-                                <span>
-                                    {{ 'DOWNLOADS.COPY_URL' | translate }}
-                                </span>
+                                @if (artworkUrl(entity); as artwork) {
+                                    <img
+                                        [src]="artwork"
+                                        alt=""
+                                        loading="lazy"
+                                        decoding="async"
+                                        (error)="
+                                            markArtworkFailed(entity, $event)
+                                        "
+                                    />
+                                } @else {
+                                    <span
+                                        class="download-library__placeholder"
+                                        role="img"
+                                        [attr.aria-label]="
+                                            ('DOWNLOADS.ARTWORK_UNAVAILABLE'
+                                                | translate) +
+                                            ': ' +
+                                            entity.item.title
+                                        "
+                                    >
+                                        <mat-icon aria-hidden="true">
+                                            {{
+                                                entity.kind === 'movie'
+                                                    ? 'movie'
+                                                    : 'live_tv'
+                                            }}
+                                        </mat-icon>
+                                    </span>
+                                }
                             </button>
+                            <span class="download-library__offline">
+                                <mat-icon aria-hidden="true"
+                                    >download_done</mat-icon
+                                >
+                                {{ 'DOWNLOADS.OFFLINE' | translate }}
+                            </span>
+                        </div>
+
+                        <div class="download-library__body">
+                            <span class="download-library__type">
+                                {{
+                                    (entity.kind === 'movie'
+                                        ? 'DOWNLOADS.MOVIE'
+                                        : 'DOWNLOADS.EPISODE'
+                                    ) | translate
+                                }}
+                            </span>
                             <button
-                                mat-menu-item
                                 type="button"
+                                class="download-library__title-button"
                                 [disabled]="isPending(entity.item)"
                                 [attr.aria-label]="
-                                    ('DOWNLOADS.REMOVE_FROM_MANAGER'
-                                        | translate) +
+                                    ('DOWNLOADS.PLAY' | translate) +
                                     ': ' +
                                     entity.item.title
                                 "
-                                (click)="emitAction('remove', entity.item)"
+                                (click)="emitAction('play', entity.item)"
                             >
-                                <mat-icon aria-hidden="true">
-                                    remove_circle_outline
-                                </mat-icon>
-                                <span>
-                                    {{
-                                        'DOWNLOADS.REMOVE_FROM_MANAGER'
-                                            | translate
-                                    }}
-                                </span>
+                                {{ entity.item.title }}
                             </button>
-                        </mat-menu>
-                    </div>
-                </div>
-            </article>
-        }
-    }
-</div>
+                            @if (
+                                entity.kind === 'episode' && entity.episodeLabel
+                            ) {
+                                <span class="download-library__episode-label">
+                                    {{ entity.episodeLabel }}
+                                </span>
+                            }
+                            <div class="download-library__metadata">
+                                @if (entity.sourceName.trim()) {
+                                    <span>{{ entity.sourceName }}</span>
+                                    <span aria-hidden="true">·</span>
+                                }
+                                <span>{{
+                                    formatBytes(entity.trackedBytes)
+                                }}</span>
+                            </div>
+
+                            <div
+                                class="download-library__actions"
+                                [attr.aria-label]="entity.item.title"
+                            >
+                                <button
+                                    mat-icon-button
+                                    type="button"
+                                    [disabled]="isPending(entity.item)"
+                                    [attr.aria-label]="
+                                        ('DOWNLOADS.PLAY' | translate) +
+                                        ': ' +
+                                        entity.item.title
+                                    "
+                                    [matTooltip]="'DOWNLOADS.PLAY' | translate"
+                                    (click)="emitAction('play', entity.item)"
+                                >
+                                    <mat-icon aria-hidden="true"
+                                        >play_arrow</mat-icon
+                                    >
+                                </button>
+                                <button
+                                    mat-icon-button
+                                    type="button"
+                                    [disabled]="isPending(entity.item)"
+                                    [attr.aria-label]="
+                                        ('DOWNLOADS.REVEAL' | translate) +
+                                        ': ' +
+                                        entity.item.title
+                                    "
+                                    [matTooltip]="
+                                        'DOWNLOADS.REVEAL' | translate
+                                    "
+                                    (click)="emitAction('reveal', entity.item)"
+                                >
+                                    <mat-icon aria-hidden="true"
+                                        >folder_open</mat-icon
+                                    >
+                                </button>
+                                <button
+                                    mat-icon-button
+                                    type="button"
+                                    [matMenuTriggerFor]="itemMenu"
+                                    [disabled]="isPending(entity.item)"
+                                    [attr.aria-label]="
+                                        ('DOWNLOADS.MORE_ACTIONS' | translate) +
+                                        ': ' +
+                                        entity.item.title
+                                    "
+                                    [matTooltip]="
+                                        'DOWNLOADS.MORE_ACTIONS' | translate
+                                    "
+                                >
+                                    <mat-icon aria-hidden="true"
+                                        >more_vert</mat-icon
+                                    >
+                                </button>
+                                <mat-menu #itemMenu="matMenu">
+                                    <button
+                                        mat-menu-item
+                                        type="button"
+                                        [disabled]="isPending(entity.item)"
+                                        [attr.aria-label]="
+                                            ('DOWNLOADS.COPY_URL' | translate) +
+                                            ': ' +
+                                            entity.item.title
+                                        "
+                                        (click)="
+                                            emitAction('copy-url', entity.item)
+                                        "
+                                    >
+                                        <mat-icon aria-hidden="true">
+                                            content_copy
+                                        </mat-icon>
+                                        <span>
+                                            {{
+                                                'DOWNLOADS.COPY_URL' | translate
+                                            }}
+                                        </span>
+                                    </button>
+                                    <button
+                                        mat-menu-item
+                                        type="button"
+                                        [disabled]="isPending(entity.item)"
+                                        [attr.aria-label]="
+                                            ('DOWNLOADS.REMOVE_FROM_MANAGER'
+                                                | translate) +
+                                            ': ' +
+                                            entity.item.title
+                                        "
+                                        (click)="
+                                            emitAction('remove', entity.item)
+                                        "
+                                    >
+                                        <mat-icon aria-hidden="true">
+                                            remove_circle_outline
+                                        </mat-icon>
+                                        <span>
+                                            {{
+                                                'DOWNLOADS.REMOVE_FROM_MANAGER'
+                                                    | translate
+                                            }}
+                                        </span>
+                                    </button>
+                                </mat-menu>
+                            </div>
+                        </div>
+                    </article>
+                }
+            }
+        </div>
+    </section>
+}

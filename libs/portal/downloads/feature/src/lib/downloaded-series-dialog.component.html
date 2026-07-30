@@ -6,18 +6,21 @@
         <h2 mat-dialog-title>{{ group.title }}</h2>
         <p>
             {{
-                'DOWNLOADS.EPISODE_COUNT'
-                    | translate: { count: group.members.length }
+                episodeCountKey(currentMembers().length)
+                    | translate: { count: currentMembers().length }
             }}
-            <span aria-hidden="true">·</span>
-            {{ group.sourceName }}
+            @if (group.sourceName.trim()) {
+                <span aria-hidden="true">·</span>
+                {{ group.sourceName }}
+            }
         </p>
     </div>
     <button
         mat-icon-button
         type="button"
         mat-dialog-close
-        [attr.aria-label]="'CLOSE' | translate"
+        data-test-id="downloaded-series-close"
+        [aria-label]="'CLOSE' | translate"
         [matTooltip]="'CLOSE' | translate"
     >
         <mat-icon aria-hidden="true">close</mat-icon>
@@ -26,10 +29,11 @@
 
 <mat-dialog-content>
     <ol class="downloaded-series-dialog__list">
-        @for (member of group.members; track member.id) {
+        @for (member of currentMembers(); track member.id) {
             <li
                 class="downloaded-series-dialog__episode"
                 [attr.data-test-id]="'downloaded-series-episode-' + member.id"
+                [attr.aria-busy]="isPending(member) ? 'true' : null"
             >
                 <div class="downloaded-series-dialog__identity">
                     @if (episodeLabel(member); as label) {
@@ -49,6 +53,7 @@
                     <button
                         mat-icon-button
                         type="button"
+                        [disabled]="isPending(member)"
                         [attr.aria-label]="
                             ('DOWNLOADS.PLAY' | translate) +
                             ': ' +
@@ -62,6 +67,7 @@
                     <button
                         mat-icon-button
                         type="button"
+                        [disabled]="isPending(member)"
                         [attr.aria-label]="
                             ('DOWNLOADS.REVEAL' | translate) +
                             ': ' +
@@ -75,6 +81,7 @@
                     <button
                         mat-icon-button
                         type="button"
+                        [disabled]="isPending(member)"
                         [attr.aria-label]="
                             ('DOWNLOADS.COPY_URL' | translate) +
                             ': ' +
@@ -88,6 +95,7 @@
                     <button
                         mat-icon-button
                         type="button"
+                        [disabled]="isPending(member)"
                         [attr.aria-label]="
                             ('DOWNLOADS.REMOVE_FROM_MANAGER' | translate) +
                             ': ' +

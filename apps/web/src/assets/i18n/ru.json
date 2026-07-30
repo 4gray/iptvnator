@@ -1085,6 +1085,59 @@
             "FAILED": "Ошибка",
             "CANCELED": "Отменено",
             "PAUSED": "На паузе"
+        },
+        "ACTIVE_COUNT": "{{count}} активн.",
+        "TRACKED_DOWNLOADS": "Объём загрузок",
+        "CLEAR_FINISHED": "Очистить завершённые",
+        "DOWNLOADING_NOW": "Скачиваются сейчас",
+        "NEEDS_ATTENTION": "Требуют внимания",
+        "READY_TO_WATCH": "Готово к просмотру",
+        "OFFLINE": "Офлайн",
+        "OFFLINE_BADGE": "Офлайн",
+        "FILTER": {
+            "LABEL": "Фильтр загрузок",
+            "ALL": "Все",
+            "MOVIES": "Фильмы",
+            "SERIES": "Сериалы",
+            "IN_PROGRESS": "В процессе"
+        },
+        "REMOVE_FROM_MANAGER": "Убрать из менеджера",
+        "REMOVE_COMPLETED_DIALOG": {
+            "TITLE": "Убрать из менеджера?",
+            "MESSAGE": "Запись исчезнет из IPTVnator, но скачанный медиафайл останется на диске."
+        },
+        "REMOVE_PARTIAL_DIALOG": {
+            "TITLE": "Удалить частичную загрузку?",
+            "MESSAGE": "Запись и сохранённая часть загрузки будут удалены. Возобновить её больше не получится."
+        },
+        "CLEAR_FINISHED_DIALOG": {
+            "TITLE": "Очистить завершённые загрузки?",
+            "MESSAGE": "Готовые медиафайлы останутся на диске. Частичные данные неудачных и отменённых загрузок будут удалены."
+        },
+        "ARTWORK_UNAVAILABLE": "Обложка недоступна",
+        "EPISODE_COUNT_ONE": "1 эпизод",
+        "EPISODE_COUNT_OTHER": "{{count}} эп.",
+        "MORE_ACTIONS": "Другие действия",
+        "MOVIE": "Фильм",
+        "EPISODE": "Эпизод",
+        "SERIES": "Сериал",
+        "OPEN_ARTWORK": "Открыть {{title}}",
+        "OPEN_DETAILS": "Открыть подробности",
+        "OPEN_EPISODES": "Открыть скачанные эпизоды",
+        "SEASON": "Сезон {{season}}",
+        "SEASON_RANGE": "Сезоны {{first}}–{{last}}",
+        "DOWNLOADED_EPISODES": "Скачанные эпизоды",
+        "ARIA": {
+            "OPEN": "Открыть {{title}}",
+            "POSTER_UNAVAILABLE": "Обложка для {{title}} недоступна",
+            "PROGRESS": "Ход загрузки {{title}}",
+            "PAUSE": "Приостановить {{title}}",
+            "CANCEL": "Отменить {{title}}",
+            "RESUME": "Возобновить {{title}}",
+            "REMOVE": "Убрать {{title}} из менеджера",
+            "RETRY": "Повторить {{title}}",
+            "MORE_ACTIONS": "Другие действия для {{title}}",
+            "COPY_URL": "Копировать URL загрузки {{title}}"
         }
     },
     "REMOTE_CONTROL": {

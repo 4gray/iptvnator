@@ -1,10 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-    Component,
-    input,
-    output,
-} from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconButton } from '@angular/material/button';
@@ -86,8 +82,9 @@ describe('WorkspaceShellHeaderComponent', () => {
     it('emits search input changes as user types', () => {
         const emitted: string[] = [];
         component.searchChanged.subscribe((value) => emitted.push(value));
-        const input: HTMLInputElement =
-            fixture.nativeElement.querySelector('input[type="search"]');
+        const input: HTMLInputElement = fixture.nativeElement.querySelector(
+            'input[type="search"]'
+        );
 
         input.value = 'matrix';
         input.dispatchEvent(new Event('input'));
@@ -96,8 +93,9 @@ describe('WorkspaceShellHeaderComponent', () => {
     });
 
     it('focuses and selects the search input on request', () => {
-        const input: HTMLInputElement =
-            fixture.nativeElement.querySelector('input[type="search"]');
+        const input: HTMLInputElement = fixture.nativeElement.querySelector(
+            'input[type="search"]'
+        );
         input.value = 'matrix';
         input.blur();
 

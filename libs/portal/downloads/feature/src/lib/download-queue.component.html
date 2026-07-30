@@ -17,6 +17,7 @@
                     [class.download-queue__item--pending]="
                         isPending(row.item.id)
                     "
+                    [attr.aria-busy]="isPending(row.item.id) ? 'true' : null"
                     [attr.data-test-id]="'download-queue-item-' + row.item.id"
                     role="listitem"
                 >
@@ -84,6 +85,9 @@
                         <div class="download-queue__metadata">
                             <span
                                 class="download-queue__status"
+                                role="status"
+                                aria-live="polite"
+                                aria-atomic="true"
                                 [class]="
                                     'download-queue__status download-queue__status--' +
                                     row.item.status

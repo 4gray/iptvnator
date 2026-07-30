@@ -121,12 +121,12 @@ authoritative. Missing or invalid timestamps normalize to zero for ordering.
 
 ### Filter semantics
 
-| Filter | Queue | Attention | Library |
-| --- | --- | --- | --- |
-| All | Movies and episodes | Movies and episodes | Movies and grouped series |
-| Movies | VOD rows | VOD rows | Completed VOD cards |
-| Series | Episode rows | Episode rows | Grouped completed series |
-| In progress | Queued, downloading, and paused rows | Hidden | Hidden |
+| Filter      | Queue                                | Attention           | Library                   |
+| ----------- | ------------------------------------ | ------------------- | ------------------------- |
+| All         | Movies and episodes                  | Movies and episodes | Movies and grouped series |
+| Movies      | VOD rows                             | VOD rows            | Completed VOD cards       |
+| Series      | Episode rows                         | Episode rows        | Grouped completed series  |
+| In progress | Queued, downloading, and paused rows | Hidden              | Hidden                    |
 
 Chip counts are calculated from the scoped, partitioned, and grouped model
 before text search, so typing in the workspace search does not make category
@@ -162,7 +162,7 @@ from different playlists from merging.
 - Episodes without a positive safe-integer `seriesXtreamId` fall back to
   individual episode cards.
 - The group title is derived from the standardized stored title prefix before
-  ` - SxxExx - `. If a legacy title does not match that form, the first
+  `- SxxExx -`. If a legacy title does not match that form, the first
   non-empty member title is used unchanged.
 - Artwork uses the newest member with a valid poster URL.
 - The group exposes episode count, downloaded season range, aggregate tracked
@@ -234,13 +234,13 @@ Every queue row contains:
   progress for an active transfer;
 - status-specific actions.
 
-| Status | Primary actions |
-| --- | --- |
-| queued | Pause, Cancel |
-| downloading | Pause, Cancel |
-| paused | Resume, Cancel, Remove from manager |
-| failed | Retry, Remove from manager |
-| canceled | Retry, Remove from manager |
+| Status      | Primary actions                     |
+| ----------- | ----------------------------------- |
+| queued      | Pause, Cancel                       |
+| downloading | Pause, Cancel                       |
+| paused      | Resume, Cancel, Remove from manager |
+| failed      | Retry, Remove from manager          |
+| canceled    | Retry, Remove from manager          |
 
 Copy URL is placed in an overflow menu rather than competing with the primary
 transfer controls. Clicking the title/artwork opens the corresponding source
@@ -317,15 +317,15 @@ explicit delete and recovery semantics.
 The handoff's standalone `tokens.css` is a visual reference, not a new runtime
 token source. Its roles map to existing IPTVnator variables:
 
-| Handoff role | IPTVnator source |
-| --- | --- |
-| page background | `--app-content-bg` |
-| panel/card background | `--app-widget-bg` |
-| raised/secondary surface | `--app-widget-header-bg`, `--app-card-hover-bg` |
-| primary and secondary text | `--app-heading-color`, `--app-body-color` |
-| muted text | `--app-muted-color`, `--app-eyebrow-color` |
-| active blue | `--app-selection-color` and `--app-selection-*` surfaces |
-| separators | `--app-separator`, `--app-widget-header-border` |
+| Handoff role               | IPTVnator source                                         |
+| -------------------------- | -------------------------------------------------------- |
+| page background            | `--app-content-bg`                                       |
+| panel/card background      | `--app-widget-bg`                                        |
+| raised/secondary surface   | `--app-widget-header-bg`, `--app-card-hover-bg`          |
+| primary and secondary text | `--app-heading-color`, `--app-body-color`                |
+| muted text                 | `--app-muted-color`, `--app-eyebrow-color`               |
+| active blue                | `--app-selection-color` and `--app-selection-*` surfaces |
+| separators                 | `--app-separator`, `--app-widget-header-border`          |
 
 The implementation reuses DM Sans, JetBrains Mono for compact byte/path
 metadata, Material icons, and the shared `content-grid` Sass mixin.

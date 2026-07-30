@@ -1085,6 +1085,59 @@
             "FAILED": "Fehlgeschlagen",
             "CANCELED": "Abgebrochen",
             "PAUSED": "Pausiert"
+        },
+        "ACTIVE_COUNT": "{{count}} active",
+        "TRACKED_DOWNLOADS": "Tracked downloads",
+        "CLEAR_FINISHED": "Clear finished",
+        "DOWNLOADING_NOW": "Downloading now",
+        "NEEDS_ATTENTION": "Needs attention",
+        "READY_TO_WATCH": "Ready to watch",
+        "OFFLINE": "Offline",
+        "OFFLINE_BADGE": "Offline",
+        "FILTER": {
+            "LABEL": "Filter downloads",
+            "ALL": "All",
+            "MOVIES": "Movies",
+            "SERIES": "Series",
+            "IN_PROGRESS": "In progress"
+        },
+        "REMOVE_FROM_MANAGER": "Remove from manager",
+        "REMOVE_COMPLETED_DIALOG": {
+            "TITLE": "Remove from manager?",
+            "MESSAGE": "This removes the entry from IPTVnator. The downloaded media file remains on disk."
+        },
+        "REMOVE_PARTIAL_DIALOG": {
+            "TITLE": "Remove partial download?",
+            "MESSAGE": "This removes the entry and any retained partial download. It can no longer be resumed."
+        },
+        "CLEAR_FINISHED_DIALOG": {
+            "TITLE": "Clear finished downloads?",
+            "MESSAGE": "Completed media files remain on disk. Retained partial data for failed or canceled entries is deleted."
+        },
+        "ARTWORK_UNAVAILABLE": "Artwork unavailable",
+        "EPISODE_COUNT_ONE": "1 episode",
+        "EPISODE_COUNT_OTHER": "{{count}} episodes",
+        "MORE_ACTIONS": "More actions",
+        "MOVIE": "Movie",
+        "EPISODE": "Episode",
+        "SERIES": "Series",
+        "OPEN_ARTWORK": "Open {{title}}",
+        "OPEN_DETAILS": "Open details",
+        "OPEN_EPISODES": "Open downloaded episodes",
+        "SEASON": "Season {{season}}",
+        "SEASON_RANGE": "Seasons {{first}}–{{last}}",
+        "DOWNLOADED_EPISODES": "Downloaded episodes",
+        "ARIA": {
+            "OPEN": "Open {{title}}",
+            "POSTER_UNAVAILABLE": "Artwork unavailable for {{title}}",
+            "PROGRESS": "Download progress for {{title}}",
+            "PAUSE": "Pause {{title}}",
+            "CANCEL": "Cancel {{title}}",
+            "RESUME": "Resume {{title}}",
+            "REMOVE": "Remove {{title}} from manager",
+            "RETRY": "Retry {{title}}",
+            "MORE_ACTIONS": "More actions for {{title}}",
+            "COPY_URL": "Copy download URL for {{title}}"
         }
     },
     "REMOTE_CONTROL": {

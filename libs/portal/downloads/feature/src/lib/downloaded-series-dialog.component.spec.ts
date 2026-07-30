@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -11,7 +12,8 @@ const TRANSLATIONS = {
     DOWNLOADS: {
         COPY_URL: 'Copy download URL',
         DOWNLOADED_EPISODES: 'Downloaded episodes',
-        EPISODE_COUNT: '{{count}} episodes',
+        EPISODE_COUNT_ONE: '1 episode',
+        EPISODE_COUNT_OTHER: '{{count}} episodes',
         PLAY: 'Play',
         REMOVE_FROM_MANAGER: 'Remove from manager',
         REVEAL: 'Show in folder',
@@ -122,6 +124,14 @@ describe('DownloadedSeriesDialogComponent', () => {
         expect(rows()[2].textContent).toContain('S02E01');
     });
 
+    it('gives the dialog close button an accessible name', () => {
+        const closeButton = fixture.nativeElement.querySelector(
+            '[data-test-id="downloaded-series-close"]'
+        ) as HTMLButtonElement | null;
+
+        expect(closeButton?.getAttribute('aria-label')).toBe('Close');
+    });
+
     it('includes the concrete episode identity in every action name', () => {
         rows().forEach((row, index) => {
             const identity = ['S01E01', 'S01E03', 'S02E01'][index];
@@ -172,5 +182,64 @@ describe('DownloadedSeriesDialogComponent', () => {
             { type: 'copy-url', item: selected },
             { type: 'remove', item: selected },
         ]);
+    });
+
+    it('disables and guards every command for a pending episode until it settles', async () => {
+        const pendingIds = signal<ReadonlySet<number>>(new Set([32]));
+        fixture.componentRef.setInput('pendingIds', pendingIds);
+        await fixture.whenStable();
+        const actions: unknown[] = [];
+        component.itemAction.subscribe((action) => actions.push(action));
+
+        expect(
+            Array.from(rows()[1].querySelectorAll('button')).every(
+                ({ disabled }) => disabled
+            )
+        ).toBe(true);
+        expect(rows()[1].getAttribute('aria-busy')).toBe('true');
+        expect(
+            Array.from(rows()[0].querySelectorAll('button')).every(
+                ({ disabled }) => !disabled
+            )
+        ).toBe(true);
+        await click(
+            button(rows()[1], 'Play: S01E03 — Signal House - S01E03 - Relay')
+        );
+        expect(actions).toEqual([]);
+        (
+            component as unknown as {
+                emitAction(type: 'play', item: DownloadItem): void;
+            }
+        ).emitAction('play', MEMBERS[1]);
+        expect(actions).toEqual([]);
+
+        pendingIds.set(new Set());
+        await fixture.whenStable();
+        await click(
+            button(rows()[1], 'Play: S01E03 — Signal House - S01E03 - Relay')
+        );
+        expect(actions).toEqual([{ type: 'play', item: MEMBERS[1] }]);
+    });
+
+    it('removes episodes when the authoritative group membership changes', async () => {
+        const members = signal<readonly DownloadItem[]>(MEMBERS);
+        const pendingIds = signal<ReadonlySet<number>>(new Set([32]));
+        fixture.componentRef.setInput('members', members);
+        fixture.componentRef.setInput('pendingIds', pendingIds);
+        await fixture.whenStable();
+
+        expect(rows()).toHaveLength(3);
+        expect(rows()[1].getAttribute('aria-busy')).toBe('true');
+
+        members.set([MEMBERS[0], MEMBERS[2]]);
+        pendingIds.set(new Set());
+        await fixture.whenStable();
+
+        expect(rows().map((row) => row.getAttribute('data-test-id'))).toEqual([
+            'downloaded-series-episode-31',
+            'downloaded-series-episode-33',
+        ]);
+        expect(fixture.nativeElement.textContent).toContain('2 episodes');
+        expect(fixture.nativeElement.textContent).not.toContain('S01E03');
     });
 });

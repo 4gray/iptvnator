@@ -183,6 +183,9 @@ describe('DownloadQueueComponent', () => {
                 '.download-queue__status'
             );
             expect(statusPill?.textContent).toContain(text);
+            expect(statusPill?.getAttribute('role')).toBe('status');
+            expect(statusPill?.getAttribute('aria-live')).toBe('polite');
+            expect(statusPill?.getAttribute('aria-atomic')).toBe('true');
             expect(
                 statusPill?.querySelector('mat-icon')?.textContent?.trim()
             ).toBe(icon);
@@ -296,6 +299,7 @@ describe('DownloadQueueComponent', () => {
         fixture.componentInstance.itemAction.subscribe(emitted);
         fixture.componentInstance.openRequested.subscribe(opened);
         render([viewModel]);
+        expect(row(17).getAttribute('aria-busy')).toBeNull();
 
         actionButton(row(17), 'more').click();
         fixture.detectChanges();
@@ -311,6 +315,10 @@ describe('DownloadQueueComponent', () => {
         const itemButtons = Array.from(
             row(17).querySelectorAll<HTMLButtonElement>('button')
         );
+        expect(row(17).getAttribute('aria-busy')).toBe('true');
+        expect(
+            row(17).querySelector('.download-queue__metadata')
+        ).not.toBeNull();
         expect(itemButtons).toHaveLength(6);
         expect(itemButtons.every(({ disabled }) => disabled)).toBe(true);
         expect(
@@ -381,7 +389,11 @@ describe('DownloadQueueComponent', () => {
             'Download progress for Download 2',
             'Download progress for Download 4',
         ]);
-        expect(fixture.nativeElement.querySelector('[aria-live]')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '.download-queue__progress[aria-live]'
+            )
+        ).toBeNull();
     });
 
     it.each([
@@ -402,12 +414,14 @@ describe('DownloadQueueComponent', () => {
     });
 
     it('renders downloaded/total bytes, episode/source/error metadata, and omits empty sources', () => {
+        const longError =
+            'https://downloads.example.test/a/very/long/unbroken/path/that/must/remain/readable/error-code-connection-reset';
         const detailed = createRow(21, 'failed', {
             item: createItem(21, 'failed', {
                 contentType: 'episode',
                 bytesDownloaded: 1.5 * 1024 ** 2,
                 totalBytes: 2 * 1024 ** 2,
-                errorMessage: 'Connection reset',
+                errorMessage: longError,
             }),
             episodeLabel: 'S02E04',
             seriesTitle: 'Example series',
@@ -438,9 +452,10 @@ describe('DownloadQueueComponent', () => {
                 .querySelector('.download-queue__source')
                 ?.textContent?.trim()
         ).toBe('Alpha Source');
-        expect(
-            row(21).querySelector('.download-queue__error')?.textContent?.trim()
-        ).toBe('Connection reset');
+        const error = row(21).querySelector<HTMLElement>(
+            '.download-queue__error'
+        );
+        expect(error?.textContent?.trim()).toBe(longError);
         expect(row(22).querySelector('.download-queue__source')).toBeNull();
         expect(
             row(22).querySelector('.download-queue__bytes')?.textContent
@@ -482,31 +497,42 @@ describe('DownloadQueueComponent', () => {
         );
     });
 
-    it('gives every icon command an item-specific translated accessible name and tooltip', async () => {
-        const viewModel = createRow(41, 'queued', {
+    it('gives every command an item-specific translated accessible name and tooltip', async () => {
+        const queued = createRow(41, 'queued', {
             item: createItem(41, 'queued', { title: 'Named movie' }),
         });
-        render([viewModel]);
-
-        expect(actionButton(row(41), 'pause').getAttribute('aria-label')).toBe(
-            'Pause Named movie'
-        );
-        expect(actionButton(row(41), 'cancel').getAttribute('aria-label')).toBe(
-            'Cancel Named movie'
-        );
-        expect(actionButton(row(41), 'more').getAttribute('aria-label')).toBe(
-            'More actions for Named movie'
-        );
+        const paused = createRow(42, 'paused', {
+            item: createItem(42, 'paused', { title: 'Paused episode' }),
+        });
+        const failed = createRow(43, 'failed', {
+            item: createItem(43, 'failed', { title: 'Failed movie' }),
+        });
+        render([queued, paused], [failed]);
 
         const loader = TestbedHarnessEnvironment.loader(fixture);
-        const pauseTooltip = await loader.getHarness(
-            MatTooltipHarness.with({
-                selector: '[data-test-action="pause"]',
-            })
-        );
-        await pauseTooltip.show();
-        expect(await pauseTooltip.getTooltipText()).toBe('Pause Named movie');
-        await pauseTooltip.hide();
+        const commands = [
+            [41, 'pause', 'Pause Named movie'],
+            [41, 'cancel', 'Cancel Named movie'],
+            [41, 'more', 'More actions for Named movie'],
+            [42, 'resume', 'Resume Paused episode'],
+            [42, 'remove', 'Remove Paused episode from manager'],
+            [43, 'retry', 'Retry Failed movie'],
+        ] as const;
+
+        for (const [id, action, accessibleName] of commands) {
+            expect(
+                actionButton(row(id), action).getAttribute('aria-label')
+            ).toBe(accessibleName);
+
+            const tooltip = await loader.getHarness(
+                MatTooltipHarness.with({
+                    selector: `[data-test-id="download-queue-item-${id}"] [data-test-action="${action}"]`,
+                })
+            );
+            await tooltip.show();
+            expect(await tooltip.getTooltipText()).toBe(accessibleName);
+            await tooltip.hide();
+        }
 
         actionButton(row(41), 'more').click();
         fixture.detectChanges();
@@ -519,5 +545,17 @@ describe('DownloadQueueComponent', () => {
         expect(copyButton.getAttribute('aria-label')).toBe(
             'Copy URL for Named movie'
         );
+        const documentLoader =
+            TestbedHarnessEnvironment.documentRootLoader(fixture);
+        const copyTooltip = await documentLoader.getHarness(
+            MatTooltipHarness.with({
+                selector: '[data-test-action="copy-url"]',
+            })
+        );
+        await copyTooltip.show();
+        expect(await copyTooltip.getTooltipText()).toBe(
+            'Copy URL for Named movie'
+        );
+        await copyTooltip.hide();
     });
 });

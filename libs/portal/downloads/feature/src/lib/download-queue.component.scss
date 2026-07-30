@@ -61,7 +61,12 @@
         }
 
         &--pending {
-            opacity: 0.68;
+            cursor: progress;
+
+            .download-queue__artwork,
+            .download-queue__actions {
+                opacity: 0.68;
+            }
         }
     }
 
@@ -204,6 +209,9 @@
     }
 
     &__bytes {
+        font-family:
+            'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
+            monospace;
         font-variant-numeric: tabular-nums;
     }
 
@@ -214,8 +222,11 @@
     }
 
     &__error {
+        min-width: 0;
+        max-width: 100%;
         color: var(--mat-sys-error);
         font-weight: 500;
+        overflow-wrap: anywhere;
     }
 
     &__progress {
@@ -268,7 +279,7 @@
 
         &__actions {
             grid-column: 2;
-            justify-content: flex-start;
+            justify-content: flex-end;
             margin-top: -4px;
         }
 

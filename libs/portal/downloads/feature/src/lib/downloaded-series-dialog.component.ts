@@ -1,7 +1,9 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     inject,
+    input,
     output,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -15,6 +17,8 @@ import type {
     DownloadItemActionType,
 } from './download-actions';
 import type { DownloadSeriesCardViewModel } from './download-library.viewmodel';
+
+const EMPTY_PENDING_IDS: ReadonlySet<number> = new Set();
 
 @Component({
     selector: 'app-downloaded-series-dialog',
@@ -32,13 +36,32 @@ import type { DownloadSeriesCardViewModel } from './download-library.viewmodel';
 })
 export class DownloadedSeriesDialogComponent {
     readonly group = inject<DownloadSeriesCardViewModel>(MAT_DIALOG_DATA);
+    readonly members = input<() => readonly DownloadItem[]>(
+        () => this.group.members
+    );
+    readonly pendingIds = input<() => ReadonlySet<number>>(
+        () => EMPTY_PENDING_IDS
+    );
     readonly itemAction = output<DownloadItemAction>();
+    protected readonly currentMembers = computed(() => this.members()());
 
     protected emitAction(
         type: DownloadItemActionType,
         item: DownloadItem
     ): void {
-        this.itemAction.emit({ type, item });
+        if (!this.isPending(item)) {
+            this.itemAction.emit({ type, item });
+        }
+    }
+
+    protected isPending(item: DownloadItem): boolean {
+        return this.pendingIds()().has(item.id);
+    }
+
+    protected episodeCountKey(count: number): string {
+        return count === 1
+            ? 'DOWNLOADS.EPISODE_COUNT_ONE'
+            : 'DOWNLOADS.EPISODE_COUNT_OTHER';
     }
 
     protected episodeLabel(item: DownloadItem): string {

@@ -1,4 +1,7 @@
+import { FocusMonitor } from '@angular/cdk/a11y';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatTooltipHarness } from '@angular/material/tooltip/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import type { DownloadItem } from '@iptvnator/services';
@@ -13,7 +16,8 @@ const TRANSLATIONS = {
         ARTWORK_UNAVAILABLE: 'Artwork unavailable',
         COPY_URL: 'Copy download URL',
         EPISODE: 'Episode',
-        EPISODE_COUNT: '{{count}} episodes',
+        EPISODE_COUNT_ONE: '1 episode',
+        EPISODE_COUNT_OTHER: '{{count}} episodes',
         MORE_ACTIONS: 'More actions',
         MOVIE: 'Movie',
         OFFLINE: 'Offline',
@@ -21,11 +25,14 @@ const TRANSLATIONS = {
         OPEN_DETAILS: 'Open details',
         OPEN_EPISODES: 'Open downloaded episodes',
         PLAY: 'Play',
+        READY_TO_WATCH: 'Ready to watch',
         REMOVE_FROM_MANAGER: 'Remove from manager',
         REVEAL: 'Show in folder',
         SEASON: 'Season {{season}}',
         SEASON_RANGE: 'Seasons {{first}}–{{last}}',
         SERIES: 'Series',
+        SOURCE_PLAYLIST_MISSING:
+            'This download can no longer open because its source was removed.',
     },
 };
 
@@ -140,6 +147,10 @@ describe('DownloadLibraryComponent', () => {
         fixture = TestBed.createComponent(DownloadLibraryComponent);
         component = fixture.componentInstance;
         fixture.componentRef.setInput('entities', ENTITIES);
+        fixture.componentRef.setInput(
+            'availablePlaylistIds',
+            new Set(['playlist-a'])
+        );
         await fixture.whenStable();
     });
 
@@ -184,6 +195,13 @@ describe('DownloadLibraryComponent', () => {
     }
 
     it('renders movie, grouped-series, and fallback-episode identities', () => {
+        const section = byTestId('downloads-library-section');
+        expect(section.getAttribute('aria-labelledby')).toBe(
+            'downloads-library-heading'
+        );
+        expect(
+            section.querySelector('#downloads-library-heading')?.textContent
+        ).toContain('Ready to watch');
         const movieCard = byTestId('download-library-movie-9');
         const seriesCard = byTestId('download-library-series-playlist-a-77');
         const fallbackEpisodeCard = byTestId('download-library-episode-21');
@@ -196,6 +214,32 @@ describe('DownloadLibraryComponent', () => {
         expect(seriesCard.textContent).toContain('Seasons 1–2');
         expect(fallbackEpisodeCard.textContent).toContain('S02E04');
         expect(fallbackEpisodeCard.textContent).toContain('Episode');
+    });
+
+    it('omits the named library section when no completed entity is visible', async () => {
+        fixture.componentRef.setInput('entities', []);
+        await fixture.whenStable();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="downloads-library-section"]'
+            )
+        ).toBeNull();
+    });
+
+    it('uses a singular episode count for a one-file series group', async () => {
+        fixture.componentRef.setInput('entities', [
+            {
+                ...SERIES,
+                members: [SERIES_MEMBERS[0]],
+                representative: SERIES_MEMBERS[0],
+            },
+        ]);
+        await fixture.whenStable();
+
+        expect(
+            byTestId('download-library-series-playlist-a-77').textContent
+        ).toContain('1 episode');
     });
 
     it('emits every concrete movie action with the movie item', async () => {
@@ -240,6 +284,42 @@ describe('DownloadLibraryComponent', () => {
         await click(title);
 
         expect(opened).toEqual([SERIES.representative, SERIES.representative]);
+    });
+
+    it('disables orphaned series navigation and explains why while keeping episodes local', async () => {
+        fixture.componentRef.setInput('availablePlaylistIds', new Set());
+        await fixture.whenStable();
+        const card = byTestId('download-library-series-playlist-a-77');
+        const artwork = button(card, 'Open details: Northwind artwork');
+        const title = button(card, 'Open details: Northwind');
+        const episodes = button(card, 'Open downloaded episodes: Northwind');
+        const opened: DownloadItem[] = [];
+        component.seriesOpened.subscribe((item) => opened.push(item));
+
+        expect(artwork.disabled).toBe(false);
+        expect(title.disabled).toBe(false);
+        expect(artwork.getAttribute('aria-disabled')).toBe('true');
+        expect(title.getAttribute('aria-disabled')).toBe('true');
+        expect(episodes.disabled).toBe(false);
+
+        const loader = TestbedHarnessEnvironment.loader(fixture);
+        const tooltip = await loader.getHarness(
+            MatTooltipHarness.with({
+                selector: '.download-library__artwork-button',
+            })
+        );
+        TestBed.inject(FocusMonitor).focusVia(artwork, 'keyboard');
+        await fixture.whenStable();
+        expect(document.activeElement).toBe(artwork);
+        expect(await tooltip.isOpen()).toBe(true);
+        expect(await tooltip.getTooltipText()).toBe(
+            'This download can no longer open because its source was removed.'
+        );
+        await tooltip.hide();
+
+        await click(artwork);
+        await click(title);
+        expect(opened).toEqual([]);
     });
 
     it('opens the downloaded episode group from its count control', async () => {

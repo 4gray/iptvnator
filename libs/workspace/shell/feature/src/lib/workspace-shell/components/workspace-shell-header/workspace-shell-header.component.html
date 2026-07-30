@@ -137,9 +137,7 @@
                     [class.is-active]="isDownloadsView()"
                     [class.has-activity]="hasActiveDownloads()"
                     (click)="onDownloadsRequested()"
-                    [matTooltip]="
-                        'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate
-                    "
+                    [matTooltip]="'WORKSPACE.SHELL.RAIL_DOWNLOADS' | translate"
                     [attr.aria-label]="
                         ('WORKSPACE.SHELL.OPEN_DOWNLOADS' | translate) +
                         (hasActiveDownloads()

@@ -36,6 +36,7 @@ import type {
 })
 export class DownloadLibraryComponent {
     readonly entities = input.required<readonly DownloadLibraryEntity[]>();
+    readonly availablePlaylistIds = input.required<ReadonlySet<string>>();
     readonly pendingIds = input<ReadonlySet<number>>(new Set());
     readonly itemAction = output<DownloadItemAction>();
     readonly seriesOpened = output<DownloadItem>();
@@ -80,6 +81,10 @@ export class DownloadLibraryComponent {
         return this.pendingIds().has(item.id);
     }
 
+    protected canOpenSeries(group: DownloadSeriesCardViewModel): boolean {
+        return this.availablePlaylistIds().has(group.representative.playlistId);
+    }
+
     protected emitAction(
         type: DownloadItemActionType,
         item: DownloadItem
@@ -90,11 +95,19 @@ export class DownloadLibraryComponent {
     }
 
     protected openSeries(group: DownloadSeriesCardViewModel): void {
-        this.seriesOpened.emit(group.representative);
+        if (this.canOpenSeries(group)) {
+            this.seriesOpened.emit(group.representative);
+        }
     }
 
     protected openEpisodes(group: DownloadSeriesCardViewModel): void {
         this.episodesOpened.emit(group);
+    }
+
+    protected episodeCountKey(count: number): string {
+        return count === 1
+            ? 'DOWNLOADS.EPISODE_COUNT_ONE'
+            : 'DOWNLOADS.EPISODE_COUNT_OTHER';
     }
 
     protected formatBytes(bytes: number): string {

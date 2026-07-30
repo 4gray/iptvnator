@@ -2,12 +2,7 @@ import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 export type DownloadStatus =
-    | 'queued'
-    | 'downloading'
-    | 'paused'
-    | 'completed'
-    | 'failed'
-    | 'canceled';
+    'queued' | 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled';
 
 export interface DownloadItem {
     id: number;
@@ -169,7 +164,8 @@ export class DownloadsService implements OnDestroy {
         episodeNumber?: number;
         // Playlist info for auto-creation if needed (Stalker playlists)
         playlistName?: string;
-        playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
+        playlistType?:
+            'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
         serverUrl?: string;
         portalUrl?: string;
         macAddress?: string;
@@ -287,10 +283,7 @@ export class DownloadsService implements OnDestroy {
         try {
             return await window.electron.downloadsRetry(downloadId, folder);
         } catch (error) {
-            console.error(
-                '[DownloadsService] Error retrying download:',
-                error
-            );
+            console.error('[DownloadsService] Error retrying download:', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
@@ -311,10 +304,7 @@ export class DownloadsService implements OnDestroy {
         try {
             return await window.electron.downloadsRemove(downloadId);
         } catch (error) {
-            console.error(
-                '[DownloadsService] Error removing download:',
-                error
-            );
+            console.error('[DownloadsService] Error removing download:', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
@@ -379,10 +369,7 @@ export class DownloadsService implements OnDestroy {
             }
             return folder;
         } catch (error) {
-            console.error(
-                '[DownloadsService] Error selecting folder:',
-                error
-            );
+            console.error('[DownloadsService] Error selecting folder:', error);
             return null;
         }
     }
@@ -390,9 +377,7 @@ export class DownloadsService implements OnDestroy {
     /**
      * Clear completed/failed downloads
      */
-    async clearCompleted(
-        playlistId?: string
-    ): Promise<{ success: boolean }> {
+    async clearCompleted(playlistId?: string): Promise<{ success: boolean }> {
         if (!this.isAvailable()) {
             return { success: false };
         }
@@ -444,7 +429,11 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): boolean {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
         return download?.status === 'completed' && !!download.filePath;
     }
 
@@ -456,7 +445,11 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): boolean {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
         return (
             download?.status === 'downloading' ||
             download?.status === 'queued' ||
@@ -472,7 +465,11 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): boolean {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
         return download?.status === 'paused';
     }
 
@@ -484,7 +481,11 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): Promise<{ success: boolean; error?: string }> {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
         if (!download || download.status !== 'paused') {
             return { success: false, error: 'No paused download found' };
         }
@@ -499,7 +500,11 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): string | undefined {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
         if (download?.status === 'completed') {
             return download.filePath;
         }
