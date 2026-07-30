@@ -9,7 +9,9 @@ import {
     createMutableTextServer,
     expect,
     launchElectronApp,
+    openSettings,
     resetMockServers,
+    saveSettings,
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
@@ -61,6 +63,65 @@ async function getSeriesTarget(
         categoryId: target.category_id,
         xtreamId: target.xtream_id,
     };
+}
+
+async function getVodTarget(
+    page: Page,
+    playlistId: string
+): Promise<{ categoryId: number; xtreamId: number }> {
+    const target = await page.evaluate(
+        async (sourceId) =>
+            (await window.electron?.dbGetContent?.(sourceId, 'movie'))?.[0] ??
+            null,
+        playlistId
+    );
+    expect(target, 'playlist should have an imported VOD target').not.toBe(
+        null
+    );
+    if (!target) {
+        throw new Error('VOD target was not imported');
+    }
+    expect(target.xtream_id).toBeGreaterThan(0);
+    expect(target.category_id).toBeGreaterThan(0);
+    return {
+        categoryId: target.category_id,
+        xtreamId: target.xtream_id,
+    };
+}
+
+async function selectDownloadCoverSize(
+    page: Page,
+    size: 'small' | 'medium' | 'large'
+): Promise<void> {
+    await openSettings(page);
+    await page.getByTestId(`cover-size-${size}`).click();
+    await expect
+        .poll(() =>
+            page.evaluate(
+                () => document.documentElement.dataset.coverSize ?? null
+            )
+        )
+        .toBe(size);
+    await saveSettings(page);
+    await openDownloadsPage(page);
+}
+
+async function measureLibraryCard(
+    page: Page
+): Promise<{ gap: number; width: number }> {
+    return page
+        .locator('article[data-test-id^="download-library-"]')
+        .first()
+        .evaluate((card) => {
+            const grid = card.parentElement;
+            if (!grid) {
+                throw new Error('Download library card has no grid parent');
+            }
+            return {
+                gap: Number.parseFloat(getComputedStyle(grid).columnGap),
+                width: card.getBoundingClientRect().width,
+            };
+        });
 }
 
 interface DownloadSeed {
@@ -430,6 +491,8 @@ test.describe('Electron Downloads', () => {
             );
             const { categoryId: seriesCategoryId, xtreamId: seriesXtreamId } =
                 await getSeriesTarget(app.mainWindow, sourceA);
+            const { categoryId: vodCategoryId, xtreamId: vodXtreamId } =
+                await getVodTarget(app.mainWindow, sourceA);
             await navigateWithinWorkspace(
                 app.mainWindow,
                 `/workspace/xtreams/${sourceB}/downloads`
@@ -458,7 +521,7 @@ test.describe('Electron Downloads', () => {
             const alphaMovieId = await startDownload(app.mainWindow, {
                 ...common,
                 playlistId: sourceA,
-                xtreamId: 8101,
+                xtreamId: vodXtreamId,
                 contentType: 'vod',
                 title: 'Alpha Movie',
             });
@@ -561,9 +624,52 @@ test.describe('Electron Downloads', () => {
                 )
             ).toHaveCount(0);
 
+            const alphaMovieCard = app.mainWindow.getByTestId(
+                `download-library-movie-${alphaMovieId}`
+            );
+            await alphaMovieCard
+                .locator('.download-library__artwork-button')
+                .click();
+            const expectedVodPath = `/workspace/xtreams/${sourceA}/vod/${vodCategoryId}/${vodXtreamId}`;
+            await app.mainWindow.waitForURL((url) =>
+                url.pathname.endsWith(expectedVodPath)
+            );
+            await expect(
+                app.mainWindow.getByText('Offline', { exact: true })
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByRole('button', {
+                    name: 'Play Local',
+                    exact: true,
+                })
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByRole('button', {
+                    name: 'Play from this source',
+                    exact: true,
+                })
+            ).toBeVisible();
+
             await openDownloadsPage(app.mainWindow);
             await expect(globalBadge).toHaveText('1');
             await expect(cards).toHaveCount(13);
+
+            await selectDownloadCoverSize(app.mainWindow, 'small');
+            await expect(cards).toHaveCount(13);
+            const smallCover = await measureLibraryCard(app.mainWindow);
+            await selectDownloadCoverSize(app.mainWindow, 'medium');
+            await expect(cards).toHaveCount(13);
+            const mediumCover = await measureLibraryCard(app.mainWindow);
+            await selectDownloadCoverSize(app.mainWindow, 'large');
+            await expect(cards).toHaveCount(13);
+            const largeCover = await measureLibraryCard(app.mainWindow);
+
+            expect(smallCover.gap).toBe(12);
+            expect(mediumCover.gap).toBe(16);
+            expect(largeCover.gap).toBe(20);
+            expect(mediumCover.width).toBeGreaterThan(smallCover.width);
+            expect(largeCover.width).toBeGreaterThan(mediumCover.width);
+
             const seriesCard = app.mainWindow.getByTestId(
                 `download-library-series-${sourceA}-${seriesXtreamId}`
             );
