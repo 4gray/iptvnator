@@ -278,6 +278,12 @@
                 "reason": "Node tests validate release-note parsing, rendering and gate policy; the scripts are release tooling, not shipped source."
             },
             {
+                "name": "repository-skills",
+                "root": "tools/skills",
+                "validationCommand": "pnpm nx test repository-skills",
+                "reason": "Node tests validate committed repository-skill metadata and documented paths; the validator is agent tooling, not shipped source."
+            },
+            {
                 "name": "eslint-tools",
                 "root": "tools/eslint",
                 "validationCommand": "pnpm nx test eslint-tools",
