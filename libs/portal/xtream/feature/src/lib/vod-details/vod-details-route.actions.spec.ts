@@ -65,6 +65,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const downloadsAvailable = signal(false);
     const isFavorite = signal(false);
     const downloads = signal([]);
+    const activeSession = signal<unknown>(null);
     const currentPlaylist = signal({
         id: 'playlist-1',
         userAgent: 'IPTVnator',
@@ -81,6 +82,9 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const isEmbeddedPlayer = jest.fn().mockReturnValue(true);
     const openResolvedPlayback = jest.fn();
     const startDownload = jest.fn().mockResolvedValue(undefined);
+    const isDownloaded = jest.fn().mockReturnValue(false);
+    const getDownloadedFilePath = jest.fn();
+    const playDownload = jest.fn().mockResolvedValue(undefined);
     const toggleFavorite = jest.fn();
     const sparseItem = (): SparseVodItem => ({
         info: [],
@@ -89,9 +93,24 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         name: 'Catalog movie',
         stream_icon: 'https://example.com/catalog-poster.jpg',
     });
+    const richItem = (): XtreamVodDetails =>
+        ({
+            info: {
+                name: 'Metadata movie',
+                description: 'A populated description',
+                movie_image: 'https://example.com/metadata-poster.jpg',
+                releasedate: '2025-01-02',
+            },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Metadata movie',
+                container_extension: 'mp4',
+            },
+        }) as XtreamVodDetails;
     beforeEach(async () => {
         selectedItem.set(null);
         downloadsAvailable.set(false);
+        activeSession.set(null);
         isFavorite.set(false);
         currentPlaylist.set({
             id: 'playlist-1',
@@ -107,6 +126,9 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         isEmbeddedPlayer.mockReset().mockReturnValue(true);
         openResolvedPlayback.mockClear();
         startDownload.mockClear();
+        isDownloaded.mockReset().mockReturnValue(false);
+        getDownloadedFilePath.mockReset();
+        playDownload.mockClear();
         toggleFavorite.mockClear();
         await TestBed.configureTestingModule({
             imports: [VodDetailsRouteComponent],
@@ -167,13 +189,13 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                     useValue: {
                         isAvailable: downloadsAvailable,
                         downloads,
-                        isDownloaded: jest.fn().mockReturnValue(false),
+                        isDownloaded,
                         isDownloading: jest.fn().mockReturnValue(false),
                         isPaused: jest.fn().mockReturnValue(false),
                         resumeDownloadByContent: jest.fn(),
                         startDownload,
-                        getDownloadedFilePath: jest.fn(),
-                        playDownload: jest.fn(),
+                        getDownloadedFilePath,
+                        playDownload,
                     },
                 },
                 {
@@ -187,7 +209,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
                     useValue: {
-                        activeSession: signal(null),
+                        activeSession,
                         closeSession: jest.fn(),
                     },
                 },
@@ -357,5 +379,128 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         expect(
             host.querySelector('app-portal-detail-shell')?.classList
         ).not.toContain('shell-host--watch');
+    });
+
+    it('renders Offline and offline-first actions for sparse downloaded details', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/catalog-movie.mp4');
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(primary?.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(
+            Array.from(host.querySelectorAll('button.download-btn')).some(
+                (button) =>
+                    button.textContent?.includes(
+                        'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+                    )
+            )
+        ).toBe(true);
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(playDownload).toHaveBeenCalledWith(
+            '/downloads/catalog-movie.mp4'
+        );
+        expect(constructVodStreamUrl).not.toHaveBeenCalled();
+    });
+
+    it('renders Offline in rich downloaded details', () => {
+        selectedItem.set(richItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+        ).toBeNull();
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(
+            host.querySelector<HTMLButtonElement>('button.play-btn')
+                ?.textContent
+        ).toContain('DOWNLOADS.PLAY_LOCAL');
+    });
+
+    it('keeps pinned provider playback behind the downloaded secondary action', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        const playPinned = jest
+            .spyOn(fixture.componentInstance.multiSource, 'playPinnedSource')
+            .mockResolvedValue('played');
+
+        fixture.detectChanges();
+
+        const providerButton = Array.from(
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelectorAll<HTMLButtonElement>('button')
+        ).find((button) =>
+            button.textContent?.includes(
+                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+            )
+        );
+        providerButton?.click();
+        await fixture.whenStable();
+
+        expect(playPinned).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+        expect(constructVodStreamUrl).not.toHaveBeenCalled();
+    });
+
+    it('hides Restart and provider playback while a downloaded movie is opening externally', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        activeSession.set({
+            player: 'mpv',
+            status: 'launching',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const position = {
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            playlistId: 'playlist-1',
+            positionSeconds: 42,
+            durationSeconds: 120,
+        } satisfies PlaybackPositionData;
+
+        fixture.detectChanges();
+        fixture.componentInstance.vodPlaybackPosition.set(position);
+        fixture.componentInstance.routePlaybackPosition.set(position);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary = host.querySelector<HTMLButtonElement>(
+            'button.play-btn--resume'
+        );
+        expect(primary?.disabled).toBe(true);
+        expect(primary?.textContent).toContain('Opening in MPV...');
+        expect(
+            Array.from(host.querySelectorAll('button')).some((button) =>
+                button.textContent?.includes('XTREAM.RESTART')
+            )
+        ).toBe(false);
+        expect(
+            Array.from(host.querySelectorAll('button')).some((button) =>
+                button.textContent?.includes(
+                    'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+                )
+            )
+        ).toBe(false);
     });
 });

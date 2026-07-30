@@ -13,20 +13,26 @@
                 "
             >
                 <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">{{
-                        externalPrimaryIcon()
-                    }}</mat-icon>
+                    <mat-icon class="play-btn__icon">
+                        {{
+                            isOfflinePrimary()
+                                ? 'play_circle'
+                                : externalPrimaryIcon()
+                        }}
+                    </mat-icon>
                 </span>
                 <span class="play-btn__label">
                     @if (externalPrimaryLabel(); as label) {
                         {{ label }}
+                    } @else if (isOfflinePrimary()) {
+                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                     } @else {
                         {{ 'XTREAM.RESUME' | translate }}
                         {{ formatPosition() }}
                     }
                 </span>
             </button>
-            @if (!isExternalStopAction()) {
+            @if (externalPrimaryButtonState() === 'idle' && !isDownloaded()) {
                 <button
                     class="play-btn play-btn--restart"
                     (click)="restartVod(playableItem)"
@@ -48,13 +54,19 @@
                 "
             >
                 <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">{{
-                        externalPrimaryIcon()
-                    }}</mat-icon>
+                    <mat-icon class="play-btn__icon">
+                        {{
+                            isOfflinePrimary()
+                                ? 'play_circle'
+                                : externalPrimaryIcon()
+                        }}
+                    </mat-icon>
                 </span>
                 <span class="play-btn__label">
                     @if (externalPrimaryLabel(); as label) {
                         {{ label }}
+                    } @else if (isOfflinePrimary()) {
+                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                     } @else {
                         {{ 'XTREAM.PLAY' | translate }}
                     }
@@ -77,13 +89,17 @@
         }
         @if (isElectron()) {
             @if (isDownloaded()) {
-                <button
-                    class="download-btn download-btn--completed"
-                    (click)="playFromLocal()"
-                >
-                    <mat-icon>play_circle</mat-icon>
-                    {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                </button>
+                @if (externalPrimaryButtonState() === 'idle') {
+                    <button
+                        class="download-btn"
+                        (click)="playFromProviderSource(playableItem)"
+                    >
+                        <mat-icon>play_arrow</mat-icon>
+                        {{
+                            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate
+                        }}
+                    </button>
+                }
             } @else if (isPausedDownload()) {
                 <button
                     class="download-btn download-btn--paused"
@@ -209,6 +225,11 @@
             }
             @if (info.country) {
                 <span class="details__tag">{{ info.country }}</span>
+            }
+            @if (isDownloaded()) {
+                <span class="details__tag">
+                    {{ 'DOWNLOADS.OFFLINE' | translate }}
+                </span>
             }
         </ng-template>
 
@@ -450,6 +471,11 @@
             }
             @if (fallback.format) {
                 <span class="details__tag">{{ fallback.format }}</span>
+            }
+            @if (isDownloaded()) {
+                <span class="details__tag">
+                    {{ 'DOWNLOADS.OFFLINE' | translate }}
+                </span>
             }
         </ng-template>
 

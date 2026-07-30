@@ -54,7 +54,14 @@ export function createVodDetailsRouteStubs() {
         addRecentItem: jest.fn(),
         cancelDetailsRequest: jest.fn(),
         vodStreamsPlaylistId: signal<string | null>(null),
+        downloadsAvailable: signal(false),
         downloads: signal([]),
+        isDownloaded: jest.fn().mockReturnValue(false),
+        isDownloading: jest.fn().mockReturnValue(false),
+        isPausedDownload: jest.fn().mockReturnValue(false),
+        resumeDownloadByContent: jest.fn().mockResolvedValue(undefined),
+        getDownloadedFilePath: jest.fn(),
+        playDownload: jest.fn().mockResolvedValue(undefined),
         getPlaybackPosition: jest.fn().mockResolvedValue(null),
         savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
         activeSession: signal<unknown>(null),
@@ -82,6 +89,7 @@ export function resetVodDetailsRouteStubs(stubs: VodDetailsRouteStubs): void {
     stubs.currentPlaylist.set(null);
     stubs.vodStreams.set([]);
     stubs.vodCategories.set([]);
+    stubs.downloadsAvailable.set(false);
     stubs.activeSession.set(null);
     stubs.selectedPlayer.set(VideoPlayer.Html5Player);
     stubs.updateSettings.mockClear().mockResolvedValue(undefined);
@@ -91,6 +99,11 @@ export function resetVodDetailsRouteStubs(stubs: VodDetailsRouteStubs): void {
             value.mockClear();
         }
     }
+
+    stubs.isDownloaded.mockReturnValue(false);
+    stubs.isDownloading.mockReturnValue(false);
+    stubs.isPausedDownload.mockReturnValue(false);
+    stubs.getDownloadedFilePath.mockReturnValue(undefined);
 }
 
 /**
@@ -191,13 +204,15 @@ export async function configureVodDetailsRouteTestBed(
             {
                 provide: DownloadsService,
                 useValue: {
-                    isAvailable: signal(false),
+                    isAvailable: stubs.downloadsAvailable,
                     downloads: stubs.downloads,
-                    isDownloaded: jest.fn().mockReturnValue(false),
-                    isDownloading: jest.fn().mockReturnValue(false),
+                    isDownloaded: stubs.isDownloaded,
+                    isDownloading: stubs.isDownloading,
+                    isPaused: stubs.isPausedDownload,
+                    resumeDownloadByContent: stubs.resumeDownloadByContent,
                     startDownload: stubs.startDownload,
-                    getDownloadedFilePath: jest.fn(),
-                    playDownload: jest.fn(),
+                    getDownloadedFilePath: stubs.getDownloadedFilePath,
+                    playDownload: stubs.playDownload,
                 },
             },
             {

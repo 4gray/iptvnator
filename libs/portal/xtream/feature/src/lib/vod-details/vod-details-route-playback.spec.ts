@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { VideoPlayer } from '@iptvnator/shared/interfaces';
+import { XtreamVodDetails } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 import {
@@ -21,13 +21,12 @@ describe('VodDetailsRouteComponent — playback actions', () => {
     const {
         currentPlaylist,
         activeSession,
-        addRecentItem,
         closeSession,
+        downloadsAvailable,
+        getDownloadedFilePath,
         getPlaybackPosition,
-        selectedItem,
-        selectedPlayer,
-        snackBarOpen,
-        updateSettings,
+        isDownloaded,
+        playDownload,
     } = stubs;
 
     beforeEach(async () => {
@@ -113,6 +112,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
 
     it('stops the external player when the button says Stop', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
         activeSession.set({
             player: 'mpv',
             status: 'playing',
@@ -136,6 +138,105 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // first keeps running — the control doing the opposite of its label.
         expect(playPinned).not.toHaveBeenCalled();
         expect(closeSession).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('plays a completed download before provider resume or pin resolution', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        playback.routePlaybackPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            positionSeconds: 120,
+            durationSeconds: 7744,
+        });
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+
+        await component.onPrimaryAction({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never);
+
+        expect(playDownload).toHaveBeenCalledWith('/downloads/example.mp4');
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
+    });
+
+    it('does not bypass a pending external launch through the primary handler', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
+        activeSession.set({
+            player: 'mpv',
+            status: 'launching',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const component = fixture.componentInstance;
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+
+        await component.onPrimaryAction({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never);
+
+        expect(component.isExternalLaunchPending()).toBe(true);
+        expect(playDownload).not.toHaveBeenCalled();
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
+    });
+
+    it('does not let the provider secondary bypass a pending external launch', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        activeSession.set({
+            player: 'mpv',
+            status: 'launching',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const component = fixture.componentInstance;
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+
+        await component.playFromProviderSource({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never);
+
+        expect(component.isExternalLaunchPending()).toBe(true);
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
     });
 
     it('follows external playback progress, which has no timeupdate', () => {

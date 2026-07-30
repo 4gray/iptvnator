@@ -271,6 +271,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isDownloaded = this.downloads.isDownloaded;
     readonly isDownloading = this.downloads.isDownloading;
     readonly isPausedDownload = this.downloads.isPausedDownload;
+    readonly isOfflinePrimary = computed(
+        () =>
+            this.isDownloaded() && this.externalPrimaryButtonState() === 'idle'
+    );
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
@@ -476,6 +480,25 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // second player while the first keeps running.
         if (this.playback.isExternalStopAction()) {
             this.playback.onPrimaryAction(vodItem);
+            return;
+        }
+
+        if (this.playback.isExternalLaunchPending()) {
+            return;
+        }
+
+        if (this.isDownloaded()) {
+            await this.playFromLocal();
+            return;
+        }
+
+        await this.playFromProviderSource(vodItem);
+    }
+
+    async playFromProviderSource(
+        vodItem: XtreamVodDetails | null
+    ): Promise<void> {
+        if (this.externalPrimaryButtonState() !== 'idle') {
             return;
         }
 
