@@ -88,7 +88,7 @@ describe('playback diagnostics', () => {
         expect(issue.container).toBe('x-msvideo');
     });
 
-    it('does not classify MPEG-TS MIME-only failures as unsupported containers', () => {
+    it('keeps MPEG-TS MIME-only source failures unknown without codec evidence', () => {
         const issue = classifyNativePlaybackIssue(
             { code: 4, message: 'source not supported' },
             createPlaybackSourceMetadata({
@@ -98,8 +98,109 @@ describe('playback diagnostics', () => {
             })
         );
 
-        expect(issue.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
+        expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
         expect(issue.container).toBe('mp2t');
+        expect(issue.externalFallbackRecommended).toBe(false);
+    });
+
+    it('classifies native HTTP source failures from a safe status and error type', () => {
+        const issue = classifyNativePlaybackIssue(
+            {
+                code: 4,
+                message: 'source not supported',
+                status: 404,
+                metadata: { errorType: 'networkrequestfailed' },
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/missing.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue.httpStatus).toBe(404);
+        expect(issue.nativeErrorType).toBe('networkrequestfailed');
+        expect(issue.externalFallbackRecommended).toBe(false);
+    });
+
+    it('keeps native code four HLS source failures unknown without status or container evidence', () => {
+        const issue = classifyNativePlaybackIssue(
+            { code: 4, message: 'source not supported' },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/missing.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
+        expect(issue.externalFallbackRecommended).toBe(false);
+        expect(issue.httpStatus).toBeUndefined();
+    });
+
+    it('does not retain unsafe native status or metadata error types', () => {
+        const issue = classifyNativePlaybackIssue(
+            {
+                code: 4,
+                message: 'source not supported',
+                status: 0,
+                metadata: { errorType: 'request failed: token=secret value' },
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/missing.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
+        expect(issue.httpStatus).toBeUndefined();
+        expect(issue.nativeErrorType).toBeUndefined();
+        expect(issue.externalFallbackRecommended).toBe(false);
+    });
+
+    it.each([
+        { status: 399, accepted: false },
+        { status: 400, accepted: true },
+        { status: 599, accepted: true },
+        { status: 600, accepted: false },
+        { status: 404.5, accepted: false },
+    ])('accepts native HTTP status $status only when it is a 4xx or 5xx integer', ({
+        status,
+        accepted,
+    }) => {
+        const issue = classifyNativePlaybackIssue(
+            { code: 4, status },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/missing.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(
+            accepted
+                ? PlaybackDiagnosticCode.NetworkError
+                : PlaybackDiagnosticCode.UnknownPlaybackError
+        );
+        expect(issue.httpStatus).toBe(accepted ? status : undefined);
+    });
+
+    it.each([
+        { length: 128, accepted: true },
+        { length: 129, accepted: false },
+    ])('retains native error type identifiers up to $length characters', ({
+        length,
+        accepted,
+    }) => {
+        const errorType = 'a'.repeat(length);
+        const issue = classifyNativePlaybackIssue(
+            { code: 4, metadata: { errorType } },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/missing.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
+        expect(issue.nativeErrorType).toBe(accepted ? errorType : undefined);
     });
 
     it('classifies HLS network errors without claiming codec incompatibility', () => {

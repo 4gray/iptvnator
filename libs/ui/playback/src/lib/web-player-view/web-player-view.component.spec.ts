@@ -289,6 +289,34 @@ describe('WebPlayerViewComponent', () => {
         ]);
     });
 
+    it('renders explicit HTTP evidence without recommending an external fallback', () => {
+        runtimeCapabilities.supportsManagedExternalPlayers = true;
+        const issue = createHttpDiagnostic();
+
+        fixture.detectChanges();
+        component.handlePlaybackIssue(issue);
+        fixture.detectChanges();
+
+        const banner = fixture.debugElement.query(
+            By.css('[data-test-id="playback-diagnostic-banner"]')
+        );
+        const mpvButton = fixture.debugElement.query(
+            By.css('[data-test-id="playback-fallback-mpv"]')
+        );
+
+        expect(banner.nativeElement.textContent).toContain('HTTP 404');
+        expect(mpvButton).toBeNull();
+        expect(component.getDiagnosticMeta(issue)).toBe('HTTP 404');
+        expect(component.getDiagnosticDetails(issue)).toEqual(
+            expect.arrayContaining([
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
+                    value: 'HTTP 404 · networkrequestfailed',
+                },
+            ])
+        );
+    });
+
     it('keeps query-declared HLS streams on the HLS mime type', () => {
         const streamUrl =
             'https://example.com/play?extension=m3u8&token=signed';
@@ -828,6 +856,24 @@ function createNetworkDiagnostic(): PlaybackDiagnostic {
         audioCodecs: [],
         videoCodecs: [],
         details: 'HttpStatusCodeInvalid {"code":456,"msg":"<none>"}',
+        externalFallbackRecommended: false,
+    };
+}
+
+function createHttpDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.Native,
+        sourceUrl: 'https://example.com/live/missing.m3u8',
+        container: 'm3u8',
+        mimeType: 'application/x-mpegURL',
+        player: 'videojs',
+        audioCodecs: [],
+        videoCodecs: [],
+        nativeErrorCode: 4,
+        nativeErrorMessage: 'source not supported',
+        httpStatus: 404,
+        nativeErrorType: 'networkrequestfailed',
         externalFallbackRecommended: false,
     };
 }

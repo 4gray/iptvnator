@@ -1,4 +1,5 @@
 import type videoJs from 'video.js';
+import type { NativePlaybackErrorInput } from '../playback-diagnostics/playback-diagnostics.model';
 
 export type VideoPlayerSource = {
     src: string;
@@ -83,7 +84,7 @@ export type VideoJsPlayer = Omit<
     textTracks: () => VideoJsTextTrackList | null;
     tech: (options?: unknown) => VideoJsTech | null;
     getChild: (name: string) => VideoJsControlChild | null;
-    error: () => { code?: number; message?: string } | null;
+    error: () => NativePlaybackErrorInput | null;
 };
 
 export function getVideoJsTechVideo(

@@ -28,6 +28,10 @@ export function getDiagnosticDescriptionKey(
 }
 
 export function getDiagnosticMeta(issue: PlaybackDiagnostic): string {
+    if (issue.httpStatus !== undefined) {
+        return `HTTP ${issue.httpStatus}`;
+    }
+
     const codecs = [...issue.videoCodecs, ...issue.audioCodecs].join(', ');
     if (codecs) {
         return codecs;
@@ -82,9 +86,19 @@ export function getDiagnosticDetails(
         },
         {
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
-            value: issue.details ?? '',
+            value: formatDiagnosticErrorDetails(issue),
         },
     ].filter(({ value }) => value.trim().length > 0);
+}
+
+function formatDiagnosticErrorDetails(issue: PlaybackDiagnostic): string {
+    return [
+        issue.httpStatus !== undefined ? `HTTP ${issue.httpStatus}` : '',
+        issue.nativeErrorType ?? '',
+        issue.details ?? '',
+    ]
+        .filter((value) => value.trim().length > 0)
+        .join(' · ');
 }
 
 function getDiagnosticTranslationBase(issue: PlaybackDiagnostic): string {

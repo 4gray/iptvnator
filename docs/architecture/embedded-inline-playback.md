@@ -328,6 +328,13 @@ Supported diagnostic codes are:
 - `drm-or-encryption`
 - `unknown-playback-error`
 
+Native `MediaError` code 4 alone is not codec evidence. A source with a known
+browser-incompatible container remains `unsupported-container`; otherwise, a
+code 4 error without stronger evidence is `unknown-playback-error`. An explicit
+Video.js HTTP error is `network-error` and shows its status. Because an HTTP
+status is server/network evidence rather than decoding evidence, external
+decoding is not presented as a likely fix.
+
 `network-error` is reserved for provider/network loading failures. Browser security failures such as CORS, mixed content, Content Security Policy, and private-network-access blocks are classified as `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 
 mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decode-error` instead of generic `network-error`. These failures usually mean the fetch stream ended before mpegts.js expected a complete transport stream, and external players may still handle the same URL more tolerant of short reads or malformed TS boundaries.
