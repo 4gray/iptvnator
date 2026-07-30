@@ -32,6 +32,7 @@ export {
 const SOURCE_NOT_SUPPORTED_CODE = 4;
 const DECODE_ERROR_CODE = 3;
 const NETWORK_ERROR_CODE = 2;
+const NATIVE_ERROR_TYPE_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export function classifyNativePlaybackIssue(
     error: NativePlaybackErrorInput | MediaError | null | undefined,
@@ -39,7 +40,24 @@ export function classifyNativePlaybackIssue(
 ): PlaybackDiagnostic {
     const nativeErrorCode = error?.code;
     const nativeErrorMessage = error?.message || undefined;
+    const nativeErrorInput = error as NativePlaybackErrorInput | null | undefined;
+    const httpStatus = getNativeHttpStatus(nativeErrorInput?.status);
+    const nativeErrorType = getNativeErrorType(
+        nativeErrorInput?.metadata?.errorType
+    );
     const lowerNativeErrorMessage = nativeErrorMessage?.toLowerCase() ?? '';
+
+    if (httpStatus !== undefined) {
+        return createPlaybackDiagnostic({
+            code: DiagnosticCode.NetworkError,
+            source: DiagnosticSource.Native,
+            metadata,
+            nativeErrorCode,
+            nativeErrorMessage,
+            httpStatus,
+            nativeErrorType,
+        });
+    }
 
     if (nativeErrorCode === NETWORK_ERROR_CODE) {
         // Native MediaError details are often opaque for browser security
@@ -53,6 +71,7 @@ export function classifyNativePlaybackIssue(
             metadata,
             nativeErrorCode,
             nativeErrorMessage,
+            nativeErrorType,
         });
     }
 
@@ -63,6 +82,7 @@ export function classifyNativePlaybackIssue(
             metadata,
             nativeErrorCode,
             nativeErrorMessage,
+            nativeErrorType,
         });
     }
 
@@ -70,11 +90,12 @@ export function classifyNativePlaybackIssue(
         return createPlaybackDiagnostic({
             code: isLikelyContainerIssue(metadata)
                 ? DiagnosticCode.UnsupportedContainer
-                : DiagnosticCode.UnsupportedCodec,
+                : DiagnosticCode.UnknownPlaybackError,
             source: DiagnosticSource.Native,
             metadata,
             nativeErrorCode,
             nativeErrorMessage,
+            nativeErrorType,
         });
     }
 
@@ -84,6 +105,7 @@ export function classifyNativePlaybackIssue(
         metadata,
         nativeErrorCode,
         nativeErrorMessage,
+        nativeErrorType,
     });
 }
 
@@ -237,6 +259,8 @@ export function createPlaybackDiagnostic(options: {
     readonly details?: string;
     readonly nativeErrorCode?: number;
     readonly nativeErrorMessage?: string;
+    readonly httpStatus?: number;
+    readonly nativeErrorType?: string;
     /** Overrides the code-derived recommendation, e.g. when external players
      * are known to be unable to handle the stream either. */
     readonly externalFallbackRecommended?: boolean;
@@ -248,6 +272,8 @@ export function createPlaybackDiagnostic(options: {
         details,
         nativeErrorCode,
         nativeErrorMessage,
+        httpStatus,
+        nativeErrorType,
     } = options;
 
     return {
@@ -262,10 +288,28 @@ export function createPlaybackDiagnostic(options: {
         details: details || undefined,
         nativeErrorCode,
         nativeErrorMessage,
+        httpStatus,
+        nativeErrorType,
         externalFallbackRecommended:
             options.externalFallbackRecommended ??
             isExternalFallbackRecommended(code),
     };
+}
+
+function getNativeHttpStatus(status: unknown): number | undefined {
+    return typeof status === 'number' &&
+        Number.isInteger(status) &&
+        status >= 400 &&
+        status <= 599
+        ? status
+        : undefined;
+}
+
+function getNativeErrorType(errorType: unknown): string | undefined {
+    return typeof errorType === 'string' &&
+        NATIVE_ERROR_TYPE_PATTERN.test(errorType)
+        ? errorType
+        : undefined;
 }
 
 function isExternalFallbackRecommended(code: PlaybackDiagnosticCode): boolean {

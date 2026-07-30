@@ -54,9 +54,15 @@ export interface PlaybackSourceMetadata {
     readonly videoCodecs: readonly string[];
 }
 
+export interface NativePlaybackErrorMetadataInput {
+    readonly errorType?: unknown;
+}
+
 export interface NativePlaybackErrorInput {
     readonly code?: number;
     readonly message?: string;
+    readonly status?: number;
+    readonly metadata?: NativePlaybackErrorMetadataInput;
 }
 
 export interface HlsPlaybackErrorInput {
@@ -88,6 +94,8 @@ export interface PlaybackDiagnostic {
     readonly details?: string;
     readonly nativeErrorCode?: number;
     readonly nativeErrorMessage?: string;
+    readonly httpStatus?: number;
+    readonly nativeErrorType?: string;
     readonly externalFallbackRecommended: boolean;
 }
 
