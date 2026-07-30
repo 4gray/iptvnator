@@ -65,6 +65,7 @@ export interface XtreamState {
     epgItems: EpgItem[];
     hideExternalInfoDialog: boolean;
     portalStatus: PortalStatusType;
+    isPendingRestoreBlocked: boolean;
     contentInitBlockReason: XtreamContentInitBlockReason | null;
     globalSearchResults: GlobalSearchResult[];
     streamUrl: string;

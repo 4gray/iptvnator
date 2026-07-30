@@ -158,10 +158,16 @@ export class PlaylistRefreshActionService {
                         ]
                     );
 
-                    this.pendingRestoreService.set(item._id, {
-                        ...restoreState,
-                        playbackPositions,
-                    });
+                    if (
+                        !this.pendingRestoreService.set(item._id, {
+                            ...restoreState,
+                            playbackPositions,
+                        })
+                    ) {
+                        throw new Error(
+                            `Parking pending restore state for "${item._id}" failed.`
+                        );
+                    }
 
                     measureRendererPerformancePhase(
                         RENDERER_PERFORMANCE_PHASE.XTREAM_REFRESH_META,

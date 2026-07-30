@@ -298,6 +298,7 @@ export class XtreamWorkspaceRouteSession {
             didBootstrapPlaylist = true;
 
             this.xtreamStore.setCurrentPlaylist(routePlaylist);
+            this.xtreamStore.reconcilePendingRestoreBlock();
             section = this.syncRouteState(routeSection);
             if (isImportDrivenSection(section)) {
                 this.xtreamStore.prepareContentLoading(cacheScope);

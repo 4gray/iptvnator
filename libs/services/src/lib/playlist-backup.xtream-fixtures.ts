@@ -4,8 +4,10 @@ import {
     PlaylistBackupManifestV1,
     PLAYLIST_BACKUP_KIND,
     PLAYLIST_BACKUP_VERSION,
+    XtreamPendingRestoreState,
     XtreamPlaylistBackupEntry,
 } from '@iptvnator/shared/interfaces';
+import { XtreamPendingRestoreSnapshot } from './xtream-pending-restore.service';
 
 /**
  * The Xtream restore scaffolding both backup suites need — the existing
@@ -91,6 +93,59 @@ export function createXtreamManifest(
 }
 
 export function createRestoreCollaborators() {
+    let nextRevision = 0;
+    let pendingSnapshot: XtreamPendingRestoreSnapshot | null = null;
+    let lastConsumedRevision: number | null = null;
+    const pendingRestoreService = {
+        set: jest.fn(
+            (
+                playlistId: string,
+                state: XtreamPendingRestoreState
+            ): XtreamPendingRestoreSnapshot | null => {
+                pendingSnapshot = {
+                    playlistId,
+                    revision: ++nextRevision,
+                    state,
+                };
+                lastConsumedRevision = null;
+                return pendingSnapshot;
+            }
+        ),
+        clear: jest.fn().mockReturnValue(true),
+        applyAndConsume: jest.fn(),
+    };
+    pendingRestoreService.applyAndConsume.mockImplementation(
+        async (
+            playlistId: string,
+            expectedSnapshot: XtreamPendingRestoreSnapshot,
+            apply: (state: XtreamPendingRestoreState) => Promise<void>
+        ) => {
+            if (!pendingSnapshot) {
+                return lastConsumedRevision === expectedSnapshot.revision
+                    ? 'consumed'
+                    : 'superseded';
+            }
+            if (
+                pendingSnapshot.revision !== expectedSnapshot.revision
+            ) {
+                return 'superseded';
+            }
+
+            await apply(pendingSnapshot.state);
+            if (
+                !pendingRestoreService.clear(
+                    playlistId,
+                    pendingSnapshot.state
+                )
+            ) {
+                return 'consume-failed';
+            }
+            lastConsumedRevision = pendingSnapshot.revision;
+            pendingSnapshot = null;
+            return 'consumed';
+        }
+    );
+
     return {
         playlistsService: {
             addPlaylist: jest.fn((playlist: Playlist) => of(playlist)),
@@ -111,9 +166,6 @@ export function createRestoreCollaborators() {
             restoreXtreamUserData: jest.fn().mockResolvedValue(undefined),
             updateCategoryVisibility: jest.fn().mockResolvedValue(true),
         },
-        pendingRestoreService: {
-            set: jest.fn(),
-            clear: jest.fn(),
-        },
+        pendingRestoreService,
     };
 }

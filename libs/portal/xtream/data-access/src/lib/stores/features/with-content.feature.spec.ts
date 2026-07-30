@@ -1,17 +1,22 @@
 import { TestBed } from '@angular/core/testing';
-import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { DatabaseService } from '@iptvnator/services';
 import {
-    RENDERER_PERFORMANCE_PHASE_HOOK_KEY,
-    type RendererPerformancePhaseEvent,
-} from '@iptvnator/shared/logging';
-import {
-    XTREAM_DATA_SOURCE,
-    XtreamPlaylistData,
-} from '../../data-sources/xtream-data-source.interface';
+    DatabaseService,
+    XtreamPendingRestoreService,
+} from '@iptvnator/services';
+import { XTREAM_DATA_SOURCE } from '../../data-sources/xtream-data-source.interface';
 import { XtreamApiService } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
-import { withContent } from './with-content.feature';
+import {
+    createAbortError,
+    createContentTestStore,
+    createDeferred,
+    createPendingRestoreServiceMock,
+    PENDING_RESTORE_STATE,
+    readPendingRestoreBlocked,
+    setPerformanceHook,
+    TEST_PLAYLIST,
+    waitForCondition,
+} from './with-content.feature.spec-helpers';
 
 jest.mock('@iptvnator/portal/shared/util', () => ({
     createLogger: () => ({
@@ -24,78 +29,11 @@ jest.mock('@iptvnator/portal/shared/util', () => ({
 
 type ContentType = 'live' | 'movie' | 'series';
 
-const PLAYLIST: XtreamPlaylistData = {
-    id: 'playlist-1',
-    name: 'Test Xtream',
-    serverUrl: 'http://localhost:8080',
-    username: 'demo',
-    password: 'secret',
-    type: 'xtream',
-};
-const performanceHookSymbol = Symbol.for(RENDERER_PERFORMANCE_PHASE_HOOK_KEY);
-
-function setPerformanceHook(
-    hook: ((event: RendererPerformancePhaseEvent) => void) | null
-): void {
-    const target = globalThis as unknown as Record<symbol, unknown>;
-    if (hook === null) {
-        delete target[performanceHookSymbol];
-    } else {
-        target[performanceHookSymbol] = hook;
-    }
-}
+const PLAYLIST = TEST_PLAYLIST;
 
 let checkPortalStatusMock: jest.Mock<Promise<PortalStatusType>, []>;
 
-const TestContentStore = signalStore(
-    withState({
-        playlistId: PLAYLIST.id,
-        currentPlaylist: PLAYLIST,
-        portalStatus: 'active' as PortalStatusType,
-        selectedContentType: 'vod' as const,
-    }),
-    withMethods((store) => ({
-        async checkPortalStatus(): Promise<PortalStatusType> {
-            const status = await checkPortalStatusMock();
-            patchState(store, { portalStatus: status });
-            return status;
-        },
-    })),
-    withContent()
-);
-
-function createDeferred<T>() {
-    let resolve!: (value: T) => void;
-    let reject!: (reason?: unknown) => void;
-    const promise = new Promise<T>((res, rej) => {
-        resolve = res;
-        reject = rej;
-    });
-
-    return { promise, resolve, reject };
-}
-
-function createAbortError(): Error {
-    const error = new Error('Import cancelled');
-    error.name = 'AbortError';
-    return error;
-}
-
-async function waitForCondition(
-    predicate: () => boolean,
-    attempts = 20
-): Promise<void> {
-    for (let index = 0; index < attempts; index += 1) {
-        if (predicate()) {
-            return;
-        }
-
-        await Promise.resolve();
-        await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-
-    throw new Error('Timed out waiting for test condition');
-}
+const TestContentStore = createContentTestStore(() => checkPortalStatusMock());
 
 describe('withContent import state', () => {
     let store: InstanceType<typeof TestContentStore>;
@@ -119,6 +57,9 @@ describe('withContent import state', () => {
     let xtreamApiService: {
         cancelSession: jest.Mock;
     };
+    let pendingRestoreService: ReturnType<
+        typeof createPendingRestoreServiceMock
+    >;
 
     beforeEach(() => {
         localStorage.clear();
@@ -153,6 +94,7 @@ describe('withContent import state', () => {
         xtreamApiService = {
             cancelSession: jest.fn().mockResolvedValue(true),
         };
+        pendingRestoreService = createPendingRestoreServiceMock();
         checkPortalStatusMock = jest.fn().mockResolvedValue('active');
 
         TestBed.configureTestingModule({
@@ -169,6 +111,10 @@ describe('withContent import state', () => {
                 {
                     provide: XtreamApiService,
                     useValue: xtreamApiService,
+                },
+                {
+                    provide: XtreamPendingRestoreService,
+                    useValue: pendingRestoreService,
                 },
             ],
         });
@@ -614,6 +560,63 @@ describe('withContent import state', () => {
         expect(databaseService.getXtreamImportStatus).not.toHaveBeenCalled();
     });
 
+    it('does not expose offline cache while a restore is pending', async () => {
+        pendingRestoreService.getOrThrow.mockReturnValue(PENDING_RESTORE_STATE);
+        dataSource.hasCategories.mockResolvedValue(true);
+        dataSource.hasContent.mockResolvedValue(true);
+
+        await expect(store.hasUsableOfflineCache('vod')).resolves.toBe(false);
+        await store.hydrateCachedContent('vod');
+
+        expect(dataSource.hasCategories).not.toHaveBeenCalled();
+        expect(dataSource.hasContent).not.toHaveBeenCalled();
+        expect(dataSource.getCachedCategories).not.toHaveBeenCalled();
+        expect(dataSource.getCachedContent).not.toHaveBeenCalled();
+        expect(dataSource.restoreUserData).not.toHaveBeenCalled();
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('error');
+    });
+
+    it('blocks active initialization when pending restore storage is unreadable', async () => {
+        dataSource.getContent.mockResolvedValue([]);
+        pendingRestoreService.getOrThrow.mockImplementation(() => {
+            throw new Error('storage is locked');
+        });
+
+        await store.initializeContent();
+
+        expect(dataSource.restoreUserData).not.toHaveBeenCalled();
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('error');
+    });
+
+    it('fails closed when pending restore storage is unreadable', async () => {
+        pendingRestoreService.getOrThrow.mockImplementation(() => {
+            throw new Error('storage is locked');
+        });
+        dataSource.hasCategories.mockResolvedValue(true);
+        dataSource.hasContent.mockResolvedValue(true);
+
+        await expect(store.hasUsableOfflineCache('vod')).resolves.toBe(false);
+        await store.hydrateCachedContent('vod');
+
+        expect(dataSource.hasCategories).not.toHaveBeenCalled();
+        expect(dataSource.hasContent).not.toHaveBeenCalled();
+        expect(dataSource.getCachedContent).not.toHaveBeenCalled();
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('error');
+
+        pendingRestoreService.getOrThrow.mockReturnValue(null);
+        checkPortalStatusMock.mockResolvedValue('unavailable');
+        dataSource.hasContent.mockResolvedValue(true);
+        await store.retryContentInitialization();
+
+        expect(readPendingRestoreBlocked(store)).toBe(false);
+        expect(dataSource.getCachedContent).toHaveBeenCalled();
+        expect(store.isContentInitialized()).toBe(true);
+        expect(store.contentInitBlockReason()).toBeNull();
+    });
+
     it('does not require every content type for aggregate cached sections', async () => {
         dataSource.hasContent
             .mockResolvedValueOnce(false)
@@ -736,6 +739,33 @@ describe('withContent import state', () => {
         expect(store.isLoadingContent()).toBe(false);
         expect(store.contentLoadStateByType().vod).toBe('ready');
         expect(store.vodStreams()).toHaveLength(1);
+    });
+
+    it('blocks cache publishing when pending state appears during hydration', async () => {
+        const cachedCategories = createDeferred<any[]>();
+        const cachedContent = createDeferred<any[]>();
+        dataSource.getCachedCategories.mockReturnValueOnce(
+            cachedCategories.promise
+        );
+        dataSource.getCachedContent.mockReturnValueOnce(cachedContent.promise);
+
+        const hydration = store.hydrateCachedContent('vod');
+        await waitForCondition(
+            () => dataSource.getCachedContent.mock.calls.length === 1
+        );
+
+        pendingRestoreService.getOrThrow.mockReturnValue(PENDING_RESTORE_STATE);
+        cachedCategories.resolve([]);
+        cachedContent.resolve([]);
+
+        await hydration;
+
+        expect(dataSource.restoreUserData).not.toHaveBeenCalled();
+        expect(pendingRestoreService.clear).not.toHaveBeenCalled();
+        expect(store.vodStreams()).toEqual([]);
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.isCachedContentScopeReady('vod')).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('error');
     });
 
     it('coalesces concurrent cached hydration calls for the same scope', async () => {
@@ -989,6 +1019,145 @@ describe('withContent import state', () => {
         expect(store.isContentInitialized()).toBe(true);
         expect(dataSource.getCategories).toHaveBeenCalledTimes(6);
         expect(dataSource.getContent).toHaveBeenCalledTimes(3);
+    });
+
+    it('keeps a failed pending restore blocked until an explicit retry succeeds', async () => {
+        dataSource.getContent.mockResolvedValue([]);
+        dataSource.restoreUserData
+            .mockRejectedValueOnce(new Error('database is locked'))
+            .mockResolvedValueOnce(undefined);
+        pendingRestoreService.getOrThrow.mockReturnValue(PENDING_RESTORE_STATE);
+        pendingRestoreService.clear.mockImplementation(() => {
+            pendingRestoreService.getOrThrow.mockReturnValue(null);
+            return true;
+        });
+
+        await store.initializeContent();
+
+        expect(dataSource.restoreUserData).toHaveBeenCalledTimes(1);
+        expect(pendingRestoreService.clear).not.toHaveBeenCalled();
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('error');
+
+        await store.initializeContent();
+        expect(dataSource.restoreUserData).toHaveBeenCalledTimes(1);
+
+        // Ready cache rows are not safe to expose while replay is pending:
+        // a later full replacement could otherwise erase pins changed in the
+        // meantime.
+        expect(store.isCachedContentScopeReady('vod')).toBe(false);
+        checkPortalStatusMock.mockResolvedValue('unavailable');
+        dataSource.hasContent.mockResolvedValue(true);
+        await store.retryContentInitialization();
+
+        expect(dataSource.restoreUserData).toHaveBeenCalledTimes(1);
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('unavailable');
+
+        checkPortalStatusMock.mockResolvedValue('active');
+        await store.retryContentInitialization();
+
+        expect(dataSource.restoreUserData).toHaveBeenCalledTimes(2);
+        expect(pendingRestoreService.clear).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            PENDING_RESTORE_STATE
+        );
+        expect(store.isContentInitialized()).toBe(true);
+        expect(store.contentInitBlockReason()).toBeNull();
+    });
+
+    it('leaves state parked during an active import for the next content generation', async () => {
+        const pendingSeries = createDeferred<any[]>();
+        dataSource.getContent.mockImplementation(
+            (_playlistId: string, _credentials: unknown, type: ContentType) =>
+                type === 'series' ? pendingSeries.promise : Promise.resolve([])
+        );
+
+        const initialization = store.initializeContent();
+        await waitForCondition(
+            () => store.contentLoadStateByType().vod === 'ready'
+        );
+
+        pendingRestoreService.getOrThrow.mockReturnValue(PENDING_RESTORE_STATE);
+        expect(store.reconcilePendingRestoreBlock()).toBe(true);
+        expect(readPendingRestoreBlocked(store)).toBe(true);
+        expect(store.isImporting()).toBe(false);
+        expect(store.activeImportSessionId()).not.toBeNull();
+        expect(store.isContentInitialized()).toBe(false);
+        expect(dataSource.restoreUserData).not.toHaveBeenCalled();
+
+        pendingSeries.resolve([]);
+        await initialization;
+
+        expect(dataSource.restoreUserData).not.toHaveBeenCalled();
+        expect(readPendingRestoreBlocked(store)).toBe(true);
+        expect(store.isContentInitialized()).toBe(false);
+
+        dataSource.getContent.mockResolvedValue([]);
+        await store.initializeContent();
+
+        expect(dataSource.restoreUserData).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            PENDING_RESTORE_STATE,
+            expect.any(Object)
+        );
+        expect(pendingRestoreService.applyAndConsume).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            expect.objectContaining({
+                state: PENDING_RESTORE_STATE,
+            }),
+            expect.any(Function)
+        );
+        expect(pendingRestoreService.clear).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            PENDING_RESTORE_STATE
+        );
+        expect(readPendingRestoreBlocked(store)).toBe(false);
+        expect(store.isContentInitialized()).toBe(true);
+    });
+
+    it('retries when pending state could not be consumed', async () => {
+        dataSource.getContent.mockResolvedValue([]);
+        pendingRestoreService.getOrThrow.mockReturnValue(PENDING_RESTORE_STATE);
+        pendingRestoreService.clear
+            .mockReturnValueOnce(false)
+            .mockImplementationOnce(() => {
+                pendingRestoreService.getOrThrow.mockReturnValue(null);
+                return true;
+            });
+
+        await store.initializeContent();
+
+        expect(dataSource.restoreUserData).toHaveBeenCalledTimes(1);
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('error');
+
+        await store.retryContentInitialization();
+
+        expect(dataSource.restoreUserData).toHaveBeenCalledTimes(2);
+        expect(pendingRestoreService.clear).toHaveBeenCalledTimes(2);
+        expect(store.isContentInitialized()).toBe(true);
+        expect(store.contentInitBlockReason()).toBeNull();
+    });
+
+    it('keeps cancellation authoritative while a pending restore finishes', async () => {
+        const pendingRestore = createDeferred<void>();
+        dataSource.getContent.mockResolvedValue([]);
+        dataSource.restoreUserData.mockReturnValueOnce(pendingRestore.promise);
+        pendingRestoreService.getOrThrow.mockReturnValue(PENDING_RESTORE_STATE);
+
+        const initialization = store.initializeContent();
+        await waitForCondition(
+            () => dataSource.restoreUserData.mock.calls.length === 1
+        );
+
+        await store.cancelImport();
+        pendingRestore.reject(new Error('pin replacement failed'));
+        await expect(initialization).resolves.toBeUndefined();
+
+        expect(pendingRestoreService.clear).not.toHaveBeenCalled();
+        expect(store.isContentInitialized()).toBe(false);
+        expect(store.contentInitBlockReason()).toBe('cancelled');
     });
 
     it('stops before content fetch if cancel lands between categories and content phases', async () => {

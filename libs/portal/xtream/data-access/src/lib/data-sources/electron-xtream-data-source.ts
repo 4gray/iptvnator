@@ -566,6 +566,48 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         restoreState: XtreamPendingRestoreState,
         options?: XtreamOperationOptions
     ): Promise<void> {
+        const categoriesByType = await Promise.all([
+            this.dbService.getAllXtreamCategories(playlistId, 'live'),
+            this.dbService.getAllXtreamCategories(playlistId, 'movies'),
+            this.dbService.getAllXtreamCategories(playlistId, 'series'),
+        ]);
+        for (const categories of categoriesByType) {
+            if (categories.length === 0) {
+                continue;
+            }
+
+            const reset = await this.dbService.updateCategoryVisibility(
+                categories.map((category) => category.id),
+                false
+            );
+            if (!reset) {
+                throw new Error(
+                    `Resetting category visibility for "${playlistId}" failed.`
+                );
+            }
+
+            const hiddenCategoryIds = categories
+                .filter((category) =>
+                    restoreState.hiddenCategories.some(
+                        (hiddenCategory) =>
+                            hiddenCategory.categoryType === category.type &&
+                            hiddenCategory.xtreamId === category.xtream_id
+                    )
+                )
+                .map((category) => category.id);
+            if (
+                hiddenCategoryIds.length > 0 &&
+                !(await this.dbService.updateCategoryVisibility(
+                    hiddenCategoryIds,
+                    true
+                ))
+            ) {
+                throw new Error(
+                    `Restoring category visibility for "${playlistId}" failed.`
+                );
+            }
+        }
+
         await this.dbService.restoreXtreamUserData(
             playlistId,
             restoreState.favorites,
@@ -585,23 +627,29 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // The fresh-import path lands here rather than in the backup service:
         // a new playlist has no content yet when the archive is read, so its
         // user state is parked and applied once the import finishes.
-        for (const pin of restoreState.sourcePins ?? []) {
-            const written = await this.vodSourcePinService.set({
-                matchKey: pin.matchKey,
-                playlistId,
-                contentId: pin.contentId,
-                portalType: 'xtream',
-                ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
-            });
+        if (!restoreState.sourcePins) {
+            return;
+        }
 
-            // Throwing keeps the pending state for a later retry — the caller
-            // only clears it when this resolves. Dropping it here would lose
-            // the preference with the import still reporting success.
-            if (!written) {
-                throw new Error(
-                    `Restoring the pinned source for "${pin.matchKey}" failed.`
-                );
-            }
+        const pins = restoreState.sourcePins.map((pin) => ({
+            matchKey: pin.matchKey,
+            playlistId,
+            contentId: pin.contentId,
+            portalType: 'xtream' as const,
+            ...(pin.updatedAt ? { updatedAt: pin.updatedAt } : {}),
+        }));
+        const replaced = await this.vodSourcePinService.replaceForPlaylist(
+            playlistId,
+            pins
+        );
+
+        // Throwing keeps the pending state for a later retry — the caller only
+        // clears it when this resolves. Dropping it here would lose the
+        // preference with the import still reporting success.
+        if (!replaced) {
+            throw new Error(
+                `Restoring the pinned sources for "${playlistId}" failed.`
+            );
         }
     }
 }

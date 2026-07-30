@@ -1,7 +1,8 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
+import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     PlaylistBackupImportSummary,
     PlaylistBackupService,
@@ -16,6 +17,7 @@ export class SettingsBackupFacade {
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    private readonly injector = inject(Injector);
 
     readonly isExportingData = signal(false);
 
@@ -79,6 +81,9 @@ export class SettingsBackupFacade {
                 const summary = await this.playlistBackupService.importBackup(
                     await file.text()
                 );
+                this.injector
+                    .get(XtreamStore, null)
+                    ?.reconcilePendingRestoreBlock();
 
                 if (summary.imported > 0 || summary.merged > 0) {
                     this.store.dispatch(PlaylistActions.removeAllPlaylists());

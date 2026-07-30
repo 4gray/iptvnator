@@ -14,7 +14,8 @@ export interface XtreamPendingRestoreState {
     playbackPositions: PlaybackPositionData[];
     /**
      * Optional: absent from archives and persisted entries written before
-     * multi-source existed. The normalizer always fills it.
+     * multi-source existed. The normalizer preserves that absence so restore
+     * can distinguish "no opinion" from an authoritative empty collection.
      */
     sourcePins?: XtreamBackupSourcePin[];
 }

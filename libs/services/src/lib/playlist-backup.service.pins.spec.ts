@@ -116,6 +116,56 @@ describe('PlaylistBackupService Xtream source pins', () => {
         ]);
     });
 
+    it('serializes overlapping restores so an older snapshot cannot finish last', async () => {
+        const collaborators = createRestoreCollaborators();
+        let finishFirstReplacement!: (replaced: boolean) => void;
+        const firstReplacement = new Promise<boolean>((resolve) => {
+            finishFirstReplacement = resolve;
+        });
+        const replacePins = jest
+            .fn()
+            .mockReturnValueOnce(firstReplacement)
+            .mockResolvedValueOnce(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                isAvailable: true,
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
+                replaceForPlaylist: replacePins,
+            },
+        });
+        const firstImport = service.importBackup(
+            JSON.stringify(
+                createXtreamManifest(
+                    [],
+                    [{ matchKey: 'tmdb:603', contentId: 501 }]
+                )
+            )
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(replacePins).toHaveBeenCalledTimes(1);
+
+        const secondImport = service.importBackup(
+            JSON.stringify(
+                createXtreamManifest(
+                    [],
+                    [{ matchKey: 'tmdb:603', contentId: 502 }]
+                )
+            )
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(replacePins).toHaveBeenCalledTimes(1);
+
+        finishFirstReplacement(true);
+        await Promise.all([firstImport, secondImport]);
+        expect(
+            replacePins.mock.calls.map(
+                ([, pins]) => (pins as Array<{ contentId: number }>)[0].contentId
+            )
+        ).toEqual([501, 502]);
+    });
+
     it('reports pins that could not be written', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService({
@@ -140,6 +190,58 @@ describe('PlaylistBackupService Xtream source pins', () => {
         expect(summary).toEqual(
             expect.objectContaining({ merged: 0, failed: 1 })
         );
+    });
+
+    it('reports a restore whose parked state could not be consumed', async () => {
+        const collaborators = createRestoreCollaborators();
+        collaborators.pendingRestoreService.clear.mockReturnValue(false);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                isAvailable: true,
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
+                replaceForPlaylist: jest.fn().mockResolvedValue(true),
+            },
+        });
+
+        const manifest = createXtreamManifest(
+            [],
+            [{ matchKey: 'tmdb:603', contentId: 501 }]
+        );
+
+        const summary = await service.importBackup(JSON.stringify(manifest));
+
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 0, failed: 1 })
+        );
+        expect(summary.errors[0]).toMatch(/pending restore state/i);
+    });
+
+    it('reports a restore whose pending state could not be parked', async () => {
+        const collaborators = createRestoreCollaborators();
+        collaborators.pendingRestoreService.set.mockReturnValueOnce(null);
+        const replacePins = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            vodSourcePinService: {
+                isAvailable: true,
+                listForPlaylistOrThrow: jest.fn().mockResolvedValue([]),
+                replaceForPlaylist: replacePins,
+            },
+        });
+
+        const manifest = createXtreamManifest(
+            [],
+            [{ matchKey: 'tmdb:603', contentId: 501 }]
+        );
+
+        const summary = await service.importBackup(JSON.stringify(manifest));
+
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 0, failed: 1 })
+        );
+        expect(summary.errors[0]).toMatch(/parking pending restore state/i);
+        expect(replacePins).not.toHaveBeenCalled();
     });
 
     it('drops pins the backup does not contain', async () => {

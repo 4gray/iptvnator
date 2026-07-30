@@ -402,10 +402,16 @@ export class RecentPlaylistsComponent {
                         ]
                     );
 
-                    this.pendingRestoreService.set(item._id, {
-                        ...restoreState,
-                        playbackPositions,
-                    });
+                    if (
+                        !this.pendingRestoreService.set(item._id, {
+                            ...restoreState,
+                            playbackPositions,
+                        })
+                    ) {
+                        throw new Error(
+                            `Parking pending restore state for "${item._id}" failed.`
+                        );
+                    }
 
                     // Update the timestamp in NgRx / IndexedDB
                     measureRendererPerformancePhase(
