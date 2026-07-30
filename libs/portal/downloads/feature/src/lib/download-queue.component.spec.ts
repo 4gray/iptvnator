@@ -23,7 +23,9 @@ const TEST_TRANSLATIONS = {
             PAUSED: 'Paused',
             FAILED: 'Failed',
             CANCELED: 'Canceled',
+            FILE_MISSING: 'File missing',
         },
+        DOWNLOAD_AGAIN: 'Download again',
         ARIA: {
             OPEN: 'Open {{title}}',
             POSTER_UNAVAILABLE: 'Artwork unavailable for {{title}}',
@@ -35,6 +37,12 @@ const TEST_TRANSLATIONS = {
             RETRY: 'Retry {{title}}',
             MORE_ACTIONS: 'More actions for {{title}}',
             COPY_URL: 'Copy URL for {{title}}',
+            DOWNLOAD_AGAIN: 'Download {{title}} again',
+        },
+    },
+    PORTALS: {
+        MULTI_SOURCE: {
+            SOURCE: 'Source',
         },
     },
 };
@@ -63,6 +71,7 @@ function createRow(
     overrides: Partial<DownloadListItemViewModel> = {}
 ): DownloadListItemViewModel {
     return {
+        attentionReason: 'transfer',
         item: createItem(id, status),
         episodeLabel: '',
         seriesTitle: '',
@@ -191,6 +200,97 @@ describe('DownloadQueueComponent', () => {
             ).toBe(icon);
         }
     );
+
+    it('renders a missing completed file as recoverable attention', async () => {
+        const viewModel = createRow(8, 'completed', {
+            attentionReason: 'file-missing',
+            item: createItem(8, 'completed', {
+                bytesDownloaded: 2 * 1024 ** 2,
+                fileAvailability: 'missing',
+                filePath: '/downloads/missing.mp4',
+            }),
+            sourceName: 'Alpha Source',
+        });
+        const emitted: DownloadItemAction[] = [];
+        fixture.componentInstance.itemAction.subscribe((action) =>
+            emitted.push(action)
+        );
+        render([], [viewModel]);
+
+        const host = row(8);
+        const status = host.querySelector<HTMLElement>(
+            '.download-queue__status'
+        );
+        const renderedActions = Array.from(
+            host.querySelectorAll<HTMLButtonElement>(
+                '[data-test-action]:not([data-test-action="more"])'
+            )
+        ).map((button) => button.dataset['testAction']);
+        expect(status?.textContent).toContain('File missing');
+        expect(status?.querySelector('mat-icon')?.textContent?.trim()).toBe(
+            'file_off'
+        );
+        expect(renderedActions).toEqual(['redownload']);
+        expect(host.querySelector('[data-test-action="play"]')).toBeNull();
+        expect(host.querySelector('[data-test-action="reveal"]')).toBeNull();
+        expect(host.querySelector('.download-queue__source')).toBeNull();
+
+        actionButton(host, 'redownload').click();
+        expect(emitted).toEqual([
+            { type: 'redownload', item: viewModel.item },
+        ]);
+
+        actionButton(host, 'more').click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const menu = overlayContainer.getContainerElement();
+        const header = menu.querySelector<HTMLElement>(
+            '.download-source-menu-header'
+        );
+        const copy = actionButton(menu, 'copy-url');
+        const remove = actionButton(menu, 'remove');
+        expect(header?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+            'Source Alpha Source'
+        );
+        expect(header?.querySelector('strong')?.textContent).toContain(
+            'Alpha Source'
+        );
+        expect(
+            header &&
+                header.compareDocumentPosition(copy) &
+                    Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+        expect(
+            copy.compareDocumentPosition(remove) &
+                Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+    });
+
+    it('disables Download again while pending and omits an empty source header', async () => {
+        const viewModel = createRow(9, 'completed', {
+            attentionReason: 'file-missing',
+            item: createItem(9, 'completed', {
+                fileAvailability: 'missing',
+                filePath: '/downloads/missing.mp4',
+            }),
+            sourceName: '   ',
+        });
+        render([], [viewModel], new Set([9]));
+
+        expect(actionButton(row(9), 'redownload').disabled).toBe(true);
+        fixture.componentRef.setInput('pendingIds', new Set());
+        fixture.detectChanges();
+        actionButton(row(9), 'more').click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(
+            overlayContainer
+                .getContainerElement()
+                .querySelector('.download-source-menu-header')
+        ).toBeNull();
+    });
 
     it.each([
         ['queued', ['pause', 'cancel']],
@@ -413,7 +513,7 @@ describe('DownloadQueueComponent', () => {
         expect(formatDownloadBytes(bytes)).toBe(expected);
     });
 
-    it('renders downloaded/total bytes, episode/source/error metadata, and omits empty sources', () => {
+    it('renders downloaded/total bytes and episode/error metadata without a permanent source', () => {
         const longError =
             'https://downloads.example.test/a/very/long/unbroken/path/that/must/remain/readable/error-code-connection-reset';
         const detailed = createRow(21, 'failed', {
@@ -447,11 +547,7 @@ describe('DownloadQueueComponent', () => {
                 .querySelector('.download-queue__episode')
                 ?.textContent?.trim()
         ).toBe('S02E04');
-        expect(
-            row(21)
-                .querySelector('.download-queue__source')
-                ?.textContent?.trim()
-        ).toBe('Alpha Source');
+        expect(row(21).querySelector('.download-queue__source')).toBeNull();
         const error = row(21).querySelector<HTMLElement>(
             '.download-queue__error'
         );

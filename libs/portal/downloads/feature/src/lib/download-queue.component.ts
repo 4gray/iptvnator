@@ -19,6 +19,7 @@ import type {
     DownloadItemActionType,
 } from './download-actions';
 import type { DownloadListItemViewModel } from './download-manager.viewmodel';
+import { DownloadSourceMenuHeaderComponent } from './download-source-menu-header.component';
 
 type DownloadProgressMode = 'determinate' | 'indeterminate';
 
@@ -71,6 +72,7 @@ export function formatDownloadBytes(bytes: number | undefined): string {
         MatTooltip,
         NgTemplateOutlet,
         TranslatePipe,
+        DownloadSourceMenuHeaderComponent,
     ],
     templateUrl: './download-queue.component.html',
     styleUrl: './download-queue.component.scss',
@@ -121,8 +123,24 @@ export class DownloadQueueComponent {
         return this.pendingIds().has(id);
     }
 
-    statusIcon(item: DownloadItem): string {
-        return STATUS_ICONS[item.status];
+    isMissingFile(row: DownloadListItemViewModel): boolean {
+        return row.attentionReason === 'file-missing';
+    }
+
+    statusIcon(row: DownloadListItemViewModel): string {
+        return this.isMissingFile(row)
+            ? 'file_off'
+            : STATUS_ICONS[row.item.status];
+    }
+
+    statusKey(row: DownloadListItemViewModel): string {
+        return this.isMissingFile(row)
+            ? 'DOWNLOADS.STATUS.FILE_MISSING'
+            : `DOWNLOADS.STATUS.${row.item.status.toUpperCase()}`;
+    }
+
+    statusClass(row: DownloadListItemViewModel): string {
+        return this.isMissingFile(row) ? 'missing' : row.item.status;
     }
 
     hasPoster(item: DownloadItem): boolean {

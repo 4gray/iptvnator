@@ -17,6 +17,7 @@
                     [class.download-queue__item--pending]="
                         isPending(row.item.id)
                     "
+                    [class.download-queue__item--missing]="isMissingFile(row)"
                     [attr.aria-busy]="isPending(row.item.id) ? 'true' : null"
                     [attr.data-test-id]="'download-queue-item-' + row.item.id"
                     role="listitem"
@@ -90,17 +91,13 @@
                                 aria-atomic="true"
                                 [class]="
                                     'download-queue__status download-queue__status--' +
-                                    row.item.status
+                                    statusClass(row)
                                 "
                             >
                                 <mat-icon aria-hidden="true">
-                                    {{ statusIcon(row.item) }}
+                                    {{ statusIcon(row) }}
                                 </mat-icon>
-                                {{
-                                    'DOWNLOADS.STATUS.' +
-                                        row.item.status.toUpperCase()
-                                        | translate
-                                }}
+                                {{ statusKey(row) | translate }}
                             </span>
                             <span class="download-queue__bytes">
                                 {{ formatBytes(row.item.bytesDownloaded) }}
@@ -109,11 +106,6 @@
                                     {{ formatBytes(row.item.totalBytes) }}
                                 }
                             </span>
-                            @if (row.sourceName.trim()) {
-                                <span class="download-queue__source">
-                                    {{ row.sourceName.trim() }}
-                                </span>
-                            }
                             @if (row.item.errorMessage?.trim(); as error) {
                                 <span class="download-queue__error">
                                     {{ error }}
@@ -135,95 +127,121 @@
                     </div>
 
                     <div class="download-queue__actions">
-                        @switch (row.item.status) {
-                            @case ('queued') {
-                                <ng-container
-                                    [ngTemplateOutlet]="pauseAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                                <ng-container
-                                    [ngTemplateOutlet]="cancelAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                            }
-                            @case ('downloading') {
-                                <ng-container
-                                    [ngTemplateOutlet]="pauseAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                                <ng-container
-                                    [ngTemplateOutlet]="cancelAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                            }
-                            @case ('paused') {
-                                <button
-                                    type="button"
-                                    mat-icon-button
-                                    data-test-action="resume"
-                                    [disabled]="isPending(row.item.id)"
-                                    [attr.aria-label]="
-                                        'DOWNLOADS.ARIA.RESUME'
-                                            | translate
-                                                : { title: row.item.title }
-                                    "
-                                    [matTooltip]="
-                                        'DOWNLOADS.ARIA.RESUME'
-                                            | translate
-                                                : { title: row.item.title }
-                                    "
-                                    (click)="emitAction('resume', row.item)"
-                                >
-                                    <mat-icon>play_arrow</mat-icon>
-                                </button>
-                                <ng-container
-                                    [ngTemplateOutlet]="cancelAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                                <ng-container
-                                    [ngTemplateOutlet]="removeAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                            }
-                            @case ('failed') {
-                                <ng-container
-                                    [ngTemplateOutlet]="retryAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                                <ng-container
-                                    [ngTemplateOutlet]="removeAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                            }
-                            @case ('canceled') {
-                                <ng-container
-                                    [ngTemplateOutlet]="retryAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
-                                <ng-container
-                                    [ngTemplateOutlet]="removeAction"
-                                    [ngTemplateOutletContext]="{
-                                        $implicit: row.item,
-                                    }"
-                                />
+                        @if (isMissingFile(row)) {
+                            <button
+                                type="button"
+                                mat-stroked-button
+                                class="download-queue__recover"
+                                data-test-action="redownload"
+                                [disabled]="isPending(row.item.id)"
+                                [attr.aria-label]="
+                                    'DOWNLOADS.ARIA.DOWNLOAD_AGAIN'
+                                        | translate: { title: row.item.title }
+                                "
+                                [matTooltip]="
+                                    'DOWNLOADS.ARIA.DOWNLOAD_AGAIN'
+                                        | translate: { title: row.item.title }
+                                "
+                                (click)="emitAction('redownload', row.item)"
+                            >
+                                <mat-icon>refresh</mat-icon>
+                                <span>
+                                    {{ 'DOWNLOADS.DOWNLOAD_AGAIN' | translate }}
+                                </span>
+                            </button>
+                        } @else {
+                            @switch (row.item.status) {
+                                @case ('queued') {
+                                    <ng-container
+                                        [ngTemplateOutlet]="pauseAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                    <ng-container
+                                        [ngTemplateOutlet]="cancelAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                }
+                                @case ('downloading') {
+                                    <ng-container
+                                        [ngTemplateOutlet]="pauseAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                    <ng-container
+                                        [ngTemplateOutlet]="cancelAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                }
+                                @case ('paused') {
+                                    <button
+                                        type="button"
+                                        mat-icon-button
+                                        data-test-action="resume"
+                                        [disabled]="isPending(row.item.id)"
+                                        [attr.aria-label]="
+                                            'DOWNLOADS.ARIA.RESUME'
+                                                | translate
+                                                    : { title: row.item.title }
+                                        "
+                                        [matTooltip]="
+                                            'DOWNLOADS.ARIA.RESUME'
+                                                | translate
+                                                    : { title: row.item.title }
+                                        "
+                                        (click)="
+                                            emitAction('resume', row.item)
+                                        "
+                                    >
+                                        <mat-icon>play_arrow</mat-icon>
+                                    </button>
+                                    <ng-container
+                                        [ngTemplateOutlet]="cancelAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                    <ng-container
+                                        [ngTemplateOutlet]="removeAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                }
+                                @case ('failed') {
+                                    <ng-container
+                                        [ngTemplateOutlet]="retryAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                    <ng-container
+                                        [ngTemplateOutlet]="removeAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                }
+                                @case ('canceled') {
+                                    <ng-container
+                                        [ngTemplateOutlet]="retryAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                    <ng-container
+                                        [ngTemplateOutlet]="removeAction"
+                                        [ngTemplateOutletContext]="{
+                                            $implicit: row.item,
+                                        }"
+                                    />
+                                }
                             }
                         }
 
@@ -245,6 +263,9 @@
                             <mat-icon>more_vert</mat-icon>
                         </button>
                         <mat-menu #itemMenu="matMenu" xPosition="before">
+                            <app-download-source-menu-header
+                                [sourceName]="row.sourceName"
+                            />
                             <button
                                 type="button"
                                 mat-menu-item
@@ -269,6 +290,29 @@
                                     }}
                                 </span>
                             </button>
+                            @if (isMissingFile(row)) {
+                                <button
+                                    type="button"
+                                    mat-menu-item
+                                    data-test-action="remove"
+                                    [disabled]="isPending(row.item.id)"
+                                    [attr.aria-label]="
+                                        'DOWNLOADS.ARIA.REMOVE'
+                                            | translate
+                                                : { title: row.item.title }
+                                    "
+                                    (click)="emitAction('remove', row.item)"
+                                >
+                                    <mat-icon>delete_outline</mat-icon>
+                                    <span>
+                                        {{
+                                            'DOWNLOADS.ARIA.REMOVE'
+                                                | translate
+                                                    : { title: row.item.title }
+                                        }}
+                                    </span>
+                                </button>
+                            }
                         </mat-menu>
                     </div>
                 </article>

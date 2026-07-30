@@ -68,6 +68,18 @@
                 opacity: 0.68;
             }
         }
+
+        &--missing {
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-tertiary-container) 18%,
+                var(--mat-sys-surface-container-low)
+            );
+
+            .download-queue__artwork {
+                filter: saturate(0.42);
+            }
+        }
     }
 
     &__artwork {
@@ -206,6 +218,11 @@
             background: var(--mat-sys-error-container);
             color: var(--mat-sys-on-error-container);
         }
+
+        &--missing {
+            background: var(--mat-sys-tertiary-container);
+            color: var(--mat-sys-on-tertiary-container);
+        }
     }
 
     &__bytes {
@@ -213,12 +230,6 @@
             'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
             monospace;
         font-variant-numeric: tabular-nums;
-    }
-
-    &__source {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
     }
 
     &__error {
@@ -251,6 +262,14 @@
                 );
                 transform: translateY(-1px);
             }
+        }
+    }
+
+    &__recover {
+        white-space: nowrap;
+
+        mat-icon {
+            margin-inline-end: 6px;
         }
     }
 
