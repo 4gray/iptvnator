@@ -57,6 +57,7 @@ async function waitForCondition(
 
 function configureStore(
     xtreamApiService: {
+        getSeriesInfo?: jest.Mock;
         getVodInfo: jest.Mock;
         getVodStream: jest.Mock;
     },
@@ -238,6 +239,114 @@ describe('XtreamStore VOD details recovery', () => {
             })
         );
         expect(store.detailsError()).toBeNull();
+        expect(store.isLoadingDetails()).toBe(false);
+    });
+
+    it('clears the previous movie while a reused-route request is pending or fails', async () => {
+        const nextDetails = createDeferred<never>();
+        const xtreamApiService = {
+            getVodInfo: jest.fn(() => nextDetails.promise),
+            getVodStream: jest.fn(),
+        };
+        const store = configureStore(xtreamApiService);
+        store.setSelectedItem({
+            info: { name: 'Movie A' },
+            stream_id: 42,
+            xtream_id: 42,
+        });
+
+        store.fetchVodDetailsWithMetadata({
+            categoryId: 7,
+            vodId: '99',
+        });
+
+        expect(store.selectedItem()).toBeNull();
+
+        nextDetails.reject(new Error('Movie B unavailable'));
+        await waitForCondition(
+            () => store.detailsError() === 'Movie B unavailable'
+        );
+
+        expect(store.selectedItem()).toBeNull();
+        expect(store.isLoadingDetails()).toBe(false);
+    });
+
+    it('keeps the newer movie authoritative when an older base request resolves late', async () => {
+        const firstDetails = createDeferred<{
+            container_extension: string;
+            info: { name: string };
+            stream_id: number;
+        }>();
+        const xtreamApiService = {
+            getVodInfo: jest.fn((_credentials: unknown, vodId: string) =>
+                vodId === '42'
+                    ? firstDetails.promise
+                    : Promise.resolve({
+                          info: { name: 'Movie B' },
+                          stream_id: 99,
+                          container_extension: 'mp4',
+                      })
+            ),
+            getVodStream: jest.fn(),
+        };
+        const store = configureStore(xtreamApiService);
+
+        store.fetchVodDetailsWithMetadata({
+            categoryId: 7,
+            vodId: '42',
+        });
+        store.fetchVodDetailsWithMetadata({
+            categoryId: 7,
+            vodId: '99',
+        });
+        await waitForCondition(
+            () =>
+                resolveXtreamVodPlaybackSource(store.selectedItem())
+                    ?.streamId === 99
+        );
+
+        firstDetails.resolve({
+            info: { name: 'Movie A' },
+            stream_id: 42,
+            container_extension: 'mkv',
+        });
+        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toEqual({
+            streamId: 99,
+            containerExtension: 'mp4',
+        });
+        expect(store.detailsError()).toBeNull();
+        expect(store.isLoadingDetails()).toBe(false);
+    });
+
+    it('clears the previous series while a reused-route request is pending or fails', async () => {
+        const nextDetails = createDeferred<never>();
+        const xtreamApiService = {
+            getSeriesInfo: jest.fn(() => nextDetails.promise),
+            getVodInfo: jest.fn(),
+            getVodStream: jest.fn(),
+        };
+        const store = configureStore(xtreamApiService);
+        store.setSelectedItem({
+            info: { name: 'Series A' },
+            series_id: 42,
+        });
+
+        store.fetchSerialDetailsWithMetadata({
+            categoryId: 7,
+            serialId: '99',
+        });
+
+        expect(store.selectedItem()).toBeNull();
+
+        nextDetails.reject(new Error('Series B unavailable'));
+        await waitForCondition(
+            () => store.detailsError() === 'Series B unavailable'
+        );
+
+        expect(store.selectedItem()).toBeNull();
         expect(store.isLoadingDetails()).toBe(false);
     });
 });

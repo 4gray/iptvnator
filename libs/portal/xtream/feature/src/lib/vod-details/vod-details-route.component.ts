@@ -68,6 +68,26 @@ import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
 
+type XtreamVodIdentityItem = XtreamVodDetails & {
+    readonly id?: number | string;
+    readonly stream_id?: number | string;
+    readonly xtream_id?: number | string;
+};
+
+function resolveVodIdentity(item: XtreamVodDetails): number | null {
+    const candidate = item as XtreamVodIdentityItem;
+    const value =
+        item.movie_data?.stream_id ??
+        candidate.xtream_id ??
+        candidate.stream_id ??
+        candidate.id;
+    const id = typeof value === 'string' ? Number(value) : value;
+
+    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0
+        ? id
+        : null;
+}
+
 @Component({
     templateUrl: './vod-details-route.component.html',
     styleUrls: [
@@ -134,11 +154,15 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isElectron = this.downloadsService.isAvailable;
 
     readonly isFavorite = this.xtreamStore.isFavorite;
-    readonly selectedItem = computed(
-        () =>
-            this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
-    );
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    readonly selectedItem = computed(() => {
+        const item =
+            this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null;
+
+        return item && resolveVodIdentity(item) === this.selectedVodId()
+            ? item
+            : null;
+    });
     private readonly scopedVodCategories = computed(() => {
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         return playlistId &&

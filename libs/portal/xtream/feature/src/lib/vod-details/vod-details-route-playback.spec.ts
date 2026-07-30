@@ -27,6 +27,8 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         getPlaybackPosition,
         isDownloaded,
         playDownload,
+        routeParams,
+        selectedItem,
     } = stubs;
 
     beforeEach(async () => {
@@ -324,6 +326,75 @@ describe('VodDetailsRouteComponent — playback actions', () => {
 
         expect(playback.routePlaybackPosition()).toBeNull();
         expect(playback.hasPlaybackPosition()).toBe(false);
+    });
+
+    it('does not expose a stale movie after a reused route changes identity', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        selectedItem.set({
+            info: { name: 'Movie A', description: 'Movie A details' },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Movie A',
+                container_extension: 'mp4',
+            },
+        } as XtreamVodDetails);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.selectedVodInfo()?.name).toBe(
+            'Movie A'
+        );
+
+        // The router reuses the detail component. The B request can fail,
+        // leaving the store's last successful selection (A) in place while
+        // route/download state has already switched to B.
+        downloadsAvailable.set(true);
+        isDownloaded.mockImplementation((vodId: number) => vodId === 650021);
+        routeParams.next({ vodId: '650021', categoryId: '235' });
+        stubs.detailsError.set('Movie B unavailable');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.selectedVodId()).toBe(650021);
+        expect(fixture.componentInstance.isDownloaded()).toBe(true);
+        expect(fixture.componentInstance.selectedItem()).toBeNull();
+        expect(fixture.componentInstance.selectedVodInfo()).toBeNull();
+        expect(fixture.componentInstance.playableVodItem()).toBeNull();
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.textContent).not.toContain('Movie A');
+        expect(host.textContent).toContain('Movie B unavailable');
+        expect(host.textContent).not.toContain('DOWNLOADS.OFFLINE');
+        expect(host.textContent).not.toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).not.toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
+        expect(host.querySelector('button.play-btn')).toBeNull();
+
+        await fixture.componentInstance.playFromProviderSource(
+            fixture.componentInstance.playableVodItem()
+        );
+
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
+
+        selectedItem.set({
+            info: { name: 'Movie B', description: 'Movie B details' },
+            movie_data: {
+                stream_id: 650021,
+                name: 'Movie B',
+                container_extension: 'mkv',
+            },
+        } as XtreamVodDetails);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.selectedVodInfo()?.name).toBe(
+            'Movie B'
+        );
+        expect(host.textContent).toContain('Movie B');
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(host.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
     });
 
     it('downloads the movie the route currently shows', async () => {

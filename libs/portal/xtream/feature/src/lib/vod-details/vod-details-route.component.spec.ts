@@ -345,7 +345,7 @@ describe('VodDetailsRouteComponent', () => {
                 rating_kinopoisk: '7.455',
             },
             movie_data: {
-                stream_id: 678140,
+                stream_id: 650020,
                 name: 'City of McFarland (2015) DE',
                 added: '1750671180',
                 category_id: '235',
@@ -373,7 +373,7 @@ describe('VodDetailsRouteComponent', () => {
                 movie_image: 'https://example.com/poster.jpg',
             },
             movie_data: {
-                stream_id: 678140,
+                stream_id: 650020,
                 name: 'Metadata Without Backdrop',
                 added: '1750671180',
                 category_id: '235',

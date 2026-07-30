@@ -17,7 +17,7 @@ import {
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 /**
@@ -32,6 +32,10 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
 /** Every stub the harness installs, so specs can drive and assert on them. */
 export function createVodDetailsRouteStubs() {
     return {
+        routeParams: new BehaviorSubject({
+            vodId: '650020',
+            categoryId: '235',
+        }),
         selectedItem: signal<XtreamVodDetails | null>(null),
         isLoadingDetails: signal(false),
         detailsError: signal<string | null>(null),
@@ -82,6 +86,7 @@ export type VodDetailsRouteStubs = ReturnType<
 
 /** Back to the state a fresh `beforeEach` expects. */
 export function resetVodDetailsRouteStubs(stubs: VodDetailsRouteStubs): void {
+    stubs.routeParams.next({ vodId: '650020', categoryId: '235' });
     stubs.selectedItem.set(null);
     stubs.isLoadingDetails.set(false);
     stubs.detailsError.set(null);
@@ -153,7 +158,7 @@ export async function configureVodDetailsRouteTestBed(
             {
                 provide: ActivatedRoute,
                 useValue: {
-                    params: of({ vodId: '650020', categoryId: '235' }),
+                    params: stubs.routeParams,
                     snapshot: {
                         params: { vodId: '650020', categoryId: '235' },
                     },
