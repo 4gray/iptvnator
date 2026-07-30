@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
@@ -288,6 +290,7 @@ describe('DownloadsComponent', () => {
                 URL_COPIED: 'URL copied',
                 URL_COPY_FAILED: 'URL copy failed',
                 REMOVE_FROM_MANAGER: 'Remove from manager',
+                PLAY: 'Play',
             },
             CHANNELS: { LOADING: 'Loading' },
             WORKSPACE: {
@@ -356,6 +359,22 @@ describe('DownloadsComponent', () => {
                 '[data-test-id="downloads-library-skeleton"]'
             )
         ).not.toBeNull();
+    });
+
+    it('uses the shared cover-grid sizing contract for skeleton cards', () => {
+        const styles = readFileSync(
+            join(__dirname, 'downloads.component.scss'),
+            'utf8'
+        );
+        const skeletonCardsRule =
+            styles.match(/\.downloads__skeleton-cards\s*\{([^}]*)\}/)?.[1] ??
+            '';
+
+        expect(skeletonCardsRule).toContain(
+            'var(--cover-grid-min-width, 148px)'
+        );
+        expect(skeletonCardsRule).toContain('var(--cover-gap, 16px)');
+        expect(skeletonCardsRule).not.toContain('150px');
     });
 
     it('derives route scope without mutating the global service signal', () => {
@@ -606,6 +625,40 @@ describe('DownloadsComponent', () => {
             undefined,
             expect.objectContaining({ duration: 4000 })
         );
+    });
+
+    it('opens completed movie artwork in details while explicit Play uses the file', async () => {
+        const item = download(14, {
+            title: 'Completed movie',
+            filePath: '/downloads/completed-movie.mp4',
+        });
+        downloads.set([item]);
+        await fixture.whenStable();
+
+        const artworkButton = fixture.nativeElement.querySelector(
+            '.download-library__artwork-button'
+        ) as HTMLButtonElement;
+        expect(artworkButton).toBeTruthy();
+
+        artworkButton.click();
+        await fixture.whenStable();
+
+        expect(navigation.open).toHaveBeenCalledWith(item);
+        expect(downloadsService.playDownload).not.toHaveBeenCalled();
+
+        jest.clearAllMocks();
+        const playButton = fixture.nativeElement.querySelector(
+            '.download-library__actions button[aria-label="Play: Completed movie"]'
+        ) as HTMLButtonElement;
+        expect(playButton).toBeTruthy();
+
+        playButton.click();
+        await fixture.whenStable();
+
+        expect(downloadsService.playDownload).toHaveBeenCalledWith(
+            item.filePath
+        );
+        expect(navigation.open).not.toHaveBeenCalled();
     });
 
     it('does not navigate an item whose source playlist is missing', async () => {

@@ -365,8 +365,11 @@
 
 .downloads__skeleton-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-    gap: clamp(12px, 1.5vw, 20px);
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(min(100%, var(--cover-grid-min-width, 148px)), 1fr)
+    );
+    gap: var(--cover-gap, 16px);
 }
 
 .downloads__skeleton-card {

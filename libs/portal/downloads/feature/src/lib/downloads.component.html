@@ -235,7 +235,7 @@
                 [availablePlaylistIds]="availablePlaylistIds()"
                 [pendingIds]="pendingIds()"
                 (itemAction)="runAction($event)"
-                (seriesOpened)="openInLibrary($event)"
+                (openRequested)="openInLibrary($event)"
                 (episodesOpened)="openDownloadedSeries($event)"
             />
         }
