@@ -6,11 +6,15 @@ import {
     type DownloadItem,
     PlaylistsService,
 } from '@iptvnator/services';
+import { buildStalkerDetailNavigationTarget } from '@iptvnator/portal/shared/util';
 import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
 
 type PortalSource = 'xtream' | 'stalker';
 type StalkerCategory = 'vod' | 'series' | 'itv';
 type StalkerFallbackCategory = Exclude<StalkerCategory, 'itv'>;
+type StalkerOpenItem = Record<string, unknown> & {
+    category_id: StalkerCategory;
+};
 
 @Injectable()
 export class DownloadLibraryNavigationService {
@@ -144,11 +148,23 @@ export class DownloadLibraryNavigationService {
         );
     }
 
+    private isStalkerVodSeries(item: Record<string, unknown>): boolean {
+        const seriesFlag = item['is_series'];
+        const embeddedSeries = item['series'];
+
+        return (
+            seriesFlag === true ||
+            seriesFlag === 1 ||
+            seriesFlag === '1' ||
+            (Array.isArray(embeddedSeries) && embeddedSeries.length > 0)
+        );
+    }
+
     private async stalkerOpenState(
         item: DownloadItem,
         targetId: number,
         fallback: StalkerFallbackCategory
-    ): Promise<Record<string, unknown>> {
+    ): Promise<StalkerOpenItem> {
         try {
             const recent = await firstValueFrom(
                 this.playlists.getPortalRecentlyViewed(item.playlistId)
@@ -194,15 +210,27 @@ export class DownloadLibraryNavigationService {
         targetId: number
     ): Promise<boolean> {
         const fallback = item.contentType === 'episode' ? 'series' : 'vod';
-        const openRecentItem = await this.stalkerOpenState(
+        const openStalkerItem = await this.stalkerOpenState(
             item,
             targetId,
             fallback
         );
+        const isVodSeries =
+            item.contentType === 'episode' &&
+            this.isStalkerVodSeries(openStalkerItem);
+        const target = buildStalkerDetailNavigationTarget({
+            playlistId: item.playlistId,
+            type:
+                item.contentType === 'episode' && !isVodSeries
+                    ? 'series'
+                    : 'movie',
+            categoryId:
+                isVodSeries && openStalkerItem.category_id === 'series'
+                    ? 'vod'
+                    : openStalkerItem.category_id,
+            item: openStalkerItem,
+        });
 
-        return this.router.navigate(
-            this.route('stalker', item.playlistId, ['recent']),
-            { state: { openRecentItem } }
-        );
+        return this.router.navigate(target.link, { state: target.state });
     }
 }

@@ -279,6 +279,73 @@ describe('DownloadLibraryNavigationService', () => {
         expect(router.navigate).not.toHaveBeenCalled();
     });
 
+    it('opens a Stalker VOD at its canonical provider detail route', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        const recent = {
+            movie_id: '41',
+            category_id: 'vod',
+            title: 'Recent title',
+            name: 'Recent name',
+        } satisfies StalkerPortalItem;
+        playlists.getPortalRecentlyViewed.mockReturnValue(of([recent]));
+
+        await expect(navigation.open(download())).resolves.toBe(true);
+
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
+            {
+                state: {
+                    openStalkerItem: {
+                        ...recent,
+                        id: '41',
+                        category_id: 'vod',
+                    },
+                },
+            }
+        );
+    });
+
+    it.each([
+        ['is_series flag', { is_series: '1' }],
+        ['embedded episode list', { series: [1, 2] }],
+    ] as const)(
+        'opens a recovered Stalker episode with an %s through the VOD-series detail route',
+        async (_label, vodSeriesMetadata) => {
+            playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+            const recent = {
+                movie_id: '72',
+                category_id: 'series',
+                title: 'Recovered VOD series',
+                name: 'Recovered VOD series',
+                ...vodSeriesMetadata,
+            } satisfies StalkerPortalItem;
+            playlists.getPortalRecentlyViewed.mockReturnValue(of([recent]));
+
+            await expect(
+                navigation.open(
+                    download({
+                        contentType: 'episode',
+                        xtreamId: 501,
+                        seriesXtreamId: 72,
+                    })
+                )
+            ).resolves.toBe(true);
+
+            expect(router.navigate).toHaveBeenCalledWith(
+                ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
+                {
+                    state: {
+                        openStalkerItem: {
+                            ...recent,
+                            id: '72',
+                            name: 'Recovered VOD series',
+                        },
+                    },
+                }
+            );
+        }
+    );
+
     it.each(['id', 'movie_id', 'series_id', 'stream_id'] as const)(
         'matches a Stalker recent item by normalized %s',
         async (idKey) => {
@@ -296,10 +363,10 @@ describe('DownloadLibraryNavigationService', () => {
 
             const expectedId = idKey === 'stream_id' ? '41' : recent[idKey];
             expect(router.navigate).toHaveBeenCalledWith(
-                ['/workspace', 'stalker', PLAYLIST_ID, 'recent'],
+                ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'series'],
                 {
                     state: {
-                        openRecentItem: {
+                        openStalkerItem: {
                             ...recent,
                             id: expectedId,
                             category_id: 'series',
@@ -327,10 +394,10 @@ describe('DownloadLibraryNavigationService', () => {
         await expect(navigation.open(download())).resolves.toBe(true);
 
         expect(router.navigate).toHaveBeenCalledWith(
-            ['/workspace', 'stalker', PLAYLIST_ID, 'recent'],
+            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
             {
                 state: {
-                    openRecentItem: {
+                    openStalkerItem: {
                         ...recent,
                         id: '41:episode',
                         category_id: 'vod',
@@ -364,10 +431,16 @@ describe('DownloadLibraryNavigationService', () => {
             await navigation.open(download({ contentType }));
 
             expect(router.navigate).toHaveBeenCalledWith(
-                ['/workspace', 'stalker', PLAYLIST_ID, 'recent'],
+                [
+                    '/workspace',
+                    'stalker',
+                    PLAYLIST_ID,
+                    contentType === 'episode' ? 'series' : 'vod',
+                    expected,
+                ],
                 {
                     state: {
-                        openRecentItem: expect.objectContaining({
+                        openStalkerItem: expect.objectContaining({
                             category_id: expected,
                         }),
                     },
@@ -385,10 +458,10 @@ describe('DownloadLibraryNavigationService', () => {
         await expect(navigation.open(download())).resolves.toBe(true);
 
         expect(router.navigate).toHaveBeenCalledWith(
-            ['/workspace', 'stalker', PLAYLIST_ID, 'recent'],
+            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
             {
                 state: {
-                    openRecentItem: {
+                    openStalkerItem: {
                         id: '41',
                         category_id: 'vod',
                         title: 'Downloaded title',
@@ -416,10 +489,10 @@ describe('DownloadLibraryNavigationService', () => {
         await expect(navigation.open(item)).resolves.toBe(true);
 
         expect(router.navigate).toHaveBeenCalledWith(
-            ['/workspace', 'stalker', PLAYLIST_ID, 'recent'],
+            ['/workspace', 'stalker', PLAYLIST_ID, 'series', 'series'],
             {
                 state: {
-                    openRecentItem: {
+                    openStalkerItem: {
                         id: '72',
                         category_id: 'series',
                         title: 'Downloaded title',
