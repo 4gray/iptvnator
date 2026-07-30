@@ -143,6 +143,30 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(playDownload).not.toHaveBeenCalled();
     });
 
+    it('stops external playback without a usable provider item', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
+        activeSession.set({
+            player: 'mpv',
+            status: 'playing',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+
+        const component = fixture.componentInstance;
+        expect(component.isExternalStopAction()).toBe(true);
+
+        await component.onPrimaryAction(null);
+
+        expect(closeSession).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
     it('plays a completed download before provider resume or pin resolution', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         downloadsAvailable.set(true);

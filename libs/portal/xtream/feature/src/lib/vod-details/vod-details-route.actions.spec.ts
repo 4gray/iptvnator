@@ -107,6 +107,15 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 container_extension: 'mp4',
             },
         }) as XtreamVodDetails;
+    const unplayableRichItem = (): XtreamVodDetails =>
+        ({
+            ...richItem(),
+            movie_data: {
+                stream_id: 650020,
+                name: 'Metadata movie',
+                container_extension: '',
+            },
+        }) as XtreamVodDetails;
     beforeEach(async () => {
         selectedItem.set(null);
         downloadsAvailable.set(false);
@@ -428,6 +437,34 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             host.querySelector<HTMLButtonElement>('button.play-btn')
                 ?.textContent
         ).toContain('DOWNLOADS.PLAY_LOCAL');
+    });
+
+    it('plays a rich downloaded movie locally without a usable provider source', async () => {
+        selectedItem.set(unplayableRichItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/metadata-movie.mp4');
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(fixture.componentInstance.playableVodItem()).toBeNull();
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(primary?.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).not.toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(playDownload).toHaveBeenCalledWith(
+            '/downloads/metadata-movie.mp4'
+        );
+        expect(constructVodStreamUrl).not.toHaveBeenCalled();
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
     });
 
     it('keeps pinned provider playback behind the downloaded secondary action', async () => {

@@ -503,7 +503,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // make the control do the opposite of what it says — launching a
         // second player while the first keeps running.
         if (this.playback.isExternalStopAction()) {
-            this.playback.onPrimaryAction(vodItem);
+            await this.playback.stopExternalPlayback();
             return;
         }
 

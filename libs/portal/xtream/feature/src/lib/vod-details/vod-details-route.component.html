@@ -1,5 +1,6 @@
 <ng-template #vodActions>
-    @if (playableVodItem(); as playableItem) {
+    @let playableItem = playableVodItem();
+    @if (playableItem || isDownloaded()) {
         @if (hasPlaybackPosition()) {
             <button
                 class="play-btn play-btn--resume"
@@ -73,96 +74,106 @@
                 </span>
             </button>
         }
-        @if (!isFavorite()) {
-            <button class="favorite-btn" (click)="toggleFavorite()">
-                <mat-icon>add</mat-icon>
-                {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
-            </button>
-        } @else {
-            <button
-                class="favorite-btn favorite-btn--active"
-                (click)="toggleFavorite()"
-            >
-                <mat-icon>check</mat-icon>
-                {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
-            </button>
-        }
-        @if (isElectron()) {
-            @if (isDownloaded()) {
-                @if (externalPrimaryButtonState() === 'idle') {
-                    <button
-                        class="download-btn"
-                        (click)="playFromProviderSource(playableItem)"
-                    >
-                        <mat-icon>play_arrow</mat-icon>
-                        {{
-                            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate
-                        }}
-                    </button>
-                }
-            } @else if (isPausedDownload()) {
-                <button
-                    class="download-btn download-btn--paused"
-                    (click)="resumePausedDownload()"
-                >
-                    <mat-icon>play_arrow</mat-icon>
-                    {{ 'DOWNLOADS.RESUME' | translate }}
-                </button>
-            } @else if (isDownloading()) {
-                <button class="download-btn download-btn--downloading" disabled>
-                    <mat-icon>downloading</mat-icon>
-                    {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+        @if (playableItem) {
+            @if (!isFavorite()) {
+                <button class="favorite-btn" (click)="toggleFavorite()">
+                    <mat-icon>add</mat-icon>
+                    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
                 </button>
             } @else {
                 <button
-                    class="download-btn"
-                    (click)="downloadVod(playableItem)"
+                    class="favorite-btn favorite-btn--active"
+                    (click)="toggleFavorite()"
                 >
-                    <mat-icon>download</mat-icon>
-                    {{ 'DOWNLOADS.DOWNLOAD' | translate }}
+                    <mat-icon>check</mat-icon>
+                    {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
                 </button>
             }
-        }
-
-        @if (multiSource.hasAlternatives()) {
-            <app-vod-sources-chip
-                [sources]="multiSource.sources()"
-                [title]="multiSourceTitle()"
-                [matchKind]="multiSource.matchKind()"
-                [count]="multiSource.alternativeCount()"
-                [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
-                [autoFailoverSupported]="autoFailoverSupported()"
-                [playbackLive]="playbackLive()"
-                (playRequested)="playFromSource($event)"
-                (pinRequested)="pinSource($event)"
-                (checkRequested)="checkSource($event)"
-                (autoFailoverToggled)="setAutoFailover($event)"
-            />
-        }
-
-        @if (activeSourceCaption(); as caption) {
-            <p class="source-caption">
-                <span class="source-caption__label">
-                    {{ 'PORTALS.MULTI_SOURCE.PLAYING_FROM' | translate }}
-                </span>
-                <span class="source-caption__source">{{ caption.source }}</span>
-                @if (multiSource.hasAlternatives()) {
-                    <span class="source-caption__extra">
-                        @if (caption.alternativeCount === 1) {
+            @if (isElectron()) {
+                @if (isDownloaded()) {
+                    @if (externalPrimaryButtonState() === 'idle') {
+                        <button
+                            class="download-btn"
+                            (click)="playFromProviderSource(playableItem)"
+                        >
+                            <mat-icon>play_arrow</mat-icon>
                             {{
-                                'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE'
+                                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
                                     | translate
                             }}
-                        } @else {
-                            {{
-                                'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
-                                    | translate
-                                        : { count: caption.alternativeCount }
-                            }}
-                        }
-                    </span>
+                        </button>
+                    }
+                } @else if (isPausedDownload()) {
+                    <button
+                        class="download-btn download-btn--paused"
+                        (click)="resumePausedDownload()"
+                    >
+                        <mat-icon>play_arrow</mat-icon>
+                        {{ 'DOWNLOADS.RESUME' | translate }}
+                    </button>
+                } @else if (isDownloading()) {
+                    <button
+                        class="download-btn download-btn--downloading"
+                        disabled
+                    >
+                        <mat-icon>downloading</mat-icon>
+                        {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+                    </button>
+                } @else {
+                    <button
+                        class="download-btn"
+                        (click)="downloadVod(playableItem)"
+                    >
+                        <mat-icon>download</mat-icon>
+                        {{ 'DOWNLOADS.DOWNLOAD' | translate }}
+                    </button>
                 }
-            </p>
+            }
+
+            @if (multiSource.hasAlternatives()) {
+                <app-vod-sources-chip
+                    [sources]="multiSource.sources()"
+                    [title]="multiSourceTitle()"
+                    [matchKind]="multiSource.matchKind()"
+                    [count]="multiSource.alternativeCount()"
+                    [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
+                    [autoFailoverSupported]="autoFailoverSupported()"
+                    [playbackLive]="playbackLive()"
+                    (playRequested)="playFromSource($event)"
+                    (pinRequested)="pinSource($event)"
+                    (checkRequested)="checkSource($event)"
+                    (autoFailoverToggled)="setAutoFailover($event)"
+                />
+            }
+
+            @if (activeSourceCaption(); as caption) {
+                <p class="source-caption">
+                    <span class="source-caption__label">
+                        {{ 'PORTALS.MULTI_SOURCE.PLAYING_FROM' | translate }}
+                    </span>
+                    <span class="source-caption__source">{{
+                        caption.source
+                    }}</span>
+                    @if (multiSource.hasAlternatives()) {
+                        <span class="source-caption__extra">
+                            @if (caption.alternativeCount === 1) {
+                                {{
+                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE'
+                                        | translate
+                                }}
+                            } @else {
+                                {{
+                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
+                                        | translate
+                                            : {
+                                                  count: caption.alternativeCount,
+                                              }
+                                }}
+                            }
+                        </span>
+                    }
+                </p>
+            }
         }
     }
 </ng-template>
