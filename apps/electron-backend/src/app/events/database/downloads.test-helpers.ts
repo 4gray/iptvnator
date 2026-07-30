@@ -15,7 +15,7 @@ export const mockBroadcastDownloadUpdate = jest.fn();
 export const mockRemovePartialDownloadFile = jest.fn();
 export const mockPauseDownload = jest.fn();
 export const mockResumeDownloadRequest = jest.fn();
-export const mockExistsSync = jest.fn();
+export const mockLstatSync = jest.fn();
 export const mockOpenPath = jest.fn();
 export const mockShowItemInFolder = jest.fn();
 export const mockEq = jest.fn();
@@ -55,14 +55,14 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     mockRemovePartialDownloadFile.mockReset();
     mockPauseDownload.mockReset();
     mockResumeDownloadRequest.mockReset();
-    mockExistsSync.mockReset();
+    mockLstatSync.mockReset();
     mockOpenPath.mockReset().mockResolvedValue('');
     mockShowItemInFolder.mockReset();
     mockEq.mockReset();
 
     jest.doMock('node:fs', () => ({
         ...jest.requireActual<typeof import('node:fs')>('node:fs'),
-        existsSync: mockExistsSync,
+        lstatSync: mockLstatSync,
     }));
     jest.doMock('drizzle-orm', () => {
         const actual =

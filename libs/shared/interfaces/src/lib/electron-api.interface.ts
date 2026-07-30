@@ -137,6 +137,11 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
 export type ElectronBridgeDownloadStatus =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES];
 
+export type ElectronDownloadFileAvailability =
+    | 'available'
+    | 'missing'
+    | 'not-applicable';
+
 export const ELECTRON_BRIDGE_APP_UPDATE_STATUSES = {
     Unsupported: 'unsupported',
     Idle: 'idle',
@@ -544,6 +549,7 @@ export interface ElectronDownloadItem {
     filePath?: string;
     posterUrl?: string;
     status: ElectronBridgeDownloadStatus;
+    fileAvailability: ElectronDownloadFileAvailability;
     bytesDownloaded?: number;
     totalBytes?: number;
     errorMessage?: string;

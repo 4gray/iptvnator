@@ -1,11 +1,14 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { app, dialog, ipcMain, shell } from 'electron';
-import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
+import {
+    decorateDownloadItem,
+    isAvailableDownloadFile,
+} from './download-file-availability';
 import { removePartialDownloadFile } from './download-file-path';
 import {
     resumeDownloadRequest,
@@ -207,11 +210,12 @@ ipcMain.handle('DOWNLOADS_GET_LIST', async (_event, playlistId?: string) => {
     try {
         const db = await getDatabase();
         const query = db.select().from(schema.downloads);
-        return playlistId
+        const rows = await (playlistId
             ? query
                   .where(eq(schema.downloads.playlistId, playlistId))
                   .orderBy(schema.downloads.createdAt)
-            : query.orderBy(schema.downloads.createdAt);
+            : query.orderBy(schema.downloads.createdAt));
+        return rows.map((row) => decorateDownloadItem(row));
     } catch (error) {
         console.error('[Downloads] Error getting download list:', error);
         throw error;
@@ -226,7 +230,7 @@ ipcMain.handle('DOWNLOADS_GET', async (_event, downloadId: number) => {
             .from(schema.downloads)
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
-        return result[0] || null;
+        return result[0] ? decorateDownloadItem(result[0]) : null;
     } catch (error) {
         console.error('[Downloads] Error getting download:', error);
         throw error;
@@ -252,7 +256,10 @@ ipcMain.handle('DOWNLOADS_SELECT_FOLDER', async () => {
 });
 
 ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
-    if (!(await isManagedDownloadFile(filePath)) || !existsSync(filePath)) {
+    if (
+        !(await isManagedDownloadFile(filePath)) ||
+        !isAvailableDownloadFile(filePath)
+    ) {
         return { error: 'File not found', success: false };
     }
     shell.showItemInFolder(filePath);
@@ -260,7 +267,10 @@ ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
 });
 
 ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
-    if (!(await isManagedDownloadFile(filePath)) || !existsSync(filePath)) {
+    if (
+        !(await isManagedDownloadFile(filePath)) ||
+        !isAvailableDownloadFile(filePath)
+    ) {
         return { error: 'File not found', success: false };
     }
     await shell.openPath(filePath);
