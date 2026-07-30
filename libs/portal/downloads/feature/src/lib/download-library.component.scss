@@ -21,8 +21,8 @@
 
 .download-library__grid {
     @include grid.content-grid(
-        $min-width: min(100%, 168px),
-        $gap: clamp(12px, 1.5vw, 20px)
+        $min-width: min(100%, var(--cover-grid-min-width, 148px)),
+        $gap: var(--cover-gap, 16px)
     );
 }
 
@@ -271,10 +271,6 @@ button:disabled {
 }
 
 @media (max-width: 620px) {
-    .download-library__grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .download-library__body {
         padding: 10px;
     }

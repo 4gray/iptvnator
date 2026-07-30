@@ -39,7 +39,7 @@ export class DownloadLibraryComponent {
     readonly availablePlaylistIds = input.required<ReadonlySet<string>>();
     readonly pendingIds = input<ReadonlySet<number>>(new Set());
     readonly itemAction = output<DownloadItemAction>();
-    readonly seriesOpened = output<DownloadItem>();
+    readonly openRequested = output<DownloadItem>();
     readonly episodesOpened = output<DownloadSeriesCardViewModel>();
     readonly failedArtwork = signal<ReadonlySet<string>>(new Set());
 
@@ -81,8 +81,8 @@ export class DownloadLibraryComponent {
         return this.pendingIds().has(item.id);
     }
 
-    protected canOpenSeries(group: DownloadSeriesCardViewModel): boolean {
-        return this.availablePlaylistIds().has(group.representative.playlistId);
+    protected canOpen(item: DownloadItem): boolean {
+        return this.availablePlaylistIds().has(item.playlistId);
     }
 
     protected emitAction(
@@ -94,9 +94,9 @@ export class DownloadLibraryComponent {
         }
     }
 
-    protected openSeries(group: DownloadSeriesCardViewModel): void {
-        if (this.canOpenSeries(group)) {
-            this.seriesOpened.emit(group.representative);
+    protected openDetails(item: DownloadItem): void {
+        if (!this.isPending(item) && this.canOpen(item)) {
+            this.openRequested.emit(item);
         }
     }
 

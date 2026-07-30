@@ -23,11 +23,14 @@
                                 type="button"
                                 class="download-library__artwork-button"
                                 data-test-id="download-library-series-open"
+                                [disabled]="isPending(entity.representative)"
                                 [class.download-library__artwork-button--disabled]="
-                                    !canOpenSeries(entity)
+                                    !canOpen(entity.representative)
                                 "
                                 [attr.aria-disabled]="
-                                    !canOpenSeries(entity) ? 'true' : null
+                                    !canOpen(entity.representative)
+                                        ? 'true'
+                                        : null
                                 "
                                 [attr.aria-label]="
                                     'DOWNLOADS.OPEN_ARTWORK'
@@ -37,8 +40,10 @@
                                     'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
                                         | translate
                                 "
-                                [matTooltipDisabled]="canOpenSeries(entity)"
-                                (click)="openSeries(entity)"
+                                [matTooltipDisabled]="
+                                    canOpen(entity.representative)
+                                "
+                                (click)="openDetails(entity.representative)"
                             >
                                 @if (artworkUrl(entity); as artwork) {
                                     <img
@@ -84,11 +89,16 @@
                                     type="button"
                                     class="download-library__title-button"
                                     data-test-id="download-library-series-open"
+                                    [disabled]="
+                                        isPending(entity.representative)
+                                    "
                                     [class.download-library__title-button--disabled]="
-                                        !canOpenSeries(entity)
+                                        !canOpen(entity.representative)
                                     "
                                     [attr.aria-disabled]="
-                                        !canOpenSeries(entity) ? 'true' : null
+                                        !canOpen(entity.representative)
+                                            ? 'true'
+                                            : null
                                     "
                                     [attr.aria-label]="
                                         ('DOWNLOADS.OPEN_DETAILS' | translate) +
@@ -99,8 +109,10 @@
                                         'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
                                             | translate
                                     "
-                                    [matTooltipDisabled]="canOpenSeries(entity)"
-                                    (click)="openSeries(entity)"
+                                    [matTooltipDisabled]="
+                                        canOpen(entity.representative)
+                                    "
+                                    (click)="openDetails(entity.representative)"
                                 >
                                     {{ entity.title }}
                                 </button>
@@ -177,12 +189,38 @@
                                 type="button"
                                 class="download-library__artwork-button"
                                 [disabled]="isPending(entity.item)"
-                                [attr.aria-label]="
-                                    ('DOWNLOADS.PLAY' | translate) +
-                                    ': ' +
-                                    entity.item.title
+                                [class.download-library__artwork-button--disabled]="
+                                    entity.kind === 'movie' &&
+                                    !canOpen(entity.item)
                                 "
-                                (click)="emitAction('play', entity.item)"
+                                [attr.aria-disabled]="
+                                    entity.kind === 'movie' &&
+                                    !canOpen(entity.item)
+                                        ? 'true'
+                                        : null
+                                "
+                                [attr.aria-label]="
+                                    entity.kind === 'movie'
+                                        ? ('DOWNLOADS.OPEN_ARTWORK'
+                                          | translate
+                                              : { title: entity.item.title })
+                                        : ('DOWNLOADS.PLAY' | translate) +
+                                          ': ' +
+                                          entity.item.title
+                                "
+                                [matTooltip]="
+                                    'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
+                                        | translate
+                                "
+                                [matTooltipDisabled]="
+                                    entity.kind !== 'movie' ||
+                                    canOpen(entity.item)
+                                "
+                                (click)="
+                                    entity.kind === 'movie'
+                                        ? openDetails(entity.item)
+                                        : emitAction('play', entity.item)
+                                "
                             >
                                 @if (artworkUrl(entity); as artwork) {
                                     <img
@@ -236,12 +274,37 @@
                                 type="button"
                                 class="download-library__title-button"
                                 [disabled]="isPending(entity.item)"
+                                [class.download-library__title-button--disabled]="
+                                    entity.kind === 'movie' &&
+                                    !canOpen(entity.item)
+                                "
+                                [attr.aria-disabled]="
+                                    entity.kind === 'movie' &&
+                                    !canOpen(entity.item)
+                                        ? 'true'
+                                        : null
+                                "
                                 [attr.aria-label]="
-                                    ('DOWNLOADS.PLAY' | translate) +
+                                    ((entity.kind === 'movie'
+                                        ? 'DOWNLOADS.OPEN_DETAILS'
+                                        : 'DOWNLOADS.PLAY'
+                                    ) | translate) +
                                     ': ' +
                                     entity.item.title
                                 "
-                                (click)="emitAction('play', entity.item)"
+                                [matTooltip]="
+                                    'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
+                                        | translate
+                                "
+                                [matTooltipDisabled]="
+                                    entity.kind !== 'movie' ||
+                                    canOpen(entity.item)
+                                "
+                                (click)="
+                                    entity.kind === 'movie'
+                                        ? openDetails(entity.item)
+                                        : emitAction('play', entity.item)
+                                "
                             >
                                 {{ entity.item.title }}
                             </button>

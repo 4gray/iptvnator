@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { FocusMonitor } from '@angular/cdk/a11y';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -242,12 +244,63 @@ describe('DownloadLibraryComponent', () => {
         ).toContain('1 episode');
     });
 
-    it('emits every concrete movie action with the movie item', async () => {
+    it('opens movie details from artwork and title without playing locally', async () => {
         const card = byTestId('download-library-movie-9');
+        const opened: DownloadItem[] = [];
         const actions: unknown[] = [];
+        component.openRequested.subscribe((selected) => opened.push(selected));
         component.itemAction.subscribe((action) => actions.push(action));
 
-        await click(button(card, 'Play: Moonrise'));
+        await click(button(card, 'Open details: Moonrise artwork'));
+        await click(button(card, 'Open details: Moonrise'));
+
+        expect(opened).toEqual([MOVIE, MOVIE]);
+        expect(actions).toEqual([]);
+    });
+
+    it('keeps orphaned movie navigation focusable and explains why it cannot open', async () => {
+        fixture.componentRef.setInput('availablePlaylistIds', new Set());
+        await fixture.whenStable();
+        const card = byTestId('download-library-movie-9');
+        const artwork = button(card, 'Open details: Moonrise artwork');
+        const title = button(card, 'Open details: Moonrise');
+        const opened: DownloadItem[] = [];
+        component.openRequested.subscribe((item) => opened.push(item));
+
+        expect(artwork.disabled).toBe(false);
+        expect(title.disabled).toBe(false);
+        expect(artwork.getAttribute('aria-disabled')).toBe('true');
+        expect(title.getAttribute('aria-disabled')).toBe('true');
+
+        const loader = TestbedHarnessEnvironment.loader(fixture);
+        const tooltip = await loader.getHarness(
+            MatTooltipHarness.with({
+                selector:
+                    '.download-library__artwork-button[aria-label="Open details: Moonrise artwork"]',
+            })
+        );
+        TestBed.inject(FocusMonitor).focusVia(artwork, 'keyboard');
+        await fixture.whenStable();
+        expect(await tooltip.isOpen()).toBe(true);
+        expect(await tooltip.getTooltipText()).toBe(
+            'This download can no longer open because its source was removed.'
+        );
+        await tooltip.hide();
+
+        await click(artwork);
+        await click(title);
+        expect(opened).toEqual([]);
+    });
+
+    it('keeps explicit movie toolbar and menu commands local', async () => {
+        const card = byTestId('download-library-movie-9');
+        const actions: unknown[] = [];
+        const toolbar = card.querySelector(
+            '.download-library__actions'
+        ) as HTMLElement;
+        component.itemAction.subscribe((action) => actions.push(action));
+
+        await click(button(toolbar, 'Play: Moonrise'));
         await click(button(card, 'Show in folder: Moonrise'));
         await clickMenuAction(
             card,
@@ -271,7 +324,7 @@ describe('DownloadLibraryComponent', () => {
     it('opens grouped-series details from both real navigation buttons', async () => {
         const card = byTestId('download-library-series-playlist-a-77');
         const opened: DownloadItem[] = [];
-        component.seriesOpened.subscribe((selected) => opened.push(selected));
+        component.openRequested.subscribe((selected) => opened.push(selected));
 
         const artwork = button(card, 'Open details: Northwind artwork');
         const title = button(card, 'Open details: Northwind');
@@ -294,7 +347,7 @@ describe('DownloadLibraryComponent', () => {
         const title = button(card, 'Open details: Northwind');
         const episodes = button(card, 'Open downloaded episodes: Northwind');
         const opened: DownloadItem[] = [];
-        component.seriesOpened.subscribe((item) => opened.push(item));
+        component.openRequested.subscribe((item) => opened.push(item));
 
         expect(artwork.disabled).toBe(false);
         expect(title.disabled).toBe(false);
@@ -305,7 +358,8 @@ describe('DownloadLibraryComponent', () => {
         const loader = TestbedHarnessEnvironment.loader(fixture);
         const tooltip = await loader.getHarness(
             MatTooltipHarness.with({
-                selector: '.download-library__artwork-button',
+                selector:
+                    '[data-test-id="download-library-series-open"].download-library__artwork-button',
             })
         );
         TestBed.inject(FocusMonitor).focusVia(artwork, 'keyboard');
@@ -339,23 +393,30 @@ describe('DownloadLibraryComponent', () => {
     it('keeps an invalid-series episode local without series navigation', async () => {
         const card = byTestId('download-library-episode-21');
         const itemActions: unknown[] = [];
-        const seriesOpened: DownloadItem[] = [];
+        const opened: DownloadItem[] = [];
         component.itemAction.subscribe((action) => itemActions.push(action));
-        component.seriesOpened.subscribe((selected) =>
-            seriesOpened.push(selected)
-        );
+        component.openRequested.subscribe((selected) => opened.push(selected));
 
         expect(
             card.querySelector('[data-test-id="download-library-series-open"]')
         ).toBeNull();
-        await click(button(card, 'Play: Legacy episode'));
-        await click(button(card, 'Show in folder: Legacy episode'));
+        const artwork = card.querySelector(
+            '.download-library__artwork-button'
+        ) as HTMLButtonElement;
+        const title = card.querySelector(
+            '.download-library__title-button'
+        ) as HTMLButtonElement;
+
+        expect(artwork.getAttribute('aria-label')).toBe('Play: Legacy episode');
+        expect(title.getAttribute('aria-label')).toBe('Play: Legacy episode');
+        await click(artwork);
+        await click(title);
 
         expect(itemActions).toEqual([
             { type: 'play', item: FALLBACK_EPISODE },
-            { type: 'reveal', item: FALLBACK_EPISODE },
+            { type: 'play', item: FALLBACK_EPISODE },
         ]);
-        expect(seriesOpened).toEqual([]);
+        expect(opened).toEqual([]);
     });
 
     it('disables every local command while the concrete item is pending', async () => {
@@ -387,5 +448,18 @@ describe('DownloadLibraryComponent', () => {
             '[role="img"][aria-label="Artwork unavailable: Legacy episode"]'
         );
         expect(placeholders).toHaveLength(1);
+    });
+
+    it('uses the shared cover-grid sizing contract', () => {
+        const styles = readFileSync(
+            join(__dirname, 'download-library.component.scss'),
+            'utf8'
+        );
+
+        expect(styles).toContain('var(--cover-grid-min-width, 148px)');
+        expect(styles).toContain('var(--cover-gap, 16px)');
+        expect(styles).not.toContain(
+            'grid-template-columns: repeat(2, minmax(0, 1fr))'
+        );
     });
 });
