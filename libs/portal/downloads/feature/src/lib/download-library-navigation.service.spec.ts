@@ -42,6 +42,7 @@ function download(overrides: Partial<DownloadItem> = {}): DownloadItem {
         url: 'https://media.example.test/video',
         posterUrl: 'https://media.example.test/poster.jpg',
         status: 'completed',
+        fileAvailability: 'available',
         ...overrides,
     };
 }
@@ -343,6 +344,10 @@ describe('DownloadLibraryNavigationService', () => {
                     },
                 }
             );
+            expect(router.navigate).not.toHaveBeenCalledWith(
+                expect.arrayContaining(['recent']),
+                expect.anything()
+            );
         }
     );
 
@@ -503,6 +508,10 @@ describe('DownloadLibraryNavigationService', () => {
                     },
                 },
             }
+        );
+        expect(router.navigate).not.toHaveBeenCalledWith(
+            expect.arrayContaining(['recent']),
+            expect.anything()
         );
     });
 });

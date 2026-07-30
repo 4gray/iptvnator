@@ -72,6 +72,7 @@ function download(
         title: `Download ${id}`,
         url: `https://example.com/${id}.mp4`,
         status: 'completed',
+        fileAvailability: 'available',
         bytesDownloaded: id * 10,
         filePath: `/downloads/${id}.mp4`,
         createdAt: `2026-07-${String(id).padStart(2, '0')}T12:00:00Z`,
@@ -288,6 +289,13 @@ describe('DownloadsComponent', () => {
                 ACTION_FAILED: 'Action failed',
                 FILE_NOT_FOUND: 'File not found',
                 FILE_ACTION_ERROR: 'File action failed',
+                DOWNLOAD_AGAIN: 'Download again',
+                STATUS: {
+                    FILE_MISSING: 'File missing',
+                },
+                ARIA: {
+                    DOWNLOAD_AGAIN: 'Download {{title}} again',
+                },
                 SOURCE_PLAYLIST_MISSING: 'Source playlist missing',
                 URL_COPIED: 'URL copied',
                 URL_COPY_FAILED: 'URL copy failed',
@@ -559,12 +567,58 @@ describe('DownloadsComponent', () => {
         );
     });
 
-    it('dispatches missing-file recovery by managed id', async () => {
-        const item = download(16, { fileAvailability: 'missing' });
+    it('moves a recovered missing file from attention into the active queue', async () => {
+        const recovery = deferred<{ success: boolean }>();
+        const item = download(16, {
+            fileAvailability: 'missing',
+            title: 'Missing movie',
+        });
+        downloadsService.redownloadMissing.mockReturnValueOnce(
+            recovery.promise
+        );
+        downloads.set([item]);
+        fixture.detectChanges();
 
-        await component.runAction({ type: 'redownload', item });
+        const attention =
+            fixture.nativeElement.querySelector<HTMLElement>(
+                '[data-test-id="downloads-attention-section"]'
+            );
+        const recover = attention?.querySelector<HTMLButtonElement>(
+            '[data-test-action="redownload"]'
+        );
+        expect(attention?.textContent).toContain('File missing');
+        expect(recover).not.toBeNull();
 
+        recover?.click();
+        fixture.detectChanges();
         expect(downloadsService.redownloadMissing).toHaveBeenCalledWith(16);
+        expect(
+            downloadsService.redownloadMissing.mock.calls[0]
+        ).toHaveLength(1);
+        expect(component.pendingIds().has(16)).toBe(true);
+
+        recovery.resolve({ success: true });
+        await fixture.whenStable();
+        downloads.set([
+            {
+                ...item,
+                fileAvailability: 'not-applicable',
+                status: 'queued',
+            },
+        ]);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="downloads-attention-section"]'
+            )
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="downloads-active-section"]'
+            )?.textContent
+        ).toContain('Missing movie');
+        expect(component.pendingIds().has(16)).toBe(false);
     });
 
     it('refreshes a newly missing file before clearing pending state', async () => {
