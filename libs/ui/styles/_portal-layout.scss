@@ -4,8 +4,10 @@
 // Include this mixin in a component's SCSS to get the shared flex host+sidebar
 // skeleton, then add only the component-specific rules underneath.
 //
-// Usage (after adding libs/ui/styles to stylePreprocessorOptions.includePaths):
-//   @use 'portal-layout' as portal;
+// Choose the relative @use path from each consuming stylesheet. Current portal
+// live layouts use the example below; other consumers may need a different
+// depth.
+//   @use '../../../../../../ui/styles/portal-layout' as portal;
 //   @include portal.live-layout;
 
 @mixin live-layout {

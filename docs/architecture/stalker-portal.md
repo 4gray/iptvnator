@@ -268,11 +268,12 @@ list:
 Stalker has multiple real-world data shapes. The current implementation supports all three:
 
 Within Stalker portal data access and feature code,
-`isStalkerSeriesFlag()` is the sole interpretation of `is_series`. The
-dependency-neutral activity normalizer in `libs/shared/interfaces` preserves
-the same closed set for dashboard records: boolean `true`, numeric `1`, or
-string `'1'`. Unsupported values do not by themselves classify a VOD item as a
-series.
+`isStalkerSeriesFlag()` is the canonical predicate for `is_series`.
+`normalizeStalkerSeriesFlag()` delegates to it and produces the normalized
+positive marker `true` or `undefined`. The activity normalizer in
+`libs/shared/interfaces` keeps its dependency-neutral equivalent for dashboard
+records. Both accept the same closed set: boolean `true`, numeric `1`, or string
+`'1'`. Unsupported values do not by themselves classify a VOD item as a series.
 
 1. Regular Series (`/series`):
 

@@ -24,16 +24,18 @@ must remain provider-neutral.
 
 ## Series Contract
 
-Inside Stalker portal code, `isStalkerSeriesFlag()` is the sole flag
-interpretation and accepts exactly `true`, `1`, and `'1'`. The activity
-normalizer in shared interfaces remains dependency-neutral and preserves the
-same closed set for favorites/recent and dashboard classification. Preserve
-all three modes: regular `/series`, VOD with embedded `series[]`, and lazy
-Ministra VOD `is_series`.
+Inside Stalker portal code, `isStalkerSeriesFlag()` is the canonical predicate
+and accepts exactly `true`, `1`, and `'1'`. `normalizeStalkerSeriesFlag()`
+delegates to it and produces the normalized positive marker `true` or
+`undefined`. The activity normalizer in shared interfaces keeps its
+dependency-neutral equivalent for favorites/recent and dashboard
+classification. Preserve all three modes: regular `/series`, VOD with embedded
+`series[]`, and lazy Ministra VOD `is_series`.
 
-Favorites/recent preserve the raw flag and VOD origin so reopening still uses
-the correct lazy or embedded mode. Keep quick-start translation parameters and
-the naturally ordered season fallback when `season_number` is absent.
+Favorites/recent preserve the normalized positive marker and VOD origin so
+reopening still uses the correct lazy or embedded mode. Keep quick-start
+translation parameters and the naturally ordered season fallback when
+`season_number` is absent.
 
 Lazy episodes use a deterministic tracking ID scoped by parent series,
 provider episode, season key, and episode number. `legacyTrackingId` is only a

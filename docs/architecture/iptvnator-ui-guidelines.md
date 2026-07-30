@@ -116,6 +116,14 @@ Do not copy the full detail-view stylesheet into feature libraries. Add shared
 layout changes to the mixin, and keep provider-specific differences explicit in
 the wrapper file that includes it.
 
+## Electron Drag Regions
+
+Every interactive descendant of a drag region—including buttons, links,
+inputs, overlays, and resize handles—requires `app-region: no-drag`. The shared
+directive-generated `.resize-handle` does not set this centrally yet. Until
+that debt is fixed, consumers in drag regions must cover the handle themselves
+and must not assume it already opts out.
+
 ## Channel List Item
 
 The shared row should be reused instead of rebuilding channel markup per view.
