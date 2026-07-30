@@ -267,9 +267,12 @@ list:
 
 Stalker has multiple real-world data shapes. The current implementation supports all three:
 
-Across catalog, detail, and activity normalization, `is_series` is accepted
-only as boolean `true`, numeric `1`, or string `'1'`. Unsupported
-`is_series` values do not by themselves classify a VOD item as a series.
+Within Stalker portal data access and feature code,
+`isStalkerSeriesFlag()` is the sole interpretation of `is_series`. The
+dependency-neutral activity normalizer in `libs/shared/interfaces` preserves
+the same closed set for dashboard records: boolean `true`, numeric `1`, or
+string `'1'`. Unsupported values do not by themselves classify a VOD item as a
+series.
 
 1. Regular Series (`/series`):
 
@@ -308,7 +311,8 @@ only as boolean `true`, numeric `1`, or string `'1'`. Unsupported
   series ID, provider episode ID, season key, and episode number. The season
   key follows the mapping fallback (`season_number`, then name, then ID).
 - The previous season/episode hash remains available only as a compatibility
-  alias. New playback positions always use the scoped tracking ID.
+  alias in `legacyTrackingId`. The scoped ID is the in-memory episode key, and
+  new playback positions always use it.
 - Quick-start actions preserve both their translation key and interpolation
   parameters when adapted for the Stalker CTA. Dropping `labelParams` exposes
   the raw `{{episode}}` placeholder.
@@ -472,8 +476,9 @@ Stalker ITV now splits EPG usage:
 
 - active channel panel: bulk `get_epg_info` cached once per playlist and rendered
   through the shared EPG panel (`app-epg-timeline`, or `app-epg-list-view` in list mode)
-- channel row preview: no pre-playback network requests; previews are derived
-  from cached bulk EPG only after the first active-channel fetch succeeds
+- channel row preview: once ITV channels render, a post-reset effect eagerly
+  starts the de-duplicated bulk `get_epg_info` load; rows issue no per-row
+  request and derive previews from that cache
 - active panel fallback: `get_short_epg` when bulk EPG is missing or unsupported
 
 Full details are documented in [Stalker Portal EPG Architecture](./stalker-epg.md).

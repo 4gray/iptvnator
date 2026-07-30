@@ -289,7 +289,7 @@ This is an Nx monorepo with the following structure:
     - **portal/stalker/{data-access,feature}** - StalkerStore and routed Stalker components
     - **portal/catalog/feature** - Portal catalog UI
     - **portal/downloads/feature** - Download manager UI
-    - **portal/shared/{data-access,ui,util}** - Cross-portal shared code (incl. the VOD multi-source discovery/resolve/ranking layer in `data-access/src/lib/multi-source/`)
+    - **portal/shared/{data-access,ui,util}** - Cross-portal shared code: stateful collection services and VOD multi-source discovery/resolve/ranking live in `data-access`; reusable views live in `ui`; `util` is for pure contracts/helpers
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/logging** - Dependency-free structured redaction for diagnostic logs
@@ -332,14 +332,14 @@ The Xtream Codes module uses NgRx Signal Store with a layered architecture:
 │            (Composes feature stores, unified API)                │
 └─────────────────────────────────────────────────────────────────┘
                                   │
-        ┌────────────┬────────────┼────────────┬────────────┐
-        ▼            ▼            ▼            ▼            ▼
-┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐
-│  withPortal│ │withContent │ │withSelection│ │ withSearch │ │ withPlayer │
-└────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘
-        │                           │              │
-        └───────────────────────────┼──────────────┘
-                                    ▼
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ withPortal · withContent · withSelection · withSearch · withEpg │
+│ withPlayer · withFavorites · withRecentItems                     │
+│ withPlaybackPositions                                           │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DATA SOURCE LAYER                             │
 │                   IXtreamDataSource                              │
@@ -391,15 +391,19 @@ Key patterns:
 
 - **Feature stores**: Each `with*.feature.ts` uses `signalStoreFeature()` for focused functionality
 - **Facade pattern**: `XtreamStore` composes all features, maintaining backward compatibility
-- **Data source abstraction**: `IXtreamDataSource` interface with environment-specific implementations
-- **Factory injection**: `provideXtreamDataSource()` selects Electron or PWA implementation at runtime
+- **Data source abstraction**: `IXtreamDataSource` has SQLite-backed and
+  API/in-memory implementations
+- **Factory injection**: `provideXtreamDataSource()` selects
+  `ElectronXtreamDataSource` only when
+  `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource`; otherwise it
+  selects `PwaXtreamDataSource`
 
-Data strategies by environment:
+Xtream data strategies by runtime capability:
 
-| Environment  | Strategy                                                |
-| ------------ | ------------------------------------------------------- |
-| **Electron** | DB-first: Check DB → fetch API if missing → cache to DB |
-| **PWA**      | API-only: Always fetch from API, store in memory        |
+| Capability | Strategy |
+| ---------- | -------- |
+| **Complete Xtream SQLite bridge** | DB-first: check DB → fetch API if missing → cache to DB |
+| **Bridge unavailable** | API-only: fetch from API and keep session data in memory |
 
 **M3U Playlist Module Architecture**:
 

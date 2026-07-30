@@ -3,6 +3,40 @@
 This document captures the Xtream Codes compatibility rules shared by the
 Electron and PWA paths.
 
+## Runtime Selection And Ownership
+
+`provideXtreamDataSource()` selects `ElectronXtreamDataSource` only when
+`RuntimeCapabilitiesService.supportsXtreamSqliteDataSource` proves that the
+complete SQLite-backed Xtream bridge is available. Otherwise it selects
+`PwaXtreamDataSource`. A generic Electron or `window.electron` check is not the
+data-source capability contract. Older favorites/recent branches that still
+probe `window.electron` directly are migration debt, not an alternate runtime
+selection rule; changes in those paths should follow the selected data source
+and explicit capabilities.
+
+Ownership follows the workspace boundaries:
+
+- routed screens and screen-session orchestration:
+  `libs/portal/xtream/feature`
+- Xtream API, cache, Signal Store, and data sources:
+  `libs/portal/xtream/data-access`
+- provider-neutral collection services and reusable multi-source
+  discovery/resolution: `libs/portal/shared/data-access`
+- reusable presentation: `libs/portal/shared/ui`
+- pure provider-neutral contracts/helpers: `libs/portal/shared/util`
+
+Persisted Xtream identity is playlist-scoped and content-type-aware:
+`playlist_id + content.type + xtream_id`. Mixed collection keys likewise
+include type plus provider ID because live, movie, and series IDs can collide.
+Do not confuse the normalized SQLite row ID with provider `xtream_id`,
+`stream_id`, or `series_id`, especially when recovering a hidden provider
+category for detail playback.
+
+See [Nx Workspace Boundaries](./nx-workspace-boundaries.md),
+[SQLite DB Worker](./sqlite-db-worker.md),
+[Portal Detail Navigation](./portal-detail-navigation.md), and
+[VOD Multi-Source](./vod-multi-source.md).
+
 ## Connection Input
 
 Xtream server URLs are normalized through
