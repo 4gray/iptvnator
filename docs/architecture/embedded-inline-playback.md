@@ -353,7 +353,8 @@ neither retained nor rendered. Technical details show only the sanitized stage,
 failure, engine type/details, disposition, and HTTP status. The active playback
 URL remains available to the pre-existing retry, copy, and explicit
 external-player workflows; it is not copied from the HLS error payload into
-the evidence or technical details.
+the evidence or technical details. HLS startup development logs are event-only:
+they do not include provider-supplied channel names or source URLs.
 
 `network-error` is reserved for provider/network loading failures. Engines that expose concrete browser security evidence, such as CORS, mixed content, Content Security Policy, or private-network-access blocks, use `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 

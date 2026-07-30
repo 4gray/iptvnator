@@ -175,8 +175,10 @@ summary made only from the evidence fields, for example:
 `stage=manifest · failure=http · type=networkError · details=manifestLoadError · disposition=fatal · HTTP 404`
 
 No HLS error message, URL, header, body, response text, or arbitrary provider
-payload appears. Existing title/description and HTTP metadata rendering remain
-unchanged, so no new translation keys or layout changes are required.
+payload appears. HLS startup development logs are event-only and omit
+provider-supplied channel names and source URLs. Existing title/description and
+HTTP metadata rendering remain unchanged, so no new translation keys or layout
+changes are required.
 
 ## Testing
 
