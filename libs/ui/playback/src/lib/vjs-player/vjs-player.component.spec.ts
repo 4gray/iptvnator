@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import type { NativePlaybackErrorInput } from '../playback-diagnostics/playback-diagnostics.model';
 import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 import type { VideoJsPlayer } from './vjs-player.types';
@@ -200,6 +201,38 @@ describe('VjsPlayerComponent', () => {
         );
     });
 
+    it('preserves Video.js HTTP error context in a playback diagnostic', () => {
+        const issues: Array<PlaybackDiagnostic | null> = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+        render({
+            sources: [
+                {
+                    src: 'https://example.test/missing/playlist.m3u8',
+                    type: 'application/x-mpegURL',
+                },
+            ],
+        });
+        harness.currentError = {
+            code: 4,
+            message: 'The media could not be loaded',
+            status: 404,
+            metadata: { errorType: 'networkrequestfailed' },
+        };
+
+        harness.emit('error');
+
+        expect(issues.at(-1)).toEqual(
+            expect.objectContaining({
+                code: 'network-error',
+                source: 'native',
+                sourceUrl: 'https://example.test/missing/playlist.m3u8',
+                httpStatus: 404,
+                nativeErrorType: 'networkrequestfailed',
+                externalFallbackRecommended: false,
+            })
+        );
+    });
+
     it('rebinds native ended handling after playerreset', () => {
         const events: string[] = [];
         component.playbackEnded.subscribe(() => events.push('ended'));
@@ -278,7 +311,7 @@ function createPlayerHarness() {
     let volumeValue = 0.5;
     const harness = {
         currentVideo: document.createElement('video'),
-        currentError: null as { code?: number; message?: string } | null,
+        currentError: null as NativePlaybackErrorInput | null,
         paused: true,
         pauseCompletesImmediately: true,
         ready: () => undefined,
