@@ -339,6 +339,36 @@ describe('DownloadLibraryComponent', () => {
         expect(opened).toEqual([SERIES.representative, SERIES.representative]);
     });
 
+    it('disables pending grouped-series navigation without blocking local episodes', async () => {
+        fixture.componentRef.setInput(
+            'pendingIds',
+            new Set([SERIES.representative.id])
+        );
+        await fixture.whenStable();
+        const card = byTestId('download-library-series-playlist-a-77');
+        const artwork = button(card, 'Open details: Northwind artwork');
+        const title = button(card, 'Open details: Northwind');
+        const episodes = button(card, 'Open downloaded episodes: Northwind');
+        const opened: DownloadItem[] = [];
+        const episodeGroups: DownloadSeriesCardViewModel[] = [];
+        component.openRequested.subscribe((item) => opened.push(item));
+        component.episodesOpened.subscribe((group) =>
+            episodeGroups.push(group)
+        );
+
+        expect(artwork.disabled).toBe(true);
+        expect(title.disabled).toBe(true);
+        expect(episodes.disabled).toBe(false);
+
+        artwork.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        title.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await fixture.whenStable();
+        expect(opened).toEqual([]);
+
+        await click(episodes);
+        expect(episodeGroups).toEqual([SERIES]);
+    });
+
     it('disables orphaned series navigation and explains why while keeping episodes local', async () => {
         fixture.componentRef.setInput('availablePlaylistIds', new Set());
         await fixture.whenStable();
