@@ -277,6 +277,7 @@ export class UnifiedLiveTabComponent {
             playlistName: item.playlistName,
             streamUrl: item.streamUrl,
             m3uChannel: item.m3uChannel,
+            radio: item.radio,
             xtreamId: item.xtreamId,
             tvgId: item.tvgId,
             stalkerCmd: item.stalkerCmd,

@@ -17,7 +17,7 @@
         </div>
     } @else if (filteredChannels().length > 0) {
         <cdk-virtual-scroll-viewport
-            [itemSize]="68"
+            [itemSize]="channelItemSize"
             class="scroll-viewport-portals"
         >
             <app-channel-list-item
@@ -41,6 +41,7 @@
                         ? (currentProgramsProgress.get(item.xtream_id) ?? 0)
                         : 0
                 "
+                [showEpg]="supportsEpg"
                 [showFavoriteButton]="true"
                 [showProgramInfoButton]="false"
                 [showDetailsContextMenu]="supportsEpgMapping"

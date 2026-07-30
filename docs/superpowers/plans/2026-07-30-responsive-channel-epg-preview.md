@@ -245,7 +245,9 @@ Replace the current `max-width: 220px` action-hiding rule with:
 The end time is already hidden by the wider breakpoint. Channel name, current
 programme or placeholder, progress, drag affordance, and every enabled action
 remain available in EPG rows. The `.compact` branch deliberately preserves the
-existing radio/non-EPG degradation.
+existing non-EPG degradation; radio-only consumers without EPG opt into that
+branch through `showEpg=false`, rather than changing mixed-list height through
+`isRadio`.
 
 - [ ] **Step 4: Match skeleton degradation to the live row**
 

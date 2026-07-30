@@ -81,7 +81,7 @@ describe('AllChannelsViewComponent', () => {
         );
         fixture.componentRef.setInput('progressTick', 0);
         fixture.componentRef.setInput('shouldShowEpg', false);
-        fixture.componentRef.setInput('itemSize', 48);
+        fixture.componentRef.setInput('itemSize', 52);
         fixture.componentRef.setInput('favoriteIds', new Set<string>());
         fixture.detectChanges();
     });
@@ -111,7 +111,7 @@ describe('AllChannelsViewComponent', () => {
         );
         fixture.componentRef.setInput('progressTick', 0);
         fixture.componentRef.setInput('shouldShowEpg', false);
-        fixture.componentRef.setInput('itemSize', 48);
+        fixture.componentRef.setInput('itemSize', 52);
         fixture.componentRef.setInput('favoriteIds', new Set<string>());
         fixture.detectChanges();
 
@@ -132,7 +132,7 @@ describe('AllChannelsViewComponent', () => {
         );
         fixture.componentRef.setInput('progressTick', 0);
         fixture.componentRef.setInput('shouldShowEpg', false);
-        fixture.componentRef.setInput('itemSize', 48);
+        fixture.componentRef.setInput('itemSize', 52);
         fixture.componentRef.setInput('favoriteIds', new Set<string>());
         fixture.detectChanges();
 

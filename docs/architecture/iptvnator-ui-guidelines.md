@@ -138,17 +138,22 @@ The shared row should be reused instead of rebuilding channel markup per view.
 ### Responsive Information Priority
 
 - EPG-enabled, noncompact rows keep a fixed `68px` height that matches the
-  virtual-scroll stride. EPG-disabled, compact rows retain their existing
-  `52px` minimum height.
+  virtual-scroll stride. EPG-disabled, compact rows use a matching fixed `52px`
+  row and virtual-scroll size.
 - At `310px` and below, hide the end time while keeping the start time and
   progress bar.
 - At `270px` and below, hide the decorative logo while retaining program
   context and actions, and tighten horizontal padding to preserve the remaining
   content.
 - At `220px` and below, hide the start time while keeping the progress bar.
-- Narrow width alone must not remove the channel name, program title or
-  no-program placeholder, progress bar, drag affordance when applicable, or
-  enabled actions.
+- In EPG-preview rows, narrow width alone must not remove the channel name,
+  program title or no-program placeholder, progress bar, drag affordance when
+  applicable, or enabled actions.
+- Radio consumers without EPG render the row as compact instead of showing a
+  false no-program placeholder. Compact rows keep the logo at `270px`, then
+  hide the logo and actions at `220px`.
+- `isRadio` alone must not change row height inside a fixed-size mixed virtual
+  list; the consumer's `showEpg` state and virtual-scroll item size own density.
 - Loading skeletons mirror the same responsive hierarchy and row geometry.
 
 ### Logo Rules

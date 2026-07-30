@@ -26,6 +26,7 @@ import {
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { BehaviorSubject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionPageComponent } from './unified-collection-page.component';
@@ -287,6 +288,12 @@ describe('UnifiedCollectionPageComponent', () => {
                     provide: WorkspaceViewCommandService,
                     useValue: workspaceViewCommands,
                 },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        supportsEpg: false,
+                    },
+                },
             ],
         })
             .overrideComponent(UnifiedCollectionPageComponent, {
@@ -306,6 +313,21 @@ describe('UnifiedCollectionPageComponent', () => {
         fixture = TestBed.createComponent(UnifiedCollectionPageComponent);
         fixture.componentRef.setInput('mode', 'favorites');
         fixture.componentRef.setInput('defaultScope', 'all');
+    });
+
+    it('uses compact loading rows when the runtime has no EPG support', () => {
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '.channel-list-item-skeleton.compact'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '.channel-list-item-skeleton:not(.compact)'
+            )
+        ).toBeNull();
     });
 
     it('reloads favorites after playlist hydration completes', async () => {

@@ -203,7 +203,7 @@ export async function fetchXtreamEpgFixture(
 
 export async function fetchStalkerCategoryFixture(
     request: APIRequestContext,
-    type: 'itv' | 'series' | 'vod'
+    type: 'itv' | 'radio' | 'series' | 'vod'
 ): Promise<StalkerCategoryFixture> {
     const categoriesResponse = await fetchJson<
         StalkerProxyPayload<StalkerCategory[]>

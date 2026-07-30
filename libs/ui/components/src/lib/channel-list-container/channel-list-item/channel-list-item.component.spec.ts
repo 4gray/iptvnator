@@ -78,6 +78,24 @@ describe('ChannelListItemComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.epg-placeholder')
         ).toBeNull();
+        expect(
+            fixture.nativeElement
+                .querySelector('.channel-list-item')
+                .classList.contains('compact')
+        ).toBe(false);
+    });
+
+    it('uses compact density when a radio consumer disables EPG', () => {
+        fixture.componentRef.setInput('name', 'Radio One');
+        fixture.componentRef.setInput('showEpg', false);
+        fixture.componentRef.setInput('isRadio', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement
+                .querySelector('.channel-list-item')
+                .classList.contains('compact')
+        ).toBe(true);
     });
 
     it('shows the generic fallback icon when no logo is available', () => {

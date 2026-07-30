@@ -44,8 +44,9 @@
     }
 
     &.compact {
+        height: 52px;
         min-height: 52px;
-        padding-block: 7px;
+        padding-block: 6px;
     }
 }
 

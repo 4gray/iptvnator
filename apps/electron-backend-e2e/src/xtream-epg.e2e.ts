@@ -1,5 +1,6 @@
 import type { Locator } from '@playwright/test';
 import {
+    addStalkerPortal,
     addXtreamPortal,
     channelItemByTitle,
     clickCategoryByNameExact,
@@ -12,9 +13,13 @@ import {
     resetMockServers,
     saveSettings,
     test,
+    waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
-import { fetchXtreamEpgFixture } from './portal-mock-fixtures';
+import {
+    fetchStalkerCategoryFixture,
+    fetchXtreamEpgFixture,
+} from './portal-mock-fixtures';
 
 const epgPortalName = 'Xtream EPG Fixture';
 const epgCredentials = {
@@ -222,6 +227,63 @@ test('@epg @xtream @electron keeps EPG context and actions at narrow channel-row
     }
 });
 
+test('@radio @stalker @electron keeps radio rows compact at narrow widths', async ({
+    dataDir,
+    request,
+}) => {
+    await resetMockServers(request, ['stalker']);
+    const fixture = await fetchStalkerCategoryFixture(request, 'radio');
+    const [firstItem, secondItem] = fixture.items;
+    const firstTitle = firstItem?.o_name || firstItem?.name;
+    const secondTitle = secondItem?.o_name || secondItem?.name;
+    if (!firstTitle || !secondTitle) {
+        throw new Error(
+            'Expected the Stalker radio fixture to include two named stations.'
+        );
+    }
+    const app = await launchElectronApp(dataDir);
+
+    try {
+        await addStalkerPortal(app.mainWindow, {
+            name: 'Stalker Radio Row Fixture',
+        });
+        await waitForStalkerCatalog(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Radio');
+        const categoryButton = app.mainWindow.getByRole('button', {
+            name: fixture.categoryName,
+            exact: true,
+        });
+        await expect(categoryButton).toBeVisible();
+        await categoryButton.click();
+
+        const radioRow = channelItemByTitle(
+            app.mainWindow,
+            firstTitle
+        ).first();
+        await expect(radioRow).toBeVisible({ timeout: 20000 });
+        await expect(radioRow).toHaveClass(/compact/);
+        await expect(radioRow.locator('.epg-placeholder')).toHaveCount(0);
+        await expect(radioRow.locator('.epg-title')).toHaveCount(0);
+        await expect(radioRow.locator('.epg-timeline')).toHaveCount(0);
+        await expectCompactRadioRowHeightAndStride(radioRow, secondTitle);
+
+        await setStalkerChannelItemWidth(app.mainWindow, 232);
+
+        await expect(radioRow.locator('.channel-logo-shell')).toBeVisible();
+        await expect(radioRow.locator('.favorite-button')).toBeVisible();
+        await expectCompactRadioRowHeightAndStride(radioRow, secondTitle);
+
+        await setStalkerChannelItemWidth(app.mainWindow, 200);
+
+        await expect(radioRow.locator('.channel-name')).toBeVisible();
+        await expect(radioRow.locator('.channel-logo-shell')).toBeHidden();
+        await expect(radioRow.locator('.favorite-button')).toBeHidden();
+        await expectCompactRadioRowHeightAndStride(radioRow, secondTitle);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
 test('@epg @xtream @electron renders the vertical list view when the setting is "list"', async ({
     dataDir,
     request,
@@ -310,7 +372,32 @@ async function setPortalChannelItemWidth(
         .toBe(width);
 }
 
+async function setStalkerChannelItemWidth(
+    page: Parameters<typeof channelItemByTitle>[0],
+    width: number
+) {
+    const channelItems = page.locator(
+        'app-stalker-live-stream-layout app-channel-list-item'
+    );
+    await channelItems.evaluateAll((elements, itemWidth) => {
+        for (const element of elements) {
+            (element as HTMLElement).style.width = `${itemWidth}px`;
+        }
+    }, width);
+    await expect
+        .poll(() =>
+            channelItems
+                .first()
+                .evaluate((element) =>
+                    Math.round(element.getBoundingClientRect().width)
+                )
+        )
+        .toBe(width);
+}
+
 const portalChannelItemSize = 68;
+const compactRadioItemSize = 52;
+const stalkerChannelItemGap = 2;
 const rowGeometryTolerance = 0.25;
 const contentGeometryTolerance = 1;
 
@@ -348,6 +435,41 @@ async function expectPortalRowHeightAndStride(
     );
     expect(
         Math.abs(followingRowBox.y - rowBox.y - portalChannelItemSize)
+    ).toBeLessThanOrEqual(rowGeometryTolerance);
+}
+
+async function expectCompactRadioRowHeightAndStride(
+    row: ReturnType<typeof channelItemByTitle>,
+    expectedFollowingTitle: string
+) {
+    const followingRow = row
+        .locator('xpath=ancestor::app-channel-list-item')
+        .locator('xpath=following-sibling::app-channel-list-item[1]')
+        .getByTestId('channel-item');
+    await expect(followingRow.locator('.channel-name')).toHaveText(
+        expectedFollowingTitle
+    );
+
+    const [rowBox, followingRowBox] = await Promise.all([
+        row.boundingBox(),
+        followingRow.boundingBox(),
+    ]);
+    if (!rowBox || !followingRowBox) {
+        throw new Error(
+            `Expected compact radio-row geometry before "${expectedFollowingTitle}".`
+        );
+    }
+
+    expect(Math.abs(rowBox.height - compactRadioItemSize)).toBeLessThanOrEqual(
+        rowGeometryTolerance
+    );
+    expect(
+        Math.abs(
+            followingRowBox.y -
+                rowBox.y -
+                compactRadioItemSize -
+                stalkerChannelItemGap
+        )
     ).toBeLessThanOrEqual(rowGeometryTolerance);
 }
 

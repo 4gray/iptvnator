@@ -142,7 +142,7 @@ export class GroupsViewComponent {
             this.searchTerm().trim().length > 0 ||
             this.localGroupSearchTerm().trim().length > 0
     );
-    readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
+    readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 52));
     readonly contextMenuChannel = signal<Channel | null>(null);
     readonly contextMenuPosition = signal({
         x: '0px',

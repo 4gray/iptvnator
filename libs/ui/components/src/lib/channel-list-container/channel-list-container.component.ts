@@ -178,7 +178,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     );
 
     /** Item size for virtual scroll - compact when no EPG */
-    readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 48));
+    readonly itemSize = computed(() => (this.shouldShowEpg() ? 68 : 52));
 
     /** Active view (all, groups, favorites, recent) */
     readonly activeView = input<string>('all');

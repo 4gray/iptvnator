@@ -54,8 +54,10 @@ loading content does not jump between incompatible layouts.
 and global channel lists. The contract therefore applies consistently wherever
 the host becomes narrow. This PR does not add provider-specific overrides.
 
-Radio rows and compact rows without EPG keep their existing behavior. The
-change does not add EPG data where a consumer currently disables it.
+Compact rows without EPG keep their existing behavior. Radio-only consumers
+that do not expose EPG mark their rows compact; `isRadio` alone never changes
+height inside a fixed-size mixed virtual list. The change does not add EPG data
+where a consumer currently disables it.
 
 ## Alternatives Considered
 

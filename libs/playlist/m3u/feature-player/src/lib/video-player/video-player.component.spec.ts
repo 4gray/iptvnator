@@ -64,6 +64,7 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 })
 class StubChannelListLoadingStateComponent {
     readonly view = input<string | null>(null);
+    readonly showEpg = input(true);
 }
 
 @Component({

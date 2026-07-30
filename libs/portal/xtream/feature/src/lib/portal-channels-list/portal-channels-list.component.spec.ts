@@ -1,5 +1,7 @@
+import { CdkFixedSizeVirtualScroll } from '@angular/cdk/scrolling';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -11,6 +13,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { PortalChannelsListComponent } from './portal-channels-list.component';
 
 function buildEpgItem(params: {
@@ -257,7 +260,7 @@ describe('PortalChannelsListComponent', () => {
         expect(component.currentProgramsProgress.get(50)).toBeCloseTo(50, 1);
     });
 
-    it('does not derive or subscribe to row EPG previews in browser/PWA mode', () => {
+    it('does not derive or subscribe to row EPG previews in browser/PWA mode', async () => {
         Object.defineProperty(window, 'electron', {
             configurable: true,
             writable: true,
@@ -285,6 +288,8 @@ describe('PortalChannelsListComponent', () => {
         fixture.destroy();
         fixture = TestBed.createComponent(PortalChannelsListComponent);
         fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
 
         epgResults$.next({
             streamId: 50,
@@ -302,8 +307,43 @@ describe('PortalChannelsListComponent', () => {
 
         const pwaComponent = fixture.componentInstance;
         expect(pwaComponent.supportsEpg).toBe(false);
+        expect(pwaComponent.channelItemSize).toBe(52);
         expect(pwaComponent.epgPrograms.size).toBe(0);
         expect(pwaComponent.currentProgramsProgress.size).toBe(0);
+
+        const virtualScrollElement = fixture.debugElement.query(
+            By.css('cdk-virtual-scroll-viewport')
+        );
+        if (!virtualScrollElement) {
+            throw new Error(
+                `Expected PWA channel viewport, received: ${fixture.nativeElement.innerHTML.slice(0, 1000)}`
+            );
+        }
+        const virtualScroll = virtualScrollElement.injector.get(
+            CdkFixedSizeVirtualScroll
+        );
+        Object.defineProperty(
+            virtualScrollElement.nativeElement,
+            'clientHeight',
+            {
+                configurable: true,
+                value: 520,
+            }
+        );
+        pwaComponent.viewport()?.checkViewportSize();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const channelRow = fixture.debugElement
+            .query(By.directive(ChannelListItemComponent))
+            .injector.get(ChannelListItemComponent);
+        expect(virtualScroll.itemSize).toBe(52);
+        expect(channelRow.showEpg()).toBe(false);
+        expect(
+            fixture.nativeElement
+                .querySelector('.channel-list-item')
+                .classList.contains('compact')
+        ).toBe(true);
     });
 
     it('does not mark a live item as favorite when only a colliding movie ID is favorited', () => {
