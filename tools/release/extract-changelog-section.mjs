@@ -24,6 +24,11 @@ const workspaceRoot = path.resolve(
     '../..'
 );
 
+const INTERNAL_DETAILS_BLOCK =
+    /(?:^|\n\n)<details>\n<summary>Internal changes<\/summary>\n\n[\s\S]*?\n\n<\/details>(?=\n\n|$)/g;
+const CLI_USAGE =
+    'Usage: extract-changelog-section.mjs [--public] <version>';
+
 /**
  * @param {string} changelog full CHANGELOG.md content
  * @param {string} version bare semver, e.g. `0.24.0`
@@ -59,38 +64,99 @@ export function extractSection(changelog, version) {
     return lines.slice(start + 1, end).join('\n').trim();
 }
 
-function main() {
-    const version = process.argv[2];
+/**
+ * @param {string} changelog full CHANGELOG.md content
+ * @param {string} version bare semver, e.g. `0.24.0`
+ * @returns {string | null} public section body without internal details
+ */
+export function extractPublicSection(changelog, version) {
+    const section = extractSection(changelog, version);
 
-    if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
-        console.error(
-            'Usage: extract-changelog-section.mjs <version>  (for example 0.24.0)'
-        );
-        process.exit(2);
+    return section === null
+        ? null
+        : section.replace(INTERNAL_DETAILS_BLOCK, '').trim();
+}
+
+export function parseExtractArguments(args) {
+    const publicFlagCount = args.filter(
+        (argument) => argument === '--public'
+    ).length;
+    const positional = args.filter(
+        (argument) => argument !== '--public'
+    );
+
+    if (
+        publicFlagCount > 1 ||
+        positional.length !== 1 ||
+        !/^\d+\.\d+\.\d+$/.test(positional[0])
+    ) {
+        return null;
     }
 
-    const changelogPath = path.join(workspaceRoot, 'CHANGELOG.md');
-    const section = extractSection(readFileSync(changelogPath, 'utf8'), version);
+    return {
+        version: positional[0],
+        publicOnly: publicFlagCount === 1,
+    };
+}
+
+export function runExtractorCli(changelog, args) {
+    const options = parseExtractArguments(args);
+
+    if (options === null) {
+        return { exitCode: 2, stdout: '', stderr: `${CLI_USAGE}\n` };
+    }
+
+    const section = options.publicOnly
+        ? extractPublicSection(changelog, options.version)
+        : extractSection(changelog, options.version);
 
     if (section === null) {
-        console.error(
-            [
-                `CHANGELOG.md has no section for ${version}.`,
+        return {
+            exitCode: 1,
+            stdout: '',
+            stderr: `${[
+                `CHANGELOG.md has no section for ${options.version}.`,
                 'The release flow writes it before tagging:',
                 '  pnpm run release:notes:changelog',
                 '  node tools/release/build-release-notes.mjs --consume',
                 'Commit the changelog, then re-tag.',
-            ].join('\n')
-        );
-        process.exit(1);
+            ].join('\n')}\n`,
+        };
     }
 
-    if (section === '') {
-        console.error(`CHANGELOG.md section for ${version} is empty.`);
-        process.exit(1);
+    if (section === '' && !options.publicOnly) {
+        return {
+            exitCode: 1,
+            stdout: '',
+            stderr: `CHANGELOG.md section for ${options.version} is empty.\n`,
+        };
     }
 
-    process.stdout.write(`${section}\n`);
+    return {
+        exitCode: 0,
+        stdout: section === '' ? '' : `${section}\n`,
+        stderr: '',
+    };
+}
+
+export function runExtractorProcess(args, readChangelog) {
+    if (parseExtractArguments(args) === null) {
+        return runExtractorCli('', args);
+    }
+
+    return runExtractorCli(readChangelog(), args);
+}
+
+function main() {
+    const changelogPath = path.join(workspaceRoot, 'CHANGELOG.md');
+    const result = runExtractorProcess(
+        process.argv.slice(2),
+        () => readFileSync(changelogPath, 'utf8')
+    );
+
+    process.stdout.write(result.stdout);
+    process.stderr.write(result.stderr);
+    process.exitCode = result.exitCode;
 }
 
 // Allow importing extractSection from tests without running the CLI.

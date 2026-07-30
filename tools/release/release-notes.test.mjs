@@ -18,7 +18,13 @@ import {
     renderGithubBody,
     upsertChangelogSection,
 } from './release-notes-render.mjs';
-import { extractSection } from './extract-changelog-section.mjs';
+import {
+    extractPublicSection,
+    extractSection,
+    parseExtractArguments,
+    runExtractorCli,
+    runExtractorProcess,
+} from './extract-changelog-section.mjs';
 
 const tempDirs = [];
 
@@ -443,33 +449,45 @@ describe('upsertChangelogSection', () => {
     });
 });
 
+const changelog = [
+    '# Changelog',
+    '',
+    'Intro paragraph with a pointer.',
+    '',
+    '<!-- next-release -->',
+    '',
+    '# [0.24.0](https://github.com/4gray/iptvnator/compare/v0.23.0...v0.24.0) (2026-08-01)',
+    '',
+    '### Features',
+    '',
+    '- **playback** — Up Next rail.',
+    '',
+    '<details>',
+    '<summary>Internal changes</summary>',
+    '',
+    '- **deps** — parser bump.',
+    '',
+    '</details>',
+    '',
+    '# [0.12.0](https://github.com/4gray/iptvnator/compare/v0.11.1...v0.12.0) (2023-03-11)',
+    '',
+    '### Bug Fixes',
+    '',
+    '- old entry',
+].join('\n');
+
+const internalOnlyChangelog = [
+    '# 0.24.0 (2026-08-01)',
+    '',
+    '<details>',
+    '<summary>Internal changes</summary>',
+    '',
+    '- **deps** — parser bump.',
+    '',
+    '</details>',
+].join('\n');
+
 describe('extractSection', () => {
-    const changelog = [
-        '# Changelog',
-        '',
-        'Intro paragraph with a pointer.',
-        '',
-        '<!-- next-release -->',
-        '',
-        '# [0.24.0](https://github.com/4gray/iptvnator/compare/v0.23.0...v0.24.0) (2026-08-01)',
-        '',
-        '### Features',
-        '',
-        '- **playback** — Up Next rail.',
-        '',
-        '<details>',
-        '<summary>Internal changes</summary>',
-        '',
-        '- **deps** — parser bump.',
-        '',
-        '</details>',
-        '',
-        '# [0.12.0](https://github.com/4gray/iptvnator/compare/v0.11.1...v0.12.0) (2023-03-11)',
-        '',
-        '### Bug Fixes',
-        '',
-        '- old entry',
-    ].join('\n');
 
     it('returns the section body without its own heading', () => {
         const section = extractSection(changelog, '0.24.0');
@@ -491,6 +509,16 @@ describe('extractSection', () => {
         assert.match(extractSection(plain, '0.24.0'), /^### Fixes/);
     });
 
+    it('normalizes CRLF line endings in the extracted section', () => {
+        const crlf =
+            '# 0.24.0 (2026-08-01)\r\n\r\n### Fixes\r\n\r\n- entry\r\n';
+
+        assert.equal(
+            extractSection(crlf, '0.24.0'),
+            '### Fixes\n\n- entry'
+        );
+    });
+
     it('does not match a different patch of the same minor', () => {
         assert.equal(extractSection(changelog, '0.24.1'), null);
     });
@@ -506,6 +534,198 @@ describe('extractSection', () => {
         assert.equal(extractSection(changelog, '0.24.0|0.12.0'), null);
         assert.equal(extractSection(changelog, '.*'), null);
         assert.equal(extractSection(changelog, '0.24\\.0'), null);
+    });
+});
+
+describe('extractPublicSection', () => {
+    it('strips the generated internal block from a mixed release', () => {
+        assert.equal(
+            extractPublicSection(changelog, '0.24.0'),
+            '### Features\n\n- **playback** — Up Next rail.'
+        );
+    });
+
+    it('keeps a public-only release unchanged', () => {
+        const publicOnly = '# 0.24.0 (2026-08-01)\n\n### Fixes\n\n- Fixed it.';
+
+        assert.equal(
+            extractPublicSection(publicOnly, '0.24.0'),
+            '### Fixes\n\n- Fixed it.'
+        );
+    });
+
+    it('returns an empty string for an internal-only release', () => {
+        assert.equal(extractPublicSection(internalOnlyChangelog, '0.24.0'), '');
+    });
+
+    it('preserves unrelated details blocks', () => {
+        const release = [
+            '# 0.24.0 (2026-08-01)',
+            '',
+            '<details>',
+            '<summary>Migration guide</summary>',
+            '',
+            'Run the migration.',
+            '',
+            '</details>',
+            '',
+            '<details>',
+            '<summary>Internal changes</summary>',
+            '',
+            '- **deps** — parser bump.',
+            '',
+            '</details>',
+        ].join('\n');
+
+        assert.equal(
+            extractPublicSection(release, '0.24.0'),
+            '<details>\n<summary>Migration guide</summary>\n\nRun the migration.\n\n</details>'
+        );
+    });
+
+    it('preserves near-match internal summaries', () => {
+        const release = [
+            '# 0.24.0 (2026-08-01)',
+            '',
+            '<details>',
+            '<summary>Internal changes </summary>',
+            '',
+            '- trailing space.',
+            '',
+            '</details>',
+            '',
+            '<details>',
+            '<summary>internal changes</summary>',
+            '',
+            '- different case.',
+            '',
+            '</details>',
+        ].join('\n');
+
+        assert.equal(
+            extractPublicSection(release, '0.24.0'),
+            release.split('\n').slice(2).join('\n')
+        );
+    });
+});
+
+describe('extract-changelog-section CLI contracts', () => {
+    it('parses the public flag', () => {
+        assert.deepEqual(parseExtractArguments(['--public', '0.24.0']), {
+            version: '0.24.0',
+            publicOnly: true,
+        });
+    });
+
+    it('reports usage for invalid arguments', () => {
+        for (const args of [
+            [],
+            ['0.24'],
+            ['--unknown', '0.24.0'],
+            ['--public', '--public', '0.24.0'],
+            ['0.24.0', 'extra'],
+        ]) {
+            assert.equal(parseExtractArguments(args), null);
+            const result = runExtractorCli(changelog, args);
+
+            assert.equal(result.exitCode, 2);
+            assert.equal(result.stdout, '');
+            assert.match(result.stderr, /Usage:/);
+        }
+    });
+
+    it('allows an empty public body for an internal-only release', () => {
+        assert.deepEqual(
+            runExtractorCli(internalOnlyChangelog, ['--public', '0.24.0']),
+            { exitCode: 0, stdout: '', stderr: '' }
+        );
+    });
+
+    it('validates process arguments before reading the changelog', () => {
+        const result = runExtractorProcess(['--public'], () => {
+            throw new Error('changelog should not be read');
+        });
+
+        assert.equal(result.exitCode, 2);
+        assert.equal(result.stdout, '');
+        assert.match(result.stderr, /Usage:/);
+    });
+
+    it('keeps raw process output and errors compatible', () => {
+        assert.deepEqual(
+            runExtractorProcess(['0.24.0'], () => '# 0.24.0 (2026-08-01)'),
+            {
+                exitCode: 1,
+                stdout: '',
+                stderr: 'CHANGELOG.md section for 0.24.0 is empty.\n',
+            }
+        );
+        assert.deepEqual(
+            runExtractorProcess(['9.9.9'], () => changelog),
+            {
+                exitCode: 1,
+                stdout: '',
+                stderr: [
+                    'CHANGELOG.md has no section for 9.9.9.',
+                    'The release flow writes it before tagging:',
+                    '  pnpm run release:notes:changelog',
+                    '  node tools/release/build-release-notes.mjs --consume',
+                    'Commit the changelog, then re-tag.',
+                    '',
+                ].join('\n'),
+            }
+        );
+        assert.deepEqual(
+            runExtractorProcess(['0.24.0'], () => changelog),
+            {
+                exitCode: 0,
+                stdout:
+                    '### Features\n\n- **playback** — Up Next rail.\n\n<details>\n<summary>Internal changes</summary>\n\n- **deps** — parser bump.\n\n</details>\n',
+                stderr: '',
+            }
+        );
+    });
+
+    it('normalizes CRLF output and appends exactly one trailing LF', () => {
+        const crlf =
+            '# 0.24.0 (2026-08-01)\r\n\r\n### Fixes\r\n\r\n- entry\r\n';
+        const expected = {
+            exitCode: 0,
+            stdout: '### Fixes\n\n- entry\n',
+            stderr: '',
+        };
+
+        assert.deepEqual(runExtractorCli(crlf, ['0.24.0']), expected);
+        assert.deepEqual(
+            runExtractorProcess(['0.24.0'], () => crlf),
+            expected
+        );
+        assert.match(expected.stdout, /[^\n]\n$/);
+        assert.doesNotMatch(expected.stdout, /\n\n$/);
+    });
+
+    it('reports the detailed missing-version diagnostic in public mode', () => {
+        const expected = {
+            exitCode: 1,
+            stdout: '',
+            stderr: [
+                'CHANGELOG.md has no section for 9.9.9.',
+                'The release flow writes it before tagging:',
+                '  pnpm run release:notes:changelog',
+                '  node tools/release/build-release-notes.mjs --consume',
+                'Commit the changelog, then re-tag.',
+                '',
+            ].join('\n'),
+        };
+
+        assert.deepEqual(
+            runExtractorCli(changelog, ['--public', '9.9.9']),
+            expected
+        );
+        assert.deepEqual(
+            runExtractorProcess(['--public', '9.9.9'], () => changelog),
+            expected
+        );
     });
 });
 
