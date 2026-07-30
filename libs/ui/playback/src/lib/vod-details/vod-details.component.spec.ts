@@ -325,6 +325,19 @@ describe('VodDetailsComponent offline playback', () => {
         expect(resumeClicked).not.toHaveBeenCalled();
     });
 
+    it('hides Restart while an undownloaded MPV launch is pending', async () => {
+        await render({
+            playbackPosition: 83,
+            externalPlayback: MATCHING_LAUNCHING_MPV_SESSION,
+        });
+
+        expect(buttonText(primaryButton())).toContain('Opening in MPV...');
+        expect(primaryButton().disabled).toBe(true);
+        expect(findButtonWithText('Restart')).toBeUndefined();
+        expect(playClicked).not.toHaveBeenCalled();
+        expect(resumeClicked).not.toHaveBeenCalled();
+    });
+
     it('keeps normal provider Play as the undownloaded primary action', async () => {
         await render();
 

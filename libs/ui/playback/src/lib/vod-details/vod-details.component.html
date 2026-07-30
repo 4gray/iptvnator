@@ -174,7 +174,7 @@
                     }
                 </span>
             </button>
-            @if (!isExternalStopAction() && !isDownloaded()) {
+            @if (externalPrimaryButtonState() === 'idle' && !isDownloaded()) {
                 <button class="play-btn play-btn--restart" (click)="onPlay()">
                     <mat-icon>replay</mat-icon>
                     {{ 'XTREAM.RESTART' | translate }}
