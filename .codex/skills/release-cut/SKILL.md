@@ -5,8 +5,9 @@ description: Use when preparing, cutting, tagging, publishing, or verifying an I
 
 # Release Cut
 
-The tag build takes authored public text from the new CHANGELOG section. Keep
-the full changelog committed before tagging.
+The tag workflow authors the public GitHub body with
+`node tools/release/extract-changelog-section.mjs --public "${VERSION}"`.
+Keep the full changelog, including internal notes, committed before tagging.
 
 ## Preflight
 
@@ -43,12 +44,13 @@ git tag v0.24.0
 
 ## Push and External Effects
 
-Push only the intended branch and tag; never use broad `git push --tags`.
+Push the named remote's `master` branch first, then push only the exact
+`v<version>` tag as a second command. Never use broad `git push --tags`.
+For remote `upstream` and version `v0.25.1`, run exactly:
 
 ```bash
-git push --atomic origin \
-  HEAD:refs/heads/master \
-  refs/tags/v0.24.0
+git push upstream master
+git push upstream v0.25.1
 ```
 
 Master and `v*` pushes can publish Docker images. The tag build creates a draft
