@@ -49,14 +49,18 @@ The body is capped at 400 characters — depth belongs in the blog post.
 - ❌ "Fix off-by-one in `resolveEnrichmentSeasonNumber`"
 - ✅ "Series whose title carries a season marker no longer show the wrong season"
 
-`type: internal` is for changes with no user-visible effect that are still worth
-recording (dependency bumps with behaviour risk, packaging moves). They stay out
-of the release body and blog post, and land collapsed in `CHANGELOG.md`.
+`type: internal` records invisible maintenance. Internal notes stay collapsed in
+`CHANGELOG.md`, are omitted from the blog scaffold, and are removed from the
+authored public GitHub body by
+`extract-changelog-section.mjs --public`. GitHub's generated commit list remains
+separate. An internal-only release can therefore have an empty authored body.
 
 ## When a note is not needed
 
-Skip the note — and apply the `no-release-note` label — for test-only changes,
-docs, CI/workflow plumbing, and pure refactors with no behaviour change.
+The gate auto-exempts website, E2E and mock-server apps, `*.spec.{js,ts}`,
+`*.e2e.{js,ts}`, snapshots, any `/testing/` path, and Markdown. For other
+test-only, documentation, CI/workflow, or pure-refactor changes under
+`apps/`/`libs/`, apply `no-release-note` when no user-visible note is warranted.
 
 ## Commands
 

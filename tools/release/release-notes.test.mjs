@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, describe, it } from 'node:test';
@@ -610,6 +610,21 @@ describe('extractPublicSection', () => {
 });
 
 describe('extract-changelog-section CLI contracts', () => {
+    it('uses public extraction for authored tag-release text', () => {
+        const workflow = readFileSync(
+            new URL(
+                '../../.github/workflows/build-and-make.yaml',
+                import.meta.url
+            ),
+            'utf8'
+        );
+
+        assert.match(
+            workflow,
+            /extract-changelog-section\.mjs --public "\$\{VERSION\}"/
+        );
+    });
+
     it('parses the public flag', () => {
         assert.deepEqual(parseExtractArguments(['--public', '0.24.0']), {
             version: '0.24.0',
