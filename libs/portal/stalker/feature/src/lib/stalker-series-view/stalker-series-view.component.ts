@@ -76,6 +76,19 @@ import {
     getStalkerSeriesQuickStartButton,
     type StalkerQuickStartButton,
 } from './stalker-series-quick-start';
+import {
+    clearStalkerSeriesPosition,
+    reconcileStalkerSeriesPositions,
+    saveStalkerSeriesPosition,
+    StalkerSeriesPositionPartialSaveError,
+} from './stalker-series-position-compatibility';
+
+interface SeriesPositionContext {
+    readonly generation: number;
+    readonly playlistId: string;
+    readonly seriesXtreamId: number;
+    readonly mutationKey: string;
+}
 
 /**
  * Component for displaying series/episodes for Stalker portal content.
@@ -120,6 +133,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly episodePlaybackPositions = signal<
         Map<number, PlaybackPositionData>
     >(new Map());
+    private readonly rawSeriesPositions = signal<
+        readonly PlaybackPositionData[]
+    >([]);
+    private readonly legacyPositionByTrackingId = signal<
+        Map<number, PlaybackPositionData>
+    >(new Map());
+    private activeSeriesPositionContext: SeriesPositionContext | null = null;
+    private seriesPositionContextGeneration = 0;
+    private readonly seriesPositionMutationQueues = new Map<
+        string,
+        Promise<void>
+    >();
+    private readonly pendingSeriesPositionLoads = new Map<
+        SeriesPositionContext,
+        Set<number>
+    >();
+    private readonly seriesPositionReloadKeys = new Set<string>();
+    private seriesPositionsLoadGeneration = 0;
     private lastSaveTime = 0;
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
@@ -276,22 +307,66 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         effect(() => {
             const item = this.displayItem();
             const playlist = this.stalkerStore.currentPlaylist();
-            if (item && playlist?._id) {
-                const normalizedSeriesId = this.toSeriesId(item.id);
+            const normalizedSeriesId = this.toSeriesId(item?.id ?? 0);
+            if (item && playlist?._id && normalizedSeriesId > 0) {
                 this.logger.debug('Loading positions for series', {
                     id: item.id,
                     seriesId: normalizedSeriesId,
                     isSeries: item.is_series,
                 });
-                if (!isNaN(normalizedSeriesId)) {
-                    void this.loadSeriesPositions(
-                        playlist._id,
-                        normalizedSeriesId
-                    );
-                }
-            } else {
+                this.rawSeriesPositions.set([]);
                 this.episodePlaybackPositions.set(new Map());
+                this.legacyPositionByTrackingId.set(new Map());
+                const context = this.activateSeriesPositionContext(
+                    playlist._id,
+                    normalizedSeriesId
+                );
+                void this.loadSeriesPositions(context);
+            } else {
+                this.activeSeriesPositionContext = null;
+                this.seriesPositionContextGeneration++;
+                this.seriesPositionsLoadGeneration++;
             }
+        });
+
+        effect(() => {
+            const item = this.displayItem();
+            const playlistId = this.stalkerStore.currentPlaylist()?._id;
+            const seriesXtreamId = this.toSeriesId(item?.id ?? 0);
+            const rawSeriesPositions = this.rawSeriesPositions();
+            const episodesBySeason = this.mappedSeasons();
+
+            if (!item || !playlistId || seriesXtreamId <= 0) {
+                if (rawSeriesPositions.length > 0) {
+                    this.rawSeriesPositions.set([]);
+                }
+                if (this.episodePlaybackPositions().size > 0) {
+                    this.episodePlaybackPositions.set(new Map());
+                }
+                if (this.legacyPositionByTrackingId().size > 0) {
+                    this.legacyPositionByTrackingId.set(new Map());
+                }
+                return;
+            }
+
+            const reconciled = reconcileStalkerSeriesPositions({
+                seriesXtreamId,
+                episodesBySeason,
+                seriesPositions: rawSeriesPositions,
+            });
+            if (
+                rawSeriesPositions.length === 0 &&
+                reconciled.positionsByTrackingId.size === 0 &&
+                untracked(() => this.episodePlaybackPositions().size) > 0
+            ) {
+                return;
+            }
+            this.episodePlaybackPositions.set(
+                reconciled.positionsByTrackingId
+            );
+            this.legacyPositionByTrackingId.set(
+                reconciled.legacyPositionByTrackingId
+            );
         });
 
         effect(() => {
@@ -344,7 +419,18 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                         return;
                     }
 
-                    this.updateEpisodePlaybackPosition(data);
+                    // The facade/runtime already saved this row. Repeat the
+                    // idempotent upsert because only this view owns the
+                    // scoped-to-legacy cleanup mapping.
+                    void this.persistSeriesPosition(
+                        playlistId,
+                        data
+                    ).catch((error: unknown) => {
+                        this.logger.error(
+                            'Failed to persist runtime series position',
+                            error
+                        );
+                    });
                 }
             ) ?? null;
     }
@@ -388,22 +474,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     readonly mappedSeasons = computed<Record<string, XtreamSerieEpisode[]>>(
         () => {
+            const displayItem = this.displayItem();
             const base = this.isVodSeries()
-                ? mapVodSeriesEpisodes(
-                      this.vodSeriesSeasons(),
-                      this.displayItem()?.info?.movie_image
-                  )
+                ? mapVodSeriesEpisodes(this.vodSeriesSeasons(), {
+                      parentSeriesId: this.toSeriesId(displayItem?.id ?? 0),
+                      fallbackPoster: displayItem?.info?.movie_image,
+                  })
                 : mapRegularSeriesEpisodes(
                       this.regularSeasons(),
-                      this.displayItem()?.info?.movie_image
+                      displayItem?.info?.movie_image
                   );
 
             // Overlay lazily fetched TMDB episode data (real names,
             // overviews, stills) — a no-op while nothing is fetched
-            return this.tmdbSeasons.overlay(
-                base,
-                this.displayItem()?.info?.tmdb_id
-            );
+            return this.tmdbSeasons.overlay(base, displayItem?.info?.tmdb_id);
         }
     );
 
@@ -750,11 +834,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             positionSeconds: Math.floor(event.currentTime),
             durationSeconds: Math.floor(event.duration),
         };
-        void this.playbackPositions.savePlaybackPosition(
+        void this.persistSeriesPosition(
             playback.contentInfo.playlistId,
             position
-        );
-        this.updateEpisodePlaybackPosition(position);
+        ).catch((error: unknown) => {
+            this.logger.error(
+                'Failed to persist inline series position',
+                error
+            );
+        });
     }
 
     showCopyNotification(): void {
@@ -894,20 +982,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
 
         if (request.nextPosition) {
-            await this.playbackPositions.savePlaybackPosition(
+            await this.persistSeriesPosition(
                 playlistId,
                 request.nextPosition
             );
-            this.updateEpisodePlaybackPosition(request.nextPosition);
             return;
         }
 
-        await this.playbackPositions.clearPlaybackPosition(
+        await this.clearSeriesPosition(
             playlistId,
-            request.contentXtreamId,
-            'episode'
+            request.contentXtreamId
         );
-        this.removeEpisodePlaybackPosition(request.contentXtreamId);
     }
 
     async downloadEpisode(episode: XtreamSerieEpisode): Promise<void> {
@@ -975,19 +1060,320 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     private async loadSeriesPositions(
+        context: SeriesPositionContext
+    ): Promise<void> {
+        const generation = ++this.seriesPositionsLoadGeneration;
+        this.trackPendingSeriesPositionLoad(context, generation);
+        try {
+            await this.waitForSeriesPositionMutations(
+                context.mutationKey
+            );
+
+            if (
+                generation !== this.seriesPositionsLoadGeneration ||
+                !this.isSeriesPositionContextActive(context)
+            ) {
+                return;
+            }
+
+            const positions =
+                await this.playbackPositions.getSeriesPlaybackPositions(
+                    context.playlistId,
+                    context.seriesXtreamId
+                );
+
+            if (
+                generation !== this.seriesPositionsLoadGeneration ||
+                !this.isSeriesPositionContextActive(context)
+            ) {
+                return;
+            }
+
+            this.rawSeriesPositions.set(positions);
+        } finally {
+            this.untrackPendingSeriesPositionLoad(context, generation);
+        }
+    }
+
+    private activateSeriesPositionContext(
         playlistId: string,
         seriesXtreamId: number
+    ): SeriesPositionContext {
+        const context: SeriesPositionContext = {
+            generation: ++this.seriesPositionContextGeneration,
+            playlistId,
+            seriesXtreamId,
+            mutationKey: JSON.stringify([playlistId, seriesXtreamId]),
+        };
+        this.activeSeriesPositionContext = context;
+        return context;
+    }
+
+    private isSeriesPositionContextActive(
+        context: SeriesPositionContext
+    ): boolean {
+        const activeContext = this.activeSeriesPositionContext;
+        return (
+            activeContext === context &&
+            activeContext.generation === context.generation &&
+            this.stalkerStore.currentPlaylist()?._id ===
+                context.playlistId &&
+            this.toSeriesId(this.displayItem()?.id ?? 0) ===
+                context.seriesXtreamId
+        );
+    }
+
+    private waitForSeriesPositionMutations(
+        mutationKey: string
     ): Promise<void> {
-        const positions =
-            await this.playbackPositions.getSeriesPlaybackPositions(
-                playlistId,
-                seriesXtreamId
-            );
-        const positionsMap = new Map<number, PlaybackPositionData>();
-        positions.forEach((position) => {
-            positionsMap.set(position.contentXtreamId, position);
+        return (
+            this.seriesPositionMutationQueues.get(mutationKey) ??
+            Promise.resolve()
+        );
+    }
+
+    private trackPendingSeriesPositionLoad(
+        context: SeriesPositionContext,
+        generation: number
+    ): void {
+        const generations =
+            this.pendingSeriesPositionLoads.get(context) ??
+            new Set<number>();
+        generations.add(generation);
+        this.pendingSeriesPositionLoads.set(context, generations);
+    }
+
+    private untrackPendingSeriesPositionLoad(
+        context: SeriesPositionContext,
+        generation: number
+    ): void {
+        const generations =
+            this.pendingSeriesPositionLoads.get(context);
+        generations?.delete(generation);
+        if (generations?.size === 0) {
+            this.pendingSeriesPositionLoads.delete(context);
+        }
+    }
+
+    private hasCurrentPendingSeriesPositionLoad(
+        context: SeriesPositionContext
+    ): boolean {
+        return Boolean(
+            this.pendingSeriesPositionLoads
+                .get(context)
+                ?.has(this.seriesPositionsLoadGeneration)
+        );
+    }
+
+    private enqueueSeriesPositionMutation(
+        context: SeriesPositionContext,
+        operation: () => Promise<void>
+    ): Promise<void> {
+        if (this.hasCurrentPendingSeriesPositionLoad(context)) {
+            this.seriesPositionReloadKeys.add(context.mutationKey);
+        }
+        this.seriesPositionsLoadGeneration++;
+        const previous = this.waitForSeriesPositionMutations(
+            context.mutationKey
+        );
+        const result = previous.then(operation);
+        const barrier = result.then(
+            () => undefined,
+            () => undefined
+        );
+        this.seriesPositionMutationQueues.set(
+            context.mutationKey,
+            barrier
+        );
+        void barrier.then(() => {
+            if (
+                this.seriesPositionMutationQueues.get(
+                    context.mutationKey
+                ) === barrier
+            ) {
+                this.seriesPositionMutationQueues.delete(
+                    context.mutationKey
+                );
+                this.reloadSeriesPositionsAfterMutations(
+                    context.mutationKey
+                );
+            }
         });
-        this.episodePlaybackPositions.set(positionsMap);
+        return result;
+    }
+
+    private reloadSeriesPositionsAfterMutations(
+        mutationKey: string
+    ): void {
+        if (!this.seriesPositionReloadKeys.delete(mutationKey)) {
+            return;
+        }
+        const context = this.activeSeriesPositionContext;
+        if (
+            !context ||
+            context.mutationKey !== mutationKey ||
+            !this.isSeriesPositionContextActive(context) ||
+            this.hasCurrentPendingSeriesPositionLoad(context)
+        ) {
+            return;
+        }
+        void this.loadSeriesPositions(context);
+    }
+
+    private getSeriesPositionMutationContext(
+        playlistId: string,
+        seriesXtreamId?: number | null
+    ): SeriesPositionContext | null {
+        const context = this.activeSeriesPositionContext;
+        if (
+            !context ||
+            context.playlistId !== playlistId ||
+            (seriesXtreamId != null &&
+                context.seriesXtreamId !== seriesXtreamId)
+        ) {
+            return null;
+        }
+        return context;
+    }
+
+    private persistSeriesPosition(
+        playlistId: string,
+        position: PlaybackPositionData
+    ): Promise<void> {
+        const context = this.getSeriesPositionMutationContext(
+            playlistId,
+            position.seriesXtreamId
+        );
+        if (!context) {
+            return Promise.resolve();
+        }
+        const legacyPosition =
+            this.legacyPositionByTrackingId().get(
+                position.contentXtreamId
+            );
+        return this.enqueueSeriesPositionMutation(context, async () => {
+            let clearedLegacy: boolean;
+            try {
+                clearedLegacy = await saveStalkerSeriesPosition({
+                    repository: this.playbackPositions,
+                    playlistId,
+                    position,
+                    legacyPosition,
+                });
+            } catch (error) {
+                if (
+                    error instanceof
+                        StalkerSeriesPositionPartialSaveError &&
+                    this.isSeriesPositionContextActive(context)
+                ) {
+                    this.publishSavedSeriesPosition(
+                        position,
+                        legacyPosition,
+                        false
+                    );
+                }
+                throw error;
+            }
+            if (!this.isSeriesPositionContextActive(context)) {
+                return;
+            }
+            this.publishSavedSeriesPosition(
+                position,
+                legacyPosition,
+                clearedLegacy
+            );
+        });
+    }
+
+    private publishSavedSeriesPosition(
+        position: PlaybackPositionData,
+        legacyPosition: PlaybackPositionData | undefined,
+        clearedLegacy: boolean
+    ): void {
+        const removedTrackingIds = new Set([
+            position.contentXtreamId,
+        ]);
+        if (clearedLegacy && legacyPosition) {
+            removedTrackingIds.add(legacyPosition.contentXtreamId);
+            const legacyPositions = new Map(
+                this.legacyPositionByTrackingId()
+            );
+            legacyPositions.delete(position.contentXtreamId);
+            this.legacyPositionByTrackingId.set(legacyPositions);
+        }
+
+        this.rawSeriesPositions.set([
+            ...this.rawSeriesPositions().filter(
+                (candidate) =>
+                    !removedTrackingIds.has(
+                        candidate.contentXtreamId
+                    )
+            ),
+            position,
+        ]);
+        this.updateEpisodePlaybackPosition(position);
+    }
+
+    private clearSeriesPosition(
+        playlistId: string,
+        contentXtreamId: number
+    ): Promise<void> {
+        const context = this.getSeriesPositionMutationContext(playlistId);
+        if (!context) {
+            return Promise.resolve();
+        }
+        const position =
+            this.episodePlaybackPositions().get(contentXtreamId) ?? {
+                contentXtreamId,
+                contentType: 'episode',
+                positionSeconds: 0,
+                playlistId,
+                seriesXtreamId: context.seriesXtreamId,
+            };
+        const legacyPosition =
+            this.legacyPositionByTrackingId().get(contentXtreamId);
+        return this.enqueueSeriesPositionMutation(context, async () => {
+            const clearedLegacy = await clearStalkerSeriesPosition({
+                repository: this.playbackPositions,
+                playlistId,
+                position,
+                legacyPosition,
+            });
+            if (!this.isSeriesPositionContextActive(context)) {
+                return;
+            }
+            this.publishClearedSeriesPosition(
+                contentXtreamId,
+                legacyPosition,
+                clearedLegacy
+            );
+        });
+    }
+
+    private publishClearedSeriesPosition(
+        contentXtreamId: number,
+        legacyPosition: PlaybackPositionData | undefined,
+        clearedLegacy: boolean
+    ): void {
+        const removedTrackingIds = new Set([contentXtreamId]);
+        if (clearedLegacy && legacyPosition) {
+            removedTrackingIds.add(legacyPosition.contentXtreamId);
+            const legacyPositions = new Map(
+                this.legacyPositionByTrackingId()
+            );
+            legacyPositions.delete(contentXtreamId);
+            this.legacyPositionByTrackingId.set(legacyPositions);
+        }
+
+        this.rawSeriesPositions.set(
+            this.rawSeriesPositions().filter(
+                (candidate) =>
+                    !removedTrackingIds.has(
+                        candidate.contentXtreamId
+                    )
+            )
+        );
+        this.removeEpisodePlaybackPosition(contentXtreamId);
     }
 
     private async loadAndPlayVodSeriesSeason(
