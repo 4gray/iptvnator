@@ -32,6 +32,13 @@ signal with a partial list.
   preserving existing playlist-scoped portal routes.
 - Add functional All, Movies, Series, and In progress filters.
 - Group completed episodes from the same source series into one library card.
+- Follow the global Small, Medium, or Large cover-size preference in both the
+  completed library and its loading skeleton.
+- Open existing provider detail views from navigable movie and grouped-series
+  artwork or titles, while keeping the explicit card Play action immediate and
+  local.
+- Prefer the completed local file from a downloaded movie detail view, with
+  provider playback remaining an explicit secondary action.
 - Keep every existing pause, resume, cancel, retry, play, reveal, copy, and
   remove operation reachable.
 - Make file-retention behavior explicit instead of implying that a completed
@@ -46,8 +53,8 @@ signal with a partial list.
 This MVP does not add:
 
 - recordings to the download library;
-- offline connectivity detection, startup redirects, or cached offline detail
-  pages;
+- offline connectivity detection, startup redirects, persisted metadata
+  caching, or source-independent offline detail pages;
 - disk-capacity or free-space statistics;
 - transfer speed or ETA calculation;
 - pause-all, resume-all, queue priority, or queue reordering;
@@ -185,8 +192,9 @@ download is not a supported user-visible state.
 An ungrouped completed episode shows its stored title, `SxxExx` label when
 season/episode values are usable, Episode type, source, poster, and tracked
 size. Because it lacks a trustworthy series identity, it does not claim to
-open series details. Play, Show in folder, Copy URL, and Remove from manager
-remain available for that concrete file.
+open series details. Its artwork, title, and explicit Play action all keep the
+direct-local fallback. Show in folder, Copy URL, and Remove from manager remain
+available for that concrete file.
 
 ## Page composition
 
@@ -254,7 +262,10 @@ the existing snackbar path.
 ## Library-card behavior
 
 Movie and series cards use the shared content-grid dimensions and two-to-three
-poster ratio. Each card shows:
+poster ratio. The grid and completed-library skeleton consume
+`--cover-grid-min-width` and `--cover-gap` through the shared content-grid
+contract. They do not own a fixed card width, gap, or mobile column count.
+Each card shows:
 
 - poster or semantic placeholder;
 - `Offline` badge;
@@ -264,12 +275,34 @@ poster ratio. Each card shows:
 - source label;
 - episode count and season range for grouped series.
 
-Movie cards expose Play and Show in folder as the most prominent local
-actions. Copy URL and Remove from manager live in an overflow menu. Series
-cards expose source details and the downloaded-episodes dialog described
-above.
+Navigable movie and grouped-series artwork or titles open the existing source
+detail view. The explicit movie Play button starts the finalized local
+`filePath` without navigating; Show in folder stays alongside it, while Copy
+URL and Remove from manager live in an overflow menu. Grouped-series cards
+expose source details and the downloaded-episodes dialog described above.
+Legacy ungrouped episodes retain the direct-local fallback described in
+Completed-series grouping.
 
 Touch and keyboard users can reach every action without relying on hover.
+
+## Downloaded movie detail behavior
+
+Existing Xtream and shared Stalker VOD detail routes remain provider-backed;
+this change does not cache their metadata or make the detail page independent
+of its source.
+
+When the detail view finds a matching completed download:
+
+- the primary idle action is `Play Local` and includes an explicit `Offline`
+  label;
+- that action resolves and opens the completed local file;
+- provider playback remains available as a secondary `Play from this source`
+  action, preserving its existing resume, pinned-source, and player behavior;
+- an owned MPV/VLC session in `launching`, `opened`, or `playing` state keeps
+  the existing opening/Stop primary control until that session settles.
+
+When no matching completed download exists, Play/Resume/Restart behavior is
+unchanged.
 
 ## Removal and clearing semantics
 
@@ -328,7 +361,8 @@ token source. Its roles map to existing IPTVnator variables:
 | separators                 | `--app-separator`, `--app-widget-header-border`          |
 
 The implementation reuses DM Sans, JetBrains Mono for compact byte/path
-metadata, Material icons, and the shared `content-grid` Sass mixin.
+metadata, Material icons, the shared `content-grid` Sass mixin, and its global
+`--cover-grid-min-width` / `--cover-gap` inputs.
 `GridListComponent` itself is not reused because its fixed
 poster/rating/title contract cannot expose download badges and file actions
 without widening a shared portal API for unrelated consumers.
@@ -345,8 +379,9 @@ with text and iconography.
 - Narrow layouts stack the page heading and folder actions.
 - Filter chips become a horizontally scrollable, keyboard-reachable row rather
   than wrapping into several uneven lines.
-- The poster grid lowers its minimum card width while preserving the two-to-
-  three artwork ratio and readable text.
+- The poster grid follows the global cover-size tokens, including the app's
+  existing responsive preference behavior. It may wrap the minimum width in
+  `min(100%, token)` only to prevent overflow.
 - On touch-sized layouts, card actions remain visibly reachable instead of
   appearing only on hover.
 - Content owns one vertical scroll region and never introduces a competing
@@ -393,6 +428,11 @@ Pure view-model tests cover:
 Focused component tests cover:
 
 - typed action emission for every status;
+- movie and grouped-series detail emission versus nested explicit local Play;
+- the direct-local legacy episode fallback;
+- completed-library and skeleton consumption of the global cover-size tokens;
+- downloaded movie details preferring local playback while retaining an
+  explicit provider-source action;
 - pending/disabled controls;
 - no navigation from nested action buttons;
 - keyboard access to cards and filter chips;
@@ -417,8 +457,13 @@ icon-text locators to roles and stable `data-testid` values. It verifies:
 - an active transfer appears in `Downloading now`;
 - pause retains its partial and resume completes through HTTP Range;
 - completion moves the item into `Ready to watch`;
+- movie artwork/title opens the exact source detail route while explicit card
+  Play still targets the local file;
+- Small, Medium, and Large cover preferences change completed-card geometry;
 - multiple completed episodes render one grouped series card whose details and
   downloaded-episodes dialog target the correct playlist/series;
+- a downloaded movie detail presents local playback as the primary idle action
+  and keeps provider playback secondary;
 - Play and Show in folder remain available;
 - removing a completed row preserves the finalized file;
 - removing/clearing a retained failed or canceled row deletes its `.part`.
@@ -433,8 +478,8 @@ contract change; the approved design does not require one.
 - Web typecheck and Angular/Nx production build.
 - Targeted Electron downloads E2E.
 - Release-note and i18n validation.
-- Running Electron inspection at wide/narrow dimensions and in light/dark
-  themes through `agent-browser`.
+- Running Electron inspection at wide/narrow dimensions, all three cover-size
+  preferences, and light/dark themes through `agent-browser`.
 - A final native-window inspection through Computer Use.
 
 Any documentation screenshot uses only the repository's mock servers and
@@ -458,11 +503,13 @@ The MVP is complete when:
 
 1. active work, attention states, and ready content are visually distinct;
 2. global and scoped routes preserve their intended data boundaries;
-3. filters, search, queue actions, grouped-series navigation, and all local
-   file actions work with current backend contracts;
+3. filters, search, queue actions, movie/grouped-series detail navigation,
+   direct card Play, downloaded-detail local preference, and all local file
+   actions work with current backend contracts;
 4. removal and clearing preserve finalized media, delete retained partial data
    where the existing backend does so, and explain both outcomes accurately;
-5. the screen is intentional in light/dark and wide/narrow layouts;
+5. the screen is intentional in light/dark and wide/narrow layouts, and its
+   cards honor the global Small/Medium/Large cover preference;
 6. keyboard and screen-reader semantics do not depend on hover or color;
 7. unit, build, targeted Electron E2E, i18n, and release-note validation pass;
 8. canonical download-manager documentation and the release note are current.
