@@ -321,4 +321,3 @@ type ActiveXtreamRequest = {
 };
 
 const activeXtreamRequests = new Map<string, ActiveXtreamRequest>();
-
