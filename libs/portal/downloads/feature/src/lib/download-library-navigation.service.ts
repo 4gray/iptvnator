@@ -191,7 +191,7 @@ export class DownloadLibraryNavigationService {
                 };
             }
         } catch {
-            // Persisted download metadata is enough to open the recent route.
+            // Persisted download metadata is enough to open provider details.
         }
 
         return {
