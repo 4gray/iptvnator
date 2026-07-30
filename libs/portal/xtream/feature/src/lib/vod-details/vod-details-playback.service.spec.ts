@@ -32,6 +32,32 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     const closeSession = jest.fn().mockResolvedValue(undefined);
     const openResolvedPlayback = jest.fn();
     const activeSource = signal<PlayerContentInfo | null>(null);
+    const currentPlaylist = signal({ id: ROUTE_PLAYLIST });
+    const routeVodId = signal(ROUTE_VOD_ID);
+    const getPlaybackPosition = jest.fn();
+
+    function deferred<T>() {
+        let resolve!: (value: T) => void;
+        const promise = new Promise<T>((resolvePromise) => {
+            resolve = resolvePromise;
+        });
+
+        return { promise, resolve };
+    }
+
+    function positionFor(
+        playlistId: string,
+        contentXtreamId: number,
+        positionSeconds: number
+    ): PlaybackPositionData {
+        return {
+            playlistId,
+            contentXtreamId,
+            contentType: 'vod',
+            positionSeconds,
+            durationSeconds: 7744,
+        };
+    }
 
     function sessionFor(playlistId: string, contentXtreamId: number) {
         return {
@@ -48,8 +74,12 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     beforeEach(() => {
         activeSession.set(null);
         activeSource.set(null);
+        currentPlaylist.set({ id: ROUTE_PLAYLIST });
+        routeVodId.set(ROUTE_VOD_ID);
         positionListener = undefined;
         addRecentItem.mockClear();
+        getPlaybackPosition.mockReset();
+        getPlaybackPosition.mockResolvedValue(null);
 
         TestBed.configureTestingModule({
             providers: [
@@ -57,7 +87,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 {
                     provide: XtreamStore,
                     useValue: {
-                        currentPlaylist: signal({ id: ROUTE_PLAYLIST }),
+                        currentPlaylist,
                         addRecentItem,
                         constructVodStreamUrl: jest
                             .fn()
@@ -71,7 +101,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
-                        getPlaybackPosition: jest.fn(),
+                        getPlaybackPosition,
                         savePlaybackPosition: jest.fn(),
                     },
                 },
@@ -98,7 +128,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
 
         service = TestBed.inject(VodDetailsPlaybackService);
         service.bind({
-            vodId: signal(ROUTE_VOD_ID),
+            vodId: routeVodId,
             vodInfo: signal(null),
             activeSource,
         });
@@ -259,6 +289,71 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             emit('playlist-3', 12345, 900);
 
             expect(service.vodPlaybackPosition()).toBeNull();
+        });
+    });
+
+    describe('stored position loads', () => {
+        it('drops a result after the route changes without starting another load', async () => {
+            const oldLoad = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(oldLoad.promise);
+            const pending = service.loadPosition(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+
+            routeVodId.set(ROUTE_VOD_ID + 1);
+            oldLoad.resolve(positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 120));
+            await pending;
+
+            expect(service.vodPlaybackPosition()).toBeNull();
+            expect(service.routePlaybackPosition()).toBeNull();
+        });
+
+        it('drops a result for the same VOD id after the playlist changes', async () => {
+            const oldLoad = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(oldLoad.promise);
+            const pending = service.loadPosition(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+
+            currentPlaylist.set({ id: 'playlist-2' });
+            oldLoad.resolve(positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 120));
+            await pending;
+
+            expect(service.vodPlaybackPosition()).toBeNull();
+            expect(service.routePlaybackPosition()).toBeNull();
+        });
+
+        it('keeps the newest valid result when an older load finishes last', async () => {
+            const olderLoad = deferred<PlaybackPositionData | null>();
+            const newerLoad = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition
+                .mockReturnValueOnce(olderLoad.promise)
+                .mockReturnValueOnce(newerLoad.promise);
+
+            const olderPending = service.loadPosition(
+                ROUTE_PLAYLIST,
+                ROUTE_VOD_ID
+            );
+            const newerPending = service.loadPosition(
+                ROUTE_PLAYLIST,
+                ROUTE_VOD_ID
+            );
+            newerLoad.resolve(positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 300));
+            await newerPending;
+            olderLoad.resolve(positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 120));
+            await olderPending;
+
+            expect(service.vodPlaybackPosition()?.positionSeconds).toBe(300);
+            expect(service.routePlaybackPosition()?.positionSeconds).toBe(300);
+        });
+
+        it('does not publish a pending result after destruction', async () => {
+            const oldLoad = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(oldLoad.promise);
+            const pending = service.loadPosition(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+
+            TestBed.resetTestingModule();
+            oldLoad.resolve(positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 120));
+            await pending;
+
+            expect(service.vodPlaybackPosition()).toBeNull();
+            expect(service.routePlaybackPosition()).toBeNull();
         });
     });
 });
