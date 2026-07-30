@@ -6,6 +6,7 @@ export type DownloadItemActionType =
     | 'pause'
     | 'play'
     | 'remove'
+    | 'redownload'
     | 'resume'
     | 'retry'
     | 'reveal';

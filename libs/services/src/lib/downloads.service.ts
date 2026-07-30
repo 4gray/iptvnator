@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
+import type { ElectronDownloadFileAvailability } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 export type DownloadStatus =
@@ -16,6 +17,7 @@ export interface DownloadItem {
     url: string;
     fileName?: string;
     filePath?: string;
+    fileAvailability?: ElectronDownloadFileAvailability;
     posterUrl?: string;
     status: DownloadStatus;
     bytesDownloaded?: number;
@@ -292,6 +294,30 @@ export class DownloadsService implements OnDestroy {
     }
 
     /**
+     * Re-download a completed item whose finalized file is unavailable.
+     */
+    async redownloadMissing(
+        downloadId: number
+    ): Promise<{ success: boolean; recovered?: boolean; error?: string }> {
+        if (!this.isAvailable()) {
+            return { success: false, error: 'Downloads not available' };
+        }
+
+        try {
+            return await window.electron.downloadsRedownloadMissing(downloadId);
+        } catch (error) {
+            console.error(
+                '[DownloadsService] Error re-downloading missing file:',
+                error
+            );
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            };
+        }
+    }
+
+    /**
      * Remove a download from the list
      */
     async removeDownload(
@@ -434,7 +460,7 @@ export class DownloadsService implements OnDestroy {
             playlistId,
             contentType
         );
-        return download?.status === 'completed' && !!download.filePath;
+        return this.hasAvailableCompletedFile(download);
     }
 
     /**
@@ -505,10 +531,20 @@ export class DownloadsService implements OnDestroy {
             playlistId,
             contentType
         );
-        if (download?.status === 'completed') {
+        if (this.hasAvailableCompletedFile(download)) {
             return download.filePath;
         }
         return undefined;
+    }
+
+    private hasAvailableCompletedFile(
+        item: DownloadItem | undefined
+    ): item is DownloadItem & { filePath: string } {
+        return (
+            item?.status === 'completed' &&
+            !!item.filePath &&
+            item.fileAvailability !== 'missing'
+        );
     }
 
     /**

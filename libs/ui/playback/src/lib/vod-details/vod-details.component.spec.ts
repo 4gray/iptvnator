@@ -125,7 +125,9 @@ describe('VodDetailsComponent offline playback', () => {
         await fixture.whenStable();
     };
 
-    const completeDownload = () => {
+    const completeDownload = (
+        fileAvailability: DownloadItem['fileAvailability'] = 'available'
+    ) => {
         downloads.set([
             {
                 id: 7,
@@ -135,6 +137,7 @@ describe('VodDetailsComponent offline playback', () => {
                 title: 'Catalog Movie',
                 url: 'https://portal.example/movie.mp4',
                 filePath: '/downloads/movie.mp4',
+                fileAvailability,
                 status: 'completed',
             },
         ]);
@@ -167,7 +170,12 @@ describe('VodDetailsComponent offline playback', () => {
                                     xtreamId,
                                     playlistId,
                                     contentType
-                                )?.status === 'completed'
+                                )?.status === 'completed' &&
+                                matchingDownload(
+                                    xtreamId,
+                                    playlistId,
+                                    contentType
+                                )?.fileAvailability !== 'missing'
                         ),
                         isDownloading: jest.fn(() => false),
                         isPaused: jest.fn(() => false),
@@ -176,12 +184,17 @@ describe('VodDetailsComponent offline playback', () => {
                                 xtreamId: number,
                                 playlistId: string,
                                 contentType: 'vod' | 'episode'
-                            ) =>
-                                matchingDownload(
+                            ) => {
+                                const item = matchingDownload(
                                     xtreamId,
                                     playlistId,
                                     contentType
-                                )?.filePath
+                                );
+                                return item?.status === 'completed' &&
+                                    item.fileAvailability !== 'missing'
+                                    ? item.filePath
+                                    : undefined;
+                            }
                         ),
                         playDownload,
                         resumeDownloadByContent: jest.fn(),
@@ -257,6 +270,20 @@ describe('VodDetailsComponent offline playback', () => {
         expect(playDownload).toHaveBeenCalledWith('/downloads/movie.mp4');
         expect(playClicked).not.toHaveBeenCalled();
         expect(resumeClicked).not.toHaveBeenCalled();
+    });
+
+    it('keeps a missing completed file on provider playback', async () => {
+        completeDownload('missing');
+        await render();
+
+        expect(fixture.nativeElement.textContent).not.toContain('Offline');
+        expect(buttonText(primaryButton())).toContain('Play');
+
+        primaryButton().click();
+        await fixture.whenStable();
+
+        expect(playClicked).toHaveBeenCalledWith(STALKER_VOD);
+        expect(playDownload).not.toHaveBeenCalled();
     });
 
     it('plays the provider source from the downloaded secondary action', async () => {

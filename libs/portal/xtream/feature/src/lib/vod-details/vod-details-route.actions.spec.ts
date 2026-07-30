@@ -13,6 +13,7 @@ import {
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     CrossPortalSimilarService,
+    type DownloadItem,
     DownloadsService,
     PlaybackPositionRuntimeBridgeService,
     SettingsStore,
@@ -64,7 +65,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const selectedItem = signal<XtreamVodDetails | null>(null);
     const downloadsAvailable = signal(false);
     const isFavorite = signal(false);
-    const downloads = signal([]);
+    const downloads = signal<DownloadItem[]>([]);
     const activeSession = signal<unknown>(null);
     const currentPlaylist = signal({
         id: 'playlist-1',
@@ -118,6 +119,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         }) as XtreamVodDetails;
     beforeEach(async () => {
         selectedItem.set(null);
+        downloads.set([]);
         downloadsAvailable.set(false);
         activeSession.set(null);
         isFavorite.set(false);
@@ -135,8 +137,43 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         isEmbeddedPlayer.mockReset().mockReturnValue(true);
         openResolvedPlayback.mockClear();
         startDownload.mockClear();
-        isDownloaded.mockReset().mockReturnValue(false);
-        getDownloadedFilePath.mockReset();
+        isDownloaded.mockReset().mockImplementation(
+            (
+                xtreamId: number,
+                playlistId: string,
+                contentType: 'vod' | 'episode'
+            ) => {
+                const item = downloads().find(
+                    (download) =>
+                        download.xtreamId === xtreamId &&
+                        download.playlistId === playlistId &&
+                        download.contentType === contentType
+                );
+                return (
+                    item?.status === 'completed' &&
+                    !!item.filePath &&
+                    item.fileAvailability !== 'missing'
+                );
+            }
+        );
+        getDownloadedFilePath.mockReset().mockImplementation(
+            (
+                xtreamId: number,
+                playlistId: string,
+                contentType: 'vod' | 'episode'
+            ) => {
+                const item = downloads().find(
+                    (download) =>
+                        download.xtreamId === xtreamId &&
+                        download.playlistId === playlistId &&
+                        download.contentType === contentType
+                );
+                return item?.status === 'completed' &&
+                    item.fileAvailability !== 'missing'
+                    ? item.filePath
+                    : undefined;
+            }
+        );
         playDownload.mockClear();
         toggleFavorite.mockClear();
         await TestBed.configureTestingModule({
@@ -419,6 +456,38 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             '/downloads/catalog-movie.mp4'
         );
         expect(constructVodStreamUrl).not.toHaveBeenCalled();
+    });
+
+    it('keeps a missing completed file on provider playback', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        downloads.set([
+            {
+                contentType: 'vod',
+                fileAvailability: 'missing',
+                filePath: '/downloads/catalog-movie.mp4',
+                id: 42,
+                playlistId: 'playlist-1',
+                status: 'completed',
+                title: 'Catalog movie',
+                url: 'https://example.test/catalog-movie.mp4',
+                xtreamId: 650020,
+            },
+        ]);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(host.textContent).not.toContain('DOWNLOADS.OFFLINE');
+        expect(primary?.textContent).toContain('XTREAM.PLAY');
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(playDownload).not.toHaveBeenCalled();
+        expect(constructVodStreamUrl).toHaveBeenCalled();
     });
 
     it('renders Offline in rich downloaded details', () => {

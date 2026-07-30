@@ -107,6 +107,7 @@ describe('DownloadsComponent', () => {
         loadDownloads: jest.Mock;
         cancelDownload: jest.Mock;
         pauseDownload: jest.Mock;
+        redownloadMissing: jest.Mock;
         resumeDownload: jest.Mock;
         retryDownload: jest.Mock;
         removeDownload: jest.Mock;
@@ -182,6 +183,7 @@ describe('DownloadsComponent', () => {
             loadDownloads: jest.fn(async () => undefined),
             cancelDownload: jest.fn(success),
             pauseDownload: jest.fn(success),
+            redownloadMissing: jest.fn(success),
             resumeDownload: jest.fn(success),
             retryDownload: jest.fn(success),
             removeDownload: jest.fn(success),
@@ -554,6 +556,42 @@ describe('DownloadsComponent', () => {
             'Action failed: network offline',
             undefined,
             expect.objectContaining({ duration: 4000 })
+        );
+    });
+
+    it('dispatches missing-file recovery by managed id', async () => {
+        const item = download(16, { fileAvailability: 'missing' });
+
+        await component.runAction({ type: 'redownload', item });
+
+        expect(downloadsService.redownloadMissing).toHaveBeenCalledWith(16);
+    });
+
+    it('refreshes a newly missing file before clearing pending state', async () => {
+        const reload = deferred<void>();
+        downloadsService.playDownload.mockResolvedValueOnce({
+            error: 'File not found',
+            success: false,
+        });
+        downloadsService.loadDownloads.mockReturnValueOnce(reload.promise);
+        const item = download(17);
+
+        const action = component.runAction({ type: 'play', item });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(downloadsService.loadDownloads).toHaveBeenCalled();
+        expect(component.pendingIds().has(17)).toBe(true);
+        expect(snackBar.open).not.toHaveBeenCalled();
+
+        reload.resolve();
+        await action;
+
+        expect(component.pendingIds().has(17)).toBe(false);
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'File not found',
+            undefined,
+            expect.objectContaining({ duration: 3000 })
         );
     });
 

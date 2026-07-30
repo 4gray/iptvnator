@@ -19,6 +19,7 @@ type TestDownloadsService = {
     loadDownloads: DownloadsService['loadDownloads'];
     loadDownloadFolder: DownloadsService['loadDownloadFolder'];
     pauseDownload: DownloadsService['pauseDownload'];
+    redownloadMissing: DownloadsService['redownloadMissing'];
     resumeDownload: DownloadsService['resumeDownload'];
     selectFolder: DownloadsService['selectFolder'];
     _isLoadingDownloads: WritableSignal<boolean>;
@@ -29,6 +30,10 @@ type TestDownloadsService = {
 type DownloadsElectronStub = {
     downloadsGetDefaultFolder?: jest.Mock<Promise<string>, []>;
     downloadsPause?: jest.Mock<Promise<{ success: boolean }>, [number]>;
+    downloadsRedownloadMissing?: jest.Mock<
+        Promise<{ success: boolean; recovered?: boolean }>,
+        [number]
+    >;
     downloadsResume?: jest.Mock<
         Promise<{ success: boolean }>,
         [number, string]
@@ -206,6 +211,22 @@ describe('DownloadsService', () => {
         expect(electron.downloadsResume).toHaveBeenCalledWith(42, '/downloads');
     });
 
+    it('re-downloads a missing completed file by managed id', async () => {
+        const electron = {
+            downloadsGetList: jest.fn(async () => []),
+            downloadsRedownloadMissing: jest.fn(async (_downloadId: number) => ({
+                success: true,
+            })),
+        };
+        testWindow.electron = electron;
+        const service = createService() as unknown as DownloadsService;
+
+        await expect(service.redownloadMissing(42)).resolves.toEqual({
+            success: true,
+        });
+        expect(electron.downloadsRedownloadMissing).toHaveBeenCalledWith(42);
+    });
+
     it('marks downloads as loaded after a failed request while preserving existing data', async () => {
         const existing = createDownload(1);
         const error = new Error('download query failed');
@@ -283,6 +304,32 @@ describe('DownloadsService', () => {
             service.resumeDownloadByContent(7, 'playlist-1', 'vod')
         ).resolves.toEqual({ success: true });
         expect(resumeDownload).toHaveBeenCalledWith(7);
+    });
+
+    it('only exposes completed files that are currently available', () => {
+        const available = {
+            ...createDownload(20),
+            fileAvailability: 'available' as const,
+            filePath: '/downloads/available.mp4',
+        };
+        const missing = {
+            ...createDownload(21),
+            fileAvailability: 'missing' as const,
+            filePath: '/downloads/missing.mp4',
+        };
+        const service = createService([
+            available,
+            missing,
+        ]) as unknown as DownloadsService;
+
+        expect(service.isDownloaded(20, 'playlist-1', 'vod')).toBe(true);
+        expect(
+            service.getDownloadedFilePath(20, 'playlist-1', 'vod')
+        ).toBe('/downloads/available.mp4');
+        expect(service.isDownloaded(21, 'playlist-1', 'vod')).toBe(false);
+        expect(
+            service.getDownloadedFilePath(21, 'playlist-1', 'vod')
+        ).toBeUndefined();
     });
 
     it('rejects resume-by-content when the download is not paused', async () => {

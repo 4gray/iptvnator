@@ -40,6 +40,7 @@ export class DownloadManagerActionsService {
         const operations = {
             cancel: () => this.downloads.cancelDownload(item.id),
             pause: () => this.downloads.pauseDownload(item.id),
+            redownload: () => this.downloads.redownloadMissing(item.id),
             resume: () => this.downloads.resumeDownload(item.id),
             retry: () => this.downloads.retryDownload(item.id),
         };
@@ -128,7 +129,12 @@ export class DownloadManagerActionsService {
                 type === 'play'
                     ? this.downloads.playDownload(filePath)
                     : this.downloads.revealFile(filePath),
-            (error) => this.showFileActionError(error)
+            async (error) => {
+                if (error === 'File not found') {
+                    await this.downloads.loadDownloads();
+                }
+                this.showFileActionError(error);
+            }
         );
     }
 
@@ -151,7 +157,7 @@ export class DownloadManagerActionsService {
     private async withPending(
         itemId: number,
         operation: () => Promise<DownloadOperationResult>,
-        onFailure: (error?: string) => void = (error) =>
+        onFailure: (error?: string) => void | Promise<void> = (error) =>
             this.showActionError(error)
     ): Promise<void> {
         if (this.pendingIds().has(itemId)) {
@@ -159,12 +165,20 @@ export class DownloadManagerActionsService {
         }
         this.pendingIds.update((ids) => new Set(ids).add(itemId));
         try {
-            const result = await operation();
-            if (!result.success) {
-                onFailure(result.error);
+            let failure: string | undefined;
+            let failed = false;
+            try {
+                const result = await operation();
+                failed = !result.success;
+                failure = result.error;
+            } catch (error) {
+                failed = true;
+                failure =
+                    error instanceof Error ? error.message : String(error);
             }
-        } catch (error) {
-            onFailure(error instanceof Error ? error.message : String(error));
+            if (failed) {
+                await onFailure(failure);
+            }
         } finally {
             this.pendingIds.update((ids) => {
                 const next = new Set(ids);
