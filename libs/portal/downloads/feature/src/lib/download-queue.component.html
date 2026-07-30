@@ -1,0 +1,342 @@
+@for (section of sections(); track section.testId) {
+    <section
+        class="download-queue"
+        [attr.data-test-id]="section.testId"
+        [attr.aria-labelledby]="section.headingId"
+    >
+        <header class="download-queue__header">
+            <h2 [id]="section.headingId">
+                {{ section.headingKey | translate }}
+            </h2>
+        </header>
+
+        <div class="download-queue__list" role="list">
+            @for (row of section.items; track row.item.id) {
+                <article
+                    class="download-queue__item"
+                    [class.download-queue__item--pending]="
+                        isPending(row.item.id)
+                    "
+                    [attr.data-test-id]="'download-queue-item-' + row.item.id"
+                    role="listitem"
+                >
+                    <button
+                        type="button"
+                        class="download-queue__artwork"
+                        data-test-control="artwork"
+                        [attr.aria-label]="
+                            'DOWNLOADS.ARIA.OPEN'
+                                | translate: { title: row.item.title }
+                        "
+                        [disabled]="isPending(row.item.id)"
+                        (click)="requestOpen(row.item)"
+                    >
+                        @if (hasPoster(row.item)) {
+                            <img
+                                [src]="row.item.posterUrl ?? ''"
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                (error)="markPosterFailed(row.item)"
+                            />
+                        } @else {
+                            <span
+                                class="download-queue__poster-placeholder"
+                                role="img"
+                                [attr.aria-label]="
+                                    'DOWNLOADS.ARIA.POSTER_UNAVAILABLE'
+                                        | translate: { title: row.item.title }
+                                "
+                            >
+                                <mat-icon aria-hidden="true">
+                                    {{
+                                        row.item.contentType === 'episode'
+                                            ? 'tv'
+                                            : 'movie'
+                                    }}
+                                </mat-icon>
+                            </span>
+                        }
+                    </button>
+
+                    <div class="download-queue__content">
+                        <div class="download-queue__title-line">
+                            <button
+                                type="button"
+                                class="download-queue__title"
+                                data-test-control="title"
+                                [attr.aria-label]="
+                                    'DOWNLOADS.ARIA.OPEN'
+                                        | translate: { title: row.item.title }
+                                "
+                                [disabled]="isPending(row.item.id)"
+                                (click)="requestOpen(row.item)"
+                            >
+                                {{ row.item.title }}
+                            </button>
+                            @if (row.episodeLabel.trim()) {
+                                <span class="download-queue__episode">
+                                    {{ row.episodeLabel }}
+                                </span>
+                            }
+                        </div>
+
+                        <div class="download-queue__metadata">
+                            <span
+                                class="download-queue__status"
+                                [class]="
+                                    'download-queue__status download-queue__status--' +
+                                    row.item.status
+                                "
+                            >
+                                <mat-icon aria-hidden="true">
+                                    {{ statusIcon(row.item) }}
+                                </mat-icon>
+                                {{
+                                    'DOWNLOADS.STATUS.' +
+                                        row.item.status.toUpperCase()
+                                        | translate
+                                }}
+                            </span>
+                            <span class="download-queue__bytes">
+                                {{ formatBytes(row.item.bytesDownloaded) }}
+                                @if (row.item.totalBytes !== undefined) {
+                                    /
+                                    {{ formatBytes(row.item.totalBytes) }}
+                                }
+                            </span>
+                            @if (row.sourceName.trim()) {
+                                <span class="download-queue__source">
+                                    {{ row.sourceName.trim() }}
+                                </span>
+                            }
+                            @if (row.item.errorMessage?.trim(); as error) {
+                                <span class="download-queue__error">
+                                    {{ error }}
+                                </span>
+                            }
+                        </div>
+
+                        @if (progressMode(row.item); as mode) {
+                            <mat-progress-bar
+                                class="download-queue__progress"
+                                [mode]="mode"
+                                [value]="progressValue(row.item)"
+                                [attr.aria-label]="
+                                    'DOWNLOADS.ARIA.PROGRESS'
+                                        | translate: { title: row.item.title }
+                                "
+                            />
+                        }
+                    </div>
+
+                    <div class="download-queue__actions">
+                        @switch (row.item.status) {
+                            @case ('queued') {
+                                <ng-container
+                                    [ngTemplateOutlet]="pauseAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                                <ng-container
+                                    [ngTemplateOutlet]="cancelAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                            }
+                            @case ('downloading') {
+                                <ng-container
+                                    [ngTemplateOutlet]="pauseAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                                <ng-container
+                                    [ngTemplateOutlet]="cancelAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                            }
+                            @case ('paused') {
+                                <button
+                                    type="button"
+                                    mat-icon-button
+                                    data-test-action="resume"
+                                    [disabled]="isPending(row.item.id)"
+                                    [attr.aria-label]="
+                                        'DOWNLOADS.ARIA.RESUME'
+                                            | translate
+                                                : { title: row.item.title }
+                                    "
+                                    [matTooltip]="
+                                        'DOWNLOADS.ARIA.RESUME'
+                                            | translate
+                                                : { title: row.item.title }
+                                    "
+                                    (click)="emitAction('resume', row.item)"
+                                >
+                                    <mat-icon>play_arrow</mat-icon>
+                                </button>
+                                <ng-container
+                                    [ngTemplateOutlet]="cancelAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                                <ng-container
+                                    [ngTemplateOutlet]="removeAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                            }
+                            @case ('failed') {
+                                <ng-container
+                                    [ngTemplateOutlet]="retryAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                                <ng-container
+                                    [ngTemplateOutlet]="removeAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                            }
+                            @case ('canceled') {
+                                <ng-container
+                                    [ngTemplateOutlet]="retryAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                                <ng-container
+                                    [ngTemplateOutlet]="removeAction"
+                                    [ngTemplateOutletContext]="{
+                                        $implicit: row.item,
+                                    }"
+                                />
+                            }
+                        }
+
+                        <button
+                            type="button"
+                            mat-icon-button
+                            data-test-action="more"
+                            [matMenuTriggerFor]="itemMenu"
+                            [disabled]="isPending(row.item.id)"
+                            [attr.aria-label]="
+                                'DOWNLOADS.ARIA.MORE_ACTIONS'
+                                    | translate: { title: row.item.title }
+                            "
+                            [matTooltip]="
+                                'DOWNLOADS.ARIA.MORE_ACTIONS'
+                                    | translate: { title: row.item.title }
+                            "
+                        >
+                            <mat-icon>more_vert</mat-icon>
+                        </button>
+                        <mat-menu #itemMenu="matMenu" xPosition="before">
+                            <button
+                                type="button"
+                                mat-menu-item
+                                data-test-action="copy-url"
+                                [disabled]="isPending(row.item.id)"
+                                [attr.aria-label]="
+                                    'DOWNLOADS.ARIA.COPY_URL'
+                                        | translate: { title: row.item.title }
+                                "
+                                [matTooltip]="
+                                    'DOWNLOADS.ARIA.COPY_URL'
+                                        | translate: { title: row.item.title }
+                                "
+                                (click)="emitAction('copy-url', row.item)"
+                            >
+                                <mat-icon>content_copy</mat-icon>
+                                <span>
+                                    {{
+                                        'DOWNLOADS.ARIA.COPY_URL'
+                                            | translate
+                                                : { title: row.item.title }
+                                    }}
+                                </span>
+                            </button>
+                        </mat-menu>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+}
+
+<ng-template #pauseAction let-item>
+    <button
+        type="button"
+        mat-icon-button
+        data-test-action="pause"
+        [disabled]="isPending(item.id)"
+        [attr.aria-label]="
+            'DOWNLOADS.ARIA.PAUSE' | translate: { title: item.title }
+        "
+        [matTooltip]="'DOWNLOADS.ARIA.PAUSE' | translate: { title: item.title }"
+        (click)="emitAction('pause', item)"
+    >
+        <mat-icon>pause</mat-icon>
+    </button>
+</ng-template>
+
+<ng-template #cancelAction let-item>
+    <button
+        type="button"
+        mat-icon-button
+        data-test-action="cancel"
+        [disabled]="isPending(item.id)"
+        [attr.aria-label]="
+            'DOWNLOADS.ARIA.CANCEL' | translate: { title: item.title }
+        "
+        [matTooltip]="
+            'DOWNLOADS.ARIA.CANCEL' | translate: { title: item.title }
+        "
+        (click)="emitAction('cancel', item)"
+    >
+        <mat-icon>close</mat-icon>
+    </button>
+</ng-template>
+
+<ng-template #removeAction let-item>
+    <button
+        type="button"
+        mat-icon-button
+        data-test-action="remove"
+        [disabled]="isPending(item.id)"
+        [attr.aria-label]="
+            'DOWNLOADS.ARIA.REMOVE' | translate: { title: item.title }
+        "
+        [matTooltip]="
+            'DOWNLOADS.ARIA.REMOVE' | translate: { title: item.title }
+        "
+        (click)="emitAction('remove', item)"
+    >
+        <mat-icon>delete_outline</mat-icon>
+    </button>
+</ng-template>
+
+<ng-template #retryAction let-item>
+    <button
+        type="button"
+        mat-icon-button
+        data-test-action="retry"
+        [disabled]="isPending(item.id)"
+        [attr.aria-label]="
+            'DOWNLOADS.ARIA.RETRY' | translate: { title: item.title }
+        "
+        [matTooltip]="'DOWNLOADS.ARIA.RETRY' | translate: { title: item.title }"
+        (click)="emitAction('retry', item)"
+    >
+        <mat-icon>refresh</mat-icon>
+    </button>
+</ng-template>
