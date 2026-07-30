@@ -18,8 +18,7 @@ describe('StalkerCatalogFacadeService', () => {
     };
     const unsubscribe = jest.fn();
     let playbackUpdateHandler:
-        | ((data: PlaybackPositionData) => void)
-        | undefined;
+        ((data: PlaybackPositionData) => void) | undefined;
     let playbackPositionBridge: {
         onPlaybackPositionUpdate: jest.Mock<
             (() => void) | undefined,
@@ -49,6 +48,10 @@ describe('StalkerCatalogFacadeService', () => {
             [string, number, 'vod' | 'episode']
         >;
     };
+    let stalkerStoreMock: Record<string, unknown> & {
+        setSearchPhrase: jest.Mock;
+        setSelectedItem: jest.Mock;
+    };
 
     beforeEach(() => {
         playbackUpdateHandler = undefined;
@@ -68,38 +71,37 @@ describe('StalkerCatalogFacadeService', () => {
                 }
             ),
         };
+        stalkerStoreMock = {
+            selectedContentType: signal<'vod' | 'series' | 'itv'>('vod'),
+            limit: signal(14),
+            page: signal(0),
+            getSelectedCategory: signal(null),
+            getPaginatedContent: signal([]),
+            selectedItem: signal(null),
+            getTotalPages: signal(0),
+            isPaginatedContentLoading: signal(false),
+            currentPlaylist: signal(playlist),
+            getSelectedCategoryName: jest.fn(() => null),
+            setSelectedCategory: jest.fn(),
+            clearSelectedItem: jest.fn(),
+            setSearchPhrase: jest.fn(),
+            setPage: jest.fn(),
+            setLimit: jest.fn(),
+            setSelectedItem: jest.fn(),
+            createLinkToPlayVod: jest.fn(),
+            addToFavorites: jest.fn(),
+            removeFromFavorites: jest.fn(),
+            fetchMovieFileId: jest.fn(),
+            fetchLinkToPlay: jest.fn(),
+            resolveVodPlayback: jest.fn(),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 StalkerCatalogFacadeService,
                 {
                     provide: StalkerStore,
-                    useValue: {
-                        selectedContentType: signal<'vod' | 'series' | 'itv'>(
-                            'vod'
-                        ),
-                        limit: signal(14),
-                        page: signal(0),
-                        getSelectedCategory: signal(null),
-                        getPaginatedContent: signal([]),
-                        selectedItem: signal(null),
-                        getTotalPages: signal(0),
-                        isPaginatedContentLoading: signal(false),
-                        currentPlaylist: signal(playlist),
-                        getSelectedCategoryName: jest.fn(() => null),
-                        setSelectedCategory: jest.fn(),
-                        clearSelectedItem: jest.fn(),
-                        setSearchPhrase: jest.fn(),
-                        setPage: jest.fn(),
-                        setLimit: jest.fn(),
-                        setSelectedItem: jest.fn(),
-                        createLinkToPlayVod: jest.fn(),
-                        addToFavorites: jest.fn(),
-                        removeFromFavorites: jest.fn(),
-                        fetchMovieFileId: jest.fn(),
-                        fetchLinkToPlay: jest.fn(),
-                        resolveVodPlayback: jest.fn(),
-                    },
+                    useValue: stalkerStoreMock,
                 },
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
@@ -115,14 +117,59 @@ describe('StalkerCatalogFacadeService', () => {
 
     it('delegates category search query updates to the Stalker store', () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
-        const store = TestBed.inject(StalkerStore) as unknown as {
-            setSearchPhrase: jest.Mock;
-        };
 
         service.setSearchQuery('matrix');
 
-        expect(store.setSearchPhrase).toHaveBeenCalledWith('matrix');
+        expect(stalkerStoreMock.setSearchPhrase).toHaveBeenCalledWith('matrix');
     });
+
+    it.each([true, 1, '1'] as const)(
+        'normalizes supported is_series flag %p when selecting an item',
+        (isSeries) => {
+            const service = TestBed.inject(StalkerCatalogFacadeService);
+
+            service.selectItem({ id: '42', is_series: isSeries });
+
+            expect(stalkerStoreMock.setSelectedItem).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '42',
+                    is_series: true,
+                })
+            );
+        }
+    );
+
+    it.each([true, 1, '1'] as const)(
+        'returns empty series progress for supported is_series flag %p',
+        (isSeries) => {
+            const service = TestBed.inject(StalkerCatalogFacadeService);
+
+            expect(
+                service.getItemProgress({ id: '42', is_series: isSeries })
+            ).toEqual({ hasSeriesProgress: false });
+        }
+    );
+
+    it.each([false, 0] as const)(
+        'keeps non-series flag %p on the ordinary VOD path',
+        (isSeries) => {
+            const service = TestBed.inject(StalkerCatalogFacadeService);
+            const item = { id: '42', is_series: isSeries };
+
+            service.selectItem(item);
+
+            expect(stalkerStoreMock.setSelectedItem).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: '42',
+                    is_series: undefined,
+                })
+            );
+            expect(service.getItemProgress(item)).toEqual({
+                progress: 0,
+                isWatched: false,
+            });
+        }
+    );
 
     it('persists matching external playback updates for the current playlist', async () => {
         TestBed.inject(StalkerCatalogFacadeService);
