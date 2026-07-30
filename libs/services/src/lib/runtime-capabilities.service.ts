@@ -186,6 +186,7 @@ export class RuntimeCapabilitiesService {
             'downloadsPause',
             'downloadsResume',
             'downloadsRetry',
+            'downloadsRedownloadMissing',
             'downloadsRemove',
             'downloadsGetList',
             'downloadsGet',

@@ -535,6 +535,10 @@ export interface ElectronBridgeDownloadStartResult extends ElectronBridgeErrorRe
     id?: number;
 }
 
+export interface ElectronBridgeDownloadRedownloadResult extends ElectronBridgeErrorResult {
+    recovered?: boolean;
+}
+
 export interface ElectronDownloadItem {
     id: number;
     playlistId: string;
@@ -1078,6 +1082,9 @@ export interface ElectronBridgeApi {
         downloadId: number,
         downloadFolder: string
     ) => Promise<ElectronBridgeErrorResult>;
+    downloadsRedownloadMissing: (
+        downloadId: number
+    ) => Promise<ElectronBridgeDownloadRedownloadResult>;
     downloadsRemove: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
     downloadsGetList: (playlistId?: string) => Promise<ElectronDownloadItem[]>;
     downloadsGet: (downloadId: number) => Promise<ElectronDownloadItem | null>;

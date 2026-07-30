@@ -14,6 +14,7 @@ export const mockRemoveDownloadFromRuntime = jest.fn();
 export const mockBroadcastDownloadUpdate = jest.fn();
 export const mockRemovePartialDownloadFile = jest.fn();
 export const mockPauseDownload = jest.fn();
+export const mockRedownloadMissingRequest = jest.fn();
 export const mockResumeDownloadRequest = jest.fn();
 export const mockLstatSync = jest.fn();
 export const mockOpenPath = jest.fn();
@@ -54,6 +55,7 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     mockBroadcastDownloadUpdate.mockReset();
     mockRemovePartialDownloadFile.mockReset();
     mockPauseDownload.mockReset();
+    mockRedownloadMissingRequest.mockReset();
     mockResumeDownloadRequest.mockReset();
     mockLstatSync.mockReset();
     mockOpenPath.mockReset().mockResolvedValue('');
@@ -97,6 +99,9 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     }));
     jest.doMock('./download-file-path', () => ({
         removePartialDownloadFile: mockRemovePartialDownloadFile,
+    }));
+    jest.doMock('./download-redownload', () => ({
+        redownloadMissingRequest: mockRedownloadMissingRequest,
     }));
     jest.doMock('./download-runtime', () => ({
         broadcastDownloadUpdate: mockBroadcastDownloadUpdate,

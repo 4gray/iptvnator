@@ -74,7 +74,7 @@ function serializeHeaders(
 
 const STORED_HEADER_ALLOWLIST = ['User-Agent', 'Origin', 'Referer'] as const;
 
-function parseStoredHeaders(
+export function parseStoredHeaders(
     value: string | null
 ): Record<string, string> | undefined {
     if (!value) {

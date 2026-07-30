@@ -6,6 +6,7 @@ import {
     mockManagedPath,
     mockOpenPath,
     mockPauseDownload,
+    mockRedownloadMissingRequest,
     mockResumeDownloadRequest,
     mockShowItemInFolder,
     setupDownloadsEventsHarness,
@@ -69,6 +70,21 @@ describe('downloads events: pause, resume, and reveal', () => {
             '/downloads',
             expect.anything()
         );
+    });
+
+    it('forwards missing-file recovery by managed download id', async () => {
+        mockRedownloadMissingRequest.mockResolvedValue({
+            recovered: true,
+            success: true,
+        });
+
+        await expect(
+            getHandler('DOWNLOADS_REDOWNLOAD_MISSING')(null, 42)
+        ).resolves.toEqual({
+            recovered: true,
+            success: true,
+        });
+        expect(mockRedownloadMissingRequest).toHaveBeenCalledWith(42);
     });
 
     describe.each([

@@ -978,6 +978,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DOWNLOADS_RESUME', downloadId, downloadFolder),
     downloadsRetry: (downloadId: number, downloadFolder: string) =>
         ipcRenderer.invoke('DOWNLOADS_RETRY', downloadId, downloadFolder),
+    downloadsRedownloadMissing: (downloadId: number) =>
+        ipcRenderer.invoke('DOWNLOADS_REDOWNLOAD_MISSING', downloadId),
     downloadsRemove: (downloadId: number) =>
         ipcRenderer.invoke('DOWNLOADS_REMOVE', downloadId),
     downloadsGetList: (playlistId?: string) =>

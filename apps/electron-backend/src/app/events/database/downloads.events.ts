@@ -16,6 +16,7 @@ import {
     startDownloadRequest,
     type StartDownloadRequest,
 } from './download-requests';
+import { redownloadMissingRequest } from './download-redownload';
 import { resetStaleDownloads } from './download-recovery';
 import {
     broadcastDownloadUpdate,
@@ -160,6 +161,11 @@ ipcMain.handle(
             throw error;
         }
     }
+);
+
+ipcMain.handle(
+    'DOWNLOADS_REDOWNLOAD_MISSING',
+    async (_event, downloadId: number) => redownloadMissingRequest(downloadId)
 );
 
 ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {

@@ -100,6 +100,7 @@ describe('RuntimeCapabilitiesService', () => {
             downloadsPause: jest.fn(),
             downloadsResume: jest.fn(),
             downloadsRetry: jest.fn(),
+            downloadsRedownloadMissing: jest.fn(),
             downloadsRemove: jest.fn(),
             downloadsGetList: jest.fn(),
             downloadsGet: jest.fn(),
@@ -380,6 +381,13 @@ describe('RuntimeCapabilitiesService', () => {
             downloadsPlayFile: jest.fn(),
             downloadsClearCompleted: jest.fn(),
             onDownloadsUpdate: jest.fn(),
+        };
+
+        expect(service.supportsDownloads).toBe(false);
+
+        testWindow.electron = {
+            ...testWindow.electron,
+            downloadsRedownloadMissing: jest.fn(),
         };
 
         expect(service.supportsDownloads).toBe(true);
