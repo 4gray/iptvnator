@@ -335,11 +335,31 @@ Video.js HTTP error is `network-error` and shows its status. Because an HTTP
 status is server/network evidence rather than decoding evidence, external
 decoding is not presented as a likely fix.
 
-`network-error` is reserved for provider/network loading failures. Browser security failures such as CORS, mixed content, Content Security Policy, and private-network-access blocks are classified as `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
+HLS.js errors cross one shared sanitizer boundary before HTML5 or ArtPlayer can
+emit a diagnostic. The boundary retains only allowlisted engine `type` and
+`details` identifiers, the final fatal/recoverable disposition, a stage derived
+from exact details (`manifest`, `level`, `segment`, `key`, `media`, or
+`unknown`), a structured failure kind, and a validated `response.code`.
+Recoverable events return no terminal diagnostic. Exact codec, decrypt/key
+system, network/timeout/HTTP, and media/mux evidence select the corresponding
+diagnostic; insufficient evidence stays `unknown-playback-error`.
+
+HLS.js does not expose a reliable structured CORS, mixed-content, CSP, or
+private-network-access cause. Status zero and generic fetch failures therefore
+remain network/unknown evidence instead of becoming browser-access guesses.
+Error URLs, request context and headers, loader/network objects, response
+URL/text/body, error messages, reasons, and arbitrary provider payloads are
+neither retained nor rendered. Technical details show only the sanitized stage,
+failure, engine type/details, disposition, and HTTP status. The active playback
+URL remains available to the pre-existing retry, copy, and explicit
+external-player workflows; it is not copied from the HLS error payload into
+the evidence or technical details.
+
+`network-error` is reserved for provider/network loading failures. Engines that expose concrete browser security evidence, such as CORS, mixed content, Content Security Policy, or private-network-access blocks, use `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 
 mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decode-error` instead of generic `network-error`. These failures usually mean the fetch stream ended before mpegts.js expected a complete transport stream, and external players may still handle the same URL more tolerant of short reads or malformed TS boundaries.
 
-The diagnostic surface covers the inline player viewport when playback fails, with a compact warning badge, a native-player fallback headline, and player-card actions for configured external players. It exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, and raw HLS/mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
+The diagnostic surface covers the inline player viewport when playback fails, with a compact warning badge, a native-player fallback headline, and player-card actions for configured external players. It exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, sanitized structured HLS evidence, and existing mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
