@@ -19,6 +19,7 @@ import type {
     DownloadLibraryEntity,
     DownloadSeriesCardViewModel,
 } from './download-library.viewmodel';
+import { DownloadSourceMenuHeaderComponent } from './download-source-menu-header.component';
 
 @Component({
     selector: 'app-download-library',
@@ -29,6 +30,7 @@ import type {
         MatMenuModule,
         MatTooltipModule,
         TranslatePipe,
+        DownloadSourceMenuHeaderComponent,
     ],
     templateUrl: './download-library.component.html',
     styleUrl: './download-library.component.scss',

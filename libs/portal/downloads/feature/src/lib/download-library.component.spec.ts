@@ -36,6 +36,11 @@ const TRANSLATIONS = {
         SOURCE_PLAYLIST_MISSING:
             'This download can no longer open because its source was removed.',
     },
+    PORTALS: {
+        MULTI_SOURCE: {
+            SOURCE: 'Source',
+        },
+    },
 };
 
 function item(overrides: Partial<DownloadItem>): DownloadItem {
@@ -216,6 +221,66 @@ describe('DownloadLibraryComponent', () => {
         expect(seriesCard.textContent).toContain('Seasons 1–2');
         expect(fallbackEpisodeCard.textContent).toContain('S02E04');
         expect(fallbackEpisodeCard.textContent).toContain('Episode');
+    });
+
+    it('keeps ready cards clean while preserving tracked size', () => {
+        const section = byTestId('downloads-library-section');
+        const movieCard = byTestId('download-library-movie-9');
+        const seriesCard = byTestId('download-library-series-playlist-a-77');
+        const episodeCard = byTestId('download-library-episode-21');
+
+        expect(section.textContent).not.toContain('Offline');
+        expect(movieCard.textContent).not.toContain('Cinema');
+        expect(seriesCard.textContent).not.toContain('Living room');
+        expect(episodeCard.textContent).not.toContain('Archive');
+        expect(movieCard.textContent).toContain('2.4 MB');
+    });
+
+    it('puts the movie source ahead of its overflow commands', async () => {
+        const card = byTestId('download-library-movie-9');
+
+        await click(button(card, 'More actions: Moonrise'));
+
+        const header = document.querySelector<HTMLElement>(
+            '.download-source-menu-header'
+        );
+        const copy = button(document, 'Copy download URL: Moonrise');
+        const remove = button(document, 'Remove from manager: Moonrise');
+        expect(header?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+            'Source Cinema'
+        );
+        expect(
+            header &&
+                header.compareDocumentPosition(copy) &
+                    Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+        expect(
+            copy.compareDocumentPosition(remove) &
+                Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
+    });
+
+    it('opens downloaded episodes from the series overflow without a file action', async () => {
+        const card = byTestId('download-library-series-playlist-a-77');
+        const episodeGroups: DownloadSeriesCardViewModel[] = [];
+        const actions: unknown[] = [];
+        component.episodesOpened.subscribe((group) =>
+            episodeGroups.push(group)
+        );
+        component.itemAction.subscribe((action) => actions.push(action));
+
+        await click(button(card, 'More actions: Northwind'));
+
+        const header = document.querySelector<HTMLElement>(
+            '.download-source-menu-header'
+        );
+        expect(header?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+            'Source Living room'
+        );
+        await click(button(document, 'Open downloaded episodes: Northwind'));
+
+        expect(episodeGroups).toEqual([SERIES]);
+        expect(actions).toEqual([]);
     });
 
     it('omits the named library section when no completed entity is visible', async () => {

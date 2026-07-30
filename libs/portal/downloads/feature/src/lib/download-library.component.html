@@ -72,12 +72,6 @@
                                     </span>
                                 }
                             </button>
-                            <span class="download-library__offline">
-                                <mat-icon aria-hidden="true"
-                                    >download_done</mat-icon
-                                >
-                                {{ 'DOWNLOADS.OFFLINE' | translate }}
-                            </span>
                         </div>
 
                         <div class="download-library__body">
@@ -169,13 +163,58 @@
                                 }
                             </div>
                             <div class="download-library__metadata">
-                                @if (entity.sourceName.trim()) {
-                                    <span>{{ entity.sourceName }}</span>
-                                    <span aria-hidden="true">·</span>
-                                }
                                 <span>{{
                                     formatBytes(entity.trackedBytes)
                                 }}</span>
+                            </div>
+                            <div
+                                class="download-library__actions"
+                                [attr.aria-label]="entity.title"
+                            >
+                                <button
+                                    mat-icon-button
+                                    type="button"
+                                    [matMenuTriggerFor]="seriesMenu"
+                                    [attr.aria-label]="
+                                        ('DOWNLOADS.MORE_ACTIONS'
+                                            | translate) +
+                                        ': ' +
+                                        entity.title
+                                    "
+                                    [matTooltip]="
+                                        'DOWNLOADS.MORE_ACTIONS' | translate
+                                    "
+                                >
+                                    <mat-icon aria-hidden="true">
+                                        more_vert
+                                    </mat-icon>
+                                </button>
+                                <mat-menu #seriesMenu="matMenu">
+                                    <app-download-source-menu-header
+                                        [sourceName]="entity.sourceName"
+                                    />
+                                    <button
+                                        mat-menu-item
+                                        type="button"
+                                        [attr.aria-label]="
+                                            ('DOWNLOADS.OPEN_EPISODES'
+                                                | translate) +
+                                            ': ' +
+                                            entity.title
+                                        "
+                                        (click)="openEpisodes(entity)"
+                                    >
+                                        <mat-icon aria-hidden="true">
+                                            video_library
+                                        </mat-icon>
+                                        <span>
+                                            {{
+                                                'DOWNLOADS.OPEN_EPISODES'
+                                                    | translate
+                                            }}
+                                        </span>
+                                    </button>
+                                </mat-menu>
                             </div>
                         </div>
                     </article>
@@ -253,12 +292,6 @@
                                     </span>
                                 }
                             </button>
-                            <span class="download-library__offline">
-                                <mat-icon aria-hidden="true"
-                                    >download_done</mat-icon
-                                >
-                                {{ 'DOWNLOADS.OFFLINE' | translate }}
-                            </span>
                         </div>
 
                         <div class="download-library__body">
@@ -316,10 +349,6 @@
                                 </span>
                             }
                             <div class="download-library__metadata">
-                                @if (entity.sourceName.trim()) {
-                                    <span>{{ entity.sourceName }}</span>
-                                    <span aria-hidden="true">·</span>
-                                }
                                 <span>{{
                                     formatBytes(entity.trackedBytes)
                                 }}</span>
@@ -382,6 +411,9 @@
                                     >
                                 </button>
                                 <mat-menu #itemMenu="matMenu">
+                                    <app-download-source-menu-header
+                                        [sourceName]="entity.sourceName"
+                                    />
                                     <button
                                         mat-menu-item
                                         type="button"
