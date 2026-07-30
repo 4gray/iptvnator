@@ -28,6 +28,11 @@
         @if (meta.country) {
             <span class="details__tag">{{ meta.country }}</span>
         }
+        @if (isDownloaded()) {
+            <span class="details__tag">
+                {{ 'DOWNLOADS.OFFLINE' | translate }}
+            </span>
+        }
     </ng-template>
 
     <!-- Metadata Grid -->
@@ -37,7 +42,12 @@
                 <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
                 @if (meta.tmdbCast?.length) {
                     <div class="details__cast-strip">
-                        @for (member of meta.tmdbCast; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                        @for (
+                            member of meta.tmdbCast;
+                            track member.tmdbPersonId
+                                ? 'p' + member.tmdbPersonId
+                                : 'i' + $index
+                        ) {
                             <span
                                 class="details__cast-chip"
                                 [class.details__cast-chip--clickable]="
@@ -80,7 +90,12 @@
                 <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
                 @if (meta.tmdbDirectors?.length) {
                     <div class="details__cast-strip">
-                        @for (member of meta.tmdbDirectors; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                        @for (
+                            member of meta.tmdbDirectors;
+                            track member.tmdbPersonId
+                                ? 'p' + member.tmdbPersonId
+                                : 'i' + $index
+                        ) {
                             <span
                                 class="details__cast-chip"
                                 [class.details__cast-chip--clickable]="
@@ -116,7 +131,9 @@
         }
         @if (meta.ratingKinopoisk) {
             <div class="details__meta-item">
-                <span class="label">{{ 'XTREAM.KINOPOISK_RATING' | translate }}</span>
+                <span class="label">{{
+                    'XTREAM.KINOPOISK_RATING' | translate
+                }}</span>
                 <span class="value">{{ meta.ratingKinopoisk }}</span>
             </div>
         }
@@ -130,21 +147,34 @@
                 class="play-btn play-btn--resume"
                 (click)="onPrimaryAction()"
                 [disabled]="isExternalLaunchPending()"
-                [class.play-btn--state-launching]="externalPrimaryButtonState() === 'launching'"
-                [class.play-btn--state-stop]="externalPrimaryButtonState() === 'stop'"
+                [class.play-btn--state-launching]="
+                    externalPrimaryButtonState() === 'launching'
+                "
+                [class.play-btn--state-stop]="
+                    externalPrimaryButtonState() === 'stop'
+                "
             >
                 <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">{{ externalPrimaryIcon() }}</mat-icon>
+                    <mat-icon class="play-btn__icon">
+                        {{
+                            isOfflinePrimary()
+                                ? 'play_circle'
+                                : externalPrimaryIcon()
+                        }}
+                    </mat-icon>
                 </span>
                 <span class="play-btn__label">
                     @if (externalPrimaryLabel(); as label) {
                         {{ label }}
+                    } @else if (isOfflinePrimary()) {
+                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                     } @else {
-                        {{ 'XTREAM.RESUME' | translate }} {{ formattedPosition() }}
+                        {{ 'XTREAM.RESUME' | translate }}
+                        {{ formattedPosition() }}
                     }
                 </span>
             </button>
-            @if (!isExternalStopAction()) {
+            @if (!isExternalStopAction() && !isDownloaded()) {
                 <button class="play-btn play-btn--restart" (click)="onPlay()">
                     <mat-icon>replay</mat-icon>
                     {{ 'XTREAM.RESTART' | translate }}
@@ -155,15 +185,27 @@
                 class="play-btn"
                 (click)="onPrimaryAction()"
                 [disabled]="isExternalLaunchPending()"
-                [class.play-btn--state-launching]="externalPrimaryButtonState() === 'launching'"
-                [class.play-btn--state-stop]="externalPrimaryButtonState() === 'stop'"
+                [class.play-btn--state-launching]="
+                    externalPrimaryButtonState() === 'launching'
+                "
+                [class.play-btn--state-stop]="
+                    externalPrimaryButtonState() === 'stop'
+                "
             >
                 <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">{{ externalPrimaryIcon() }}</mat-icon>
+                    <mat-icon class="play-btn__icon">
+                        {{
+                            isOfflinePrimary()
+                                ? 'play_circle'
+                                : externalPrimaryIcon()
+                        }}
+                    </mat-icon>
                 </span>
                 <span class="play-btn__label">
                     @if (externalPrimaryLabel(); as label) {
                         {{ label }}
+                    } @else if (isOfflinePrimary()) {
+                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                     } @else {
                         {{ 'XTREAM.PLAY' | translate }}
                     }
@@ -190,10 +232,14 @@
         <!-- Download buttons (Electron only) -->
         @if (isElectron()) {
             @if (isDownloaded()) {
-                <button class="download-btn download-btn--completed" (click)="playFromLocal()">
-                    <mat-icon>play_circle</mat-icon>
-                    {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                </button>
+                @if (externalPrimaryButtonState() === 'idle') {
+                    <button class="download-btn" (click)="onProviderAction()">
+                        <mat-icon>play_arrow</mat-icon>
+                        {{
+                            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate
+                        }}
+                    </button>
+                }
             } @else if (isPausedDownload()) {
                 <button
                     class="download-btn download-btn--paused"
@@ -235,11 +281,16 @@
             <section class="details__similar" data-test-id="tmdb-similar">
                 <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
                 <div class="details__similar-strip">
-                    @for (item of similarInPortals(); track item.match.xtreamId) {
+                    @for (
+                        item of similarInPortals();
+                        track item.match.xtreamId
+                    ) {
                         <button
                             type="button"
                             class="details__similar-card"
-                            [title]="item.title + ' — ' + item.match.playlistName"
+                            [title]="
+                                item.title + ' — ' + item.match.playlistName
+                            "
                             (click)="openSimilarInPortals(item)"
                         >
                             @if (item.posterUrl) {
@@ -276,7 +327,15 @@
                     <iframe
                         [src]="trailerUrl | safe"
                         title="YouTube video player"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allow="
+                            accelerometer;
+                            autoplay;
+                            clipboard-write;
+                            encrypted-media;
+                            gyroscope;
+                            picture-in-picture;
+                            web-share;
+                        "
                         referrerpolicy="strict-origin-when-cross-origin"
                         allowfullscreen
                     ></iframe>

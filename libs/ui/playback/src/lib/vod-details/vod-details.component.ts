@@ -1,4 +1,13 @@
-import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+import {
+    Component,
+    computed,
+    effect,
+    inject,
+    input,
+    output,
+    signal,
+    untracked,
+} from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
@@ -89,10 +98,16 @@ export class VodDetailsComponent {
     readonly playClicked = output<VodDetailsItem>();
 
     /** Emitted when resume button is clicked (includes position) */
-    readonly resumeClicked = output<{ item: VodDetailsItem; positionSeconds: number }>();
+    readonly resumeClicked = output<{
+        item: VodDetailsItem;
+        positionSeconds: number;
+    }>();
 
     /** Emitted when favorite toggle is clicked */
-    readonly favoriteToggled = output<{ item: VodDetailsItem; isFavorite: boolean }>();
+    readonly favoriteToggled = output<{
+        item: VodDetailsItem;
+        isFavorite: boolean;
+    }>();
 
     /** Emitted when back button is clicked */
     readonly backClicked = output<void>();
@@ -212,6 +227,10 @@ export class VodDetailsComponent {
     readonly isExternalLaunchPending = this.externalButton.isLaunchPending;
     readonly isExternalStopAction = this.externalButton.isStopAction;
     readonly externalPrimaryButtonState = this.externalButton.buttonState;
+    readonly isOfflinePrimary = computed(
+        () =>
+            this.isDownloaded() && this.externalPrimaryButtonState() === 'idle'
+    );
 
     // ============ Actions ============
 
@@ -220,12 +239,21 @@ export class VodDetailsComponent {
         this.playClicked.emit(this.item());
     }
 
-    onPrimaryAction(): void {
+    async onPrimaryAction(): Promise<void> {
         if (this.isExternalStopAction()) {
-            void this.stopExternalPlayback();
+            await this.stopExternalPlayback();
             return;
         }
 
+        if (this.isDownloaded()) {
+            await this.playFromLocal();
+            return;
+        }
+
+        this.onProviderAction();
+    }
+
+    onProviderAction(): void {
         if (this.hasPlaybackPosition()) {
             this.onResume();
             return;
@@ -260,7 +288,9 @@ export class VodDetailsComponent {
         }
         const item = this.item();
         const basePath =
-            item.type === 'stalker' ? '/workspace/stalker' : '/workspace/xtreams';
+            item.type === 'stalker'
+                ? '/workspace/stalker'
+                : '/workspace/xtreams';
         void this.router.navigate([
             basePath,
             item.playlistId,
@@ -288,10 +318,7 @@ export class VodDetailsComponent {
         );
     }
 
-    onInlineTimeUpdate(event: {
-        currentTime: number;
-        duration: number;
-    }): void {
+    onInlineTimeUpdate(event: { currentTime: number; duration: number }): void {
         this.inlineTimeUpdated.emit(event);
     }
 
@@ -303,9 +330,7 @@ export class VodDetailsComponent {
         this.streamUrlCopied.emit();
     }
 
-    onInlineExternalFallbackRequested(
-        request: PlaybackFallbackRequest
-    ): void {
+    onInlineExternalFallbackRequested(request: PlaybackFallbackRequest): void {
         this.inlineExternalFallbackRequested.emit(request);
     }
 
