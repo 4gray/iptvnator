@@ -89,8 +89,8 @@ variants, contextual buttons, and theme-aware styling.
 
 - A completed VOD renders an Offline tag on both rich and fallback detail
   shells. Its primary action plays the downloaded file, while a neutral
-  “Play from this source” action preserves the existing provider, pinned-source,
-  resume, and restart path.
+  “Play from this source” action, when a usable provider source is available,
+  preserves the existing provider, pinned-source, resume, and restart path.
 - Managed MPV/VLC state remains authoritative: Opening disables conflicting
   playback actions, and Stop closes the matched external session before any
   local or provider choice can run.
