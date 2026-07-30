@@ -489,6 +489,124 @@ describe('buildDownloadManagerViewModel', () => {
         expect(libraryItemIds(result.library)).toEqual([6]);
     });
 
+    it('moves missing completed movies to attention instead of the ready library', () => {
+        const result = build([
+            download(1, { fileAvailability: 'available' }),
+            download(2, { fileAvailability: 'missing' }),
+        ]);
+
+        expect(rowIds(result.attention)).toEqual([2]);
+        expect(result.attention[0].attentionReason).toBe('file-missing');
+        expect(libraryItemIds(result.library)).toEqual([1]);
+    });
+
+    it('keeps available series members grouped and exposes each missing episode', () => {
+        const seriesEpisode = (
+            id: number,
+            fileAvailability: DownloadItem['fileAvailability']
+        ) =>
+            download(id, {
+                contentType: 'episode',
+                episodeNumber: id,
+                fileAvailability,
+                seasonNumber: 1,
+                seriesXtreamId: 70,
+            });
+        const result = build([
+            seriesEpisode(1, 'available'),
+            seriesEpisode(2, 'missing'),
+            seriesEpisode(3, 'available'),
+        ]);
+
+        expect(rowIds(result.attention)).toEqual([2]);
+        expect(result.attention[0].attentionReason).toBe('file-missing');
+        expect(result.library).toHaveLength(1);
+        expect(result.library[0].kind).toBe('series');
+        if (result.library[0].kind === 'series') {
+            expect(result.library[0].members.map(({ id }) => id)).toEqual([
+                1, 3,
+            ]);
+        }
+        expect(result.counts).toEqual({
+            all: 2,
+            movie: 0,
+            series: 2,
+            inProgress: 0,
+        });
+    });
+
+    it('keeps a fully missing series out of Ready to watch', () => {
+        const result = build([
+            download(1, {
+                contentType: 'episode',
+                fileAvailability: 'missing',
+                seriesXtreamId: 70,
+            }),
+            download(2, {
+                contentType: 'episode',
+                fileAvailability: 'missing',
+                seriesXtreamId: 70,
+            }),
+        ]);
+
+        expect(result.library).toEqual([]);
+        expect(rowIds(result.attention)).toEqual([1, 2]);
+        expect(
+            result.attention.map(({ attentionReason }) => attentionReason)
+        ).toEqual(['file-missing', 'file-missing']);
+    });
+
+    it('filters and searches missing rows without exposing source metadata in the library', () => {
+        const downloads = [
+            download(1, {
+                fileAvailability: 'missing',
+                playlistId: 'playlist-b',
+            }),
+            download(2, {
+                contentType: 'episode',
+                fileAvailability: 'missing',
+                playlistId: 'playlist-b',
+            }),
+        ];
+
+        expect(
+            rowIds(
+                build(downloads, {
+                    filter: 'movie',
+                    searchTerm: 'beta source',
+                }).attention
+            )
+        ).toEqual([1]);
+        expect(
+            rowIds(
+                build(downloads, {
+                    filter: 'series',
+                    searchTerm: 'beta source',
+                }).attention
+            )
+        ).toEqual([2]);
+        expect(build(downloads).counts).toEqual({
+            all: 2,
+            movie: 1,
+            series: 1,
+            inProgress: 0,
+        });
+    });
+
+    it('does not mutate missing-file inputs while partitioning them', () => {
+        const available = Object.freeze(
+            download(1, { fileAvailability: 'available' })
+        );
+        const missing = Object.freeze(
+            download(2, { fileAvailability: 'missing' })
+        );
+        const downloads = Object.freeze([available, missing]);
+
+        expect(() => build(downloads)).not.toThrow();
+        expect(downloads).toEqual([available, missing]);
+        expect(missing).not.toHaveProperty('attentionReason');
+    });
+
     it('excludes paused rows from activeCount independently of filter and search', () => {
         const result = build(
             [

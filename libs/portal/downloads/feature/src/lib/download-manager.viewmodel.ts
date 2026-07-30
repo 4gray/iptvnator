@@ -19,7 +19,10 @@ export type {
 
 export type DownloadFilterId = 'all' | 'movie' | 'series' | 'in-progress';
 
+export type DownloadAttentionReason = 'file-missing' | 'transfer';
+
 export interface DownloadListItemViewModel extends DownloadLibraryRow {
+    readonly attentionReason: DownloadAttentionReason;
     readonly seriesTitle: string;
 }
 
@@ -95,6 +98,14 @@ function needsAttention(item: DownloadItem): boolean {
     return item.status === 'failed' || item.status === 'canceled';
 }
 
+function isMissingCompletedFile(item: DownloadItem): boolean {
+    return item.status === 'completed' && item.fileAvailability === 'missing';
+}
+
+function isReady(item: DownloadItem): boolean {
+    return item.status === 'completed' && item.fileAvailability !== 'missing';
+}
+
 function compareQueued(
     left: DownloadListItemViewModel,
     right: DownloadListItemViewModel
@@ -161,17 +172,21 @@ export function buildDownloadManagerViewModel({
             scopePlaylistId === undefined || item.playlistId === scopePlaylistId
     );
     const scopedRows = scopedItems.map((item) => ({
+        attentionReason: isMissingCompletedFile(item)
+            ? ('file-missing' as const)
+            : ('transfer' as const),
         item,
         episodeLabel: episodeLabel(item),
         seriesTitle: seriesTitle(item),
         sourceName: sourceNames.get(item.playlistId) ?? '',
     }));
     const scopedActive = scopedRows.filter(({ item }) => isActive(item));
-    const scopedAttention = scopedRows.filter(({ item }) =>
-        needsAttention(item)
+    const scopedAttention = scopedRows.filter(
+        ({ item }) =>
+            needsAttention(item) || isMissingCompletedFile(item)
     );
     const scopedLibrary = buildDownloadLibrary(
-        scopedRows.filter(({ item }) => item.status === 'completed')
+        scopedRows.filter(({ item }) => isReady(item))
     );
     const activeFilter = normalizeDownloadFilter(filter);
     const displayed = scopedRows
@@ -181,10 +196,13 @@ export function buildDownloadManagerViewModel({
         .filter(({ item }) => isActive(item))
         .sort(compareQueued);
     const attention = displayed
-        .filter(({ item }) => needsAttention(item))
+        .filter(
+            ({ item }) =>
+                needsAttention(item) || isMissingCompletedFile(item)
+        )
         .sort(compareQueued);
     const library = buildDownloadLibrary(
-        displayed.filter(({ item }) => item.status === 'completed')
+        displayed.filter(({ item }) => isReady(item))
     );
 
     return {
