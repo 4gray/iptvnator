@@ -154,15 +154,17 @@ const card = fixture.nativeElement.querySelector(
     '[data-test-id="download-library-movie-16"]'
 ) as HTMLElement;
 
-(card.querySelector('.download-library__artwork-button') as HTMLButtonElement)
-    .click();
+(
+    card.querySelector('.download-library__artwork-button') as HTMLButtonElement
+).click();
 await fixture.whenStable();
 expect(navigation.open).toHaveBeenCalledWith(downloads()[0]);
 expect(downloadsService.playDownload).not.toHaveBeenCalled();
 
 navigation.open.mockClear();
-(card.querySelector('.download-library__actions button') as HTMLButtonElement)
-    .click();
+(
+    card.querySelector('.download-library__actions button') as HTMLButtonElement
+).click();
 await fixture.whenStable();
 expect(downloadsService.playDownload).toHaveBeenCalledWith('/downloads/16.mp4');
 expect(navigation.open).not.toHaveBeenCalled();
@@ -378,7 +380,7 @@ Seed one completed movie using a real imported VOD `xtream_id` and
 `category_id`. Assert its artwork/title opens:
 
 ```ts
-`/workspace/xtreams/${playlistId}/vod/${categoryId}/${xtreamId}`
+`/workspace/xtreams/${playlistId}/vod/${categoryId}/${xtreamId}`;
 ```
 
 On the Downloads page, set `document.documentElement.dataset.coverSize` to
