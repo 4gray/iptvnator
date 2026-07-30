@@ -63,10 +63,13 @@ variants, contextual buttons, and theme-aware styling.
   dialogs, or snackbars.
   The fixed header and filter row sit above one vertical scroll owner. The
   queue uses compact progress rows with status text and icons; completed movies
-  and grouped series reuse the portal's canonical content grid. All surfaces
-  use the existing `--app-*` and Material system tokens. The global workspace
-  download shortcut displays the service's active count, while the page badge
-  and filter counts reflect the current route scope.
+  and grouped series reuse the portal's canonical content grid. Both completed
+  cards and their loading skeleton consume the global
+  `--cover-grid-min-width` / `--cover-gap` tokens, so the Small, Medium, and
+  Large cover preference behaves like it does elsewhere in the app. All
+  surfaces use the existing `--app-*` and Material system tokens. The global
+  workspace download shortcut displays the service's active count, while the
+  page badge and filter counts reflect the current route scope.
 - **Honest interactions**
   Every asynchronous item command owns a pending id until the IPC result
   settles, preventing duplicate dispatch without optimistically changing a
@@ -76,7 +79,26 @@ variants, contextual buttons, and theme-aware styling.
   data is deleted. “Clear finished” communicates both outcomes and preserves
   playlist scope when the page is opened under a source route. VOD and episode
   detail views continue to render a paused download as an active Resume button
-  (`DownloadsService.isPaused()` / `resumeDownloadByContent()`).
+  (`DownloadsService.isPaused()` / `resumeDownloadByContent()`). Artwork and
+  titles on completed movie and grouped-series cards open the provider detail
+  page; the explicit Play action starts the local file. A legacy standalone
+  episode without a usable series id stays directly playable because there is
+  no reliable detail route to open.
+
+## Offline detail playback
+
+- A completed VOD renders an Offline tag on both rich and fallback detail
+  shells. Its primary action plays the downloaded file, while a neutral
+  “Play from this source” action preserves the existing provider, pinned-source,
+  resume, and restart path.
+- Managed MPV/VLC state remains authoritative: Opening disables conflicting
+  playback actions, and Stop closes the matched external session before any
+  local or provider choice can run.
+- Detail metadata still comes from the owning Xtream or Stalker provider.
+  Download rows do not cache a standalone offline detail payload in this MVP,
+  so a provider that is unavailable may prevent the detail shell from loading;
+  the explicit Play action on the download card remains available for the
+  local file.
 
 ## Global API surface
 
@@ -114,5 +136,6 @@ variants, contextual buttons, and theme-aware styling.
 
 Keeping the backend queue, IPC handlers, shared schema, and renderer signals
 synchronized minimizes drift between platform rules and the UI. Future work
-might cover recordings, queue reordering, bulk pause/cancel actions, disk-free
-space telemetry, or playback analytics.
+might cover an offline metadata snapshot for provider-independent details,
+recordings, queue reordering, bulk pause/cancel actions, disk-free space
+telemetry, or playback analytics.
