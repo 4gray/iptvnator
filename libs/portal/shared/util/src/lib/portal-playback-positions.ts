@@ -6,6 +6,10 @@ export interface PortalPlaybackPositions {
         playlistId: string,
         data: PlaybackPositionData
     ): Promise<void>;
+    savePlaybackPositionOrThrow(
+        playlistId: string,
+        data: PlaybackPositionData
+    ): Promise<void>;
     getPlaybackPosition(
         playlistId: string,
         contentXtreamId: number,
@@ -17,6 +21,11 @@ export interface PortalPlaybackPositions {
     ): Promise<PlaybackPositionData[]>;
     getAllPlaybackPositions(playlistId: string): Promise<PlaybackPositionData[]>;
     clearPlaybackPosition(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: 'vod' | 'episode'
+    ): Promise<void>;
+    clearPlaybackPositionOrThrow(
         playlistId: string,
         contentXtreamId: number,
         contentType: 'vod' | 'episode'

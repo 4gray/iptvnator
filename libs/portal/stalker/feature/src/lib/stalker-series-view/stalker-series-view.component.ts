@@ -118,6 +118,26 @@ interface SeriesPositionContext {
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly migrationPlaybackPositions = {
+        savePlaybackPosition: (
+            playlistId: string,
+            data: PlaybackPositionData
+        ) =>
+            this.playbackPositions.savePlaybackPositionOrThrow(
+                playlistId,
+                data
+            ),
+        clearPlaybackPosition: (
+            playlistId: string,
+            contentXtreamId: number,
+            contentType: 'vod' | 'episode'
+        ) =>
+            this.playbackPositions.clearPlaybackPositionOrThrow(
+                playlistId,
+                contentXtreamId,
+                contentType
+            ),
+    };
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly router = inject(Router);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
@@ -412,6 +432,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     const seriesId = item ? this.toSeriesId(item.id) : 0;
 
                     if (
+                        !playlistId ||
                         data.contentType !== 'episode' ||
                         data.playlistId !== playlistId ||
                         data.seriesXtreamId !== seriesId
@@ -995,6 +1016,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         );
     }
 
+    handlePlaybackToggleRequestedFromUi(
+        request: SeasonContainerPlaybackToggleRequest
+    ): void {
+        void this.handlePlaybackToggleRequested(request).catch(
+            (error: unknown) => {
+                this.logger.error(
+                    'Failed to update series playback position',
+                    error
+                );
+            }
+        );
+    }
+
     async downloadEpisode(episode: XtreamSerieEpisode): Promise<void> {
         const playlist = this.stalkerStore.currentPlaylist();
         const item = this.displayItem();
@@ -1255,7 +1289,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             let clearedLegacy: boolean;
             try {
                 clearedLegacy = await saveStalkerSeriesPosition({
-                    repository: this.playbackPositions,
+                    repository: this.migrationPlaybackPositions,
                     playlistId,
                     position,
                     legacyPosition,
@@ -1334,7 +1368,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             this.legacyPositionByTrackingId().get(contentXtreamId);
         return this.enqueueSeriesPositionMutation(context, async () => {
             const clearedLegacy = await clearStalkerSeriesPosition({
-                repository: this.playbackPositions,
+                repository: this.migrationPlaybackPositions,
                 playlistId,
                 position,
                 legacyPosition,

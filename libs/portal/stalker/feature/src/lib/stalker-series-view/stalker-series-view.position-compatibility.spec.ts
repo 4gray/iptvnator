@@ -22,7 +22,6 @@ import {
 } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
-
 const PLAYLIST_ID = 'playlist-1';
 const SECOND_PLAYLIST_ID = 'playlist-2';
 const SERIES_A_ID = 100;
@@ -30,12 +29,10 @@ const SERIES_B_ID = 200;
 const SCOPED_A_ID = 604391373;
 const LEGACY_ID = 624320047;
 const REGULAR_ID = 91189090;
-
 interface Deferred<T> {
     promise: Promise<T>;
     resolve: (value: T) => void;
 }
-
 function createDeferred<T>(): Deferred<T> {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>((promiseResolve) => {
@@ -43,7 +40,6 @@ function createDeferred<T>(): Deferred<T> {
     });
     return { promise, resolve };
 }
-
 function createVodItem(seriesId: number): StalkerVodSource {
     return {
         id: String(seriesId),
@@ -55,7 +51,6 @@ function createVodItem(seriesId: number): StalkerVodSource {
         },
     };
 }
-
 function createRegularItem(seriesId: number): StalkerVodSource {
     return {
         id: String(seriesId),
@@ -67,7 +62,6 @@ function createRegularItem(seriesId: number): StalkerVodSource {
         },
     };
 }
-
 function createSeason(
     seriesId: number,
     episodes: VodSeriesSeasonVm['episodes'] = []
@@ -82,7 +76,6 @@ function createSeason(
         isExpanded: false,
     };
 }
-
 function createProviderEpisode(
     id = 'provider-episode-1',
     episodeNumber = 1
@@ -93,7 +86,6 @@ function createProviderEpisode(
         name: episodeNumber === 1 ? 'Pilot' : `Episode ${episodeNumber}`,
     };
 }
-
 function createPosition(
     overrides: Partial<PlaybackPositionData> = {}
 ): PlaybackPositionData {
@@ -109,7 +101,6 @@ function createPosition(
         ...overrides,
     };
 }
-
 describe('StalkerSeriesViewComponent position compatibility', () => {
     let fixture: ComponentFixture<StalkerSeriesViewComponent>;
     let repositoryRows: PlaybackPositionData[];
@@ -117,7 +108,6 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
     let runtimePositionListener:
         | ((position: PlaybackPositionData) => void)
         | undefined;
-
     const selectedContentType = signal<'series' | 'vod'>('vod');
     const selectedItem = signal<StalkerVodSource | null>(
         createVodItem(SERIES_A_ID)
@@ -131,15 +121,15 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
     const getSeriesPlaybackPositions = jest.fn();
     const savePlaybackPosition = jest.fn();
     const clearPlaybackPosition = jest.fn();
+    const savePlaybackPositionOrThrow = jest.fn();
+    const clearPlaybackPositionOrThrow = jest.fn();
     const onPlaybackPositionUpdate = jest.fn();
-
     async function settle(): Promise<void> {
         for (let pass = 0; pass < 4; pass++) {
             fixture.detectChanges();
             await Promise.resolve();
         }
     }
-
     async function startWithLoadedEpisode(
         seriesId = SERIES_A_ID
     ): Promise<number> {
@@ -156,11 +146,8 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             createSeason(seriesId, [createProviderEpisode()]),
         ]);
         await settle();
-        return Number(
-            fixture.componentInstance.mappedSeasons()['1'][0].id
-        );
+        return Number(fixture.componentInstance.mappedSeasons()['1'][0].id);
     }
-
     async function startPendingTwoEpisodeLoad(): Promise<{
         firstPosition: PlaybackPositionData;
         pendingLoad: Deferred<PlaybackPositionData[]>;
@@ -194,7 +181,6 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         await settle();
         return { firstPosition, pendingLoad, secondPosition };
     }
-
     beforeEach(async () => {
         repositoryRows = [];
         repositoryOrder = [];
@@ -214,8 +200,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                 seriesXtreamId: number
             ): Promise<PlaybackPositionData[]> =>
                 repositoryRows.filter(
-                    (position) =>
-                        position.seriesXtreamId === seriesXtreamId
+                    (position) => position.seriesXtreamId === seriesXtreamId
                 )
         );
         savePlaybackPosition.mockReset();
@@ -224,13 +209,9 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                 _playlistId: string,
                 position: PlaybackPositionData
             ): Promise<void> => {
-                repositoryOrder.push(
-                    `save:${position.contentXtreamId}`
-                );
+                repositoryOrder.push(`save:${position.contentXtreamId}`);
                 repositoryRows = repositoryRows.filter(
-                    (row) =>
-                        row.contentXtreamId !==
-                        position.contentXtreamId
+                    (row) => row.contentXtreamId !== position.contentXtreamId
                 );
                 repositoryRows.push(position);
             }
@@ -247,6 +228,12 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                 );
             }
         );
+        savePlaybackPositionOrThrow
+            .mockReset()
+            .mockImplementation(savePlaybackPosition);
+        clearPlaybackPositionOrThrow
+            .mockReset()
+            .mockImplementation(clearPlaybackPosition);
         onPlaybackPositionUpdate.mockReset();
         onPlaybackPositionUpdate.mockImplementation(
             (
@@ -284,6 +271,8 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                         getSeriesPlaybackPositions,
                         savePlaybackPosition,
                         clearPlaybackPosition,
+                        savePlaybackPositionOrThrow,
+                        clearPlaybackPositionOrThrow,
                     },
                 },
                 {
@@ -366,6 +355,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
 
     afterEach(() => {
         fixture.destroy();
+        jest.restoreAllMocks();
     });
 
     it('reconciles positions that arrive before lazy episodes', async () => {
@@ -510,6 +500,33 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
             )
         ).toEqual([LEGACY_ID, LEGACY_ID]);
         expect(repositoryRows).toEqual([latestPosition]);
+    });
+
+    it('keeps legacy progress when the strict UI save rejects', async () => {
+        const legacyPosition = createPosition({
+            contentXtreamId: LEGACY_ID,
+            positionSeconds: 22,
+        });
+        repositoryRows = [legacyPosition];
+        await startWithLoadedEpisode();
+        savePlaybackPositionOrThrow.mockRejectedValueOnce(new Error('fail'));
+        const errorLog = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        expect(
+            fixture.componentInstance.handlePlaybackToggleRequestedFromUi({
+                contentXtreamId: SCOPED_A_ID,
+                nextPosition: createPosition({ positionSeconds: 70 }),
+            })
+        ).toBeUndefined();
+        await settle();
+        await fixture.whenStable();
+        expect(errorLog).toHaveBeenCalled();
+        expect(clearPlaybackPositionOrThrow).not.toHaveBeenCalled();
+        expect(
+            fixture.componentInstance.episodePlaybackPositions()
+                .get(SCOPED_A_ID)?.positionSeconds
+        ).toBe(22);
     });
 
     it('ignores a deferred series-A response after selection changes to series B', async () => {
@@ -968,7 +985,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
         const { firstPosition, pendingLoad, secondPosition } =
             await startPendingTwoEpisodeLoad();
         const saveError = new Error('save failed');
-        savePlaybackPosition.mockRejectedValue(saveError);
+        savePlaybackPositionOrThrow.mockRejectedValue(saveError);
 
         const mutation =
             fixture.componentInstance.handlePlaybackToggleRequested({
