@@ -28,9 +28,9 @@ describe('download file availability', () => {
                 lstat
             )
         ).toBe('available');
-        expect(
-            isAvailableDownloadFile('/downloads/movie.mp4', lstat)
-        ).toBe(true);
+        expect(isAvailableDownloadFile('/downloads/movie.mp4', lstat)).toBe(
+            true
+        );
     });
 
     it.each([
@@ -43,11 +43,7 @@ describe('download file availability', () => {
                 throw new Error('ENOENT');
             }) as DownloadLstat,
         ],
-        [
-            'directory',
-            '/downloads/folder',
-            lstatResult({ isFile: false }),
-        ],
+        ['directory', '/downloads/folder', lstatResult({ isFile: false })],
         [
             'symbolic link',
             '/downloads/link.mp4',
@@ -86,12 +82,12 @@ describe('download file availability', () => {
             title: 'Movie',
         });
 
-        expect(decorateDownloadItem(row, lstatResult({ isFile: true }))).toEqual(
-            {
-                ...row,
-                fileAvailability: 'available',
-            }
-        );
+        expect(
+            decorateDownloadItem(row, lstatResult({ isFile: true }))
+        ).toEqual({
+            ...row,
+            fileAvailability: 'available',
+        });
         expect(row).not.toHaveProperty('fileAvailability');
     });
 });

@@ -195,9 +195,7 @@
                                                 | translate
                                                     : { title: row.item.title }
                                         "
-                                        (click)="
-                                            emitAction('resume', row.item)
-                                        "
+                                        (click)="emitAction('resume', row.item)"
                                     >
                                         <mat-icon>play_arrow</mat-icon>
                                     </button>

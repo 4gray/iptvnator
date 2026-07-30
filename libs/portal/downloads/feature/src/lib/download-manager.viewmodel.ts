@@ -182,8 +182,7 @@ export function buildDownloadManagerViewModel({
     }));
     const scopedActive = scopedRows.filter(({ item }) => isActive(item));
     const scopedAttention = scopedRows.filter(
-        ({ item }) =>
-            needsAttention(item) || isMissingCompletedFile(item)
+        ({ item }) => needsAttention(item) || isMissingCompletedFile(item)
     );
     const scopedLibrary = buildDownloadLibrary(
         scopedRows.filter(({ item }) => isReady(item))
@@ -197,8 +196,7 @@ export function buildDownloadManagerViewModel({
         .sort(compareQueued);
     const attention = displayed
         .filter(
-            ({ item }) =>
-                needsAttention(item) || isMissingCompletedFile(item)
+            ({ item }) => needsAttention(item) || isMissingCompletedFile(item)
         )
         .sort(compareQueued);
     const library = buildDownloadLibrary(

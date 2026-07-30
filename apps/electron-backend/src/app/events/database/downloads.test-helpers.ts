@@ -152,14 +152,17 @@ export function expectManagedPathLookup(
     expect(mockEq).toHaveBeenCalledTimes(1);
     expect(mockEq.mock.calls[0][0] === downloadsFilePathColumn).toBe(true);
     expect(mockEq.mock.calls[0][1]).toBe(filePath);
-    expect(
-        lookup.where.mock.calls[0][0] === mockEq.mock.results[0].value
-    ).toBe(true);
+    expect(lookup.where.mock.calls[0][0] === mockEq.mock.results[0].value).toBe(
+        true
+    );
     expect(lookup.limit).toHaveBeenCalledTimes(1);
     expect(lookup.limit).toHaveBeenCalledWith(1);
 }
 
-export function mockDownloadRow(row: { filePath: string | null; status: string }) {
+export function mockDownloadRow(row: {
+    filePath: string | null;
+    status: string;
+}) {
     const deleteWhere = jest.fn().mockResolvedValue(undefined);
     const db = {
         delete: jest.fn(() => ({ where: deleteWhere })),

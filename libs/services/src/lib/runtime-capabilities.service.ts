@@ -279,8 +279,7 @@ export class RuntimeCapabilitiesService {
 
     private hasElectronMethod(methodName: string): boolean {
         const bridge = this.electronBridge as
-            | Record<string, unknown>
-            | undefined;
+            Record<string, unknown> | undefined;
         return typeof bridge?.[methodName] === 'function';
     }
 

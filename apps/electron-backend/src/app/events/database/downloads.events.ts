@@ -176,7 +176,7 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
             .select({
                 filePath: schema.downloads.filePath,
                 status: schema.downloads.status,
-        })
+            })
             .from(schema.downloads)
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
@@ -294,7 +294,10 @@ ipcMain.handle(
                 'canceled',
             ]);
             const terminalFilter = playlistId
-                ? and(eq(schema.downloads.playlistId, playlistId), terminalStatus)
+                ? and(
+                      eq(schema.downloads.playlistId, playlistId),
+                      terminalStatus
+                  )
                 : terminalStatus;
             const rows = await db
                 .select({

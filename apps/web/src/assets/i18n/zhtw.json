@@ -1084,7 +1084,8 @@
             "COMPLETED": "已完成",
             "FAILED": "失敗",
             "CANCELED": "已取消",
-            "PAUSED": "已暫停"
+            "PAUSED": "已暫停",
+            "FILE_MISSING": "File missing"
         },
         "ACTIVE_COUNT": "{{count}} active",
         "TRACKED_DOWNLOADS": "Tracked downloads",
@@ -1137,8 +1138,10 @@
             "REMOVE": "Remove {{title}} from manager",
             "RETRY": "Retry {{title}}",
             "MORE_ACTIONS": "More actions for {{title}}",
-            "COPY_URL": "Copy download URL for {{title}}"
-        }
+            "COPY_URL": "Copy download URL for {{title}}",
+            "DOWNLOAD_AGAIN": "Download {{title}} again"
+        },
+        "DOWNLOAD_AGAIN": "Download again"
     },
     "REMOTE_CONTROL": {
         "TITLE": "遠端控制",

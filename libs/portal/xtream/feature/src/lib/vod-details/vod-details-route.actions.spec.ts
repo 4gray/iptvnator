@@ -137,43 +137,47 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         isEmbeddedPlayer.mockReset().mockReturnValue(true);
         openResolvedPlayback.mockClear();
         startDownload.mockClear();
-        isDownloaded.mockReset().mockImplementation(
-            (
-                xtreamId: number,
-                playlistId: string,
-                contentType: 'vod' | 'episode'
-            ) => {
-                const item = downloads().find(
-                    (download) =>
-                        download.xtreamId === xtreamId &&
-                        download.playlistId === playlistId &&
-                        download.contentType === contentType
-                );
-                return (
-                    item?.status === 'completed' &&
-                    !!item.filePath &&
-                    item.fileAvailability !== 'missing'
-                );
-            }
-        );
-        getDownloadedFilePath.mockReset().mockImplementation(
-            (
-                xtreamId: number,
-                playlistId: string,
-                contentType: 'vod' | 'episode'
-            ) => {
-                const item = downloads().find(
-                    (download) =>
-                        download.xtreamId === xtreamId &&
-                        download.playlistId === playlistId &&
-                        download.contentType === contentType
-                );
-                return item?.status === 'completed' &&
-                    item.fileAvailability !== 'missing'
-                    ? item.filePath
-                    : undefined;
-            }
-        );
+        isDownloaded
+            .mockReset()
+            .mockImplementation(
+                (
+                    xtreamId: number,
+                    playlistId: string,
+                    contentType: 'vod' | 'episode'
+                ) => {
+                    const item = downloads().find(
+                        (download) =>
+                            download.xtreamId === xtreamId &&
+                            download.playlistId === playlistId &&
+                            download.contentType === contentType
+                    );
+                    return (
+                        item?.status === 'completed' &&
+                        !!item.filePath &&
+                        item.fileAvailability !== 'missing'
+                    );
+                }
+            );
+        getDownloadedFilePath
+            .mockReset()
+            .mockImplementation(
+                (
+                    xtreamId: number,
+                    playlistId: string,
+                    contentType: 'vod' | 'episode'
+                ) => {
+                    const item = downloads().find(
+                        (download) =>
+                            download.xtreamId === xtreamId &&
+                            download.playlistId === playlistId &&
+                            download.contentType === contentType
+                    );
+                    return item?.status === 'completed' &&
+                        item.fileAvailability !== 'missing'
+                        ? item.filePath
+                        : undefined;
+                }
+            );
         playDownload.mockClear();
         toggleFavorite.mockClear();
         await TestBed.configureTestingModule({

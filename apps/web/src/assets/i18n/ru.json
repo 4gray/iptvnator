@@ -1084,7 +1084,8 @@
             "COMPLETED": "Завершено",
             "FAILED": "Ошибка",
             "CANCELED": "Отменено",
-            "PAUSED": "На паузе"
+            "PAUSED": "На паузе",
+            "FILE_MISSING": "Файл отсутствует"
         },
         "ACTIVE_COUNT": "{{count}} активн.",
         "TRACKED_DOWNLOADS": "Объём загрузок",
@@ -1137,8 +1138,10 @@
             "REMOVE": "Убрать {{title}} из менеджера",
             "RETRY": "Повторить {{title}}",
             "MORE_ACTIONS": "Другие действия для {{title}}",
-            "COPY_URL": "Копировать URL загрузки {{title}}"
-        }
+            "COPY_URL": "Копировать URL загрузки {{title}}",
+            "DOWNLOAD_AGAIN": "Скачать {{title}} заново"
+        },
+        "DOWNLOAD_AGAIN": "Скачать заново"
     },
     "REMOTE_CONTROL": {
         "TITLE": "Дистанционное управление",

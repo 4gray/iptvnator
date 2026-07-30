@@ -236,9 +236,7 @@ describe('DownloadQueueComponent', () => {
         expect(host.querySelector('.download-queue__source')).toBeNull();
 
         actionButton(host, 'redownload').click();
-        expect(emitted).toEqual([
-            { type: 'redownload', item: viewModel.item },
-        ]);
+        expect(emitted).toEqual([{ type: 'redownload', item: viewModel.item }]);
 
         actionButton(host, 'more').click();
         fixture.detectChanges();

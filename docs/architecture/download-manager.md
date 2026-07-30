@@ -29,8 +29,21 @@ variants, contextual buttons, and theme-aware styling.
   without re-downloading); pause and restart recovery keep it for a later
   resume. Re-downloading such a failed row from a detail page
   (`DOWNLOADS_START`) deletes the retained `.part` before the row is reset.
+- **Derived file readiness and recovery**
+  `DOWNLOADS_GET_LIST` and `DOWNLOADS_GET` inspect completed destinations on
+  every read. Only regular, non-symbolic-link files are reported as available;
+  missing paths, directories, symlinks, and inspection errors are reported as
+  missing without changing the persisted `completed` transfer status.
+  `DOWNLOADS_REDOWNLOAD_MISSING` accepts only the managed row id, rechecks the
+  file, and returns a recovered result without network access when it has
+  reappeared. Otherwise it conditionally claims the completed row, preserves
+  its owned destination, re-applies the stored header allowlist and URL safety
+  policy, and enqueues a fresh transfer without overwriting an existing file.
 - **IPC surface**  
-  The backend exposes `DOWNLOADS_*` handlers for list retrieval, start/pause/resume/cancel/retry/remove operations, folder selection/reveal, and the `DOWNLOADS_UPDATE_EVENT` emitter that the renderer listens to in order to refresh its signal store.
+  The backend exposes `DOWNLOADS_*` handlers for list retrieval,
+  start/pause/resume/cancel/retry/missing-file recovery/remove operations,
+  folder selection/reveal, and the `DOWNLOADS_UPDATE_EVENT` emitter that the
+  renderer listens to in order to refresh its signal store.
 
 ## Renderer architecture
 
@@ -48,8 +61,10 @@ variants, contextual buttons, and theme-aware styling.
   derives the current route scope, search/category filtering, queue partitions,
   stable ordering, counts, and tracked byte total without mutating service
   state. `queued`, `downloading`, and `paused` rows form the active surface;
-  `failed` and `canceled` rows form the attention surface; only `completed`
-  rows enter the offline library. Completed episodes with a valid
+  `failed` and `canceled` rows form the attention surface. A `completed` row
+  whose derived file availability is missing also enters attention with a
+  dedicated recovery reason; only available completed rows enter the offline
+  library. Completed episodes with a valid
   `seriesXtreamId` are grouped by `(playlistId, seriesXtreamId)`, ordered by
   season and episode, and represented by one poster card. Episodes without a
   usable series id remain standalone cards so they never disappear.
@@ -67,7 +82,9 @@ variants, contextual buttons, and theme-aware styling.
   cards and their loading skeleton consume the global
   `--cover-grid-min-width` / `--cover-gap` tokens, so the Small, Medium, and
   Large cover preference behaves like it does elsewhere in the app. All
-  surfaces use the existing `--app-*` and Material system tokens. The global
+  surfaces use the existing `--app-*` and Material system tokens. Ready cards
+  do not repeat an Offline badge; source provenance is available at the top of
+  their overflow menus. The global
   workspace download shortcut displays the service's active count, while the
   page badge and filter counts reflect the current route scope.
 - **Honest interactions**
@@ -83,14 +100,20 @@ variants, contextual buttons, and theme-aware styling.
   titles on completed movie and grouped-series cards open the provider detail
   page; the explicit Play action starts the local file. A legacy standalone
   episode without a usable series id stays directly playable because there is
-  no reliable detail route to open.
+  no reliable detail route to open. Missing completed rows show `File missing`
+  with `Download again`; Play and Show in folder are withheld. A file-action
+  race that returns `File not found` refreshes the authoritative list before
+  pending state clears.
 
 ## Offline detail playback
 
-- A completed VOD renders an Offline tag on both rich and fallback detail
-  shells. Its primary action plays the downloaded file, while a neutral
+- A completed VOD with an available finalized file renders an Offline tag on
+  both rich and fallback detail shells. Its primary action plays the downloaded
+  file, while a neutral
   “Play from this source” action, when a usable provider source is available,
   preserves the existing provider, pinned-source, resume, and restart path.
+- A completed row whose file is missing does not advertise Offline or local
+  playback on details; the provider playback path remains primary.
 - Managed MPV/VLC state remains authoritative: Opening disables conflicting
   playback actions, and Stop closes the matched external session before any
   local or provider choice can run.

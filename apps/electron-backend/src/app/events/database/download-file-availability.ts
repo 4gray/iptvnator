@@ -9,10 +9,9 @@ interface DownloadFileRow {
     status: ElectronBridgeDownloadStatus;
 }
 
-export type DownloadLstat = (filePath: string) => Pick<
-    Stats,
-    'isFile' | 'isSymbolicLink'
->;
+export type DownloadLstat = (
+    filePath: string
+) => Pick<Stats, 'isFile' | 'isSymbolicLink'>;
 
 export function isAvailableDownloadFile(
     filePath: string | null | undefined,

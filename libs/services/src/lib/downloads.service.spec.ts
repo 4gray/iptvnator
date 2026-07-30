@@ -214,8 +214,8 @@ describe('DownloadsService', () => {
     it('re-downloads a missing completed file by managed id', async () => {
         const electron = {
             downloadsGetList: jest.fn(async () => []),
-            downloadsRedownloadMissing: jest.fn(async (_downloadId: number) => ({
-                success: true,
+            downloadsRedownloadMissing: jest.fn(async (downloadId: number) => ({
+                success: downloadId === 42,
             })),
         };
         testWindow.electron = electron;
@@ -323,9 +323,9 @@ describe('DownloadsService', () => {
         ]) as unknown as DownloadsService;
 
         expect(service.isDownloaded(20, 'playlist-1', 'vod')).toBe(true);
-        expect(
-            service.getDownloadedFilePath(20, 'playlist-1', 'vod')
-        ).toBe('/downloads/available.mp4');
+        expect(service.getDownloadedFilePath(20, 'playlist-1', 'vod')).toBe(
+            '/downloads/available.mp4'
+        );
         expect(service.isDownloaded(21, 'playlist-1', 'vod')).toBe(false);
         expect(
             service.getDownloadedFilePath(21, 'playlist-1', 'vod')

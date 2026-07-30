@@ -26,9 +26,7 @@ async function setup(options: SetupOptions = {}) {
                   ...options.row,
               };
     const limit = jest.fn().mockResolvedValue(row ? [row] : []);
-    const where = jest
-        .fn()
-        .mockResolvedValue(options.claim ?? { changes: 1 });
+    const where = jest.fn().mockResolvedValue(options.claim ?? { changes: 1 });
     const set = jest.fn(() => ({ where }));
     const db = {
         select: jest.fn(() => ({

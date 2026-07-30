@@ -138,9 +138,7 @@ export type ElectronBridgeDownloadStatus =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES];
 
 export type ElectronDownloadFileAvailability =
-    | 'available'
-    | 'missing'
-    | 'not-applicable';
+    'available' | 'missing' | 'not-applicable';
 
 export const ELECTRON_BRIDGE_APP_UPDATE_STATUSES = {
     Unsupported: 'unsupported',
@@ -391,8 +389,7 @@ export interface ElectronBridgePlaylistRow {
 }
 
 export type ElectronBridgePlaylistUpsertInput =
-    | Playlist
-    | ElectronBridgePlaylistInput;
+    Playlist | ElectronBridgePlaylistInput;
 
 export interface ElectronBridgeCategoryRow {
     id: number;
@@ -938,9 +935,7 @@ export interface ElectronBridgeApi {
         playlistId: string,
         pins: VodSourcePin[]
     ) => Promise<ElectronBridgeResult>;
-    dbClearVodSourcePin: (
-        matchKeys: string[]
-    ) => Promise<ElectronBridgeResult>;
+    dbClearVodSourcePin: (matchKeys: string[]) => Promise<ElectronBridgeResult>;
     onChannelChange?: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => () => void;

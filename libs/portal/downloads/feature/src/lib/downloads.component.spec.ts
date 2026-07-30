@@ -579,10 +579,9 @@ describe('DownloadsComponent', () => {
         downloads.set([item]);
         fixture.detectChanges();
 
-        const attention =
-            fixture.nativeElement.querySelector<HTMLElement>(
-                '[data-test-id="downloads-attention-section"]'
-            );
+        const attention = fixture.nativeElement.querySelector<HTMLElement>(
+            '[data-test-id="downloads-attention-section"]'
+        );
         const recover = attention?.querySelector<HTMLButtonElement>(
             '[data-test-action="redownload"]'
         );
@@ -592,9 +591,9 @@ describe('DownloadsComponent', () => {
         recover?.click();
         fixture.detectChanges();
         expect(downloadsService.redownloadMissing).toHaveBeenCalledWith(16);
-        expect(
-            downloadsService.redownloadMissing.mock.calls[0]
-        ).toHaveLength(1);
+        expect(downloadsService.redownloadMissing.mock.calls[0]).toHaveLength(
+            1
+        );
         expect(component.pendingIds().has(16)).toBe(true);
 
         recovery.resolve({ success: true });

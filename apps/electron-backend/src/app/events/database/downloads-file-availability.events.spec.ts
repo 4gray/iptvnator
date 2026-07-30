@@ -48,9 +48,7 @@ describe('downloads events: file availability', () => {
             return regularFile();
         });
 
-        await expect(
-            getHandler('DOWNLOADS_GET_LIST')(null)
-        ).resolves.toEqual([
+        await expect(getHandler('DOWNLOADS_GET_LIST')(null)).resolves.toEqual([
             { ...rows[0], fileAvailability: 'available' },
             { ...rows[1], fileAvailability: 'missing' },
             { ...rows[2], fileAvailability: 'not-applicable' },
@@ -94,7 +92,9 @@ describe('downloads events: file availability', () => {
             })),
         });
 
-        await expect(getHandler('DOWNLOADS_GET')(null, 404)).resolves.toBeNull();
+        await expect(
+            getHandler('DOWNLOADS_GET')(null, 404)
+        ).resolves.toBeNull();
         expect(mockLstatSync).not.toHaveBeenCalled();
     });
 });

@@ -1,31 +1,9 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
-import type { ElectronDownloadFileAvailability } from '@iptvnator/shared/interfaces';
+import type { DownloadItem } from './downloads.models';
+import { formatDownloadBytes } from './downloads.utils';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
-export type DownloadStatus =
-    'queued' | 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled';
-
-export interface DownloadItem {
-    id: number;
-    playlistId: string;
-    xtreamId: number;
-    contentType: 'vod' | 'episode';
-    seriesXtreamId?: number;
-    seasonNumber?: number;
-    episodeNumber?: number;
-    title: string;
-    url: string;
-    fileName?: string;
-    filePath?: string;
-    fileAvailability?: ElectronDownloadFileAvailability;
-    posterUrl?: string;
-    status: DownloadStatus;
-    bytesDownloaded?: number;
-    totalBytes?: number;
-    errorMessage?: string;
-    createdAt?: string;
-    updatedAt?: string;
-}
+export type { DownloadItem, DownloadStatus } from './downloads.models';
 
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
@@ -551,10 +529,6 @@ export class DownloadsService implements OnDestroy {
      * Format bytes to human readable string
      */
     formatBytes(bytes: number): string {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        return formatDownloadBytes(bytes);
     }
 }

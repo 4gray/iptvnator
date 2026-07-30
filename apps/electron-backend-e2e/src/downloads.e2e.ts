@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
+import {
+    existsSync,
+    mkdirSync,
+    readdirSync,
+    readFileSync,
+    statSync,
+    unlinkSync,
+} from 'fs';
 import { createServer } from 'http';
 import type { AddressInfo } from 'net';
 import { join } from 'path';
@@ -419,6 +426,60 @@ test.describe('Electron Downloads', () => {
                     name: 'Show in Folder: E2E Movie',
                 })
             ).toBeVisible();
+            await expect(
+                card.getByText('Offline', { exact: true })
+            ).toHaveCount(0);
+            await expect(
+                card.getByText('Download Portal', { exact: true })
+            ).toHaveCount(0);
+            await card
+                .getByRole('button', {
+                    name: 'More actions: E2E Movie',
+                })
+                .click();
+            const sourceHeader = app.mainWindow.locator(
+                '.cdk-overlay-pane app-download-source-menu-header'
+            );
+            await expect(
+                sourceHeader.getByText('Source', { exact: true })
+            ).toBeVisible();
+            await expect(sourceHeader).toContainText('Download Portal');
+            await app.mainWindow.keyboard.press('Escape');
+
+            // Removing the finalized file must move the persisted completed
+            // row out of Ready to watch after a file action refreshes the
+            // authoritative list.
+            unlinkSync(finalPath);
+            await card
+                .getByRole('button', { name: 'Play: E2E Movie' })
+                .last()
+                .click();
+            const missingRow = app.mainWindow.getByTestId(
+                `download-queue-item-${startResult?.id}`
+            );
+            await expect(missingRow).toBeVisible({ timeout: 20000 });
+            await expect(
+                missingRow.locator('.download-queue__status')
+            ).toContainText('File missing');
+            await expect(card).toHaveCount(0);
+            await expect(
+                missingRow.getByRole('button', { name: 'Play: E2E Movie' })
+            ).toHaveCount(0);
+            await expect(
+                missingRow.getByRole('button', {
+                    name: 'Show in Folder: E2E Movie',
+                })
+            ).toHaveCount(0);
+
+            await missingRow
+                .getByRole('button', {
+                    name: 'Download E2E Movie again',
+                })
+                .click();
+            await expect(card).toBeVisible({ timeout: 20000 });
+            expect(readFileSync(finalPath, 'utf8')).toBe(
+                'e2e download payload'
+            );
 
             await card
                 .getByRole('button', {
@@ -674,7 +735,20 @@ test.describe('Electron Downloads', () => {
                 `download-library-series-${sourceA}-${seriesXtreamId}`
             );
             await expect(seriesCard).toContainText('2 episodes');
-            await expect(seriesCard).toContainText('Library Source A');
+            await expect(
+                seriesCard.getByText('Library Source A', { exact: true })
+            ).toHaveCount(0);
+            await seriesCard
+                .getByRole('button', {
+                    name: 'More actions: Aurora',
+                })
+                .click();
+            await expect(
+                app.mainWindow.locator(
+                    '.cdk-overlay-pane app-download-source-menu-header'
+                )
+            ).toContainText('Library Source A');
+            await app.mainWindow.keyboard.press('Escape');
 
             await app.mainWindow
                 .getByTestId('downloads-filter-in-progress')
