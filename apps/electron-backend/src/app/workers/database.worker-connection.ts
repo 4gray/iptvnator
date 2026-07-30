@@ -10,9 +10,9 @@ import {
     registerNativeModuleSearchPaths,
 } from './worker-runtime-paths';
 import {
-    compactSqlForTrace,
     isSqlTraceEnabled,
     trace,
+    traceSqlStatement,
 } from '../services/debug-trace';
 
 let drizzleFactory:
@@ -67,11 +67,7 @@ export async function getWorkerDatabase(): Promise<AppDatabase> {
     const filePath = getIptvnatorDatabasePath();
     sqlite = new Database(filePath, {
         verbose: isSqlTraceEnabled()
-            ? (sql: string) => {
-                  trace('sql-worker', 'query', {
-                      sql: compactSqlForTrace(sql),
-                  });
-              }
+            ? (sql: string) => traceSqlStatement('sql-worker', sql)
             : undefined,
     });
     sqlite.pragma('foreign_keys = ON');

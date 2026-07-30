@@ -1,4 +1,7 @@
-import { redactSensitiveData } from '@iptvnator/shared/logging';
+import {
+    redactSensitiveData,
+    summarizeSqlStatementForTrace,
+} from '@iptvnator/shared/logging';
 
 const TRACE_ENV_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const TRACE_PREFIX = '[IPTVnator Trace]';
@@ -82,10 +85,6 @@ export function isExternalPlayerTraceEnabled(): boolean {
 
 export function roundTraceDuration(durationMs: number): number {
     return Math.round(durationMs * 10) / 10;
-}
-
-export function compactSqlForTrace(sql: string): string {
-    return truncateString(sql.replace(/\s+/g, ' ').trim());
 }
 
 export function summarizeForTrace(value: unknown, depth = 0): unknown {
@@ -175,4 +174,8 @@ export function trace(scope: string, message: string, payload?: unknown): void {
             summarizeForTrace(redactSensitiveData(payload))
         )}`
     );
+}
+
+export function traceSqlStatement(scope: string, sql: unknown): void {
+    trace(scope, 'query', summarizeSqlStatementForTrace(sql));
 }

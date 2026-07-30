@@ -12,6 +12,10 @@
 import Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import {
+    redactSensitiveData,
+    summarizeSqlStatementForTrace,
+} from '@iptvnator/shared/logging';
 import * as schema from './schema';
 import { getIptvnatorDatabasePath } from './path-utils';
 
@@ -49,13 +53,6 @@ function isSqlTraceEnabled(): boolean {
     );
 }
 
-function compactSqlForTrace(sql: string): string {
-    const compactSql = sql.replace(/\s+/g, ' ').trim();
-    return compactSql.length <= 180
-        ? compactSql
-        : `${compactSql.slice(0, 177)}...`;
-}
-
 function traceSql(scope: string, message: string, payload?: unknown): void {
     if (payload === undefined) {
         console.log(`[IPTVnator Trace][${scope}] ${message}`);
@@ -63,8 +60,14 @@ function traceSql(scope: string, message: string, payload?: unknown): void {
     }
 
     console.log(
-        `[IPTVnator Trace][${scope}] ${message} ${JSON.stringify(payload)}`
+        `[IPTVnator Trace][${scope}] ${message} ${JSON.stringify(
+            redactSensitiveData(payload)
+        )}`
     );
+}
+
+function traceSqlStatement(sql: unknown): void {
+    traceSql('sql-main', 'query', summarizeSqlStatementForTrace(sql));
 }
 
 /**
@@ -402,6 +405,7 @@ export const __databaseConnectionTestHooks = {
     backfillEpgProgramSourceUrls,
     cleanupLegacyTmdbSearchCache,
     runMigrations,
+    traceSqlStatement,
 } as const;
 
 /**
@@ -1119,11 +1123,7 @@ export async function initDatabase(
         sqlite = new Database(filePath, {
             readonly,
             verbose: isSqlTraceEnabled()
-                ? (message?: unknown) => {
-                      traceSql('sql-main', 'query', {
-                          sql: compactSqlForTrace(String(message ?? '')),
-                      });
-                  }
+                ? (message?: unknown) => traceSqlStatement(message)
                 : undefined,
         });
 

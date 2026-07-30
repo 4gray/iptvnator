@@ -1,4 +1,4 @@
-import { trace } from './debug-trace';
+import { trace, traceSqlStatement } from './debug-trace';
 
 describe('debug trace redaction', () => {
     afterEach(() => {
@@ -43,5 +43,26 @@ describe('debug trace redaction', () => {
         expect(output).not.toContain(secret);
         expect(output).toContain('[Redacted]');
         expect(output).toContain('get_profile');
+    });
+
+    it('records only the statement type for expanded worker SQL', () => {
+        jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        const secrets = [
+            'worker-user-secret',
+            'worker-password-secret',
+            'https://worker-user:worker-password@example.com/live?token=worker-token-secret',
+        ];
+
+        traceSqlStatement(
+            'sql-worker',
+            `INSERT INTO playlists (username, password, url) VALUES ('${secrets[0]}', '${secrets[1]}', '${secrets[2]}')`
+        );
+
+        const output = (console.log as jest.Mock).mock.calls.flat().join('\n');
+        expect(output).toContain('"statementType":"INSERT"');
+        expect(output).not.toContain('INSERT INTO');
+        for (const secret of secrets) {
+            expect(output).not.toContain(secret);
+        }
     });
 });

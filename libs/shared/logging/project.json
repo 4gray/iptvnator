@@ -5,6 +5,16 @@
     "projectType": "library",
     "tags": ["scope:shared", "domain:shared-runtime", "type:util"],
     "targets": {
+        "build": {
+            "executor": "@nx/js:tsc",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/libs/shared/logging",
+                "main": "libs/shared/logging/src/index.ts",
+                "tsConfig": "libs/shared/logging/tsconfig.lib.json",
+                "assets": []
+            }
+        },
         "test": {
             "executor": "@nx/jest:jest",
             "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
