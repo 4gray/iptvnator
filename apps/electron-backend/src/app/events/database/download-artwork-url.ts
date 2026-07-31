@@ -1,5 +1,22 @@
-const STREAM_PATH_EXTENSION =
-    /\.(?:avi|flv|m3u|m3u8|mkv|mov|mp4|mpeg|mpg|mpd|ts|webm|wmv)(?:\/|$)/i;
+const IMAGE_PATH_EXTENSION = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/i;
+
+const TRUSTED_IMAGE_HOSTS = new Set(['image.tmdb.org', 'picsum.photos']);
+
+const IMAGE_PATH_HINTS = new Set([
+    'backdrop',
+    'backdrops',
+    'cover',
+    'covers',
+    'getimage',
+    'image',
+    'images',
+    'logo',
+    'logos',
+    'poster',
+    'posters',
+    'still',
+    'stills',
+]);
 
 const CREDENTIAL_QUERY_TERMS = [
     'authentication',
@@ -21,7 +38,10 @@ function invalidArtworkUrl(): never {
 }
 
 function isCredentialQueryKey(key: string): boolean {
-    const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return isCredentialToken(normalizeToken(key));
+}
+
+function isCredentialToken(normalized: string): boolean {
     if (
         normalized === 'auth' ||
         normalized === 'key' ||
@@ -44,11 +64,50 @@ function isCredentialQueryKey(key: string): boolean {
     ].some((term) => normalized.includes(term));
 }
 
+function normalizeToken(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function getDecodedPathname(url: URL): string {
     try {
         return decodeURIComponent(url.pathname).replace(/\/+$/, '');
     } catch {
         return invalidArtworkUrl();
+    }
+}
+
+function hasPositiveImageSignal(url: URL, decodedPathname: string): boolean {
+    if (
+        IMAGE_PATH_EXTENSION.test(decodedPathname) ||
+        TRUSTED_IMAGE_HOSTS.has(url.hostname)
+    ) {
+        return true;
+    }
+    const hasImagePathHint = decodedPathname
+        .split('/')
+        .filter(Boolean)
+        .some((segment) => IMAGE_PATH_HINTS.has(normalizeToken(segment)));
+    if (hasImagePathHint) {
+        return true;
+    }
+    return [...url.searchParams.entries()].some(
+        ([key, value]) =>
+            ['action', 'method'].includes(normalizeToken(key)) &&
+            ['getimage', 'image'].includes(normalizeToken(value))
+    );
+}
+
+export function getNormalizedDownloadUrlIdentity(
+    value: string
+): string | undefined {
+    try {
+        const url = new URL(value.trim());
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            return undefined;
+        }
+        return url.href;
+    } catch {
+        return undefined;
     }
 }
 
@@ -58,23 +117,33 @@ export function normalizeDownloadArtworkUrl(
     if (value === undefined) {
         return undefined;
     }
-    if (typeof value !== 'string' || value.trim() === '') {
+    if (typeof value !== 'string') {
         return invalidArtworkUrl();
     }
 
     const normalized = value.trim();
+    if (normalized === '') {
+        return undefined;
+    }
     let url: URL;
     try {
         url = new URL(normalized);
     } catch {
         return invalidArtworkUrl();
     }
+    const decodedPathname = getDecodedPathname(url);
+    const hasCredentialPathToken = decodedPathname
+        .split('/')
+        .filter(Boolean)
+        .some((segment) => isCredentialToken(normalizeToken(segment)));
     if (
         (url.protocol !== 'http:' && url.protocol !== 'https:') ||
         url.username !== '' ||
         url.password !== '' ||
+        url.hash !== '' ||
         [...url.searchParams.keys()].some(isCredentialQueryKey) ||
-        STREAM_PATH_EXTENSION.test(getDecodedPathname(url))
+        hasCredentialPathToken ||
+        !hasPositiveImageSignal(url, decodedPathname)
     ) {
         return invalidArtworkUrl();
     }

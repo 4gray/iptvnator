@@ -194,13 +194,13 @@ describe('download request metadata snapshots', () => {
     );
 
     it.each([
-        ['vod', 'episode', 'series'],
-        ['episode', 'vod', 'movie'],
+        ['episode', 'movie'],
+        ['vod', 'series'],
     ] as const)(
-        'uses stored %s identity instead of renderer %s identity for restart metadata',
-        async (storedContentType, rendererContentType, mediaKind) => {
+        'rejects a stored %s restart carrying %s metadata',
+        async (contentType, mediaKind) => {
             const request = await setupStartMetadataRequest({
-                contentType: storedContentType,
+                contentType,
                 filePath: null,
                 id: 42,
                 metadataSnapshot: null,
@@ -215,7 +215,7 @@ describe('download request metadata snapshots', () => {
                 request.startDownloadRequest(
                     startPayload(
                         { ...metadataSnapshot, mediaKind },
-                        rendererContentType
+                        contentType
                     ),
                     request.authorizer
                 )
@@ -226,6 +226,106 @@ describe('download request metadata snapshots', () => {
             expect(request.enqueueDownload).not.toHaveBeenCalled();
         }
     );
+
+    it.each<[string, 'vod' | 'episode', DownloadMetadataSnapshot]>([
+        [
+            'poster',
+            'vod',
+            {
+                ...metadataSnapshot,
+                posterUrl: 'https://streams.example.test/images/live.jpg',
+            },
+        ],
+        [
+            'backdrop',
+            'vod',
+            {
+                ...metadataSnapshot,
+                backdropUrl: 'https://streams.example.test/images/live.jpg',
+            },
+        ],
+        [
+            'person profile',
+            'vod',
+            {
+                ...metadataSnapshot,
+                cast: [
+                    {
+                        name: 'Actor',
+                        profileUrl:
+                            'https://streams.example.test/images/live.jpg',
+                    },
+                ],
+            },
+        ],
+        [
+            'episode still',
+            'episode',
+            {
+                ...metadataSnapshot,
+                mediaKind: 'series',
+                episode: {
+                    episodeNumber: 1,
+                    seasonNumber: 1,
+                    stillUrl: 'https://streams.example.test/images/live.jpg',
+                },
+            },
+        ],
+    ])(
+        'rejects a new download whose stream URL is reused as %s artwork',
+        async (_label, contentType, snapshot) => {
+            const request = await setupStartMetadataRequest(undefined);
+            const url = 'https://streams.example.test/images/live.jpg';
+
+            await expect(
+                request.startDownloadRequest(
+                    {
+                        ...startPayload(snapshot, contentType),
+                        url,
+                    },
+                    request.authorizer
+                )
+            ).rejects.toThrow('Invalid download metadata snapshot');
+
+            expect(request.db.insert).not.toHaveBeenCalled();
+            expect(request.db.update).not.toHaveBeenCalled();
+            expect(request.enqueueDownload).not.toHaveBeenCalled();
+        }
+    );
+
+    it('rejects a restart whose poster reuses the normalized stored stream URL', async () => {
+        const storedUrl =
+            'https://STREAMS.example.test:443/images/section/../live.jpg';
+        const posterUrl = 'https://streams.example.test/images/live.jpg';
+        const request = await setupStartMetadataRequest({
+            contentType: 'vod',
+            filePath: null,
+            id: 42,
+            metadataSnapshot: null,
+            playlistId: 'playlist-1',
+            status: 'canceled',
+            title: 'Offline Movie',
+            url: storedUrl,
+            xtreamId: 7,
+        });
+
+        await expect(
+            request.startDownloadRequest(
+                {
+                    ...startPayload({
+                        ...metadataSnapshot,
+                        posterUrl,
+                    }),
+                    url: 'https://replacement.example.test/movie.mp4',
+                },
+                request.authorizer
+            )
+        ).rejects.toThrow('Invalid download metadata snapshot');
+
+        expect(request.db.insert).not.toHaveBeenCalled();
+        expect(request.db.update).not.toHaveBeenCalled();
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
+    });
 });
 
 describe('download requests resume', () => {

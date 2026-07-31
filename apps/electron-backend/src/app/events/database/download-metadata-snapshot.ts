@@ -3,7 +3,10 @@ import type {
     DownloadMetadataPerson,
     DownloadMetadataSnapshot,
 } from '@iptvnator/shared/interfaces';
-import { normalizeDownloadArtworkUrl } from './download-artwork-url';
+import {
+    getNormalizedDownloadUrlIdentity,
+    normalizeDownloadArtworkUrl,
+} from './download-artwork-url';
 import { assertSafeDownloadMetadataInput } from './download-metadata-input-safety';
 
 export const DOWNLOAD_METADATA_MAX_BYTES = 128 * 1024;
@@ -205,6 +208,33 @@ export function assertDownloadMetadataMatchesContentType(
         (contentType !== 'vod' && contentType !== 'episode') ||
         (contentType === 'vod' && metadataSnapshot.mediaKind !== 'movie') ||
         (contentType === 'episode' && metadataSnapshot.mediaKind !== 'series')
+    ) {
+        invalidSnapshot();
+    }
+}
+
+export function assertDownloadMetadataArtworkDiffersFromStream(
+    metadataSnapshot: DownloadMetadataSnapshot,
+    streamUrl: string
+): void {
+    const streamIdentity = getNormalizedDownloadUrlIdentity(streamUrl);
+    if (!streamIdentity) {
+        invalidSnapshot();
+    }
+    const artworkUrls = [
+        metadataSnapshot.posterUrl,
+        metadataSnapshot.backdropUrl,
+        ...(metadataSnapshot.cast?.map((person) => person.profileUrl) ?? []),
+        ...(metadataSnapshot.creators?.map((person) => person.profileUrl) ??
+            []),
+        metadataSnapshot.episode?.stillUrl,
+    ];
+    if (
+        artworkUrls.some(
+            (artworkUrl) =>
+                artworkUrl !== undefined &&
+                getNormalizedDownloadUrlIdentity(artworkUrl) === streamIdentity
+        )
     ) {
         invalidSnapshot();
     }

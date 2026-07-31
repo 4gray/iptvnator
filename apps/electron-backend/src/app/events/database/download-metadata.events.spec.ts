@@ -15,7 +15,14 @@ const movieSnapshot: DownloadMetadataSnapshot = {
 };
 
 function createSingleRowDatabase(row: Record<string, unknown> | undefined) {
-    const get = jest.fn(() => row);
+    const storedRow =
+        row === undefined
+            ? undefined
+            : {
+                  url: 'https://streams.example.test/items/default.mp4',
+                  ...row,
+              };
+    const get = jest.fn(() => storedRow);
     const limit = jest.fn(() => ({ get }));
     const transactionSelect = jest.fn(() => ({
         from: jest.fn(() => ({
@@ -55,9 +62,17 @@ function createGroupedDatabase(
     representative: Record<string, unknown>,
     members: Array<Record<string, unknown>>
 ) {
-    const get = jest.fn(() => representative);
+    const storedRepresentative = {
+        url: 'https://streams.example.test/episodes/representative.mp4',
+        ...representative,
+    };
+    const storedMembers = members.map((member, index) => ({
+        url: `https://streams.example.test/episodes/${index + 1}.mp4`,
+        ...member,
+    }));
+    const get = jest.fn(() => storedRepresentative);
     const limit = jest.fn(() => ({ get }));
-    const all = jest.fn(() => members);
+    const all = jest.fn(() => storedMembers);
     const groupWhere = jest.fn(() => ({ all }));
     const transactionSelect = jest
         .fn()
@@ -351,6 +366,77 @@ describe('downloads events: managed metadata updates', () => {
             expect(database.db.update).not.toHaveBeenCalled();
         }
     );
+
+    it('rejects metadata artwork that reuses the stored stream URL', async () => {
+        const url = 'https://streams.example.test/images/live.jpg';
+        const database = createSingleRowDatabase({
+            contentType: 'vod',
+            id: 42,
+            playlistId: 'playlist-a',
+            seriesXtreamId: null,
+            url,
+        });
+
+        await expect(
+            getHandler('DOWNLOADS_UPDATE_METADATA')(null, 42, {
+                ...movieSnapshot,
+                posterUrl: url,
+            })
+        ).resolves.toEqual({
+            error: 'Invalid download metadata snapshot',
+            success: false,
+        });
+
+        expect(database.transaction).toHaveBeenCalledTimes(1);
+        expect(database.transactionUpdate).not.toHaveBeenCalled();
+        expect(database.db.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a group update before writing when artwork reuses a member stream URL', async () => {
+        const reusedUrl = 'https://streams.example.test/images/episode-2.jpg';
+        const database = createGroupedDatabase(
+            {
+                contentType: 'episode',
+                id: 41,
+                playlistId: 'playlist-a',
+                seriesXtreamId: 700,
+                url: 'https://streams.example.test/episodes/1.mp4',
+            },
+            [
+                {
+                    episodeNumber: 1,
+                    id: 41,
+                    metadataSnapshot: null,
+                    seasonNumber: 1,
+                    title: 'One',
+                    url: 'https://streams.example.test/episodes/1.mp4',
+                },
+                {
+                    episodeNumber: 2,
+                    id: 42,
+                    metadataSnapshot: null,
+                    seasonNumber: 1,
+                    title: 'Two',
+                    url: reusedUrl,
+                },
+            ]
+        );
+
+        await expect(
+            getHandler('DOWNLOADS_UPDATE_METADATA')(null, 41, {
+                ...movieSnapshot,
+                mediaKind: 'series',
+                posterUrl: reusedUrl,
+            })
+        ).resolves.toEqual({
+            error: 'Invalid download metadata snapshot',
+            success: false,
+        });
+
+        expect(database.transactionSelect).toHaveBeenCalledTimes(2);
+        expect(database.transactionUpdate).not.toHaveBeenCalled();
+        expect(database.db.update).not.toHaveBeenCalled();
+    });
 
     it('rejects a grouped episode carrying movie metadata before loading members', async () => {
         const database = createGroupedDatabase(

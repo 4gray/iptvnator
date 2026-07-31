@@ -3,6 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import {
+    assertDownloadMetadataArtworkDiffersFromStream,
     assertDownloadMetadataMatchesContentType,
     decodeDownloadMetadataSnapshot,
     encodeDownloadMetadataSnapshot,
@@ -77,6 +78,10 @@ export async function updateDownloadMetadataRequest(
                 normalizedMetadataSnapshot,
                 row.contentType
             );
+            assertDownloadMetadataArtworkDiffersFromStream(
+                normalizedMetadataSnapshot,
+                row.url
+            );
 
             if (
                 row.contentType !== 'episode' ||
@@ -105,12 +110,18 @@ export async function updateDownloadMetadataRequest(
                 .all();
             const writes = members.map((member) => {
                 const episode = getStoredEpisode(member);
+                const memberSnapshot = {
+                    ...normalizedMetadataSnapshot,
+                    episode,
+                };
+                assertDownloadMetadataArtworkDiffersFromStream(
+                    memberSnapshot,
+                    member.url
+                );
                 return {
                     id: member.id,
-                    metadataSnapshot: encodeDownloadMetadataSnapshot({
-                        ...normalizedMetadataSnapshot,
-                        episode,
-                    }),
+                    metadataSnapshot:
+                        encodeDownloadMetadataSnapshot(memberSnapshot),
                 };
             });
 

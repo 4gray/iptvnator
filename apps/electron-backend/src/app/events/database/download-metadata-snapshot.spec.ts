@@ -228,6 +228,55 @@ describe('download metadata snapshot', () => {
         );
     });
 
+    it('accepts trusted extensionless artwork hosts and image endpoints', () => {
+        const snapshot: DownloadMetadataSnapshot = {
+            ...validSnapshot,
+            posterUrl: 'https://image.tmdb.org/t/p/w500/extensionless-poster',
+            backdropUrl: 'https://picsum.photos/1280/720',
+            cast: [
+                {
+                    name: 'Actor',
+                    profileUrl:
+                        'https://cdn.example.test/api?action=get_image&id=profile-1',
+                },
+            ],
+            episode: {
+                episodeNumber: 2,
+                seasonNumber: 1,
+                stillUrl: 'https://cdn.example.test/images/still/episode-2',
+            },
+        };
+
+        expect(JSON.parse(encodeDownloadMetadataSnapshot(snapshot))).toEqual(
+            snapshot
+        );
+    });
+
+    it('normalizes blank optional artwork sentinels as absent', () => {
+        expect(
+            JSON.parse(
+                encodeDownloadMetadataSnapshot({
+                    ...validSnapshot,
+                    posterUrl: '   ',
+                    backdropUrl: '\t',
+                    cast: [{ name: 'Actor', profileUrl: '\n' }],
+                    episode: {
+                        episodeNumber: 2,
+                        seasonNumber: 1,
+                        stillUrl: ' ',
+                    },
+                })
+            )
+        ).toEqual({
+            ...validSnapshot,
+            cast: [{ name: 'Actor' }],
+            episode: {
+                episodeNumber: 2,
+                seasonNumber: 1,
+            },
+        });
+    });
+
     it.each([
         [
             'poster userinfo',
@@ -273,6 +322,18 @@ describe('download metadata snapshot', () => {
             },
         ],
         [
+            'extensionless stream endpoint',
+            {
+                posterUrl: 'https://streams.example.test/live/123',
+            },
+        ],
+        [
+            'URL fragment',
+            {
+                posterUrl: 'https://images.example.test/poster.jpg#overview',
+            },
+        ],
+        [
             'relative artwork URL',
             {
                 posterUrl: '/images/poster.jpg',
@@ -290,6 +351,27 @@ describe('download metadata snapshot', () => {
                 ...validSnapshot,
                 ...fields,
             } as DownloadMetadataSnapshot)
+        ).toThrow('Invalid download metadata snapshot');
+    });
+
+    it.each([
+        'access_token',
+        'token',
+        'password',
+        'secret',
+        'cookie',
+        'session',
+        'signature',
+        'credential',
+        'AUTH',
+        'device_mac',
+        'api-key',
+    ])('rejects credential-like artwork path token %s', (pathToken) => {
+        expect(() =>
+            encodeDownloadMetadataSnapshot({
+                ...validSnapshot,
+                posterUrl: `https://images.example.test/${pathToken}/value/poster.jpg`,
+            })
         ).toThrow('Invalid download metadata snapshot');
     });
 

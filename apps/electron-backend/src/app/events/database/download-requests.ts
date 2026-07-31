@@ -7,6 +7,7 @@ import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { removePartialDownloadFile } from './download-file-path';
 import {
+    assertDownloadMetadataArtworkDiffersFromStream,
     assertDownloadMetadataMatchesContentType,
     decodeDownloadMetadataSnapshot,
     encodeDownloadMetadataSnapshot,
@@ -166,6 +167,10 @@ export async function startDownloadRequest(
                 normalizedMetadataSnapshot,
                 item.contentType
             );
+            assertDownloadMetadataArtworkDiffersFromStream(
+                normalizedMetadataSnapshot,
+                item.url
+            );
         }
         if (!['completed', 'failed', 'canceled'].includes(item.status)) {
             return {
@@ -227,6 +232,10 @@ export async function startDownloadRequest(
         assertDownloadMetadataMatchesContentType(
             normalizedMetadataSnapshot,
             data.contentType
+        );
+        assertDownloadMetadataArtworkDiffersFromStream(
+            normalizedMetadataSnapshot,
+            data.url
         );
     }
     if (existingPlaylist.length === 0) {
