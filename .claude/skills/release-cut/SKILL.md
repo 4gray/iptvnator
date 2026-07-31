@@ -1,88 +1,74 @@
 ---
 name: release-cut
-description: Cut an IPTVnator release — bump the version, generate release notes from .changes/, scaffold the website post, tag, and verify the draft. Use when asked to release, cut a version, prepare release notes, or publish a new version.
+description: Use when preparing, cutting, tagging, publishing, or verifying an IPTVnator release or its release assets.
 ---
 
 # Release Cut
 
-The pipeline turns accumulated `.changes/*.md` notes into all three release
-surfaces. Order matters: **the tag build extracts the CHANGELOG section into
-the GitHub release body and fails if it is missing**, so the changelog step
-is not optional.
+The tag workflow authors the public GitHub body with
+`node tools/release/extract-changelog-section.mjs --public "${VERSION}"`.
+Keep the full changelog, including internal notes, committed before tagging.
 
-## Sequence
+## Preflight
 
-1. **Pick the version** — deliberate choice, edit `version` in the root
-   `package.json`. Bare semver only: any suffix flips electron-updater into
-   prerelease mode and leaks into installer version fields.
+Work from clean, current `master` with the intended remote named explicitly.
+Confirm `package.json` contains bare semver, the exact `v<version>` tag does not
+exist locally or remotely, CI is green, and all notes validate.
 
-2. **Review the notes** — read every file in `.changes/`. Fix wording (user
-   language, not reviewer language), then:
+```bash
+pnpm run release:notes:validate
+pnpm run i18n:check
+```
 
-    ```bash
-    pnpm run release:notes:validate
-    ```
+## Generate
 
-3. **Generate the changelog section** (idempotent per version — rerunning
-   replaces the section, so regenerate freely until it reads well):
+1. Set `package.json.version`.
+2. Run `pnpm run release:notes:changelog`.
+3. Minor release: run `pnpm run release:notes:blog` and finish every editorial
+   field. Patch release: edit the existing `vX-Y` post; do not scaffold or
+   force-overwrite it.
+4. Capture required manifest screenshots only against mock servers:
+   `pnpm nx run electron-backend:build-e2e`, then
+   `pnpm run release:screenshots`.
+5. Consume notes only after reviewing all generated output:
+   `node tools/release/build-release-notes.mjs --consume`.
 
-    ```bash
-    pnpm run release:notes:changelog
-    ```
+The consume command is the destructive boundary: it deletes the direct note
+files. Stage only release-owned files, including exact website post/assets and
+`git add -A -- .changes`, then commit and create the exact tag.
 
-4. **Scaffold the website post**:
+```bash
+git commit -m "chore(release): v0.24.0"
+git tag v0.24.0
+```
 
-    ```bash
-    pnpm run release:notes:blog
-    ```
+## Push and External Effects
 
-    Output is `apps/website/src/content/blog/v0-XX-release-notes.mdx` with
-    `draft: true`. The narrative intro, headlines, and `description` are
-    editorial — fill every `TODO` by hand. One post per **minor** version:
-    for a patch release, edit the existing post (the scaffold refuses to
-    overwrite without `--force`).
+Push the named remote's `master` branch first, then push only the exact
+`v<version>` tag as a second command. Never use broad `git push --tags`.
+For remote `upstream` and version `v0.25.1`, run exactly:
 
-5. **Screenshots** — only from the fail-closed capture script against the
-   mock servers, never from a real playlist or account: real streams, logos,
-   and TMDB artwork are copyrighted, and credentials must never reach a
-   published image.
+```bash
+git push upstream master
+git push upstream v0.25.1
+```
 
-    ```bash
-    pnpm nx run electron-backend:build-e2e   # once
-    pnpm run release:screenshots             # all manifest shots, dark+light
-    ```
+Master and `v*` pushes can publish Docker images. The tag build creates a draft
+GitHub release. Verify authored text plus generated commits and all required
+macOS, Windows, DEB, RPM, Pacman (`.pacman`/`.pkg.tar.*`), AppImage, Snap,
+Flatpak, updater metadata, blockmaps, and
+`linux-frame-copy-runtime-sources.tar.xz`.
 
-    Output goes to `apps/website/public/blog/v0-XX/screenshots/`. New feature
-    to showcase = new entry in `tools/release/screenshots.manifest.json`
-    (slug must match the note's `screenshot:` field). The run aborts and
-    deletes its frames on any guard violation (real-DB touch, external
-    request, credential-shaped text in frame, TMDB active).
+After verification, manually publish the GitHub release. That publication
+automatically verifies its Snap assets and uploads them to `edge`.
+Installed-Snap smoke and candidate/stable promotion remain manual. Keep the
+blog draft during artifact verification; publish it in a follow-up commit and
+verify the website deployment.
 
-6. **Consume the notes** (the only destructive step):
+## Failure Safety
 
-    ```bash
-    node tools/release/build-release-notes.mjs --consume
-    ```
+Missing CHANGELOG section: regenerate, commit, delete the bad tag locally and
+remotely only after resolving its exact target, then retag. Never publish a
+draft until the source archive and Snap contract pass.
 
-7. **Commit, tag, push**:
-
-    ```bash
-    git add CHANGELOG.md .changes apps/website package.json
-    git commit -m "chore(release): v0.XX.0"
-    git tag v0.XX.0 && git push && git push --tags
-    ```
-
-8. **Verify the draft release** once `build-and-make.yaml` finishes: authored
-   notes on top, GitHub's generated commit list below, all platform assets
-   present (`.dmg`/`.zip` + `latest-mac.yml`, `.exe`/`.msi` + `latest.yml`,
-   `.deb`/`.rpm`/`.AppImage`/`.snap`/`.flatpak` + `latest-linux*.yml`,
-   blockmaps). Publish manually; flip the blog post to `draft: false`.
-
-## Failure modes
-
-- **create-release fails with "CHANGELOG.md has no section for X"** — step 3
-  was skipped. Run it, commit, delete and re-push the tag.
-- **Snap store publication** is a separate manual flow after the public
-  release exists (`publish-snap.yaml`).
-- Post-release checklist candidates: i18n drift (`pnpm run i18n:check`),
-  update the website `v0-XX` blog assets, announce in Telegram.
+The `.codex` and `.claude` copies of this skill must remain byte-identical.

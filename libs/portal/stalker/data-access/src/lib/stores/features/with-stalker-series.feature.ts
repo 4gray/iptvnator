@@ -17,6 +17,7 @@ import {
 } from '../../models';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerSessionService } from '../../stalker-session.service';
+import { isStalkerSeriesFlag } from '../../stalker-vod.utils';
 import { StalkerSeriesFeatureStoreContract } from '../stalker-store.contracts';
 import {
     executeStalkerRequest,
@@ -155,7 +156,7 @@ export function withStalkerSeries() {
                                 !selectedItem ||
                                 selectedItem.id === undefined ||
                                 selectedItem.id === null ||
-                                !selectedItem.is_series
+                                !isStalkerSeriesFlag(selectedItem.is_series)
                             ) {
                                 logger.debug(
                                     'vodSeriesSeasonsResource skipped - conditions not met'

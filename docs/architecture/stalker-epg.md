@@ -109,10 +109,10 @@ GET load.php?type=itv&action=get_short_epg&ch_id={channel_id}&size={n}&JsHttpReq
 **Notes**
 
 - The response is normalized into shared `EpgItem[]`
-- The list-preview path uses this directly
-- The active-panel fallback maps the result into controlled `EpgProgram[]`
+- Only the active-panel fallback uses this path and maps the result into
+  controlled `EpgProgram[]`
 
-### `get_epg_info` (bulk active-panel source)
+### `get_epg_info` (bulk row-preview and active-panel source)
 
 **Request**
 
@@ -218,7 +218,8 @@ playlists.
 
 1. User activates a live channel
 2. The component ensures playback link resolution as before
-3. The component calls `ensureBulkItvEpg(168)` on first use for the playlist
+3. The component ensures `ensureBulkItvEpg(168)` has run; the eager row effect
+   normally started the same de-duplicated request before playback
 4. `selectedItvEpgPrograms()` feeds `app-epg-timeline`
 5. If the selected channel has no bulk programs, the component falls back to
    `get_short_epg`
@@ -231,10 +232,11 @@ stream URL has been resolved; external playback keeps the full EPG-only panel.
 
 ### Channel row preview flow
 
-Before the first live-channel playback, channel rows do not fetch EPG at all.
-
-After bulk EPG has been loaded once for the playlist, visible row previews are
-derived locally from `bulkItvEpgByChannel`:
+Once non-radio ITV channels render, the post-reset component effect calls
+`ensureBulkItvEpg(168)`. It starts eagerly before playback and is de-duplicated
+against the active-channel path. Individual rows never issue per-row requests.
+As soon as the bulk request completes, visible row previews derive locally
+from `bulkItvEpgByChannel`:
 
 - pick the current program for the channel, if one exists
 - compute progress from the cached program timestamps

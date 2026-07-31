@@ -1,13 +1,12 @@
-// ─── IPTVnator UI styles library ─────────────────────────────────────────────
-// Add libs/ui/styles to stylePreprocessorOptions.includePaths in project.json
-// to import these without relative paths:
+// Canonical forwarding inventory for shared IPTVnator UI styles.
+// The workspace has no global Sass include path for this directory; production
+// consumers use a relative path to the partial they need, for example:
 //
-//   @use 'portal-layout'  as portal;
-//   @use 'content-grid'   as grid;
-//   @use 'portal-sidebar';
+//   @use '../../../../../../ui/styles/portal-layout' as portal;
 
 @forward 'portal-layout';
 @forward 'content-grid';
 @forward 'portal-sidebar';
+@forward 'panel-header';
 @forward 'detail-view';
 @forward 'detail-view-actions';

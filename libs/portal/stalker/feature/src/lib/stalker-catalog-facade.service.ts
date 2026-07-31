@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import {
     buildStalkerSelectedVodItem,
+    isStalkerSeriesFlag,
     StalkerStore,
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
@@ -185,8 +186,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 
     selectItem(item: StalkerVodSource): string[] | null {
         const needsSeriesFetch =
-            this.contentType() === 'vod' &&
-            (item.is_series === '1' || item.is_series === 1);
+            this.contentType() === 'vod' && isStalkerSeriesFlag(item.is_series);
 
         this.stalkerStore.setSelectedItem(
             buildStalkerSelectedVodItem(item, needsSeriesFetch)
@@ -209,8 +209,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         );
         const isSeries =
             this.contentType() === 'series' ||
-            item.is_series === '1' ||
-            item.is_series === 1;
+            isStalkerSeriesFlag(item.is_series);
 
         if (hasSeriesProgress) {
             return { hasSeriesProgress: true };

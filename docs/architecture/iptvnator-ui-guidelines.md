@@ -32,6 +32,10 @@ Use it when changing existing views or introducing new list-based UI in the work
   `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.html`
 - Shared EPG timeline styles:
   `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.scss`
+- Shared EPG list:
+  `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.ts`
+- Shared EPG list styles:
+  `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
   `apps/web/src/nav-list.scss`
 - Theme tokens:
@@ -46,6 +50,7 @@ Use it when changing existing views or introducing new list-based UI in the work
 These tokens are the base for interactive emphasis:
 
 - `--app-selection-color`
+- `--app-selection-on-color`
 - `--app-selection-surface`
 - `--app-selection-surface-strong`
 - `--app-selection-border`
@@ -61,16 +66,16 @@ in `apps/web/src/m3-theme.scss`):
 - `--app-on-surface` — primary text
 - `--app-eyebrow-color` — secondary/muted text
 
-**Do not reach for `--mat-sys-*` surface tokens.** Angular Material's system
-tokens are *not* emitted globally in this app — only `--mat-sys-on-surface`
-exists. `var(--mat-sys-surface-container-high)` and friends resolve to nothing,
-which usually goes unnoticed because the surrounding Material component
-supplies its own default and masks it. Outside a Material component — a CDK
-overlay, a projected panel — the same reference silently produces a fully
-transparent, unreadable surface.
+Angular Material mixins and Material-component overrides may use the tokens
+owned by that component. Outside a Material-owned component, prefer the
+app-owned tokens above. A `--mat-sys-*` reference is acceptable there only
+after the built light and dark theme contexts both prove that it is emitted,
+and it must still have a real app-token or literal fallback, for example:
+`var(--mat-sys-surface-container, var(--app-widget-bg))`.
 
-If a `--mat-sys-*` token is genuinely needed, always give it a real fallback:
-`var(--mat-sys-on-primary, #fff)`.
+Several existing app surfaces still reference Material system tokens without
+that proof or use hard-coded layout/selection colors. Treat those references
+as migration debt, not patterns to copy.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 
@@ -88,6 +93,9 @@ Apply the same visual recipe to selected list items, active channels, and curren
   `transform: translateY(-1px)` for selected list items only
 - Text:
   selected text should inherit `var(--app-selection-color)`
+
+Use `var(--app-selection-on-color)` when text or an icon sits directly on a
+solid `var(--app-selection-color)` fill.
 
 Use this pattern for:
 
@@ -108,13 +116,21 @@ Do not copy the full detail-view stylesheet into feature libraries. Add shared
 layout changes to the mixin, and keep provider-specific differences explicit in
 the wrapper file that includes it.
 
+## Electron Drag Regions
+
+Every interactive descendant of a drag region—including buttons, links,
+inputs, overlays, and resize handles—requires `app-region: no-drag`. The shared
+directive-generated `.resize-handle` does not set this centrally yet. Until
+that debt is fixed, consumers in drag regions must cover the handle themselves
+and must not assume it already opts out.
+
 ## Channel List Item
 
 The shared row should be reused instead of rebuilding channel markup per view.
 
-### Structure
+### Current Reference Values
 
-- Min height:
+- Current minimum height:
   `68px`
 - Horizontal gap:
   `12px`
@@ -122,10 +138,15 @@ The shared row should be reused instead of rebuilding channel markup per view.
   `8px 10px 8px 12px`
 - Radius:
   `12px`
-- Logo shell:
+- Current logo shell:
   `44x44`, rounded, subtle inset treatment
 - Compact variant:
   `52px` min height with slightly tighter padding
+
+These values describe the current shared row, not a fixed-width contract. Keep
+the row responsive: the text column uses `min-width: 0` and ellipsis, while
+logos, drag affordances, and trailing actions use `flex-shrink: 0`. Prefer
+minimum dimensions and flexible columns over fixed row widths.
 
 ### Content Layout
 
@@ -142,6 +163,12 @@ The shared row should be reused instead of rebuilding channel markup per view.
 - Keep logos contained with `object-fit: contain`
 
 ## EPG Views
+
+The shared timeline and list still contain local dark surfaces, blue selection
+accents, and white foregrounds. These non-semantic hard-coded colors are
+migration debt. New work should use app surface/selection/text tokens and must
+not spread those local fallbacks. Semantic live, error, and status colors may
+remain local when the meaning is explicit.
 
 ### Shared EPG Pane
 
@@ -271,7 +298,9 @@ Settings use the same system but are flatter than content-heavy views.
 ### Light Theme
 
 - Prefer white or near-white cards
-- Use neutral borders from `--mat-sys-outline-variant`
+- Use app-owned neutral borders, or a proven Material token with a real
+  fallback such as
+  `var(--mat-sys-outline-variant, var(--app-widget-border))`
 - Keep active sections mostly defined by outline and subtle tint
 - Avoid dark translucent backgrounds
 
@@ -286,7 +315,7 @@ Settings use the same system but are flatter than content-heavy views.
 ### Light Theme
 
 - Flat beats glossy
-- White and surface-container layers should separate content
+- White and app-owned widget/content surface layers should separate content
 - Selection should read as a blue outline plus soft tint, not a solid slab
 
 ### Dark Theme
@@ -302,7 +331,14 @@ Before creating new markup or CSS:
 1. Check whether `app-channel-list-item` can be reused.
 2. Check whether `app-epg-timeline` already provides the correct structure.
 3. Check whether `nav-list.scss` already solves the list-selection problem.
-4. Extend tokens first, duplicate styles last.
+4. Inspect the public APIs of `@iptvnator/ui/components`,
+   `@iptvnator/ui/epg`, `@iptvnator/ui/playback`,
+   `@iptvnator/ui/shared-portals`, `@iptvnator/portal/shared/ui`, and
+   `@iptvnator/playlist/shared/ui`.
+5. Put provider-neutral collection loading, persistence, and cross-provider
+   orchestration in `@iptvnator/portal/shared/data-access`, not a UI library or
+   the shared util library.
+6. Extend tokens first, duplicate styles last.
 
 ## Implementation Workflow
 
@@ -312,13 +348,16 @@ When updating IPTVnator UI:
 2. Reuse the shared structure where possible.
 3. Keep selection, progress, and spacing in sync across Xtream, Stalker, and shared portal views.
 4. Verify in both light and dark themes.
-5. Verify in the running Electron app when the change is visual or layout-sensitive.
+5. Run the focused component/unit target and the closest Playwright workflow.
+6. Use the running Electron app through CDP only for Electron-only gaps or
+   additional layout inspection; it does not replace available E2E coverage.
 
 ## Anti-Patterns
 
 Avoid these:
 
 - introducing a new selected-state color unrelated to the theme tokens
+- copying the shared EPG's hard-coded dark/blue fallbacks into new surfaces
 - duplicating channel row markup in portal-specific views
 - showing placeholder logos behind real logos
 - making entire panes scroll when only the list should scroll

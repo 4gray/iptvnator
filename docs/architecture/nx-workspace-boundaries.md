@@ -1,100 +1,130 @@
 # Nx Workspace Boundaries
 
-This document records the current monorepo boundary conventions for IPTVnator.
+This document records the current monorepo placement, tagging, and validation
+contract for IPTVnator. Nx discovery is the canonical project inventory; avoid
+copying an exhaustive project list into documentation.
 
-## Fresh Worktree Bootstrap
+## Fresh Worktree Bootstrap and Discovery
 
-Install dependencies before using Nx discovery or targets:
+Install dependencies before relying on Nx:
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm nx show projects
 ```
 
-`pnpm nx show projects` depends on the workspace-local Nx packages under
-`node_modules`. In a fresh worktree without dependencies it will fail before it
-can inspect project metadata.
+`pnpm nx show projects` requires the workspace-local Nx packages in
+`node_modules`. Inspect project ownership and available validation targets
+before choosing commands:
+
+```bash
+pnpm nx show project <name>
+pnpm nx show projects --withTarget test
+pnpm nx show projects --withTarget e2e
+```
+
+Do not invent a `test`, `build`, or `e2e` target because a similarly named
+project has one. Run affected lint/test/build targets that exist and the closest
+available E2E target for the changed behavior.
+
+## Placement Decision
+
+- `apps/` owns runtime applications, development servers, E2E applications,
+  and provider mock servers.
+- `libs/` owns reusable code grouped by product domain and architectural role.
+- `tools/` owns repository automation such as lint, packaging, release, and
+  repository-skill validation. Nx projects there use `scope:tools`.
+
+Inside `libs/`, choose the role before the path:
+
+- `type:feature` owns routes, screens, and feature orchestration.
+- `type:ui` owns reusable visual components.
+- `type:data-access` owns injectable state, API access, persistence, and
+  orchestration.
+- `type:util` is the destination for new pure helpers and contracts only.
+
+For example, provider-neutral collection services that coordinate favorites,
+recents, EPG, or playback persistence belong in
+`libs/portal/shared/data-access`. Pure collection types and transformations stay
+in `libs/portal/shared/util`, while reusable collection views stay in
+`libs/portal/shared/ui`. Existing injectable or stateful services in a `util`
+path are legacy debt, not precedent for new placement.
 
 ## Project Tags
 
-Every Nx project should carry three tag families in `project.json`:
+Every Nx project keeps one tag from each family in `project.json`:
 
-1. `scope:*` - ownership area, for example `scope:portal`, `scope:workspace`,
-   `scope:shared`, `scope:electron`, `scope:e2e`, or `scope:dev-tools`.
-2. `domain:*` - product/runtime domain, for example `domain:xtream`,
-   `domain:stalker`, `domain:m3u`, `domain:playback`, `domain:web`, or
-   `domain:shared-runtime`.
-3. `type:*` - architectural role, for example `type:app`, `type:e2e`,
-   `type:dev-app`, `type:feature`, `type:ui`, `type:data-access`,
-   `type:util`, `type:tool`, or `type:website`.
+1. `scope:*` records ownership, such as `scope:portal`, `scope:workspace`,
+   `scope:shared`, `scope:electron`, `scope:e2e`, or `scope:tools`.
+2. `domain:*` records the product/runtime domain.
+3. `type:*` records the architectural role.
 
-`eslint.config.mjs` uses these tags with `@nx/enforce-module-boundaries`.
-When adding a project, choose tags before adding imports so dependency direction
-is clear from the start.
+`eslint.config.mjs` enforces these type directions:
 
-## Import Aliases
+| Source tag         | Allowed dependency type tags   |
+| ------------------ | ------------------------------ |
+| `type:app`         | feature, UI, data-access, util |
+| `type:e2e`         | feature, UI, data-access, util |
+| `type:dev-app`     | feature, UI, data-access, util |
+| `type:website`     | UI, util                       |
+| `type:feature`     | feature, UI, data-access, util |
+| `type:ui`          | UI, data-access, util          |
+| `type:data-access` | data-access, util              |
+| `type:util`        | util                           |
 
-Use scoped `@iptvnator/*` aliases from `tsconfig.base.json`.
+Domain constraints in the same rule are additive to type constraints. If an
+import violates either family, move the contract or implementation to its
+proper owner instead of weakening a constraint.
 
-Examples:
+`workspace-shell-util` is a deliberate path/tag exception:
+`libs/workspace/shell/util` is tagged `type:data-access` because it exports
+injectable services that depend on `@iptvnator/services`. The web app imports
+those services eagerly from `apps/web/src/app/app.routes.ts` without pulling
+the lazy workspace shell feature into the initial bundle.
 
-```ts
-import { SettingsStore } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
-import { DialogService } from '@iptvnator/ui/components';
+## Import Aliases and Public APIs
+
+Use scoped aliases from `tsconfig.base.json` and expose public imports through a
+library's `src/index.ts`. Do not introduce legacy bare aliases such as
+`services`, `components`, `shared-interfaces`, or `database`, and avoid deep
+imports unless a sub-entrypoint is explicitly configured.
+
+For a buildable library that has a local `package.json`, its `name` must match
+the scoped alias. Nx uses that package name when rewriting buildable dependency
+paths to `dist/` during `@nx/js:tsc` builds.
+
+## TypeScript File Size
+
+`tools/eslint/max-lines-config.mjs` is the single source of truth:
+
+- production TypeScript should stay below 300 lines and has a hard maximum of
+  400;
+- tests, E2E specs, and E2E infrastructure have a maximum of 1200;
+- blank lines and comments are not counted.
+
+Pre-existing violations live in
+`tools/eslint/max-lines-baseline.mjs`. That baseline may only shrink. After
+splitting a baselined file, run
+`node tools/eslint/generate-max-lines-baseline.mjs`; never add a new file to the
+baseline. A genuinely inseparable new file needs a justified file-wide
+directive, which the generator deliberately skips.
+
+## Command-Based Lint Targets
+
+Quote recursive globs so POSIX and Windows hosts lint the same files:
+
+```bash
+eslint "apps/<project>/**/*.ts"
+find apps/<project> -name '*.ts' | wc -l
 ```
 
-Do not introduce legacy bare aliases such as:
-
-- `components`
-- `m3u-state`
-- `m3u-utils`
-- `services`
-- `shared-interfaces`
-- `shared-portals`
-- `remote-control`
-- `database`
-- `database-schema`
-- `database-path-utils`
-- `workspace-dashboard-feature`
-- `workspace-dashboard-data-access`
-
-The lint config blocks these aliases so new code uses the same visible
-namespace and ownership convention.
-
-Buildable libraries that have a local `package.json` should use the same public
-name as their scoped alias. Nx uses `package.json.name` when it rewrites
-buildable dependency paths to `dist/` during `@nx/js:tsc` builds.
-
-## Dependency Direction
-
-- `type:feature` may use `type:feature`, `type:ui`, `type:data-access`, and
-  `type:util`.
-- `type:ui` may use `type:ui`, `type:data-access`, and `type:util`.
-- `type:data-access` may use `type:data-access` and `type:util`.
-- `type:util` may use only `type:util`.
-
-If a change needs a dependency in the opposite direction, move the shared
-contract into a lower-level library instead of weakening boundaries.
-
-Portal collection orchestration that reads/writes favorites, recent items, live
-playback, or EPG data belongs in `libs/portal/shared/data-access`, not
-`libs/portal/shared/util`. That keeps pure collection helpers importable by
-Xtream/Stalker data-access libraries while allowing shared UI to use
-provider-specific collection services without creating cycles.
-
-Note: `workspace-shell-util` (`libs/workspace/shell/util`) is tagged
-`type:data-access` despite its path. It exports injectable services such as
-`WorkspaceStartupPreferencesService` that depend on `@iptvnator/services`, and
-it must stay eagerly importable from `apps/web/src/app/app.routes.ts` without
-pulling the lazy-loaded workspace shell feature bundle into the initial chunk.
+An unquoted `**` can expand to a shallow subset on POSIX while still returning
+success. After editing such a target, compare ESLint's linted-file count with
+the `find` count.
 
 ## CI Enforcement
 
-The `Lint` job in `.github/workflows/ci.yml` runs
-`pnpm nx affected --target=lint` on PRs and
-`pnpm nx run-many --target=lint --all` on master pushes, so
-`@nx/enforce-module-boundaries` violations, legacy bare-alias imports, and
-`max-lines` violations fail CI. Root config or lockfile changes mark every
-project affected, so the boundary rules cannot be dodged on PRs. Run
-`pnpm run lint` locally before pushing.
+The CI lint job runs affected projects on pull requests and all projects on
+master pushes. Root config or lockfile changes affect every project, so module
+boundaries, legacy-alias restrictions, and max-lines enforcement apply across
+the workspace.

@@ -1,0 +1,28 @@
+{
+    "name": "repository-skills",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "library",
+    "sourceRoot": "tools/skills",
+    "tags": ["scope:tools", "domain:skills", "type:tool"],
+    "targets": {
+        "test": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "inputs": [
+                "{workspaceRoot}/tools/skills/validate-repository-skills.mjs",
+                "{workspaceRoot}/tools/skills/validate-repository-skills.test.mjs"
+            ],
+            "options": {
+                "command": "node --test tools/skills/validate-repository-skills.test.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        },
+        "lint": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "node --check tools/skills/validate-repository-skills.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        }
+    }
+}

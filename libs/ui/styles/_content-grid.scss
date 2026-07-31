@@ -1,7 +1,9 @@
 // Shared content grid and card styles
 //
-// Usage (after adding libs/ui/styles to stylePreprocessorOptions.includePaths):
-//   @use 'content-grid' as grid;
+// Choose a relative @use path from each consuming stylesheet. A current
+// portal-shared component uses its local forwarding module as shown below;
+// direct consumers of this partial may need a different depth.
+//   @use '../../styles/content-grid' as grid;
 //   @include grid.content-grid;
 //   @include grid.content-card;
 

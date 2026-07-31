@@ -31,10 +31,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Any change a user could notice — new behavior, changed behavior, bug fix, performance win, breaking change — must add one note file under `.changes/` in the same PR. Format, field table, and writing rules: `.changes/README.md`.
 - Name it `<area>-<short-slug>.md`; `area` matches the conventional-commit scope. There is no version field — the release version is chosen at release time.
 - Write the body for a user, not a reviewer: "the player now remembers volume between episodes", not "hoist volume state into the session". Max 400 characters; depth belongs in the release blog post.
+- `type: internal` records invisible maintenance. Internal notes stay collapsed in `CHANGELOG.md`, are omitted from the blog scaffold, and are removed from the authored public GitHub body by `extract-changelog-section.mjs --public`; GitHub's generated commit list remains separate, so an internal-only release can have an empty authored body.
 - Skip the note for test-only changes, docs, CI/workflow plumbing, and pure refactors with no behavior change. When skipping on a PR that touches `apps/**` or `libs/**`, apply the `no-release-note` label.
 - CI enforces this: the "Release note gate" job in `.github/workflows/ci.yml` fails PRs that change runtime code without an added `.changes/*.md` or the label (policy in `tools/release/check-release-note-gate.mjs`; tests/e2e/website/mock-server/docs paths are auto-exempt).
 - The `release-notes` skill covers writing notes; the `release-cut` skill covers the full release sequence.
 - Validate before finishing: `pnpm run release:notes:validate`.
+- Pushes to `master` and `v*` can publish Docker images. A `v*` tag build creates a draft GitHub release.
+- Publishing the GitHub release verifies its Snap assets and automatically uploads them to `edge`; installed-Snap smoke and candidate/stable promotion remain manual.
 - Release-post screenshots come only from the release capture script running against the mock servers. Never add a screenshot taken from a real playlist or account to `apps/website/public/blog/**` — real streams, logos, and metadata are copyrighted, and credentials must never reach a published image.
 - Final task summaries should state whether a release note was added or why it was skipped.
 
@@ -71,7 +74,13 @@ pnpm nx show projects
 - Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json`.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
-- Repository-specific skills are committed under `.codex/skills/`. Claude Code only discovers skills under `.claude/skills/`, so `release-notes` and `release-cut` are mirrored there and the two copies must be kept in sync; every other entry in `.claude/skills/` is personal and stays gitignored. If an agent does not load skills directly, treat those files as concise ownership docs.
+- Repository-specific skills live under `.codex/skills/`.
+- Frontmatter descriptions are trigger-only and begin with `Use when`; keep
+  each skill at or below 500 words.
+- Run `pnpm run skills:validate` after editing a committed skill or a literal
+  path it documents.
+- Keep `.codex` and `.claude` copies of `release-notes` and `release-cut`
+  byte-identical.
 
 ### Building and Serving
 
@@ -280,7 +289,7 @@ This is an Nx monorepo with the following structure:
     - **portal/stalker/{data-access,feature}** - StalkerStore and routed Stalker components
     - **portal/catalog/feature** - Portal catalog UI
     - **portal/downloads/feature** - Download manager UI
-    - **portal/shared/{data-access,ui,util}** - Cross-portal shared code (incl. the VOD multi-source discovery/resolve/ranking layer in `data-access/src/lib/multi-source/`)
+    - **portal/shared/{data-access,ui,util}** - Cross-portal shared code: stateful collection services and VOD multi-source discovery/resolve/ranking live in `data-access`; reusable views live in `ui`; `util` is for pure contracts/helpers
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/logging** - Dependency-free structured redaction for diagnostic logs
@@ -323,14 +332,14 @@ The Xtream Codes module uses NgRx Signal Store with a layered architecture:
 │            (Composes feature stores, unified API)                │
 └─────────────────────────────────────────────────────────────────┘
                                   │
-        ┌────────────┬────────────┼────────────┬────────────┐
-        ▼            ▼            ▼            ▼            ▼
-┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐
-│  withPortal│ │withContent │ │withSelection│ │ withSearch │ │ withPlayer │
-└────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘
-        │                           │              │
-        └───────────────────────────┼──────────────┘
-                                    ▼
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ withPortal · withContent · withSelection · withSearch · withEpg │
+│ withPlayer · withFavorites · withRecentItems                     │
+│ withPlaybackPositions                                           │
+└─────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DATA SOURCE LAYER                             │
 │                   IXtreamDataSource                              │
@@ -382,15 +391,19 @@ Key patterns:
 
 - **Feature stores**: Each `with*.feature.ts` uses `signalStoreFeature()` for focused functionality
 - **Facade pattern**: `XtreamStore` composes all features, maintaining backward compatibility
-- **Data source abstraction**: `IXtreamDataSource` interface with environment-specific implementations
-- **Factory injection**: `provideXtreamDataSource()` selects Electron or PWA implementation at runtime
+- **Data source abstraction**: `IXtreamDataSource` has SQLite-backed and
+  API/in-memory implementations
+- **Factory injection**: `provideXtreamDataSource()` selects
+  `ElectronXtreamDataSource` only when
+  `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource`; otherwise it
+  selects `PwaXtreamDataSource`
 
-Data strategies by environment:
+Xtream data strategies by runtime capability:
 
-| Environment  | Strategy                                                |
-| ------------ | ------------------------------------------------------- |
-| **Electron** | DB-first: Check DB → fetch API if missing → cache to DB |
-| **PWA**      | API-only: Always fetch from API, store in memory        |
+| Capability | Strategy |
+| ---------- | -------- |
+| **Complete Xtream SQLite bridge** | DB-first: check DB → fetch API if missing → cache to DB |
+| **Bridge unavailable** | API-only: fetch from API and keep session data in memory |
 
 **M3U Playlist Module Architecture**:
 
@@ -886,7 +899,7 @@ engine` (restart required) or
 - Watch state derives from `inlinePlayback() !== null` only; external MPV/VLC playback keeps the browse layout. Esc and "Close player" exit to browse without navigation; the now-playing back arrow is route-level back (straight to the list via the host's `goBack()`)
 - Xtream VOD treats metadata presentation and playability as separate contracts. Empty or sparse `get_vod_info` data keeps the curated fallback detail page, while Play/Resume, Favorite, and Download remain available whenever a positive stream id and non-empty container extension resolve from `movie_data` or the catalog fields. Playback fields are selected as one atomic pair in detail → recovered catalog → owner-valid cached catalog order; incomplete candidates never combine into a synthetic source. In-memory VOD categories/streams carry their owner playlist, and cross-portal Favorites/Recent details ignore arrays from another playlist so colliding Xtream ids cannot inject stale playback or presentation data. When Electron's normalized catalog cache lacks the extension, the detail loader immediately publishes the sparse fallback and ends its loading state, then performs a best-effort category-scoped raw catalog lookup and reactively upgrades the same item with actions on success. It maps the normal SQLite route category through all persisted categories, including hidden ones, while also accepting the provider `xtream_id` carried by cross-portal Similar links; ambiguous numeric matches keep local-id precedence, deduplicate provider candidates, and try the next candidate when the exact VOD is absent. PWA falls back to API categories. It skips that request when existing data is sufficient, never sends an unresolved database id as a provider id, preserves concurrent metadata enrichment, and drops late detail/recovery responses after replacement, playlist reset, or detail teardown. Inline playback moves either detail page into Watch; external MPV/VLC remains in Browse. Unresolvable items expose no actions, and playback/download titles and posters fall back through `info`, `movie_data`, then catalog fields.
 - A successful external MPV/VLC episode launch immediately persists the selected episode as the latest playback-position entry and retargets the series CTA to `Play episode N`; real player telemetry overwrites that marker when available, so episode identity is reliable while exact external timestamps remain best-effort.
-- Stalker preserves this contract for regular `/series`, embedded VOD `series[]`, and lazy Ministra VOD `is_series` items: quick-start translation parameters must reach the CTA, and inline/external episode handoffs must include the parent series id plus resolved season and episode numbers. This metadata lets the dashboard render the tracked S/E badge for VOD-backed series. Existing playback rows without it remain badge-less until the episode is played again.
+- Stalker preserves this contract for regular `/series`, embedded VOD `series[]`, and lazy Ministra VOD `is_series` items; `is_series` is normalized only from `true`, `1`, or `'1'`. Quick-start translation parameters must reach the CTA, and inline/external episode handoffs must include the parent series id plus resolved season and episode numbers. Lazy VOD episode tracking IDs scope the parent series, provider episode, season key, and episode number; the previous season/episode hash is only a compatibility alias. Exact scoped positions win, while compatible legacy rows are considered only for the current parent and must match any stored season/episode coordinates. The scoped row is persisted through the strict failure-propagating boundary before confirmed legacy cleanup, so a failed save keeps the old row; compatibility is lazy and performs no schema migration or bulk rewrite.
 - Hosts pass hero chips/meta/actions as `*appDetailTags`/`*appDetailMeta`/`*appDetailActions` templates; the shell stamps them into both the hero and the About block
 - Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → first) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream) or TMDB (Stalker)
 - Dashboard hero/Continue Watching clicks for an Xtream series carry a one-shot resume target through the global-recent inline-detail handoff; after series metadata and playback positions load, the exact saved episode starts at its stored position. A failed positions load leaves the target unconsumed and the handoff detail-only, so a transient storage error never starts the episode from the beginning. Ordinary global-recent grid clicks remain detail-only.

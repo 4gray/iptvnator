@@ -65,6 +65,27 @@ export class PlaybackPositionRuntimeBridgeService {
         await this.bridge?.dbSavePlaybackPosition?.(playlistId, data);
     }
 
+    async savePlaybackPositionOrThrow(
+        playlistId: string,
+        data: PlaybackPositionData
+    ): Promise<void> {
+        if (!this.supportsStorage) {
+            throw new Error('Playback position storage is unavailable');
+        }
+
+        const bridge = this.bridge;
+        if (typeof bridge?.dbSavePlaybackPosition !== 'function') {
+            throw new Error(
+                'Playback position save method is unavailable'
+            );
+        }
+
+        const result = await bridge.dbSavePlaybackPosition(playlistId, data);
+        if (result?.success !== true) {
+            throw new Error('Playback position save did not succeed');
+        }
+    }
+
     getPlaybackPosition(
         playlistId: string,
         contentXtreamId: number,
@@ -148,6 +169,32 @@ export class PlaybackPositionRuntimeBridgeService {
             contentXtreamId,
             contentType
         );
+    }
+
+    async clearPlaybackPositionOrThrow(
+        playlistId: string,
+        contentXtreamId: number,
+        contentType: PlaybackPositionContentType
+    ): Promise<void> {
+        if (!this.supportsStorage) {
+            throw new Error('Playback position storage is unavailable');
+        }
+
+        const bridge = this.bridge;
+        if (typeof bridge?.dbClearPlaybackPosition !== 'function') {
+            throw new Error(
+                'Playback position clear method is unavailable'
+            );
+        }
+
+        const result = await bridge.dbClearPlaybackPosition(
+            playlistId,
+            contentXtreamId,
+            contentType
+        );
+        if (result?.success !== true) {
+            throw new Error('Playback position clear did not succeed');
+        }
     }
 
     onPlaybackPositionUpdate(

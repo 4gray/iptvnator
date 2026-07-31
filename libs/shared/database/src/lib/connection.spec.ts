@@ -18,6 +18,10 @@ function createdObjectNames(prefix: string, statements: readonly string[]) {
 }
 
 describe('database schema statements', () => {
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
     const {
         createTableStatements,
         columnMigrationStatements,
@@ -36,6 +40,26 @@ describe('database schema statements', () => {
             }) => void;
         }
     ).ensureDownloadsPauseResumeSchema;
+
+    it('records only the statement type for expanded main-process SQL', () => {
+        jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        const secrets = [
+            'main-user-secret',
+            'main-password-secret',
+            'https://main-user:main-password@example.com/live?token=main-token-secret',
+        ];
+
+        __databaseConnectionTestHooks.traceSqlStatement(
+            `UPDATE playlists SET username = '${secrets[0]}', password = '${secrets[1]}', url = '${secrets[2]}'`
+        );
+
+        const output = (console.log as jest.Mock).mock.calls.flat().join('\n');
+        expect(output).toContain('"statementType":"UPDATE"');
+        expect(output).not.toContain('UPDATE playlists');
+        for (const secret of secrets) {
+            expect(output).not.toContain(secret);
+        }
+    });
 
     function createRebuildSqlite(legacyTableSql: string | undefined) {
         const statements: string[] = [];

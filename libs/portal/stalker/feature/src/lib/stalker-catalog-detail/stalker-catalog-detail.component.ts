@@ -20,6 +20,7 @@ import {
 import {
     createPortalFavoritesResource,
     createRefreshTrigger,
+    isStalkerSeriesFlag,
     isSelectedStalkerVodFavorite,
     StalkerSelectedVodItem,
     toggleStalkerVodFavorite,
@@ -92,8 +93,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         return Boolean(
             item &&
             (this.contentType() === 'series' ||
-                item.is_series === true ||
-                String(item.is_series) === '1')
+                isStalkerSeriesFlag(item.is_series))
         );
     });
 

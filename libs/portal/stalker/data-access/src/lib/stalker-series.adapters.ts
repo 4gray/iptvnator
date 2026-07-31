@@ -29,7 +29,13 @@ export interface StalkerSeriesSeasonVm {
     series: number[];
 }
 
+export interface MapVodSeriesEpisodesOptions {
+    parentSeriesId: string | number;
+    fallbackPoster?: string;
+}
+
 export interface StalkerMappedEpisode extends XtreamSerieEpisode {
+    legacyTrackingId?: number;
     originalId?: string;
     originalCmd?: string;
 }
@@ -44,15 +50,34 @@ function hashString(str: string): number {
     return Math.abs(hash);
 }
 
-function generateEpisodeId(
-    seed: string,
+function generateLegacyVodEpisodeId(
     episodeNum: number,
-    seasonKey: string,
-    isVodSeries: boolean
+    seasonKey: string
 ): number {
-    if (isVodSeries) {
-        return hashString(`vod_${seasonKey}_${episodeNum}`);
-    }
+    return hashString(`vod_${seasonKey}_${episodeNum}`);
+}
+
+function generateVodEpisodeId(options: {
+    parentSeriesId: string | number;
+    providerEpisodeId: string;
+    seasonKey: string;
+    episodeNum: number;
+}): number {
+    return hashString(
+        JSON.stringify([
+            'vod',
+            String(options.parentSeriesId),
+            options.providerEpisodeId,
+            options.seasonKey,
+            options.episodeNum,
+        ])
+    );
+}
+
+function generateRegularEpisodeId(
+    seed: string,
+    episodeNum: number
+): number {
     return hashString(`${seed}_ep_${episodeNum}`);
 }
 
@@ -153,7 +178,7 @@ function createBaseEpisode(
 
 export function mapVodSeriesEpisodes(
     seasons: ReadonlyArray<VodSeriesSeasonVm>,
-    fallbackPoster?: string
+    options: MapVodSeriesEpisodesOptions
 ): Record<string, XtreamSerieEpisode[]> {
     const mapped: Record<string, XtreamSerieEpisode[]> = {};
 
@@ -165,12 +190,17 @@ export function mapVodSeriesEpisodes(
             const episodeNum =
                 toEpisodeNumber(episode.series_number) ||
                 toEpisodeNumber(episode.episode_num);
-            const trackingId = generateEpisodeId(
-                String(episode.id ?? ''),
+            const providerEpisodeId = String(episode.id ?? '');
+            const legacyTrackingId = generateLegacyVodEpisodeId(
                 episodeNum,
-                seasonKey,
-                true
+                seasonKey
             );
+            const trackingId = generateVodEpisodeId({
+                parentSeriesId: options.parentSeriesId,
+                providerEpisodeId,
+                seasonKey,
+                episodeNum,
+            });
 
             return {
                 ...createBaseEpisode(
@@ -181,14 +211,15 @@ export function mapVodSeriesEpisodes(
                     'vod-series',
                     seasonNum,
                     {
-                        movie_image: episode.cover || fallbackPoster,
+                        movie_image: episode.cover || options.fallbackPoster,
                         plot: episode.description || '',
                         duration: episode.duration
                             ? `${episode.duration} min`
                             : '',
                     }
                 ),
-                originalId: String(episode.id ?? ''),
+                legacyTrackingId,
+                originalId: providerEpisodeId,
             } as StalkerMappedEpisode;
         });
     });
@@ -205,11 +236,9 @@ export function mapRegularSeriesEpisodes(
     seasons.forEach((season, index) => {
         const seasonKey = String(index + 1);
         mapped[seasonKey] = (season.series ?? []).map((episodeNum) => {
-            const trackingId = generateEpisodeId(
+            const trackingId = generateRegularEpisodeId(
                 String(season.cmd ?? ''),
-                episodeNum,
-                seasonKey,
-                false
+                episodeNum
             );
 
             return {

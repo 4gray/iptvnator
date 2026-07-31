@@ -54,10 +54,7 @@ export function isStalkerSeriesFlag(value: unknown): boolean {
 export function normalizeStalkerSeriesFlag(
     value: unknown
 ): StalkerSeriesFlag | undefined {
-    if (value === true || value === 1 || value === '1') {
-        return true;
-    }
-    return undefined;
+    return isStalkerSeriesFlag(value) ? true : undefined;
 }
 
 export function isStalkerSeriesItem(item: {

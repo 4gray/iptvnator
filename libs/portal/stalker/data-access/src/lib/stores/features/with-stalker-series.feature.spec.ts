@@ -1,7 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { DataService, TmdbEnrichmentService } from '@iptvnator/services';
-import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerSelection } from './with-stalker-selection.feature';
 import { withStalkerSeries } from './with-stalker-series.feature';
@@ -187,22 +190,41 @@ describe('withStalkerSeries serialSeasonsResource gating', () => {
         });
     });
 
-    it('does not fire a series request for a Ministra VOD-series item', async () => {
+    it.each([true, 1, '1'] as const)(
+        'does not fire a series request for a Ministra VOD-series item with is_series=%p',
+        async (isSeries) => {
+            store.setSelectedContentType('vod');
+            store.setSelectedItem({
+                id: '11',
+                name: 'VOD series',
+                is_series: isSeries,
+            });
+
+            // The legit vod-series season request (type=vod) may fire; the
+            // wasted regular-series request (type=series) must not.
+            await waitForCondition(
+                () => dataService.sendIpcEvent.mock.calls.length > 0
+            );
+            await flushResources();
+
+            expect(seriesRequestCalls(dataService.sendIpcEvent)).toHaveLength(
+                0
+            );
+        }
+    );
+
+    it('does not fetch VOD-series seasons for unsupported truthy is_series', async () => {
         store.setSelectedContentType('vod');
         store.setSelectedItem({
             id: '11',
-            name: 'VOD series',
-            is_series: '1',
+            name: 'Plain VOD',
+            is_series: 'true',
         });
 
-        // The legit vod-series season request (type=vod) may fire; the
-        // wasted regular-series request (type=series) must not.
-        await waitForCondition(
-            () => dataService.sendIpcEvent.mock.calls.length > 0
-        );
+        await flushResources();
         await flushResources();
 
-        expect(seriesRequestCalls(dataService.sendIpcEvent)).toHaveLength(0);
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 
     it('does not refetch seasons when a VOD item is selected after a series', async () => {

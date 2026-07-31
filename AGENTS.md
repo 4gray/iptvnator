@@ -18,7 +18,13 @@ This file provides guidance to coding agents working in this repository.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
 - ESLint enforces `max-lines` on TypeScript files: production code targets under 300 with a hard maximum of 400, while tests (`**/*.spec.ts`, `**/*.e2e.ts`, `apps/*-e2e/**`) are held to 1200 — a long spec signals coverage, not the design debt the production limit catches. Blank lines and comments are not counted, so a docblock never forces a split. Limits live in `tools/eslint/max-lines-config.mjs`, imported by both `eslint.config.mjs` and the generator so the rule and the baseline cannot drift. Files that predate the rule are baselined in `tools/eslint/max-lines-baseline.mjs`; after splitting a file, regenerate it with `node tools/eslint/generate-max-lines-baseline.mjs` (it runs ESLint's own rule rather than counting lines itself). Never add new files to the baseline — the list must only shrink. A new file that genuinely cannot be split (for example a function serialized into another process) instead carries its own file-wide `/* eslint-disable max-lines -- <why> */`; the generator skips those files, so a justified exemption never lands in the baseline. Remove such a directive once ESLint reports it as unused.
 - Project `lint` targets that shell out to eslint must quote the glob, e.g. `eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX shell on Linux and macOS (which has no `globstar`, so it matches only a shallow subset of files) while Windows passes the literal pattern to ESLint, which expands it recursively — the two hosts then lint different file sets. The target still reports success either way, so a broken glob hides missing coverage instead of failing. After changing such a target, compare the linted file count against `find <project> -name '*.ts' | wc -l`.
-- Repository-specific skills are committed under `.codex/skills/`. Claude Code only discovers skills under `.claude/skills/`, so `release-notes` and `release-cut` are mirrored there and the two copies must be kept in sync; every other entry in `.claude/skills/` is personal and stays gitignored. If an external agent does not support skills, treat those files as concise ownership docs.
+- Repository-specific skills live under `.codex/skills/`.
+- Frontmatter descriptions are trigger-only and begin with `Use when`; keep
+  each skill at or below 500 words.
+- Run `pnpm run skills:validate` after editing a committed skill or a literal
+  path it documents.
+- Keep `.codex` and `.claude` copies of `release-notes` and `release-cut`
+  byte-identical.
 
 ## Documentation After Changes
 
@@ -40,10 +46,13 @@ This file provides guidance to coding agents working in this repository.
 - Any change a user could notice — new behavior, changed behavior, bug fix, performance win, breaking change — must add one note file under `.changes/` in the same PR. Format, field table, and writing rules: `.changes/README.md`.
 - Name it `<area>-<short-slug>.md`; `area` matches the conventional-commit scope. There is no version field — the release version is chosen at release time.
 - Write the body for a user, not a reviewer: "the player now remembers volume between episodes", not "hoist volume state into the session". Max 400 characters; depth belongs in the release blog post.
+- `type: internal` records invisible maintenance. Internal notes stay collapsed in `CHANGELOG.md`, are omitted from the blog scaffold, and are removed from the authored public GitHub body by `extract-changelog-section.mjs --public`; GitHub's generated commit list remains separate, so an internal-only release can have an empty authored body.
 - Skip the note for test-only changes, docs, CI/workflow plumbing, and pure refactors with no behavior change. When skipping on a PR that touches `apps/**` or `libs/**`, apply the `no-release-note` label.
 - CI enforces this: the "Release note gate" job in `.github/workflows/ci.yml` fails PRs that change runtime code without an added `.changes/*.md` or the label (policy in `tools/release/check-release-note-gate.mjs`; tests/e2e/website/mock-server/docs paths are auto-exempt).
 - The `release-notes` skill covers writing notes; the `release-cut` skill covers the full release sequence.
 - Validate before finishing: `pnpm run release:notes:validate`.
+- Pushes to `master` and `v*` can publish Docker images. A `v*` tag build creates a draft GitHub release.
+- Publishing the GitHub release verifies its Snap assets and automatically uploads them to `edge`; installed-Snap smoke and candidate/stable promotion remain manual.
 - Release-post screenshots come only from the release capture script running against the mock servers. Never add a screenshot taken from a real playlist or account to `apps/website/public/blog/**` — real streams, logos, and metadata are copyrighted, and credentials must never reach a published image.
 - Final task summaries should state whether a release note was added or why it was skipped.
 
@@ -407,35 +416,17 @@ Key files:
 
 ## Repo Skills
 
-- `iptvnator-ui-design`
-  Repository-specific UI design guidance for IPTVnator.
-  Use when working on channel rows, EPG views, settings surfaces, shared selection styles, or light/dark theme consistency.
-  File: `.codex/skills/iptvnator-ui-design/SKILL.md`
+- `.codex/skills/iptvnator-nx-architecture/SKILL.md`
+- `.codex/skills/iptvnator-sqlite-db-worker/SKILL.md`
+- `.codex/skills/iptvnator-theme-style/SKILL.md`
+- `.codex/skills/iptvnator-ui-design/SKILL.md`
+- `.codex/skills/release-cut/SKILL.md`
+- `.codex/skills/release-notes/SKILL.md`
+- `.codex/skills/stalker-portal/SKILL.md`
+- `.codex/skills/xtream-electron/SKILL.md`
 
-- `iptvnator-theme-style`
-  Theme architecture, design token reference, shared SCSS library, portal header pattern, Electron drag region, and common styling mistakes.
-  Use when adding/changing CSS tokens, styling portal headers or sidebars, using shared SCSS mixins (`portal-layout`, `content-grid`, `portal-sidebar`), or auditing cross-portal visual consistency.
-  File: `.codex/skills/iptvnator-theme-style/SKILL.md`
-
-- `iptvnator-nx-architecture`
-  Repository-specific Nx monorepo structure, library placement rules, path alias guidance, and migration guardrails for portal/workspace/app code.
-  Use when deciding where code belongs, extracting code into libs, choosing imports, or refactoring Xtream/Stalker/Workspace boundaries.
-  File: `.codex/skills/iptvnator-nx-architecture/SKILL.md`
-
-- `iptvnator-sqlite-db-worker`
-  Repository-specific guidance for the Electron non-EPG SQLite worker, including worker boundaries, request-scoped DB progress events, and validation steps for slow DB operations.
-  Use when moving heavy database work off the main thread, adding worker-backed SQLite operations, or wiring loading/progress UI for Xtream and playlist DB flows.
-  File: `.codex/skills/iptvnator-sqlite-db-worker/SKILL.md`
-
-- `stalker-portal`
-  Repository-specific guidance for Stalker/Ministra catalogs, all three VOD/series modes, cross-surface `is_series` behavior, playback metadata, collections, EPG, and remote control.
-  Use when changing Stalker routes, stores, detail views, playback, favorites/recent activity, EPG, or remote control.
-  File: `.codex/skills/stalker-portal/SKILL.md`
-
-- `xtream-electron`
-  Repository-specific guidance for IPTVnator's Electron-first Xtream implementation, including feature/data-access boundaries, worker-backed DB flows, and Xtream loading/progress UX expectations.
-  Use when working on Xtream routes, store/data-source logic, or Electron-backed Xtream import/search/delete behavior.
-  File: `.codex/skills/xtream-electron/SKILL.md`
+Descriptions and trigger conditions are canonical in each skill's frontmatter;
+do not duplicate them here.
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

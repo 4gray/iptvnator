@@ -199,6 +199,130 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
         expect(service.onPlaybackPositionUpdate(callback)).toBe(unsubscribe);
         expect(onPlaybackPositionUpdate).toHaveBeenCalledWith(callback);
     });
+
+    describe.each([
+        {
+            name: 'save',
+            installBridge: (implementation: jest.Mock) => {
+                window.electron = {
+                    ...window.electron,
+                    dbSavePlaybackPosition: implementation,
+                } as unknown as typeof window.electron;
+            },
+            invokeLenient: (
+                target: PlaybackPositionRuntimeBridgeService
+            ) => target.savePlaybackPosition('playlist-1', createPosition()),
+            invokeStrict: (
+                target: PlaybackPositionRuntimeBridgeService
+            ) =>
+                target.savePlaybackPositionOrThrow(
+                    'playlist-1',
+                    createPosition()
+                ),
+        },
+        {
+            name: 'clear',
+            installBridge: (implementation: jest.Mock) => {
+                window.electron = {
+                    ...window.electron,
+                    dbClearPlaybackPosition: implementation,
+                } as unknown as typeof window.electron;
+            },
+            invokeLenient: (
+                target: PlaybackPositionRuntimeBridgeService
+            ) =>
+                target.clearPlaybackPosition(
+                    'playlist-1',
+                    100,
+                    'vod'
+                ),
+            invokeStrict: (
+                target: PlaybackPositionRuntimeBridgeService
+            ) =>
+                target.clearPlaybackPositionOrThrow(
+                    'playlist-1',
+                    100,
+                    'vod'
+                ),
+        },
+    ])('$name persistence', (operation) => {
+        it('accepts only an explicit success result', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            operation.installBridge(
+                jest.fn().mockResolvedValue({ success: true })
+            );
+
+            await expect(operation.invokeStrict(service)).resolves.toBeUndefined();
+        });
+
+        it('propagates rejected IPC', async () => {
+            const error = new Error('database is locked');
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            operation.installBridge(jest.fn().mockRejectedValue(error));
+
+            await expect(operation.invokeStrict(service)).rejects.toBe(error);
+        });
+
+        it.each([{ success: false }, {}, undefined])(
+            'rejects a non-success result %#',
+            async (result) => {
+                runtimeCapabilities.supportsPlaybackPositionStorage = true;
+                operation.installBridge(jest.fn().mockResolvedValue(result));
+
+                await expect(operation.invokeStrict(service)).rejects.toThrow(
+                    'did not succeed'
+                );
+            }
+        );
+
+        it('rejects when the storage capability is unavailable', async () => {
+            const bridgeMethod = jest
+                .fn()
+                .mockResolvedValue({ success: true });
+            operation.installBridge(bridgeMethod);
+
+            await expect(operation.invokeStrict(service)).rejects.toThrow(
+                'storage is unavailable'
+            );
+            expect(bridgeMethod).not.toHaveBeenCalled();
+        });
+
+        it('rejects when the expected bridge method is unavailable', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+
+            await expect(operation.invokeStrict(service)).rejects.toThrow(
+                'method is unavailable'
+            );
+        });
+
+        it.each([{ success: false }, {}, undefined])(
+            'ignores a non-success result through the lenient method %#',
+            async (result) => {
+                runtimeCapabilities.supportsPlaybackPositionStorage = true;
+                operation.installBridge(jest.fn().mockResolvedValue(result));
+
+                await expect(
+                    operation.invokeLenient(service)
+                ).resolves.toBeUndefined();
+            }
+        );
+
+        it('resolves the lenient method when its bridge method is missing', async () => {
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+
+            await expect(
+                operation.invokeLenient(service)
+            ).resolves.toBeUndefined();
+        });
+
+        it('propagates rejected IPC through the lenient method', async () => {
+            const error = new Error('database is locked');
+            runtimeCapabilities.supportsPlaybackPositionStorage = true;
+            operation.installBridge(jest.fn().mockRejectedValue(error));
+
+            await expect(operation.invokeLenient(service)).rejects.toBe(error);
+        });
+    });
 });
 
 function createPosition(

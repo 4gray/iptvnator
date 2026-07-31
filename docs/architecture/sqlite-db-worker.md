@@ -10,7 +10,9 @@ Related:
 
 ## Summary
 
-- Heavy non-EPG SQLite work no longer runs on Electron's main thread.
+- Heavy non-EPG SQLite work no longer runs on Electron's main thread. The
+  explicitly lightweight download and EPG-specific SQLite handlers remain in
+  main.
 - A dedicated long-lived database worker now handles the slow Xtream and
   playlist database operations that were freezing the UI.
 - Renderer APIs stay stable. The main change is that progress and long-running
@@ -27,6 +29,14 @@ The worker cutover addresses three concrete problems:
    can coexist without `SQLITE_BUSY` regressions.
 
 ## Current Ownership
+
+### Renderer and preload boundary
+
+These files own the renderer-facing database service and stable Electron
+bridge:
+
+1. `libs/services/src/lib/database-electron.service.ts`
+2. `apps/electron-backend/src/app/api/main.preload.ts`
 
 ### Main-process runtime wiring
 
@@ -48,7 +58,7 @@ These files own the worker protocol and the SQLite work itself:
 3. `apps/electron-backend/src/app/workers/database.worker-connection.ts`
 4. `apps/electron-backend/src/app/workers/worker-runtime-paths.ts`
 
-### Pure database operation modules
+### Database operation and support modules
 
 Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 
@@ -63,24 +73,52 @@ Keep SQL-heavy logic here so the worker entry remains a thin dispatcher:
 9. `apps/electron-backend/src/app/database/operations/title-match.operations.ts`
 10. `apps/electron-backend/src/app/database/operations/tmdb.operations.ts`
 11. `apps/electron-backend/src/app/database/operations/epg-mapping.operations.ts`
+12. `apps/electron-backend/src/app/database/operations/title-sources.operations.ts`
+13. `apps/electron-backend/src/app/database/operations/vod-source-pin.operations.ts`
 
-(plus the shared cancellation helper `operation-control.ts` in the same directory)
+Focused helpers in the same directory keep the operation modules and dispatcher
+small:
+
+1. `content-search.util.ts`
+2. `title-token-glob.ts`
+3. `operation-control.ts`
+4. `performance-phase-capture.ts`
+5. `xtream-content-operation-steps.ts`
+
+Worker operations use the shared table contract in
+`libs/shared/database/src/lib/schema.ts`, imported by worker code through
+`@iptvnator/shared/database/schema`.
 
 ## Worker Architecture
 
 ### Request flow
 
-1. Renderer calls the existing preload API such as `window.electron.dbSaveContent`.
-2. `ipcMain.handle(...)` in the Electron backend builds a payload and delegates
-   to `DatabaseWorkerClient`.
-3. `DatabaseWorkerClient` lazily starts one long-lived `worker_threads` worker
+1. Renderer `DatabaseService` calls the stable preload API, such as
+   `window.electron.dbSaveContent`.
+2. The preload invokes an IPC channel owned by the focused event modules under
+   `apps/electron-backend/src/app/events/database/`.
+3. `ipcMain.handle(...)` builds a payload and delegates to
+   `DatabaseWorkerClient`.
+4. `DatabaseWorkerClient` lazily starts one long-lived `worker_threads` worker
    and correlates requests with a generated `requestId`.
-4. The worker executes SQLite work and sends back either:
+5. The protocol reaches the worker dispatcher, which obtains the worker
+   connection and delegates SQL work to an operation module using the shared
+   schema.
+6. The worker sends back either:
     1. `ready`
     2. `event`
     3. `response`
-5. The main process resolves the IPC request and forwards worker events back to
+7. The main process resolves the IPC request and forwards worker events back to
    the originating renderer process.
+
+`requestId` and `operationId` have different scopes:
+
+1. `DatabaseWorkerClient` generates a fresh `requestId` for every request. It
+   correlates worker `event` and `response` messages with the pending main-side
+   transport request and is not renderer-visible operation state.
+2. A renderer supplies an `operationId` for tracked long-running work. Progress
+   events and cooperative cancellation use that stable identity across the
+   renderer, preload, main process, and worker.
 
 ### Why one long-lived worker
 
@@ -309,6 +347,11 @@ Current shipped operation names:
 4. `delete-playlist`
 5. `delete-all-playlists`
 
+All five are tracked. Save content, delete Xtream content, restore Xtream user
+data, and delete playlist are cancellable. Delete all playlists deliberately
+uses `cancellable: false`: its renderer-visible progress is tracked, but a
+cancel request does not interrupt it.
+
 The event is forwarded to the renderer as `DB_OPERATION_EVENT`.
 
 ### Cancellation contract
@@ -329,7 +372,10 @@ If a worker operation is canceled:
 3. the UI clears its busy state without treating the operation as success
 
 Cancellation is cooperative and chunk-based. Already committed SQLite batches
-stay committed.
+stay committed. For an operation's busy lifecycle, only the terminal
+`completed`, `error`, or `cancelled` event settles UI state. The UI may set a
+separate cancel-requested flag immediately so the cancel action cannot be
+clicked twice while it waits for the authoritative terminal event.
 
 With the exact `IPTVNATOR_PERF_WORKER_PROFILING=1` opt-in, receipt of a cancel
 for a correlated active request also emits a
@@ -370,8 +416,27 @@ falls back to the legacy progress API if the newer event channel is missing.
 
 ## Migrated Operations
 
-The worker now owns all heavy non-EPG SQLite paths plus the remaining portal
-state handlers that still used direct main-thread SQLite access.
+The worker owns heavy non-EPG SQLite paths and portal state operations that
+would otherwise block Electron main.
+
+### Deliberate direct-main exceptions
+
+Lightweight work that coordinates main-process runtime or remains
+EPG-specific is not migrated incidentally:
+
+1. `apps/electron-backend/src/app/events/database/downloads.events.ts` keeps
+   small download-row reads/writes beside native dialogs, filesystem cleanup,
+   and the main-process download runtime.
+2. `apps/electron-backend/src/app/events/database/epg-db.events.ts` keeps the
+   EPG programme-search IPC handler.
+3. `apps/electron-backend/src/app/events/epg-fetch.service.ts`,
+   `apps/electron-backend/src/app/events/epg-mapping.service.ts`, and
+   `apps/electron-backend/src/app/events/epg-query.service.ts` keep EPG
+   freshness, mapping, and lookup behavior in their focused main-process
+   owners, while EPG parsing/import remains in its dedicated worker.
+
+Do not move these paths as part of unrelated database work. Reassess the
+boundary if a handler becomes heavy enough to block the main process.
 
 ### Categories
 
@@ -613,8 +678,8 @@ Current implementation paths:
 2. `libs/portal/xtream/data-access/src/lib/with-favorites.feature.ts`
 3. `libs/portal/xtream/data-access/src/lib/with-recent-items.ts`
 4. `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts`
-5. `libs/portal/shared/util/src/lib/collection/unified-recent-data.service.ts`
-6. `libs/portal/shared/util/src/lib/collection/unified-favorites-data.service.ts`
+5. `libs/portal/shared/data-access/src/lib/collection/unified-recent-data.service.ts`
+6. `libs/portal/shared/data-access/src/lib/collection/unified-favorites-data.service.ts`
 
 ### Busy states
 
@@ -635,10 +700,14 @@ renderer can actually paint the loading state instead of freezing.
 
 ### Worker bundling
 
-`apps/electron-backend/build-worker.js` now bundles both:
+`apps/electron-backend/build-worker.js` produces three bundles:
 
-1. `epg-parser.worker.ts`
-2. `database.worker.ts`
+1. `apps/electron-backend/src/app/workers/epg-parser.worker.ts` →
+   `dist/apps/electron-backend/workers/epg-parser.worker.js`
+2. `apps/electron-backend/src/app/workers/database.worker.ts` →
+   `dist/apps/electron-backend/workers/database.worker.js`
+3. `apps/electron-backend/src/app/workers/playlist-refresh.worker.ts` →
+   `dist/apps/electron-backend/workers/playlist-refresh.worker.js`
 
 The worker build also aliases:
 
@@ -666,12 +735,16 @@ artifacts for:
 2. macOS app bundles
 3. Windows unpacked app resources
 
-The script checks:
+The verifier's `workerFiles` list currently checks:
 
 1. `epg-parser.worker.js`
 2. `database.worker.js`
-3. `better-sqlite3` in one approved unpacked node_modules location
-4. Snap packaging compatibility settings for `better-sqlite3`:
+
+The playlist refresh bundle is produced by the worker build, but is not yet a
+third explicit `workerFiles` check. The verifier also checks:
+
+1. `better-sqlite3` in one approved unpacked node_modules location
+2. Snap packaging compatibility settings for `better-sqlite3`:
     - `snap.base = core22`
     - Snap launch args keep the X11 fallback
     - Snap and the other non-Flatpak Linux artifacts build on Ubuntu 22.04, while Flatpak builds on a separate Ubuntu 24.04 CI runner
@@ -853,11 +926,15 @@ Available trace flags:
    Logs `window.electron.*` method calls crossing the preload bridge so you can
    see whether the renderer is still reaching Electron main.
 3. `IPTVNATOR_TRACE_DB=1`
-   Logs `DatabaseWorkerClient` request dispatch, completion timing, and emitted
-   `DB_OPERATION_EVENT` payloads.
+   Logs redacted `DatabaseWorkerClient` request dispatch, completion timing,
+   and emitted `DB_OPERATION_EVENT` summaries. It also enables the safe SQL
+   statement-type summaries described below.
 4. `IPTVNATOR_TRACE_SQL=1`
-   Logs SQLite statements for the shared main-process connection and the DB
-   worker connection using `better-sqlite3` verbose hooks.
+   Logs only a fixed allowlisted statement type such as `SELECT`, `INSERT`, or
+   `UPDATE` for the shared main-process and worker connections. The verbose
+   hook output passes through
+   `libs/shared/logging/src/lib/sql-trace-summary.ts`; expanded SQL text and
+   bound values are never emitted.
 5. `IPTVNATOR_TRACE_WINDOW=1`
    Logs BrowserWindow loading, navigation, `unresponsive`, and
    `render-process-gone` transitions.
@@ -882,18 +959,13 @@ CI=1 NX_TASKS_RUNNER_DYNAMIC_OUTPUT=false pnpm nx run electron-backend:build --s
 
 ## Current Limitations
 
-These are intentionally still out of scope for this first cut:
+These remain intentionally out of scope:
 
 1. moving network-heavy Xtream fetches off the current path
-2. migrating every remaining small SQLite IPC handler to the worker
+2. migrating explicitly lightweight download and EPG-specific main-process
+   handlers without evidence that they block Electron main
 3. richer delete progress reporting for bulk destructive operations
 4. repo-wide Angular/Jest cleanup for the currently failing web test baseline
-
-(Request cancellation, originally listed here, has since shipped — see the
-"Cancellation contract" section above: `DB_CANCEL_OPERATION` in
-`apps/electron-backend/src/app/api/main.preload.ts`, `AbortError` production in
-`database.worker.ts`, and `DatabaseService.cancelOperation` in
-`libs/services/src/lib/database-electron.service.ts`.)
 
 ## Extending The Worker
 

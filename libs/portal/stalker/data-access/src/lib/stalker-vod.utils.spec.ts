@@ -5,11 +5,31 @@ import {
     createStalkerInfo,
     createStalkerInlineDetailState,
     createStalkerDetailViewState,
+    isStalkerSeriesFlag,
     normalizeStalkerFavoriteItem,
+    normalizeStalkerSeriesFlag,
     toggleStalkerVodFavorite,
 } from './stalker-vod.utils';
 
 describe('stalker-vod.utils regressions', () => {
+    describe('Stalker series flag contract', () => {
+        it.each([true, 1, '1'])(
+            'accepts %p and normalizes it to the positive marker',
+            (value) => {
+                expect(isStalkerSeriesFlag(value)).toBe(true);
+                expect(normalizeStalkerSeriesFlag(value)).toBe(true);
+            }
+        );
+
+        it.each([false, 0, '0', 'true', null, undefined, {}, []])(
+            'rejects unsupported value %p',
+            (value) => {
+                expect(isStalkerSeriesFlag(value)).toBe(false);
+                expect(normalizeStalkerSeriesFlag(value)).toBeUndefined();
+            }
+        );
+    });
+
     it('routes embedded series[] items to series view state', () => {
         const state = createStalkerDetailViewState(
             {

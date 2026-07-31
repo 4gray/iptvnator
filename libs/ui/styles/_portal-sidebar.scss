@@ -1,8 +1,10 @@
 // ─── Shared sidebar + sidebar-header styles ───────────────────────────────────
 // Plain CSS rules (not a mixin) used for M3U/legacy sidebar layouts.
 //
-// Usage (after adding libs/ui/styles to stylePreprocessorOptions.includePaths):
-//   @use 'portal-sidebar';   (no alias needed — no exported members to call)
+// Choose the relative @use path from each consuming stylesheet. Current portal
+// live layouts use the example below; other consumers may need a different
+// depth. No alias is needed because this partial exports no callable members.
+//   @use '../../../../../../ui/styles/portal-sidebar';
 
 .sidebar {
     // Width is controlled by the resizable directive
