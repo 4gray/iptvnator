@@ -1,6 +1,6 @@
 # Download Manager File Availability and Card Cleanup
 
-**Status:** Approved  
+**Status:** Approved
 **Date:** 2026-07-30
 
 ## Context
