@@ -6,7 +6,11 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { removePartialDownloadFile } from './download-file-path';
-import { encodeDownloadMetadataSnapshot } from './download-metadata-snapshot';
+import {
+    assertDownloadMetadataMatchesContentType,
+    decodeDownloadMetadataSnapshot,
+    encodeDownloadMetadataSnapshot,
+} from './download-metadata-snapshot';
 import { enqueueDownload } from './download-runtime';
 
 export interface StartDownloadRequest {
@@ -117,6 +121,16 @@ export async function startDownloadRequest(
         data.metadataSnapshot === undefined
             ? undefined
             : encodeDownloadMetadataSnapshot(data.metadataSnapshot);
+    const normalizedMetadataSnapshot =
+        encodedMetadataSnapshot === undefined
+            ? undefined
+            : decodeDownloadMetadataSnapshot(encodedMetadataSnapshot);
+    if (
+        encodedMetadataSnapshot !== undefined &&
+        normalizedMetadataSnapshot === undefined
+    ) {
+        throw new Error('Invalid download metadata snapshot');
+    }
     console.log('[Downloads] Enqueue download:', data.title);
     const directory = await authorizer.requireAuthorized(data.downloadFolder);
     await assertRemoteUrlAllowed(data.url, { allowPrivateNetworks: true });
@@ -131,21 +145,6 @@ export async function startDownloadRequest(
         .from(schema.playlists)
         .where(eq(schema.playlists.id, data.playlistId))
         .limit(1);
-    if (existingPlaylist.length === 0) {
-        console.log(
-            '[Downloads] Creating playlist entry for:',
-            data.playlistId
-        );
-        await db.insert(schema.playlists).values({
-            id: data.playlistId,
-            macAddress: data.macAddress,
-            name: data.playlistName || 'Unknown Playlist',
-            serverUrl: data.serverUrl,
-            type: data.playlistType || 'stalker',
-            url: data.portalUrl,
-        });
-    }
-
     const existing = await db
         .select()
         .from(schema.downloads)
@@ -162,6 +161,12 @@ export async function startDownloadRequest(
 
     if (existing.length > 0) {
         const item = existing[0];
+        if (normalizedMetadataSnapshot) {
+            assertDownloadMetadataMatchesContentType(
+                normalizedMetadataSnapshot,
+                item.contentType
+            );
+        }
         if (!['completed', 'failed', 'canceled'].includes(item.status)) {
             return {
                 error: 'Download already in progress',
@@ -216,6 +221,27 @@ export async function startDownloadRequest(
             url: data.url,
         });
         return { id: item.id, success: true };
+    }
+
+    if (normalizedMetadataSnapshot) {
+        assertDownloadMetadataMatchesContentType(
+            normalizedMetadataSnapshot,
+            data.contentType
+        );
+    }
+    if (existingPlaylist.length === 0) {
+        console.log(
+            '[Downloads] Creating playlist entry for:',
+            data.playlistId
+        );
+        await db.insert(schema.playlists).values({
+            id: data.playlistId,
+            macAddress: data.macAddress,
+            name: data.playlistName || 'Unknown Playlist',
+            serverUrl: data.serverUrl,
+            type: data.playlistType || 'stalker',
+            url: data.portalUrl,
+        });
     }
 
     const result = await db.insert(schema.downloads).values({

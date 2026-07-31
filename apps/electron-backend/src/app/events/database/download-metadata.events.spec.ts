@@ -15,32 +15,51 @@ const movieSnapshot: DownloadMetadataSnapshot = {
 };
 
 function createSingleRowDatabase(row: Record<string, unknown> | undefined) {
-    const updateWhere = jest.fn().mockResolvedValue(undefined);
-    const set = jest.fn<
-        { where: typeof updateWhere },
-        [Record<string, unknown>]
-    >(() => ({ where: updateWhere }));
-    const update = jest.fn(() => ({ set }));
-    const limit = jest.fn().mockResolvedValue(row ? [row] : []);
-    const db = {
-        select: jest.fn(() => ({
-            from: jest.fn(() => ({
-                where: jest.fn(() => ({ limit })),
-            })),
+    const get = jest.fn(() => row);
+    const limit = jest.fn(() => ({ get }));
+    const transactionSelect = jest.fn(() => ({
+        from: jest.fn(() => ({
+            where: jest.fn(() => ({ limit })),
         })),
-        update,
+    }));
+    const run = jest.fn();
+    const updateWhere = jest.fn(() => ({ run }));
+    const set = jest.fn(() => ({ where: updateWhere }));
+    const transactionUpdate = jest.fn(() => ({ set }));
+    const transaction = jest.fn(
+        (operation: (tx: Record<string, jest.Mock>) => unknown) =>
+            operation({
+                select: transactionSelect,
+                update: transactionUpdate,
+            })
+    );
+    const db = {
+        select: jest.fn(),
+        transaction,
+        update: jest.fn(),
     };
     mockGetDatabase.mockResolvedValue(db);
-    return { db, limit, set, updateWhere };
+    return {
+        db,
+        get,
+        run,
+        set,
+        transaction,
+        transactionSelect,
+        transactionUpdate,
+        updateWhere,
+    };
 }
 
 function createGroupedDatabase(
     representative: Record<string, unknown>,
     members: Array<Record<string, unknown>>
 ) {
-    const limit = jest.fn().mockResolvedValue([representative]);
-    const groupWhere = jest.fn().mockResolvedValue(members);
-    const select = jest
+    const get = jest.fn(() => representative);
+    const limit = jest.fn(() => ({ get }));
+    const all = jest.fn(() => members);
+    const groupWhere = jest.fn(() => ({ all }));
+    const transactionSelect = jest
         .fn()
         .mockImplementationOnce(() => ({
             from: jest.fn(() => ({
@@ -60,20 +79,28 @@ function createGroupedDatabase(
     >(() => ({ where: updateWhere }));
     const transactionUpdate = jest.fn(() => ({ set }));
     const transaction = jest.fn(
-        (operation: (tx: { update: typeof transactionUpdate }) => void) =>
-            operation({ update: transactionUpdate })
+        (operation: (tx: Record<string, jest.Mock>) => unknown) =>
+            operation({
+                select: transactionSelect,
+                update: transactionUpdate,
+            })
     );
-    const update = jest.fn();
-    const db = { select, transaction, update };
+    const db = {
+        select: jest.fn(),
+        transaction,
+        update: jest.fn(),
+    };
     mockGetDatabase.mockResolvedValue(db);
     return {
+        all,
         db,
+        get,
         groupWhere,
         run,
         set,
         transaction,
+        transactionSelect,
         transactionUpdate,
-        update,
         updateWhere,
     };
 }
@@ -85,7 +112,7 @@ describe('downloads events: managed metadata updates', () => {
 
     it('updates only the managed movie id', async () => {
         const schema = await import('../../database/schema');
-        const { set, updateWhere } = createSingleRowDatabase({
+        const database = createSingleRowDatabase({
             contentType: 'vod',
             id: 42,
             playlistId: 'playlist-a',
@@ -96,7 +123,7 @@ describe('downloads events: managed metadata updates', () => {
             getHandler('DOWNLOADS_UPDATE_METADATA')(null, 42, movieSnapshot)
         ).resolves.toEqual({ success: true });
 
-        expect(set).toHaveBeenCalledWith(
+        expect(database.set).toHaveBeenCalledWith(
             expect.objectContaining({
                 metadataSnapshot: JSON.stringify(movieSnapshot),
                 updatedAt: expect.anything(),
@@ -104,7 +131,13 @@ describe('downloads events: managed metadata updates', () => {
         );
         expect(mockEq).toHaveBeenCalledWith(schema.downloads.id, 42);
         expect(mockEq).toHaveBeenCalledTimes(2);
-        expect(updateWhere).toHaveBeenCalledTimes(1);
+        expect(database.transaction).toHaveBeenCalledTimes(1);
+        expect(database.transactionSelect).toHaveBeenCalledTimes(1);
+        expect(database.transactionUpdate).toHaveBeenCalledTimes(1);
+        expect(database.updateWhere).toHaveBeenCalledTimes(1);
+        expect(database.run).toHaveBeenCalledTimes(1);
+        expect(database.db.select).not.toHaveBeenCalled();
+        expect(database.db.update).not.toHaveBeenCalled();
     });
 
     it('updates the authoritative episode group while preserving each episode', async () => {
@@ -179,7 +212,9 @@ describe('downloads events: managed metadata updates', () => {
             700
         );
         expect(database.transaction).toHaveBeenCalledTimes(1);
-        expect(database.update).not.toHaveBeenCalled();
+        expect(database.db.select).not.toHaveBeenCalled();
+        expect(database.db.update).not.toHaveBeenCalled();
+        expect(database.transactionSelect).toHaveBeenCalledTimes(2);
         expect(database.transactionUpdate).toHaveBeenCalledTimes(2);
         expect(database.run).toHaveBeenCalledTimes(2);
         for (const [write] of database.set.mock.calls) {
@@ -255,7 +290,7 @@ describe('downloads events: managed metadata updates', () => {
     });
 
     it('updates only an ungrouped episode', async () => {
-        const { set, updateWhere } = createSingleRowDatabase({
+        const database = createSingleRowDatabase({
             contentType: 'episode',
             id: 42,
             playlistId: 'playlist-a',
@@ -270,12 +305,12 @@ describe('downloads events: managed metadata updates', () => {
             getHandler('DOWNLOADS_UPDATE_METADATA')(null, 42, snapshot)
         ).resolves.toEqual({ success: true });
 
-        expect(set).toHaveBeenCalledTimes(1);
-        expect(updateWhere).toHaveBeenCalledTimes(1);
+        expect(database.set).toHaveBeenCalledTimes(1);
+        expect(database.updateWhere).toHaveBeenCalledTimes(1);
     });
 
     it('returns a stable missing-row failure without writing', async () => {
-        const { db } = createSingleRowDatabase(undefined);
+        const database = createSingleRowDatabase(undefined);
 
         await expect(
             getHandler('DOWNLOADS_UPDATE_METADATA')(null, 404, movieSnapshot)
@@ -283,7 +318,62 @@ describe('downloads events: managed metadata updates', () => {
             error: 'Download not found',
             success: false,
         });
-        expect(db.update).not.toHaveBeenCalled();
+        expect(database.transaction).toHaveBeenCalledTimes(1);
+        expect(database.transactionUpdate).not.toHaveBeenCalled();
+        expect(database.db.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['vod', 'series'],
+        ['episode', 'movie'],
+    ] as const)(
+        'rejects %s rows carrying %s metadata without writing',
+        async (contentType, mediaKind) => {
+            const database = createSingleRowDatabase({
+                contentType,
+                id: 42,
+                playlistId: 'playlist-a',
+                seriesXtreamId: null,
+            });
+
+            await expect(
+                getHandler('DOWNLOADS_UPDATE_METADATA')(null, 42, {
+                    ...movieSnapshot,
+                    mediaKind,
+                })
+            ).resolves.toEqual({
+                error: 'Invalid download metadata snapshot',
+                success: false,
+            });
+
+            expect(database.transaction).toHaveBeenCalledTimes(1);
+            expect(database.transactionUpdate).not.toHaveBeenCalled();
+            expect(database.db.update).not.toHaveBeenCalled();
+        }
+    );
+
+    it('rejects a grouped episode carrying movie metadata before loading members', async () => {
+        const database = createGroupedDatabase(
+            {
+                contentType: 'episode',
+                id: 41,
+                playlistId: 'playlist-a',
+                seriesXtreamId: 700,
+            },
+            []
+        );
+
+        await expect(
+            getHandler('DOWNLOADS_UPDATE_METADATA')(null, 41, movieSnapshot)
+        ).resolves.toEqual({
+            error: 'Invalid download metadata snapshot',
+            success: false,
+        });
+
+        expect(database.transaction).toHaveBeenCalledTimes(1);
+        expect(database.transactionSelect).toHaveBeenCalledTimes(1);
+        expect(database.all).not.toHaveBeenCalled();
+        expect(database.transactionUpdate).not.toHaveBeenCalled();
     });
 
     it('rejects invalid and unsafe snapshots before accessing the database', async () => {
@@ -342,7 +432,10 @@ describe('downloads events: managed metadata updates', () => {
             }),
         }));
         database.transaction.mockImplementation((operation) => {
-            operation({ update: database.transactionUpdate });
+            operation({
+                select: database.transactionSelect,
+                update: database.transactionUpdate,
+            });
             committed.push(...pending);
         });
         const consoleError = jest

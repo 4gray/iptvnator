@@ -3,6 +3,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import {
+    assertDownloadMetadataMatchesContentType,
     decodeDownloadMetadataSnapshot,
     encodeDownloadMetadataSnapshot,
 } from './download-metadata-snapshot';
@@ -62,51 +63,57 @@ export async function updateDownloadMetadataRequest(
             throw new Error('Invalid download metadata snapshot');
         }
         const db = await getDatabase();
-        const [row] = await db
-            .select()
-            .from(schema.downloads)
-            .where(eq(schema.downloads.id, downloadId))
-            .limit(1);
-        if (!row) {
-            return { error: 'Download not found', success: false };
-        }
-
-        if (
-            row.contentType !== 'episode' ||
-            !isValidSeriesId(row.seriesXtreamId)
-        ) {
-            await db
-                .update(schema.downloads)
-                .set({
-                    metadataSnapshot: encoded,
-                    updatedAt: sql`CURRENT_TIMESTAMP`,
-                })
-                .where(eq(schema.downloads.id, row.id));
-            return { success: true };
-        }
-
-        const members = await db
-            .select()
-            .from(schema.downloads)
-            .where(
-                and(
-                    eq(schema.downloads.playlistId, row.playlistId),
-                    eq(schema.downloads.seriesXtreamId, row.seriesXtreamId),
-                    eq(schema.downloads.contentType, row.contentType)
-                )
+        return db.transaction((tx) => {
+            const row = tx
+                .select()
+                .from(schema.downloads)
+                .where(eq(schema.downloads.id, downloadId))
+                .limit(1)
+                .get();
+            if (!row) {
+                return { error: 'Download not found', success: false };
+            }
+            assertDownloadMetadataMatchesContentType(
+                normalizedMetadataSnapshot,
+                row.contentType
             );
-        const writes = members.map((member) => {
-            const episode = getStoredEpisode(member);
-            return {
-                id: member.id,
-                metadataSnapshot: encodeDownloadMetadataSnapshot({
-                    ...normalizedMetadataSnapshot,
-                    episode,
-                }),
-            };
-        });
 
-        await db.transaction((tx) => {
+            if (
+                row.contentType !== 'episode' ||
+                !isValidSeriesId(row.seriesXtreamId)
+            ) {
+                tx.update(schema.downloads)
+                    .set({
+                        metadataSnapshot: encoded,
+                        updatedAt: sql`CURRENT_TIMESTAMP`,
+                    })
+                    .where(eq(schema.downloads.id, row.id))
+                    .run();
+                return { success: true };
+            }
+
+            const members = tx
+                .select()
+                .from(schema.downloads)
+                .where(
+                    and(
+                        eq(schema.downloads.playlistId, row.playlistId),
+                        eq(schema.downloads.seriesXtreamId, row.seriesXtreamId),
+                        eq(schema.downloads.contentType, row.contentType)
+                    )
+                )
+                .all();
+            const writes = members.map((member) => {
+                const episode = getStoredEpisode(member);
+                return {
+                    id: member.id,
+                    metadataSnapshot: encodeDownloadMetadataSnapshot({
+                        ...normalizedMetadataSnapshot,
+                        episode,
+                    }),
+                };
+            });
+
             for (const write of writes) {
                 tx.update(schema.downloads)
                     .set({
@@ -116,8 +123,8 @@ export async function updateDownloadMetadataRequest(
                     .where(eq(schema.downloads.id, write.id))
                     .run();
             }
+            return { success: true };
         });
-        return { success: true };
     } catch (error) {
         const safeError = getSafeUpdateError(error);
         if (safeError === 'Could not update download metadata') {

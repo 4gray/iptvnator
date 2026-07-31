@@ -12,10 +12,16 @@ async function setupStartMetadataRequest(
     existing: Record<string, unknown> | undefined
 ) {
     jest.resetModules();
-    const limit = jest
+    const schema = await import('../../database/schema');
+    const playlistLimit = jest.fn().mockResolvedValue([{ id: 'playlist-1' }]);
+    const downloadLimit = jest
         .fn()
-        .mockResolvedValueOnce([{ id: 'playlist-1' }])
-        .mockResolvedValueOnce(existing ? [existing] : []);
+        .mockResolvedValue(existing ? [existing] : []);
+    const from = jest.fn((table: unknown) => ({
+        where: jest.fn(() => ({
+            limit: table === schema.playlists ? playlistLimit : downloadLimit,
+        })),
+    }));
     const insertValues = jest.fn().mockResolvedValue({ lastInsertRowid: 84 });
     const set = jest.fn<{ where: jest.Mock }, [Record<string, unknown>]>(
         () => ({
@@ -25,9 +31,7 @@ async function setupStartMetadataRequest(
     const db = {
         insert: jest.fn(() => ({ values: insertValues })),
         select: jest.fn(() => ({
-            from: jest.fn(() => ({
-                where: jest.fn(() => ({ limit })),
-            })),
+            from,
         })),
         update: jest.fn(() => ({ set })),
     };
@@ -57,9 +61,12 @@ async function setupStartMetadataRequest(
     };
 }
 
-function startPayload(snapshot?: DownloadMetadataSnapshot) {
+function startPayload(
+    snapshot?: DownloadMetadataSnapshot,
+    contentType: 'vod' | 'episode' = 'vod'
+) {
     return {
-        contentType: 'vod' as const,
+        contentType,
         downloadFolder: '/downloads',
         metadataSnapshot: snapshot,
         playlistId: 'playlist-1',
@@ -161,6 +168,64 @@ describe('download request metadata snapshots', () => {
         expect(request.db.insert).not.toHaveBeenCalled();
         expect(request.enqueueDownload).not.toHaveBeenCalled();
     });
+
+    it.each([
+        ['vod', 'series'],
+        ['episode', 'movie'],
+    ] as const)(
+        'rejects a new %s row carrying %s metadata',
+        async (contentType, mediaKind) => {
+            const request = await setupStartMetadataRequest(undefined);
+
+            await expect(
+                request.startDownloadRequest(
+                    startPayload(
+                        { ...metadataSnapshot, mediaKind },
+                        contentType
+                    ),
+                    request.authorizer
+                )
+            ).rejects.toThrow('Invalid download metadata snapshot');
+
+            expect(request.db.insert).not.toHaveBeenCalled();
+            expect(request.db.update).not.toHaveBeenCalled();
+            expect(request.enqueueDownload).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each([
+        ['vod', 'episode', 'series'],
+        ['episode', 'vod', 'movie'],
+    ] as const)(
+        'uses stored %s identity instead of renderer %s identity for restart metadata',
+        async (storedContentType, rendererContentType, mediaKind) => {
+            const request = await setupStartMetadataRequest({
+                contentType: storedContentType,
+                filePath: null,
+                id: 42,
+                metadataSnapshot: null,
+                playlistId: 'playlist-1',
+                status: 'canceled',
+                title: 'Offline Item',
+                url: 'https://example.test/item.mp4',
+                xtreamId: 7,
+            });
+
+            await expect(
+                request.startDownloadRequest(
+                    startPayload(
+                        { ...metadataSnapshot, mediaKind },
+                        rendererContentType
+                    ),
+                    request.authorizer
+                )
+            ).rejects.toThrow('Invalid download metadata snapshot');
+
+            expect(request.db.insert).not.toHaveBeenCalled();
+            expect(request.db.update).not.toHaveBeenCalled();
+            expect(request.enqueueDownload).not.toHaveBeenCalled();
+        }
+    );
 });
 
 describe('download requests resume', () => {

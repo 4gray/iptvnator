@@ -3,43 +3,20 @@ import type {
     DownloadMetadataPerson,
     DownloadMetadataSnapshot,
 } from '@iptvnator/shared/interfaces';
+import { normalizeDownloadArtworkUrl } from './download-artwork-url';
+import { assertSafeDownloadMetadataInput } from './download-metadata-input-safety';
 
 export const DOWNLOAD_METADATA_MAX_BYTES = 128 * 1024;
 
 const MAX_PEOPLE = 30;
 const MAX_GENRES = 20;
-const FORBIDDEN_KEYS = new Set([
-    'accesstoken',
-    'apikey',
-    'authorization',
-    'cookie',
-    'cookies',
-    'credential',
-    'credentials',
-    'deviceid',
-    'headers',
-    'macaddress',
-    'origin',
-    'password',
-    'playbackurl',
-    'portalauth',
-    'portalurl',
-    'proxyauthorization',
-    'referer',
-    'refreshtoken',
-    'requestheaders',
-    'secret',
-    'serialnumber',
-    'serverurl',
-    'streamurl',
-    'token',
-    'url',
-    'useragent',
-    'username',
-]);
 
 function invalidSnapshot(): never {
     throw new Error('Invalid download metadata snapshot');
+}
+
+function oversizedSnapshot(): never {
+    throw new Error('Download metadata snapshot is too large');
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -47,30 +24,6 @@ function asRecord(value: unknown): Record<string, unknown> {
         return invalidSnapshot();
     }
     return value as Record<string, unknown>;
-}
-
-function assertNoForbiddenKeys(input: unknown): void {
-    const pending: unknown[] = [input];
-    const visited = new WeakSet<object>();
-
-    while (pending.length > 0) {
-        const value = pending.pop();
-        if (!value || typeof value !== 'object') {
-            continue;
-        }
-        if (visited.has(value)) {
-            continue;
-        }
-        visited.add(value);
-
-        for (const key of Object.keys(value)) {
-            const normalizedKey = key.toLowerCase().replace(/[-_]/g, '');
-            if (FORBIDDEN_KEYS.has(normalizedKey)) {
-                invalidSnapshot();
-            }
-            pending.push((value as Record<string, unknown>)[key]);
-        }
-    }
 }
 
 function requiredString(value: unknown): string {
@@ -128,7 +81,7 @@ function normalizePerson(value: unknown): DownloadMetadataPerson {
     const person = asRecord(value);
     const tmdbPersonId = optionalInteger(person.tmdbPersonId);
     const role = optionalString(person.role);
-    const profileUrl = optionalString(person.profileUrl);
+    const profileUrl = normalizeDownloadArtworkUrl(person.profileUrl);
     return {
         ...(tmdbPersonId === undefined ? {} : { tmdbPersonId }),
         name: requiredString(person.name),
@@ -154,7 +107,7 @@ function normalizeEpisode(value: unknown): DownloadEpisodeMetadata | undefined {
     const episode = asRecord(value);
     const title = optionalString(episode.title);
     const plot = optionalString(episode.plot);
-    const stillUrl = optionalString(episode.stillUrl);
+    const stillUrl = normalizeDownloadArtworkUrl(episode.stillUrl);
     const seasonNumber = optionalInteger(episode.seasonNumber);
     const episodeNumber = optionalInteger(episode.episodeNumber);
     if (seasonNumber === undefined || episodeNumber === undefined) {
@@ -172,7 +125,7 @@ function normalizeEpisode(value: unknown): DownloadEpisodeMetadata | undefined {
 function normalizeDownloadMetadataSnapshot(
     input: unknown
 ): DownloadMetadataSnapshot {
-    assertNoForbiddenKeys(input);
+    assertSafeDownloadMetadataInput(input, DOWNLOAD_METADATA_MAX_BYTES);
     const source = asRecord(input);
     if (
         source.version !== 1 ||
@@ -189,8 +142,8 @@ function normalizeDownloadMetadataSnapshot(
     const genres = normalizeGenres(source.genres);
     const rating = optionalFiniteNumber(source.rating);
     const status = optionalString(source.status);
-    const posterUrl = optionalString(source.posterUrl);
-    const backdropUrl = optionalString(source.backdropUrl);
+    const posterUrl = normalizeDownloadArtworkUrl(source.posterUrl);
+    const backdropUrl = normalizeDownloadArtworkUrl(source.backdropUrl);
     const tmdbId = optionalInteger(source.tmdbId);
     const providerCategoryId = optionalString(source.providerCategoryId);
     const cast = normalizePeople(source.cast);
@@ -228,14 +181,33 @@ export function encodeDownloadMetadataSnapshot(
     let snapshot: DownloadMetadataSnapshot;
     try {
         snapshot = normalizeDownloadMetadataSnapshot(input);
-    } catch {
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            error.message === 'Download metadata snapshot is too large'
+        ) {
+            throw error;
+        }
         return invalidSnapshot();
     }
     const encoded = JSON.stringify(snapshot);
     if (Buffer.byteLength(encoded, 'utf8') > DOWNLOAD_METADATA_MAX_BYTES) {
-        throw new Error('Download metadata snapshot is too large');
+        return oversizedSnapshot();
     }
     return encoded;
+}
+
+export function assertDownloadMetadataMatchesContentType(
+    metadataSnapshot: DownloadMetadataSnapshot,
+    contentType: string
+): void {
+    if (
+        (contentType !== 'vod' && contentType !== 'episode') ||
+        (contentType === 'vod' && metadataSnapshot.mediaKind !== 'movie') ||
+        (contentType === 'episode' && metadataSnapshot.mediaKind !== 'series')
+    ) {
+        invalidSnapshot();
+    }
 }
 
 export function decodeDownloadMetadataSnapshot(
