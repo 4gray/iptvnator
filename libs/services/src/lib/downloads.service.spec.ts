@@ -413,6 +413,33 @@ describe('DownloadsService', () => {
         );
     });
 
+    it('stringifies a non-Error metadata update failure', async () => {
+        const error = { message: 404 };
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const electron = {
+            downloadsGetList: jest.fn(async () => []),
+            downloadsUpdateMetadata: jest
+                .fn<
+                    Promise<{ success: boolean; error?: string }>,
+                    [number, DownloadMetadataSnapshot]
+                >()
+                .mockRejectedValue(error),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(
+            service.updateMetadata(42, metadataSnapshot)
+        ).resolves.toEqual({
+            error: '[object Object]',
+            success: false,
+        });
+        expect(console.error).toHaveBeenCalledWith(
+            '[DownloadsService] Metadata update error:',
+            error
+        );
+    });
+
     it('returns a safe failure when the metadata reload throws', async () => {
         const error = new Error('metadata reload failed');
         jest.spyOn(console, 'error').mockImplementation(() => undefined);

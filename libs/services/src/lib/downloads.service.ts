@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import { updateDownloadMetadata } from './downloads-metadata-update';
 import type { DownloadItem, DownloadStartInput } from './downloads.models';
 import { formatDownloadBytes } from './downloads.utils';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
@@ -132,7 +133,9 @@ export class DownloadsService implements OnDestroy {
     /**
      * Start a new download
      */
-    async startDownload(data: DownloadStartInput) {
+    async startDownload(
+        data: DownloadStartInput
+    ): Promise<{ success: boolean; id?: number; error?: string }> {
         if (!this.isAvailable()) {
             return { success: false, error: 'Downloads not available' };
         }
@@ -143,15 +146,17 @@ export class DownloadsService implements OnDestroy {
         }
 
         try {
-            return await window.electron.downloadsStart({
+            const result = await window.electron.downloadsStart({
                 ...data,
                 downloadFolder: folder,
             });
+            return result;
         } catch (error) {
             console.error('[DownloadsService] Error starting download:', error);
-            const message =
-                error instanceof Error ? error.message : String(error);
-            return { success: false, error: message };
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            };
         }
     }
 
@@ -298,19 +303,11 @@ export class DownloadsService implements OnDestroy {
     }
 
     /** Update the offline metadata snapshot for a managed download. */
-    async updateMetadata(id: number, snapshot: DownloadMetadataSnapshot) {
-        if (!this.isAvailable()) return { success: false };
-
-        try {
-            const bridge = window.electron;
-            const result = await bridge.downloadsUpdateMetadata(id, snapshot);
-            if (result.success) await this.loadDownloads();
-            return result;
-        } catch (error) {
-            console.error('[DownloadsService] Metadata update error:', error);
-            const message = (error as Error)?.message ?? String(error);
-            return { success: false, error: message };
-        }
+    async updateMetadata(
+        id: number,
+        snapshot: DownloadMetadataSnapshot
+    ): Promise<{ success: boolean; error?: string }> {
+        return updateDownloadMetadata(this, id, snapshot);
     }
 
     /**
