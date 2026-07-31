@@ -4,34 +4,59 @@ import type {
     DownloadMetadataSnapshot,
 } from '@iptvnator/shared/interfaces';
 
-/**
- * Missing or invalid season/episode coordinates are presented as specials.
- * Zero is stable, numeric, and keeps locally available legacy files visible.
- */
-export const DOWNLOAD_OFFLINE_COORDINATE_FALLBACK = 0;
+type DeepReadonlyAtomic =
+    bigint | boolean | null | number | string | symbol | undefined;
 
-export interface DownloadOfflineEpisode {
-    readonly item: DownloadItem;
-    readonly seasonNumber: number;
-    readonly episodeNumber: number;
-    readonly episodeMetadata?: DownloadEpisodeMetadata;
-}
+export type DeepReadonly<T> = T extends DeepReadonlyAtomic
+    ? T
+    : T extends (...args: never[]) => unknown
+      ? T
+      : T extends readonly (infer Item)[]
+        ? readonly DeepReadonly<Item>[]
+        : T extends object
+          ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+          : T;
 
-export interface DownloadOfflineSeason {
-    readonly seasonNumber: number;
+export type DownloadOfflineSeasonCoordinate =
+    | {
+          readonly seasonNumber: number;
+          readonly seasonNumberState: 'known';
+      }
+    | {
+          readonly seasonNumber: null;
+          readonly seasonNumberState: 'unknown';
+      };
+
+export type DownloadOfflineEpisodeCoordinate =
+    | {
+          readonly episodeNumber: number;
+          readonly episodeNumberState: 'known';
+      }
+    | {
+          readonly episodeNumber: null;
+          readonly episodeNumberState: 'unknown';
+      };
+
+export type DownloadOfflineEpisode = DownloadOfflineSeasonCoordinate &
+    DownloadOfflineEpisodeCoordinate & {
+        readonly item: DeepReadonly<DownloadItem>;
+        readonly episodeMetadata?: DeepReadonly<DownloadEpisodeMetadata>;
+    };
+
+export type DownloadOfflineSeason = DownloadOfflineSeasonCoordinate & {
     readonly episodes: readonly DownloadOfflineEpisode[];
-}
+};
 
 export interface DownloadOfflineMovieDetail {
     readonly kind: 'movie';
-    readonly item: DownloadItem;
-    readonly snapshot?: DownloadMetadataSnapshot;
+    readonly item: DeepReadonly<DownloadItem>;
+    readonly snapshot?: DeepReadonly<DownloadMetadataSnapshot>;
 }
 
 export interface DownloadOfflineSeriesDetail {
     readonly kind: 'series';
-    readonly representative: DownloadItem;
-    readonly snapshot?: DownloadMetadataSnapshot;
+    readonly representative: DeepReadonly<DownloadItem>;
+    readonly snapshot?: DeepReadonly<DownloadMetadataSnapshot>;
     readonly seasons: readonly DownloadOfflineSeason[];
 }
 
@@ -40,14 +65,46 @@ export type DownloadOfflineDetail =
 
 export interface BuildDownloadOfflineDetailInput {
     readonly downloadId: number;
-    readonly downloads: readonly DownloadItem[];
+    readonly downloads: readonly DeepReadonly<DownloadItem>[];
+}
+
+type ReadonlyDownloadItem = DeepReadonly<DownloadItem>;
+
+type NormalizedCoordinate =
+    | {
+          readonly state: 'known';
+          readonly value: number;
+          readonly sortBucket: 0;
+      }
+    | {
+          readonly state: 'unknown';
+          readonly value: null;
+          readonly sortBucket: 1;
+      };
+
+type NormalizedTimestamp =
+    | {
+          readonly state: 'known';
+          readonly value: number;
+          readonly sortBucket: 0;
+      }
+    | {
+          readonly state: 'unknown';
+          readonly sortBucket: 1;
+      };
+
+interface SortableOfflineEpisode {
+    readonly view: DownloadOfflineEpisode;
+    readonly season: NormalizedCoordinate;
+    readonly episode: NormalizedCoordinate;
+    readonly createdAt: NormalizedTimestamp;
 }
 
 function isPositiveSafeInteger(value: number | undefined): value is number {
     return Number.isSafeInteger(value) && (value ?? 0) > 0;
 }
 
-function isLocallyAvailable(item: DownloadItem): boolean {
+function isLocallyAvailable(item: ReadonlyDownloadItem): boolean {
     return (
         item.status === 'completed' &&
         (item.filePath?.trim().length ?? 0) > 0 &&
@@ -60,20 +117,24 @@ function parsedTimestamp(value: string | undefined): number | undefined {
     return Number.isFinite(timestamp) ? timestamp : undefined;
 }
 
-function normalizedTimestamp(value: string | undefined): number {
-    return parsedTimestamp(value) ?? 0;
+function normalizedCoordinate(value: number | undefined): NormalizedCoordinate {
+    if (Number.isSafeInteger(value) && (value ?? -1) >= 0) {
+        return { state: 'known', value: value as number, sortBucket: 0 };
+    }
+    return { state: 'unknown', value: null, sortBucket: 1 };
 }
 
-function normalizedCoordinate(value: number | undefined): number {
-    return Number.isSafeInteger(value) && (value ?? -1) >= 0
-        ? (value as number)
-        : DOWNLOAD_OFFLINE_COORDINATE_FALLBACK;
+function normalizedTimestamp(value: string | undefined): NormalizedTimestamp {
+    const timestamp = parsedTimestamp(value);
+    return timestamp === undefined
+        ? { state: 'unknown', sortBucket: 1 }
+        : { state: 'known', value: timestamp, sortBucket: 0 };
 }
 
 function snapshotForKind(
-    item: DownloadItem,
+    item: ReadonlyDownloadItem,
     mediaKind: DownloadMetadataSnapshot['mediaKind']
-): DownloadMetadataSnapshot | undefined {
+): DeepReadonly<DownloadMetadataSnapshot> | undefined {
     const candidate = item.metadataSnapshot;
     return candidate?.version === 1 && candidate.mediaKind === mediaKind
         ? candidate
@@ -87,7 +148,7 @@ function compareIdsNewestFirst(left: number, right: number): number {
     return right < left ? -1 : 1;
 }
 
-function effectiveSeriesSnapshotTimestamp(item: DownloadItem): number {
+function effectiveSeriesSnapshotTimestamp(item: ReadonlyDownloadItem): number {
     const snapshot = snapshotForKind(item, 'series');
     for (const value of [
         snapshot?.enrichedAt,
@@ -103,8 +164,8 @@ function effectiveSeriesSnapshotTimestamp(item: DownloadItem): number {
 }
 
 function selectSeriesSnapshot(
-    members: readonly DownloadItem[]
-): DownloadMetadataSnapshot | undefined {
+    members: readonly ReadonlyDownloadItem[]
+): DeepReadonly<DownloadMetadataSnapshot> | undefined {
     const candidates = members
         .filter((item) => snapshotForKind(item, 'series') !== undefined)
         .sort(
@@ -119,56 +180,113 @@ function selectSeriesSnapshot(
         : snapshotForKind(candidates[0], 'series');
 }
 
-function toOfflineEpisode(item: DownloadItem): DownloadOfflineEpisode {
-    const seasonNumber = normalizedCoordinate(item.seasonNumber);
-    const episodeNumber = normalizedCoordinate(item.episodeNumber);
+function seasonCoordinateFields(
+    coordinate: NormalizedCoordinate
+): DownloadOfflineSeasonCoordinate {
+    return coordinate.state === 'known'
+        ? { seasonNumber: coordinate.value, seasonNumberState: 'known' }
+        : { seasonNumber: null, seasonNumberState: 'unknown' };
+}
+
+function episodeCoordinateFields(
+    coordinate: NormalizedCoordinate
+): DownloadOfflineEpisodeCoordinate {
+    return coordinate.state === 'known'
+        ? { episodeNumber: coordinate.value, episodeNumberState: 'known' }
+        : { episodeNumber: null, episodeNumberState: 'unknown' };
+}
+
+function toSortableOfflineEpisode(
+    item: ReadonlyDownloadItem
+): SortableOfflineEpisode {
+    const season = normalizedCoordinate(item.seasonNumber);
+    const episode = normalizedCoordinate(item.episodeNumber);
     const episodeMetadata = snapshotForKind(item, 'series')?.episode;
 
     return {
-        item,
-        seasonNumber,
-        episodeNumber,
-        ...(episodeMetadata === undefined ? {} : { episodeMetadata }),
+        season,
+        episode,
+        createdAt: normalizedTimestamp(item.createdAt),
+        view: {
+            item,
+            ...seasonCoordinateFields(season),
+            ...episodeCoordinateFields(episode),
+            ...(episodeMetadata === undefined ? {} : { episodeMetadata }),
+        },
     };
 }
 
-function compareOfflineEpisodes(
-    left: DownloadOfflineEpisode,
-    right: DownloadOfflineEpisode
+function compareCoordinates(
+    left: NormalizedCoordinate,
+    right: NormalizedCoordinate
 ): number {
     return (
-        left.seasonNumber - right.seasonNumber ||
-        left.episodeNumber - right.episodeNumber ||
-        normalizedTimestamp(left.item.createdAt) -
-            normalizedTimestamp(right.item.createdAt) ||
-        left.item.id - right.item.id
+        left.sortBucket - right.sortBucket ||
+        (left.state === 'known' && right.state === 'known'
+            ? left.value - right.value
+            : 0)
+    );
+}
+
+function compareTimestamps(
+    left: NormalizedTimestamp,
+    right: NormalizedTimestamp
+): number {
+    return (
+        left.sortBucket - right.sortBucket ||
+        (left.state === 'known' && right.state === 'known'
+            ? left.value - right.value
+            : 0)
+    );
+}
+
+function compareOfflineEpisodes(
+    left: SortableOfflineEpisode,
+    right: SortableOfflineEpisode
+): number {
+    return (
+        compareCoordinates(left.season, right.season) ||
+        compareCoordinates(left.episode, right.episode) ||
+        compareTimestamps(left.createdAt, right.createdAt) ||
+        left.view.item.id - right.view.item.id
     );
 }
 
 function buildSeasons(
-    members: readonly DownloadItem[]
+    members: readonly ReadonlyDownloadItem[]
 ): readonly DownloadOfflineSeason[] {
-    const episodes = members.map(toOfflineEpisode).sort(compareOfflineEpisodes);
-    const grouped = new Map<number, DownloadOfflineEpisode[]>();
+    const episodes = members
+        .map(toSortableOfflineEpisode)
+        .sort(compareOfflineEpisodes);
+    const grouped = new Map<
+        number | null,
+        {
+            readonly coordinate: NormalizedCoordinate;
+            readonly episodes: DownloadOfflineEpisode[];
+        }
+    >();
 
     for (const episode of episodes) {
-        const season = grouped.get(episode.seasonNumber);
+        const season = grouped.get(episode.season.value);
         if (season) {
-            season.push(episode);
+            season.episodes.push(episode.view);
         } else {
-            grouped.set(episode.seasonNumber, [episode]);
+            grouped.set(episode.season.value, {
+                coordinate: episode.season,
+                episodes: [episode.view],
+            });
         }
     }
 
-    return [...grouped].map(([seasonNumber, seasonEpisodes]) => ({
-        seasonNumber,
-        episodes: seasonEpisodes,
+    return [...grouped.values()].map(({ coordinate, episodes }) => ({
+        ...seasonCoordinateFields(coordinate),
+        episodes,
     }));
 }
 
 function buildSeriesDetail(
-    representative: DownloadItem,
-    downloads: readonly DownloadItem[]
+    representative: ReadonlyDownloadItem,
+    downloads: readonly ReadonlyDownloadItem[]
 ): DownloadOfflineSeriesDetail | undefined {
     const seriesXtreamId = representative.seriesXtreamId;
     if (

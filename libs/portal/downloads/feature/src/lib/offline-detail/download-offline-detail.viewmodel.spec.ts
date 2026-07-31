@@ -5,8 +5,10 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import {
     buildDownloadOfflineDetail,
-    DOWNLOAD_OFFLINE_COORDINATE_FALLBACK,
+    type DeepReadonly,
     type DownloadOfflineDetail,
+    type DownloadOfflineEpisode,
+    type DownloadOfflineMovieDetail,
 } from './download-offline-detail.viewmodel';
 
 const SERIES_ID = 77;
@@ -79,7 +81,34 @@ function expectSeries(
     return detail;
 }
 
+function assertReadonlyViewModelTypes(
+    episode: DownloadOfflineEpisode,
+    movie: DownloadOfflineMovieDetail
+): void {
+    const item: DeepReadonly<DownloadItem> = episode.item;
+    void item;
+
+    // @ts-expect-error View-model source items are recursively readonly.
+    episode.item.title = 'Mutated title';
+    if (episode.item.metadataSnapshot?.genres) {
+        // @ts-expect-error Nested snapshot arrays are recursively readonly.
+        episode.item.metadataSnapshot.genres.push('Mutation');
+    }
+    if (episode.episodeMetadata) {
+        // @ts-expect-error Per-episode metadata is recursively readonly.
+        episode.episodeMetadata.title = 'Mutated episode';
+    }
+    if (movie.snapshot) {
+        // @ts-expect-error Detail snapshots are recursively readonly.
+        movie.snapshot.title = 'Mutated movie';
+    }
+}
+
 describe('buildDownloadOfflineDetail', () => {
+    it('exposes source data through recursive readonly view-model types', () => {
+        expect(assertReadonlyViewModelTypes).toBeDefined();
+    });
+
     it('resolves an available movie by its exact positive integer download id', () => {
         const movieSnapshot = snapshot('movie', 'Stored movie');
         const selected = download(7, {
@@ -298,56 +327,218 @@ describe('buildDownloadOfflineDetail', () => {
         expect(series.representative).toBe(selected);
         expect(series.seasons).toEqual([
             {
-                seasonNumber: DOWNLOAD_OFFLINE_COORDINATE_FALLBACK,
+                seasonNumber: null,
+                seasonNumberState: 'unknown',
                 episodes: [
                     {
                         item: selected,
-                        seasonNumber: DOWNLOAD_OFFLINE_COORDINATE_FALLBACK,
-                        episodeNumber: DOWNLOAD_OFFLINE_COORDINATE_FALLBACK,
+                        seasonNumber: null,
+                        seasonNumberState: 'unknown',
+                        episodeNumber: null,
+                        episodeNumberState: 'unknown',
                     },
                 ],
             },
         ]);
     });
 
-    it('uses zero as the stable fallback for sparse or invalid coordinates without dropping files', () => {
-        const sparse = download(23, {
+    it('distinguishes valid S0E0 specials from unknown coordinates', () => {
+        const special = download(23, {
+            seasonNumber: 0,
+            episodeNumber: 0,
+        });
+        const sparse = download(24, {
             seasonNumber: undefined,
             episodeNumber: undefined,
         });
-        const invalid = download(24, {
+        const invalid = download(25, {
             seasonNumber: -2,
             episodeNumber: 1.5,
         });
-        const valid = download(25, {
-            seasonNumber: 1,
-            episodeNumber: 3,
-        });
-        const downloads = deepFreeze([valid, sparse, invalid]);
+        const downloads = deepFreeze([invalid, sparse, special]);
 
         const series = expectSeries(build(23, downloads));
 
-        expect(DOWNLOAD_OFFLINE_COORDINATE_FALLBACK).toBe(0);
         expect(
-            series.seasons.map(({ seasonNumber, episodes }) => ({
-                seasonNumber,
-                episodes: episodes.map(({ item, episodeNumber }) => ({
-                    id: item.id,
-                    episodeNumber,
-                })),
-            }))
+            series.seasons.map(
+                ({ seasonNumber, seasonNumberState, episodes }) => ({
+                    seasonNumber,
+                    seasonNumberState,
+                    episodes: episodes.map(
+                        ({
+                            item,
+                            seasonNumber: episodeSeasonNumber,
+                            seasonNumberState: episodeSeasonNumberState,
+                            episodeNumber,
+                            episodeNumberState,
+                        }) => ({
+                            id: item.id,
+                            seasonNumber: episodeSeasonNumber,
+                            seasonNumberState: episodeSeasonNumberState,
+                            episodeNumber,
+                            episodeNumberState,
+                        })
+                    ),
+                })
+            )
         ).toEqual([
             {
                 seasonNumber: 0,
+                seasonNumberState: 'known',
                 episodes: [
-                    { id: 23, episodeNumber: 0 },
-                    { id: 24, episodeNumber: 0 },
+                    {
+                        id: 23,
+                        seasonNumber: 0,
+                        seasonNumberState: 'known',
+                        episodeNumber: 0,
+                        episodeNumberState: 'known',
+                    },
                 ],
             },
             {
-                seasonNumber: 1,
-                episodes: [{ id: 25, episodeNumber: 3 }],
+                seasonNumber: null,
+                seasonNumberState: 'unknown',
+                episodes: [
+                    {
+                        id: 24,
+                        seasonNumber: null,
+                        seasonNumberState: 'unknown',
+                        episodeNumber: null,
+                        episodeNumberState: 'unknown',
+                    },
+                    {
+                        id: 25,
+                        seasonNumber: null,
+                        seasonNumberState: 'unknown',
+                        episodeNumber: null,
+                        episodeNumberState: 'unknown',
+                    },
+                ],
             },
+        ]);
+    });
+
+    it('keeps multiple unknown episodes distinct and orders them by createdAt then id', () => {
+        const downloads = deepFreeze([
+            download(63, {
+                seasonNumber: undefined,
+                episodeNumber: undefined,
+                createdAt: '2026-01-03T00:00:00.000Z',
+            }),
+            download(62, {
+                seasonNumber: Number.NaN,
+                episodeNumber: Number.POSITIVE_INFINITY,
+                createdAt: '2026-01-02T00:00:00.000Z',
+            }),
+            download(61, {
+                seasonNumber: -1,
+                episodeNumber: Number.MAX_SAFE_INTEGER + 1,
+                createdAt: '2026-01-02T00:00:00.000Z',
+            }),
+        ]);
+
+        const series = expectSeries(build(63, downloads));
+
+        expect(series.seasons).toHaveLength(1);
+        expect(series.seasons[0]).toEqual(
+            expect.objectContaining({
+                seasonNumber: null,
+                seasonNumberState: 'unknown',
+            })
+        );
+        expect(
+            series.seasons[0].episodes.map(({ item, episodeNumber }) => ({
+                id: item.id,
+                episodeNumber,
+            }))
+        ).toEqual([
+            { id: 61, episodeNumber: null },
+            { id: 62, episodeNumber: null },
+            { id: 63, episodeNumber: null },
+        ]);
+    });
+
+    it('orders invalid or missing createdAt after valid timestamps and then by id', () => {
+        const downloads = deepFreeze([
+            download(73, {
+                seasonNumber: 1,
+                episodeNumber: 4,
+                createdAt: undefined,
+            }),
+            download(72, {
+                seasonNumber: 1,
+                episodeNumber: 4,
+                createdAt: 'invalid',
+            }),
+            download(71, {
+                seasonNumber: 1,
+                episodeNumber: 4,
+                createdAt: '2026-01-02T00:00:00.000Z',
+            }),
+        ]);
+
+        const series = expectSeries(build(73, downloads));
+
+        expect(series.seasons[0].episodes.map(({ item }) => item.id)).toEqual([
+            71, 72, 73,
+        ]);
+    });
+
+    it('sorts unknown episodes after known episodes within a known season', () => {
+        const downloads = deepFreeze([
+            download(28, {
+                seasonNumber: 1,
+                episodeNumber: undefined,
+            }),
+            download(27, {
+                seasonNumber: 1,
+                episodeNumber: 5,
+            }),
+            download(26, {
+                seasonNumber: 1,
+                episodeNumber: 2,
+            }),
+        ]);
+
+        const series = expectSeries(build(28, downloads));
+
+        expect(
+            series.seasons[0].episodes.map(
+                ({ item, episodeNumber, episodeNumberState }) => ({
+                    id: item.id,
+                    episodeNumber,
+                    episodeNumberState,
+                })
+            )
+        ).toEqual([
+            { id: 26, episodeNumber: 2, episodeNumberState: 'known' },
+            { id: 27, episodeNumber: 5, episodeNumberState: 'known' },
+            { id: 28, episodeNumber: null, episodeNumberState: 'unknown' },
+        ]);
+    });
+
+    it('does not collapse known and unknown season groups', () => {
+        const downloads = deepFreeze([
+            download(30, {
+                seasonNumber: undefined,
+                episodeNumber: 2,
+            }),
+            download(29, {
+                seasonNumber: 0,
+                episodeNumber: 3,
+            }),
+        ]);
+
+        const series = expectSeries(build(30, downloads));
+
+        expect(
+            series.seasons.map(({ seasonNumber, seasonNumberState }) => ({
+                seasonNumber,
+                seasonNumberState,
+            }))
+        ).toEqual([
+            { seasonNumber: 0, seasonNumberState: 'known' },
+            { seasonNumber: null, seasonNumberState: 'unknown' },
         ]);
     });
 
@@ -462,6 +653,43 @@ describe('buildDownloadOfflineDetail', () => {
         expect(reversed.snapshot).toBe(greaterId);
     });
 
+    it('selects snapshots with entirely invalid timestamps deterministically by id', () => {
+        const lowerId = snapshot('series', 'Lower id', {
+            enrichedAt: 'invalid',
+        });
+        const middleId = snapshot('series', 'Middle id', {
+            enrichedAt: 'invalid',
+        });
+        const greaterId = snapshot('series', 'Greater id', {
+            enrichedAt: 'invalid',
+        });
+        const downloads = deepFreeze([
+            download(53, {
+                metadataSnapshot: lowerId,
+                updatedAt: 'invalid',
+                createdAt: 'invalid',
+            }),
+            download(54, {
+                metadataSnapshot: middleId,
+                updatedAt: undefined,
+                createdAt: undefined,
+            }),
+            download(55, {
+                metadataSnapshot: greaterId,
+                updatedAt: 'invalid',
+                createdAt: undefined,
+            }),
+        ]);
+
+        const forward = expectSeries(build(53, downloads));
+        const reversed = expectSeries(
+            build(53, deepFreeze([...downloads].reverse()))
+        );
+
+        expect(forward.snapshot).toBe(greaterId);
+        expect(reversed.snapshot).toBe(greaterId);
+    });
+
     it('keeps each episode tied to its own snapshot episode metadata', () => {
         const firstEpisode: DownloadEpisodeMetadata = {
             title: 'Pilot',
@@ -500,13 +728,17 @@ describe('buildDownloadOfflineDetail', () => {
             {
                 item: first,
                 seasonNumber: 1,
+                seasonNumberState: 'known',
                 episodeNumber: 1,
+                episodeNumberState: 'known',
                 episodeMetadata: firstEpisode,
             },
             {
                 item: second,
                 seasonNumber: 1,
+                seasonNumberState: 'known',
                 episodeNumber: 2,
+                episodeNumberState: 'known',
                 episodeMetadata: secondEpisode,
             },
         ]);
