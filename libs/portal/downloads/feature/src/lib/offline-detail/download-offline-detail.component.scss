@@ -87,8 +87,24 @@ button,
             --app-selection-border,
             var(--mat-sys-primary, var(--text-primary))
         );
-        background: var(--mat-sys-secondary-container, var(--tag-bg));
-        color: var(--mat-sys-on-secondary-container, var(--text-primary));
+        background: var(
+            --app-selection-surface,
+            var(--mat-sys-secondary-container, var(--tag-bg))
+        );
+        color: var(
+            --app-selection-color,
+            var(--mat-sys-on-secondary-container, var(--text-primary))
+        );
+        box-shadow:
+            inset 0 0 0 1px var(--app-selection-border, var(--mat-sys-primary)),
+            0 12px 20px -18px var(--app-selection-glow, var(--mat-sys-primary));
+
+        &:hover {
+            background: var(
+                --app-selection-surface-strong,
+                var(--mat-sys-secondary-container, var(--tag-bg))
+            );
+        }
     }
 
     &:focus-visible {

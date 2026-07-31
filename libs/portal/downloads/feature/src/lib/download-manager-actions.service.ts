@@ -3,7 +3,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { type DownloadItem, DownloadsService } from '@iptvnator/services';
 import { DialogService } from '@iptvnator/ui/components';
-import type { DownloadItemAction } from './download-actions';
+import type {
+    DownloadActionResult,
+    DownloadItemAction,
+} from './download-actions';
 
 interface DownloadOperationResult {
     readonly success: boolean;
@@ -20,22 +23,20 @@ export class DownloadManagerActionsService {
     readonly pendingIds = signal<ReadonlySet<number>>(new Set());
     readonly isClearing = signal(false);
 
-    async run(action: DownloadItemAction): Promise<void> {
+    async run(action: DownloadItemAction): Promise<DownloadActionResult> {
         const { item, type } = action;
         if (this.pendingIds().has(item.id)) {
-            return;
+            return 'ignored';
         }
         if (type === 'remove') {
             this.confirmRemove(item);
-            return;
+            return 'ignored';
         }
         if (type === 'copy-url') {
-            await this.copyUrl(item);
-            return;
+            return this.copyUrl(item);
         }
         if (type === 'play' || type === 'reveal') {
-            await this.runFileAction(type, item);
-            return;
+            return this.runFileAction(type, item);
         }
         const operations = {
             cancel: () => this.downloads.cancelDownload(item.id),
@@ -44,7 +45,7 @@ export class DownloadManagerActionsService {
             resume: () => this.downloads.resumeDownload(item.id),
             retry: () => this.downloads.retryDownload(item.id),
         };
-        await this.withPending(item.id, operations[type]);
+        return this.withPending(item.id, operations[type]);
     }
 
     clearFinished(scopePlaylistId?: string): void {
@@ -117,13 +118,13 @@ export class DownloadManagerActionsService {
     private async runFileAction(
         type: 'play' | 'reveal',
         item: DownloadItem
-    ): Promise<void> {
+    ): Promise<DownloadActionResult> {
         const filePath = item.filePath;
         if (!filePath) {
             this.showMessage('DOWNLOADS.FILE_NOT_FOUND', 3000);
-            return;
+            return 'file-missing';
         }
-        await this.withPending(
+        return this.withPending(
             item.id,
             () =>
                 type === 'play'
@@ -134,12 +135,13 @@ export class DownloadManagerActionsService {
                     await this.downloads.loadDownloads();
                 }
                 this.showFileActionError(error);
-            }
+            },
+            (error) => (error === 'File not found' ? 'file-missing' : 'failed')
         );
     }
 
-    private async copyUrl(item: DownloadItem): Promise<void> {
-        await this.withPending(
+    private async copyUrl(item: DownloadItem): Promise<DownloadActionResult> {
+        return this.withPending(
             item.id,
             async () => {
                 try {
@@ -158,10 +160,11 @@ export class DownloadManagerActionsService {
         itemId: number,
         operation: () => Promise<DownloadOperationResult>,
         onFailure: (error?: string) => void | Promise<void> = (error) =>
-            this.showActionError(error)
-    ): Promise<void> {
+            this.showActionError(error),
+        failureResult: (error?: string) => DownloadActionResult = () => 'failed'
+    ): Promise<DownloadActionResult> {
         if (this.pendingIds().has(itemId)) {
-            return;
+            return 'ignored';
         }
         this.pendingIds.update((ids) => new Set(ids).add(itemId));
         try {
@@ -177,8 +180,16 @@ export class DownloadManagerActionsService {
                     error instanceof Error ? error.message : String(error);
             }
             if (failed) {
-                await onFailure(failure);
+                try {
+                    await onFailure(failure);
+                } catch (error) {
+                    this.showActionError(
+                        error instanceof Error ? error.message : String(error)
+                    );
+                }
+                return failureResult(failure);
             }
+            return 'success';
         } finally {
             this.pendingIds.update((ids) => {
                 const next = new Set(ids);

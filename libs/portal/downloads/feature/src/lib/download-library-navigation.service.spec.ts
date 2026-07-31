@@ -165,7 +165,11 @@ describe('DownloadLibraryNavigationService', () => {
 
         await expect(navigation.open(download())).resolves.toBe(true);
 
-        expect(db.getContentByXtreamId).toHaveBeenCalledWith(41, PLAYLIST_ID);
+        expect(db.getContentByXtreamId).toHaveBeenCalledWith(
+            41,
+            PLAYLIST_ID,
+            'movie'
+        );
         expect(router.navigate).toHaveBeenCalledWith([
             '/workspace',
             'xtreams',
@@ -199,6 +203,10 @@ describe('DownloadLibraryNavigationService', () => {
         async (source) => {
             if (source === 'stalker') {
                 playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+            } else {
+                db.getContentByXtreamId.mockResolvedValue({
+                    category_id: 7,
+                } as never);
             }
             router.navigate.mockRejectedValue(new Error('navigation rejected'));
 
@@ -228,7 +236,11 @@ describe('DownloadLibraryNavigationService', () => {
 
         await expect(navigation.open(item)).resolves.toBe(true);
 
-        expect(db.getContentByXtreamId).toHaveBeenCalledWith(93, PLAYLIST_ID);
+        expect(db.getContentByXtreamId).toHaveBeenCalledWith(
+            93,
+            PLAYLIST_ID,
+            'series'
+        );
         expect(router.navigate).toHaveBeenCalledWith([
             '/workspace',
             'xtreams',
@@ -243,20 +255,57 @@ describe('DownloadLibraryNavigationService', () => {
         ['missing', {}],
         ['null', { category_id: null }],
     ])(
-        'falls back to the Xtream collection route for a %s category',
+        'does not navigate an Xtream item with a %s category',
         async (_label, content) => {
             db.getContentByXtreamId.mockResolvedValue(content as never);
 
-            await expect(navigation.open(download())).resolves.toBe(true);
+            await expect(navigation.open(download())).resolves.toBe(false);
 
-            expect(router.navigate).toHaveBeenCalledWith([
-                '/workspace',
-                'xtreams',
-                PLAYLIST_ID,
-                'vod',
-            ]);
+            expect(router.navigate).not.toHaveBeenCalled();
         }
     );
+
+    it('prefers the persisted provider category and skips the database lookup', async () => {
+        const item = download({
+            metadataSnapshot: {
+                version: 1,
+                language: 'en',
+                mediaKind: 'movie',
+                title: 'Downloaded title',
+                providerCategoryId: '18',
+            },
+        });
+
+        await expect(navigation.open(item)).resolves.toBe(true);
+
+        expect(db.getContentByXtreamId).not.toHaveBeenCalled();
+        expect(router.navigate).toHaveBeenCalledWith([
+            '/workspace',
+            'xtreams',
+            PLAYLIST_ID,
+            'vod',
+            '18',
+            '41',
+        ]);
+    });
+
+    it('resolves a concrete target before navigating that exact cached target', async () => {
+        db.getContentByXtreamId.mockResolvedValue({ category_id: 7 } as never);
+
+        const target = await navigation.resolveProviderTarget(download());
+
+        expect(target).toEqual({
+            link: ['/workspace', 'xtreams', PLAYLIST_ID, 'vod', '7', '41'],
+        });
+        expect(router.navigate).not.toHaveBeenCalled();
+        if (!target) throw new Error('Expected a resolved provider target');
+
+        await expect(navigation.navigateResolvedTarget(target)).resolves.toBe(
+            true
+        );
+        expect(router.navigate).toHaveBeenCalledWith(target.link);
+        expect(db.getContentByXtreamId).toHaveBeenCalledTimes(1);
+    });
 
     it('returns false when the source playlist is missing', async () => {
         playlists.getPlaylistById.mockReturnValue(

@@ -2,30 +2,21 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    effect,
     inject,
-    signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import {
-    type DownloadItem,
-    DownloadsService,
-    PlaylistsService,
-} from '@iptvnator/services';
-import type { Playlist } from '@iptvnator/shared/interfaces';
+import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     PortalDetailShellComponent,
 } from '@iptvnator/ui/components';
-import { catchError, map, of, startWith } from 'rxjs';
 import { DownloadLibraryNavigationService } from '../download-library-navigation.service';
 import { DownloadManagerActionsService } from '../download-manager-actions.service';
 import {
@@ -34,23 +25,24 @@ import {
 } from './download-offline-detail.viewmodel';
 import {
     boundedOfflinePeople,
-    offlineDetailIdentity,
     offlineDetailRepresentative,
     offlineDurationLabel,
     offlineEpisodeCoordinate,
     offlineEpisodeCount,
     offlineEpisodeTitle,
     offlineFileByteCount,
-    offlineHasLocalFile,
+    offlineMetadataResolutionKey,
+    offlinePersonTrackKey,
     offlinePositiveFinite,
-    offlineSeasonKey,
     offlineSeasonTestId,
-    parseOfflineDownloadId,
     type OfflineDetailItem,
-    type OfflineSelectedSeason,
 } from './download-offline-detail.presentation';
 import { DownloadOfflineMetadataResolutionService } from './download-offline-metadata-resolution.service';
 import { DownloadOfflineRouteNavigationService } from './download-offline-route-navigation.service';
+import { DownloadOfflineFileCoordinatorService } from './download-offline-file-coordinator.service';
+import { DownloadOfflineProviderCoordinatorService } from './download-offline-provider-coordinator.service';
+import { createDownloadOfflineRouteContext } from './download-offline-route-context';
+import { DownloadOfflineSeasonSelectionService } from './download-offline-season-selection.service';
 
 @Component({
     selector: 'app-download-offline-detail',
@@ -74,38 +66,37 @@ import { DownloadOfflineRouteNavigationService } from './download-offline-route-
     providers: [
         DownloadLibraryNavigationService,
         DownloadManagerActionsService,
+        DownloadOfflineFileCoordinatorService,
         DownloadOfflineMetadataResolutionService,
+        DownloadOfflineProviderCoordinatorService,
         DownloadOfflineRouteNavigationService,
+        DownloadOfflineSeasonSelectionService,
     ],
 })
 export class DownloadOfflineDetailComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly downloadsService = inject(DownloadsService);
-    private readonly playlistsService = inject(PlaylistsService);
+    private readonly settings = inject(SettingsStore);
     private readonly actions = inject(DownloadManagerActionsService);
-    private readonly navigation = inject(DownloadLibraryNavigationService);
     private readonly metadataResolution = inject(
         DownloadOfflineMetadataResolutionService
     );
     private readonly routeNavigation = inject(
         DownloadOfflineRouteNavigationService
     );
-    private readonly selectedSeasonState = signal<
-        OfflineSelectedSeason | undefined
-    >(undefined);
-    private redirectedUnavailableId?: number;
+    private readonly fileCoordinator = inject(
+        DownloadOfflineFileCoordinatorService
+    );
+    private readonly providerCoordinator = inject(
+        DownloadOfflineProviderCoordinatorService
+    );
+    private readonly seasonSelection = inject(
+        DownloadOfflineSeasonSelectionService
+    );
 
     readonly pendingIds = this.actions.pendingIds;
-    readonly downloadId = toSignal(
-        this.route.paramMap.pipe(
-            map((params) => parseOfflineDownloadId(params.get('downloadId')))
-        ),
-        {
-            initialValue: parseOfflineDownloadId(
-                this.route.snapshot.paramMap.get('downloadId')
-            ),
-        }
-    );
+    readonly routeContext = createDownloadOfflineRouteContext(this.route);
+    readonly downloadId = computed(() => this.routeContext().downloadId);
     readonly detail = computed(() => {
         const downloadId = this.downloadId();
         return downloadId === undefined
@@ -115,8 +106,12 @@ export class DownloadOfflineDetailComponent {
                   downloads: this.downloadsService.downloads(),
               });
     });
-    readonly currentIdentity = computed(() =>
-        offlineDetailIdentity(this.detail())
+    readonly metadataResolutionKey = computed(() =>
+        offlineMetadataResolutionKey(
+            this.detail(),
+            this.downloadId(),
+            this.settings.language()
+        )
     );
     readonly currentItem = computed(() =>
         offlineDetailRepresentative(this.detail())
@@ -130,7 +125,7 @@ export class DownloadOfflineDetailComponent {
         const detail = this.detail();
         if (!detail) return undefined;
         const resolved = this.metadataResolution.resolution();
-        return resolved.identity === this.currentIdentity()
+        return resolved.key === this.metadataResolutionKey()
             ? (resolved.snapshot ?? detail.snapshot)
             : detail.snapshot;
     });
@@ -154,27 +149,19 @@ export class DownloadOfflineDetailComponent {
     readonly creators = computed(() =>
         boundedOfflinePeople(this.metadata()?.creators)
     );
-    readonly playlists = toSignal(
-        this.playlistsService.getAllPlaylists().pipe(
-            startWith(null),
-            catchError(() => of([]))
-        ),
-        { initialValue: null as Playlist[] | null }
+    readonly providerState = this.providerCoordinator.state;
+    readonly canOpenInPortal = computed(
+        () => this.providerState().status === 'available'
     );
-    readonly availablePlaylistIds = computed(
-        () => new Set((this.playlists() ?? []).map(({ _id }) => _id))
+    readonly providerLoading = computed(
+        () => this.providerState().status === 'loading'
     );
-    readonly canOpenInPortal = computed(() => {
-        const item = this.currentItem();
-        return (
-            item !== undefined &&
-            this.playlists() !== null &&
-            this.navigation.canOpen(
-                item as DownloadItem,
-                this.availablePlaylistIds()
-            )
-        );
-    });
+    readonly providerPending = computed(
+        () => this.providerState().status === 'opening'
+    );
+    readonly providerUnavailable = computed(
+        () => this.providerState().status === 'unavailable'
+    );
     readonly showLoading = computed(
         () =>
             !this.detail() &&
@@ -187,19 +174,17 @@ export class DownloadOfflineDetailComponent {
             !this.showLoading() &&
             (!this.selectedRow() || this.selectedRow()?.status !== 'completed')
     );
+    readonly redirectFailed = computed(() =>
+        this.fileCoordinator.isRedirectFailed(this.routeContext())
+    );
     readonly seasons = computed(() => {
         const detail = this.detail();
         return detail?.kind === 'series' ? detail.seasons : [];
     });
     readonly selectedSeason = computed(() => {
-        const seasons = this.seasons();
-        const selection = this.selectedSeasonState();
-        const identity = this.currentIdentity();
-        if (!selection || selection.identity !== identity) return seasons[0];
-        return (
-            seasons.find(
-                (season) => offlineSeasonKey(season) === selection.key
-            ) ?? seasons[0]
+        return this.seasonSelection.selected(
+            this.routeContext(),
+            this.seasons()
         );
     });
     readonly count = computed(() => offlineEpisodeCount(this.selectedSeason()));
@@ -216,25 +201,48 @@ export class DownloadOfflineDetailComponent {
     readonly episodeCoordinate = offlineEpisodeCoordinate;
     readonly episodeTitle = offlineEpisodeTitle;
     readonly positiveFinite = offlinePositiveFinite;
+    readonly personTrackKey = offlinePersonTrackKey;
 
     constructor() {
         void this.downloadsService.loadDownloads();
-        this.metadataResolution.connect(this.detail, this.currentIdentity);
-        this.redirectUnavailableRowsReactively();
+        this.metadataResolution.connect(
+            this.metadataResolutionKey,
+            this.detail
+        );
+        this.providerCoordinator.connect(this.routeContext, this.currentItem);
+        this.seasonSelection.connect(this.routeContext, this.seasons);
+        this.fileCoordinator.connect({
+            detail: this.detail,
+            hasLoaded: this.downloadsService.hasLoadedDownloads,
+            isLoading: this.downloadsService.isLoadingDownloads,
+            route: this.routeContext,
+            selectedRow: this.selectedRow,
+        });
     }
 
     selectSeason(season: DownloadOfflineSeason): void {
-        const identity = this.currentIdentity();
-        if (identity) {
-            this.selectedSeasonState.set({
-                identity,
-                key: offlineSeasonKey(season),
-            });
-        }
+        this.seasonSelection.select(this.routeContext(), season);
     }
 
     isSelectedSeason(season: DownloadOfflineSeason): boolean {
         return this.selectedSeason() === season;
+    }
+
+    seasonTabId(season: DownloadOfflineSeason): string {
+        return this.seasonSelection.tabId(season);
+    }
+
+    seasonTabIndex(season: DownloadOfflineSeason): number {
+        return this.isSelectedSeason(season) ? 0 : -1;
+    }
+
+    onSeasonKeydown(event: KeyboardEvent, index: number): void {
+        this.seasonSelection.handleKeydown(
+            event,
+            index,
+            this.routeContext(),
+            this.seasons()
+        );
     }
 
     isPending(item: OfflineDetailItem): boolean {
@@ -252,21 +260,15 @@ export class DownloadOfflineDetailComponent {
         type: 'play' | 'reveal',
         item: OfflineDetailItem
     ): Promise<void> {
-        const identity = this.currentIdentity();
-        await this.actions.run({ type, item: item as DownloadItem });
-        if (identity !== this.currentIdentity()) return;
-        const live = this.downloadsService
-            .downloads()
-            .find(({ id }) => id === item.id);
-        if (!offlineHasLocalFile(live)) {
-            await this.routeNavigation.toManager(true);
-        }
+        await this.fileCoordinator.runFileAction(type, item, this.routeContext);
     }
 
     async viewInPortal(): Promise<void> {
-        const item = this.currentItem();
-        if (!item || !this.canOpenInPortal()) return;
-        if (!(await this.navigation.open(item as DownloadItem))) {
+        const result = await this.providerCoordinator.open(
+            this.routeContext(),
+            this.currentItem()
+        );
+        if (result === 'failed') {
             this.actions.showActionError();
         }
     }
@@ -275,25 +277,7 @@ export class DownloadOfflineDetailComponent {
         this.routeNavigation.back();
     }
 
-    private redirectUnavailableRowsReactively(): void {
-        effect(() => {
-            const id = this.downloadId();
-            const row = this.selectedRow();
-            const loaded = this.downloadsService.hasLoadedDownloads();
-            const loading = this.downloadsService.isLoadingDownloads();
-            if (
-                id === undefined ||
-                !loaded ||
-                loading ||
-                !row ||
-                row.status !== 'completed' ||
-                this.detail() ||
-                this.redirectedUnavailableId === id
-            ) {
-                return;
-            }
-            this.redirectedUnavailableId = id;
-            void this.routeNavigation.toManager(true);
-        });
+    async retryRedirect(): Promise<void> {
+        await this.fileCoordinator.retry(this.routeContext());
     }
 }

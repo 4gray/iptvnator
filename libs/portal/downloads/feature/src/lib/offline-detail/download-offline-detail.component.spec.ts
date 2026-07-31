@@ -7,18 +7,20 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     type DownloadItem,
     DownloadsService,
-    PlaylistsService,
+    SettingsStore,
 } from '@iptvnator/services';
-import type {
-    DownloadMetadataSnapshot,
-    Playlist,
-} from '@iptvnator/shared/interfaces';
-import { BehaviorSubject, type Observable, throwError } from 'rxjs';
+import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import type { WorkspaceNavigationTarget } from '@iptvnator/portal/shared/util';
+import { BehaviorSubject } from 'rxjs';
+import type { DownloadActionResult } from '../download-actions';
 import { DownloadLibraryNavigationService } from '../download-library-navigation.service';
 import { DownloadManagerActionsService } from '../download-manager-actions.service';
 import { DownloadOfflineDetailComponent } from './download-offline-detail.component';
+import { DownloadOfflineFileCoordinatorService } from './download-offline-file-coordinator.service';
 import { DownloadOfflineMetadataResolutionService } from './download-offline-metadata-resolution.service';
 import { DownloadOfflineMetadataService } from './download-offline-metadata.service';
+import { DownloadOfflineProviderCoordinatorService } from './download-offline-provider-coordinator.service';
+import { DownloadOfflineSeasonSelectionService } from './download-offline-season-selection.service';
 import { DownloadOfflineRouteNavigationService } from './download-offline-route-navigation.service';
 
 const TRANSLATIONS = {
@@ -38,6 +40,9 @@ const TRANSLATIONS = {
             NOT_FOUND_BODY: 'This download is no longer in the manager.',
             BACK: 'Back to Downloads',
         },
+        FILE_ACTION_ERROR: 'The file action could not be completed.',
+        FILE_NOT_FOUND: 'This downloaded file is no longer available on disk.',
+        RETRY: 'Retry',
     },
     XTREAM: {
         ACTORS: 'Cast',
@@ -62,7 +67,7 @@ interface DownloadsFake {
 
 interface ActionsFake {
     readonly pendingIds: ReturnType<typeof signal<ReadonlySet<number>>>;
-    readonly run: jest.Mock<Promise<void>, [unknown]>;
+    readonly run: jest.Mock<Promise<DownloadActionResult>, [unknown]>;
     readonly showActionError: jest.Mock<void, []>;
 }
 
@@ -107,20 +112,24 @@ function download(
     };
 }
 
-function playlist(id: string): Playlist {
-    return { _id: id, title: id } as Playlist;
-}
+const PROVIDER_TARGET: WorkspaceNavigationTarget = {
+    link: ['/workspace', 'xtreams', 'playlist-a', 'vod', '7', '1017'],
+};
 
 describe('DownloadOfflineDetailComponent', () => {
     let fixture: ComponentFixture<DownloadOfflineDetailComponent>;
     let routeParams: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
-    let playlistItems: BehaviorSubject<Playlist[]>;
-    let playlistsObservable: Observable<Playlist[]>;
     let downloads: DownloadsFake;
     let actions: ActionsFake;
     let navigation: {
-        canOpen: jest.Mock<boolean, [DownloadItem, ReadonlySet<string>]>;
-        open: jest.Mock<Promise<boolean>, [DownloadItem]>;
+        resolveProviderTarget: jest.Mock<
+            Promise<WorkspaceNavigationTarget | null>,
+            [DownloadItem]
+        >;
+        navigateResolvedTarget: jest.Mock<
+            Promise<boolean>,
+            [WorkspaceNavigationTarget]
+        >;
     };
     let metadata: {
         resolve: jest.Mock<Promise<DownloadMetadataSnapshot>, [unknown]>;
@@ -137,8 +146,6 @@ describe('DownloadOfflineDetailComponent', () => {
         routeParams = new BehaviorSubject(
             convertToParamMap({ downloadId: '17' })
         );
-        playlistItems = new BehaviorSubject([playlist('playlist-a')]);
-        playlistsObservable = playlistItems.asObservable();
         downloads = {
             downloads: signal<DownloadItem[]>([]),
             isLoadingDownloads: signal(false),
@@ -148,14 +155,12 @@ describe('DownloadOfflineDetailComponent', () => {
         };
         actions = {
             pendingIds: signal<ReadonlySet<number>>(new Set()),
-            run: jest.fn().mockResolvedValue(undefined),
+            run: jest.fn().mockResolvedValue('success'),
             showActionError: jest.fn(),
         };
         navigation = {
-            canOpen: jest.fn((item, availableIds) =>
-                availableIds.has(item.playlistId)
-            ),
-            open: jest.fn().mockResolvedValue(true),
+            resolveProviderTarget: jest.fn().mockResolvedValue(PROVIDER_TARGET),
+            navigateResolvedTarget: jest.fn().mockResolvedValue(true),
         };
         metadata = {
             resolve: jest.fn(async (detail: unknown) => {
@@ -206,10 +211,8 @@ describe('DownloadOfflineDetailComponent', () => {
                     useValue: downloads,
                 },
                 {
-                    provide: PlaylistsService,
-                    useValue: {
-                        getAllPlaylists: () => playlistsObservable,
-                    },
+                    provide: SettingsStore,
+                    useValue: { language: signal('en') },
                 },
             ],
         })
@@ -228,8 +231,11 @@ describe('DownloadOfflineDetailComponent', () => {
                             provide: DownloadOfflineMetadataService,
                             useValue: metadata,
                         },
+                        DownloadOfflineFileCoordinatorService,
                         DownloadOfflineMetadataResolutionService,
+                        DownloadOfflineProviderCoordinatorService,
                         DownloadOfflineRouteNavigationService,
+                        DownloadOfflineSeasonSelectionService,
                     ],
                 },
             })
@@ -316,6 +322,11 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(button('view-in-portal').textContent).toContain(
             'View in portal'
         );
+        expect(
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('.offline-detail__portal-action')
+                ?.hasAttribute('tabindex')
+        ).toBe(false);
         expect(button('movie-overflow')).toBeTruthy();
         expect(text()).not.toContain('Play from source');
     });
@@ -389,6 +400,12 @@ describe('DownloadOfflineDetailComponent', () => {
         ) as HTMLButtonElement[];
         expect(seasons).toHaveLength(2);
         expect(seasons[0].getAttribute('aria-selected')).toBe('true');
+        expect(seasons[0].tabIndex).toBe(0);
+        expect(seasons[1].tabIndex).toBe(-1);
+        expect(seasons[0].id).toBe('offline-season-1-tab');
+        expect(seasons[0].getAttribute('aria-controls')).toBe(
+            'offline-season-1-panel'
+        );
         expect(seasons[0].textContent).toContain('2 downloaded episodes');
         const firstSeasonEpisodes = Array.from(
             (fixture.nativeElement as HTMLElement).querySelectorAll(
@@ -404,7 +421,15 @@ describe('DownloadOfflineDetailComponent', () => {
             'Available offline'
         );
         expect(button('episode-play-19')).toBeTruthy();
+        expect(button('episode-play-19').getAttribute('aria-label')).toBe(
+            'Play offline: S01E01 Arrival'
+        );
         expect(button('episode-overflow-19')).toBeTruthy();
+        button('episode-overflow-19').click();
+        await fixture.whenStable();
+        expect(button('episode-reveal-19').getAttribute('aria-label')).toBe(
+            'Show in folder: S01E01 Arrival'
+        );
 
         seasons[1].click();
         await fixture.whenStable();
@@ -412,6 +437,109 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(seasons[1].getAttribute('aria-selected')).toBe('true');
         expect(text()).toContain('S02E01');
         expect(text()).not.toContain('Missing');
+        const panel = (fixture.nativeElement as HTMLElement).querySelector(
+            '[role="tabpanel"]'
+        );
+        expect(panel?.getAttribute('aria-labelledby')).toBe(
+            'offline-season-2-tab'
+        );
+    });
+
+    it('moves season selection and focus with tablist keyboard controls', async () => {
+        const episode = (id: number, seasonNumber: number) =>
+            download(id, {
+                contentType: 'episode',
+                episodeNumber: 1,
+                seasonNumber,
+                seriesXtreamId: 77,
+                title: `Northwind season ${seasonNumber}`,
+            });
+        await render([episode(17, 1), episode(18, 2)]);
+        const tabs = () =>
+            Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll(
+                    '[role="tab"]'
+                )
+            ) as HTMLButtonElement[];
+
+        for (const [key, expected] of [
+            ['ArrowRight', 1],
+            ['ArrowLeft', 0],
+            ['ArrowDown', 1],
+            ['ArrowUp', 0],
+            ['End', 1],
+            ['Home', 0],
+        ] as const) {
+            const active = tabs().find(
+                (tab) => tab.getAttribute('aria-selected') === 'true'
+            );
+            if (!active) throw new Error('Expected one selected season tab');
+            const event = new KeyboardEvent('keydown', {
+                key,
+                bubbles: true,
+                cancelable: true,
+            });
+            active.dispatchEvent(event);
+            await fixture.whenStable();
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(tabs()[expected].getAttribute('aria-selected')).toBe('true');
+            expect(tabs()[expected].tabIndex).toBe(0);
+            expect(document.activeElement).toBe(tabs()[expected]);
+        }
+    });
+
+    it('persists the first-season fallback when a selected season disappears and later returns', async () => {
+        const episode = (id: number, seasonNumber: number) =>
+            download(id, {
+                contentType: 'episode',
+                episodeNumber: 1,
+                seasonNumber,
+                seriesXtreamId: 77,
+                title: `Northwind season ${seasonNumber}`,
+            });
+        const first = episode(17, 1);
+        const second = episode(18, 2);
+        await render([first, second]);
+        button('offline-season-2').click();
+        await fixture.whenStable();
+
+        downloads.downloads.set([first]);
+        await fixture.whenStable();
+        expect(button('offline-season-1').getAttribute('aria-selected')).toBe(
+            'true'
+        );
+
+        downloads.downloads.set([first, second]);
+        await fixture.whenStable();
+        expect(button('offline-season-1').getAttribute('aria-selected')).toBe(
+            'true'
+        );
+        expect(button('offline-season-2').getAttribute('aria-selected')).toBe(
+            'false'
+        );
+    });
+
+    it('normalizes season selection when the route is reused within one series', async () => {
+        const episode = (id: number, seasonNumber: number) =>
+            download(id, {
+                contentType: 'episode',
+                episodeNumber: 1,
+                seasonNumber,
+                seriesXtreamId: 77,
+                title: `Northwind season ${seasonNumber}`,
+            });
+        await render([episode(17, 1), episode(18, 2)]);
+        button('offline-season-2').click();
+        await fixture.whenStable();
+
+        routeParams.next(convertToParamMap({ downloadId: '18' }));
+        router.url = '/workspace/downloads/18';
+        await fixture.whenStable();
+
+        expect(button('offline-season-1').getAttribute('aria-selected')).toBe(
+            'true'
+        );
     });
 
     it('shows a focused not-found state when the row is absent after the initial load', async () => {
@@ -427,10 +555,11 @@ describe('DownloadOfflineDetailComponent', () => {
     });
 
     it('keeps View in portal visible but disabled and described when its source playlist is missing', async () => {
-        playlistItems.next([]);
-        navigation.canOpen.mockReturnValue(false);
+        navigation.resolveProviderTarget.mockResolvedValueOnce(null);
 
         await render([download(17, { title: 'Orphaned movie' })]);
+        await Promise.resolve();
+        fixture.detectChanges();
 
         const viewButton = button('view-in-portal');
         expect(viewButton.disabled).toBe(true);
@@ -438,18 +567,27 @@ describe('DownloadOfflineDetailComponent', () => {
             'offline-view-in-portal-unavailable'
         );
         expect(text()).toContain('The source is unavailable');
-        expect(navigation.canOpen).toHaveBeenCalledWith(
-            expect.objectContaining({ id: 17 }),
-            new Set()
+        const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
+            '.offline-detail__portal-action'
+        ) as HTMLElement;
+        expect(wrapper.getAttribute('tabindex')).toBe('0');
+        expect(wrapper.getAttribute('aria-describedby')?.split(' ')).toContain(
+            'offline-view-in-portal-unavailable'
+        );
+        expect(wrapper.querySelector('button:not([disabled])')).toBeNull();
+        expect(navigation.resolveProviderTarget).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 17 })
         );
     });
 
-    it('keeps local playback available when loading source playlists fails', async () => {
-        playlistsObservable = throwError(
-            () => new Error('playlist storage unavailable')
+    it('keeps local playback available when provider resolution fails', async () => {
+        navigation.resolveProviderTarget.mockRejectedValueOnce(
+            new Error('playlist storage unavailable')
         );
 
         await render([download(17, { title: 'Offline survivor' })]);
+        await Promise.resolve();
+        fixture.detectChanges();
 
         expect(text()).toContain('Offline survivor');
         expect(button('offline-play').disabled).toBe(false);
@@ -478,7 +616,7 @@ describe('DownloadOfflineDetailComponent', () => {
     it.each(['play', 'reveal'] as const)(
         'returns to the manager when a local %s race reloads the current file as missing',
         async (actionType) => {
-            const operation = deferred<void>();
+            const operation = deferred<DownloadActionResult>();
             actions.run.mockReturnValueOnce(operation.promise);
             await render([download(17), download(18, { title: 'Other' })]);
 
@@ -498,7 +636,8 @@ describe('DownloadOfflineDetailComponent', () => {
                 download(17, { fileAvailability: 'missing' }),
                 download(18, { title: 'Other' }),
             ]);
-            operation.resolve(undefined);
+            expect(router.navigate).not.toHaveBeenCalled();
+            operation.resolve('file-missing');
             await fixture.whenStable();
 
             expect(actions.run).toHaveBeenCalledWith(
@@ -512,8 +651,106 @@ describe('DownloadOfflineDetailComponent', () => {
                 queryParamsHandling: 'preserve',
                 replaceUrl: true,
             });
+            downloads.downloads.set([
+                download(17, { fileAvailability: 'missing' }),
+            ]);
+            await fixture.whenStable();
+            expect(router.navigate).toHaveBeenCalledTimes(1);
         }
     );
+
+    it('does not redirect when a failed file action coincides with a missing-row emission', async () => {
+        const operation = deferred<DownloadActionResult>();
+        actions.run.mockReturnValueOnce(operation.promise);
+        await render([download(17)]);
+
+        button('offline-play').click();
+        downloads.downloads.set([
+            download(17, { fileAvailability: 'missing' }),
+        ]);
+        await fixture.whenStable();
+        expect(router.navigate).not.toHaveBeenCalled();
+
+        operation.resolve('failed');
+        await fixture.whenStable();
+        expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('does not let an older episode action redirect a reused route in the same series', async () => {
+        const operation = deferred<DownloadActionResult>();
+        actions.run.mockReturnValueOnce(operation.promise);
+        const episode = (id: number, episodeNumber: number) =>
+            download(id, {
+                contentType: 'episode',
+                episodeNumber,
+                seasonNumber: 1,
+                seriesXtreamId: 77,
+                title: `Northwind - S01E0${episodeNumber}`,
+            });
+        await render([episode(17, 1), episode(18, 2)]);
+
+        button('episode-play-17').click();
+        routeParams.next(convertToParamMap({ downloadId: '18' }));
+        router.url = '/workspace/downloads/18';
+        await fixture.whenStable();
+        operation.resolve('file-missing');
+        await fixture.whenStable();
+
+        expect(text()).toContain('Northwind');
+        expect(router.navigate).not.toHaveBeenCalled();
+        expect(router.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it('renders a retryable missing-file error when the redirect returns false', async () => {
+        router.navigate
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(true);
+
+        await render([download(17, { fileAvailability: 'missing' })]);
+        await Promise.resolve();
+        fixture.detectChanges();
+
+        expect(text()).toContain(
+            'This downloaded file is no longer available on disk.'
+        );
+        expect(button('redirect-back').textContent).toContain(
+            'Back to Downloads'
+        );
+        button('redirect-retry').click();
+        await fixture.whenStable();
+        expect(router.navigate).toHaveBeenCalledTimes(2);
+    });
+
+    it('renders the retryable missing-file error when redirect navigation rejects', async () => {
+        router.navigate.mockRejectedValueOnce(new Error('router unavailable'));
+
+        await render([download(17, { fileAvailability: 'missing' })]);
+        await Promise.resolve();
+        fixture.detectChanges();
+
+        expect(text()).toContain(
+            'This downloaded file is no longer available on disk.'
+        );
+        expect(button('redirect-retry').textContent).toContain('Retry');
+    });
+
+    it('ignores an older redirect failure after route reuse', async () => {
+        const redirect = deferred<boolean>();
+        router.navigate.mockReturnValueOnce(redirect.promise);
+        await render([download(17, { fileAvailability: 'missing' })]);
+
+        routeParams.next(convertToParamMap({ downloadId: '18' }));
+        router.url = '/workspace/downloads/18';
+        downloads.downloads.set([download(18, { title: 'Current route' })]);
+        await fixture.whenStable();
+        redirect.resolve(false);
+        await fixture.whenStable();
+
+        expect(text()).toContain('Current route');
+        expect(text()).not.toContain(
+            'This downloaded file is no longer available on disk.'
+        );
+    });
 
     it('reacts to route reuse and displays the new row before metadata resolution completes', async () => {
         const secondResolution = deferred<DownloadMetadataSnapshot>();
@@ -557,19 +794,163 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(text()).not.toContain('Stale first');
     });
 
+    it('does not restart metadata resolution for unrelated download emissions', async () => {
+        const resolution = deferred<DownloadMetadataSnapshot>();
+        const current = download(17, { title: 'Stable local title' });
+        const unrelated = download(18, { title: 'Other download' });
+        metadata.resolve.mockReturnValueOnce(resolution.promise);
+        await render([current, unrelated]);
+
+        downloads.downloads.set([
+            { ...current, bytesDownloaded: 512 },
+            { ...unrelated, bytesDownloaded: 256 },
+        ]);
+        await fixture.whenStable();
+        downloads.downloads.set([
+            { ...current, bytesDownloaded: 768 },
+            { ...unrelated, bytesDownloaded: 512 },
+        ]);
+        await fixture.whenStable();
+
+        expect(metadata.resolve).toHaveBeenCalledTimes(1);
+        resolution.resolve(snapshot('movie', 'Stable resolved title'));
+        await fixture.whenStable();
+    });
+
+    it('restarts metadata resolution when the current persisted snapshot changes', async () => {
+        const firstResolution = deferred<DownloadMetadataSnapshot>();
+        const secondResolution = deferred<DownloadMetadataSnapshot>();
+        const current = download(17, { title: 'Local title' });
+        metadata.resolve
+            .mockReturnValueOnce(firstResolution.promise)
+            .mockReturnValueOnce(secondResolution.promise);
+        await render([current]);
+
+        downloads.downloads.set([
+            {
+                ...current,
+                metadataSnapshot: snapshot('movie', 'Persisted replacement'),
+            },
+        ]);
+        await fixture.whenStable();
+
+        expect(metadata.resolve).toHaveBeenCalledTimes(2);
+        secondResolution.resolve(snapshot('movie', 'Fresh replacement'));
+        await fixture.whenStable();
+        firstResolution.resolve(snapshot('movie', 'Stale result'));
+        await fixture.whenStable();
+        expect(text()).toContain('Fresh replacement');
+        expect(text()).not.toContain('Stale result');
+    });
+
     it('opens the current provider target and reports a navigation failure without blocking local playback', async () => {
-        navigation.open.mockResolvedValueOnce(false);
+        navigation.navigateResolvedTarget.mockResolvedValueOnce(false);
         await render([download(17)]);
 
         button('view-in-portal').click();
         await fixture.whenStable();
 
-        expect(navigation.open).toHaveBeenCalledWith(
-            expect.objectContaining({ id: 17 })
+        expect(navigation.navigateResolvedTarget).toHaveBeenCalledWith(
+            PROVIDER_TARGET
         );
         expect(actions.showActionError).toHaveBeenCalledTimes(1);
         expect(button('offline-play').disabled).toBe(false);
     });
+
+    it('keeps the provider action disabled while its exact target is resolving', async () => {
+        const resolution = deferred<WorkspaceNavigationTarget | null>();
+        navigation.resolveProviderTarget.mockReturnValueOnce(
+            resolution.promise
+        );
+        await render([download(17)]);
+
+        expect(button('view-in-portal').disabled).toBe(true);
+        expect(button('view-in-portal').getAttribute('aria-busy')).toBe('true');
+        expect(text()).not.toContain('The source is unavailable');
+
+        resolution.resolve(PROVIDER_TARGET);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(button('view-in-portal').disabled).toBe(false);
+        expect(button('view-in-portal').getAttribute('aria-busy')).toBeNull();
+    });
+
+    it('uses one cached provider target and ignores duplicate open requests', async () => {
+        const opening = deferred<boolean>();
+        navigation.navigateResolvedTarget.mockReturnValueOnce(opening.promise);
+        await render([download(17)]);
+
+        const first = fixture.componentInstance.viewInPortal();
+        const duplicate = fixture.componentInstance.viewInPortal();
+
+        expect(navigation.resolveProviderTarget).toHaveBeenCalledTimes(1);
+        expect(navigation.navigateResolvedTarget).toHaveBeenCalledTimes(1);
+        await duplicate;
+        opening.resolve(true);
+        await first;
+    });
+
+    it('ignores a failed provider navigation after the route is reused while opening', async () => {
+        const opening = deferred<boolean>();
+        navigation.navigateResolvedTarget.mockReturnValueOnce(opening.promise);
+        await render([download(17), download(18, { title: 'Current route' })]);
+
+        const oldRouteAction = fixture.componentInstance.viewInPortal();
+        routeParams.next(convertToParamMap({ downloadId: '18' }));
+        router.url = '/workspace/downloads/18';
+        await fixture.whenStable();
+        opening.resolve(false);
+        await oldRouteAction;
+
+        expect(text()).toContain('Current route');
+        expect(actions.showActionError).not.toHaveBeenCalled();
+    });
+
+    it('does not enable or navigate a stale provider target after route reuse', async () => {
+        const first = deferred<WorkspaceNavigationTarget | null>();
+        const second = deferred<WorkspaceNavigationTarget | null>();
+        navigation.resolveProviderTarget
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(second.promise);
+        await render([download(17), download(18, { title: 'Current route' })]);
+
+        routeParams.next(convertToParamMap({ downloadId: '18' }));
+        router.url = '/workspace/downloads/18';
+        await fixture.whenStable();
+        first.resolve(PROVIDER_TARGET);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(button('view-in-portal').disabled).toBe(true);
+        button('view-in-portal').click();
+        expect(navigation.navigateResolvedTarget).not.toHaveBeenCalled();
+        second.resolve(null);
+        await fixture.whenStable();
+    });
+
+    it.each(['false', 'reject'] as const)(
+        'clears provider pending state when navigation returns %s',
+        async (outcome) => {
+            if (outcome === 'false') {
+                navigation.navigateResolvedTarget.mockResolvedValueOnce(false);
+            } else {
+                navigation.navigateResolvedTarget.mockRejectedValueOnce(
+                    new Error('router rejected')
+                );
+            }
+            await render([download(17)]);
+
+            button('view-in-portal').click();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(button('view-in-portal').disabled).toBe(false);
+            expect(
+                button('view-in-portal').getAttribute('aria-busy')
+            ).toBeNull();
+            expect(actions.showActionError).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it('uses browser Back only for a validated manager return URL', async () => {
         historyState = {

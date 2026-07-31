@@ -1,5 +1,8 @@
 import type { DownloadItem } from '@iptvnator/services';
-import type { DownloadMetadataPerson } from '@iptvnator/shared/interfaces';
+import type {
+    DownloadMetadataPerson,
+    DownloadMetadataSnapshot,
+} from '@iptvnator/shared/interfaces';
 import type {
     DeepReadonly,
     DownloadOfflineDetail,
@@ -38,6 +41,30 @@ export function offlineDetailIdentity(
     return detail.kind === 'series'
         ? `series:${item.playlistId}:${item.seriesXtreamId ?? item.id}`
         : `movie:${item.playlistId}:${item.id}`;
+}
+
+export function offlineMetadataResolutionKey(
+    detail: DownloadOfflineDetail | undefined,
+    downloadId: number | undefined,
+    language: string
+): string | undefined {
+    const item = offlineDetailRepresentative(detail);
+    if (!detail || !item || downloadId === undefined) return undefined;
+    const snapshot = detail.snapshot as DownloadMetadataSnapshot | undefined;
+    return JSON.stringify([
+        detail.kind,
+        downloadId,
+        item.id,
+        item.playlistId,
+        item.xtreamId,
+        item.seriesXtreamId,
+        item.seasonNumber,
+        item.episodeNumber,
+        item.title,
+        item.posterUrl,
+        language.trim() || 'en',
+        snapshot,
+    ]);
 }
 
 export function offlineSeasonKey(season: DownloadOfflineSeason): string {
@@ -96,9 +123,38 @@ export function offlinePositiveFinite(value: number): boolean {
 export function boundedOfflinePeople(
     values: readonly DownloadMetadataPerson[] | undefined
 ): readonly DownloadMetadataPerson[] {
-    return (values ?? [])
-        .filter(({ name }) => name.trim().length > 0)
-        .slice(0, 12);
+    const people: DownloadMetadataPerson[] = [];
+    const seenProviderIds = new Set<number>();
+    const seenNames = new Set<string>();
+    for (const person of values ?? []) {
+        if (!person.name.trim()) continue;
+        const nameKey = offlinePersonNameKey(person);
+        const duplicate =
+            seenNames.has(nameKey) ||
+            (person.tmdbPersonId !== undefined &&
+                seenProviderIds.has(person.tmdbPersonId));
+        seenNames.add(nameKey);
+        if (person.tmdbPersonId !== undefined) {
+            seenProviderIds.add(person.tmdbPersonId);
+        }
+        if (duplicate) continue;
+        people.push(person);
+        if (people.length === 12) break;
+    }
+    return people;
+}
+
+export function offlinePersonTrackKey(person: DownloadMetadataPerson): string {
+    return [person.tmdbPersonId ?? 'local', offlinePersonNameKey(person)].join(
+        ':'
+    );
+}
+
+function offlinePersonNameKey(person: DownloadMetadataPerson): string {
+    return [
+        person.name.trim().toLowerCase(),
+        person.role?.trim().toLowerCase() ?? '',
+    ].join(':');
 }
 
 export function offlineHasLocalFile(

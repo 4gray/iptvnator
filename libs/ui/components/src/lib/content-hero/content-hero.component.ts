@@ -37,17 +37,23 @@ export class ContentHeroComponent {
     readonly backdropUrl = input<string>();
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
+    readonly backLabel = input<string>();
 
     readonly backClicked = output<void>();
     readonly posterError = signal(false);
 
-    readonly descriptionEl = viewChild<ElementRef<HTMLElement>>('descriptionEl');
+    readonly descriptionEl =
+        viewChild<ElementRef<HTMLElement>>('descriptionEl');
     readonly isDescriptionExpanded = signal(false);
     readonly hasDescriptionOverflow = signal(false);
 
     private resizeObserver?: ResizeObserver;
 
     constructor() {
+        effect(() => {
+            this.posterUrl();
+            untracked(() => this.posterError.set(false));
+        });
         effect(() => {
             // Re-measure whenever description content or the element changes.
             this.description();
@@ -120,7 +126,9 @@ export class ContentHeroComponent {
             this.measureOverflow(el);
             return;
         }
-        this.resizeObserver = new ResizeObserver(() => this.measureOverflow(el));
+        this.resizeObserver = new ResizeObserver(() =>
+            this.measureOverflow(el)
+        );
         this.resizeObserver.observe(el);
     }
 }

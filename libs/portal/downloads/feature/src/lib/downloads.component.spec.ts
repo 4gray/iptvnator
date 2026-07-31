@@ -25,6 +25,7 @@ import type { Playlist } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
 import { BehaviorSubject, type Observable, Subject } from 'rxjs';
 import { DownloadLibraryNavigationService } from './download-library-navigation.service';
+import type { DownloadActionResult } from './download-actions';
 import { DownloadManagerActionsService } from './download-manager-actions.service';
 import type { DownloadSeriesCardViewModel } from './download-manager.viewmodel';
 import { DownloadsComponent } from './downloads.component';
@@ -54,7 +55,7 @@ interface ExpectedDownloadsComponent {
     runAction(action: {
         readonly type: string;
         readonly item: DownloadItem;
-    }): Promise<void> | void;
+    }): Promise<DownloadActionResult> | void;
     setFilter(filter: string): void;
 }
 
@@ -553,7 +554,7 @@ describe('DownloadsComponent', () => {
 
         expect(component.pendingIds().has(8)).toBe(true);
         operation.resolve({ success: true });
-        await action;
+        await expect(action).resolves.toBe('success');
         expect(component.pendingIds().has(8)).toBe(false);
     });
 
@@ -566,8 +567,9 @@ describe('DownloadsComponent', () => {
         const second = component.runAction({ type: 'pause', item });
 
         expect(downloadsService.pauseDownload).toHaveBeenCalledTimes(1);
+        await expect(second).resolves.toBe('ignored');
         operation.resolve({ success: true });
-        await Promise.all([first, second]);
+        await expect(first).resolves.toBe('success');
     });
 
     it('reports operation failures through the existing snackbar path', async () => {
@@ -576,10 +578,12 @@ describe('DownloadsComponent', () => {
             error: 'network offline',
         });
 
-        await component.runAction({
-            type: 'retry',
-            item: download(10, { status: 'failed' }),
-        });
+        await expect(
+            component.runAction({
+                type: 'retry',
+                item: download(10, { status: 'failed' }),
+            })
+        ).resolves.toBe('failed');
 
         expect(snackBar.open).toHaveBeenCalledWith(
             'Action failed: network offline',
@@ -659,9 +663,25 @@ describe('DownloadsComponent', () => {
         expect(snackBar.open).not.toHaveBeenCalled();
 
         reload.resolve();
-        await action;
+        await expect(action).resolves.toBe('file-missing');
 
         expect(component.pendingIds().has(17)).toBe(false);
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'File not found',
+            undefined,
+            expect.objectContaining({ duration: 3000 })
+        );
+    });
+
+    it('reports a missing file path as a typed file-missing result', async () => {
+        await expect(
+            component.runAction({
+                type: 'reveal',
+                item: download(18, { filePath: undefined }),
+            })
+        ).resolves.toBe('file-missing');
+
+        expect(downloadsService.revealFile).not.toHaveBeenCalled();
         expect(snackBar.open).toHaveBeenCalledWith(
             'File not found',
             undefined,

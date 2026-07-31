@@ -5,6 +5,7 @@ import {
     Injector,
     signal,
     type Signal,
+    untracked,
 } from '@angular/core';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import type { DownloadOfflineDetail } from './download-offline-detail.viewmodel';
@@ -12,7 +13,7 @@ import { DownloadOfflineMetadataService } from './download-offline-metadata.serv
 
 export interface OfflineMetadataResolution {
     readonly generation: number;
-    readonly identity?: string;
+    readonly key?: string;
     readonly snapshot?: DownloadMetadataSnapshot;
 }
 
@@ -24,37 +25,56 @@ export class DownloadOfflineMetadataResolutionService {
         generation: 0,
     });
     private generation = 0;
+    private readonly inFlight = new Map<
+        string,
+        Promise<DownloadMetadataSnapshot>
+    >();
 
     readonly resolution = this.state.asReadonly();
 
     connect(
-        detail: Signal<DownloadOfflineDetail | undefined>,
-        identity: Signal<string | undefined>
+        key: Signal<string | undefined>,
+        currentDetail: () => DownloadOfflineDetail | undefined
     ): void {
         effect(
             () => {
-                const currentDetail = detail();
-                const currentIdentity = identity();
+                const currentKey = key();
                 const generation = ++this.generation;
-                this.state.set({ generation, identity: currentIdentity });
-                if (!currentDetail || !currentIdentity) return;
-                void this.metadata
-                    .resolve(currentDetail)
+                this.state.set({ generation, key: currentKey });
+                const detail = untracked(currentDetail);
+                if (!detail || !currentKey) return;
+                void this.resolveOnce(currentKey, detail)
                     .then((snapshot) => {
+                        this.clearRequest(currentKey);
                         if (
                             generation === this.generation &&
-                            currentIdentity === identity()
+                            currentKey === key()
                         ) {
                             this.state.set({
                                 generation,
-                                identity: currentIdentity,
+                                key: currentKey,
                                 snapshot,
                             });
                         }
                     })
-                    .catch(() => undefined);
+                    .catch(() => this.clearRequest(currentKey));
             },
             { injector: this.injector }
         );
+    }
+
+    private resolveOnce(
+        key: string,
+        detail: DownloadOfflineDetail
+    ): Promise<DownloadMetadataSnapshot> {
+        const active = this.inFlight.get(key);
+        if (active) return active;
+        const request = this.metadata.resolve(detail);
+        this.inFlight.set(key, request);
+        return request;
+    }
+
+    private clearRequest(key: string): void {
+        this.inFlight.delete(key);
     }
 }

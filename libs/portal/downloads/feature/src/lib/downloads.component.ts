@@ -28,7 +28,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { Playlist, XtreamCategory } from '@iptvnator/shared/interfaces';
 import { map, startWith, take } from 'rxjs';
-import type { DownloadItemAction } from './download-actions';
+import type {
+    DownloadActionResult,
+    DownloadItemAction,
+} from './download-actions';
 import { DownloadLibraryNavigationService } from './download-library-navigation.service';
 import { DownloadLibraryComponent } from './download-library.component';
 import { DownloadManagerActionsService } from './download-manager-actions.service';
@@ -192,8 +195,8 @@ export class DownloadsComponent {
         return this.downloadsService.formatBytes(bytes);
     }
 
-    async runAction(action: DownloadItemAction): Promise<void> {
-        await this.actions.run(action);
+    async runAction(action: DownloadItemAction): Promise<DownloadActionResult> {
+        return this.actions.run(action);
     }
 
     clearFinished(): void {

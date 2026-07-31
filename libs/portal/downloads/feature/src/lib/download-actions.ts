@@ -11,6 +11,9 @@ export type DownloadItemActionType =
     | 'retry'
     | 'reveal';
 
+export type DownloadActionResult =
+    'success' | 'file-missing' | 'failed' | 'ignored';
+
 export interface DownloadItemAction {
     readonly type: DownloadItemActionType;
     readonly item: DownloadItem;

@@ -21,6 +21,7 @@ import { PortalDetailShellComponent } from './portal-detail-shell.component';
             [title]="'Show Title'"
             [description]="'Show description'"
             [posterUrl]="'poster.jpg'"
+            [backLabel]="'Return to downloads'"
             [playbackActive]="playbackActive()"
             (closePlayerRequested)="closeRequests = closeRequests + 1"
         >
@@ -72,6 +73,9 @@ describe('PortalDetailShellComponent', () => {
         expect(query('.details__meta .details__meta-item')).toBeTruthy();
         expect(query('.action-buttons .play-btn')).toBeTruthy();
         expect(query('app-content-about')).toBeNull();
+        expect(query('.hero__back-button')?.getAttribute('aria-label')).toBe(
+            'Return to downloads'
+        );
     });
 
     it('collapses hero and shows About with re-stamped templates in watch state', () => {

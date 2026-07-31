@@ -6,7 +6,10 @@ import {
     type DownloadItem,
     PlaylistsService,
 } from '@iptvnator/services';
-import { buildStalkerDetailNavigationTarget } from '@iptvnator/portal/shared/util';
+import {
+    buildStalkerDetailNavigationTarget,
+    type WorkspaceNavigationTarget,
+} from '@iptvnator/portal/shared/util';
 import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
 
 type PortalSource = 'xtream' | 'stalker';
@@ -33,20 +36,43 @@ export class DownloadLibraryNavigationService {
     }
 
     async open(item: DownloadItem): Promise<boolean> {
+        const target = await this.resolveProviderTarget(item);
+        return target
+            ? this.navigateResolvedTarget(target)
+            : Promise.resolve(false);
+    }
+
+    async resolveProviderTarget(
+        item: DownloadItem
+    ): Promise<WorkspaceNavigationTarget | null> {
         const targetId = this.targetId(item);
         if (targetId === null) {
-            return false;
+            return null;
         }
 
         try {
             const source = await this.resolveSourceType(item.playlistId);
             if (source === null) {
-                return false;
+                return null;
             }
 
             return source === 'xtream'
-                ? await this.openXtreamItem(item, targetId)
-                : await this.openStalkerItem(item, targetId);
+                ? await this.resolveXtreamTarget(item, targetId)
+                : await this.resolveStalkerTarget(item, targetId);
+        } catch {
+            return null;
+        }
+    }
+
+    async navigateResolvedTarget(
+        target: WorkspaceNavigationTarget
+    ): Promise<boolean> {
+        try {
+            return target.state
+                ? await this.router.navigate(target.link, {
+                      state: target.state,
+                  })
+                : await this.router.navigate(target.link);
         } catch {
             return false;
         }
@@ -64,8 +90,8 @@ export class DownloadLibraryNavigationService {
     private route(
         source: PortalSource,
         playlistId: string,
-        segments: Array<string | number>
-    ): Array<string | number> {
+        segments: string[]
+    ): string[] {
         return [
             '/workspace',
             source === 'stalker' ? 'stalker' : 'xtreams',
@@ -93,24 +119,31 @@ export class DownloadLibraryNavigationService {
         }
     }
 
-    private async openXtreamItem(
+    private async resolveXtreamTarget(
         item: DownloadItem,
         targetId: number
-    ): Promise<boolean> {
+    ): Promise<WorkspaceNavigationTarget | null> {
         const contentType = item.contentType === 'episode' ? 'series' : 'vod';
-        const content = await this.db.getContentByXtreamId(
-            targetId,
-            item.playlistId
-        );
-        const categoryId = content?.category_id;
-        const segments =
-            categoryId === null || categoryId === undefined
-                ? [contentType]
-                : [contentType, String(categoryId), String(targetId)];
+        const persistedCategory =
+            item.metadataSnapshot?.providerCategoryId?.trim();
+        const content = persistedCategory
+            ? null
+            : await this.db.getContentByXtreamId(
+                  targetId,
+                  item.playlistId,
+                  item.contentType === 'episode' ? 'series' : 'movie'
+              );
+        const categoryId =
+            persistedCategory || String(content?.category_id ?? '').trim();
+        if (!categoryId) return null;
 
-        return this.router.navigate(
-            this.route('xtream', item.playlistId, segments)
-        );
+        return {
+            link: this.route('xtream', item.playlistId, [
+                contentType,
+                categoryId,
+                String(targetId),
+            ]),
+        };
     }
 
     private normalizePortalItemId(value: unknown): string {
@@ -205,10 +238,10 @@ export class DownloadLibraryNavigationService {
         };
     }
 
-    private async openStalkerItem(
+    private async resolveStalkerTarget(
         item: DownloadItem,
         targetId: number
-    ): Promise<boolean> {
+    ): Promise<WorkspaceNavigationTarget> {
         const fallback = item.contentType === 'episode' ? 'series' : 'vod';
         const openStalkerItem = await this.stalkerOpenState(
             item,
@@ -231,6 +264,6 @@ export class DownloadLibraryNavigationService {
             item: openStalkerItem,
         });
 
-        return this.router.navigate(target.link, { state: target.state });
+        return target;
     }
 }

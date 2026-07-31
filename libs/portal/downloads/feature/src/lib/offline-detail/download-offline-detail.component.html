@@ -4,6 +4,7 @@
         [description]="description()"
         [posterUrl]="posterUrl()"
         [backdropUrl]="backdropUrl()"
+        [backLabel]="'DOWNLOADS.OFFLINE_DETAIL.BACK' | translate"
         (backClicked)="goBack()"
     >
         <ng-template appDetailTags>
@@ -43,10 +44,7 @@
                 <div class="details__meta-item offline-detail__people-group">
                     <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
                     <div class="details__cast-strip">
-                        @for (
-                            person of cast();
-                            track person.tmdbPersonId ?? person.name
-                        ) {
+                        @for (person of cast(); track personTrackKey(person)) {
                             <span
                                 class="details__cast-chip offline-detail__person"
                                 [title]="
@@ -86,7 +84,7 @@
                     <div class="details__cast-strip">
                         @for (
                             person of creators();
-                            track person.tmdbPersonId ?? person.name
+                            track personTrackKey(person)
                         ) {
                             <span
                                 class="details__cast-chip offline-detail__person"
@@ -144,22 +142,31 @@
 
             <span
                 class="offline-detail__portal-action"
+                [attr.tabindex]="providerUnavailable() ? 0 : null"
+                [attr.aria-describedby]="
+                    providerUnavailable()
+                        ? 'offline-view-in-portal-unavailable'
+                        : null
+                "
                 [matTooltip]="
-                    canOpenInPortal()
-                        ? ''
-                        : ('DOWNLOADS.OFFLINE_DETAIL.VIEW_IN_PORTAL_UNAVAILABLE'
+                    providerUnavailable()
+                        ? ('DOWNLOADS.OFFLINE_DETAIL.VIEW_IN_PORTAL_UNAVAILABLE'
                           | translate)
+                        : ''
                 "
             >
                 <button
                     mat-stroked-button
                     type="button"
                     data-testid="view-in-portal"
-                    [disabled]="!canOpenInPortal()"
+                    [disabled]="!canOpenInPortal() || providerPending()"
+                    [attr.aria-busy]="
+                        providerLoading() || providerPending() ? true : null
+                    "
                     [attr.aria-describedby]="
-                        canOpenInPortal()
-                            ? null
-                            : 'offline-view-in-portal-unavailable'
+                        providerUnavailable()
+                            ? 'offline-view-in-portal-unavailable'
+                            : null
                     "
                     (click)="viewInPortal()"
                 >
@@ -167,7 +174,7 @@
                     {{ 'DOWNLOADS.OFFLINE_DETAIL.VIEW_IN_PORTAL' | translate }}
                 </button>
             </span>
-            @if (!canOpenInPortal()) {
+            @if (providerUnavailable()) {
                 <span
                     id="offline-view-in-portal-unavailable"
                     class="offline-detail__visually-hidden"
@@ -222,7 +229,8 @@
                 <div class="offline-detail__season-tabs" role="tablist">
                     @for (
                         season of offlineDetail.seasons;
-                        track seasonTestId(season)
+                        track seasonTestId(season);
+                        let seasonIndex = $index
                     ) {
                         <button
                             type="button"
@@ -232,11 +240,14 @@
                                 isSelectedSeason(season)
                             "
                             [attr.aria-selected]="isSelectedSeason(season)"
+                            [attr.tabindex]="seasonTabIndex(season)"
+                            [id]="seasonTabId(season)"
                             [attr.aria-controls]="
                                 seasonTestId(season) + '-panel'
                             "
                             [attr.data-testid]="seasonTestId(season)"
                             (click)="selectSeason(season)"
+                            (keydown)="onSeasonKeydown($event, seasonIndex)"
                         >
                             <span>
                                 @if (season.seasonNumberState === 'known') {
@@ -267,6 +278,7 @@
                         role="tabpanel"
                         class="offline-detail__episode-list"
                         [id]="seasonTestId(season) + '-panel'"
+                        [attr.aria-labelledby]="seasonTabId(season)"
                     >
                         @for (
                             episode of season.episodes;
@@ -330,6 +342,20 @@
                                             'episode-play-' + episode.item.id
                                         "
                                         [disabled]="isPending(episode.item)"
+                                        [attr.aria-label]="
+                                            ('DOWNLOADS.OFFLINE_DETAIL.PLAY'
+                                                | translate) +
+                                            ': ' +
+                                            episodeCoordinate(
+                                                episode.seasonNumber,
+                                                episode.episodeNumber
+                                            ) +
+                                            ' ' +
+                                            episodeTitle(
+                                                episode.item,
+                                                episode.episodeMetadata?.title
+                                            )
+                                        "
                                         (click)="
                                             runFileAction('play', episode.item)
                                         "
@@ -369,7 +395,26 @@
                                         <button
                                             mat-menu-item
                                             type="button"
+                                            [attr.data-testid]="
+                                                'episode-reveal-' +
+                                                episode.item.id
+                                            "
                                             [disabled]="isPending(episode.item)"
+                                            [attr.aria-label]="
+                                                ('DOWNLOADS.REVEAL'
+                                                    | translate) +
+                                                ': ' +
+                                                episodeCoordinate(
+                                                    episode.seasonNumber,
+                                                    episode.episodeNumber
+                                                ) +
+                                                ' ' +
+                                                episodeTitle(
+                                                    episode.item,
+                                                    episode.episodeMetadata
+                                                        ?.title
+                                                )
+                                            "
                                             (click)="
                                                 runFileAction(
                                                     'reveal',
@@ -396,14 +441,38 @@
 } @else {
     <app-portal-detail-shell
         [isLoading]="showLoading()"
+        [backLabel]="'DOWNLOADS.OFFLINE_DETAIL.BACK' | translate"
         [errorMessage]="
-            showNotFound()
-                ? ('DOWNLOADS.OFFLINE_DETAIL.NOT_FOUND_TITLE' | translate)
-                : undefined
+            redirectFailed()
+                ? ('DOWNLOADS.FILE_NOT_FOUND' | translate)
+                : showNotFound()
+                  ? ('DOWNLOADS.OFFLINE_DETAIL.NOT_FOUND_TITLE' | translate)
+                  : undefined
         "
         (backClicked)="goBack()"
     >
-        @if (showNotFound()) {
+        @if (redirectFailed()) {
+            <div hero-error-actions class="offline-detail__not-found-actions">
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-testid="redirect-back"
+                    (click)="goBack()"
+                >
+                    <mat-icon aria-hidden="true">arrow_back</mat-icon>
+                    {{ 'DOWNLOADS.OFFLINE_DETAIL.BACK' | translate }}
+                </button>
+                <button
+                    mat-flat-button
+                    type="button"
+                    data-testid="redirect-retry"
+                    (click)="retryRedirect()"
+                >
+                    <mat-icon aria-hidden="true">refresh</mat-icon>
+                    {{ 'DOWNLOADS.RETRY' | translate }}
+                </button>
+            </div>
+        } @else if (showNotFound()) {
             <div hero-error-actions class="offline-detail__not-found-actions">
                 <p>
                     {{ 'DOWNLOADS.OFFLINE_DETAIL.NOT_FOUND_BODY' | translate }}
