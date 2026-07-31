@@ -12,9 +12,27 @@
 } @else if (variant() === 'category') {
     @if (context(); as context) {
         @if (section(); as section) {
+            @if (canRestoreGroupsPanel()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    class="context-panel-restore"
+                    data-testid="live-groups-panel-restore"
+                    aria-controls="live-groups-panel"
+                    aria-expanded="false"
+                    [attr.aria-label]="'LAYOUT.SHOW_GROUPS_PANEL' | translate"
+                    [matTooltip]="'LAYOUT.SHOW_GROUPS_PANEL' | translate"
+                    (click)="onGroupsPanelExpandedChange(true)"
+                >
+                    <mat-icon>chevron_right</mat-icon>
+                </button>
+            }
             <aside
+                id="live-groups-panel"
                 class="context-panel context-panel--route"
-                [class.context-panel--collapsed]="isContextPanelCollapsed()"
+                [class.context-panel--collapsed]="!groupsPanelExpanded()"
+                [attr.aria-hidden]="!groupsPanelExpanded()"
+                [attr.inert]="groupsPanelExpanded() ? null : ''"
                 appResizable
                 [minWidth]="240"
                 [maxWidth]="560"
@@ -24,6 +42,10 @@
                 <app-workspace-context-panel
                     [context]="context"
                     [section]="section"
+                    [groupsPanelExpanded]="groupsPanelExpanded()"
+                    (groupsPanelExpandedChange)="
+                        onGroupsPanelExpandedChange($event)
+                    "
                 />
             </aside>
         }

@@ -64,6 +64,7 @@
                         type="button"
                         mat-icon-button
                         class="context-header__action"
+                        data-testid="manage-live-groups"
                         (click)="openManageCategories()"
                         [disabled]="!canManageXtreamCategories()"
                         [matTooltip]="
@@ -74,6 +75,23 @@
                         "
                     >
                         <mat-icon>tune</mat-icon>
+                    </button>
+                }
+                @if (showLiveGroupsToggle()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="context-header__action context-header__action--panel"
+                        data-testid="live-groups-panel-hide"
+                        aria-controls="live-groups-panel"
+                        [attr.aria-expanded]="groupsPanelExpanded()"
+                        [attr.aria-label]="
+                            'LAYOUT.HIDE_GROUPS_PANEL' | translate
+                        "
+                        [matTooltip]="'LAYOUT.HIDE_GROUPS_PANEL' | translate"
+                        (click)="groupsPanelExpandedChange.emit(false)"
+                    >
+                        <mat-icon>chevron_left</mat-icon>
                     </button>
                 }
             </div>

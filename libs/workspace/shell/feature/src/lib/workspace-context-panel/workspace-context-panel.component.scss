@@ -65,6 +65,14 @@
     }
 }
 
+.context-header__action.context-header__action--panel {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    line-height: 40px;
+}
+
 .context-header__badge {
     display: inline-flex;
     align-items: center;

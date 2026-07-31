@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     input,
+    output,
     signal,
     viewChild,
     ElementRef,
@@ -72,6 +73,8 @@ export class WorkspaceContextPanelComponent {
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
+    readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelExpandedChange = output<boolean>();
 
     readonly isXtreamCategories = computed(
         () =>
@@ -87,6 +90,12 @@ export class WorkspaceContextPanelComponent {
                 this.section() === 'series' ||
                 this.section() === 'itv' ||
                 this.section() === 'radio')
+    );
+    readonly showLiveGroupsToggle = computed(
+        () =>
+            (this.isXtreamCategories() && this.section() === 'live') ||
+            (this.isStalkerCategories() &&
+                (this.section() === 'itv' || this.section() === 'radio'))
     );
 
     readonly xtreamCategories = this.xtreamStore.getCategoriesBySelectedType;

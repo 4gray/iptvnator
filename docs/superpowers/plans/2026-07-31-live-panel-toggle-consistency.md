@@ -351,7 +351,7 @@ git commit -m "feat(ui): add independent M3U panel controls"
 - Modify:
   `libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-context-sidebar/workspace-shell-context-sidebar.component.{ts,html,scss,spec.ts}`
 
-- [ ] **Step 1: Write failing header and layout tests**
+- [x] **Step 1: Write failing header and layout tests**
 
 Assert the Groups header control is last, stays present in loading/empty/zero
 search results, and emits an explicit collapse request only on Live/ITV/Radio.
@@ -359,7 +359,7 @@ Assert the context sidebar suppresses Groups at `max-width: 1023px` without
 changing intent, retains collapsed DOM as inert, renders one boundary restore
 button at wide widths, and transfers focus.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```bash
 pnpm nx test workspace-shell-feature --runInBand
@@ -367,7 +367,7 @@ pnpm nx test workspace-shell-feature --runInBand
 
 Expected: FAIL because the Groups disclosure contract does not exist.
 
-- [ ] **Step 3: Add the Groups header output**
+- [x] **Step 3: Add the Groups header output**
 
 Add:
 
@@ -383,7 +383,7 @@ readonly showLiveGroupsToggle = computed(
 Render the translated 40px button last in `.context-header__actions`, with
 panel-based test ID and ARIA attributes.
 
-- [ ] **Step 4: Add state, responsive suppression, restore rail, and focus**
+- [x] **Step 4: Add state, responsive suppression, restore rail, and focus**
 
 Inject `LiveLayoutPanelStateService` from data-access and `BreakpointObserver`.
 Resolve effective Groups visibility from intent, master suppression,
@@ -391,7 +391,7 @@ applicability, and `(max-width: 1023px)`. Keep the `aside` mounted with
 `inert`/`aria-hidden`, reserve a 40px restore column only when restoration is
 currently fulfillable, and focus `live-groups-panel-hide` after restoration.
 
-- [ ] **Step 5: Run and verify GREEN**
+- [x] **Step 5: Run and verify GREEN**
 
 ```bash
 pnpm nx test workspace-shell-feature --runInBand
@@ -400,7 +400,7 @@ pnpm nx lint workspace-shell-feature
 
 Expected: both commands exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add libs/workspace/shell/feature

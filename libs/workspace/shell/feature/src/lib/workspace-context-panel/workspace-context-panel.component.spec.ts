@@ -194,9 +194,9 @@ describe('WorkspaceContextPanelComponent', () => {
         const status = fixture.nativeElement.querySelector(
             '.context-inline-status'
         ) as HTMLElement | null;
-        const manageButton = Array.from(
-            fixture.nativeElement.querySelectorAll('.context-header__action')
-        ).at(-1) as HTMLButtonElement | undefined;
+        const manageButton = fixture.nativeElement.querySelector(
+            '[data-testid="manage-live-groups"]'
+        ) as HTMLButtonElement | null;
 
         expect(countPlaceholders).toHaveLength(2);
         expect(categoryButtons.every((button) => button.disabled)).toBe(true);
@@ -211,6 +211,46 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
         expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
         expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('keeps the live Groups disclosure last across loading and zero-result states', () => {
+        fixture.componentRef.setInput('section', 'live');
+        const groupsPanelExpandedChange = jest.fn();
+        fixture.componentInstance.groupsPanelExpandedChange.subscribe(
+            groupsPanelExpandedChange
+        );
+        fixture.detectChanges();
+
+        let actions = Array.from(
+            fixture.nativeElement.querySelectorAll(
+                '.context-header__actions > button'
+            )
+        ) as HTMLButtonElement[];
+        let toggle = actions.at(-1) as HTMLButtonElement;
+        expect(toggle.dataset['testid']).toBe('live-groups-panel-hide');
+        expect(toggle.getAttribute('aria-controls')).toBe('live-groups-panel');
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+        fixture.componentInstance.categorySearchTerm.set(
+            'no category matches this'
+        );
+        fixture.detectChanges();
+        actions = Array.from(
+            fixture.nativeElement.querySelectorAll(
+                '.context-header__actions > button'
+            )
+        ) as HTMLButtonElement[];
+        toggle = actions.at(-1) as HTMLButtonElement;
+        toggle.click();
+        expect(groupsPanelExpandedChange).toHaveBeenCalledWith(false);
+
+        fixture.componentRef.setInput('section', 'vod');
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-groups-panel-hide"]'
+            )
+        ).toBeNull();
     });
 
     it('keeps local xtream loading states quiet when no import is running', () => {
@@ -251,9 +291,9 @@ describe('WorkspaceContextPanelComponent', () => {
         const categoryButtons = Array.from(
             fixture.nativeElement.querySelectorAll('.category-item')
         ) as HTMLButtonElement[];
-        const manageButton = Array.from(
-            fixture.nativeElement.querySelectorAll('.context-header__action')
-        ).at(-1) as HTMLButtonElement | undefined;
+        const manageButton = fixture.nativeElement.querySelector(
+            '[data-testid="manage-live-groups"]'
+        ) as HTMLButtonElement | null;
 
         expect(countTexts).toEqual(['3', '0']);
         expect(categoryButtons.every((button) => !button.disabled)).toBe(true);
@@ -460,9 +500,9 @@ describe('WorkspaceContextPanelComponent', () => {
             el.textContent?.includes('For adults')
         );
 
-        expect(documentary?.querySelector('.item-count')?.textContent).toContain(
-            '190'
-        );
+        expect(
+            documentary?.querySelector('.item-count')?.textContent
+        ).toContain('190');
         expect(adults?.querySelector('.item-count')).toBeNull();
     });
 

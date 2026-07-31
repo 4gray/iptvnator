@@ -1,10 +1,15 @@
-import {
-    Component,
-    Directive,
-    input,
-} from '@angular/core';
+import { Component, Directive, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
+import {
+    LiveLayoutPanelStateService,
+    LIVE_LAYOUT_PANEL,
+} from '@iptvnator/portal/shared/data-access';
+import { BehaviorSubject } from 'rxjs';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
 
 @Directive({
@@ -20,12 +25,15 @@ class MockResizableDirective {
 
 @Component({
     selector: 'app-workspace-context-panel',
-    template: '',
+    template:
+        '<button data-testid="live-groups-panel-hide">Hide Groups</button>',
     standalone: true,
 })
 class MockWorkspaceContextPanelComponent {
     readonly context = input.required<unknown>();
     readonly section = input.required<string>();
+    readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelExpandedChange = output<boolean>();
 }
 
 @Component({
@@ -51,13 +59,31 @@ class MockWorkspaceSourcesFiltersPanelComponent {}
 
 describe('WorkspaceShellContextSidebarComponent', () => {
     let fixture: ComponentFixture<WorkspaceShellContextSidebarComponent>;
-    let liveSidebarService: LiveLayoutSidebarStateService;
+    let livePanelState: LiveLayoutPanelStateService;
+    let breakpointState: BehaviorSubject<BreakpointState>;
 
     beforeEach(async () => {
         localStorage.removeItem('live-sidebar-state');
+        localStorage.removeItem('live-groups-panel-state');
+        localStorage.removeItem('live-channels-panel-state');
+        breakpointState = new BehaviorSubject<BreakpointState>({
+            breakpoints: {},
+            matches: false,
+        });
 
         await TestBed.configureTestingModule({
-            imports: [WorkspaceShellContextSidebarComponent],
+            imports: [
+                WorkspaceShellContextSidebarComponent,
+                TranslateModule.forRoot(),
+            ],
+            providers: [
+                {
+                    provide: BreakpointObserver,
+                    useValue: {
+                        observe: () => breakpointState.asObservable(),
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellContextSidebarComponent, {
                 set: {
@@ -67,14 +93,20 @@ describe('WorkspaceShellContextSidebarComponent', () => {
                         MockWorkspaceCollectionContextPanelComponent,
                         MockWorkspaceSettingsContextPanelComponent,
                         MockWorkspaceSourcesFiltersPanelComponent,
+                        MatIcon,
+                        MatIconButton,
+                        MatTooltip,
+                        TranslateModule,
                     ],
                 },
             })
             .compileComponents();
 
-        fixture = TestBed.createComponent(WorkspaceShellContextSidebarComponent);
-        liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
-        liveSidebarService.setState('expanded');
+        fixture = TestBed.createComponent(
+            WorkspaceShellContextSidebarComponent
+        );
+        livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        livePanelState.showPanel(LIVE_LAYOUT_PANEL.GROUPS);
     });
 
     it('renders the settings panel for the settings variant', () => {
@@ -127,7 +159,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('collapses the categories rail when the shared service is collapsed on a live route', () => {
             setupLiveCategory('live');
 
-            liveSidebarService.setState('collapsed');
+            livePanelState.hidePanel(LIVE_LAYOUT_PANEL.GROUPS);
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -141,7 +173,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('also collapses on the Stalker itv section', () => {
             setupLiveCategory('itv');
 
-            liveSidebarService.setState('collapsed');
+            livePanelState.hidePanel(LIVE_LAYOUT_PANEL.GROUPS);
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -155,7 +187,7 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         it('does not collapse the categories rail on non-live sections', () => {
             setupLiveCategory('vod');
 
-            liveSidebarService.setState('collapsed');
+            livePanelState.hidePanel(LIVE_LAYOUT_PANEL.GROUPS);
             fixture.detectChanges();
 
             const aside = fixture.nativeElement.querySelector(
@@ -174,6 +206,55 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             );
             expect(aside.classList.contains('context-panel--collapsed')).toBe(
                 false
+            );
+        });
+
+        it('suppresses Groups responsively without changing persisted intent', () => {
+            setupLiveCategory('live');
+            breakpointState.next({
+                breakpoints: { '(max-width: 1023px)': true },
+                matches: true,
+            });
+            fixture.detectChanges();
+
+            const aside = fixture.nativeElement.querySelector(
+                'aside.context-panel--route'
+            ) as HTMLElement;
+            expect(aside.classList.contains('context-panel--collapsed')).toBe(
+                true
+            );
+            expect(aside.hasAttribute('inert')).toBe(true);
+            expect(livePanelState.groupsIntent()).toBe('expanded');
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-testid="live-groups-panel-restore"]'
+                )
+            ).toBeNull();
+        });
+
+        it('restores Groups from a boundary rail and transfers focus both ways', async () => {
+            setupLiveCategory('live');
+            livePanelState.hidePanel(LIVE_LAYOUT_PANEL.GROUPS);
+            fixture.detectChanges();
+            await Promise.resolve();
+
+            const restore = fixture.nativeElement.querySelector(
+                '[data-testid="live-groups-panel-restore"]'
+            ) as HTMLButtonElement;
+            expect(restore.getAttribute('aria-controls')).toBe(
+                'live-groups-panel'
+            );
+            expect(document.activeElement).toBe(restore);
+
+            restore.click();
+            fixture.detectChanges();
+            await Promise.resolve();
+
+            expect(livePanelState.groupsIntent()).toBe('expanded');
+            expect(document.activeElement).toBe(
+                fixture.nativeElement.querySelector(
+                    '[data-testid="live-groups-panel-hide"]'
+                )
             );
         });
     });

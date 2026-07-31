@@ -1,7 +1,18 @@
 :host {
-    display: block;
+    display: flex;
     min-width: 0;
     min-height: 0;
+}
+
+.context-panel-restore {
+    width: 40px;
+    min-width: 40px;
+    height: 100%;
+    min-height: 40px;
+    flex: 0 0 40px;
+    border-radius: 0;
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
 }
 
 .context-panel {
@@ -28,6 +39,7 @@
     padding-left: 0;
     padding-right: 0;
     border-right-color: transparent;
+    overflow: hidden;
 
     .resize-handle {
         display: none;

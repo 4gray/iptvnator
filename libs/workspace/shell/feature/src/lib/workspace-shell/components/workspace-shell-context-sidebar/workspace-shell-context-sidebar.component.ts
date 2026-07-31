@@ -1,15 +1,24 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
+    ElementRef,
     inject,
     input,
 } from '@angular/core';
-import { ResizableDirective } from '@iptvnator/ui/components';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { MatIconButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
+import { TranslatePipe } from '@ngx-translate/core';
 import {
-    LiveLayoutSidebarStateService,
-    PortalRailSection,
-} from '@iptvnator/portal/shared/util';
+    LiveLayoutPanelStateService,
+    LIVE_LAYOUT_PANEL,
+} from '@iptvnator/portal/shared/data-access';
+import { ResizableDirective } from '@iptvnator/ui/components';
+import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
@@ -29,6 +38,10 @@ const LIVE_SECTIONS: ReadonlySet<PortalRailSection> = new Set([
     selector: 'app-workspace-shell-context-sidebar',
     imports: [
         ResizableDirective,
+        MatIcon,
+        MatIconButton,
+        MatTooltip,
+        TranslatePipe,
         WorkspaceCollectionContextPanelComponent,
         WorkspaceContextPanelComponent,
         WorkspaceSettingsContextPanelComponent,
@@ -39,9 +52,13 @@ const LIVE_SECTIONS: ReadonlySet<PortalRailSection> = new Set([
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceShellContextSidebarComponent {
-    private readonly liveSidebarStateService = inject(
-        LiveLayoutSidebarStateService
+    private readonly livePanelState = inject(LiveLayoutPanelStateService);
+    private readonly hostEl = inject(ElementRef<HTMLElement>);
+    private readonly compactViewport = toSignal(
+        inject(BreakpointObserver).observe('(max-width: 1023px)'),
+        { initialValue: { breakpoints: {}, matches: false } }
     );
+    private previousGroupsPanelExpanded: boolean | undefined;
 
     readonly variant = input.required<WorkspaceShellContextPanel>();
     readonly context = input<WorkspacePortalContext | null>(null);
@@ -56,9 +73,51 @@ export class WorkspaceShellContextSidebarComponent {
             LIVE_SECTIONS.has(section)
         );
     });
-    readonly isContextPanelCollapsed = computed(
+    readonly groupsResponsiveSuppressed = computed(
+        () => this.compactViewport().matches
+    );
+    readonly groupsPanelExpanded = computed(() => {
+        const applicable = this.isLiveCategoryRoute();
+        return (
+            !applicable ||
+            this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.GROUPS, {
+                applicable,
+                responsiveSuppressed: this.groupsResponsiveSuppressed(),
+            })
+        );
+    });
+    readonly canRestoreGroupsPanel = computed(
         () =>
             this.isLiveCategoryRoute() &&
-            this.liveSidebarStateService.isCollapsed()
+            !this.groupsResponsiveSuppressed() &&
+            !this.groupsPanelExpanded()
     );
+
+    constructor() {
+        effect(() => {
+            const expanded = this.groupsPanelExpanded();
+            const previous = this.previousGroupsPanelExpanded;
+            this.previousGroupsPanelExpanded = expanded;
+            if (previous === undefined || previous === expanded) {
+                return;
+            }
+
+            queueMicrotask(() => {
+                const action = expanded ? 'hide' : 'restore';
+                this.hostEl.nativeElement
+                    .querySelector<HTMLElement>(
+                        `[data-testid="live-groups-panel-${action}"]`
+                    )
+                    ?.focus();
+            });
+        });
+    }
+
+    onGroupsPanelExpandedChange(expanded: boolean): void {
+        if (expanded) {
+            this.livePanelState.showPanel(LIVE_LAYOUT_PANEL.GROUPS);
+        } else {
+            this.livePanelState.hidePanel(LIVE_LAYOUT_PANEL.GROUPS);
+        }
+    }
 }
