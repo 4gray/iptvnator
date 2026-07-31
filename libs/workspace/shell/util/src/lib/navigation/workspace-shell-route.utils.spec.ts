@@ -180,6 +180,57 @@ describe('workspace-shell-route.utils', () => {
         );
     });
 
+    it('ignores fragments when identifying download manager routes', () => {
+        expect(
+            parseWorkspaceShellRoute('/workspace/downloads/#details')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/xtreams/pl-1/downloads/#details'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/stalker/pl-1/downloads/#details'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/downloads/#details?query=ignored'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+    });
+
     it('parses Xtream portal routes and detects context-panel/query-search state', () => {
         expect(
             parseWorkspaceShellRoute('/workspace/xtreams/pl-1/vod/42')
