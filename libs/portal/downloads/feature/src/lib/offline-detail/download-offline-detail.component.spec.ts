@@ -450,6 +450,43 @@ describe('DownloadOfflineDetailComponent', () => {
         );
     });
 
+    it('resolves the provider target with parent metadata merged from an older series member', async () => {
+        routeParams.next(convertToParamMap({ downloadId: '18' }));
+        router.url = '/workspace/downloads/18';
+        const older = download(17, {
+            contentType: 'episode',
+            seriesXtreamId: 77,
+            seasonNumber: 1,
+            episodeNumber: 1,
+            metadataSnapshot: snapshot('series', 'Northwind', {
+                enrichedAt: '2026-01-01T00:00:00.000Z',
+                providerCategoryId: '18',
+            }),
+        });
+        const newest = download(18, {
+            contentType: 'episode',
+            seriesXtreamId: 77,
+            seasonNumber: 1,
+            episodeNumber: 2,
+            metadataSnapshot: snapshot('series', 'Northwind', {
+                enrichedAt: '2026-02-01T00:00:00.000Z',
+            }),
+        });
+
+        await render([older, newest]);
+        await Promise.resolve();
+        fixture.detectChanges();
+
+        expect(navigation.resolveProviderTarget).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 18,
+                metadataSnapshot: expect.objectContaining({
+                    providerCategoryId: '18',
+                }),
+            })
+        );
+    });
+
     it('moves season selection and focus with tablist keyboard controls', async () => {
         const episode = (id: number, seasonNumber: number) =>
             download(id, {
@@ -1007,23 +1044,43 @@ describe('DownloadOfflineDetailComponent', () => {
         }
     );
 
-    it('uses browser Back only for a validated manager return URL', async () => {
-        historyState = {
-            navigationId: 9,
-            returnUrl: '/workspace/downloads?q=signal',
-        };
-        await render([download(17)]);
+    it.each([
+        [
+            'global',
+            '/workspace/downloads?q=signal&filter=movie',
+            '/workspace/downloads/17',
+        ],
+        [
+            'Xtream-scoped',
+            '/workspace/xtreams/playlist-a/downloads?q=signal&filter=series',
+            '/workspace/xtreams/playlist-a/downloads/17',
+        ],
+        [
+            'Stalker-scoped',
+            '/workspace/stalker/playlist-a/downloads?q=signal&filter=in-progress',
+            '/workspace/stalker/playlist-a/downloads/17',
+        ],
+    ])(
+        'uses browser Back for a validated %s manager return URL',
+        async (_scope, returnUrl, detailUrl) => {
+            historyState = {
+                navigationId: 9,
+                returnUrl,
+            };
+            router.url = detailUrl;
+            await render([download(17)]);
 
-        (
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.hero__back-button'
-            ) as HTMLButtonElement
-        ).click();
-        await fixture.whenStable();
+            (
+                (fixture.nativeElement as HTMLElement).querySelector(
+                    '.hero__back-button'
+                ) as HTMLButtonElement
+            ).click();
+            await fixture.whenStable();
 
-        expect(location.back).toHaveBeenCalledTimes(1);
-        expect(router.navigate).not.toHaveBeenCalled();
-    });
+            expect(location.back).toHaveBeenCalledTimes(1);
+            expect(router.navigate).not.toHaveBeenCalled();
+        }
+    );
 
     it('rejects an external return URL and falls back to the scoped parent safely', async () => {
         historyState = {

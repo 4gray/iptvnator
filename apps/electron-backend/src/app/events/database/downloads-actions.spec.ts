@@ -2,6 +2,7 @@ import {
     expectManagedPathLookup,
     getHandler,
     MANAGED_PATH_STATE,
+    mockBroadcastDownloadUpdate,
     mockLstatSync,
     mockManagedPath,
     mockOpenPath,
@@ -85,6 +86,7 @@ describe('downloads events: pause, resume, and reveal', () => {
             success: true,
         });
         expect(mockRedownloadMissingRequest).toHaveBeenCalledWith(42);
+        expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
     });
 
     describe.each([
@@ -244,5 +246,49 @@ describe('downloads events: pause, resume, and reveal', () => {
 
         resolveOpenPath('');
         await expect(response).resolves.toEqual({ success: true });
+    });
+
+    it('returns the native shell error when playback fails but the file remains available', async () => {
+        const filePath = '/downloads/play-shell-error.mp4';
+        const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
+        mockLstatSync.mockReturnValue({
+            isFile: () => true,
+            isSymbolicLink: () => false,
+        });
+        mockOpenPath.mockResolvedValue('No application can open this file');
+
+        await expect(
+            getHandler('DOWNLOADS_PLAY_FILE')(null, filePath)
+        ).resolves.toEqual({
+            error: 'No application can open this file',
+            success: false,
+        });
+
+        expectManagedPathLookup(lookup, filePath);
+        expect(mockLstatSync).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports a file-disappeared race when the native shell cannot open the path', async () => {
+        const filePath = '/downloads/play-disappeared.mp4';
+        const lookup = mockManagedPath(MANAGED_PATH_STATE.MANAGED);
+        mockLstatSync
+            .mockReturnValueOnce({
+                isFile: () => true,
+                isSymbolicLink: () => false,
+            })
+            .mockImplementationOnce(() => {
+                throw new Error('ENOENT');
+            });
+        mockOpenPath.mockResolvedValue('The file does not exist');
+
+        await expect(
+            getHandler('DOWNLOADS_PLAY_FILE')(null, filePath)
+        ).resolves.toEqual({
+            error: 'File not found',
+            success: false,
+        });
+
+        expectManagedPathLookup(lookup, filePath);
+        expect(mockLstatSync).toHaveBeenCalledTimes(2);
     });
 });

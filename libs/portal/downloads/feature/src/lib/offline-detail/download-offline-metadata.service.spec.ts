@@ -261,6 +261,39 @@ describe('DownloadOfflineMetadataService', () => {
         expect(db.getContentByXtreamId).not.toHaveBeenCalled();
     });
 
+    it('does not recover series metadata from a movie with an overlapping Stalker ID', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(
+            of([
+                {
+                    movie_id: '93',
+                    category_id: 'vod',
+                    title: 'Wrong movie metadata',
+                },
+                {
+                    series_id: '93',
+                    category_id: 'series',
+                    title: 'Correct series metadata',
+                },
+            ])
+        );
+        const local = snapshot({
+            mediaKind: 'series',
+            title: 'Local series',
+            plot: undefined,
+            episode: {
+                title: 'Downloaded episode',
+                seasonNumber: 2,
+                episodeNumber: 7,
+            },
+        });
+
+        const resolved = await service.resolve(seriesDetail(local));
+
+        expect(resolved.title).toBe('Correct series metadata');
+        expect(resolved.title).not.toBe('Wrong movie metadata');
+    });
+
     it('recovers a sparse Xtream row through the database content lookup', async () => {
         db.getContentByXtreamId.mockResolvedValue({
             id: 1,

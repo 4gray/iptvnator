@@ -111,8 +111,7 @@ const DOWNLOADS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS downloads (
       total_bytes INTEGER,
       error_message TEXT,
       created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+      updated_at TEXT DEFAULT (datetime('now'))
   )`;
 const DOWNLOADS_INDEX_STATEMENTS = [
     `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
@@ -976,9 +975,9 @@ function cleanupLegacyTmdbSearchCache(sqliteDb: Database.Database): void {
 }
 
 /**
- * Existing downloads tables had a status CHECK without 'paused'. SQLite cannot
- * alter CHECK constraints in place, so rebuild only when the table SQL still
- * reflects the old contract or lacks request_headers.
+ * Downloads remain locally owned after their source playlist is removed.
+ * SQLite cannot alter CHECK or foreign-key constraints in place, so rebuild
+ * when the table still has the old pause/header contract or source cascade.
  */
 function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
     try {
@@ -993,7 +992,10 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
 
         const hasPausedStatus = row.sql.includes(`'paused'`);
         const hasRequestHeaders = row.sql.includes('request_headers');
-        if (hasPausedStatus && hasRequestHeaders) {
+        const hasPlaylistForeignKey = /\bREFERENCES\s+["`[]?playlists\b/i.test(
+            row.sql
+        );
+        if (hasPausedStatus && hasRequestHeaders && !hasPlaylistForeignKey) {
             return;
         }
 
@@ -1004,6 +1006,10 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
         const legacyMetadataSnapshotSelect = hasMetadataSnapshot
             ? 'metadata_snapshot'
             : 'NULL AS metadata_snapshot';
+        const hasResumeValidator = row.sql.includes('resume_validator');
+        const legacyResumeValidatorSelect = hasResumeValidator
+            ? 'resume_validator'
+            : 'NULL AS resume_validator';
         const rebuild = sqliteDb.transaction(() => {
             for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
                 const match = statement.match(
@@ -1036,6 +1042,7 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         file_path,
                         poster_url,
                         request_headers,
+                        resume_validator,
                         metadata_snapshot,
                         status,
                         bytes_downloaded,
@@ -1058,6 +1065,7 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         file_path,
                         poster_url,
                         ${legacyHeadersSelect},
+                        ${legacyResumeValidatorSelect},
                         ${legacyMetadataSnapshotSelect},
                         status,
                         bytes_downloaded,
@@ -1075,9 +1083,9 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
         });
 
         rebuild();
-        console.log('[DB] Rebuilt downloads table with pause/resume schema');
+        console.log('[DB] Rebuilt downloads table with local ownership schema');
     } catch (error) {
-        console.warn('[DB] downloads pause/resume migration failed:', error);
+        console.warn('[DB] downloads ownership migration failed:', error);
     }
 }
 

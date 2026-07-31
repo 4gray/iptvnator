@@ -591,7 +591,6 @@ export async function updatePlaylist(
 interface PlaylistDeletionCollection {
     readonly categoryIds: number[];
     readonly contentRows: Array<{ id: number }>;
-    readonly downloadRows: Array<{ id: number }>;
     readonly favoriteRows: Array<{ id: number }>;
     readonly playbackPositionRows: Array<{ id: number }>;
     readonly recentlyViewedRows: Array<{ id: number }>;
@@ -601,29 +600,21 @@ async function collectPlaylistDeletionRows(
     db: AppDatabase,
     playlistId: string
 ): Promise<PlaylistDeletionCollection> {
-    const [
-        favoriteRows,
-        recentlyViewedRows,
-        playbackPositionRows,
-        downloadRows,
-    ] = await Promise.all([
-        db
-            .select({ id: schema.favorites.id })
-            .from(schema.favorites)
-            .where(eq(schema.favorites.playlistId, playlistId)),
-        db
-            .select({ id: schema.recentlyViewed.id })
-            .from(schema.recentlyViewed)
-            .where(eq(schema.recentlyViewed.playlistId, playlistId)),
-        db
-            .select({ id: schema.playbackPositions.id })
-            .from(schema.playbackPositions)
-            .where(eq(schema.playbackPositions.playlistId, playlistId)),
-        db
-            .select({ id: schema.downloads.id })
-            .from(schema.downloads)
-            .where(eq(schema.downloads.playlistId, playlistId)),
-    ]);
+    const [favoriteRows, recentlyViewedRows, playbackPositionRows] =
+        await Promise.all([
+            db
+                .select({ id: schema.favorites.id })
+                .from(schema.favorites)
+                .where(eq(schema.favorites.playlistId, playlistId)),
+            db
+                .select({ id: schema.recentlyViewed.id })
+                .from(schema.recentlyViewed)
+                .where(eq(schema.recentlyViewed.playlistId, playlistId)),
+            db
+                .select({ id: schema.playbackPositions.id })
+                .from(schema.playbackPositions)
+                .where(eq(schema.playbackPositions.playlistId, playlistId)),
+        ]);
 
     const categoryRows = await db
         .select({ id: schema.categories.id })
@@ -641,7 +632,6 @@ async function collectPlaylistDeletionRows(
     return {
         categoryIds,
         contentRows,
-        downloadRows,
         favoriteRows,
         playbackPositionRows,
         recentlyViewedRows,
@@ -655,7 +645,6 @@ function countPlaylistDeletionRows(
         collection.favoriteRows.length +
         collection.recentlyViewedRows.length +
         collection.playbackPositionRows.length +
-        collection.downloadRows.length +
         collection.contentRows.length +
         collection.categoryIds.length
     );
@@ -685,12 +674,6 @@ async function deleteCollectedPlaylistRows(
             collection.playbackPositionRows.map((row) => row.id),
             schema.playbackPositions.id,
             schema.playbackPositions,
-        ],
-        [
-            'deleting-downloads',
-            collection.downloadRows.map((row) => row.id),
-            schema.downloads.id,
-            schema.downloads,
         ],
         [
             'deleting-content',

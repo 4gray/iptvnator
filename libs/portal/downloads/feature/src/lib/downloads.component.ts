@@ -5,6 +5,7 @@ import {
     computed,
     effect,
     inject,
+    untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -109,6 +110,9 @@ export class DownloadsComponent {
     readonly searchTerm = queryParamSignal(this.route, 'q', (value) =>
         (value ?? '').trim()
     );
+    readonly routeFilter = queryParamSignal(this.route, 'filter', (value) =>
+        normalizeDownloadFilter(value)
+    );
     readonly playlists = toSignal(
         this.playlistsService.getAllPlaylists().pipe(startWith(null)),
         { initialValue: null as Playlist[] | null }
@@ -163,8 +167,24 @@ export class DownloadsComponent {
     constructor() {
         void this.downloadsService.loadDownloads();
         effect(() => {
-            this.playlistId();
-            this.collectionContext.setCategoryId('all');
+            const routeFilter = this.routeFilter();
+            untracked(() => this.collectionContext.setCategoryId(routeFilter));
+        });
+        effect(() => {
+            const selectedFilter = normalizeDownloadFilter(
+                this.selectedCategoryId()
+            );
+            if (selectedFilter === this.routeFilter()) {
+                return;
+            }
+            void this.router.navigate([], {
+                relativeTo: this.route,
+                queryParams: {
+                    filter: selectedFilter === 'all' ? null : selectedFilter,
+                },
+                queryParamsHandling: 'merge',
+                replaceUrl: true,
+            });
         });
     }
 

@@ -369,15 +369,17 @@ The VOD-series contract is cross-surface:
   Manager detail uses only locally available episode rows; it does not reuse
   the provider season resource as an offline availability list.
 - `View in portal` first looks for a matching recently-viewed Stalker snapshot.
-  When found, it hands the raw shape to the normal category/inline detail host,
-  so regular series, embedded `series[]`, and lazy `is_series=1` mode are
-  preserved with identity-scoped provider-only presentation.
-- Without that matching snapshot, the episode download supplies only persisted
-  identity/title metadata and falls back to a regular-series item. The fallback
-  is not existence-checked before navigation and cannot reconstruct embedded or
-  `is_series=1` mode. In either path, the provider host renders whatever
-  seasons, episodes, and playback it can resolve while Offline/local/download
-  controls stay hidden. A normal Stalker item open remains unchanged.
+  Candidates must match both identity and the requested movie/series mode, so
+  overlapping provider ids cannot bind an episode to a movie or vice versa.
+  When found, the handoff preserves the raw regular-series, embedded
+  `series[]`, or lazy `is_series=1` shape; an exact numeric category from the
+  download snapshot replaces a virtual `vod`/`series` collection category.
+- Without that compatible snapshot, only a movie with an exact persisted
+  numeric category can form a metadata-only VOD target. Episodes and legacy
+  movies without that proof leave the provider handoff unavailable rather than
+  inventing a regular-series or generic VOD target. When a target does resolve,
+  the provider host renders its content in identity-scoped provider-only
+  presentation while Offline/local/download controls stay hidden.
 
 Core decision logic and normalization are centralized in:
 

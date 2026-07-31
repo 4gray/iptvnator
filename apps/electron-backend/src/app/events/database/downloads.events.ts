@@ -167,7 +167,13 @@ ipcMain.handle(
 
 ipcMain.handle(
     'DOWNLOADS_REDOWNLOAD_MISSING',
-    async (_event, downloadId: number) => redownloadMissingRequest(downloadId)
+    async (_event, downloadId: number) => {
+        const result = await redownloadMissingRequest(downloadId);
+        if (result.recovered) {
+            broadcastDownloadUpdate();
+        }
+        return result;
+    }
 );
 
 ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
@@ -290,8 +296,13 @@ ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
     ) {
         return { error: 'File not found', success: false };
     }
-    await shell.openPath(filePath);
-    return { success: true };
+    const error = await shell.openPath(filePath);
+    if (!error) {
+        return { success: true };
+    }
+    return isAvailableDownloadFile(filePath)
+        ? { error, success: false }
+        : { error: 'File not found', success: false };
 });
 
 ipcMain.handle(

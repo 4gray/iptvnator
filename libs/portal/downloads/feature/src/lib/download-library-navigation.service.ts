@@ -12,13 +12,13 @@ import {
     PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
     type WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
-import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { findMatchingStalkerDownloadRecent } from './stalker-download-recent.matcher';
 
 type PortalSource = 'xtream' | 'stalker';
 type StalkerCategory = 'vod' | 'series' | 'itv';
 type StalkerFallbackCategory = Exclude<StalkerCategory, 'itv'>;
 type StalkerOpenItem = Record<string, unknown> & {
-    category_id: StalkerCategory;
+    category_id: string;
 };
 
 @Injectable()
@@ -150,39 +150,22 @@ export class DownloadLibraryNavigationService {
         };
     }
 
-    private normalizePortalItemId(value: unknown): string {
+    private stalkerCategory(value: unknown, fallback: string): string {
         const raw = String(value ?? '').trim();
-        return raw.includes(':') ? raw.split(':')[0] : raw;
-    }
-
-    private stalkerCategory(
-        value: unknown,
-        fallback: StalkerFallbackCategory
-    ): StalkerCategory {
-        const normalized = String(value ?? '').toLowerCase();
+        const normalized = raw.toLowerCase();
         if (normalized === 'movie') {
             return 'vod';
         }
 
-        return normalized === 'vod' ||
+        if (
+            normalized === 'vod' ||
             normalized === 'series' ||
             normalized === 'itv'
-            ? normalized
-            : fallback;
-    }
+        ) {
+            return normalized;
+        }
 
-    private findMatchingStalkerRecentItem(
-        items: readonly StalkerPortalItem[],
-        targetId: number
-    ): StalkerPortalItem | undefined {
-        const expectedId = String(targetId);
-
-        return items.find((item) =>
-            [item.id, item.movie_id, item.series_id, item.stream_id].some(
-                (candidate) =>
-                    this.normalizePortalItemId(candidate) === expectedId
-            )
-        );
+        return /^\d+$/.test(raw) ? raw : fallback;
     }
 
     private isStalkerVodSeries(item: Record<string, unknown>): boolean {
@@ -201,14 +184,21 @@ export class DownloadLibraryNavigationService {
         item: DownloadItem,
         targetId: number,
         fallback: StalkerFallbackCategory
-    ): Promise<StalkerOpenItem> {
+    ): Promise<StalkerOpenItem | null> {
+        const persistedCategory =
+            item.metadataSnapshot?.providerCategoryId?.trim();
+        const exactPersistedCategory =
+            persistedCategory && /^\d+$/.test(persistedCategory)
+                ? persistedCategory
+                : null;
         try {
             const recent = await firstValueFrom(
                 this.playlists.getPortalRecentlyViewed(item.playlistId)
             );
-            const matched = this.findMatchingStalkerRecentItem(
+            const matched = findMatchingStalkerDownloadRecent(
                 recent,
-                targetId
+                targetId,
+                item.contentType
             );
 
             if (matched) {
@@ -219,21 +209,24 @@ export class DownloadLibraryNavigationService {
                         matched.series_id ??
                         matched.movie_id ??
                         String(targetId),
-                    category_id: this.stalkerCategory(
-                        matched.category_id,
-                        fallback
-                    ),
+                    category_id:
+                        exactPersistedCategory ??
+                        this.stalkerCategory(matched.category_id, fallback),
                     title: matched.title ?? item.title,
                     name: matched.name ?? matched.o_name ?? item.title,
                 };
             }
         } catch {
-            // Persisted download metadata is enough to open provider details.
+            // Fall through to the safe metadata-only movie target.
+        }
+
+        if (item.contentType === 'episode' || !exactPersistedCategory) {
+            return null;
         }
 
         return {
             id: String(targetId),
-            category_id: fallback,
+            category_id: exactPersistedCategory,
             title: item.title,
             name: item.title,
             o_name: item.title,
@@ -245,13 +238,16 @@ export class DownloadLibraryNavigationService {
     private async resolveStalkerTarget(
         item: DownloadItem,
         targetId: number
-    ): Promise<WorkspaceNavigationTarget> {
+    ): Promise<WorkspaceNavigationTarget | null> {
         const fallback = item.contentType === 'episode' ? 'series' : 'vod';
         const openStalkerItem = await this.stalkerOpenState(
             item,
             targetId,
             fallback
         );
+        if (!openStalkerItem) {
+            return null;
+        }
         const isVodSeries =
             item.contentType === 'episode' &&
             this.isStalkerVodSeries(openStalkerItem);

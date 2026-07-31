@@ -161,13 +161,18 @@ Behavior to preserve:
 Download handoff behavior:
 
 - `View in portal` preserves Stalker's inline/store-state architecture. A
-  matching recently-viewed snapshot is carried as `openStalkerItem` into the
-  normal category host, preserving regular series, embedded VOD `series[]`, or
-  lazy Ministra VOD `is_series=1` shape when that raw snapshot exists.
-- When no matching snapshot exists, a movie download falls back to a regular
-  VOD item and an episode download to a regular-series item derived from the
-  persisted provider identity and title. This fallback is not existence-checked
-  before navigation and cannot reconstruct embedded or `is_series=1` mode.
+  type-compatible recently-viewed snapshot is carried as `openStalkerItem`
+  into the normal category host, preserving regular series, embedded VOD
+  `series[]`, or lazy Ministra VOD `is_series=1` shape. Candidate filtering
+  rejects live items and the opposite movie/series namespace even when ids
+  overlap. When the download snapshot carries an exact numeric provider
+  category, that category wins over the recent record's virtual `vod` or
+  `series` marker while the raw mode fields stay intact.
+- When no compatible recent snapshot exists, only a movie download with an
+  exact numeric provider category can form a metadata-only VOD target. A
+  legacy movie without that category and every episode without a recoverable
+  raw series mode leave `View in portal` unavailable instead of fabricating an
+  unverified provider target.
 - The provider-only marker is scoped to the resulting selected item. Its normal
   provider host supplies the seasons, episodes, and playback it can resolve,
   while the shared VOD or series UI suppresses local Offline and download

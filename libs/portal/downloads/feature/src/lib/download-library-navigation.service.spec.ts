@@ -198,6 +198,14 @@ describe('DownloadLibraryNavigationService', () => {
         async (source) => {
             if (source === 'stalker') {
                 playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+                playlists.getPortalRecentlyViewed.mockReturnValue(
+                    of([
+                        {
+                            movie_id: '41',
+                            category_id: 'vod',
+                        },
+                    ])
+                );
             } else {
                 db.getContentByXtreamId.mockResolvedValue({
                     category_id: 7,
@@ -346,6 +354,33 @@ describe('DownloadLibraryNavigationService', () => {
         );
     });
 
+    it('preserves a numeric Stalker category in the provider route and item state', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(
+            of([
+                {
+                    movie_id: '41',
+                    category_id: 7,
+                    title: 'Categorized movie',
+                },
+            ])
+        );
+
+        await expect(navigation.open(download())).resolves.toBe(true);
+
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', '7'],
+            {
+                state: {
+                    detailPresentation: 'provider-only',
+                    openStalkerItem: expect.objectContaining({
+                        category_id: '7',
+                    }),
+                },
+            }
+        );
+    });
+
     it.each([
         ['is_series flag', { is_series: '1' }],
         ['embedded episode list', { series: [1, 2] }],
@@ -392,13 +427,13 @@ describe('DownloadLibraryNavigationService', () => {
         }
     );
 
-    it.each(['id', 'movie_id', 'series_id', 'stream_id'] as const)(
+    it.each(['id', 'movie_id', 'stream_id'] as const)(
         'matches a Stalker recent item by normalized %s',
         async (idKey) => {
             playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
             const recent = {
                 [idKey]: '41:archive',
-                category_id: 'series',
+                category_id: 'vod',
                 title: 'Recent title',
                 name: 'Recent name',
                 preserved: 'yes',
@@ -409,14 +444,14 @@ describe('DownloadLibraryNavigationService', () => {
 
             const expectedId = idKey === 'stream_id' ? '41' : recent[idKey];
             expect(router.navigate).toHaveBeenCalledWith(
-                ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'series'],
+                ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
                 {
                     state: {
                         detailPresentation: 'provider-only',
                         openStalkerItem: {
                             ...recent,
                             id: expectedId,
-                            category_id: 'series',
+                            category_id: 'vod',
                             title: 'Recent title',
                             name: 'Recent name',
                         },
@@ -429,7 +464,7 @@ describe('DownloadLibraryNavigationService', () => {
     it('preserves a matched Stalker item and fills its normalized display fields', async () => {
         playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
         const recent = {
-            series_id: '41:episode',
+            movie_id: '41:archive',
             category_id: 'movie',
             o_name: 'Portal original name',
             preserved: { token: 1 },
@@ -447,7 +482,7 @@ describe('DownloadLibraryNavigationService', () => {
                     detailPresentation: 'provider-only',
                     openStalkerItem: {
                         ...recent,
-                        id: '41:episode',
+                        id: '41:archive',
                         category_id: 'vod',
                         title: 'Downloaded title',
                         name: 'Portal original name',
@@ -457,11 +492,83 @@ describe('DownloadLibraryNavigationService', () => {
         );
     });
 
+    it('ignores an overlapping movie ID when recovering a Stalker series', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(
+            of([
+                {
+                    movie_id: '72',
+                    category_id: 'vod',
+                    title: 'Wrong movie',
+                },
+                {
+                    series_id: '72',
+                    category_id: 'series',
+                    title: 'Correct series',
+                },
+            ])
+        );
+
+        await expect(
+            navigation.open(
+                download({
+                    contentType: 'episode',
+                    xtreamId: 501,
+                    seriesXtreamId: 72,
+                })
+            )
+        ).resolves.toBe(true);
+
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', PLAYLIST_ID, 'series', 'series'],
+            {
+                state: {
+                    detailPresentation: 'provider-only',
+                    openStalkerItem: expect.objectContaining({
+                        series_id: '72',
+                        title: 'Correct series',
+                    }),
+                },
+            }
+        );
+    });
+
+    it('ignores an overlapping series ID when recovering a Stalker movie', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(
+            of([
+                {
+                    series_id: '41',
+                    category_id: 'series',
+                    title: 'Wrong series',
+                },
+                {
+                    movie_id: '41',
+                    category_id: 'vod',
+                    title: 'Correct movie',
+                },
+            ])
+        );
+
+        await expect(navigation.open(download())).resolves.toBe(true);
+
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
+            {
+                state: {
+                    detailPresentation: 'provider-only',
+                    openStalkerItem: expect.objectContaining({
+                        movie_id: '41',
+                        title: 'Correct movie',
+                    }),
+                },
+            }
+        );
+    });
+
     it.each([
         ['VOD', 'vod', 'vod'],
-        ['SERIES', 'series', 'vod'],
-        ['ItV', 'itv', 'vod'],
-        ['radio', 'vod', 'vod'],
+        ['SERIES', 'series', 'episode'],
         ['unknown', 'series', 'episode'],
     ] as const)(
         'normalizes Stalker category %s to %s',
@@ -470,7 +577,9 @@ describe('DownloadLibraryNavigationService', () => {
             playlists.getPortalRecentlyViewed.mockReturnValue(
                 of([
                     {
-                        id: '41',
+                        ...(contentType === 'episode'
+                            ? { series_id: '41' }
+                            : { id: '41' }),
                         category_id: categoryId,
                     },
                 ])
@@ -498,22 +607,113 @@ describe('DownloadLibraryNavigationService', () => {
         }
     );
 
+    it('prefers the persisted numeric category for a recovered Stalker VOD series', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(
+            of([
+                {
+                    movie_id: '72',
+                    category_id: 'series',
+                    is_series: '1',
+                    title: 'Recovered VOD series',
+                },
+            ])
+        );
+        const item = download({
+            contentType: 'episode',
+            xtreamId: 501,
+            seriesXtreamId: 72,
+            metadataSnapshot: {
+                version: 1,
+                language: 'en',
+                mediaKind: 'series',
+                title: 'Recovered VOD series',
+                providerCategoryId: '18',
+            },
+        });
+
+        await expect(navigation.open(item)).resolves.toBe(true);
+
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', '18'],
+            {
+                state: {
+                    detailPresentation: 'provider-only',
+                    openStalkerItem: expect.objectContaining({
+                        movie_id: '72',
+                        category_id: '18',
+                        is_series: '1',
+                    }),
+                },
+            }
+        );
+    });
+
+    it('prefers the persisted numeric category for a recovered regular Stalker series', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(
+            of([
+                {
+                    series_id: '72',
+                    category_id: 'series',
+                    title: 'Recovered regular series',
+                },
+            ])
+        );
+        const item = download({
+            contentType: 'episode',
+            xtreamId: 501,
+            seriesXtreamId: 72,
+            metadataSnapshot: {
+                version: 1,
+                language: 'en',
+                mediaKind: 'series',
+                title: 'Recovered regular series',
+                providerCategoryId: '19',
+            },
+        });
+
+        await expect(navigation.open(item)).resolves.toBe(true);
+
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', PLAYLIST_ID, 'series', '19'],
+            {
+                state: {
+                    detailPresentation: 'provider-only',
+                    openStalkerItem: expect.objectContaining({
+                        series_id: '72',
+                        category_id: '19',
+                    }),
+                },
+            }
+        );
+    });
+
     it('uses download metadata when no Stalker recent item matches', async () => {
         playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
         playlists.getPortalRecentlyViewed.mockReturnValue(
             of([{ id: '999', category_id: 'vod' }])
         );
+        const item = download({
+            metadataSnapshot: {
+                version: 1,
+                language: 'en',
+                mediaKind: 'movie',
+                title: 'Downloaded title',
+                providerCategoryId: '18',
+            },
+        });
 
-        await expect(navigation.open(download())).resolves.toBe(true);
+        await expect(navigation.open(item)).resolves.toBe(true);
 
         expect(router.navigate).toHaveBeenCalledWith(
-            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
+            ['/workspace', 'stalker', PLAYLIST_ID, 'vod', '18'],
             {
                 state: {
                     detailPresentation: 'provider-only',
                     openStalkerItem: {
                         id: '41',
-                        category_id: 'vod',
+                        category_id: '18',
                         title: 'Downloaded title',
                         name: 'Downloaded title',
                         o_name: 'Downloaded title',
@@ -525,7 +725,18 @@ describe('DownloadLibraryNavigationService', () => {
         );
     });
 
-    it('uses episode download metadata when Stalker recent loading fails', async () => {
+    it('does not invent a generic Stalker movie category for a legacy row', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(of([]));
+
+        await expect(
+            navigation.resolveProviderTarget(download())
+        ).resolves.toBeNull();
+
+        expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('does not fabricate a regular-series target when the Stalker episode mode cannot be recovered', async () => {
         playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
         playlists.getPortalRecentlyViewed.mockReturnValue(
             throwError(() => new Error('recent failed'))
@@ -536,28 +747,11 @@ describe('DownloadLibraryNavigationService', () => {
             seriesXtreamId: 72,
         });
 
-        await expect(navigation.open(item)).resolves.toBe(true);
+        await expect(
+            navigation.resolveProviderTarget(item)
+        ).resolves.toBeNull();
+        await expect(navigation.open(item)).resolves.toBe(false);
 
-        expect(router.navigate).toHaveBeenCalledWith(
-            ['/workspace', 'stalker', PLAYLIST_ID, 'series', 'series'],
-            {
-                state: {
-                    detailPresentation: 'provider-only',
-                    openStalkerItem: {
-                        id: '72',
-                        category_id: 'series',
-                        title: 'Downloaded title',
-                        name: 'Downloaded title',
-                        o_name: 'Downloaded title',
-                        cover: 'https://media.example.test/poster.jpg',
-                        logo: 'https://media.example.test/poster.jpg',
-                    },
-                },
-            }
-        );
-        expect(router.navigate).not.toHaveBeenCalledWith(
-            expect.arrayContaining(['recent']),
-            expect.anything()
-        );
+        expect(router.navigate).not.toHaveBeenCalled();
     });
 });

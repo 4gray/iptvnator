@@ -12,10 +12,7 @@ import {
     createMovieDownloadSnapshot,
     createSeriesEpisodeDownloadSnapshot,
 } from '@iptvnator/portal/shared/util';
-import type {
-    DownloadMetadataSnapshot,
-    StalkerPortalItem,
-} from '@iptvnator/shared/interfaces';
+import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import {
     mapProviderToDownloadSnapshot,
     mergeSnapshotWithTmdb,
@@ -31,6 +28,7 @@ import {
     withoutMetadataFreshness,
 } from './download-metadata-refresh';
 import type { DownloadOfflineDetail } from './download-offline-detail.viewmodel';
+import { findMatchingStalkerDownloadRecent } from '../stalker-download-recent.matcher';
 
 interface ProviderContext {
     source: DownloadMetadataProviderSource;
@@ -60,24 +58,6 @@ function metadataWriteKey(detail: DownloadOfflineDetail): string {
         return `series:${item.playlistId}:${item.seriesXtreamId}`;
     }
     return `download:${item.id}`;
-}
-
-function normalizedPortalId(value: unknown): string {
-    return String(value ?? '')
-        .trim()
-        .split(':')[0];
-}
-
-function matchingRecent(
-    items: readonly StalkerPortalItem[],
-    expectedId: number
-): StalkerPortalItem | undefined {
-    const expected = String(expectedId);
-    return items.find((item) =>
-        [item.id, item.movie_id, item.series_id, item.stream_id].some(
-            (candidate) => normalizedPortalId(candidate) === expected
-        )
-    );
 }
 
 function episodeTitle(item: DownloadItem): string {
@@ -255,7 +235,11 @@ export class DownloadOfflineMetadataService {
                 );
                 return {
                     source,
-                    provider: matchingRecent(recent, targetId(detail)),
+                    provider: findMatchingStalkerDownloadRecent(
+                        recent,
+                        targetId(detail),
+                        item.contentType
+                    ),
                 };
             } catch {
                 return { source };

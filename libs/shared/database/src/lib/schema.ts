@@ -313,9 +313,7 @@ export const downloads = sqliteTable(
     'downloads',
     {
         id: integer('id').primaryKey({ autoIncrement: true }),
-        playlistId: text('playlist_id')
-            .notNull()
-            .references(() => playlists.id, { onDelete: 'cascade' }),
+        playlistId: text('playlist_id').notNull(),
         // Content identifiers
         xtreamId: integer('xtream_id').notNull(),
         contentType: text('content_type', {

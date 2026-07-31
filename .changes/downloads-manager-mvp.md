@@ -3,7 +3,8 @@ type: feature
 area: downloads
 ---
 
-Downloads now open movies and series in focused offline details with saved
-metadata and optional TMDB enrichment. Series show only episodes available
-locally, while View in portal can return to the source portal for provider
-playback when the source item can be recovered.
+Downloads now separate active transfers from a grouped offline library, move
+missing files to Needs attention with Download again, and open movies and
+series in focused offline details with saved metadata. Series show only local
+episodes; View in portal returns to provider playback when the source can be
+recovered.

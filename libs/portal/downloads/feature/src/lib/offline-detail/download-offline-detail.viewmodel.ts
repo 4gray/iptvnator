@@ -163,6 +163,48 @@ function effectiveSeriesSnapshotTimestamp(item: ReadonlyDownloadItem): number {
     return 0;
 }
 
+const SERIES_PARENT_METADATA_FIELDS = [
+    'originalTitle',
+    'plot',
+    'releaseDate',
+    'year',
+    'durationMinutes',
+    'genres',
+    'rating',
+    'status',
+    'posterUrl',
+    'backdropUrl',
+    'tmdbId',
+    'providerCategoryId',
+    'cast',
+    'creators',
+] as const satisfies readonly (keyof DownloadMetadataSnapshot)[];
+
+function mergeMissingSeriesParentFields(
+    snapshots: readonly DeepReadonly<DownloadMetadataSnapshot>[]
+): DeepReadonly<DownloadMetadataSnapshot> {
+    const newest = snapshots[0];
+    let merged: Record<string, unknown> | undefined;
+
+    for (const field of SERIES_PARENT_METADATA_FIELDS) {
+        if (newest[field] !== undefined) {
+            continue;
+        }
+        const fallback = snapshots
+            .slice(1)
+            .map((snapshot) => snapshot[field])
+            .find((value) => value !== undefined);
+        if (fallback !== undefined) {
+            merged ??= { ...newest };
+            merged[field] = fallback;
+        }
+    }
+
+    return (
+        (merged as DeepReadonly<DownloadMetadataSnapshot> | undefined) ?? newest
+    );
+}
+
 function selectSeriesSnapshot(
     members: readonly ReadonlyDownloadItem[]
 ): DeepReadonly<DownloadMetadataSnapshot> | undefined {
@@ -175,9 +217,15 @@ function selectSeriesSnapshot(
                 compareIdsNewestFirst(left.id, right.id)
         );
 
-    return candidates.length === 0
+    const snapshots = candidates
+        .map((item) => snapshotForKind(item, 'series'))
+        .filter(
+            (snapshot): snapshot is DeepReadonly<DownloadMetadataSnapshot> =>
+                snapshot !== undefined
+        );
+    return snapshots.length === 0
         ? undefined
-        : snapshotForKind(candidates[0], 'series');
+        : mergeMissingSeriesParentFields(snapshots);
 }
 
 function seasonCoordinateFields(

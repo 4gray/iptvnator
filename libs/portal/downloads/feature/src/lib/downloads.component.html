@@ -87,7 +87,11 @@
         }
     </header>
 
-    @if (isAvailable() && playlistsLoaded() && !hasNoPlaylists()) {
+    @if (
+        isAvailable() &&
+        playlistsLoaded() &&
+        (!hasNoPlaylists() || hasScopedDownloads())
+    ) {
         <nav
             class="downloads__filters"
             data-test-id="downloads-filters"
@@ -160,17 +164,6 @@
                     </div>
                 </div>
             </div>
-        } @else if (hasNoPlaylists()) {
-            <app-empty-state
-                type="no-data"
-                icon="download_for_offline"
-                titleKey="DOWNLOADS.NO_PLAYLISTS_TITLE"
-                descriptionKey="DOWNLOADS.NO_PLAYLISTS_BODY"
-                primaryActionLabelKey="HOME.PLAYLISTS.ADD_YOUR_FIRST"
-                secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_SOURCES"
-                (primaryActionClicked)="addPlaylist()"
-                (secondaryActionClicked)="goToSources()"
-            />
         } @else if (showDownloadSkeleton()) {
             <div
                 class="downloads__skeleton"
@@ -207,6 +200,17 @@
                     </div>
                 </div>
             </div>
+        } @else if (hasNoPlaylists() && !hasScopedDownloads()) {
+            <app-empty-state
+                type="no-data"
+                icon="download_for_offline"
+                titleKey="DOWNLOADS.NO_PLAYLISTS_TITLE"
+                descriptionKey="DOWNLOADS.NO_PLAYLISTS_BODY"
+                primaryActionLabelKey="HOME.PLAYLISTS.ADD_YOUR_FIRST"
+                secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_SOURCES"
+                (primaryActionClicked)="addPlaylist()"
+                (secondaryActionClicked)="goToSources()"
+            />
         } @else if (!hasScopedDownloads()) {
             <app-empty-state
                 type="no-data"

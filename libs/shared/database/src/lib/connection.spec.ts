@@ -3,8 +3,9 @@ import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { getTableColumns } from 'drizzle-orm';
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { __databaseConnectionTestHooks } from './connection';
-import { downloads } from './schema';
+import { categories, downloads } from './schema';
 
 function compactSql(statement: string): string {
     return statement.replace(/\s+/g, ' ').trim();
@@ -25,6 +26,7 @@ function createdObjectNames(prefix: string, statements: readonly string[]) {
 
 function rebuildDownloadsInElectron(metadataSnapshot: string): {
     metadataSnapshot: string;
+    retainedAfterPlaylistDelete: boolean;
     schemaSql: string;
 } {
     const electronPath = createRequire(__filename)('electron') as string;
@@ -38,6 +40,7 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
         )});
         const metadataSnapshot = ${JSON.stringify(metadataSnapshot)};
         const sqlite = new Database(':memory:');
+        sqlite.pragma('foreign_keys = ON');
         sqlite.exec(\`
             CREATE TABLE playlists (id TEXT PRIMARY KEY);
             CREATE TABLE downloads (
@@ -68,6 +71,8 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
                 error_message TEXT,
                 created_at TEXT,
                 updated_at TEXT
+                , FOREIGN KEY (playlist_id) REFERENCES playlists (id)
+                    ON DELETE CASCADE
             );
         \`);
         sqlite.prepare('INSERT INTO playlists (id) VALUES (?)')
@@ -97,9 +102,15 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
         const table = sqlite.prepare(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'downloads'"
         ).get();
+        sqlite.prepare('DELETE FROM playlists WHERE id = ?')
+            .run('playlist-1');
+        const retainedAfterPlaylistDelete = Boolean(sqlite.prepare(
+            'SELECT id FROM downloads WHERE id = 1'
+        ).get());
         sqlite.close();
         process.stdout.write(JSON.stringify({
             metadataSnapshot: row.metadata_snapshot,
+            retainedAfterPlaylistDelete,
             schemaSql: table.sql,
         }));
     `;
@@ -118,6 +129,7 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
 
     return JSON.parse(output) as {
         metadataSnapshot: string;
+        retainedAfterPlaylistDelete: boolean;
         schemaSql: string;
     };
 }
@@ -190,9 +202,17 @@ describe('database schema statements', () => {
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
         const schemaSql = createTableStatements.map(compactSql).join('\n');
+        const downloadsSchemaSql =
+            createTableStatements
+                .map(compactSql)
+                .find((statement) =>
+                    statement.startsWith('CREATE TABLE IF NOT EXISTS downloads')
+                ) ?? '';
         const downloadColumns = Object.values(getTableColumns(downloads)).map(
             (column) => column.name
         );
+        const categoryForeignKeys = getTableConfig(categories).foreignKeys;
+        const downloadForeignKeys = getTableConfig(downloads).foreignKeys;
 
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS playlists');
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS categories');
@@ -210,6 +230,11 @@ describe('database schema statements', () => {
             'CREATE TABLE IF NOT EXISTS playback_positions'
         );
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS downloads');
+        expect(downloadsSchemaSql).not.toContain(
+            'FOREIGN KEY (playlist_id) REFERENCES playlists'
+        );
+        expect(categoryForeignKeys).toHaveLength(1);
+        expect(downloadForeignKeys).toHaveLength(0);
         expect(schemaSql).toContain('request_headers TEXT');
         expect(schemaSql).toContain('resume_validator TEXT');
         expect(schemaSql).toContain('metadata_snapshot TEXT');
@@ -602,7 +627,7 @@ describe('database schema statements', () => {
         expect(statements[createIndex]).toContain('resume_validator TEXT');
         expect(statements[copyIndex]).toContain('NULL AS request_headers');
         expect(statements[copyIndex]).toContain('NULL AS metadata_snapshot');
-        expect(statements[copyIndex]).not.toContain('resume_validator');
+        expect(statements[copyIndex]).toContain('NULL AS resume_validator');
     });
 
     it('copies stored headers when only the paused status is missing', () => {
@@ -630,7 +655,30 @@ describe('database schema statements', () => {
         const rebuilt = rebuildDownloadsInElectron(metadataSnapshot);
 
         expect(rebuilt.schemaSql).toContain(`'paused'`);
+        expect(rebuilt.schemaSql).not.toContain('REFERENCES playlists');
         expect(rebuilt.metadataSnapshot).toBe(metadataSnapshot);
+        expect(rebuilt.retainedAfterPlaylistDelete).toBe(true);
+    });
+
+    it('rebuilds a current downloads table that still cascades with its source playlist', () => {
+        const sqlite = createRebuildSqlite(
+            `CREATE TABLE downloads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+                request_headers TEXT,
+                resume_validator TEXT,
+                status TEXT CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled'))
+            )`
+        );
+
+        ensureDownloadsPauseResumeSchema(sqlite);
+
+        expect(sqlite.transaction).toHaveBeenCalledTimes(1);
+        const replacement = sqlite.statements.find((statement) =>
+            statement.startsWith('CREATE TABLE IF NOT EXISTS downloads')
+        );
+        expect(replacement).toBeDefined();
+        expect(replacement).not.toContain('REFERENCES playlists');
     });
 
     it('skips the downloads rebuild when the table already has the paused contract', () => {

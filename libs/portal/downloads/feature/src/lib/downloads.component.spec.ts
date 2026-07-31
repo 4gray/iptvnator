@@ -429,6 +429,24 @@ describe('DownloadsComponent', () => {
         expect(downloads()).toBe(globalItems);
     });
 
+    it('keeps retained offline downloads visible after the last source is removed', () => {
+        playlistItems.next([]);
+        downloads.set([
+            download(4, {
+                playlistId: 'removed-playlist',
+                title: 'Retained offline movie',
+            }),
+        ]);
+        fixture.detectChanges();
+
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('app-download-library')).not.toBeNull();
+        expect(root.querySelector('app-empty-state')).toBeNull();
+        expect(
+            root.querySelector('[data-test-id="downloads-filters"]')
+        ).not.toBeNull();
+    });
+
     it('combines the shared category and q search in the pure model', () => {
         downloads.set([
             download(1, {
@@ -458,6 +476,31 @@ describe('DownloadsComponent', () => {
         component.setFilter('in-progress');
 
         expect(collectionContext.selectedCategoryId()).toBe('in-progress');
+    });
+
+    it('restores the selected filter from the manager query parameters', () => {
+        queryParams.next(
+            convertToParamMap({
+                q: 'northwind',
+                filter: 'series',
+            })
+        );
+        TestBed.flushEffects();
+
+        expect(collectionContext.selectedCategoryId()).toBe('series');
+        expect(component.model().active).toEqual([]);
+    });
+
+    it('stores filter changes in the current history entry for focused-detail Back', () => {
+        component.setFilter('movie');
+        TestBed.flushEffects();
+
+        expect(router.navigate).toHaveBeenCalledWith([], {
+            relativeTo: activatedRoute,
+            queryParams: { filter: 'movie' },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+        });
     });
 
     it('keeps tracked bytes scoped but independent from search and filter', () => {
@@ -818,7 +861,8 @@ describe('DownloadsComponent', () => {
             title: 'Northwind - S01E02 - Signal',
         });
         routeParams.next(convertToParamMap({ id: 'playlist-a' }));
-        router.url = '/workspace/xtream/playlist-a/downloads?q=northwind';
+        router.url =
+            '/workspace/xtreams/playlist-a/downloads?q=northwind&filter=series';
         downloads.set([older, representative]);
         await fixture.whenStable();
 
@@ -833,7 +877,8 @@ describe('DownloadsComponent', () => {
         expect(router.navigate).toHaveBeenCalledWith(['19'], {
             relativeTo: activatedRoute,
             state: {
-                returnUrl: '/workspace/xtream/playlist-a/downloads?q=northwind',
+                returnUrl:
+                    '/workspace/xtreams/playlist-a/downloads?q=northwind&filter=series',
             },
         });
         expect(navigation.open).not.toHaveBeenCalled();

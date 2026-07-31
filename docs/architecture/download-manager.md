@@ -115,14 +115,17 @@ variants, contextual buttons, and theme-aware styling.
   targets that row's local file. The provider's other seasons and episodes are
   deliberately absent from this view.
 - `View in portal` resolves an exact category/item route for Xtream. For
-  Stalker it preserves the raw mode and item shape when a matching
-  recently-viewed snapshot is available; otherwise it builds a regular VOD or
-  series target from the persisted identity and title without first proving
-  that the provider still serves it. The handoff opens the normal provider
-  detail host in explicit `provider-only` presentation: provider content and
-  playback remain available when that host resolves them, while local,
-  Offline, and download actions are hidden. Regular provider navigation does
-  not inherit this one-shot presentation state.
+  Stalker it accepts a matching recently-viewed snapshot only when its raw
+  movie/regular-series/VOD-series markers agree with the download type, so
+  overlapping movie and series ids cannot select the wrong item. An exact
+  numeric category stored in the download snapshot wins over the recent
+  collection's virtual `vod`/`series` category. Without a matching recent
+  shape, only a movie with that exact numeric category can form a
+  metadata-only target; episodes and legacy movies without one leave the
+  handoff unavailable. The normal provider detail opens in one-shot
+  `provider-only` presentation: provider content and playback remain available
+  when that host resolves them, while local, Offline, and download actions are
+  hidden.
 - A completed row that is no longer locally available is never rendered as a
   ready offline detail. Direct or stale detail URLs return to the manager; if
   navigation fails, the detail shell shows the missing-file error with Back and
@@ -132,6 +135,10 @@ variants, contextual buttons, and theme-aware styling.
   including any TMDB fields already present. The snapshot keeps provider
   identity/category separately from presentation metadata and lets the offline
   view render even when the source portal is unavailable.
+- A grouped series selects its newest valid parent snapshot, then fills only
+  missing parent metadata from older valid member snapshots. Newer values,
+  per-episode metadata, language, and freshness identity remain authoritative.
+  Each episode row still uses its own stored episode metadata.
 - Legacy rows and sparse, stale, or wrong-language snapshots are backfilled
   when focused details open: row metadata supplies a safe local fallback,
   provider data is merged when it can be resolved, and opt-in TMDB enrichment
@@ -162,11 +169,15 @@ variants, contextual buttons, and theme-aware styling.
   `/workspace/stalker/:id/downloads/:downloadId`. The workspace shell treats
   all three as focused content: route search is disabled and the context panel
   is `none`, so provider categories are not shown beside a local-only item.
+- The manager persists its selected All/Movies/Series/In progress filter in
+  the current route query with `replaceUrl`. Opening a focused item then keeps
+  that exact scoped URL as its validated return target, so Back restores the
+  manager's scope, search query, filter, and browser-history position.
 - Downloads navigation is data-driven: `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts` emits a `downloads` section link (`path: [...root, 'downloads']`) for both portals, so they reuse the same download page.
 
 ## Queuing, persistence, and UX notes
 
-- Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, `requestHeaders`, `resumeValidator`, the offline-detail metadata snapshot, and Xtream identifiers. Existing SQLite tables are rebuilt on startup when their status CHECK still lacks `paused`; additive columns are applied through the idempotent column migrations.
+- Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, `requestHeaders`, `resumeValidator`, the offline-detail metadata snapshot, and Xtream identifiers. Downloads are locally owned records rather than playlist children: deleting a source retains its rows and local files, keeps them visible in the global library, and disables provider handoff until that source exists again. Startup rebuilds older tables that still carry the playlist foreign key, while additive columns use the idempotent column migrations.
 - On startup, `download-recovery.ts` converts stale `downloading` rows with a non-empty `.part` file to `paused`, converts stale `queued` rows to `paused` while keeping any retained `.part` (a resumed download waiting behind an active one persists as `queued` with its partial), and marks stale `downloading` rows without recoverable partial bytes as `failed`.
 - Queue cancellation removes a queued task or records an active cancellation request and aborts the request when available. Pausing follows the same abort path but persists `paused` and keeps the `.part`. Retries reuse the same database entry: a failed row with a retained `filePath` resumes its `.part` through HTTP Range, otherwise the retry starts from zero. Resume appends to the existing `.part` through HTTP Range with `If-Range` validation.
 - A `.part` that cannot be deleted (locked, permission denied) never loses its database path: cancel persists `canceled` while retaining `filePath` for later cleanup, and `DOWNLOADS_REMOVE` keeps the row and answers `success: false` (surfaced as a snackbar) so retrying the remove re-attempts the deletion once the lock is released.

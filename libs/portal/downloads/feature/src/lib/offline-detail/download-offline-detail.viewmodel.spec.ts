@@ -610,6 +610,49 @@ describe('buildDownloadOfflineDetail', () => {
         expect(series.snapshot).toBe(newerRow);
     });
 
+    it('fills missing parent metadata from older snapshots without replacing newer values', () => {
+        const older = snapshot('series', 'Older title', {
+            enrichedAt: '2026-01-01T00:00:00.000Z',
+            plot: 'Stored plot',
+            posterUrl: 'https://media.example.test/older-poster.jpg',
+            genres: ['Drama'],
+            rating: 8.2,
+            episode: {
+                title: 'Older episode',
+                seasonNumber: 1,
+                episodeNumber: 1,
+            },
+        });
+        const newest = snapshot('series', 'Newest title', {
+            enrichedAt: '2026-02-01T00:00:00.000Z',
+            backdropUrl: 'https://media.example.test/newest-backdrop.jpg',
+            rating: 9.1,
+        });
+        const downloads = deepFreeze([
+            download(60, {
+                episodeNumber: 1,
+                metadataSnapshot: older,
+            }),
+            download(61, {
+                episodeNumber: 2,
+                metadataSnapshot: newest,
+            }),
+        ]);
+
+        const series = expectSeries(build(60, downloads));
+
+        expect(series.snapshot).toEqual({
+            ...newest,
+            plot: older.plot,
+            posterUrl: older.posterUrl,
+            genres: older.genres,
+        });
+        expect(series.snapshot?.rating).toBe(9.1);
+        expect(series.snapshot?.episode).toBeUndefined();
+        expect(series.snapshot?.enrichedAt).toBe(newest.enrichedAt);
+        expect(newest).not.toHaveProperty('plot');
+    });
+
     it('falls through invalid snapshot and row timestamps before breaking ties by id', () => {
         const first = snapshot('series', 'First', {
             enrichedAt: 'invalid',

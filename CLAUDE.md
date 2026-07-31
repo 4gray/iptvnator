@@ -917,12 +917,16 @@ engine` (restart required) or
   backfilled from row/provider metadata and optional TMDB enrichment when the
   focused detail opens.
 - `View in portal` resolves a concrete Xtream category/item route. Stalker
-  preserves regular, embedded `series[]`, or Ministra `is_series=1` mode only
-  when a matching recently-viewed snapshot supplies that raw shape; otherwise
-  it navigates with an identity/title-derived regular VOD or series fallback
-  that is not existence-checked first. The normal detail uses one-shot
-  `provider-only` presentation: it exposes provider content/playback it can
-  resolve while hiding Offline/local/download actions.
+  accepts a recently-viewed shape only when its raw movie/series mode matches
+  the download, and prefers an exact numeric category from the download
+  snapshot. Without that shape, only a movie carrying an exact category can
+  form a metadata-only target; unproven episode and legacy-movie handoffs stay
+  unavailable. The normal detail uses one-shot `provider-only` presentation:
+  it exposes provider content/playback it can resolve while hiding
+  Offline/local/download actions.
+- Download rows and local files survive source deletion. The global offline
+  library remains visible with no playlists; only provider handoff is disabled
+  until the source exists again.
 - If a finalized file disappears while a focused detail is open, the
   authoritative download list refreshes and returns to the manager. A failed
   redirect leaves an actionable missing-file state with Back and Retry.

@@ -116,6 +116,13 @@ export class DownloadOfflineDetailComponent {
     readonly currentItem = computed(() =>
         offlineDetailRepresentative(this.detail())
     );
+    readonly providerItem = computed(() => {
+        const item = this.currentItem();
+        const snapshot = this.detail()?.snapshot;
+        return item && snapshot
+            ? { ...item, metadataSnapshot: snapshot }
+            : item;
+    });
     readonly selectedRow = computed(() =>
         this.downloadsService
             .downloads()
@@ -209,7 +216,7 @@ export class DownloadOfflineDetailComponent {
             this.metadataResolutionKey,
             this.detail
         );
-        this.providerCoordinator.connect(this.routeContext, this.currentItem);
+        this.providerCoordinator.connect(this.routeContext, this.providerItem);
         this.seasonSelection.connect(this.routeContext, this.seasons);
         this.fileCoordinator.connect({
             detail: this.detail,
@@ -266,7 +273,7 @@ export class DownloadOfflineDetailComponent {
     async viewInPortal(): Promise<void> {
         const result = await this.providerCoordinator.open(
             this.routeContext(),
-            this.currentItem()
+            this.providerItem()
         );
         if (result === 'failed') {
             this.actions.showActionError();
