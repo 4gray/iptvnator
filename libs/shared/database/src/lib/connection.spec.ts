@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { getTableColumns } from 'drizzle-orm';
 import { __databaseConnectionTestHooks } from './connection';
 import { downloads } from './schema';
@@ -17,6 +21,105 @@ function createdObjectNames(prefix: string, statements: readonly string[]) {
             return match?.[1] ?? null;
         })
         .filter((name): name is string => Boolean(name));
+}
+
+function rebuildDownloadsInElectron(metadataSnapshot: string): {
+    metadataSnapshot: string;
+    schemaSql: string;
+} {
+    const electronPath = createRequire(__filename)('electron') as string;
+    const connectionUrl = pathToFileURL(
+        resolve(__dirname, 'connection.ts')
+    ).href;
+    const script = `
+        const { default: Database } = await import('better-sqlite3');
+        const { __databaseConnectionTestHooks } = await import(${JSON.stringify(
+            connectionUrl
+        )});
+        const metadataSnapshot = ${JSON.stringify(metadataSnapshot)};
+        const sqlite = new Database(':memory:');
+        sqlite.exec(\`
+            CREATE TABLE playlists (id TEXT PRIMARY KEY);
+            CREATE TABLE downloads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id TEXT NOT NULL,
+                xtream_id INTEGER NOT NULL,
+                content_type TEXT NOT NULL,
+                series_xtream_id INTEGER,
+                season_number INTEGER,
+                episode_number INTEGER,
+                title TEXT NOT NULL,
+                url TEXT NOT NULL,
+                file_name TEXT,
+                file_path TEXT,
+                poster_url TEXT,
+                request_headers TEXT,
+                metadata_snapshot TEXT,
+                status TEXT NOT NULL DEFAULT 'queued'
+                    CHECK (status IN (
+                        'queued',
+                        'downloading',
+                        'completed',
+                        'failed',
+                        'canceled'
+                    )),
+                bytes_downloaded INTEGER,
+                total_bytes INTEGER,
+                error_message TEXT,
+                created_at TEXT,
+                updated_at TEXT
+            );
+        \`);
+        sqlite.prepare('INSERT INTO playlists (id) VALUES (?)')
+            .run('playlist-1');
+        sqlite.prepare(\`
+            INSERT INTO downloads (
+                playlist_id,
+                xtream_id,
+                content_type,
+                title,
+                url,
+                metadata_snapshot
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        \`).run(
+            'playlist-1',
+            42,
+            'vod',
+            'Offline title',
+            'https://example.com/movie',
+            metadataSnapshot
+        );
+        console.log = () => undefined;
+        __databaseConnectionTestHooks.ensureDownloadsPauseResumeSchema(sqlite);
+        const row = sqlite.prepare(
+            'SELECT metadata_snapshot FROM downloads WHERE id = 1'
+        ).get();
+        const table = sqlite.prepare(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'downloads'"
+        ).get();
+        sqlite.close();
+        process.stdout.write(JSON.stringify({
+            metadataSnapshot: row.metadata_snapshot,
+            schemaSql: table.sql,
+        }));
+    `;
+    const output = execFileSync(
+        electronPath,
+        ['--import', 'tsx', '--eval', script],
+        {
+            cwd: process.cwd(),
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                ELECTRON_RUN_AS_NODE: '1',
+            },
+        }
+    );
+
+    return JSON.parse(output) as {
+        metadataSnapshot: string;
+        schemaSql: string;
+    };
 }
 
 describe('database schema statements', () => {
@@ -63,12 +166,8 @@ describe('database schema statements', () => {
         }
     });
 
-    function createRebuildSqlite(
-        legacyTableSql: string | undefined,
-        legacyMetadataSnapshot?: string
-    ) {
+    function createRebuildSqlite(legacyTableSql: string | undefined) {
         const statements: string[] = [];
-        let rebuiltMetadataSnapshot: string | undefined;
         const transaction = jest.fn((callback: () => void) => callback);
         const prepare = jest.fn((statement: string) => {
             if (statement.includes('FROM sqlite_master')) {
@@ -81,29 +180,12 @@ describe('database schema statements', () => {
             }
             return {
                 run: () => {
-                    const compactStatement = compactSql(statement);
-                    statements.push(compactStatement);
-                    if (
-                        compactStatement.startsWith(
-                            'INSERT INTO downloads'
-                        ) &&
-                        compactStatement.includes('metadata_snapshot') &&
-                        !compactStatement.includes(
-                            'NULL AS metadata_snapshot'
-                        )
-                    ) {
-                        rebuiltMetadataSnapshot = legacyMetadataSnapshot;
-                    }
+                    statements.push(compactSql(statement));
                 },
             };
         });
 
-        return {
-            getRebuiltMetadataSnapshot: () => rebuiltMetadataSnapshot,
-            prepare,
-            statements,
-            transaction,
-        };
+        return { prepare, statements, transaction };
     }
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
@@ -547,33 +629,10 @@ describe('database schema statements', () => {
             mediaKind: 'movie',
             title: 'Offline title',
         });
-        const sqlite = createRebuildSqlite(
-            `CREATE TABLE downloads (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                request_headers TEXT,
-                metadata_snapshot TEXT,
-                status TEXT CHECK (
-                    status IN (
-                        'queued',
-                        'downloading',
-                        'completed',
-                        'failed',
-                        'canceled'
-                    )
-                )
-            )`,
-            metadataSnapshot
-        );
+        const rebuilt = rebuildDownloadsInElectron(metadataSnapshot);
 
-        ensureDownloadsPauseResumeSchema(sqlite);
-
-        const copy = sqlite.statements.find((statement) =>
-            statement.startsWith('INSERT INTO downloads')
-        );
-        expect(copy).toBeDefined();
-        expect(copy).toContain('metadata_snapshot');
-        expect(copy).not.toContain('NULL AS metadata_snapshot');
-        expect(sqlite.getRebuiltMetadataSnapshot()).toBe(metadataSnapshot);
+        expect(rebuilt.schemaSql).toContain(`'paused'`);
+        expect(rebuilt.metadataSnapshot).toBe(metadataSnapshot);
     });
 
     it('skips the downloads rebuild when the table already has the paused contract', () => {

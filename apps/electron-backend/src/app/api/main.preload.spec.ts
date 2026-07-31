@@ -13,7 +13,10 @@ import {
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
     OPEN_FILE,
 } from '@iptvnator/shared/interfaces';
-import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
+import type {
+    DownloadMetadataSnapshot,
+    ElectronBridgeApi,
+} from '@iptvnator/shared/interfaces';
 import {
     dbPreloadCases,
     epgPreloadCases,
@@ -275,6 +278,24 @@ describe('main preload DB IPC contract', () => {
         expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
             'PLAYLIST:REFRESH',
             payload
+        );
+    });
+
+    it('forwards download metadata updates with the download id', async () => {
+        const api = getExposedApi();
+        const metadataSnapshot: DownloadMetadataSnapshot = {
+            version: 1,
+            language: 'en',
+            mediaKind: 'movie',
+            title: 'Offline title',
+        };
+
+        await api.downloadsUpdateMetadata(42, metadataSnapshot);
+
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'DOWNLOADS_UPDATE_METADATA',
+            42,
+            metadataSnapshot
         );
     });
 
