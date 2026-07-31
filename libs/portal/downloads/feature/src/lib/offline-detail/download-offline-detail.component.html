@@ -1,0 +1,423 @@
+@if (detail(); as offlineDetail) {
+    <app-portal-detail-shell
+        [title]="title()"
+        [description]="description()"
+        [posterUrl]="posterUrl()"
+        [backdropUrl]="backdropUrl()"
+        (backClicked)="goBack()"
+    >
+        <ng-template appDetailTags>
+            <span class="details__tag offline-detail__available">
+                <mat-icon aria-hidden="true">download_done</mat-icon>
+                {{ 'DOWNLOADS.OFFLINE_DETAIL.AVAILABLE' | translate }}
+            </span>
+            @if (metadata()?.year; as year) {
+                @if (positiveFinite(year)) {
+                    <span class="details__tag">{{ year }}</span>
+                }
+            }
+            @if (durationLabel(); as duration) {
+                <span class="details__tag">{{ duration }}</span>
+            }
+            @for (genre of genres(); track genre) {
+                <span class="details__tag">{{ genre }}</span>
+            }
+            @if (metadata()?.rating; as rating) {
+                @if (positiveFinite(rating)) {
+                    <span class="details__tag details__tag--rating">
+                        <span aria-hidden="true">★</span> {{ rating }}
+                    </span>
+                }
+            }
+            @if (metadata()?.status; as status) {
+                @if (status.trim()) {
+                    <span class="details__tag details__tag--status">
+                        {{ status }}
+                    </span>
+                }
+            }
+        </ng-template>
+
+        <ng-template appDetailMeta>
+            @if (cast().length) {
+                <div class="details__meta-item offline-detail__people-group">
+                    <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
+                    <div class="details__cast-strip">
+                        @for (
+                            person of cast();
+                            track person.tmdbPersonId ?? person.name
+                        ) {
+                            <span
+                                class="details__cast-chip offline-detail__person"
+                                [title]="
+                                    person.role
+                                        ? person.name + ' — ' + person.role
+                                        : person.name
+                                "
+                            >
+                                @if (person.profileUrl) {
+                                    <img
+                                        class="details__cast-avatar"
+                                        [src]="person.profileUrl"
+                                        [alt]="person.name"
+                                        loading="lazy"
+                                    />
+                                } @else {
+                                    <span
+                                        class="details__cast-avatar details__cast-avatar--fallback"
+                                        aria-hidden="true"
+                                    >
+                                        {{ person.name.charAt(0) }}
+                                    </span>
+                                }
+                                <span class="details__cast-name">{{
+                                    person.name
+                                }}</span>
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+            @if (creators().length) {
+                <div class="details__meta-item offline-detail__people-group">
+                    <span class="label">{{
+                        'XTREAM.DIRECTOR' | translate
+                    }}</span>
+                    <div class="details__cast-strip">
+                        @for (
+                            person of creators();
+                            track person.tmdbPersonId ?? person.name
+                        ) {
+                            <span
+                                class="details__cast-chip offline-detail__person"
+                                [title]="person.name"
+                            >
+                                @if (person.profileUrl) {
+                                    <img
+                                        class="details__cast-avatar"
+                                        [src]="person.profileUrl"
+                                        [alt]="person.name"
+                                        loading="lazy"
+                                    />
+                                } @else {
+                                    <span
+                                        class="details__cast-avatar details__cast-avatar--fallback"
+                                        aria-hidden="true"
+                                    >
+                                        {{ person.name.charAt(0) }}
+                                    </span>
+                                }
+                                <span class="details__cast-name">{{
+                                    person.name
+                                }}</span>
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+            @if (movieFileSize(); as size) {
+                <div class="details__meta-item">
+                    <span class="value">
+                        {{
+                            'DOWNLOADS.OFFLINE_DETAIL.FILE_SIZE'
+                                | translate: { size }
+                        }}
+                    </span>
+                </div>
+            }
+        </ng-template>
+
+        <ng-template appDetailActions>
+            @if (offlineDetail.kind === 'movie') {
+                <button
+                    mat-flat-button
+                    type="button"
+                    class="offline-detail__primary-action"
+                    data-testid="offline-play"
+                    [disabled]="isPending(offlineDetail.item)"
+                    (click)="runFileAction('play', offlineDetail.item)"
+                >
+                    <mat-icon aria-hidden="true">play_arrow</mat-icon>
+                    {{ 'DOWNLOADS.OFFLINE_DETAIL.PLAY' | translate }}
+                </button>
+            }
+
+            <span
+                class="offline-detail__portal-action"
+                [matTooltip]="
+                    canOpenInPortal()
+                        ? ''
+                        : ('DOWNLOADS.OFFLINE_DETAIL.VIEW_IN_PORTAL_UNAVAILABLE'
+                          | translate)
+                "
+            >
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-testid="view-in-portal"
+                    [disabled]="!canOpenInPortal()"
+                    [attr.aria-describedby]="
+                        canOpenInPortal()
+                            ? null
+                            : 'offline-view-in-portal-unavailable'
+                    "
+                    (click)="viewInPortal()"
+                >
+                    <mat-icon aria-hidden="true">open_in_new</mat-icon>
+                    {{ 'DOWNLOADS.OFFLINE_DETAIL.VIEW_IN_PORTAL' | translate }}
+                </button>
+            </span>
+            @if (!canOpenInPortal()) {
+                <span
+                    id="offline-view-in-portal-unavailable"
+                    class="offline-detail__visually-hidden"
+                >
+                    {{
+                        'DOWNLOADS.OFFLINE_DETAIL.VIEW_IN_PORTAL_UNAVAILABLE'
+                            | translate
+                    }}
+                </span>
+            }
+
+            @if (offlineDetail.kind === 'movie') {
+                <button
+                    mat-icon-button
+                    type="button"
+                    data-testid="movie-overflow"
+                    [matMenuTriggerFor]="movieMenu"
+                    [disabled]="isPending(offlineDetail.item)"
+                    [attr.aria-label]="
+                        ('DOWNLOADS.MORE_ACTIONS' | translate) + ': ' + title()
+                    "
+                >
+                    <mat-icon aria-hidden="true">more_vert</mat-icon>
+                </button>
+                <mat-menu #movieMenu="matMenu">
+                    <button
+                        mat-menu-item
+                        type="button"
+                        data-testid="movie-reveal"
+                        [disabled]="isPending(offlineDetail.item)"
+                        (click)="runFileAction('reveal', offlineDetail.item)"
+                    >
+                        <mat-icon aria-hidden="true">folder_open</mat-icon>
+                        <span>{{ 'DOWNLOADS.REVEAL' | translate }}</span>
+                    </button>
+                </mat-menu>
+            }
+        </ng-template>
+
+        @if (offlineDetail.kind === 'series') {
+            <section
+                detail-episodes
+                class="offline-detail__episodes"
+                [attr.aria-label]="
+                    'DOWNLOADS.OFFLINE_DETAIL.DOWNLOADED_EPISODES'
+                        | translate
+                            : {
+                                  count: count(),
+                              }
+                "
+            >
+                <div class="offline-detail__season-tabs" role="tablist">
+                    @for (
+                        season of offlineDetail.seasons;
+                        track seasonTestId(season)
+                    ) {
+                        <button
+                            type="button"
+                            role="tab"
+                            class="offline-detail__season-tab"
+                            [class.offline-detail__season-tab--selected]="
+                                isSelectedSeason(season)
+                            "
+                            [attr.aria-selected]="isSelectedSeason(season)"
+                            [attr.aria-controls]="
+                                seasonTestId(season) + '-panel'
+                            "
+                            [attr.data-testid]="seasonTestId(season)"
+                            (click)="selectSeason(season)"
+                        >
+                            <span>
+                                @if (season.seasonNumberState === 'known') {
+                                    {{
+                                        'DOWNLOADS.SEASON'
+                                            | translate
+                                                : {
+                                                      season: season.seasonNumber,
+                                                  }
+                                    }}
+                                } @else {
+                                    S??
+                                }
+                            </span>
+                            <span class="offline-detail__season-count">
+                                {{
+                                    'DOWNLOADS.OFFLINE_DETAIL.DOWNLOADED_EPISODES'
+                                        | translate
+                                            : { count: season.episodes.length }
+                                }}
+                            </span>
+                        </button>
+                    }
+                </div>
+
+                @if (selectedSeason(); as season) {
+                    <div
+                        role="tabpanel"
+                        class="offline-detail__episode-list"
+                        [id]="seasonTestId(season) + '-panel'"
+                    >
+                        @for (
+                            episode of season.episodes;
+                            track episode.item.id
+                        ) {
+                            <article
+                                class="offline-detail__episode"
+                                [attr.data-testid]="
+                                    'offline-episode-' + episode.item.id
+                                "
+                            >
+                                <div class="offline-detail__episode-copy">
+                                    <span class="offline-detail__coordinate">
+                                        {{
+                                            episodeCoordinate(
+                                                episode.seasonNumber,
+                                                episode.episodeNumber
+                                            )
+                                        }}
+                                    </span>
+                                    <strong
+                                        class="offline-detail__episode-title"
+                                    >
+                                        {{
+                                            episodeTitle(
+                                                episode.item,
+                                                episode.episodeMetadata?.title
+                                            )
+                                        }}
+                                    </strong>
+                                    <div class="offline-detail__episode-facts">
+                                        @if (
+                                            formatItemBytes(episode.item);
+                                            as size
+                                        ) {
+                                            <span>
+                                                {{
+                                                    'DOWNLOADS.OFFLINE_DETAIL.FILE_SIZE'
+                                                        | translate: { size }
+                                                }}
+                                            </span>
+                                        }
+                                        <span
+                                            class="offline-detail__episode-available"
+                                        >
+                                            <mat-icon aria-hidden="true"
+                                                >download_done</mat-icon
+                                            >
+                                            {{
+                                                'DOWNLOADS.OFFLINE_DETAIL.AVAILABLE'
+                                                    | translate
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="offline-detail__episode-actions">
+                                    <button
+                                        mat-flat-button
+                                        type="button"
+                                        [attr.data-testid]="
+                                            'episode-play-' + episode.item.id
+                                        "
+                                        [disabled]="isPending(episode.item)"
+                                        (click)="
+                                            runFileAction('play', episode.item)
+                                        "
+                                    >
+                                        <mat-icon aria-hidden="true"
+                                            >play_arrow</mat-icon
+                                        >
+                                        {{
+                                            'DOWNLOADS.OFFLINE_DETAIL.PLAY'
+                                                | translate
+                                        }}
+                                    </button>
+                                    <button
+                                        mat-icon-button
+                                        type="button"
+                                        [matMenuTriggerFor]="episodeMenu"
+                                        [disabled]="isPending(episode.item)"
+                                        [attr.data-testid]="
+                                            'episode-overflow-' +
+                                            episode.item.id
+                                        "
+                                        [attr.aria-label]="
+                                            ('DOWNLOADS.MORE_ACTIONS'
+                                                | translate) +
+                                            ': ' +
+                                            episodeTitle(
+                                                episode.item,
+                                                episode.episodeMetadata?.title
+                                            )
+                                        "
+                                    >
+                                        <mat-icon aria-hidden="true"
+                                            >more_vert</mat-icon
+                                        >
+                                    </button>
+                                    <mat-menu #episodeMenu="matMenu">
+                                        <button
+                                            mat-menu-item
+                                            type="button"
+                                            [disabled]="isPending(episode.item)"
+                                            (click)="
+                                                runFileAction(
+                                                    'reveal',
+                                                    episode.item
+                                                )
+                                            "
+                                        >
+                                            <mat-icon aria-hidden="true">
+                                                folder_open
+                                            </mat-icon>
+                                            <span>{{
+                                                'DOWNLOADS.REVEAL' | translate
+                                            }}</span>
+                                        </button>
+                                    </mat-menu>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        }
+    </app-portal-detail-shell>
+} @else {
+    <app-portal-detail-shell
+        [isLoading]="showLoading()"
+        [errorMessage]="
+            showNotFound()
+                ? ('DOWNLOADS.OFFLINE_DETAIL.NOT_FOUND_TITLE' | translate)
+                : undefined
+        "
+        (backClicked)="goBack()"
+    >
+        @if (showNotFound()) {
+            <div hero-error-actions class="offline-detail__not-found-actions">
+                <p>
+                    {{ 'DOWNLOADS.OFFLINE_DETAIL.NOT_FOUND_BODY' | translate }}
+                </p>
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-testid="not-found-back"
+                    (click)="goBack()"
+                >
+                    <mat-icon aria-hidden="true">arrow_back</mat-icon>
+                    {{ 'DOWNLOADS.OFFLINE_DETAIL.BACK' | translate }}
+                </button>
+            </div>
+        }
+    </app-portal-detail-shell>
+}
