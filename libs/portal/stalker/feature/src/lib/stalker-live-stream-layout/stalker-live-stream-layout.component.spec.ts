@@ -46,6 +46,8 @@ class StubChannelListItemComponent {
     readonly name = input('');
     readonly logo = input<string | null | undefined>(null);
     readonly selected = input(false);
+    readonly showEpg = input(true);
+    readonly isRadio = input(false);
     readonly epgProgram = input<unknown>(null);
     readonly progressPercentage = input(0);
     readonly showFavoriteButton = input(false);
@@ -367,7 +369,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                             return Boolean(window.electron);
                         },
                         get supportsEpgMapping() {
-                            return false;
+                            return Boolean(window.electron);
                         },
                     },
                 },
@@ -501,6 +503,60 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
         expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        const channelRows = fixture.debugElement.queryAll(
+            By.directive(StubChannelListItemComponent)
+        );
+        expect(channelRows).not.toHaveLength(0);
+        expect(
+            channelRows.every(
+                (row) =>
+                    !(
+                        row.componentInstance as StubChannelListItemComponent
+                    ).showEpg()
+            )
+        ).toBe(true);
+        expect(
+            channelRows.every(
+                (row) =>
+                    !(
+                        row.componentInstance as StubChannelListItemComponent
+                    ).showDetailsContextMenu()
+            )
+        ).toBe(true);
+    });
+
+    it('renders radio channel rows with compact no-EPG density', () => {
+        stalkerStore.selectedContentType.set('radio');
+
+        fixture.detectChanges();
+
+        const channelRows = fixture.debugElement.queryAll(
+            By.directive(StubChannelListItemComponent)
+        );
+        expect(channelRows).not.toHaveLength(0);
+        expect(
+            channelRows.every((row) =>
+                (
+                    row.componentInstance as StubChannelListItemComponent
+                ).isRadio()
+            )
+        ).toBe(true);
+        expect(
+            channelRows.every(
+                (row) =>
+                    !(
+                        row.componentInstance as StubChannelListItemComponent
+                    ).showEpg()
+            )
+        ).toBe(true);
+        expect(
+            channelRows.every(
+                (row) =>
+                    !(
+                        row.componentInstance as StubChannelListItemComponent
+                    ).showDetailsContextMenu()
+            )
+        ).toBe(true);
     });
 
     it('restores the collapsed live EPG panel state after embedded playback starts', async () => {

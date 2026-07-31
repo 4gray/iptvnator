@@ -42,7 +42,7 @@
                 <div class="groups-loading-content__list">
                     <app-channel-list-skeleton
                         [count]="9"
-                        [showEpg]="true"
+                        [showEpg]="showEpg()"
                         [actionCount]="2"
                     />
                 </div>
@@ -59,7 +59,7 @@
             <div class="channels-loading-state__list">
                 <app-channel-list-skeleton
                     [count]="9"
-                    [showEpg]="true"
+                    [showEpg]="showEpg()"
                     [actionCount]="2"
                 />
             </div>

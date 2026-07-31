@@ -209,6 +209,7 @@ describe('ChannelListContainerComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.componentInstance.shouldShowEpg()).toBe(false);
+        expect(fixture.componentInstance.itemSize()).toBe(52);
         expect(storageGet).not.toHaveBeenCalled();
     });
 
@@ -222,6 +223,7 @@ describe('ChannelListContainerComponent', () => {
 
         expect(storageGet).toHaveBeenCalled();
         expect(fixture.componentInstance.shouldShowEpg()).toBe(true);
+        expect(fixture.componentInstance.itemSize()).toBe(68);
     });
 
     it('enables EPG rows and scopes lookups when the active M3U playlist has detected EPG URLs', () => {

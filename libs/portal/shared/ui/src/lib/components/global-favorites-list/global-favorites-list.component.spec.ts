@@ -75,6 +75,33 @@ describe('GlobalFavoritesListComponent', () => {
         expect(icons).toEqual(['star_outline', 'star']);
     });
 
+    it('renders radio rows as compact without a false EPG placeholder', () => {
+        fixture.componentRef.setInput('channels', [
+            buildChannel('radio', 'Radio One', { radio: 'true' }),
+        ]);
+        fixture.detectChanges();
+
+        const row = fixture.nativeElement.querySelector('.channel-list-item');
+        expect(row.classList.contains('compact')).toBe(true);
+        expect(
+            fixture.nativeElement.querySelector('.epg-placeholder')
+        ).toBeNull();
+    });
+
+    it('renders non-radio rows as compact when the host disables EPG', () => {
+        fixture.componentRef.setInput('showEpg', false);
+        fixture.componentRef.setInput('channels', [
+            buildChannel('pwa', 'PWA Channel'),
+        ]);
+        fixture.detectChanges();
+
+        const row = fixture.nativeElement.querySelector('.channel-list-item');
+        expect(row.classList.contains('compact')).toBe(true);
+        expect(
+            fixture.nativeElement.querySelector('.epg-placeholder')
+        ).toBeNull();
+    });
+
     it('preserves incoming recent order when a favorites sort mode is set', () => {
         fixture.componentRef.setInput('mode', 'recent');
         fixture.componentRef.setInput('sortMode', 'name-asc');

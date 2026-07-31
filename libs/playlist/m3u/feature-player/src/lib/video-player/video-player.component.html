@@ -37,9 +37,15 @@
             (sidebarToggleRequested)="toggleSidebar()"
         />
     } @loading {
-        <app-channel-list-loading-state [view]="activeView()" />
+        <app-channel-list-loading-state
+            [view]="activeView()"
+            [showEpg]="supportsEpg"
+        />
     } @placeholder {
-        <app-channel-list-loading-state [view]="activeView()" />
+        <app-channel-list-loading-state
+            [view]="activeView()"
+            [showEpg]="supportsEpg"
+        />
     }
 </div>
 

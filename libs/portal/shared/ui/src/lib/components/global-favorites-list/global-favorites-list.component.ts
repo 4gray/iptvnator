@@ -20,7 +20,10 @@ import {
     ChannelDetailsDialogComponent,
     ChannelListItemComponent,
 } from '@iptvnator/ui/components';
-import { SettingsStore } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
@@ -61,6 +64,7 @@ export class GlobalFavoritesListComponent {
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
 
     readonly contextMenuTrigger =
@@ -71,6 +75,7 @@ export class GlobalFavoritesListComponent {
 
     readonly channels = input.required<UnifiedFavoriteChannel[]>();
     readonly mode = input<GlobalFavoritesListMode>('favorites');
+    readonly showEpg = input(this.runtime.supportsEpg);
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
     readonly epgMap = input<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = input<number>(0);

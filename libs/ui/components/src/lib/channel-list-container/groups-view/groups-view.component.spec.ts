@@ -1,4 +1,6 @@
+import { CdkFixedSizeVirtualScroll } from '@angular/cdk/scrolling';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
@@ -211,6 +213,26 @@ describe('GroupsViewComponent', () => {
     it('defaults to playlist order when no saved sort mode exists', () => {
         expect(component.groupChannelSortMode()).toBe('server');
         expect(component.groupChannelSortLabel()).toBe('Playlist Order');
+    });
+
+    it('keeps the virtual-scroll item size aligned with row EPG density', () => {
+        setInputs({ shouldShowEpg: false });
+
+        expect(component.itemSize()).toBe(52);
+        expect(
+            fixture.debugElement
+                .query(By.css('cdk-virtual-scroll-viewport'))
+                .injector.get(CdkFixedSizeVirtualScroll).itemSize
+        ).toBe(52);
+
+        setInputs({ shouldShowEpg: true });
+
+        expect(component.itemSize()).toBe(68);
+        expect(
+            fixture.debugElement
+                .query(By.css('cdk-virtual-scroll-viewport'))
+                .injector.get(CdkFixedSizeVirtualScroll).itemSize
+        ).toBe(68);
     });
 
     it('restores a saved valid sort mode and ignores invalid stored values', () => {

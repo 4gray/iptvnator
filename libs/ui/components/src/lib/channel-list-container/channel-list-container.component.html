@@ -1,5 +1,8 @@
 @if (channelsLoading()) {
-    <app-channel-list-loading-state [view]="activeView()" />
+    <app-channel-list-loading-state
+        [view]="activeView()"
+        [showEpg]="shouldShowEpg()"
+    />
 } @else if (displayedChannels().length) {
     @if (viewTitle() && activeView() !== 'groups' && activeView() !== 'all') {
         <header class="context-header">

@@ -31,6 +31,22 @@ describe('ChannelListLoadingStateComponent', () => {
         ).toBeNull();
     });
 
+    it('renders compact skeleton rows when the host disables EPG', () => {
+        fixture.componentRef.setInput('showEpg', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '.channel-list-item-skeleton.compact'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '.channel-list-item-skeleton:not(.compact)'
+            )
+        ).toBeNull();
+    });
+
     it('renders a two-column group loading layout for the groups view', () => {
         fixture.componentRef.setInput('view', 'groups');
         fixture.detectChanges();

@@ -34,6 +34,9 @@ export interface UnifiedFavoriteChannel {
     /** Full M3U channel metadata used by row context menu actions */
     m3uChannel?: Channel;
 
+    /** Radio flag used to keep non-EPG audio rows compact */
+    radio?: string;
+
     /** Xtream numeric stream ID (Xtream channels only) */
     xtreamId?: number;
 

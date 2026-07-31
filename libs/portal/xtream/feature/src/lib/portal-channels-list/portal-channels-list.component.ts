@@ -99,6 +99,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
+    readonly channelItemSize = this.supportsEpg ? 68 : 52;
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {

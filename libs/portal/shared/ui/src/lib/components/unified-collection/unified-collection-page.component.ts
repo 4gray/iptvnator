@@ -55,6 +55,7 @@ import {
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
@@ -99,6 +100,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly favoritesData = inject(UnifiedFavoritesDataService);
     private readonly recentData = inject(UnifiedRecentDataService);
     private readonly dialogService = inject(DialogService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
     private readonly workspaceViewCommands = inject(WorkspaceViewCommandService);
     private readonly liveSidebarStateService = inject(
@@ -144,6 +146,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     readonly selectedContentType = signal<CollectionContentType>(
         this.historyCollectionViewState()?.selectedContentType ?? 'live'
     );
+    readonly supportsEpg = this.runtime.supportsEpg;
     readonly selectedDetailItem = signal<UnifiedCollectionItem | null>(null);
     readonly selectedDetailSeriesResume = signal<SeriesResumeTarget | null>(
         null

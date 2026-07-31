@@ -16,6 +16,7 @@ import { ChannelListSkeletonComponent } from '../channel-list-container/channel-
 })
 export class ChannelListLoadingStateComponent {
     readonly view = input<string>('all');
+    readonly showEpg = input(true);
 
     readonly isGroupsView = computed(() => this.view() === 'groups');
     readonly groupRows = Array.from({ length: 10 }, (_, index) => index);

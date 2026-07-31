@@ -65,6 +65,7 @@ class StubResizableDirective {
 class StubGlobalFavoritesListComponent {
     readonly channels = input.required<UnifiedFavoriteChannel[]>();
     readonly mode = input<'favorites' | 'recent'>('favorites');
+    readonly showEpg = input(true);
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
     readonly epgMap = input<Map<string, EpgProgram | null>>(new Map());
     readonly progressTick = input(0);
@@ -347,6 +348,10 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(streamResolver.loadEpgForItems).not.toHaveBeenCalled();
         expect(streamResolver.loadM3uProgramsForItem).not.toHaveBeenCalled();
+        const list = fixture.debugElement.query(
+            By.directive(StubGlobalFavoritesListComponent)
+        ).componentInstance as StubGlobalFavoritesListComponent;
+        expect(list.showEpg()).toBe(false);
         expect(
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
@@ -720,6 +725,8 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.componentRef.setInput('mode', 'recent');
         fixture.detectChanges();
         await fixture.whenStable();
+
+        expect(component.channelsForList()[0].radio).toBe('true');
 
         await component.onChannelSelected(component.channelsForList()[0]);
         fixture.detectChanges();
