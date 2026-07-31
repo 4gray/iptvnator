@@ -17,15 +17,23 @@ import {
     CollectionScope,
     FavoritesChannelSortMode,
     OPEN_COLLECTION_DETAIL_STATE_KEY,
+    LIVE_SIDEBAR_STATE_STORAGE_KEY,
     ScopeToggleService,
     UnifiedCollectionItem,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
 import {
+    LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY,
+    LIVE_GROUPS_PANEL_STATE_STORAGE_KEY,
+    LIVE_LAYOUT_PANEL,
+    LiveLayoutPanelStateService,
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
-import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { BehaviorSubject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -46,7 +54,7 @@ class StubUnifiedLiveTabComponent {
     readonly autoOpenItem = input<unknown>(null);
     readonly favoriteUids = input<ReadonlySet<string>>(new Set<string>());
     readonly sortMode = input<FavoritesChannelSortMode>('custom');
-    readonly isSidebarCollapsed = input(false);
+    readonly channelsPanelExpanded = input(true);
 
     readonly removeItem = output<UnifiedCollectionItem>();
     readonly favoriteToggled = output<UnifiedCollectionItem>();
@@ -131,6 +139,7 @@ describe('UnifiedCollectionPageComponent', () => {
     let workspaceParamMap$: BehaviorSubject<
         ReturnType<typeof convertToParamMap>
     >;
+    let livePanelState: LiveLayoutPanelStateService;
     const playlistsLoaded = signal(false);
     const playlists = signal<PlaylistMeta[]>([]);
     const favoritesData = {
@@ -186,6 +195,9 @@ describe('UnifiedCollectionPageComponent', () => {
     beforeEach(async () => {
         playlistsLoaded.set(false);
         playlists.set([]);
+        localStorage.removeItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
         jest.clearAllMocks();
         workspaceViewCommands.registerCommand.mockReturnValue(jest.fn());
         routeParamMap$ = new BehaviorSubject(convertToParamMap({}));
@@ -313,6 +325,7 @@ describe('UnifiedCollectionPageComponent', () => {
         fixture = TestBed.createComponent(UnifiedCollectionPageComponent);
         fixture.componentRef.setInput('mode', 'favorites');
         fixture.componentRef.setInput('defaultScope', 'all');
+        livePanelState = TestBed.inject(LiveLayoutPanelStateService);
     });
 
     it('uses compact loading rows when the runtime has no EPG support', () => {
@@ -328,6 +341,103 @@ describe('UnifiedCollectionPageComponent', () => {
                 '.channel-list-item-skeleton:not(.compact)'
             )
         ).toBeNull();
+    });
+
+    it('keeps one real Channels control in the loading header', () => {
+        fixture.componentInstance.isLoading.set(true);
+        fixture.componentInstance.selectedContentType.set('live');
+        fixture.detectChanges();
+
+        const toggles = fixture.nativeElement.querySelectorAll(
+            '[data-testid="live-channels-panel-toggle"]'
+        ) as NodeListOf<HTMLButtonElement>;
+        expect(toggles).toHaveLength(1);
+        expect(toggles[0].getAttribute('aria-controls')).toBe(
+            'live-channels-panel'
+        );
+        expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
+
+        toggles[0].click();
+        fixture.detectChanges();
+
+        const loadingPanel = fixture.nativeElement.querySelector(
+            '#live-channels-panel'
+        ) as HTMLElement;
+        expect(livePanelState.channelsIntent()).toBe('collapsed');
+        expect(loadingPanel.hasAttribute('inert')).toBe(true);
+        expect(loadingPanel.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('keeps the collection header as the sole Channels owner through zero results', () => {
+        fixture.componentInstance.isLoading.set(false);
+        fixture.componentInstance.selectedContentType.set('live');
+        fixture.componentInstance.allItems.set([
+            {
+                uid: 'm3u::playlist-1::live',
+                name: 'Live channel',
+                contentType: 'live',
+                sourceType: 'm3u',
+                playlistId: 'playlist-1',
+                playlistName: 'Playlist One',
+                streamUrl: 'https://example.com/live.m3u8',
+            },
+        ]);
+        setRouteQueryParams({ q: 'no-match' });
+        fixture.detectChanges();
+
+        const toggles = fixture.nativeElement.querySelectorAll(
+            '[data-testid="live-channels-panel-toggle"]'
+        );
+        const liveTab = fixture.debugElement.query(
+            By.directive(StubUnifiedLiveTabComponent)
+        ).componentInstance as StubUnifiedLiveTabComponent;
+        expect(toggles).toHaveLength(1);
+        expect(liveTab.channelsPanelExpanded()).toBe(true);
+
+        fixture.componentInstance.toggleChannelsPanel();
+        fixture.detectChanges();
+
+        expect(livePanelState.channelsIntent()).toBe('collapsed');
+        expect(liveTab.channelsPanelExpanded()).toBe(false);
+        expect(
+            fixture.nativeElement.querySelectorAll(
+                '[data-testid="live-channels-panel-toggle"]'
+            )
+        ).toHaveLength(1);
+    });
+
+    it('uses Cmd/Ctrl+B as Channels-only temporary suppression', () => {
+        fixture.componentInstance.isLoading.set(false);
+        fixture.componentInstance.selectedContentType.set('live');
+        fixture.componentInstance.allItems.set([
+            {
+                uid: 'xtream::playlist-1::live:1',
+                name: 'Live channel',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'playlist-1',
+                playlistName: 'Playlist One',
+                xtreamId: 1,
+            },
+        ]);
+        livePanelState.hidePanel(LIVE_LAYOUT_PANEL.GROUPS);
+        fixture.detectChanges();
+        const shortcut = new KeyboardEvent('keydown', {
+            key: 'b',
+            metaKey: true,
+        });
+        jest.spyOn(shortcut, 'preventDefault');
+
+        fixture.componentInstance.handleSidebarShortcut(shortcut);
+        fixture.detectChanges();
+
+        expect(shortcut.preventDefault).toHaveBeenCalled();
+        expect(livePanelState.masterSuppressed()).toBe(true);
+        expect(livePanelState.groupsIntent()).toBe('collapsed');
+        expect(livePanelState.channelsIntent()).toBe('expanded');
+
+        fixture.componentInstance.handleSidebarShortcut(shortcut);
+        expect(livePanelState.masterSuppressed()).toBe(false);
     });
 
     it('reloads favorites after playlist hydration completes', async () => {
@@ -507,16 +617,18 @@ describe('UnifiedCollectionPageComponent', () => {
         await fixture.whenStable();
 
         expect(favoritesData.removeFavorite).toHaveBeenCalledWith(recentItem);
-        expect(fixture.componentInstance.favoriteUidSet().has(recentItem.uid))
-            .toBe(false);
+        expect(
+            fixture.componentInstance.favoriteUidSet().has(recentItem.uid)
+        ).toBe(false);
         expect(fixture.componentInstance.allItems()).toEqual([recentItem]);
 
         liveTab.favoriteToggled.emit(recentItem);
         await fixture.whenStable();
 
         expect(favoritesData.addFavorite).toHaveBeenCalledWith(recentItem);
-        expect(fixture.componentInstance.favoriteUidSet().has(recentItem.uid))
-            .toBe(true);
+        expect(
+            fixture.componentInstance.favoriteUidSet().has(recentItem.uid)
+        ).toBe(true);
         expect(fixture.componentInstance.allItems()).toEqual([recentItem]);
     });
 
@@ -826,9 +938,7 @@ describe('UnifiedCollectionPageComponent', () => {
                     },
                 }
             );
-            expect(
-                fixture.componentInstance.selectedDetailItem()
-            ).toBeNull();
+            expect(fixture.componentInstance.selectedDetailItem()).toBeNull();
         } finally {
             router.url = originalUrl;
         }

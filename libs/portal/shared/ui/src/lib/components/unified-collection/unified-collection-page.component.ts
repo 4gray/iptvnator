@@ -6,7 +6,9 @@ import {
     computed,
     contentChild,
     DestroyRef,
+    ElementRef,
     effect,
+    HostListener,
     inject,
     linkedSignal,
     input,
@@ -21,7 +23,10 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ChannelListSkeletonComponent, DialogService } from '@iptvnator/ui/components';
+import {
+    ChannelListSkeletonComponent,
+    DialogService,
+} from '@iptvnator/ui/components';
 import {
     buildGlobalCollectionDetailNavigationTarget,
     buildCollectionViewState,
@@ -37,8 +42,8 @@ import {
     getCollectionViewState,
     getOpenLiveCollectionItemState,
     getUnifiedCollectionNavigation,
+    isTypingInInput,
     isWorkspaceLayoutRoute,
-    LiveLayoutSidebarStateService,
     OPEN_COLLECTION_DETAIL_STATE_KEY,
     OPEN_LIVE_COLLECTION_ITEM_STATE_KEY,
     persistFavoritesChannelSortMode,
@@ -52,11 +57,16 @@ import {
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
 import {
+    LIVE_LAYOUT_PANEL,
+    LiveLayoutPanelStateService,
     UnifiedFavoritesDataService,
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
@@ -102,10 +112,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly dialogService = inject(DialogService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
-    private readonly workspaceViewCommands = inject(WorkspaceViewCommandService);
-    private readonly liveSidebarStateService = inject(
-        LiveLayoutSidebarStateService
+    private readonly workspaceViewCommands = inject(
+        WorkspaceViewCommandService
     );
+    private readonly livePanelState = inject(LiveLayoutPanelStateService);
+    private readonly hostElement = inject(ElementRef<HTMLElement>);
     readonly detailTemplate = contentChild(UnifiedCollectionDetailDirective);
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta
@@ -276,9 +287,13 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             this.selectedContentType() === 'live' &&
             this.hasLive()
     );
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly showSidebarToggle = computed(
-        () => this.selectedContentType() === 'live' && this.hasLive()
+        () => this.selectedContentType() === 'live'
+    );
+    readonly channelsPanelExpanded = computed(() =>
+        this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.CHANNELS, {
+            applicable: this.showSidebarToggle(),
+        })
     );
     readonly favSortOptions: ReadonlyArray<{
         mode: FavoritesChannelSortMode;
@@ -339,6 +354,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }));
 
     private loadRequestId = 0;
+    private previousChannelsPanelExpanded: boolean | undefined;
 
     private readonly loadEffect = effect(() => {
         const { mode, portalType, playlistId, scope } = this.loadRequest();
@@ -408,8 +424,18 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             }),
             keywords: () =>
                 this.mode() === 'favorites'
-                    ? ['clear', 'favorites', 'remove', this.selectedContentType()]
-                    : ['clear', 'recent', 'history', this.selectedContentType()],
+                    ? [
+                          'clear',
+                          'favorites',
+                          'remove',
+                          this.selectedContentType(),
+                      ]
+                    : [
+                          'clear',
+                          'recent',
+                          'history',
+                          this.selectedContentType(),
+                      ],
             priority: 10,
             run: () => this.clearAllCurrent(),
         });
@@ -418,6 +444,30 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     });
 
     constructor() {
+        effect(() => {
+            const applicable = this.showSidebarToggle();
+            const expanded = this.channelsPanelExpanded();
+            const previous = this.previousChannelsPanelExpanded;
+            this.previousChannelsPanelExpanded = applicable
+                ? expanded
+                : undefined;
+            if (
+                !applicable ||
+                previous === undefined ||
+                previous === expanded
+            ) {
+                return;
+            }
+
+            queueMicrotask(() => {
+                this.hostElement.nativeElement
+                    .querySelector<HTMLElement>(
+                        '[data-testid="live-channels-panel-toggle"]'
+                    )
+                    ?.focus();
+            });
+        });
+
         if (typeof window !== 'undefined') {
             const onPopState = () => {
                 this.syncCollectionViewStateFromHistory();
@@ -468,8 +518,29 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         void this.router.navigate(['/workspace', 'dashboard']);
     }
 
-    toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+    toggleChannelsPanel(): void {
+        if (this.channelsPanelExpanded()) {
+            this.livePanelState.hidePanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        } else {
+            this.livePanelState.showPanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        }
+    }
+
+    @HostListener('document:keydown', ['$event'])
+    handleSidebarShortcut(event: KeyboardEvent): void {
+        if (
+            !this.showSidebarToggle() ||
+            isTypingInInput(event) ||
+            (!event.metaKey && !event.ctrlKey) ||
+            event.key.toLowerCase() !== 'b'
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        this.livePanelState.toggleMasterSuppression([
+            LIVE_LAYOUT_PANEL.CHANNELS,
+        ]);
     }
 
     setFavSortMode(mode: FavoritesChannelSortMode): void {

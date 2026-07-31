@@ -96,7 +96,7 @@ export class UnifiedLiveTabComponent {
     readonly reorderItems = output<UnifiedCollectionItem[]>();
     readonly itemPlayed = output<UnifiedCollectionItem>();
     readonly autoOpenHandled = output<void>();
-    readonly isSidebarCollapsed = input(false);
+    readonly channelsPanelExpanded = input(true);
 
     private readonly streamResolver = inject(StreamResolverService);
     private readonly recentData = inject(UnifiedRecentDataService);
@@ -262,9 +262,7 @@ export class UnifiedLiveTabComponent {
         return getLiveEpgPanelSummary(this.activeDetail());
     });
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
-        this.activeTimeshift()
-            ? 'EPG.ARCHIVE_PLAYBACK'
-            : 'EPG.CURRENT_PROGRAM'
+        this.activeTimeshift() ? 'EPG.ARCHIVE_PLAYBACK' : 'EPG.CURRENT_PROGRAM'
     );
 
     readonly channelsForList = computed((): UnifiedFavoriteChannel[] =>
@@ -470,10 +468,7 @@ export class UnifiedLiveTabComponent {
             program.startTimestamp,
             program.start
         );
-        const stopEpoch = toEpochSeconds(
-            program.stopTimestamp,
-            program.stop
-        );
+        const stopEpoch = toEpochSeconds(program.stopTimestamp, program.stop);
         if (startEpoch == null || stopEpoch == null) {
             this.snackBar.open(
                 this.translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
@@ -674,5 +669,4 @@ export class UnifiedLiveTabComponent {
             };
         });
     }
-
 }

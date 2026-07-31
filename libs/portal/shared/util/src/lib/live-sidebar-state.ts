@@ -14,10 +14,3 @@ export function restoreLiveSidebarState(
     const storedValue = localStorage.getItem(storageKey);
     return isLiveSidebarState(storedValue) ? storedValue : fallback;
 }
-
-export function persistLiveSidebarState(
-    state: LiveSidebarState,
-    storageKey: string = LIVE_SIDEBAR_STATE_STORAGE_KEY
-): void {
-    localStorage.setItem(storageKey, state);
-}

@@ -25,10 +25,7 @@ import {
 } from '@iptvnator/ui/epg';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     EpgItem,
     EpgProgram,
@@ -99,6 +96,8 @@ class StubEpgTimelineComponent {
     readonly isLivePlayback = input(true);
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
+    readonly collapsible = input(true);
+    readonly panelId = input<string | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     readonly summary = input<any>(null);
     readonly summaryLabelKey = input('');
@@ -296,6 +295,20 @@ describe('UnifiedLiveTabComponent', () => {
         ).componentInstance as StubEpgTimelineComponent;
         expect(timeline.programs()).toEqual([buildProgram('M3U Show')]);
         expect(timeline.archivePlaybackAvailable()).toBe(false);
+        expect(timeline.collapsible()).toBe(false);
+        expect(timeline.panelId()).toBe('live-guide-panel');
+    });
+
+    it('retains a collapsed Channels panel as inert DOM', () => {
+        fixture.componentRef.setInput('items', [buildLiveItem('m3u')]);
+        fixture.componentRef.setInput('channelsPanelExpanded', false);
+        fixture.detectChanges();
+
+        const panel = fixture.nativeElement.querySelector(
+            '#live-channels-panel'
+        ) as HTMLElement;
+        expect(panel.hasAttribute('inert')).toBe(true);
+        expect(panel.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('skips EPG loading and hides the EPG panel in browser/PWA playback', async () => {
@@ -546,6 +559,8 @@ describe('UnifiedLiveTabComponent', () => {
         ]);
         expect(timeline.archivePlaybackAvailable()).toBe(false);
         expect(timeline.collapsed()).toBe(false);
+        expect(timeline.collapsible()).toBe(true);
+        expect(timeline.panelId()).toBe('live-guide-panel');
 
         timeline.collapsedChange.emit(true);
         fixture.detectChanges();

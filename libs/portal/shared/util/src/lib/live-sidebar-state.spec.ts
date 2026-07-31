@@ -2,7 +2,6 @@ import {
     DEFAULT_LIVE_SIDEBAR_STATE,
     LIVE_SIDEBAR_STATE_STORAGE_KEY,
     isLiveSidebarState,
-    persistLiveSidebarState,
     restoreLiveSidebarState,
 } from './live-sidebar-state';
 
@@ -27,13 +26,13 @@ describe('live sidebar state', () => {
         expect(restoreLiveSidebarState()).toBe(DEFAULT_LIVE_SIDEBAR_STATE);
     });
 
-    it('restores and persists collapsed state', () => {
-        persistLiveSidebarState('collapsed');
+    it('restores collapsed legacy state without writing it', () => {
+        localStorage.setItem(LIVE_SIDEBAR_STATE_STORAGE_KEY, 'collapsed');
 
+        expect(restoreLiveSidebarState()).toBe('collapsed');
         expect(localStorage.getItem(LIVE_SIDEBAR_STATE_STORAGE_KEY)).toBe(
             'collapsed'
         );
-        expect(restoreLiveSidebarState()).toBe('collapsed');
     });
 
     it('supports custom storage keys and fallback values', () => {
@@ -41,7 +40,7 @@ describe('live sidebar state', () => {
             restoreLiveSidebarState('custom-live-sidebar-state', 'collapsed')
         ).toBe('collapsed');
 
-        persistLiveSidebarState('expanded', 'custom-live-sidebar-state');
+        localStorage.setItem('custom-live-sidebar-state', 'expanded');
 
         expect(restoreLiveSidebarState('custom-live-sidebar-state')).toBe(
             'expanded'

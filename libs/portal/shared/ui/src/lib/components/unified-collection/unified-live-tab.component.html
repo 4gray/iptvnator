@@ -1,6 +1,9 @@
 <div
+    id="live-channels-panel"
     class="sidebar"
-    [class.sidebar-collapsed]="isSidebarCollapsed()"
+    [class.sidebar-collapsed]="!channelsPanelExpanded()"
+    [attr.aria-hidden]="!channelsPanelExpanded()"
+    [attr.inert]="channelsPanelExpanded() ? null : ''"
     appResizable
     [minWidth]="250"
     [maxWidth]="600"
@@ -83,10 +86,13 @@
                 <div class="epg-content">
                     @if (epgViewMode() === 'list') {
                         <app-epg-list-view
+                            panelId="live-guide-panel"
                             [programs]="timelinePrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="timelineArchiveAvailable()"
+                            [archivePlaybackAvailable]="
+                                timelineArchiveAvailable()
+                            "
                             [archiveDays]="timelineArchiveDays()"
                             [activeProgram]="activeTimeshiftProgram()"
                             [isLivePlayback]="!activeTimeshift()"
@@ -95,6 +101,7 @@
                                 shouldUseInlinePlayer() &&
                                 isLiveEpgPanelCollapsed()
                             "
+                            [collapsible]="shouldUseInlinePlayer()"
                             [summary]="liveEpgPanelSummary()"
                             [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
                             (programActivated)="
@@ -110,10 +117,13 @@
                         />
                     } @else {
                         <app-epg-timeline
+                            panelId="live-guide-panel"
                             [programs]="timelinePrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="timelineArchiveAvailable()"
+                            [archivePlaybackAvailable]="
+                                timelineArchiveAvailable()
+                            "
                             [archiveDays]="timelineArchiveDays()"
                             [activeProgram]="activeTimeshiftProgram()"
                             [isLivePlayback]="!activeTimeshift()"
@@ -122,6 +132,7 @@
                                 shouldUseInlinePlayer() &&
                                 isLiveEpgPanelCollapsed()
                             "
+                            [collapsible]="shouldUseInlinePlayer()"
                             [summary]="liveEpgPanelSummary()"
                             [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
                             (programActivated)="

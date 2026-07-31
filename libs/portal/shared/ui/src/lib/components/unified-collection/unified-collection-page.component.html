@@ -1,5 +1,33 @@
 <ng-content select="ng-template[unifiedCollectionDetail]"></ng-content>
 
+<ng-template #channelsPanelToggle>
+    <button
+        type="button"
+        mat-icon-button
+        class="collection-sidebar-toggle"
+        data-testid="live-channels-panel-toggle"
+        aria-controls="live-channels-panel"
+        [attr.aria-expanded]="channelsPanelExpanded()"
+        [attr.aria-label]="
+            (channelsPanelExpanded()
+                ? 'LAYOUT.HIDE_CHANNELS_PANEL'
+                : 'LAYOUT.SHOW_CHANNELS_PANEL'
+            ) | translate
+        "
+        [matTooltip]="
+            (channelsPanelExpanded()
+                ? 'LAYOUT.HIDE_CHANNELS_PANEL'
+                : 'LAYOUT.SHOW_CHANNELS_PANEL'
+            ) | translate
+        "
+        (click)="toggleChannelsPanel()"
+    >
+        <mat-icon>{{
+            channelsPanelExpanded() ? 'chevron_left' : 'chevron_right'
+        }}</mat-icon>
+    </button>
+</ng-template>
+
 @if (detailContext(); as detailContext) {
     <ng-container
         [ngTemplateOutlet]="detailTemplate()?.templateRef ?? null"
@@ -8,6 +36,9 @@
 } @else if (isLoading()) {
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
+        @if (showSidebarToggle()) {
+            <ng-container [ngTemplateOutlet]="channelsPanelToggle" />
+        }
         <div class="collection-header-toggles">
             <span class="toggle-placeholder"></span>
             @if (showScopeToggle()) {
@@ -18,7 +49,13 @@
         </div>
     </div>
     @if (selectedContentType() === 'live') {
-        <div class="skeleton-list">
+        <div
+            id="live-channels-panel"
+            class="skeleton-list"
+            [class.skeleton-list--collapsed]="!channelsPanelExpanded()"
+            [attr.aria-hidden]="!channelsPanelExpanded()"
+            [attr.inert]="channelsPanelExpanded() ? null : ''"
+        >
             <app-channel-list-skeleton
                 [count]="12"
                 [showEpg]="supportsEpg"
@@ -64,10 +101,7 @@
             </button>
             <mat-menu #favoritesSortMenu="matMenu">
                 @for (option of favSortOptions; track option.mode) {
-                    <button
-                        mat-menu-item
-                        (click)="setFavSortMode(option.mode)"
-                    >
+                    <button mat-menu-item (click)="setFavSortMode(option.mode)">
                         <mat-icon>{{ option.icon }}</mat-icon>
                         <span>{{ option.translationKey | translate }}</span>
                         @if (favSortMode() === option.mode) {
@@ -79,24 +113,7 @@
         }
 
         @if (showSidebarToggle()) {
-            <button
-                type="button"
-                mat-icon-button
-                class="collection-sidebar-toggle"
-                [attr.aria-label]="
-                    (isSidebarCollapsed()
-                        ? 'LAYOUT.SHOW_CHANNELS_LIST'
-                        : 'LAYOUT.HIDE_CHANNELS_LIST'
-                    ) | translate
-                "
-                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-                [attr.aria-pressed]="isSidebarCollapsed()"
-                (click)="toggleSidebar()"
-            >
-                <mat-icon>{{
-                    isSidebarCollapsed() ? 'chevron_right' : 'chevron_left'
-                }}</mat-icon>
-            </button>
+            <ng-container [ngTemplateOutlet]="channelsPanelToggle" />
         }
 
         <div class="collection-header-toggles">
@@ -156,16 +173,14 @@
                         clearButtonTooltipKey()
                             | translate
                                 : {
-                                      type:
-                                          currentTypeLabelKey() | translate,
+                                      type: currentTypeLabelKey() | translate,
                                   }
                     "
                     [attr.aria-label]="
                         clearButtonTooltipKey()
                             | translate
                                 : {
-                                      type:
-                                          currentTypeLabelKey() | translate,
+                                      type: currentTypeLabelKey() | translate,
                                   }
                     "
                 >
@@ -185,7 +200,7 @@
                     [autoOpenItem]="pendingAutoOpenLiveItem()"
                     [favoriteUids]="favoriteUidSet()"
                     [sortMode]="favSortMode()"
-                    [isSidebarCollapsed]="isSidebarCollapsed()"
+                    [channelsPanelExpanded]="channelsPanelExpanded()"
                     (removeItem)="onRemoveItem($event)"
                     (favoriteToggled)="onFavoriteToggled($event)"
                     (reorderItems)="onReorder($event)"
@@ -221,22 +236,44 @@
     }
 
     @if (!hasLive() && !hasMovies() && !hasSeries()) {
-        @if (workspaceSearchTerm()) {
-            <div class="empty-state">
-                <mat-icon class="empty-icon">search_off</mat-icon>
-                <p class="empty-title">
-                    {{ 'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate }}
-                </p>
-            </div>
-        } @else {
-            <app-empty-state
-                type="no-data"
-                [icon]="emptyStateIcon()"
-                [titleKey]="emptyStateTitleKey()"
-                [descriptionKey]="emptyStateBodyKey()"
-                secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_DASHBOARD"
-                (secondaryActionClicked)="goToDashboard()"
-            />
-        }
+        <div
+            [attr.id]="
+                selectedContentType() === 'live' ? 'live-channels-panel' : null
+            "
+            class="collection-empty-panel"
+            [class.collection-empty-panel--collapsed]="
+                selectedContentType() === 'live' && !channelsPanelExpanded()
+            "
+            [attr.aria-hidden]="
+                selectedContentType() === 'live'
+                    ? !channelsPanelExpanded()
+                    : null
+            "
+            [attr.inert]="
+                selectedContentType() === 'live' && !channelsPanelExpanded()
+                    ? ''
+                    : null
+            "
+        >
+            @if (workspaceSearchTerm()) {
+                <div class="empty-state">
+                    <mat-icon class="empty-icon">search_off</mat-icon>
+                    <p class="empty-title">
+                        {{
+                            'WORKSPACE.GLOBAL_FAVORITES.NO_RESULTS' | translate
+                        }}
+                    </p>
+                </div>
+            } @else {
+                <app-empty-state
+                    type="no-data"
+                    [icon]="emptyStateIcon()"
+                    [titleKey]="emptyStateTitleKey()"
+                    [descriptionKey]="emptyStateBodyKey()"
+                    secondaryActionLabelKey="WORKSPACE.SHELL.GO_TO_DASHBOARD"
+                    (secondaryActionClicked)="goToDashboard()"
+                />
+            }
+        </div>
     }
 }

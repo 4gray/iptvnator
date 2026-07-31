@@ -561,7 +561,7 @@ git commit -m "feat(ui): separate M3U live panel toggles"
 - Modify:
   `libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.{ts,html,scss,spec.ts}`
 
-- [ ] **Step 1: Write failing Favorites/Recent tests**
+- [x] **Step 1: Write failing Favorites/Recent tests**
 
 Assert exactly one panel-based Channels control in the collection header for
 both modes, including zero search results; no control inside the list; loading
@@ -569,7 +569,7 @@ Live state retains the header control; collapsed list DOM is inert/aria-hidden;
 `Cmd/Ctrl+B` only suppresses Channels; external/radio Guide disclosure is
 absent.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```bash
 pnpm nx test portal-shared-ui --runInBand
@@ -578,7 +578,7 @@ pnpm nx test portal-shared-ui --runInBand
 Expected: FAIL because collection UI still uses the legacy service and
 `aria-pressed`.
 
-- [ ] **Step 3: Implement the collection exception**
+- [x] **Step 3: Implement the collection exception**
 
 Inject `LiveLayoutPanelStateService`, keep the one header button, bind
 `aria-controls="live-channels-panel"` and effective `aria-expanded`, remove
@@ -586,13 +586,13 @@ Inject `LiveLayoutPanelStateService`, keep the one header button, bind
 control in the loading header when the selected type is Live. Add the
 non-typing `Cmd/Ctrl+B` host listener.
 
-- [ ] **Step 4: Retain and gate the Live list DOM**
+- [x] **Step 4: Retain and gate the Live list DOM**
 
 Bind `id="live-channels-panel"`, `inert`, and `aria-hidden` on the live-tab
 sidebar. Pass Guide `collapsible=shouldUseInlinePlayer()` and omit it for radio
 as today.
 
-- [ ] **Step 5: Run and verify GREEN**
+- [x] **Step 5: Run and verify GREEN**
 
 ```bash
 pnpm nx test portal-shared-ui --runInBand
@@ -601,7 +601,7 @@ pnpm nx lint portal-shared-ui
 
 Expected: both commands exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add libs/portal/shared/ui

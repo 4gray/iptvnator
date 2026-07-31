@@ -10,6 +10,15 @@
 .skeleton-list {
     flex: 1;
     overflow: hidden;
+    transition:
+        width 0.18s ease,
+        flex-basis 0.18s ease;
+
+    &--collapsed {
+        width: 0;
+        flex: 0 0 0;
+        pointer-events: none;
+    }
 }
 
 .skeleton-grid {
@@ -43,6 +52,11 @@
 
 .favorites-sort-button {
     margin-left: -4px;
+}
+
+.collection-sidebar-toggle {
+    min-width: 40px;
+    min-height: 40px;
 }
 
 .collection-header-toggles {
@@ -90,6 +104,22 @@ app-unified-grid-tab {
 
 app-unified-live-tab {
     flex-direction: row;
+}
+
+.collection-empty-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    &--collapsed {
+        flex: 0 0 0;
+        pointer-events: none;
+    }
+
+    > app-empty-state {
+        flex: 1;
+    }
 }
 
 .empty-state {
