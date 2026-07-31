@@ -16,8 +16,7 @@ export type LiveLayoutPanel =
 
 export type LivePanelState = LiveSidebarState;
 
-export const LIVE_GROUPS_PANEL_STATE_STORAGE_KEY =
-    'live-groups-panel-state';
+export const LIVE_GROUPS_PANEL_STATE_STORAGE_KEY = 'live-groups-panel-state';
 export const LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY =
     'live-channels-panel-state';
 
@@ -63,17 +62,14 @@ export class LiveLayoutPanelStateService {
     }
 
     toggleMasterSuppression(
-        applicablePanels: readonly LiveLayoutPanel[]
+        effectivelyVisiblePanels: readonly LiveLayoutPanel[]
     ): void {
         if (this._masterSuppressed()) {
             this._masterSuppressed.set(false);
             return;
         }
 
-        const hasVisiblePanel = applicablePanels.some(
-            (panel) => this.intentFor(panel)() === 'expanded'
-        );
-        this._masterSuppressed.set(hasVisiblePanel);
+        this._masterSuppressed.set(effectivelyVisiblePanels.length > 0);
     }
 
     private setPanelIntent(
@@ -97,9 +93,7 @@ export class LiveLayoutPanelStateService {
 }
 
 function restoreLiveLeftPanelIntents(): LiveLeftPanelIntents {
-    const legacyValue = localStorage.getItem(
-        LIVE_SIDEBAR_STATE_STORAGE_KEY
-    );
+    const legacyValue = localStorage.getItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
     const legacyFallback = isLiveSidebarState(legacyValue)
         ? legacyValue
         : DEFAULT_LIVE_SIDEBAR_STATE;

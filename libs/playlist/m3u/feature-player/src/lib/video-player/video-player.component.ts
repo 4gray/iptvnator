@@ -961,7 +961,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         ) {
             event.preventDefault();
             this.livePanelState.toggleMasterSuppression(
-                this.applicableLeftPanels()
+                this.effectivelyVisibleLeftPanels()
             );
             return;
         }
@@ -975,10 +975,15 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
     }
 
-    private applicableLeftPanels(): readonly LiveLayoutPanel[] {
-        return this.groupsApplicable()
-            ? [LIVE_LAYOUT_PANEL.GROUPS, LIVE_LAYOUT_PANEL.CHANNELS]
-            : [LIVE_LAYOUT_PANEL.CHANNELS];
+    private effectivelyVisibleLeftPanels(): readonly LiveLayoutPanel[] {
+        const panels: LiveLayoutPanel[] = [];
+        if (this.groupsPanelExpanded()) {
+            panels.push(LIVE_LAYOUT_PANEL.GROUPS);
+        }
+        if (this.channelsPanelExpanded()) {
+            panels.push(LIVE_LAYOUT_PANEL.CHANNELS);
+        }
+        return panels;
     }
 
     /**

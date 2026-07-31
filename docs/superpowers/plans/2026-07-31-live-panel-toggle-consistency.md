@@ -88,7 +88,7 @@ expect(
         responsiveSuppressed: true,
     })
 ).toBe(false);
-service.toggleMasterSuppression(['groups', 'channels']);
+service.toggleMasterSuppression(['groups']);
 expect(service.masterSuppressed()).toBe(true);
 service.showPanel('channels');
 expect(service.masterSuppressed()).toBe(false);
@@ -144,7 +144,9 @@ export class LiveLayoutPanelStateService {
 
     hidePanel(panel: LiveLayoutPanel): void;
     showPanel(panel: LiveLayoutPanel): void;
-    toggleMasterSuppression(applicablePanels: readonly LiveLayoutPanel[]): void;
+    toggleMasterSuppression(
+        effectivelyVisiblePanels: readonly LiveLayoutPanel[]
+    ): void;
 }
 ```
 
@@ -447,13 +449,16 @@ Inject `LiveLayoutPanelStateService`, compute Channels effective visibility for
 
 ```ts
 this.livePanelState.toggleMasterSuppression(
-    this.showLiveChannelSidebar() ? ['groups', 'channels'] : ['groups']
+    this.effectivelyVisibleLeftPanels()
 );
 ```
 
 Keep the resizable Channels DOM mounted and inert when collapsed. Move restore
 UI into a non-overlay boundary rail before `.content-container`. Pass
 `[collapsible]="isEmbeddedPlayer"` and `panelId="live-guide-panel"`.
+The shortcut helper must resolve Groups with the workspace `1023px`
+responsive suppression and include Channels only when its effective state is
+expanded; persisted intent alone must not manufacture a visible panel.
 
 - [x] **Step 4: Apply the same contract to Stalker**
 
@@ -753,7 +758,7 @@ git commit -m "docs(ui): document live panel ownership"
 
 - Review every file changed relative to `origin/master`.
 
-- [ ] **Step 1: Run affected unit targets**
+- [x] **Step 1: Run affected unit targets**
 
 ```bash
 pnpm nx run-many \
@@ -764,7 +769,7 @@ pnpm nx run-many \
 
 Expected: all affected unit targets pass.
 
-- [ ] **Step 2: Run affected lint**
+- [x] **Step 2: Run affected lint**
 
 ```bash
 pnpm nx run-many \
@@ -775,7 +780,7 @@ pnpm nx run-many \
 
 Expected: all affected lint targets pass.
 
-- [ ] **Step 3: Run build and atomized E2E**
+- [x] **Step 3: Run build and atomized E2E**
 
 ```bash
 pnpm nx build web
@@ -784,7 +789,7 @@ pnpm nx run electron-backend-e2e:e2e-ci--src/live-panel-toggles.e2e.ts
 
 Expected: build and all panel E2E tests pass.
 
-- [ ] **Step 4: Run repository policy checks**
+- [x] **Step 4: Run repository policy checks**
 
 ```bash
 pnpm run i18n:check
@@ -795,7 +800,7 @@ git diff --check origin/master...HEAD
 
 Expected: all checks exit 0.
 
-- [ ] **Step 5: Perform running Electron visual/accessibility verification**
+- [x] **Step 5: Perform running Electron visual/accessibility verification**
 
 Start `pnpm run serve:backend`, connect through the required Computer Use or
 Electron CDP workflow, and inspect M3U, Xtream, Stalker, Favorites, Recent,
@@ -803,7 +808,7 @@ desktop, narrow, dark, and light states. Record exact target sizes, focus
 movement, absence of duplicate/no-op controls, reclaimed widths, and restore
 ordering.
 
-- [ ] **Step 6: Review the complete diff against the design**
+- [x] **Step 6: Review the complete diff against the design**
 
 ```bash
 git status --short
@@ -816,7 +821,7 @@ Re-read every requirement in the design and verify a code path plus test
 covers it. Confirm no channel-row responsive selector and no external-player
 right-region sizing rule changed.
 
-- [ ] **Step 7: Fix review findings with test-first cycles**
+- [x] **Step 7: Fix review findings with test-first cycles**
 
 For every finding, add or tighten the closest failing test, run it RED, make the
 smallest correction, rerun GREEN, and commit with an appropriate conventional

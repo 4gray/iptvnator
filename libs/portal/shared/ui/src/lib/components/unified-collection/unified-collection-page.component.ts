@@ -538,9 +538,9 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         }
 
         event.preventDefault();
-        this.livePanelState.toggleMasterSuppression([
-            LIVE_LAYOUT_PANEL.CHANNELS,
-        ]);
+        this.livePanelState.toggleMasterSuppression(
+            this.channelsPanelExpanded() ? [LIVE_LAYOUT_PANEL.CHANNELS] : []
+        );
     }
 
     setFavSortMode(mode: FavoritesChannelSortMode): void {

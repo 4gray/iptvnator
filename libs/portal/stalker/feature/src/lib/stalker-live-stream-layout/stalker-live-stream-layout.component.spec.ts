@@ -6,6 +6,7 @@ import {
     output,
     signal,
 } from '@angular/core';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -680,6 +681,24 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             new KeyboardEvent('keydown', { metaKey: true, key: 'b' })
         );
         expect(livePanelState.masterSuppressed()).toBe(false);
+    });
+
+    it('ignores the shortcut when compact Groups and collapsed Channels leave no visible panel', () => {
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        livePanelState.hidePanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        jest.spyOn(
+            TestBed.inject(BreakpointObserver),
+            'isMatched'
+        ).mockReturnValue(true);
+        fixture.detectChanges();
+
+        component.handleSidebarShortcut(
+            new KeyboardEvent('keydown', { ctrlKey: true, key: 'b' })
+        );
+
+        expect(livePanelState.masterSuppressed()).toBe(false);
+        expect(livePanelState.groupsIntent()).toBe('expanded');
+        expect(livePanelState.channelsIntent()).toBe('collapsed');
     });
 
     it('reuses a pending playback resolution during double-click activation', async () => {

@@ -17,9 +17,9 @@ describe('LiveLayoutPanelStateService', () => {
 
         expect(service.groupsIntent()).toBe('expanded');
         expect(service.channelsIntent()).toBe('expanded');
-        expect(
-            localStorage.getItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY)
-        ).toBe('expanded');
+        expect(localStorage.getItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY)).toBe(
+            'expanded'
+        );
         expect(
             localStorage.getItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY)
         ).toBe('expanded');
@@ -38,14 +38,8 @@ describe('LiveLayoutPanelStateService', () => {
     });
 
     it('keeps valid new keys and migrates only a missing or invalid sibling', () => {
-        localStorage.setItem(
-            LIVE_GROUPS_PANEL_STATE_STORAGE_KEY,
-            'expanded'
-        );
-        localStorage.setItem(
-            LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY,
-            'hidden'
-        );
+        localStorage.setItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY, 'expanded');
+        localStorage.setItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY, 'hidden');
         localStorage.setItem(LIVE_SIDEBAR_STATE_STORAGE_KEY, 'collapsed');
 
         const service = createService();
@@ -76,9 +70,9 @@ describe('LiveLayoutPanelStateService', () => {
 
         expect(service.groupsIntent()).toBe('collapsed');
         expect(service.channelsIntent()).toBe('expanded');
-        expect(
-            localStorage.getItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY)
-        ).toBe('collapsed');
+        expect(localStorage.getItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY)).toBe(
+            'collapsed'
+        );
         expect(
             localStorage.getItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY)
         ).toBe('expanded');
@@ -110,33 +104,33 @@ describe('LiveLayoutPanelStateService', () => {
             })
         ).toBe(false);
         expect(service.groupsIntent()).toBe('expanded');
-        expect(
-            localStorage.getItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY)
-        ).toBe('expanded');
+        expect(localStorage.getItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY)).toBe(
+            'expanded'
+        );
     });
 
     it('temporarily suppresses applicable visible panels and restores their persisted intents', () => {
         const service = createService();
         service.hidePanel('channels');
 
-        service.toggleMasterSuppression(['groups', 'channels']);
+        service.toggleMasterSuppression(['groups']);
 
         expect(service.masterSuppressed()).toBe(true);
-        expect(
-            service.isPanelExpanded('groups', { applicable: true })
-        ).toBe(false);
+        expect(service.isPanelExpanded('groups', { applicable: true })).toBe(
+            false
+        );
         expect(service.groupsIntent()).toBe('expanded');
         expect(service.channelsIntent()).toBe('collapsed');
 
-        service.toggleMasterSuppression(['groups', 'channels']);
+        service.toggleMasterSuppression([]);
 
         expect(service.masterSuppressed()).toBe(false);
-        expect(
-            service.isPanelExpanded('groups', { applicable: true })
-        ).toBe(true);
-        expect(
-            service.isPanelExpanded('channels', { applicable: true })
-        ).toBe(false);
+        expect(service.isPanelExpanded('groups', { applicable: true })).toBe(
+            true
+        );
+        expect(service.isPanelExpanded('channels', { applicable: true })).toBe(
+            false
+        );
     });
 
     it('exits master suppression before applying a panel-local action', () => {
@@ -155,14 +149,14 @@ describe('LiveLayoutPanelStateService', () => {
         expect(service.groupsIntent()).toBe('collapsed');
     });
 
-    it('leaves master suppression off when no applicable intent is visible', () => {
+    it('leaves master suppression off when no panel is effectively visible', () => {
         const service = createService();
-        service.hidePanel('groups');
-        service.hidePanel('channels');
 
-        service.toggleMasterSuppression(['groups', 'channels']);
+        service.toggleMasterSuppression([]);
 
         expect(service.masterSuppressed()).toBe(false);
+        expect(service.groupsIntent()).toBe('expanded');
+        expect(service.channelsIntent()).toBe('expanded');
     });
 });
 

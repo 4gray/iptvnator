@@ -1123,6 +1123,29 @@ describe('VideoPlayerComponent', () => {
         );
     });
 
+    it('does not enable master suppression when every panel is effectively hidden on mobile', async () => {
+        routeParams$.next({ id: playlistId(), view: 'groups' });
+        livePanelState.hidePanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        await renderSidebar();
+
+        breakpointState$.next({
+            breakpoints: { '(max-width: 599px)': true },
+            matches: true,
+        });
+        fixture.detectChanges();
+
+        component.handleKeyPress(
+            new KeyboardEvent('keydown', {
+                key: 'b',
+                ctrlKey: true,
+            })
+        );
+
+        expect(livePanelState.masterSuppressed()).toBe(false);
+        expect(livePanelState.groupsIntent()).toBe('expanded');
+        expect(livePanelState.channelsIntent()).toBe('collapsed');
+    });
+
     it('keeps loading controls wired to both effective panel states', async () => {
         routeParams$.next({ id: playlistId(), view: 'groups' });
         channelsLoading.set(true);

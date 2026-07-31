@@ -123,9 +123,17 @@ test('@live-panels @m3u @electron keeps Groups and Channels independent, persist
             )
             .toBe('collapsed');
 
+        await showPanel(page, 'groups');
+        await expectPanelState(page, 'groups', true);
+        await expectPanelState(page, 'channels', false);
         await page.setViewportSize({ width: 580, height: 900 });
         await expect(panelControl(page, 'groups', 'restore')).toHaveCount(0);
         await expect(panelControl(page, 'channels', 'restore')).toBeVisible();
+        await page.keyboard.press(masterShortcut());
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await expectPanelState(page, 'groups', true);
+        await expectPanelState(page, 'channels', false);
+        await page.setViewportSize({ width: 580, height: 900 });
         await showPanel(page, 'channels');
         await expectPanelState(page, 'channels', true);
     } finally {
@@ -296,7 +304,7 @@ async function showPanel(
     const control = panelControl(page, panel, 'restore');
     await expect(control).toBeVisible();
     await expect(control).toHaveAttribute('aria-expanded', 'false');
-    await control.click();
+    await control.press('Enter');
 }
 
 async function expectPanelState(

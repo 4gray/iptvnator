@@ -1,4 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -22,6 +23,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
+    type LiveLayoutPanel,
     LiveLayoutPanelStateService,
     LIVE_LAYOUT_PANEL,
 } from '@iptvnator/portal/shared/data-access';
@@ -75,6 +77,7 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
+const WORKSPACE_GROUPS_COMPACT_QUERY = '(max-width: 1023px)';
 
 interface XtreamLiveChannelItem {
     readonly added?: string;
@@ -126,6 +129,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly livePanelState = inject(LiveLayoutPanelStateService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
+    private readonly breakpointObserver = inject(BreakpointObserver);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
@@ -559,11 +563,27 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         ) {
             event.preventDefault();
             this.livePanelState.toggleMasterSuppression(
-                this.showLiveChannelSidebar()
-                    ? [LIVE_LAYOUT_PANEL.GROUPS, LIVE_LAYOUT_PANEL.CHANNELS]
-                    : [LIVE_LAYOUT_PANEL.GROUPS]
+                this.effectivelyVisibleLeftPanels()
             );
         }
+    }
+
+    private effectivelyVisibleLeftPanels(): readonly LiveLayoutPanel[] {
+        const panels: LiveLayoutPanel[] = [];
+        if (
+            this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.GROUPS, {
+                applicable: true,
+                responsiveSuppressed: this.breakpointObserver.isMatched(
+                    WORKSPACE_GROUPS_COMPACT_QUERY
+                ),
+            })
+        ) {
+            panels.push(LIVE_LAYOUT_PANEL.GROUPS);
+        }
+        if (this.channelsPanelExpanded()) {
+            panels.push(LIVE_LAYOUT_PANEL.CHANNELS);
+        }
+        return panels;
     }
 
     onLiveEpgDateNavigation(direction: EpgDateNavigationDirection): void {

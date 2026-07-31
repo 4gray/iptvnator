@@ -1,4 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import {
     ChangeDetectionStrategy,
     ChangeDetectorRef,
@@ -57,6 +58,7 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    type LiveLayoutPanel,
     LiveLayoutPanelStateService,
     LIVE_LAYOUT_PANEL,
 } from '@iptvnator/portal/shared/data-access';
@@ -86,6 +88,7 @@ type StalkerPlayableChannel = StalkerPortalItem & {
 
 /** Channels rendered per "page" when the full list is served from the cache. */
 const FULL_LIST_RENDER_CHUNK = 100;
+const WORKSPACE_GROUPS_COMPACT_QUERY = '(max-width: 1023px)';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -123,6 +126,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly translate = inject(TranslateService);
     private readonly livePanelState = inject(LiveLayoutPanelStateService);
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
+    private readonly breakpointObserver = inject(BreakpointObserver);
     private readonly logger = createLogger('StalkerLiveStream');
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
 
@@ -778,11 +782,27 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         ) {
             event.preventDefault();
             this.livePanelState.toggleMasterSuppression(
-                this.channelsPanelApplicable()
-                    ? [LIVE_LAYOUT_PANEL.GROUPS, LIVE_LAYOUT_PANEL.CHANNELS]
-                    : [LIVE_LAYOUT_PANEL.GROUPS]
+                this.effectivelyVisibleLeftPanels()
             );
         }
+    }
+
+    private effectivelyVisibleLeftPanels(): readonly LiveLayoutPanel[] {
+        const panels: LiveLayoutPanel[] = [];
+        if (
+            this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.GROUPS, {
+                applicable: true,
+                responsiveSuppressed: this.breakpointObserver.isMatched(
+                    WORKSPACE_GROUPS_COMPACT_QUERY
+                ),
+            })
+        ) {
+            panels.push(LIVE_LAYOUT_PANEL.GROUPS);
+        }
+        if (this.channelsPanelExpanded()) {
+            panels.push(LIVE_LAYOUT_PANEL.CHANNELS);
+        }
+        return panels;
     }
 
     onLiveEpgDateNavigation(direction: EpgDateNavigationDirection): void {
