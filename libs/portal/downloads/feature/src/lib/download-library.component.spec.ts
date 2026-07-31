@@ -1,9 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { FocusMonitor } from '@angular/cdk/a11y';
-import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatTooltipHarness } from '@angular/material/tooltip/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import type { DownloadItem } from '@iptvnator/services';
@@ -33,8 +30,6 @@ const TRANSLATIONS = {
         SEASON: 'Season {{season}}',
         SEASON_RANGE: 'Seasons {{first}}–{{last}}',
         SERIES: 'Series',
-        SOURCE_PLAYLIST_MISSING:
-            'This download can no longer open because its source was removed.',
     },
     PORTALS: {
         MULTI_SOURCE: {
@@ -154,10 +149,6 @@ describe('DownloadLibraryComponent', () => {
         fixture = TestBed.createComponent(DownloadLibraryComponent);
         component = fixture.componentInstance;
         fixture.componentRef.setInput('entities', ENTITIES);
-        fixture.componentRef.setInput(
-            'availablePlaylistIds',
-            new Set(['playlist-a'])
-        );
         await fixture.whenStable();
     });
 
@@ -323,9 +314,7 @@ describe('DownloadLibraryComponent', () => {
         expect(actions).toEqual([]);
     });
 
-    it('keeps orphaned movie navigation focusable and explains why it cannot open', async () => {
-        fixture.componentRef.setInput('availablePlaylistIds', new Set());
-        await fixture.whenStable();
+    it('opens orphaned movie details without source-dependent disabled semantics', async () => {
         const card = byTestId('download-library-movie-9');
         const artwork = button(card, 'Open details: Moonrise artwork');
         const title = button(card, 'Open details: Moonrise');
@@ -334,27 +323,12 @@ describe('DownloadLibraryComponent', () => {
 
         expect(artwork.disabled).toBe(false);
         expect(title.disabled).toBe(false);
-        expect(artwork.getAttribute('aria-disabled')).toBe('true');
-        expect(title.getAttribute('aria-disabled')).toBe('true');
-
-        const loader = TestbedHarnessEnvironment.loader(fixture);
-        const tooltip = await loader.getHarness(
-            MatTooltipHarness.with({
-                selector:
-                    '.download-library__artwork-button[aria-label="Open details: Moonrise artwork"]',
-            })
-        );
-        TestBed.inject(FocusMonitor).focusVia(artwork, 'keyboard');
-        await fixture.whenStable();
-        expect(await tooltip.isOpen()).toBe(true);
-        expect(await tooltip.getTooltipText()).toBe(
-            'This download can no longer open because its source was removed.'
-        );
-        await tooltip.hide();
+        expect(artwork.getAttribute('aria-disabled')).toBeNull();
+        expect(title.getAttribute('aria-disabled')).toBeNull();
 
         await click(artwork);
         await click(title);
-        expect(opened).toEqual([]);
+        expect(opened).toEqual([MOVIE, MOVIE]);
     });
 
     it('keeps explicit movie toolbar and menu commands local', async () => {
@@ -430,13 +404,19 @@ describe('DownloadLibraryComponent', () => {
         await fixture.whenStable();
         expect(opened).toEqual([]);
 
+        await click(
+            button(
+                byTestId('download-library-movie-9'),
+                'Open details: Moonrise artwork'
+            )
+        );
+        expect(opened).toEqual([MOVIE]);
+
         await click(episodes);
         expect(episodeGroups).toEqual([SERIES]);
     });
 
-    it('disables orphaned series navigation and explains why while keeping episodes local', async () => {
-        fixture.componentRef.setInput('availablePlaylistIds', new Set());
-        await fixture.whenStable();
+    it('opens orphaned series navigation while keeping episodes local', async () => {
         const card = byTestId('download-library-series-playlist-a-77');
         const artwork = button(card, 'Open details: Northwind artwork');
         const title = button(card, 'Open details: Northwind');
@@ -446,29 +426,16 @@ describe('DownloadLibraryComponent', () => {
 
         expect(artwork.disabled).toBe(false);
         expect(title.disabled).toBe(false);
-        expect(artwork.getAttribute('aria-disabled')).toBe('true');
-        expect(title.getAttribute('aria-disabled')).toBe('true');
+        expect(artwork.getAttribute('aria-disabled')).toBeNull();
+        expect(title.getAttribute('aria-disabled')).toBeNull();
         expect(episodes.disabled).toBe(false);
 
-        const loader = TestbedHarnessEnvironment.loader(fixture);
-        const tooltip = await loader.getHarness(
-            MatTooltipHarness.with({
-                selector:
-                    '[data-test-id="download-library-series-open"].download-library__artwork-button',
-            })
-        );
-        TestBed.inject(FocusMonitor).focusVia(artwork, 'keyboard');
-        await fixture.whenStable();
+        artwork.focus();
         expect(document.activeElement).toBe(artwork);
-        expect(await tooltip.isOpen()).toBe(true);
-        expect(await tooltip.getTooltipText()).toBe(
-            'This download can no longer open because its source was removed.'
-        );
-        await tooltip.hide();
 
         await click(artwork);
         await click(title);
-        expect(opened).toEqual([]);
+        expect(opened).toEqual([SERIES.representative, SERIES.representative]);
     });
 
     it('opens the downloaded episode group from its count control', async () => {

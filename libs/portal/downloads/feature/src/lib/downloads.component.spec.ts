@@ -5,7 +5,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import {
+    ActivatedRoute,
+    convertToParamMap,
+    type ParamMap,
+    Router,
+} from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     type DownloadItem,
@@ -18,7 +23,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { Playlist } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, type Observable, Subject } from 'rxjs';
 import { DownloadLibraryNavigationService } from './download-library-navigation.service';
 import { DownloadManagerActionsService } from './download-manager-actions.service';
 import type { DownloadSeriesCardViewModel } from './download-manager.viewmodel';
@@ -44,6 +49,7 @@ interface ExpectedDownloadsComponent {
     readonly pendingIds: () => ReadonlySet<number>;
     clearFinished(): void;
     openDownloadedSeries(group: DownloadSeriesCardViewModel): void;
+    openOfflineDetail(item: DownloadItem): void;
     openInLibrary(item: DownloadItem): Promise<void>;
     runAction(action: {
         readonly type: string;
@@ -90,6 +96,16 @@ describe('DownloadsComponent', () => {
     let downloads: ReturnType<typeof signal<DownloadItem[]>>;
     let routeParams: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
     let queryParams: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+    let activatedRoute: {
+        readonly paramMap: Observable<ParamMap>;
+        readonly queryParamMap: Observable<ParamMap>;
+        readonly snapshot: {
+            readonly params: Record<string, string>;
+            readonly paramMap: ReturnType<typeof convertToParamMap>;
+            readonly queryParamMap: ReturnType<typeof convertToParamMap>;
+        };
+    };
+    let router: { url: string; navigate: jest.Mock };
     let playlistItems: BehaviorSubject<Playlist[]>;
     let collectionContext: PortalCollectionContextService;
     let dialogConfigs: ConfirmConfig[];
@@ -131,6 +147,19 @@ describe('DownloadsComponent', () => {
         downloads = signal<DownloadItem[]>([]);
         routeParams = new BehaviorSubject(convertToParamMap({}));
         queryParams = new BehaviorSubject(convertToParamMap({}));
+        activatedRoute = {
+            paramMap: routeParams.asObservable(),
+            queryParamMap: queryParams.asObservable(),
+            snapshot: {
+                params: {},
+                paramMap: convertToParamMap({}),
+                queryParamMap: convertToParamMap({}),
+            },
+        };
+        router = {
+            url: '/workspace/downloads?q=signal',
+            navigate: jest.fn(async () => true),
+        };
         playlistItems = new BehaviorSubject([
             playlist('playlist-a', 'Alpha source'),
             playlist('playlist-b', 'Beta source'),
@@ -204,19 +233,11 @@ describe('DownloadsComponent', () => {
             providers: [
                 {
                     provide: ActivatedRoute,
-                    useValue: {
-                        paramMap: routeParams.asObservable(),
-                        queryParamMap: queryParams.asObservable(),
-                        snapshot: {
-                            params: {},
-                            paramMap: convertToParamMap({}),
-                            queryParamMap: convertToParamMap({}),
-                        },
-                    },
+                    useValue: activatedRoute,
                 },
                 {
                     provide: Router,
-                    useValue: { navigate: jest.fn(async () => true) },
+                    useValue: router,
                 },
                 {
                     provide: DownloadsService,
@@ -718,10 +739,11 @@ describe('DownloadsComponent', () => {
         );
     });
 
-    it('opens completed movie artwork in details while explicit Play uses the file', async () => {
-        const item = download(14, {
-            title: 'Completed movie',
-            filePath: '/downloads/completed-movie.mp4',
+    it('opens removed-source movie artwork in its offline detail while explicit Play stays local', async () => {
+        const item = download(17, {
+            playlistId: 'removed-playlist',
+            title: 'Signal',
+            filePath: '/downloads/signal.mp4',
         });
         downloads.set([item]);
         await fixture.whenStable();
@@ -734,12 +756,17 @@ describe('DownloadsComponent', () => {
         artworkButton.click();
         await fixture.whenStable();
 
-        expect(navigation.open).toHaveBeenCalledWith(item);
+        expect(router.navigate).toHaveBeenCalledWith(['17'], {
+            relativeTo: activatedRoute,
+            state: { returnUrl: '/workspace/downloads?q=signal' },
+        });
+        expect(navigation.canOpen).not.toHaveBeenCalled();
+        expect(navigation.open).not.toHaveBeenCalled();
         expect(downloadsService.playDownload).not.toHaveBeenCalled();
 
         jest.clearAllMocks();
         const playButton = fixture.nativeElement.querySelector(
-            '.download-library__actions button[aria-label="Play: Completed movie"]'
+            '.download-library__actions button[aria-label="Play: Signal"]'
         ) as HTMLButtonElement;
         expect(playButton).toBeTruthy();
 
@@ -749,7 +776,81 @@ describe('DownloadsComponent', () => {
         expect(downloadsService.playDownload).toHaveBeenCalledWith(
             item.filePath
         );
+        expect(router.navigate).not.toHaveBeenCalled();
         expect(navigation.open).not.toHaveBeenCalled();
+    });
+
+    it('opens a grouped-series representative relative to the Xtream downloads route', async () => {
+        const older = download(18, {
+            contentType: 'episode',
+            createdAt: '2026-07-18T12:00:00Z',
+            episodeNumber: 1,
+            seasonNumber: 1,
+            seriesXtreamId: 77,
+            title: 'Northwind - S01E01 - Arrival',
+        });
+        const representative = download(19, {
+            contentType: 'episode',
+            createdAt: '2026-07-19T12:00:00Z',
+            episodeNumber: 2,
+            seasonNumber: 1,
+            seriesXtreamId: 77,
+            title: 'Northwind - S01E02 - Signal',
+        });
+        routeParams.next(convertToParamMap({ id: 'playlist-a' }));
+        router.url = '/workspace/xtream/playlist-a/downloads?q=northwind';
+        downloads.set([older, representative]);
+        await fixture.whenStable();
+
+        const seriesArtwork = fixture.nativeElement.querySelector(
+            '[data-test-id="download-library-series-open"].download-library__artwork-button'
+        ) as HTMLButtonElement;
+        expect(seriesArtwork).toBeTruthy();
+
+        seriesArtwork.click();
+        await fixture.whenStable();
+
+        expect(router.navigate).toHaveBeenCalledWith(['19'], {
+            relativeTo: activatedRoute,
+            state: {
+                returnUrl: '/workspace/xtream/playlist-a/downloads?q=northwind',
+            },
+        });
+        expect(navigation.open).not.toHaveBeenCalled();
+    });
+
+    it('keeps offline detail navigation relative to the Stalker downloads route', () => {
+        routeParams.next(convertToParamMap({ id: 'playlist-a' }));
+        router.url = '/workspace/stalker/playlist-a/downloads?q=signal';
+
+        component.openOfflineDetail(download(22));
+
+        expect(router.navigate).toHaveBeenCalledWith(['22'], {
+            relativeTo: activatedRoute,
+            state: {
+                returnUrl: '/workspace/stalker/playlist-a/downloads?q=signal',
+            },
+        });
+    });
+
+    it('blocks only the exact pending download from opening offline detail', async () => {
+        const operation = deferred<{ success: boolean }>();
+        const pending = download(20, { status: 'downloading' });
+        const ready = download(21);
+        downloadsService.pauseDownload.mockReturnValueOnce(operation.promise);
+
+        const action = component.runAction({ type: 'pause', item: pending });
+        component.openOfflineDetail(pending);
+        component.openOfflineDetail(ready);
+
+        expect(router.navigate).toHaveBeenCalledTimes(1);
+        expect(router.navigate).toHaveBeenCalledWith(['21'], {
+            relativeTo: activatedRoute,
+            state: { returnUrl: '/workspace/downloads?q=signal' },
+        });
+
+        operation.resolve({ success: true });
+        await action;
     });
 
     it('does not navigate an item whose source playlist is missing', async () => {

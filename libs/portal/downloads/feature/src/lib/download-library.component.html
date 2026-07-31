@@ -24,24 +24,9 @@
                                 class="download-library__artwork-button"
                                 data-test-id="download-library-series-open"
                                 [disabled]="isPending(entity.representative)"
-                                [class.download-library__artwork-button--disabled]="
-                                    !canOpen(entity.representative)
-                                "
-                                [attr.aria-disabled]="
-                                    !canOpen(entity.representative)
-                                        ? 'true'
-                                        : null
-                                "
                                 [attr.aria-label]="
                                     'DOWNLOADS.OPEN_ARTWORK'
                                         | translate: { title: entity.title }
-                                "
-                                [matTooltip]="
-                                    'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
-                                        | translate
-                                "
-                                [matTooltipDisabled]="
-                                    canOpen(entity.representative)
                                 "
                                 (click)="openDetails(entity.representative)"
                             >
@@ -86,25 +71,10 @@
                                     [disabled]="
                                         isPending(entity.representative)
                                     "
-                                    [class.download-library__title-button--disabled]="
-                                        !canOpen(entity.representative)
-                                    "
-                                    [attr.aria-disabled]="
-                                        !canOpen(entity.representative)
-                                            ? 'true'
-                                            : null
-                                    "
                                     [attr.aria-label]="
                                         ('DOWNLOADS.OPEN_DETAILS' | translate) +
                                         ': ' +
                                         entity.title
-                                    "
-                                    [matTooltip]="
-                                        'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
-                                            | translate
-                                    "
-                                    [matTooltipDisabled]="
-                                        canOpen(entity.representative)
                                     "
                                     (click)="openDetails(entity.representative)"
                                 >
@@ -227,16 +197,6 @@
                                 type="button"
                                 class="download-library__artwork-button"
                                 [disabled]="isPending(entity.item)"
-                                [class.download-library__artwork-button--disabled]="
-                                    entity.kind === 'movie' &&
-                                    !canOpen(entity.item)
-                                "
-                                [attr.aria-disabled]="
-                                    entity.kind === 'movie' &&
-                                    !canOpen(entity.item)
-                                        ? 'true'
-                                        : null
-                                "
                                 [attr.aria-label]="
                                     entity.kind === 'movie'
                                         ? ('DOWNLOADS.OPEN_ARTWORK'
@@ -245,14 +205,6 @@
                                         : ('DOWNLOADS.PLAY' | translate) +
                                           ': ' +
                                           entity.item.title
-                                "
-                                [matTooltip]="
-                                    'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
-                                        | translate
-                                "
-                                [matTooltipDisabled]="
-                                    entity.kind !== 'movie' ||
-                                    canOpen(entity.item)
                                 "
                                 (click)="
                                     entity.kind === 'movie'
@@ -306,16 +258,6 @@
                                 type="button"
                                 class="download-library__title-button"
                                 [disabled]="isPending(entity.item)"
-                                [class.download-library__title-button--disabled]="
-                                    entity.kind === 'movie' &&
-                                    !canOpen(entity.item)
-                                "
-                                [attr.aria-disabled]="
-                                    entity.kind === 'movie' &&
-                                    !canOpen(entity.item)
-                                        ? 'true'
-                                        : null
-                                "
                                 [attr.aria-label]="
                                     ((entity.kind === 'movie'
                                         ? 'DOWNLOADS.OPEN_DETAILS'
@@ -323,14 +265,6 @@
                                     ) | translate) +
                                     ': ' +
                                     entity.item.title
-                                "
-                                [matTooltip]="
-                                    'DOWNLOADS.SOURCE_PLAYLIST_MISSING'
-                                        | translate
-                                "
-                                [matTooltipDisabled]="
-                                    entity.kind !== 'movie' ||
-                                    canOpen(entity.item)
                                 "
                                 (click)="
                                     entity.kind === 'movie'

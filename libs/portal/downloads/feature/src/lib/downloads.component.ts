@@ -226,6 +226,16 @@ export class DownloadsComponent {
         this.destroyRef.onDestroy(cleanup);
     }
 
+    openOfflineDetail(item: DownloadItem): void {
+        if (this.pendingIds().has(item.id)) {
+            return;
+        }
+        void this.router.navigate([String(item.id)], {
+            relativeTo: this.route,
+            state: { returnUrl: this.router.url },
+        });
+    }
+
     async openInLibrary(item: DownloadItem): Promise<void> {
         if (this.pendingIds().has(item.id)) {
             return;

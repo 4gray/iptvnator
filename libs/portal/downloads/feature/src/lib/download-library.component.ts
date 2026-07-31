@@ -38,7 +38,6 @@ import { DownloadSourceMenuHeaderComponent } from './download-source-menu-header
 })
 export class DownloadLibraryComponent {
     readonly entities = input.required<readonly DownloadLibraryEntity[]>();
-    readonly availablePlaylistIds = input.required<ReadonlySet<string>>();
     readonly pendingIds = input<ReadonlySet<number>>(new Set());
     readonly itemAction = output<DownloadItemAction>();
     readonly openRequested = output<DownloadItem>();
@@ -83,10 +82,6 @@ export class DownloadLibraryComponent {
         return this.pendingIds().has(item.id);
     }
 
-    protected canOpen(item: DownloadItem): boolean {
-        return this.availablePlaylistIds().has(item.playlistId);
-    }
-
     protected emitAction(
         type: DownloadItemActionType,
         item: DownloadItem
@@ -97,7 +92,7 @@ export class DownloadLibraryComponent {
     }
 
     protected openDetails(item: DownloadItem): void {
-        if (!this.isPending(item) && this.canOpen(item)) {
+        if (!this.isPending(item)) {
             this.openRequested.emit(item);
         }
     }

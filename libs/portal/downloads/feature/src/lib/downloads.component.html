@@ -232,10 +232,9 @@
             />
             <app-download-library
                 [entities]="model().library"
-                [availablePlaylistIds]="availablePlaylistIds()"
                 [pendingIds]="pendingIds()"
                 (itemAction)="runAction($event)"
-                (openRequested)="openInLibrary($event)"
+                (openRequested)="openOfflineDetail($event)"
                 (episodesOpened)="openDownloadedSeries($event)"
             />
         }
