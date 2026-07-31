@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
-import { TranslateService } from '@ngx-translate/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject } from 'rxjs';
 import { EpgListViewComponent } from './epg-list-view.component';
 import { EpgListRow } from './epg-list-view.utils';
@@ -39,20 +39,12 @@ describe('EpgListViewComponent', () => {
             undefined
         );
         TestBed.configureTestingModule({
-            imports: [EpgListViewComponent],
+            imports: [EpgListViewComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: MatDialog,
                     useValue: {
                         open: () => ({ afterClosed: () => dialogResult }),
-                    },
-                },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        currentLang: 'en',
-                        defaultLang: 'en',
-                        onLangChange: new BehaviorSubject(null),
                     },
                 },
             ],
@@ -232,6 +224,38 @@ describe('EpgListViewComponent', () => {
 
         component.toggleCollapsed();
         expect(emitted).toEqual([true]);
+    });
+
+    it('renders an accessible Guide disclosure only when the host can collapse it', async () => {
+        setInputs({
+            channelName: 'Sports',
+            collapsible: true,
+            panelId: 'live-guide-panel',
+        });
+        await fixture.whenStable();
+
+        const toggle = fixture.nativeElement.querySelector(
+            '[data-testid="live-guide-toggle"]'
+        ) as HTMLButtonElement | null;
+        expect(toggle).not.toBeNull();
+        expect(toggle?.getAttribute('aria-controls')).toBe('live-guide-panel');
+        expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+        expect(
+            fixture.nativeElement.querySelector('#live-guide-panel')
+        ).not.toBeNull();
+
+        setInputs({ collapsible: false });
+        await fixture.whenStable();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-guide-toggle"]'
+            )
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.g-heading-static')
+                ?.textContent
+        ).toContain('Sports');
     });
 
     it('derives a live progress percentage from the summary when collapsed', () => {

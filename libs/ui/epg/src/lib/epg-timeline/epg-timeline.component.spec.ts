@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
-import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, of } from 'rxjs';
+import { TranslateModule } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { EpgTimelineComponent } from './epg-timeline.component';
 import { TimelineBlock } from './epg-timeline.utils';
 
@@ -36,18 +36,12 @@ describe('EpgTimelineComponent', () => {
 
     beforeEach(() => {
         TestBed.configureTestingModule({
-            imports: [EpgTimelineComponent],
+            imports: [EpgTimelineComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: MatDialog,
-                    useValue: { open: () => ({ afterClosed: () => of(undefined) }) },
-                },
-                {
-                    provide: TranslateService,
                     useValue: {
-                        currentLang: 'en',
-                        defaultLang: 'en',
-                        onLangChange: new BehaviorSubject(null),
+                        open: () => ({ afterClosed: () => of(undefined) }),
                     },
                 },
             ],
@@ -200,6 +194,38 @@ describe('EpgTimelineComponent', () => {
 
         component.toggleCollapsed();
         expect(emitted).toEqual([true]);
+    });
+
+    it('renders an accessible Guide disclosure only when the host can collapse it', async () => {
+        setInputs({
+            channelName: 'News',
+            collapsible: true,
+            panelId: 'live-guide-panel',
+        });
+        await fixture.whenStable();
+
+        const toggle = fixture.nativeElement.querySelector(
+            '[data-testid="live-guide-toggle"]'
+        ) as HTMLButtonElement | null;
+        expect(toggle).not.toBeNull();
+        expect(toggle?.getAttribute('aria-controls')).toBe('live-guide-panel');
+        expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+        expect(
+            fixture.nativeElement.querySelector('#live-guide-panel')
+        ).not.toBeNull();
+
+        setInputs({ collapsible: false });
+        await fixture.whenStable();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-guide-toggle"]'
+            )
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.epg-timeline__heading-static')
+                ?.textContent
+        ).toContain('News');
     });
 
     it('derives a live progress percentage from the summary', () => {

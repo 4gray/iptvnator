@@ -7,37 +7,46 @@
 >
     <!-- single header bar: collapse + channel on the left, controls/summary on the right -->
     <div class="epg-timeline__toolbar">
-        <button
-            type="button"
-            class="epg-timeline__collapse"
-            (click)="toggleCollapsed()"
-            [attr.aria-expanded]="!collapsed()"
-            [attr.aria-label]="
-                (collapsed() ? 'EPG.EXPAND_PANEL' : 'EPG.COLLAPSE_PANEL')
-                    | translate
-            "
-        >
-            <span class="epg-timeline__collapse-icon">
-                <mat-icon>keyboard_arrow_down</mat-icon>
-            </span>
-            <span class="epg-timeline__heading">
+        @if (collapsible()) {
+            <button
+                type="button"
+                class="epg-timeline__collapse"
+                data-testid="live-guide-toggle"
+                (click)="toggleCollapsed()"
+                [attr.aria-controls]="panelId()"
+                [attr.aria-expanded]="!collapsed()"
+                [attr.aria-label]="
+                    (collapsed() ? 'EPG.EXPAND_PANEL' : 'EPG.COLLAPSE_PANEL')
+                        | translate
+                "
+            >
+                <span class="epg-timeline__collapse-icon">
+                    <mat-icon>keyboard_arrow_down</mat-icon>
+                </span>
+                <span class="epg-timeline__heading">
+                    <b>{{ channelName() }}</b>
+                    @if (!collapsed() && hasSummary()) {
+                        <span
+                            class="epg-timeline__subtitle"
+                            [class.is-arch]="!isLivePlayback()"
+                            [attr.title]="summary()?.title"
+                        >
+                            @if (!isLivePlayback()) {
+                                <mat-icon>history</mat-icon>
+                            }
+                            {{ summary()?.title }}
+                        </span>
+                    } @else {
+                        <span>{{ sourceLabel() }}</span>
+                    }
+                </span>
+            </button>
+        } @else {
+            <span class="epg-timeline__heading epg-timeline__heading-static">
                 <b>{{ channelName() }}</b>
-                @if (!collapsed() && hasSummary()) {
-                    <span
-                        class="epg-timeline__subtitle"
-                        [class.is-arch]="!isLivePlayback()"
-                        [attr.title]="summary()?.title"
-                    >
-                        @if (!isLivePlayback()) {
-                            <mat-icon>history</mat-icon>
-                        }
-                        {{ summary()?.title }}
-                    </span>
-                } @else {
-                    <span>{{ sourceLabel() }}</span>
-                }
+                <span>{{ sourceLabel() }}</span>
             </span>
-        </button>
+        }
 
         <span class="epg-timeline__spacer"></span>
 
@@ -55,7 +64,10 @@
                         summary()?.title
                     }}</span>
                     @if (progress() !== null) {
-                        <span class="epg-timeline__summary-bar" aria-hidden="true">
+                        <span
+                            class="epg-timeline__summary-bar"
+                            aria-hidden="true"
+                        >
                             <i [style.width.%]="progress()"></i>
                         </span>
                     }
@@ -145,7 +157,8 @@
                             }
                         </span>
                         <small>{{
-                            viewDate() | date: 'EEE, d MMM' : '' : currentLocale()
+                            viewDate()
+                                | date: 'EEE, d MMM' : '' : currentLocale()
                         }}</small>
                     </div>
                     <button
@@ -161,60 +174,70 @@
         }
     </div>
 
-    @if (!collapsed()) {
-        <!-- Schedule-only notice (provider exposes history but no catch-up) -->
-        @if (state === 'ribbon' && !archivePlaybackAvailable()) {
-            <div class="epg-timeline__notice" role="note">
-                <mat-icon>info</mat-icon>
-                <span>{{ 'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate }}</span>
-            </div>
-        }
+    <div
+        class="epg-timeline__panel-content"
+        [id]="panelId()"
+        [attr.aria-hidden]="collapsed()"
+    >
+        @if (!collapsed()) {
+            <!-- Schedule-only notice (provider exposes history but no catch-up) -->
+            @if (state === 'ribbon' && !archivePlaybackAvailable()) {
+                <div class="epg-timeline__notice" role="note">
+                    <mat-icon>info</mat-icon>
+                    <span>{{
+                        'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate
+                    }}</span>
+                </div>
+            }
 
-        @switch (state) {
-            @case ('loading') {
-                <div class="epg-timeline__ribbon epg-timeline__ribbon--skeleton">
-                    @for (width of skeletonWidths; track $index) {
-                        <div
-                            class="epg-timeline__sk"
-                            [style.width.px]="width"
-                        ></div>
-                    }
-                </div>
-            }
-            @case ('ribbon') {
-                <div
-                    #ribbon
-                    class="epg-timeline__ribbon app-scrollbar"
-                    (scroll)="onRibbonScroll()"
-                >
-                    <app-epg-timeline-track
-                        [items]="renderItems()"
-                        [ticks]="ticks()"
-                        [dividers]="dividers()"
-                        [scale]="scale()"
-                        [trackWidthPx]="trackWidthPx()"
-                        [playheadLeftPx]="playheadLeftPx()"
-                        [nowLabel]="nowLabel()"
-                        [selectedKey]="selectedKey()"
-                        [activeProgram]="activeProgram()"
-                        [currentLocale]="currentLocale()"
-                        (blockClick)="onBlockClick($event)"
-                        (watchClick)="onWatch($event)"
-                        (infoClick)="openDetails($event)"
-                        (groupExpand)="onGroupExpand($event)"
+            @switch (state) {
+                @case ('loading') {
+                    <div
+                        class="epg-timeline__ribbon epg-timeline__ribbon--skeleton"
+                    >
+                        @for (width of skeletonWidths; track $index) {
+                            <div
+                                class="epg-timeline__sk"
+                                [style.width.px]="width"
+                            ></div>
+                        }
+                    </div>
+                }
+                @case ('ribbon') {
+                    <div
+                        #ribbon
+                        class="epg-timeline__ribbon app-scrollbar"
+                        (scroll)="onRibbonScroll()"
+                    >
+                        <app-epg-timeline-track
+                            [items]="renderItems()"
+                            [ticks]="ticks()"
+                            [dividers]="dividers()"
+                            [scale]="scale()"
+                            [trackWidthPx]="trackWidthPx()"
+                            [playheadLeftPx]="playheadLeftPx()"
+                            [nowLabel]="nowLabel()"
+                            [selectedKey]="selectedKey()"
+                            [activeProgram]="activeProgram()"
+                            [currentLocale]="currentLocale()"
+                            (blockClick)="onBlockClick($event)"
+                            (watchClick)="onWatch($event)"
+                            (infoClick)="openDetails($event)"
+                            (groupExpand)="onGroupExpand($event)"
+                        />
+                    </div>
+                }
+                @default {
+                    <app-epg-timeline-empty-state
+                        [reason]="emptyStateReason()"
+                        [hasOtherDays]="hasOtherDays()"
+                        (jumpToday)="jumpToNow()"
+                        (jumpNearest)="jumpToNearestDay()"
+                        (openSettings)="openEpgSettings.emit()"
+                        (retry)="retry.emit()"
                     />
-                </div>
-            }
-            @default {
-                <app-epg-timeline-empty-state
-                    [reason]="emptyStateReason()"
-                    [hasOtherDays]="hasOtherDays()"
-                    (jumpToday)="jumpToNow()"
-                    (jumpNearest)="jumpToNearestDay()"
-                    (openSettings)="openEpgSettings.emit()"
-                    (retry)="retry.emit()"
-                />
+                }
             }
         }
-    }
+    </div>
 </div>

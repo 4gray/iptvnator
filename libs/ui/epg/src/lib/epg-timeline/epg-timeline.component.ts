@@ -37,10 +37,7 @@ import {
     summaryMinutesLeft,
     summaryProgress,
 } from './epg-summary.util';
-import {
-    canCatchUpProgramme,
-    epgDialogActionFor,
-} from './epg-archive.util';
+import { canCatchUpProgramme, epgDialogActionFor } from './epg-archive.util';
 import {
     EpgTimelineEmptyReason,
     EpgTimelineEmptyStateComponent,
@@ -98,6 +95,8 @@ export class EpgTimelineComponent {
     readonly emptyReason = input<EpgTimelineEmptyReason>('none');
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
+    readonly collapsible = input(true);
+    readonly panelId = input<string | null>(null);
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
 
@@ -178,11 +177,15 @@ export class EpgTimelineComponent {
     readonly dividers = computed(() => buildTimelineDayDividers(this.axis()));
     readonly trackWidthPx = computed(() => {
         const axis = this.axis();
-        return ((axis.endMs - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale();
+        return (
+            ((axis.endMs - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale()
+        );
     });
     readonly playheadLeftPx = computed(() => {
         const axis = this.axis();
-        return ((this.nowMs() - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale();
+        return (
+            ((this.nowMs() - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale()
+        );
     });
     readonly zoomLabelKey = computed(() => {
         const scale = this.scale();
@@ -225,7 +228,9 @@ export class EpgTimelineComponent {
      * could become usable, but with no programmes for the day there is nothing
      * to jump to or zoom.
      */
-    readonly showRibbonControls = computed(() => this.renderState() === 'ribbon');
+    readonly showRibbonControls = computed(
+        () => this.renderState() === 'ribbon'
+    );
 
     /**
      * The date stepper navigates between days, which is only meaningful when the
@@ -241,9 +246,7 @@ export class EpgTimelineComponent {
 
     // ── collapsed-summary state ──
     readonly hasSummary = computed(() => summaryHasTitle(this.summary()));
-    readonly hasTimeRange = computed(() =>
-        summaryHasTimeRange(this.summary())
-    );
+    readonly hasTimeRange = computed(() => summaryHasTimeRange(this.summary()));
     readonly progress = computed(() =>
         summaryProgress(this.summary(), this.nowMs())
     );

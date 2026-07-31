@@ -65,11 +65,24 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     border-radius: 7px;
     font: inherit;
     min-width: 0;
+    min-height: 40px;
     max-width: 60%;
 
     &:hover {
         background: $surface-2;
     }
+}
+
+.epg-timeline__heading-static {
+    min-height: 40px;
+}
+
+.epg-timeline__panel-content {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .epg-timeline__collapse-icon {

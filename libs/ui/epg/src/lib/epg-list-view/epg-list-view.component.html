@@ -7,22 +7,31 @@
 >
     <!-- toolbar: collapse + channel on the left, live/jump/stepper on the right -->
     <div class="g-head">
-        <button
-            type="button"
-            class="g-collapse"
-            (click)="toggleCollapsed()"
-            [attr.aria-expanded]="!collapsed()"
-            [attr.aria-label]="
-                (collapsed() ? 'EPG.EXPAND_PANEL' : 'EPG.COLLAPSE_PANEL')
-                    | translate
-            "
-        >
-            <span class="cc"><mat-icon>keyboard_arrow_down</mat-icon></span>
-            <span class="gt">
+        @if (collapsible()) {
+            <button
+                type="button"
+                class="g-collapse"
+                data-testid="live-guide-toggle"
+                (click)="toggleCollapsed()"
+                [attr.aria-controls]="panelId()"
+                [attr.aria-expanded]="!collapsed()"
+                [attr.aria-label]="
+                    (collapsed() ? 'EPG.EXPAND_PANEL' : 'EPG.COLLAPSE_PANEL')
+                        | translate
+                "
+            >
+                <span class="cc"><mat-icon>keyboard_arrow_down</mat-icon></span>
+                <span class="gt">
+                    <b>{{ channelName() }}</b>
+                    <span class="src">{{ sourceLabel() }}</span>
+                </span>
+            </button>
+        } @else {
+            <span class="gt g-heading-static">
                 <b>{{ channelName() }}</b>
                 <span class="src">{{ sourceLabel() }}</span>
             </span>
-        </button>
+        }
 
         <span class="g-spacer"></span>
 
@@ -112,7 +121,8 @@
                             }
                         </span>
                         <small>{{
-                            viewDate() | date: 'EEE, d MMM' : '' : currentLocale()
+                            viewDate()
+                                | date: 'EEE, d MMM' : '' : currentLocale()
                         }}</small>
                     </div>
                     <button
@@ -128,90 +138,101 @@
         }
     </div>
 
-    @if (!collapsed()) {
-        <!-- schedule-only notice (provider exposes history but no catch-up) -->
-        @if (state === 'list' && !archivePlaybackAvailable()) {
-            <div class="g-notice" role="note">
-                <mat-icon>info</mat-icon>
-                <span>{{ 'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate }}</span>
-            </div>
-        }
-
-        @switch (state) {
-            @case ('loading') {
-                <div class="g-list g-list--skeleton">
-                    @for (row of skeletonRows; track $index) {
-                        <div class="sk-row">
-                            <span class="sk-time"></span>
-                            <span class="sk-title"></span>
-                        </div>
-                    }
+    <div
+        class="g-panel-content"
+        [id]="panelId()"
+        [attr.aria-hidden]="collapsed()"
+    >
+        @if (!collapsed()) {
+            <!-- schedule-only notice (provider exposes history but no catch-up) -->
+            @if (state === 'list' && !archivePlaybackAvailable()) {
+                <div class="g-notice" role="note">
+                    <mat-icon>info</mat-icon>
+                    <span>{{
+                        'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate
+                    }}</span>
                 </div>
             }
-            @case ('list') {
-                <div class="g-listwrap">
-                    <!-- In normal flow (not an overlay): when it appears it
-                         pushes the list down instead of covering the topmost
-                         programme row. -->
-                    @if (nowStripVisible() && nowRow(); as now) {
-                        <button
-                            type="button"
-                            class="g-nowstrip"
-                            (click)="jumpToNow()"
-                        >
-                            <span class="ns-dot" aria-hidden="true"></span>
-                            <span class="ns-lbl">{{
-                                'EPG.TIMELINE.ON_NOW' | translate
-                            }}</span>
-                            <span class="ns-title">{{ now.program.title }}</span>
-                            @if (now.progress !== null) {
-                                <span class="ns-bar" aria-hidden="true"
-                                    ><i [style.width.%]="now.progress"></i
-                                ></span>
-                            }
-                            @if (nowRowMinutesLeft() !== null) {
-                                <span class="ns-left"
-                                    >{{ nowRowMinutesLeft() }}
-                                    {{
-                                        'EPG.TIMELINE.MINUTES_SHORT' | translate
-                                    }}</span
-                                >
-                            }
-                            <span class="ns-jump">
-                                <mat-icon>arrow_upward</mat-icon>
-                                {{ 'EPG.TIMELINE.NOW' | translate }}
-                            </span>
-                        </button>
-                    }
-                    <div
-                        #list
-                        class="g-list app-scrollbar"
-                        (scroll)="onListScroll()"
-                    >
-                        @for (row of rows(); track row.key) {
-                            <app-epg-list-view-row
-                                [row]="row"
-                                [selected]="row.key === selectedKey()"
-                                [currentLocale]="currentLocale()"
-                                [nowMs]="nowMs()"
-                                (activate)="onRowActivate(row)"
-                                (watch)="onWatch(row)"
-                                (info)="openDetails(row)"
-                            />
+
+            @switch (state) {
+                @case ('loading') {
+                    <div class="g-list g-list--skeleton">
+                        @for (row of skeletonRows; track $index) {
+                            <div class="sk-row">
+                                <span class="sk-time"></span>
+                                <span class="sk-title"></span>
+                            </div>
                         }
                     </div>
-                </div>
-            }
-            @default {
-                <app-epg-timeline-empty-state
-                    [reason]="emptyStateReason()"
-                    [hasOtherDays]="hasOtherDays()"
-                    (jumpToday)="jumpToNow()"
-                    (jumpNearest)="jumpToNearestDay()"
-                    (openSettings)="openEpgSettings.emit()"
-                    (retry)="retry.emit()"
-                />
+                }
+                @case ('list') {
+                    <div class="g-listwrap">
+                        <!-- In normal flow (not an overlay): when it appears it
+                         pushes the list down instead of covering the topmost
+                         programme row. -->
+                        @if (nowStripVisible() && nowRow(); as now) {
+                            <button
+                                type="button"
+                                class="g-nowstrip"
+                                (click)="jumpToNow()"
+                            >
+                                <span class="ns-dot" aria-hidden="true"></span>
+                                <span class="ns-lbl">{{
+                                    'EPG.TIMELINE.ON_NOW' | translate
+                                }}</span>
+                                <span class="ns-title">{{
+                                    now.program.title
+                                }}</span>
+                                @if (now.progress !== null) {
+                                    <span class="ns-bar" aria-hidden="true"
+                                        ><i [style.width.%]="now.progress"></i
+                                    ></span>
+                                }
+                                @if (nowRowMinutesLeft() !== null) {
+                                    <span class="ns-left"
+                                        >{{ nowRowMinutesLeft() }}
+                                        {{
+                                            'EPG.TIMELINE.MINUTES_SHORT'
+                                                | translate
+                                        }}</span
+                                    >
+                                }
+                                <span class="ns-jump">
+                                    <mat-icon>arrow_upward</mat-icon>
+                                    {{ 'EPG.TIMELINE.NOW' | translate }}
+                                </span>
+                            </button>
+                        }
+                        <div
+                            #list
+                            class="g-list app-scrollbar"
+                            (scroll)="onListScroll()"
+                        >
+                            @for (row of rows(); track row.key) {
+                                <app-epg-list-view-row
+                                    [row]="row"
+                                    [selected]="row.key === selectedKey()"
+                                    [currentLocale]="currentLocale()"
+                                    [nowMs]="nowMs()"
+                                    (activate)="onRowActivate(row)"
+                                    (watch)="onWatch(row)"
+                                    (info)="openDetails(row)"
+                                />
+                            }
+                        </div>
+                    </div>
+                }
+                @default {
+                    <app-epg-timeline-empty-state
+                        [reason]="emptyStateReason()"
+                        [hasOtherDays]="hasOtherDays()"
+                        (jumpToday)="jumpToNow()"
+                        (jumpNearest)="jumpToNearestDay()"
+                        (openSettings)="openEpgSettings.emit()"
+                        (retry)="retry.emit()"
+                    />
+                }
             }
         }
-    }
+    </div>
 </div>

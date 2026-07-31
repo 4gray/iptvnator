@@ -53,6 +53,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     padding: 4px 6px;
     border-radius: 7px;
     min-width: 0;
+    min-height: 40px;
 }
 .g-collapse:hover {
     background: $surface-2;
@@ -80,6 +81,17 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     line-height: 1.15;
     text-align: left;
     min-width: 0;
+}
+.g-heading-static {
+    justify-content: center;
+    min-height: 40px;
+}
+.g-panel-content {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
 }
 .gt b {
     font-size: 13.5px;

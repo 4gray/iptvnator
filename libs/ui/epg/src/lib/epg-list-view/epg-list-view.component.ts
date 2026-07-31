@@ -87,6 +87,8 @@ export class EpgListViewComponent {
     readonly emptyReason = input<EpgTimelineEmptyReason>('none');
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
+    readonly collapsible = input(true);
+    readonly panelId = input<string | null>(null);
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
 
@@ -135,7 +137,9 @@ export class EpgListViewComponent {
     );
     readonly nowRowMinutesLeft = computed(() => {
         const row = this.nowRow();
-        return row ? Math.max(0, Math.round((row.stopMs - this.nowMs()) / 60_000)) : null;
+        return row
+            ? Math.max(0, Math.round((row.stopMs - this.nowMs()) / 60_000))
+            : null;
     });
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));

@@ -59,6 +59,7 @@ SCSS, ngx-translate.
 ### Task 1: Introduce independent panel intent and legacy migration
 
 **Files:**
+
 - Create:
   `libs/portal/shared/data-access/src/lib/live-layout-panel-state.service.ts`
 - Create:
@@ -179,12 +180,13 @@ git commit -m "feat(ui): add independent live panel state"
 ### Task 2: Make Guide disclosure capability explicit
 
 **Files:**
+
 - Modify:
   `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.{ts,html,scss,spec.ts}`
 - Modify:
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.{ts,html,scss,spec.ts}`
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
 
 For both timeline and list, assert that `collapsible=false` renders a static
 heading with no disclosure button, while `collapsible=true` exposes a 40px
@@ -195,8 +197,9 @@ label:
 fixture.componentRef.setInput('collapsible', false);
 fixture.componentRef.setInput('panelId', 'live-guide-panel');
 await fixture.whenStable();
-expect(fixture.nativeElement.querySelector('[data-testid="live-guide-toggle"]'))
-    .toBeNull();
+expect(
+    fixture.nativeElement.querySelector('[data-testid="live-guide-toggle"]')
+).toBeNull();
 
 fixture.componentRef.setInput('collapsible', true);
 await fixture.whenStable();
@@ -207,7 +210,7 @@ expect(toggle.getAttribute('aria-controls')).toBe('live-guide-panel');
 expect(toggle.getAttribute('aria-expanded')).toBe('true');
 ```
 
-- [ ] **Step 2: Run both targets and verify RED**
+- [x] **Step 2: Run both targets and verify RED**
 
 ```bash
 pnpm nx test ui-epg --runInBand
@@ -215,7 +218,7 @@ pnpm nx test ui-epg --runInBand
 
 Expected: FAIL because the new inputs and static-heading branch do not exist.
 
-- [ ] **Step 3: Implement capability, ARIA, and target sizing**
+- [x] **Step 3: Implement capability, ARIA, and target sizing**
 
 Add:
 
@@ -229,7 +232,7 @@ content in a non-interactive container. Bind `aria-controls` to `panelId`, bind
 the schedule region `id`, add `data-testid="live-guide-toggle"`, and set
 `min-height: 40px`.
 
-- [ ] **Step 4: Run and verify GREEN**
+- [x] **Step 4: Run and verify GREEN**
 
 ```bash
 pnpm nx test ui-epg --runInBand
@@ -238,7 +241,7 @@ pnpm nx lint ui-epg
 
 Expected: both commands exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add libs/ui/epg
@@ -248,6 +251,7 @@ git commit -m "fix(ui): expose guide collapse capability"
 ### Task 3: Define shared M3U panel-control contracts
 
 **Files:**
+
 - Modify:
   `libs/ui/components/src/lib/channel-list-container/all-channels-view/all-channels-view.component.{ts,html,scss,spec.ts}`
 - Modify:
@@ -266,9 +270,7 @@ and bidirectional focus:
 
 ```ts
 expect(groupsHide.getAttribute('aria-controls')).toBe('live-groups-panel');
-expect(channelsHide.getAttribute('aria-controls')).toBe(
-    'live-channels-panel'
-);
+expect(channelsHide.getAttribute('aria-controls')).toBe('live-channels-panel');
 groupsHide.click();
 expect(groupsPanelExpandedChange).toHaveBeenCalledWith(false);
 fixture.componentRef.setInput('groupsPanelExpanded', false);
@@ -343,6 +345,7 @@ git commit -m "feat(ui): add independent M3U panel controls"
 ### Task 4: Give the workspace Groups panel explicit ownership
 
 **Files:**
+
 - Modify:
   `libs/workspace/shell/feature/src/lib/workspace-context-panel/workspace-context-panel.component.{ts,html,scss,spec.ts}`
 - Modify:
@@ -407,6 +410,7 @@ git commit -m "feat(ui): add workspace groups disclosure"
 ### Task 5: Integrate independent Channels state in Xtream and Stalker
 
 **Files:**
+
 - Modify:
   `libs/portal/xtream/feature/src/lib/live-stream-layout/live-stream-layout.component.{ts,html,scss,spec.ts}`
 - Modify:
@@ -443,9 +447,7 @@ Inject `LiveLayoutPanelStateService`, compute Channels effective visibility for
 
 ```ts
 this.livePanelState.toggleMasterSuppression(
-    this.showLiveChannelSidebar()
-        ? ['groups', 'channels']
-        : ['groups']
+    this.showLiveChannelSidebar() ? ['groups', 'channels'] : ['groups']
 );
 ```
 
@@ -485,6 +487,7 @@ git commit -m "feat(ui): separate portal live panel toggles"
 ### Task 6: Integrate shared state and mobile restoration in M3U
 
 **Files:**
+
 - Modify:
   `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.{ts,html,scss,spec.ts}`
 
@@ -552,6 +555,7 @@ git commit -m "feat(ui): separate M3U live panel toggles"
 ### Task 7: Preserve the single collection-header Channels control
 
 **Files:**
+
 - Modify:
   `libs/portal/shared/ui/src/lib/components/unified-collection/unified-collection-page.component.{ts,html,scss,spec.ts}`
 - Modify:
@@ -607,6 +611,7 @@ git commit -m "feat(ui): align collection live panel control"
 ### Task 8: Translate panel actions
 
 **Files:**
+
 - Modify: `apps/web/src/assets/i18n/*.json`
 
 - [ ] **Step 1: Add the English source keys**
@@ -648,6 +653,7 @@ git commit -m "feat(i18n): translate live panel controls"
 ### Task 9: Add atomized Electron regression coverage
 
 **Files:**
+
 - Create: `apps/electron-backend-e2e/src/live-panel-toggles.e2e.ts`
 - Reuse: `apps/electron-backend-e2e/src/electron-test-fixtures.ts`
 - Reuse: `apps/electron-backend-e2e/src/portal-mock-fixtures.ts`
@@ -695,6 +701,7 @@ git commit -m "test(e2e): cover live panel toggles"
 ### Task 10: Update canonical docs and release note
 
 **Files:**
+
 - Modify: `docs/architecture/iptvnator-ui-guidelines.md`
 - Modify: `CLAUDE.md`
 - Create: `.changes/ui-live-panel-toggles.md`
@@ -745,6 +752,7 @@ git commit -m "docs(ui): document live panel ownership"
 ### Task 11: Full verification and strict review
 
 **Files:**
+
 - Review every file changed relative to `origin/master`.
 
 - [ ] **Step 1: Run affected unit targets**
