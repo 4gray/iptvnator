@@ -41,6 +41,8 @@ Primary route tree lives in
 - `/stalker/:id/search`
 - `/stalker/:id/actor/:personId`
 - `/stalker/:id/downloads` (shared `DownloadsComponent` from `@iptvnator/portal/downloads/feature`)
+- `/stalker/:id/downloads/:downloadId` (focused local movie/series detail with
+  no category context panel)
 
 ## Runtime Architecture
 
@@ -361,6 +363,16 @@ The VOD-series contract is cross-surface:
 - The dashboard resolves episode progress by the parent `seriesXtreamId` and
   renders the saved season/episode metadata. It does not infer episode numbers
   from provider payloads.
+- Episode downloads from regular series, embedded VOD `series[]`, and lazy
+  Ministra VOD `is_series=1` capture the rendered parent/episode metadata and
+  provider category in a versioned offline snapshot. The focused Download
+  Manager detail uses only locally available episode rows; it does not reuse
+  the provider season resource as an offline availability list.
+- `View in portal` hands the stored Stalker identity back to the normal
+  category/inline detail host with identity-scoped provider-only presentation.
+  All three series modes retain their complete provider seasons, episodes, and
+  provider playback, while Offline/local/download controls stay hidden for
+  that handoff. A normal Stalker item open remains unchanged.
 
 Core decision logic and normalization are centralized in:
 

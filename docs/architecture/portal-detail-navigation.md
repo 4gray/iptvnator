@@ -29,6 +29,15 @@ Related:
   opening the series from the collection grid itself remains detail-only. If the
   positions load fails, the target stays unconsumed and the handoff degrades to
   detail-only rather than starting the episode at offset zero.
+- Ready Download Manager cards open one of the three focused
+  `downloads/:downloadId` routes. These local details hide the workspace
+  context panel, play only finalized local files, and show only locally
+  available episodes for a series.
+- `View in portal` is the explicit bridge from a focused offline detail to the
+  source catalog. It resolves an exact provider target and passes the one-shot
+  `detailPresentation: 'provider-only'` navigation state. The destination keeps
+  provider playback and the complete provider episode catalog, but hides
+  Offline/local/download presentation.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 
@@ -95,6 +104,19 @@ Search behavior to preserve:
 - Selecting an Xtream item from search should still navigate to the canonical
   Xtream content type/category/item route when the item is not a live stream.
 
+Download handoff behavior:
+
+- An Xtream movie handoff requires its exact VOD category and item route; a
+  series handoff requires its exact series category and item route. The
+  download snapshot's provider category is preferred, with the typed catalog
+  used to recover it for legacy rows. The action stays unavailable rather than
+  opening a bare collection route when the target cannot be resolved.
+- Provider-only mode is read by the normal VOD/series detail components. It
+  preserves provider Play/Resume and every provider episode, while suppressing
+  the local Offline state and download controls. Reusing the route component
+  for another item must clear the mode unless that navigation explicitly
+  carries the marker.
+
 ## Stalker
 
 Stalker details are represented by store state and inline detail rendering on the current screen.
@@ -134,6 +156,18 @@ Behavior to preserve:
   switching playlist context or showing the workspace category sidebar.
 - Back from the collection-owned detail should restore the previous collection
   tab and scope instead of resetting the collection screen to its defaults.
+
+Download handoff behavior:
+
+- `View in portal` preserves Stalker's inline/store-state architecture. The
+  download target carries `openStalkerItem` into the normal VOD or series
+  category host instead of inventing a canonical item route.
+- The provider-only marker follows the exact selected item through regular
+  series, embedded VOD `series[]`, and lazy Ministra VOD `is_series=1` flows.
+  All provider seasons/episodes and provider playback remain available, while
+  the shared VOD or series UI suppresses local Offline and download controls.
+  Consuming the marker is identity-scoped so a later ordinary item open returns
+  to normal provider presentation.
 
 ## Decision Rule For Future Changes
 

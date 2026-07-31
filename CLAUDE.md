@@ -491,7 +491,11 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 - Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `actor/:personId`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
 - Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
-- Downloads: `/workspace/downloads`
+- Downloads: `/workspace/downloads` with focused
+  `/workspace/downloads/:downloadId`; source-scoped equivalents are
+  `/workspace/xtreams/:id/downloads/:downloadId` and
+  `/workspace/stalker/:id/downloads/:downloadId`. Focused download details hide
+  the workspace context panel.
 - Settings: `/workspace/settings` (`/settings` redirects there)
 
 **Service Architecture** (Factory Pattern):
@@ -896,6 +900,32 @@ engine` (restart required) or
   Standard PiP shows the browser/OS video surface without Angular control
   chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
   keyboard shortcut, and Embedded MPV popup/native support are out of scope.
+
+**Download Manager**:
+
+- The desktop-only manager shares one global download store across the global,
+  Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
+  cards use the global Small/Medium/Large cover-grid tokens; missing completed
+  files move to Needs attention instead of remaining in Ready to watch.
+- Ready movie and grouped-series cards open a focused local detail. Movies play
+  the finalized local file; series list only locally available episode rows and
+  every episode action targets its own downloaded file. Focused routes disable
+  route search and use `contextPanel: 'none'`.
+- Downloads capture a versioned metadata snapshot from the rendered Xtream or
+  Stalker movie/episode detail at start time, including already-merged TMDB
+  fields. Legacy, sparse, stale, or wrong-language snapshots are safely
+  backfilled from row/provider metadata and optional TMDB enrichment when the
+  focused detail opens.
+- `View in portal` resolves an exact source target and opens the provider's
+  normal detail in one-shot `provider-only` presentation. Provider playback and
+  the complete catalog remain available, while Offline/local/download actions
+  are hidden. This applies to Xtream movies/series and regular, embedded
+  `series[]`, and Ministra `is_series=1` Stalker flows.
+- If a finalized file disappears while a focused detail is open, the
+  authoritative download list refreshes and returns to the manager. A failed
+  redirect leaves an actionable missing-file state with Back and Retry.
+- Canonical contract: `docs/architecture/download-manager.md`; provider handoff:
+  `docs/architecture/portal-detail-navigation.md`.
 
 **VOD/Series Detail Pages (two-state layout)**:
 

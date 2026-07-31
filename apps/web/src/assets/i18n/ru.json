@@ -1128,6 +1128,17 @@
         "SEASON": "Сезон {{season}}",
         "SEASON_RANGE": "Сезоны {{first}}–{{last}}",
         "DOWNLOADED_EPISODES": "Скачанные эпизоды",
+        "OFFLINE_DETAIL": {
+            "AVAILABLE": "Доступно офлайн",
+            "PLAY": "Воспроизвести офлайн",
+            "VIEW_IN_PORTAL": "Открыть в портале",
+            "VIEW_IN_PORTAL_UNAVAILABLE": "Контент больше недоступен в исходном портале",
+            "DOWNLOADED_EPISODES": "Скачано эпизодов: {{count}}",
+            "FILE_SIZE": "{{size}}",
+            "NOT_FOUND_TITLE": "Загрузка не найдена",
+            "NOT_FOUND_BODY": "Эта загрузка больше недоступна.",
+            "BACK": "Назад к загрузкам"
+        },
         "ARIA": {
             "OPEN": "Открыть {{title}}",
             "POSTER_UNAVAILABLE": "Обложка для {{title}} недоступна",

@@ -1128,6 +1128,17 @@
         "SEASON": "Season {{season}}",
         "SEASON_RANGE": "Seasons {{first}}–{{last}}",
         "DOWNLOADED_EPISODES": "Downloaded episodes",
+        "OFFLINE_DETAIL": {
+            "AVAILABLE": "Available offline",
+            "PLAY": "Play offline",
+            "VIEW_IN_PORTAL": "View in portal",
+            "VIEW_IN_PORTAL_UNAVAILABLE": "The source item is no longer available",
+            "DOWNLOADED_EPISODES": "{{count}} downloaded episodes",
+            "FILE_SIZE": "{{size}}",
+            "NOT_FOUND_TITLE": "Download not found",
+            "NOT_FOUND_BODY": "This download is no longer available.",
+            "BACK": "Back to Downloads"
+        },
         "ARIA": {
             "OPEN": "Open {{title}}",
             "POSTER_UNAVAILABLE": "Artwork unavailable for {{title}}",

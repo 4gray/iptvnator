@@ -97,36 +97,45 @@ variants, contextual buttons, and theme-aware styling.
   playlist scope when the page is opened under a source route. VOD and episode
   detail views continue to render a paused download as an active Resume button
   (`DownloadsService.isPaused()` / `resumeDownloadByContent()`). Artwork and
-  titles on completed movie and grouped-series cards open the provider detail
-  page; the explicit Play action starts the local file. A legacy standalone
-  episode without a usable series id stays directly playable because there is
-  no reliable detail route to open. Missing completed rows show `File missing`
-  with `Download again`; Play and Show in folder are withheld. A file-action
-  race that returns `File not found` refreshes the authoritative list before
-  pending state clears.
+  titles on completed movie and grouped-series cards open the focused offline
+  detail for that download; the explicit card Play action still starts the
+  local file. A legacy standalone episode without a usable series id stays
+  directly playable because there is no reliable series detail to build.
+  Missing completed rows show `File missing` under Needs attention with
+  `Download again`; Play and Show in folder are withheld. A file-action race
+  that returns `File not found` refreshes the authoritative list and returns
+  the user from focused details to the manager.
 
-## Offline detail playback
+## Focused offline details
 
-- A completed VOD with an available finalized file renders an Offline tag on
-  both rich and fallback detail shells. Its primary action plays the downloaded
-  file, while a neutral
-  “Play from this source” action, when a usable provider source is available,
-  preserves the existing provider, pinned-source, resume, and restart path.
-- A completed row whose file is missing does not advertise Offline or local
-  playback on details; the provider playback path remains primary.
-- Managed MPV/VLC state remains authoritative: Opening disables conflicting
-  playback actions, and Stop closes the matched external session before any
-  local or provider choice can run.
-- Download rows carry a versioned, display-only metadata snapshot, so the
-  offline detail resolver can work without the owning Xtream or Stalker
-  provider. Sparse, stale, or wrong-language snapshots are refreshed from the
-  typed provider catalog and optional TMDB enrichment. A successful refresh
-  advances its freshness timestamp; transient TMDB failures may retain improved
-  provider fields without advancing the timestamp or language, so a later visit
-  retries. Legitimately sparse successful results are remembered in a bounded,
-  language-scoped runtime throttle for the same TTL, preventing persistence
-  reloads from starting an enrichment loop. Concurrent movie and grouped-series
-  refreshes are request-ordered so only the newest generation may persist.
+- Ready movies and grouped series open a local-focused detail view rather than
+  a provider catalog page. A movie exposes local Play and Show in folder. A
+  series projects only completed episode rows whose finalized files are still
+  available, grouped into seasons; every episode Play and Show in folder action
+  targets that row's local file. The provider's other seasons and episodes are
+  deliberately absent from this view.
+- `View in portal` resolves the exact Xtream or Stalker source item before the
+  action becomes available. It then leaves the offline view and opens the
+  provider's normal detail host in explicit `provider-only` presentation: the
+  complete online catalog and provider playback remain available, while local,
+  Offline, and download actions are hidden. Regular provider navigation does
+  not inherit this one-shot presentation state.
+- A completed row that is no longer locally available is never rendered as a
+  ready offline detail. Direct or stale detail URLs return to the manager; if
+  navigation fails, the detail shell shows the missing-file error with Back and
+  Retry. Invalid or removed download ids render a focused not-found state.
+- Movie and episode downloads capture a versioned, display-only metadata
+  snapshot at start time from the already-rendered Xtream or Stalker detail,
+  including any TMDB fields already present. The snapshot keeps provider
+  identity/category separately from presentation metadata and lets the offline
+  view render even when the source portal is unavailable.
+- Legacy rows and sparse, stale, or wrong-language snapshots are backfilled
+  when focused details open: row metadata supplies a safe local fallback,
+  provider data is merged when it can be resolved, and opt-in TMDB enrichment
+  uses the same app language and merge rules as provider details. Successful
+  refreshes persist to the representative row; transient failures keep safe
+  improvements without falsely marking the snapshot fresh, and concurrent
+  refreshes are request-ordered so only the latest generation may write.
 - Snapshot artwork accepts only safe HTTP(S) image URLs. Renderer normalization
   and main-process persistence independently reject credential-shaped path and
   query keys, including `username`, so provider credentials cannot be cached in
@@ -144,7 +153,12 @@ variants, contextual buttons, and theme-aware styling.
   `/workspace/xtreams/:id/downloads` and
   `/workspace/stalker/:id/downloads`. All three routes render the same global
   store; the `:id` routes derive a view-only playlist scope.
-- Each scope exposes an offline detail child at `downloads/:downloadId`.
+- Each scope exposes the same focused child route:
+  `/workspace/downloads/:downloadId`,
+  `/workspace/xtreams/:id/downloads/:downloadId`, and
+  `/workspace/stalker/:id/downloads/:downloadId`. The workspace shell treats
+  all three as focused content: route search is disabled and the context panel
+  is `none`, so provider categories are not shown beside a local-only item.
 - Downloads navigation is data-driven: `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts` emits a `downloads` section link (`path: [...root, 'downloads']`) for both portals, so they reuse the same download page.
 
 ## Queuing, persistence, and UX notes
