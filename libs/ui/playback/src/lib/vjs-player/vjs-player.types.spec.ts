@@ -32,11 +32,16 @@ describe('getVideoJsTechVideo', () => {
 
 describe('hasActiveVhsSourceHandler', () => {
     it('detects the documented Video.js Tech VHS runtime property', () => {
+        const tech = jest.fn(() => ({ vhs: {} }));
+
         expect(
             hasActiveVhsSourceHandler({
-                tech: () => ({ vhs: {} }),
+                tech,
             } as unknown as VideoJsPlayer)
         ).toBe(true);
+        expect(tech).toHaveBeenCalledWith({
+            IWillNotUseThisInPlugins: true,
+        });
         expect(
             hasActiveVhsSourceHandler({
                 tech: () => ({ el: () => document.createElement('video') }),

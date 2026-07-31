@@ -102,7 +102,7 @@ export function hasActiveVhsSourceHandler(
     player: Pick<VideoJsPlayer, 'tech'>
 ): boolean {
     try {
-        const vhs = player.tech()?.vhs;
+        const vhs = player.tech({ IWillNotUseThisInPlugins: true })?.vhs;
         return typeof vhs === 'object' && vhs !== null;
     } catch {
         return false;
