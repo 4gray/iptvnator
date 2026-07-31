@@ -115,7 +115,7 @@ interface XtreamLiveChannelItem {
 })
 export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly destroyRef = inject(DestroyRef);
-    private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly favoritesService = inject(FavoritesService);

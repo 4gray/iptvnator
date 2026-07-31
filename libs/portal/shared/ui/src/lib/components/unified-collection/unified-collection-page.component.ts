@@ -116,7 +116,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         WorkspaceViewCommandService
     );
     private readonly livePanelState = inject(LiveLayoutPanelStateService);
-    private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
     readonly detailTemplate = contentChild(UnifiedCollectionDetailDirective);
     private readonly playlists = this.store.selectSignal(
         selectAllPlaylistsMeta

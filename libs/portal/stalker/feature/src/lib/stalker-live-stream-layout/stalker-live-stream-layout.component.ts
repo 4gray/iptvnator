@@ -122,7 +122,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly livePanelState = inject(LiveLayoutPanelStateService);
-    private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly logger = createLogger('StalkerLiveStream');
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
 

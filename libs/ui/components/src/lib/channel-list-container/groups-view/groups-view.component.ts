@@ -76,7 +76,7 @@ export class GroupsViewComponent {
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
-    private readonly hostEl = inject(ElementRef<HTMLElement>);
+    private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
 
     readonly contextMenuTrigger =
         viewChild.required<MatMenuTrigger>('contextMenuTrigger');

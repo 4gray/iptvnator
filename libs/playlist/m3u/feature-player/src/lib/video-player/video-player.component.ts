@@ -158,7 +158,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
-    private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly livePanelState = inject(LiveLayoutPanelStateService);
     private readonly workspaceHeaderContext = inject(
         WorkspaceHeaderContextService

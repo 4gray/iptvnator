@@ -53,7 +53,7 @@ const LIVE_SECTIONS: ReadonlySet<PortalRailSection> = new Set([
 })
 export class WorkspaceShellContextSidebarComponent {
     private readonly livePanelState = inject(LiveLayoutPanelStateService);
-    private readonly hostEl = inject(ElementRef<HTMLElement>);
+    private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly compactViewport = toSignal(
         inject(BreakpointObserver).observe('(max-width: 1023px)'),
         { initialValue: { breakpoints: {}, matches: false } }
