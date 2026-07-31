@@ -97,3 +97,14 @@ export function getVideoJsTechVideo(
         return null;
     }
 }
+
+export function hasActiveVhsSourceHandler(
+    player: Pick<VideoJsPlayer, 'tech'>
+): boolean {
+    try {
+        const vhs = player.tech()?.vhs;
+        return typeof vhs === 'object' && vhs !== null;
+    } catch {
+        return false;
+    }
+}

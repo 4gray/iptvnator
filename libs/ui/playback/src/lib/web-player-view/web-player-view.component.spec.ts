@@ -342,6 +342,35 @@ describe('WebPlayerViewComponent', () => {
         expect(renderedDetails).not.toContain('provider.example');
     });
 
+    it('renders only sanitized structured VHS evidence in technical details', () => {
+        const issue = createStructuredVhsDiagnostic();
+
+        component.handlePlaybackIssue(issue);
+        fixture.detectChanges();
+
+        const details = component.getDiagnosticDetails(issue);
+        const renderedDetails = details.map(({ value }) => value).join(' ');
+
+        expect(details).toEqual(
+            expect.arrayContaining([
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
+                    value: 'Video.js / VHS',
+                },
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
+                    value:
+                        'stage=unknown · type=networkbadstatus · code=4 · ' +
+                        'disposition=terminal · HTTP 503',
+                },
+            ])
+        );
+        expect(renderedDetails).not.toContain('vhs-render-secret');
+        expect(renderedDetails).not.toContain('provider.example');
+        expect(renderedDetails).not.toContain('Authorization');
+        expect(renderedDetails).not.toContain('response body');
+    });
+
     it('keeps query-declared HLS streams on the HLS mime type', () => {
         const streamUrl =
             'https://example.com/play?extension=m3u8&token=signed';
@@ -370,8 +399,7 @@ describe('WebPlayerViewComponent', () => {
     });
 
     it('uses the Matroska mime type for query-declared MKV streams', () => {
-        const streamUrl =
-            'https://example.com/play?container=mkv&token=signed';
+        const streamUrl = 'https://example.com/play?container=mkv&token=signed';
 
         component.setVjsOptions(streamUrl);
 
@@ -922,6 +950,32 @@ function createStructuredHlsDiagnostic(): PlaybackDiagnostic {
             stage: 'manifest',
             failure: 'http',
             httpStatus: 404,
+        },
+        externalFallbackRecommended: false,
+    };
+}
+
+function createStructuredVhsDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.Vhs,
+        sourceUrl: 'https://provider.example/live.m3u8?token=vhs-render-secret',
+        container: 'm3u8',
+        mimeType: 'application/x-mpegURL',
+        player: 'videojs',
+        audioCodecs: [],
+        videoCodecs: [],
+        details: 'Authorization response body vhs-render-secret',
+        nativeErrorCode: 4,
+        nativeErrorMessage:
+            'https://provider.example/error?token=vhs-render-secret',
+        httpStatus: 503,
+        vhs: {
+            engineType: 'networkbadstatus',
+            mediaErrorCode: 4,
+            disposition: 'terminal',
+            stage: 'unknown',
+            httpStatus: 503,
         },
         externalFallbackRecommended: false,
     };

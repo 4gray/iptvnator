@@ -335,6 +335,38 @@ Video.js HTTP error is `network-error` and shows its status. Because an HTTP
 status is server/network evidence rather than decoding evidence, external
 decoding is not presented as a likely fix.
 
+Video.js `8.23.9`, the default web player, runs HTTP streaming through bundled
+VHS `3.17.5`. Its terminal `Player#error` crosses a separate allowlisted
+boundary built only from the public Video.js `MediaError` code/status,
+`metadata.errorType`, and the documented `player.tech().vhs` runtime property.
+The engine type must exactly match an installed `videojs.Error` value;
+unrecognized values remain unknown. Exact network identifiers, HTTP 4xx/5xx
+status, and standard network code 2 produce `network-error`; exact
+`streamingfailedtodecryptsegment` or standard encrypted code 5 produce
+`drm-or-encryption`. A generic VHS code 3 remains
+`unknown-playback-error` because VHS also assigns code 3 to terminal internal
+objects and strings that do not establish a decode cause. Non-VHS native code
+3 keeps its standard media-decode meaning.
+
+VHS stage evidence is derived only where the public engine identifier names
+the operation: HLS playlist parsing is `playlist`, DASH manifest parsing is
+`manifest`, and select/decrypt/transmux/append segment errors are `segment`;
+everything else is `unknown`. In particular, IPTVnator does not read internal
+`requestType` values to guess manifest, playlist, segment, or key stages. VHS
+handles retries, rendition exclusions/re-inclusions, segment timeout recovery,
+and request aborts before a final player error; IPTVnator observes only the
+public terminal event and does not subscribe to undocumented recovery events
+or private loaders.
+
+Video.js/VHS error messages, request or response URLs, headers, xhr objects,
+response text/bodies, credentials, request types, and arbitrary metadata are
+neither retained nor rendered. Technical details contain only the sanitized
+stage, exact/unknown engine type, standard/unknown media error code, terminal
+disposition, and validated HTTP status. The active playback URL remains
+available only through the pre-existing playback metadata used by Retry, Copy
+URL, and explicit external-player actions; it is never copied from VHS error
+metadata.
+
 HLS.js errors cross one shared sanitizer boundary before HTML5 or ArtPlayer can
 emit a diagnostic. The boundary retains only allowlisted engine `type` and
 `details` identifiers, the final fatal/recoverable disposition, a stage derived
@@ -360,7 +392,15 @@ they do not include provider-supplied channel names or source URLs.
 
 mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decode-error` instead of generic `network-error`. These failures usually mean the fetch stream ended before mpegts.js expected a complete transport stream, and external players may still handle the same URL more tolerant of short reads or malformed TS boundaries.
 
-The diagnostic surface covers the inline player viewport when playback fails, with a compact warning badge, a native-player fallback headline, and player-card actions for configured external players. It exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, sanitized structured HLS evidence, and existing mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
+The diagnostic surface covers the inline player viewport when playback fails,
+with a compact warning badge, a native-player fallback headline, and
+player-card actions for configured external players. It exposes technical
+details on demand: diagnostic code, reporting player/source, detected
+container/MIME, video/audio codecs, native browser error fields, sanitized
+structured Video.js/VHS and HLS evidence, and existing mpegts details. HLS
+manifest codec metadata also drives a concise browser-support hint for codecs
+that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3,
+E-AC-3, DTS, and MPEG-2 video.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
