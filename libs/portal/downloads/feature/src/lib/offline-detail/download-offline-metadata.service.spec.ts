@@ -1,0 +1,454 @@
+import { TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
+import {
+    DatabaseService,
+    DownloadsService,
+    PlaylistsService,
+    SettingsStore,
+    TmdbEnrichmentService,
+    type TmdbMovieDetails,
+    type TmdbTvDetails,
+} from '@iptvnator/services';
+import type {
+    DownloadMetadataSnapshot,
+    Playlist,
+    StalkerPortalItem,
+} from '@iptvnator/shared/interfaces';
+import type { DownloadItem } from '@iptvnator/services';
+import type { DownloadOfflineDetail } from './download-offline-detail.viewmodel';
+import { DownloadOfflineMetadataService } from './download-offline-metadata.service';
+
+const PLAYLIST_ID = 'playlist-a';
+const NOW = '2026-07-31T08:30:00.000Z';
+const XTREAM_PLAYLIST = {
+    _id: PLAYLIST_ID,
+    title: 'Xtream source',
+    importDate: NOW,
+    lastUsage: NOW,
+    count: 0,
+    autoRefresh: false,
+    portalUrl: 'https://xtream.example.test',
+} satisfies Playlist;
+const STALKER_PLAYLIST = {
+    ...XTREAM_PLAYLIST,
+    title: 'Stalker source',
+    portalUrl: 'https://stalker.example.test',
+    macAddress: '00:1A:79:12:34:56',
+} satisfies Playlist;
+
+type DatabaseFake = jest.Mocked<Pick<DatabaseService, 'getContentByXtreamId'>>;
+type DownloadsFake = jest.Mocked<Pick<DownloadsService, 'updateMetadata'>>;
+type PlaylistsFake = jest.Mocked<
+    Pick<PlaylistsService, 'getPlaylistById' | 'getPortalRecentlyViewed'>
+>;
+type TmdbFake = jest.Mocked<
+    Pick<TmdbEnrichmentService, 'isEnabled' | 'enrichMovie' | 'enrichTv'>
+>;
+
+function download(overrides: Partial<DownloadItem> = {}): DownloadItem {
+    return {
+        id: 17,
+        playlistId: PLAYLIST_ID,
+        xtreamId: 41,
+        contentType: 'vod',
+        title: 'Downloaded fallback title',
+        url: 'https://stream.example.test/movie/41.m3u8',
+        posterUrl: 'https://images.example.test/download.jpg',
+        status: 'completed',
+        fileAvailability: 'available',
+        filePath: '/downloads/movie.mp4',
+        ...overrides,
+    };
+}
+
+function snapshot(
+    overrides: Partial<DownloadMetadataSnapshot> = {}
+): DownloadMetadataSnapshot {
+    return {
+        version: 1,
+        language: 'en',
+        mediaKind: 'movie',
+        title: 'Local title',
+        plot: 'Rich local plot',
+        posterUrl: 'https://images.example.test/local.jpg',
+        providerCategoryId: '4',
+        enrichedAt: new Date().toISOString(),
+        ...overrides,
+    };
+}
+
+function movieDetail(
+    itemOverrides: Partial<DownloadItem> = {},
+    snapshotOverride?: DownloadMetadataSnapshot
+): DownloadOfflineDetail {
+    const item = download({
+        ...itemOverrides,
+        ...(snapshotOverride === undefined
+            ? {}
+            : { metadataSnapshot: snapshotOverride }),
+    });
+    return {
+        kind: 'movie',
+        item,
+        ...(snapshotOverride === undefined
+            ? {}
+            : { snapshot: snapshotOverride }),
+    };
+}
+
+function seriesDetail(
+    seriesSnapshot: DownloadMetadataSnapshot
+): DownloadOfflineDetail {
+    const representative = download({
+        contentType: 'episode',
+        xtreamId: 501,
+        seriesXtreamId: 93,
+        seasonNumber: 2,
+        episodeNumber: 7,
+        title: 'Series - S02E07 - Relay',
+        metadataSnapshot: seriesSnapshot,
+    });
+    return {
+        kind: 'series',
+        representative,
+        snapshot: seriesSnapshot,
+        seasons: [
+            {
+                seasonNumber: 2,
+                seasonNumberState: 'known',
+                episodes: [
+                    {
+                        item: representative,
+                        seasonNumber: 2,
+                        seasonNumberState: 'known',
+                        episodeNumber: 7,
+                        episodeNumberState: 'known',
+                        episodeMetadata: seriesSnapshot.episode,
+                    },
+                ],
+            },
+        ],
+    };
+}
+
+const tmdbMovie: TmdbMovieDetails = {
+    id: 603,
+    overview: 'Localized TMDB movie plot',
+    poster_path: '/movie.jpg',
+};
+const tmdbTv: TmdbTvDetails = {
+    id: 900,
+    overview: 'Localized TMDB series plot',
+    poster_path: '/series.jpg',
+};
+
+describe('DownloadOfflineMetadataService', () => {
+    let service: DownloadOfflineMetadataService;
+    let db: DatabaseFake;
+    let downloads: DownloadsFake;
+    let playlists: PlaylistsFake;
+    let tmdb: TmdbFake;
+
+    beforeEach(() => {
+        db = {
+            getContentByXtreamId: jest.fn().mockResolvedValue(null),
+        };
+        downloads = {
+            updateMetadata: jest.fn().mockResolvedValue({ success: true }),
+        };
+        playlists = {
+            getPlaylistById: jest.fn().mockReturnValue(of(XTREAM_PLAYLIST)),
+            getPortalRecentlyViewed: jest.fn().mockReturnValue(of([])),
+        };
+        tmdb = {
+            isEnabled: jest.fn().mockReturnValue(false),
+            enrichMovie: jest.fn().mockResolvedValue(null),
+            enrichTv: jest.fn().mockResolvedValue(null),
+        };
+
+        TestBed.configureTestingModule({
+            providers: [
+                DownloadOfflineMetadataService,
+                { provide: DatabaseService, useValue: db },
+                { provide: DownloadsService, useValue: downloads },
+                { provide: PlaylistsService, useValue: playlists },
+                { provide: TmdbEnrichmentService, useValue: tmdb },
+                {
+                    provide: SettingsStore,
+                    useValue: { language: () => 'en' },
+                },
+            ],
+        });
+        service = TestBed.inject(DownloadOfflineMetadataService);
+    });
+
+    it('returns a rich fresh current-language snapshot without provider lookup', async () => {
+        const local = snapshot();
+
+        await expect(service.resolve(movieDetail({}, local))).resolves.toEqual(
+            local
+        );
+
+        expect(playlists.getPlaylistById).not.toHaveBeenCalled();
+        expect(playlists.getPortalRecentlyViewed).not.toHaveBeenCalled();
+        expect(db.getContentByXtreamId).not.toHaveBeenCalled();
+        expect(tmdb.enrichMovie).not.toHaveBeenCalled();
+        expect(downloads.updateMetadata).not.toHaveBeenCalled();
+    });
+
+    it('recovers a sparse Stalker legacy row from its matching recent item', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        const recent = {
+            movie_id: '41:archive',
+            category_id: 'vod',
+            title: 'Stalker provider title',
+            cover: 'https://images.example.test/stalker-provider.jpg',
+            description: 'Stalker provider plot',
+        } satisfies StalkerPortalItem & { description: string };
+        playlists.getPortalRecentlyViewed.mockReturnValue(of([recent]));
+
+        const resolved = await service.resolve(
+            movieDetail({}, snapshot({ plot: undefined, posterUrl: undefined }))
+        );
+
+        expect(playlists.getPortalRecentlyViewed).toHaveBeenCalledWith(
+            PLAYLIST_ID
+        );
+        expect(resolved.title).toBe('Stalker provider title');
+        expect(resolved.plot).toBe('Stalker provider plot');
+        expect(resolved.posterUrl).toBe(
+            'https://images.example.test/stalker-provider.jpg'
+        );
+        expect(db.getContentByXtreamId).not.toHaveBeenCalled();
+    });
+
+    it('recovers a sparse Xtream row through the database content lookup', async () => {
+        db.getContentByXtreamId.mockResolvedValue({
+            id: 1,
+            category_id: 12,
+            title: 'Xtream provider title',
+            rating: '7.5',
+            added: '0',
+            poster_url: 'https://images.example.test/xtream-provider.jpg',
+            xtream_id: 41,
+            type: 'movie',
+        });
+
+        const resolved = await service.resolve(movieDetail());
+
+        expect(db.getContentByXtreamId).toHaveBeenCalledWith(41, PLAYLIST_ID);
+        expect(resolved.title).toBe('Xtream provider title');
+        expect(resolved.providerCategoryId).toBe('12');
+        expect(resolved.posterUrl).toBe(
+            'https://images.example.test/xtream-provider.jpg'
+        );
+        expect(playlists.getPortalRecentlyViewed).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['movie', 'enrichMovie'] as const,
+        ['series', 'enrichTv'] as const,
+    ])('uses %s TMDB enrichment when enabled', async (kind, method) => {
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichMovie.mockResolvedValue(tmdbMovie);
+        tmdb.enrichTv.mockResolvedValue(tmdbTv);
+        db.getContentByXtreamId.mockResolvedValue({
+            id: 1,
+            category_id: 12,
+            title: `Provider ${kind}`,
+            rating: '',
+            added: '0',
+            poster_url: '',
+            xtream_id: kind === 'movie' ? 41 : 93,
+            type: kind,
+        });
+        const localSeries = snapshot({
+            mediaKind: 'series',
+            title: 'Local series',
+            plot: undefined,
+            episode: {
+                title: 'Local episode',
+                seasonNumber: 2,
+                episodeNumber: 7,
+            },
+        });
+        const detail =
+            kind === 'movie' ? movieDetail() : seriesDetail(localSeries);
+
+        const resolved = await service.resolve(detail);
+
+        expect(tmdb[method]).toHaveBeenCalledWith(
+            expect.objectContaining({ title: `Provider ${kind}` })
+        );
+        expect(resolved.plot).toBe(
+            kind === 'movie'
+                ? 'Localized TMDB movie plot'
+                : 'Localized TMDB series plot'
+        );
+    });
+
+    it('keeps provider metadata when TMDB is disabled', async () => {
+        db.getContentByXtreamId.mockResolvedValue({
+            id: 1,
+            category_id: 12,
+            title: 'Provider title',
+            rating: '7',
+            added: '0',
+            poster_url: 'https://images.example.test/provider.jpg',
+            xtream_id: 41,
+            type: 'movie',
+        });
+
+        const resolved = await service.resolve(movieDetail());
+
+        expect(resolved.title).toBe('Provider title');
+        expect(resolved.posterUrl).toBe(
+            'https://images.example.test/provider.jpg'
+        );
+        expect(tmdb.enrichMovie).not.toHaveBeenCalled();
+    });
+
+    it('keeps provider metadata when TMDB rejects', async () => {
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichMovie.mockRejectedValue(new Error('TMDB unavailable'));
+        db.getContentByXtreamId.mockResolvedValue({
+            id: 1,
+            category_id: 12,
+            title: 'Provider title',
+            rating: '7',
+            added: '0',
+            poster_url: 'https://images.example.test/provider.jpg',
+            xtream_id: 41,
+            type: 'movie',
+        });
+
+        await expect(service.resolve(movieDetail())).resolves.toEqual(
+            expect.objectContaining({
+                title: 'Provider title',
+                posterUrl: 'https://images.example.test/provider.jpg',
+            })
+        );
+    });
+
+    it('persists one materially changed successful merge', async () => {
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichMovie.mockResolvedValue(tmdbMovie);
+        const local = snapshot({ plot: undefined });
+
+        const resolved = await service.resolve(movieDetail({}, local));
+
+        expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+        expect(downloads.updateMetadata).toHaveBeenCalledWith(17, resolved);
+    });
+
+    it('does not persist a stale refresh when only field order and timestamp changed', async () => {
+        const local = snapshot({ enrichedAt: '2020-01-01T00:00:00.000Z' });
+        db.getContentByXtreamId.mockResolvedValue({
+            id: 1,
+            category_id: 4,
+            title: 'Local title',
+            rating: '',
+            added: '0',
+            poster_url: 'https://images.example.test/local.jpg',
+            xtream_id: 41,
+            type: 'movie',
+        });
+
+        await expect(service.resolve(movieDetail({}, local))).resolves.toEqual(
+            local
+        );
+        expect(downloads.updateMetadata).not.toHaveBeenCalled();
+    });
+
+    it('preserves local episode metadata and does not fabricate a series episode list', async () => {
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichTv.mockResolvedValue({
+            ...tmdbTv,
+            seasons: [{ season_number: 1, episode_count: 99 }],
+            episodes: [{ season_number: 1, episode_number: 1 }],
+        } as TmdbTvDetails & Record<string, unknown>);
+        const local = snapshot({
+            mediaKind: 'series',
+            title: 'Local series',
+            plot: undefined,
+            episode: {
+                title: 'Downloaded episode',
+                plot: 'Local episode plot',
+                seasonNumber: 2,
+                episodeNumber: 7,
+            },
+        });
+
+        const resolved = await service.resolve(seriesDetail(local));
+
+        expect(resolved.episode).toEqual(local.episode);
+        expect(resolved).not.toHaveProperty('episodes');
+        expect(resolved).not.toHaveProperty('seasons');
+    });
+
+    it('does not fabricate episode coordinates for a sparse legacy series row', async () => {
+        const representative = download({
+            contentType: 'episode',
+            xtreamId: 501,
+            seriesXtreamId: 93,
+            title: 'Legacy series episode',
+        });
+        const detail: DownloadOfflineDetail = {
+            kind: 'series',
+            representative,
+            seasons: [
+                {
+                    seasonNumber: null,
+                    seasonNumberState: 'unknown',
+                    episodes: [
+                        {
+                            item: representative,
+                            seasonNumber: null,
+                            seasonNumberState: 'unknown',
+                            episodeNumber: null,
+                            episodeNumberState: 'unknown',
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const resolved = await service.resolve(detail);
+
+        expect(resolved.mediaKind).toBe('series');
+        expect(resolved).not.toHaveProperty('episode');
+    });
+
+    it('returns the best local metadata when provider lookup fails', async () => {
+        playlists.getPlaylistById.mockReturnValue(
+            throwError(() => new Error('playlist unavailable'))
+        );
+        const local = snapshot({ plot: undefined });
+
+        await expect(service.resolve(movieDetail({}, local))).resolves.toEqual(
+            local
+        );
+        expect(downloads.updateMetadata).not.toHaveBeenCalled();
+    });
+
+    it('returns changed metadata when best-effort persistence fails', async () => {
+        downloads.updateMetadata.mockRejectedValue(
+            new Error('persistence unavailable')
+        );
+        db.getContentByXtreamId.mockResolvedValue({
+            id: 1,
+            category_id: 12,
+            title: 'Recovered provider title',
+            rating: '7',
+            added: '0',
+            poster_url: 'https://images.example.test/provider.jpg',
+            xtream_id: 41,
+            type: 'movie',
+        });
+
+        await expect(service.resolve(movieDetail())).resolves.toEqual(
+            expect.objectContaining({ title: 'Recovered provider title' })
+        );
+        expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+    });
+});
