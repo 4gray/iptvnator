@@ -128,9 +128,10 @@ for (const [name, value] of Object.entries(SHAKA_ERROR_CODE)) {
 Run:
 
 ```bash
-pnpm exec jest \
+NODE_OPTIONS=--experimental-vm-modules node node_modules/jest/bin/jest.js \
+  --config jest.web-esm.workspace.ts --runTestsByPath \
   libs/ui/playback/src/lib/shaka-engine/shaka-playback-evidence.util.spec.ts \
-  --config libs/ui/playback/jest.config.ts --runInBand
+  --runInBand
 ```
 
 Expected: FAIL because the contract and evidence module do not exist.
@@ -455,9 +456,10 @@ expect(issue.shaka).toEqual({
 Run:
 
 ```bash
-pnpm exec jest \
+NODE_OPTIONS=--experimental-vm-modules node node_modules/jest/bin/jest.js \
+  --config jest.web-esm.workspace.ts --runTestsByPath \
   libs/ui/playback/src/lib/shaka-engine/shaka-video-session.spec.ts \
-  --config libs/ui/playback/jest.config.ts --runInBand
+  --runInBand
 ```
 
 Expected: FAIL because the current session suppresses only event severity,
@@ -607,7 +609,7 @@ type: fix
 area: playback
 ---
 
-Shaka playback errors now use exact engine evidence, keep recoverable errors from interrupting playback, and omit provider URLs, credentials, and response data from technical details.
+Shaka playback errors now use exact engine evidence, keep recoverable retries from becoming terminal diagnostics, and omit provider URLs, credentials, and response data from technical details.
 ```
 
 - [ ] **Step 3: Run focused and affected validation**
@@ -615,13 +617,14 @@ Shaka playback errors now use exact engine evidence, keep recoverable errors fro
 Run:
 
 ```bash
-pnpm exec jest \
+NODE_OPTIONS=--experimental-vm-modules node node_modules/jest/bin/jest.js \
+  --config jest.web-esm.workspace.ts --runTestsByPath \
   libs/ui/playback/src/lib/shaka-engine/shaka-playback-evidence.util.spec.ts \
   libs/ui/playback/src/lib/shaka-engine/shaka-error-classifier.spec.ts \
   libs/ui/playback/src/lib/shaka-engine/shaka-video-session.spec.ts \
   libs/ui/playback/src/lib/art-player/art-player-source-session.dash.spec.ts \
   libs/ui/playback/src/lib/web-player-view/web-player-view.component.spec.ts \
-  --config libs/ui/playback/jest.config.ts --runInBand
+  --runInBand
 pnpm nx test ui-playback
 pnpm nx lint ui-playback
 pnpm nx typecheck web
