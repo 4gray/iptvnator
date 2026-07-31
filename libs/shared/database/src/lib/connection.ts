@@ -582,8 +582,7 @@ function normalizeXtreamContentAddedEpochs(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(XTREAM_ADDED_EPOCH_SECONDS_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -700,8 +699,7 @@ function upgradeContentTitleFtsTokenizer(sqliteDb: Database.Database): boolean {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         // The marker alone is not evidence. `createTables` declares this table
         // too, with the plain tokenizer, so a table recreated by that path
@@ -762,8 +760,7 @@ function ensureContentTitleFts(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(CONTENT_TITLE_FTS_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -806,8 +803,7 @@ function backfillEpgProgramSourceUrls(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -941,8 +937,7 @@ function cleanupLegacyTmdbSearchCache(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -1073,9 +1068,7 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                     FROM downloads_pause_resume_legacy`
                 )
                 .run();
-            sqliteDb
-                .prepare(`DROP TABLE downloads_pause_resume_legacy`)
-                .run();
+            sqliteDb.prepare(`DROP TABLE downloads_pause_resume_legacy`).run();
             for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
                 sqliteDb.prepare(statement).run();
             }

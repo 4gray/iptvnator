@@ -239,9 +239,7 @@ describe('CategoryContentViewComponent', () => {
         expect(refineButton).not.toBeNull();
         expect(sortChip).not.toBeNull();
         expect(sortChip?.tagName).not.toBe('BUTTON');
-        expect(
-            fixture.nativeElement.querySelector('.sort-action')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('.sort-action')).toBeNull();
         expect(
             fixture.nativeElement.querySelector('.rating-filter-action')
         ).toBeNull();
@@ -316,7 +314,8 @@ describe('CategoryContentViewComponent', () => {
                 ?.textContent
         ).toContain('WORKSPACE.SORT_NAME_ASC');
         expect(
-            ratingChip?.querySelector('.refinement-chip-label-full')?.textContent
+            ratingChip?.querySelector('.refinement-chip-label-full')
+                ?.textContent
         ).toContain('WORKSPACE.FILTER_RATING');
         expect(
             ratingChip?.querySelector('.refinement-chip-label-compact')

@@ -601,9 +601,7 @@ describe('database schema statements', () => {
         expect(statements[createIndex]).toContain('request_headers TEXT');
         expect(statements[createIndex]).toContain('resume_validator TEXT');
         expect(statements[copyIndex]).toContain('NULL AS request_headers');
-        expect(statements[copyIndex]).toContain(
-            'NULL AS metadata_snapshot'
-        );
+        expect(statements[copyIndex]).toContain('NULL AS metadata_snapshot');
         expect(statements[copyIndex]).not.toContain('resume_validator');
     });
 
@@ -647,8 +645,7 @@ describe('database schema statements', () => {
     });
 
     it('backfills migrated EPG program source URLs in bounded batches', () => {
-        const { backfillEpgProgramSourceUrls } =
-            __databaseConnectionTestHooks;
+        const { backfillEpgProgramSourceUrls } = __databaseConnectionTestHooks;
         let updateStatement = '';
         const backfillRun = jest
             .fn()
