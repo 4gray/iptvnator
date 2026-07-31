@@ -214,48 +214,68 @@ remain local when the meaning is explicit.
 - Keep the EPG content mounted while collapsed so current-program state can
   continue updating.
 
-### Collapsible Live Sidebar
+### Live Panel Disclosures
 
-- M3U, Xtream, and Stalker live layouts share a single sidebar collapse toggle
-  that hides the channels rail to give the player and EPG full width.
-- Xtream Live TV's root view (`/live` with no selected category) follows the
-  same paginated `All Items` shell as VOD and Series: a widget header with the
-  total channel count, page-size controls, and page navigation above the shared
-  `app-grid-list`. Use the grid list's logo-oriented live variant so channel
-  logos stay contained in 16:9 thumbnails instead of being cropped like
-  VOD/series posters. Selecting a channel from that root grid starts playback,
-  selects the channel's category, highlights the active category and channel,
-  and scrolls the category rail plus virtual channels list to the selected rows
-  when those rails are visible.
-- In Xtream and Stalker live TV, the same toggle also collapses the workspace
-  shell context sidebar (the "Live Categories" rail rendered by
-  `WorkspaceShellContextSidebarComponent`), matching M3U's "everything quiets"
-  behaviour. The shell categories rail only collapses when the active section
-  is `live` (Xtream) or `itv`/`radio` (Stalker); movies, series, favorites,
-  and recent routes leave it untouched.
-- Collapsed state is owned by `LiveLayoutSidebarStateService`
-  (`providedIn: 'root'`) in `@iptvnator/portal/shared/util`. Every surface that
-  participates injects the service and reads `isCollapsed`; any toggle calls
-  `service.toggle()`. Persistence delegates to the existing
-  `live-sidebar-state` helpers, so the localStorage key stays unchanged and
-  missing/invalid values restore to expanded.
-- A `mat-icon-button` with `chevron_left` lives in the sidebar header and
-  toggles state. While collapsed, a floating `chevron_right` mini-fab appears
-  at the left edge of `.content-container` to restore the rail (and the
-  categories rail, in Xtream/Stalker live).
-- Keyboard shortcut: `Cmd/Ctrl+B`. The handler ignores events that originate
-  inside `<input>`, `<textarea>`, `<select>`, or content-editable elements via
-  the shared `isTypingInInput` helper.
-- The CSS class `.sidebar-collapsed` (channels rail) and
-  `.context-panel--collapsed` (workspace shell categories rail) both override
-  the inline width set by the `appResizable` directive with
-  `width: 0 !important; min-width: 0 !important`. The directive's persisted
-  width is preserved so uncollapsing restores the user's previous resized
-  width. Both rails share the same 180 ms width transition so motion stays in
-  lockstep.
-- Below 600 px viewport, the M3U layout's mobile bottom-drawer rule overrides
-  the desktop collapse to `height: 0` instead of `width: 0`, and the floating
-  restore handle is hidden.
+Live layouts treat Groups, Channels, and Guide as separate capabilities. Never
+derive one panel's visibility from another panel's state, and never render a
+disclosure control for an action the current layout cannot perform.
+
+| Panel    | Applicable surfaces                                                                     | UI owner                                         |
+| -------- | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Groups   | M3U Groups; Xtream Live TV; Stalker TV/Radio                                            | M3U groups view or the workspace context sidebar |
+| Channels | M3U All/Groups; selected Xtream/Stalker live category; Favorites/Recent live collection | The route's channel-list or collection header    |
+| Guide    | EPG timeline/list beside a working inline player                                        | `app-epg-timeline` or `app-epg-list-view`        |
+
+`LiveLayoutPanelStateService` in
+`@iptvnator/portal/shared/data-access` owns only persisted user intent for the
+two left panels:
+
+- `live-groups-panel-state`
+- `live-channels-panel-state`
+
+Both values are independently `expanded` or `collapsed`. On first use, each
+missing or invalid new value is seeded from a valid legacy
+`live-sidebar-state`; otherwise it defaults to expanded. Migration writes the
+new keys and never rewrites or removes the legacy key.
+
+Routes resolve effective visibility from intent plus local applicability,
+responsive suppression, and the service's non-persisted master suppression.
+That distinction is intentional: hiding a panel updates its own persisted
+intent, while `Cmd/Ctrl+B` temporarily suppresses all applicable left panels
+without overwriting either choice. Pressing the shortcut again restores the
+saved combination. A direct panel action clears master suppression and then
+applies the requested intent. Shortcut handlers ignore input, textarea,
+select, and content-editable targets.
+
+Disclosure controls follow one placement and accessibility contract:
+
+- Expanded panels put a labelled Hide action in their own header.
+- Collapsed panels put a labelled Show action on the boundary where the panel
+  will return. If Groups and Channels are both collapsed, the restore rails
+  stay in spatial panel order.
+- Favorites and Recently Viewed keep their single Channels action in the
+  collection header; do not duplicate it inside loading, empty, or zero-result
+  content.
+- The controlled panel stays mounted with `aria-hidden="true"` and `inert`
+  while effectively hidden. The control uses `aria-controls`,
+  `aria-expanded`, an action-oriented translated label, and a minimum 40px
+  target. Move focus to the corresponding restore/hide control after a direct
+  state change.
+- Loading, empty-category, and zero-search-results states keep every applicable
+  control operable. Applicability, not item count, decides whether a panel can
+  be disclosed.
+
+Responsive suppression must not manufacture no-op controls. The workspace
+Groups panel is suppressed at 1023px and below; the M3U Groups panel is
+suppressed below 600px. In both cases its persisted intent remains unchanged
+and no Groups restore control appears. The M3U Channels bottom drawer remains
+independently restorable on mobile.
+
+Guide disclosure is a separate EPG capability. It is interactive only beside a
+working inline player. External MPV/VLC layouts keep their full static EPG
+heading without a Guide toggle, and radio layouts render no Guide panel. This
+contract does not make the external-player right area content-aware; that is a
+separate layout concern.
 
 ### EPG Card
 

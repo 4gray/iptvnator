@@ -929,6 +929,23 @@ engine` (restart required) or
 - Keyboard shortcuts: ArrowUp/ArrowDown (volume), M (mute)
 - Component: `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
 
+**Live Panel Controls**:
+
+- Groups and Channels keep independent persisted intent through
+  `LiveLayoutPanelStateService` in `@iptvnator/portal/shared/data-access`;
+  missing new values migrate per panel from the legacy
+  `live-sidebar-state`.
+- M3U, Xtream, Stalker, Favorites, and Recently Viewed use the same
+  header-hide/boundary-restore pattern with retained `inert` panels, ARIA
+  relationships, focus transfer, and 40px minimum targets.
+- `Cmd/Ctrl+B` temporarily suppresses applicable left panels without changing
+  their saved combination. Responsive suppression also preserves intent and
+  omits unfulfillable restore controls.
+- Guide disclosure appears only beside a working inline player. External
+  MPV/VLC keeps a static EPG heading, and radio has no Guide panel.
+- Canonical UX and ownership contract:
+  `docs/architecture/iptvnator-ui-guidelines.md` ("Live Panel Disclosures").
+
 **EPG (Electronic Program Guide)**:
 
 - XMLTV format support

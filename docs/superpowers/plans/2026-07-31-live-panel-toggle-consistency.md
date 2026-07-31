@@ -656,14 +656,14 @@ git commit -m "feat(i18n): translate live panel controls"
 - Reuse: `apps/electron-backend-e2e/src/electron-test-fixtures.ts`
 - Reuse: `apps/electron-backend-e2e/src/portal-mock-fixtures.ts`
 
-- [ ] **Step 1: Write the M3U Electron flow**
+- [x] **Step 1: Write the M3U Electron flow**
 
 Import the mock M3U fixture, enter Groups, independently hide/restore Groups and
 Channels, verify focus/ARIA/inert/width reclamation, exercise `Control+B`, seed
 legacy storage before reload, and check the mobile Channels restore path at a
 narrow viewport.
 
-- [ ] **Step 2: Run the M3U test and verify RED if a gap remains**
+- [x] **Step 2: Run the M3U test and verify RED if a gap remains**
 
 ```bash
 pnpm nx run electron-backend-e2e:e2e-ci--src/live-panel-toggles.e2e.ts \
@@ -673,14 +673,14 @@ pnpm nx run electron-backend-e2e:e2e-ci--src/live-panel-toggles.e2e.ts \
 Expected after implementation: PASS. Any failure must identify a functional or
 layout gap before adding provider flows.
 
-- [ ] **Step 3: Add Xtream and Stalker flows**
+- [x] **Step 3: Add Xtream and Stalker flows**
 
 Use the existing mock-server add helpers. Verify root Groups-only placement,
 category Groups+Channels independence, persistence across navigation,
 Groups-then-Channels restore ordering, zero-search-result controls, and no
 Guide toggle for external player/radio.
 
-- [ ] **Step 4: Run the full atomized target**
+- [x] **Step 4: Run the full atomized target**
 
 ```bash
 pnpm nx run electron-backend-e2e:e2e-ci--src/live-panel-toggles.e2e.ts
@@ -688,7 +688,7 @@ pnpm nx run electron-backend-e2e:e2e-ci--src/live-panel-toggles.e2e.ts
 
 Expected: all `@live-panels` tests pass.
 
-- [ ] **Step 5: Lint and commit**
+- [x] **Step 5: Lint and commit**
 
 ```bash
 pnpm nx lint electron-backend-e2e
@@ -704,19 +704,19 @@ git commit -m "test(e2e): cover live panel toggles"
 - Modify: `CLAUDE.md`
 - Create: `.changes/ui-live-panel-toggles.md`
 
-- [ ] **Step 1: Replace the obsolete shared-sidebar documentation**
+- [x] **Step 1: Replace the obsolete shared-sidebar documentation**
 
 Document independent Groups/Channels storage keys, data-access ownership,
 intent versus effective state, boundary controls, master suppression,
 responsive Groups-first suppression, collection-header exception, and Guide
 capability. Preserve the channel-row responsive contract from #1312 verbatim.
 
-- [ ] **Step 2: Update `CLAUDE.md` where it describes live sidebar state**
+- [x] **Step 2: Update `CLAUDE.md` where it describes live sidebar state**
 
 Mirror the canonical names, service location, and shortcut semantics without
 adding the future content-aware right-region behavior.
 
-- [ ] **Step 3: Add the user-facing release note**
+- [x] **Step 3: Add the user-facing release note**
 
 ```md
 ---
@@ -730,7 +730,7 @@ reliable restore controls across providers and screen sizes, and hides Guide
 toggles when they cannot work.
 ```
 
-- [ ] **Step 4: Validate documentation and release note**
+- [x] **Step 4: Validate documentation and release note**
 
 ```bash
 git diff --check
@@ -739,7 +739,7 @@ pnpm run release:notes:validate
 
 Expected: both commands exit 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/architecture/iptvnator-ui-guidelines.md CLAUDE.md \
