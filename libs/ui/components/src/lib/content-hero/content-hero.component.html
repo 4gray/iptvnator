@@ -96,17 +96,21 @@
         <!-- Backdrop Image -->
         <div
             class="hero__backdrop"
-            [class.hero__backdrop--blurred]="
-                !backdropUrl() && posterUrl() && !posterError()
-            "
+            [class.hero__backdrop--blurred]="usesPosterBackdrop()"
             [style.backgroundImage]="
-                backdropUrl() && !posterError()
-                    ? 'url(' + backdropUrl() + ')'
-                    : posterUrl() && !posterError()
-                      ? 'url(' + posterUrl() + ')'
-                      : fallbackBackdropBackground()
+                backdropImageUrl() ? null : fallbackBackdropBackground()
             "
-        ></div>
+        >
+            @if (backdropImageUrl(); as backdropImage) {
+                <img
+                    class="hero__backdrop-image"
+                    [src]="backdropImage"
+                    (error)="onBackdropError()"
+                    alt=""
+                    aria-hidden="true"
+                />
+            }
+        </div>
 
         <!-- Gradient Vignette Overlay -->
         <div class="hero__vignette"></div>

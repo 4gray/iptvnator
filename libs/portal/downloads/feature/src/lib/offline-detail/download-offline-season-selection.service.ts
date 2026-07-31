@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { effect, inject, Injectable, Injector, signal } from '@angular/core';
 import type { DownloadOfflineSeason } from './download-offline-detail.viewmodel';
 import { offlineSeasonKey } from './download-offline-detail.presentation';
@@ -10,6 +11,7 @@ interface SeasonSelection {
 
 @Injectable()
 export class DownloadOfflineSeasonSelectionService {
+    private readonly document = inject(DOCUMENT);
     private readonly injector = inject(Injector);
     private readonly selection = signal<SeasonSelection | undefined>(undefined);
 
@@ -35,10 +37,16 @@ export class DownloadOfflineSeasonSelectionService {
                 ) {
                     return;
                 }
-                this.selection.set({
+                const shouldMoveFocus =
+                    current?.routeGeneration === currentRoute.generation &&
+                    this.document.activeElement?.id ===
+                        this.tabIdForKey(current.key);
+                const normalized = {
                     key: offlineSeasonKey(available[0]),
                     routeGeneration: currentRoute.generation,
-                });
+                };
+                this.selection.set(normalized);
+                if (shouldMoveFocus) this.focusAfterRender(normalized);
             },
             { injector: this.injector }
         );
@@ -68,7 +76,7 @@ export class DownloadOfflineSeasonSelectionService {
     }
 
     tabId(season: DownloadOfflineSeason): string {
-        return `offline-${offlineSeasonKey(season)}-tab`;
+        return this.tabIdForKey(offlineSeasonKey(season));
     }
 
     handleKeydown(
@@ -103,5 +111,18 @@ export class DownloadOfflineSeasonSelectionService {
             return index === 0 ? last : index - 1;
         }
         return undefined;
+    }
+
+    private focusAfterRender(selection: SeasonSelection): void {
+        queueMicrotask(() => {
+            if (this.selection() !== selection) return;
+            this.document
+                .getElementById(this.tabIdForKey(selection.key))
+                ?.focus();
+        });
+    }
+
+    private tabIdForKey(key: string): string {
+        return `offline-${key}-tab`;
     }
 }

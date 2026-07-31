@@ -226,7 +226,14 @@
                               }
                 "
             >
-                <div class="offline-detail__season-tabs" role="tablist">
+                <div
+                    class="offline-detail__season-tabs"
+                    role="tablist"
+                    [attr.aria-label]="
+                        'DOWNLOADS.OFFLINE_DETAIL.DOWNLOADED_EPISODES'
+                            | translate: { count: count() }
+                    "
+                >
                     @for (
                         season of offlineDetail.seasons;
                         track seasonTestId(season);

@@ -41,6 +41,20 @@ export class ContentHeroComponent {
 
     readonly backClicked = output<void>();
     readonly posterError = signal(false);
+    private readonly failedBackdropUrl = signal<string | undefined>(undefined);
+    readonly backdropSourceUrl = computed(
+        () => this.backdropUrl() || this.posterUrl()
+    );
+    readonly backdropError = computed(() => {
+        const source = this.backdropSourceUrl();
+        return !!source && this.failedBackdropUrl() === source;
+    });
+    readonly backdropImageUrl = computed(() =>
+        this.backdropError() ? undefined : this.backdropSourceUrl()
+    );
+    readonly usesPosterBackdrop = computed(
+        () => !this.backdropUrl() && !!this.posterUrl() && !this.backdropError()
+    );
 
     readonly descriptionEl =
         viewChild<ElementRef<HTMLElement>>('descriptionEl');
@@ -74,6 +88,10 @@ export class ContentHeroComponent {
 
     onPosterError(): void {
         this.posterError.set(true);
+    }
+
+    onBackdropError(): void {
+        this.failedBackdropUrl.set(this.backdropSourceUrl());
     }
 
     readonly formattedTitle = computed(() => {

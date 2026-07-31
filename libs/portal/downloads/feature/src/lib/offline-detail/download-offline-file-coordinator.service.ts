@@ -33,9 +33,9 @@ export class DownloadOfflineFileCoordinatorService {
     private readonly actions = inject(DownloadManagerActionsService);
     private readonly navigation = inject(DownloadOfflineRouteNavigationService);
     private readonly injector = inject(Injector);
-    private readonly activeAction = signal<ActiveFileAction | undefined>(
-        undefined
-    );
+    private readonly activeActions = signal<
+        ReadonlyMap<number, ActiveFileAction>
+    >(new Map());
     private readonly ownedRouteGeneration = signal<number | undefined>(
         undefined
     );
@@ -50,11 +50,13 @@ export class DownloadOfflineFileCoordinatorService {
                 const route = inputs.route();
                 const row = inputs.selectedRow();
                 const detail = inputs.detail();
-                const activeRouteGeneration =
-                    this.activeAction()?.routeGeneration;
+                const routeHasActiveAction = this.hasActiveAction(
+                    this.activeActions(),
+                    route.generation
+                );
                 if (
                     detail &&
-                    activeRouteGeneration !== route.generation &&
+                    !routeHasActiveAction &&
                     this.ownedRouteGeneration() === route.generation
                 ) {
                     this.ownedRouteGeneration.set(undefined);
@@ -67,7 +69,7 @@ export class DownloadOfflineFileCoordinatorService {
                     !detail;
                 if (
                     !unavailable ||
-                    activeRouteGeneration === route.generation ||
+                    routeHasActiveAction ||
                     this.ownedRouteGeneration() === route.generation ||
                     this.redirectState()?.routeGeneration === route.generation
                 ) {
@@ -99,7 +101,7 @@ export class DownloadOfflineFileCoordinatorService {
     ): Promise<void> {
         const route = currentRoute();
         if (
-            this.activeAction()?.routeGeneration === route.generation ||
+            this.activeActions().has(item.id) ||
             route.downloadId === undefined
         ) {
             return;
@@ -108,14 +110,29 @@ export class DownloadOfflineFileCoordinatorService {
             actionGeneration: ++this.actionGeneration,
             routeGeneration: route.generation,
         };
-        this.activeAction.set(active);
+        this.activeActions.update((actions) =>
+            new Map(actions).set(item.id, active)
+        );
         this.ownedRouteGeneration.set(route.generation);
         const result = await this.actions.run({
             type,
             item: item as DownloadItem,
         });
-        const stillOwnsAction = this.activeAction() === active;
-        if (stillOwnsAction) this.activeAction.set(undefined);
+        const stillOwnsAction = this.activeActions().get(item.id) === active;
+        if (stillOwnsAction) {
+            this.activeActions.update((actions) => {
+                const next = new Map(actions);
+                next.delete(item.id);
+                return next;
+            });
+            if (
+                result !== 'file-missing' &&
+                !this.hasActiveAction(this.activeActions(), route.generation) &&
+                this.ownedRouteGeneration() === route.generation
+            ) {
+                this.ownedRouteGeneration.set(undefined);
+            }
+        }
         if (
             !stillOwnsAction ||
             currentRoute().generation !== route.generation ||
@@ -124,6 +141,15 @@ export class DownloadOfflineFileCoordinatorService {
             return;
         }
         await this.redirect(route);
+    }
+
+    private hasActiveAction(
+        actions: ReadonlyMap<number, ActiveFileAction>,
+        routeGeneration: number
+    ): boolean {
+        return Array.from(actions.values()).some(
+            (action) => action.routeGeneration === routeGeneration
+        );
     }
 
     private async redirect(route: OfflineDetailRouteContext): Promise<void> {

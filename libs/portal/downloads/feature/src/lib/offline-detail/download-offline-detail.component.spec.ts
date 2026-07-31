@@ -406,6 +406,11 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(seasons[0].getAttribute('aria-controls')).toBe(
             'offline-season-1-panel'
         );
+        expect(
+            (fixture.nativeElement as HTMLElement)
+                .querySelector('[role="tablist"]')
+                ?.getAttribute('aria-label')
+        ).toBe('2 downloaded episodes');
         expect(seasons[0].textContent).toContain('2 downloaded episodes');
         const firstSeasonEpisodes = Array.from(
             (fixture.nativeElement as HTMLElement).querySelectorAll(
@@ -503,12 +508,15 @@ describe('DownloadOfflineDetailComponent', () => {
         await render([first, second]);
         button('offline-season-2').click();
         await fixture.whenStable();
+        button('offline-season-2').focus();
+        expect(document.activeElement).toBe(button('offline-season-2'));
 
         downloads.downloads.set([first]);
         await fixture.whenStable();
         expect(button('offline-season-1').getAttribute('aria-selected')).toBe(
             'true'
         );
+        expect(document.activeElement).toBe(button('offline-season-1'));
 
         downloads.downloads.set([first, second]);
         await fixture.whenStable();
@@ -659,22 +667,69 @@ describe('DownloadOfflineDetailComponent', () => {
         }
     );
 
-    it('does not redirect when a failed file action coincides with a missing-row emission', async () => {
-        const operation = deferred<DownloadActionResult>();
-        actions.run.mockReturnValueOnce(operation.promise);
-        await render([download(17)]);
+    it('runs different episode file actions independently while deduplicating the same item', async () => {
+        const first = deferred<DownloadActionResult>();
+        const second = deferred<DownloadActionResult>();
+        actions.run
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(second.promise);
+        const episode = (id: number, episodeNumber: number) =>
+            download(id, {
+                contentType: 'episode',
+                episodeNumber,
+                seasonNumber: 1,
+                seriesXtreamId: 77,
+                title: `Northwind - S01E0${episodeNumber}`,
+            });
+        await render([episode(17, 1), episode(18, 2)]);
 
-        button('offline-play').click();
-        downloads.downloads.set([
-            download(17, { fileAvailability: 'missing' }),
-        ]);
-        await fixture.whenStable();
-        expect(router.navigate).not.toHaveBeenCalled();
+        button('episode-play-17').click();
+        button('episode-play-17').click();
+        button('episode-play-18').click();
 
-        operation.resolve('failed');
+        expect(actions.run).toHaveBeenCalledTimes(2);
+        expect(
+            actions.run.mock.calls.map(([action]) => action.item.id)
+        ).toEqual([17, 18]);
+
+        second.resolve('success');
+        first.resolve('success');
         await fixture.whenStable();
-        expect(router.navigate).not.toHaveBeenCalled();
     });
+
+    it.each(['failed', 'success'] as const)(
+        'shows the missing-file transition when an action ends with %s after its row disappears',
+        async (result) => {
+            const operation = deferred<DownloadActionResult>();
+            actions.run.mockReturnValueOnce(operation.promise);
+            router.navigate.mockResolvedValueOnce(false);
+            await render([download(17)]);
+
+            button('offline-play').click();
+            downloads.downloads.set([
+                download(17, { fileAvailability: 'missing' }),
+            ]);
+            await fixture.whenStable();
+            expect(router.navigate).not.toHaveBeenCalled();
+
+            operation.resolve(result);
+            await fixture.whenStable();
+            fixture.detectChanges();
+            await Promise.resolve();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(router.navigate).toHaveBeenCalledWith(['..'], {
+                relativeTo: expect.anything(),
+                queryParamsHandling: 'preserve',
+                replaceUrl: true,
+            });
+            expect(text()).toContain(
+                'This downloaded file is no longer available on disk.'
+            );
+            expect(button('redirect-retry')).toBeTruthy();
+        }
+    );
 
     it('does not let an older episode action redirect a reused route in the same series', async () => {
         const operation = deferred<DownloadActionResult>();
