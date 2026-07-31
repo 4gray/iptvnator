@@ -1,7 +1,4 @@
-import {
-    TMDB_DETAILS_CACHE_TTL_MS,
-    type SettingsStore,
-} from '@iptvnator/services';
+import { TMDB_DETAILS_CACHE_TTL_MS } from '@iptvnator/services';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 
 export const TMDB_REFRESH_STATE = {
@@ -47,6 +44,10 @@ interface PersistMetadataRefreshInput {
     persist(): Promise<{ success: boolean }>;
 }
 
+interface MetadataLanguageSettings {
+    readonly language: () => string;
+}
+
 function isSparse(snapshot: DownloadMetadataSnapshot): boolean {
     return !snapshot.plot || (!snapshot.posterUrl && !snapshot.backdropUrl);
 }
@@ -62,7 +63,7 @@ function isFresh(snapshot: DownloadMetadataSnapshot): boolean {
 }
 
 export function currentMetadataLanguage(
-    settings: Pick<SettingsStore, 'language'>
+    settings: MetadataLanguageSettings
 ): string {
     try {
         return settings.language().trim() || 'en';
