@@ -12,10 +12,12 @@ import {
 import type {
     DownloadMetadataPerson,
     DownloadMetadataSnapshot,
-    StalkerVodInfo,
-    XtreamSerieInfo,
-    XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
+import {
+    movieSeed,
+    seriesSeed,
+    stalkerSeed,
+} from './download-metadata-tmdb-seeds';
 
 export type DownloadMetadataProviderSource = 'xtream' | 'stalker';
 
@@ -128,6 +130,7 @@ function durationMinutes(
 }
 
 export function mapProviderToDownloadSnapshot({
+    source,
     language,
     mediaKind,
     fallback,
@@ -137,16 +140,36 @@ export function mapProviderToDownloadSnapshot({
     const info = record(root['info']);
     const editorial = [info, root];
     const identity = [root, info];
-    const title = string(first(identity, ['title', 'name'])) ?? fallback.title;
+    const title =
+        (source === 'stalker'
+            ? (string(info?.['name']) ??
+              string(info?.['o_name']) ??
+              string(root['o_name']) ??
+              string(root['name']) ??
+              string(root['title']))
+            : string(first(identity, ['title', 'name']))) ?? fallback.title;
     const originalTitle =
         string(first(editorial, ['o_name', 'originalTitle'])) ??
         fallback.originalTitle;
     const plot =
         string(first(editorial, ['plot', 'description'])) ?? fallback.plot;
     const releaseDate =
-        string(first(editorial, ['releaseDate', 'releasedate'])) ??
-        fallback.releaseDate;
-    const providerGenres = strings(first(editorial, ['genre', 'genres']));
+        string(
+            first(
+                editorial,
+                source === 'stalker'
+                    ? ['releaseDate', 'releasedate', 'year']
+                    : ['releaseDate', 'releasedate']
+            )
+        ) ?? fallback.releaseDate;
+    const providerGenres = strings(
+        first(
+            editorial,
+            source === 'stalker'
+                ? ['genre', 'genres', 'genres_str']
+                : ['genre', 'genres']
+        )
+    );
     const providerCast = people(
         first(editorial, ['tmdb_cast', 'actors', 'cast'])
     );
@@ -155,14 +178,19 @@ export function mapProviderToDownloadSnapshot({
     );
     const posterUrl =
         string(
-            first(editorial, [
-                'movie_image',
-                'cover_big',
-                'cover',
-                'poster_url',
-                'posterUrl',
-                'logo',
-            ])
+            source === 'stalker'
+                ? (info?.['movie_image'] ??
+                      root['cover'] ??
+                      root['screenshot_uri'] ??
+                      root['logo'])
+                : first(editorial, [
+                      'movie_image',
+                      'cover_big',
+                      'cover',
+                      'poster_url',
+                      'posterUrl',
+                      'logo',
+                  ])
         ) ?? fallback.posterUrl;
     const backdropUrl =
         backdrop(
@@ -211,78 +239,6 @@ export function mapProviderToDownloadSnapshot({
         ...common,
         episode: fallback.episode,
     });
-}
-
-function movieSeed(snapshot: DownloadMetadataSnapshot): XtreamVodInfo {
-    const cast = snapshot.cast?.map(({ name }) => name).join(', ') ?? '';
-    return {
-        kinopoisk_url: '',
-        tmdb_id: snapshot.tmdbId ?? 0,
-        name: snapshot.title,
-        o_name: snapshot.originalTitle ?? '',
-        cover_big: snapshot.posterUrl ?? '',
-        movie_image: snapshot.posterUrl ?? '',
-        releasedate: snapshot.releaseDate ?? '',
-        episode_run_time: snapshot.durationMinutes ?? 0,
-        youtube_trailer: '',
-        director: snapshot.creators?.map(({ name }) => name).join(', ') ?? '',
-        actors: cast,
-        cast,
-        description: snapshot.plot ?? '',
-        plot: snapshot.plot ?? '',
-        age: '',
-        mpaa_rating: '',
-        rating_count_kinopoisk: 0,
-        country: '',
-        genre: snapshot.genres?.join(', ') ?? '',
-        backdrop_path: snapshot.backdropUrl ? [snapshot.backdropUrl] : [],
-        duration_secs: (snapshot.durationMinutes ?? 0) * 60,
-        duration: '',
-        video: [],
-        audio: [],
-        bitrate: 0,
-        rating: snapshot.rating ?? 0,
-    };
-}
-
-function seriesSeed(snapshot: DownloadMetadataSnapshot): XtreamSerieInfo {
-    return {
-        name: snapshot.title,
-        cover: snapshot.posterUrl ?? '',
-        plot: snapshot.plot ?? '',
-        cast: snapshot.cast?.map(({ name }) => name).join(', ') ?? '',
-        director: snapshot.creators?.map(({ name }) => name).join(', ') ?? '',
-        genre: snapshot.genres?.join(', ') ?? '',
-        releaseDate: snapshot.releaseDate ?? '',
-        last_modified: '',
-        rating: snapshot.rating === undefined ? '' : String(snapshot.rating),
-        rating_5based: 0,
-        backdrop_path: snapshot.backdropUrl ? [snapshot.backdropUrl] : [],
-        youtube_trailer: '',
-        episode_run_time:
-            snapshot.durationMinutes === undefined
-                ? ''
-                : String(snapshot.durationMinutes),
-        category_id: snapshot.providerCategoryId ?? '',
-        tmdb_id: snapshot.tmdbId,
-    };
-}
-
-function stalkerSeed(snapshot: DownloadMetadataSnapshot): StalkerVodInfo {
-    return {
-        movie_image: snapshot.posterUrl ?? '',
-        description: snapshot.plot ?? '',
-        name: snapshot.title,
-        o_name: snapshot.originalTitle,
-        actors: snapshot.cast?.map(({ name }) => name).join(', ') ?? '',
-        director: snapshot.creators?.map(({ name }) => name).join(', ') ?? '',
-        releasedate: snapshot.releaseDate ?? '',
-        genre: snapshot.genres?.join(', ') ?? '',
-        rating_imdb:
-            snapshot.rating === undefined ? '' : String(snapshot.rating),
-        rating_kinopoisk: '',
-        tmdb_id: snapshot.tmdbId,
-    };
 }
 
 export function mergeSnapshotWithTmdb(

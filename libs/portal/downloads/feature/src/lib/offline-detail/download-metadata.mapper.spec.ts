@@ -126,6 +126,48 @@ describe('download metadata mapper', () => {
         expect(mapped).not.toHaveProperty('cmd');
     });
 
+    it('normalizes nested Stalker series identity and legacy editorial fallbacks', () => {
+        const fallback: DownloadMetadataSnapshot = {
+            version: 1,
+            language: 'en',
+            mediaKind: 'series',
+            title: 'Downloaded episode title',
+            episode: {
+                title: 'Local episode',
+                seasonNumber: 2,
+                episodeNumber: 4,
+            },
+        };
+
+        const mapped = mapProviderToDownloadSnapshot({
+            source: 'stalker',
+            language: 'en',
+            mediaKind: 'series',
+            fallback,
+            provider: {
+                title: 'Root episode title',
+                screenshot_uri:
+                    'https://images.example.test/stills/legacy-series.jpg',
+                genres_str: 'Drama, Mystery',
+                year: '2024',
+                info: {
+                    name: 'Nested parent series title',
+                    o_name: 'Original parent title',
+                },
+            },
+        });
+
+        expect(mapped.title).toBe('Nested parent series title');
+        expect(mapped.originalTitle).toBe('Original parent title');
+        expect(mapped.posterUrl).toBe(
+            'https://images.example.test/stills/legacy-series.jpg'
+        );
+        expect(mapped.genres).toEqual(['Drama', 'Mystery']);
+        expect(mapped.releaseDate).toBe('2024');
+        expect(mapped.year).toBe(2024);
+        expect(mapped.episode).toEqual(fallback.episode);
+    });
+
     it('bounds mapped people and genres to the persisted DTO limits', () => {
         const mapped = mapProviderToDownloadSnapshot({
             source: 'xtream',

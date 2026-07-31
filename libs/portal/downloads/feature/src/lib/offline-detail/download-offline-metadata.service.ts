@@ -209,7 +209,11 @@ export class DownloadOfflineMetadataService {
                 resolved = local;
             }
         }
-        resolved = await this.enrichWithTmdb(resolved, context.source);
+        resolved = await this.enrichWithTmdb(
+            resolved,
+            context.source,
+            language
+        );
 
         if (materiallyEqual(local, resolved)) {
             return local;
@@ -238,15 +242,21 @@ export class DownloadOfflineMetadataService {
         detail: DownloadOfflineDetail
     ): Promise<ProviderContext> {
         const item = representative(detail);
+        let source: DownloadMetadataProviderSource;
         try {
             const playlist = await firstValueFrom(
                 this.playlists.getPlaylistById(item.playlistId)
             );
-            const source: DownloadMetadataProviderSource =
+            source =
                 playlist?.portalUrl && playlist.macAddress
                     ? 'stalker'
                     : 'xtream';
-            if (source === 'stalker') {
+        } catch {
+            return { source: 'xtream' };
+        }
+
+        if (source === 'stalker') {
+            try {
                 const recent = await firstValueFrom(
                     this.playlists.getPortalRecentlyViewed(item.playlistId)
                 );
@@ -254,7 +264,12 @@ export class DownloadOfflineMetadataService {
                     source,
                     provider: matchingRecent(recent, targetId(detail)),
                 };
+            } catch {
+                return { source };
             }
+        }
+
+        try {
             return {
                 source,
                 provider: await this.db.getContentByXtreamId(
@@ -269,7 +284,8 @@ export class DownloadOfflineMetadataService {
 
     private async enrichWithTmdb(
         snapshot: DownloadMetadataSnapshot,
-        source: DownloadMetadataProviderSource
+        source: DownloadMetadataProviderSource,
+        language: string
     ): Promise<DownloadMetadataSnapshot> {
         try {
             if (!this.tmdb.isEnabled()) {
@@ -286,7 +302,13 @@ export class DownloadOfflineMetadataService {
                     ? await this.tmdb.enrichMovie(query)
                     : await this.tmdb.enrichTv(query);
             return details
-                ? mergeSnapshotWithTmdb(snapshot, details, source)
+                ? mergeSnapshotWithTmdb(
+                      snapshot.language === language
+                          ? snapshot
+                          : { ...snapshot, language },
+                      details,
+                      source
+                  )
                 : snapshot;
         } catch {
             return snapshot;

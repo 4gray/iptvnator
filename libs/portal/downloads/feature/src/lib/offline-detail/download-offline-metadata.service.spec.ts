@@ -148,6 +148,7 @@ describe('DownloadOfflineMetadataService', () => {
     let downloads: DownloadsFake;
     let playlists: PlaylistsFake;
     let tmdb: TmdbFake;
+    let currentLanguage: string;
 
     beforeEach(() => {
         db = {
@@ -165,6 +166,7 @@ describe('DownloadOfflineMetadataService', () => {
             enrichMovie: jest.fn().mockResolvedValue(null),
             enrichTv: jest.fn().mockResolvedValue(null),
         };
+        currentLanguage = 'en';
 
         TestBed.configureTestingModule({
             providers: [
@@ -175,7 +177,7 @@ describe('DownloadOfflineMetadataService', () => {
                 { provide: TmdbEnrichmentService, useValue: tmdb },
                 {
                     provide: SettingsStore,
-                    useValue: { language: () => 'en' },
+                    useValue: { language: () => currentLanguage },
                 },
             ],
         });
@@ -327,6 +329,79 @@ describe('DownloadOfflineMetadataService', () => {
                 title: 'Provider title',
                 posterUrl: 'https://images.example.test/provider.jpg',
             })
+        );
+    });
+
+    it('keeps Stalker merge precedence when recent lookup fails', async () => {
+        playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));
+        playlists.getPortalRecentlyViewed.mockReturnValue(
+            throwError(() => new Error('recent unavailable'))
+        );
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichMovie.mockResolvedValue({
+            id: 603,
+            overview: 'Localized TMDB plot',
+            vote_average: 7.2,
+            vote_count: 100,
+        });
+        const local = snapshot({ plot: undefined, rating: 9.1 });
+
+        const resolved = await service.resolve(movieDetail({}, local));
+
+        expect(resolved.plot).toBe('Localized TMDB plot');
+        expect(resolved.rating).toBe(9.1);
+        expect(db.getContentByXtreamId).not.toHaveBeenCalled();
+    });
+
+    it('labels a provider-missing successful TMDB refresh with the current language', async () => {
+        currentLanguage = 'de';
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichMovie.mockResolvedValue({
+            id: 603,
+            overview: 'Lokalisierte TMDB-Beschreibung',
+        });
+        const local = snapshot({ language: 'en' });
+
+        const resolved = await service.resolve(movieDetail({}, local));
+
+        expect(db.getContentByXtreamId).toHaveBeenCalledWith(41, PLAYLIST_ID);
+        expect(resolved.language).toBe('de');
+        expect(downloads.updateMetadata).toHaveBeenCalledWith(
+            17,
+            expect.objectContaining({ language: 'de' })
+        );
+    });
+
+    it('does not relabel a mismatched snapshot when no refresh succeeds', async () => {
+        currentLanguage = 'de';
+        const local = snapshot({ language: 'en' });
+
+        await expect(service.resolve(movieDetail({}, local))).resolves.toEqual(
+            local
+        );
+        expect(downloads.updateMetadata).not.toHaveBeenCalled();
+    });
+
+    it('omits credential-bearing provider artwork before persistence', async () => {
+        db.getContentByXtreamId.mockResolvedValue({
+            id: 1,
+            category_id: 12,
+            title: 'Recovered provider title',
+            rating: '7',
+            added: '0',
+            poster_url:
+                'https://images.example.test/authorization/value/poster.jpg',
+            xtream_id: 41,
+            type: 'movie',
+        });
+        const local = snapshot({ plot: undefined, posterUrl: undefined });
+
+        const resolved = await service.resolve(movieDetail({}, local));
+
+        expect(resolved.posterUrl).toBeUndefined();
+        expect(downloads.updateMetadata).toHaveBeenCalledWith(
+            17,
+            expect.not.objectContaining({ posterUrl: expect.anything() })
         );
     });
 

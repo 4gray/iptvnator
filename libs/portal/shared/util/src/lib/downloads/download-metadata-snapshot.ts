@@ -24,31 +24,44 @@ const IMAGE_PATH_HINTS = new Set([
     'still',
     'stills',
 ]);
+// Keep these aliases synchronized with the canonical Electron validator in
+// apps/electron-backend/src/app/events/database/download-artwork-url.ts.
 const CREDENTIAL_PATH_KEYS = new Set([
     'accesskey',
     'accesstoken',
     'apikey',
     'auth',
+    'authentication',
+    'authorization',
     'cookie',
     'credential',
+    'credentials',
     'devicemac',
     'key',
     'mac',
+    'macaddress',
+    'oauth',
     'password',
+    'passwd',
     'privatekey',
     'refreshtoken',
     'secret',
+    'secretkey',
     'session',
+    'sig',
     'signature',
+    'signingkey',
     'token',
 ]);
 const CREDENTIAL_QUERY_TERMS = [
-    'auth',
+    'authentication',
+    'authorization',
     'cookie',
     'credential',
-    'key',
-    'mac',
+    'macaddress',
+    'oauth',
     'password',
+    'passwd',
     'secret',
     'session',
     'signature',
@@ -92,6 +105,19 @@ function finite(value: number | undefined): number | undefined {
 
 function normalizedToken(value: string): string {
     return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isCredentialQueryKey(key: string): boolean {
+    const token = normalizedToken(key);
+    return (
+        ['auth', 'key', 'mac', 'sig'].includes(token) ||
+        token.endsWith('auth') ||
+        token.endsWith('mac') ||
+        CREDENTIAL_QUERY_TERMS.some((term) => token.includes(term)) ||
+        ['accesskey', 'apikey', 'privatekey', 'secretkey', 'signingkey'].some(
+            (term) => token.includes(term)
+        )
+    );
 }
 
 function credentialPath(pathname: string): boolean {
@@ -150,14 +176,13 @@ function artworkUrl(value: string | undefined): string | undefined {
         ) {
             return undefined;
         }
-        let credentialQuery = false;
+        let hasCredentialQuery = false;
         url.searchParams.forEach((_value, key) => {
-            const token = normalizedToken(key);
-            if (CREDENTIAL_QUERY_TERMS.some((term) => token.includes(term))) {
-                credentialQuery = true;
+            if (isCredentialQueryKey(key)) {
+                hasCredentialQuery = true;
             }
         });
-        if (credentialQuery) {
+        if (hasCredentialQuery) {
             return undefined;
         }
         return normalized;

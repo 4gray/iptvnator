@@ -127,4 +127,77 @@ describe('download metadata snapshot factories', () => {
             'https://images.example.test/posters/secret-garden.jpg'
         );
     });
+
+    it.each([
+        'accesskey',
+        'accesstoken',
+        'apikey',
+        'auth',
+        'authentication',
+        'authorization',
+        'cookie',
+        'credential',
+        'credentials',
+        'devicemac',
+        'key',
+        'mac',
+        'macaddress',
+        'oauth',
+        'password',
+        'passwd',
+        'privatekey',
+        'refreshtoken',
+        'secret',
+        'secretkey',
+        'session',
+        'sig',
+        'signature',
+        'signingkey',
+        'token',
+    ])('drops artwork containing backend credential path alias %s', (alias) => {
+        const snapshot = createMovieDownloadSnapshot({
+            language: 'en',
+            title: 'Unsafe artwork',
+            posterUrl: `https://images.example.test/${alias}/value/poster.jpg`,
+        });
+
+        expect(snapshot.posterUrl).toBeUndefined();
+    });
+
+    it.each([
+        'authentication',
+        'authorization',
+        'cookie',
+        'credential',
+        'macaddress',
+        'oauth',
+        'password',
+        'passwd',
+        'secret',
+        'session',
+        'signature',
+        'token',
+        'auth',
+        'key',
+        'mac',
+        'sig',
+        'proxy-auth',
+        'device-mac',
+        'access-key',
+        'api-key',
+        'private-key',
+        'secret-key',
+        'signing-key',
+    ])(
+        'drops artwork containing backend credential query alias %s',
+        (alias) => {
+            const snapshot = createMovieDownloadSnapshot({
+                language: 'en',
+                title: 'Unsafe artwork',
+                posterUrl: `https://images.example.test/poster.jpg?${alias}=value`,
+            });
+
+            expect(snapshot.posterUrl).toBeUndefined();
+        }
+    );
 });
