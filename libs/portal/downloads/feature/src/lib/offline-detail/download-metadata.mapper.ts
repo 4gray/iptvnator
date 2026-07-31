@@ -148,9 +148,9 @@ export function mapProviderToDownloadSnapshot({
                   string(root['o_name']) ??
                   string(root['name']) ??
                   string(root['title']))
-                : (string(root['name']) ??
+                : (string(root['title']) ??
                   string(root['o_name']) ??
-                  string(root['title']))
+                  string(root['name']))
             : string(first(identity, ['title', 'name']))) ?? fallback.title;
     const originalTitle =
         string(first(editorial, ['o_name', 'originalTitle'])) ??
@@ -252,11 +252,13 @@ export function mergeSnapshotWithTmdb(
 ): DownloadMetadataSnapshot {
     const provider =
         source === 'stalker'
-            ? mergeStalkerInfoWithTmdb(
-                  stalkerSeed(snapshot),
-                  details,
-                  snapshot.mediaKind === 'movie' ? 'movie' : 'tv'
-              )
+            ? {
+                  info: mergeStalkerInfoWithTmdb(
+                      stalkerSeed(snapshot).info,
+                      details,
+                      snapshot.mediaKind === 'movie' ? 'movie' : 'tv'
+                  ),
+              }
             : snapshot.mediaKind === 'movie'
               ? mergeVodInfoWithTmdb(
                     movieSeed(snapshot),

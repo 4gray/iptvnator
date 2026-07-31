@@ -62,21 +62,24 @@ export function seriesSeed(
     };
 }
 
-export function stalkerSeed(
-    snapshot: DownloadMetadataSnapshot
-): StalkerVodInfo {
+export function stalkerSeed(snapshot: DownloadMetadataSnapshot): {
+    info: StalkerVodInfo;
+} {
     return {
-        movie_image: snapshot.posterUrl ?? '',
-        description: snapshot.plot ?? '',
-        name: snapshot.title,
-        o_name: snapshot.originalTitle,
-        actors: snapshot.cast?.map(({ name }) => name).join(', ') ?? '',
-        director: snapshot.creators?.map(({ name }) => name).join(', ') ?? '',
-        releasedate: snapshot.releaseDate ?? '',
-        genre: snapshot.genres?.join(', ') ?? '',
-        rating_imdb:
-            snapshot.rating === undefined ? '' : String(snapshot.rating),
-        rating_kinopoisk: '',
-        tmdb_id: snapshot.tmdbId,
+        info: {
+            movie_image: snapshot.posterUrl ?? '',
+            description: snapshot.plot ?? '',
+            name: snapshot.title,
+            o_name: snapshot.originalTitle,
+            actors: snapshot.cast?.map(({ name }) => name).join(', ') ?? '',
+            director:
+                snapshot.creators?.map(({ name }) => name).join(', ') ?? '',
+            releasedate: snapshot.releaseDate ?? '',
+            genre: snapshot.genres?.join(', ') ?? '',
+            rating_imdb:
+                snapshot.rating === undefined ? '' : String(snapshot.rating),
+            rating_kinopoisk: '',
+            tmdb_id: snapshot.tmdbId,
+        },
     };
 }

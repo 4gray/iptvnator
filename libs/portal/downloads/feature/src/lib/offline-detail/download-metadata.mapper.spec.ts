@@ -137,6 +137,37 @@ describe('download metadata mapper', () => {
         expect(mapped).not.toHaveProperty('cmd');
     });
 
+    it('prefers a flat Stalker recent title over its generic name', () => {
+        const mapped = mapProviderToDownloadSnapshot({
+            source: 'stalker',
+            language: 'en',
+            mediaKind: 'movie',
+            fallback: providerSnapshot,
+            provider: {
+                title: 'Canonical recent title',
+                name: 'video_name_format',
+            },
+        });
+
+        expect(mapped.title).toBe('Canonical recent title');
+    });
+
+    it('prefers a flat Stalker recent original title over its generic name', () => {
+        const mapped = mapProviderToDownloadSnapshot({
+            source: 'stalker',
+            language: 'en',
+            mediaKind: 'movie',
+            fallback: providerSnapshot,
+            provider: {
+                o_name: 'Canonical recent original title',
+                name: 'video_name_format',
+            },
+        });
+
+        expect(mapped.title).toBe('Canonical recent original title');
+        expect(mapped.originalTitle).toBe('Canonical recent original title');
+    });
+
     it('normalizes nested Stalker series identity and legacy editorial fallbacks', () => {
         const fallback: DownloadMetadataSnapshot = {
             version: 1,
