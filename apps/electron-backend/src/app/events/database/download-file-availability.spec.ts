@@ -78,6 +78,12 @@ describe('download file availability', () => {
         const row = Object.freeze({
             filePath: '/downloads/movie.mp4',
             id: 42,
+            metadataSnapshot: JSON.stringify({
+                version: 1,
+                language: 'en',
+                mediaKind: 'movie',
+                title: 'Movie',
+            }),
             status: 'completed' as const,
             title: 'Movie',
         });
@@ -86,6 +92,12 @@ describe('download file availability', () => {
             decorateDownloadItem(row, lstatResult({ isFile: true }))
         ).toEqual({
             ...row,
+            metadataSnapshot: {
+                version: 1,
+                language: 'en',
+                mediaKind: 'movie',
+                title: 'Movie',
+            },
             fileAvailability: 'available',
         });
         expect(row).not.toHaveProperty('fileAvailability');

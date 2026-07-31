@@ -1,3 +1,4 @@
+import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import { and, eq, sql } from 'drizzle-orm';
 import { basename, dirname, extname } from 'node:path';
 import { getDatabase } from '../../database/connection';
@@ -5,6 +6,7 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { removePartialDownloadFile } from './download-file-path';
+import { encodeDownloadMetadataSnapshot } from './download-metadata-snapshot';
 import { enqueueDownload } from './download-runtime';
 
 export interface StartDownloadRequest {
@@ -14,6 +16,7 @@ export interface StartDownloadRequest {
     title: string;
     url: string;
     posterUrl?: string;
+    metadataSnapshot?: DownloadMetadataSnapshot;
     downloadFolder: string;
     headers?: { userAgent?: string; referer?: string; origin?: string };
     seriesXtreamId?: number;
@@ -110,6 +113,10 @@ export async function startDownloadRequest(
     data: StartDownloadRequest,
     authorizer: DownloadDirectoryAuthorizer
 ): Promise<{ success: boolean; error?: string; id?: number }> {
+    const encodedMetadataSnapshot =
+        data.metadataSnapshot === undefined
+            ? undefined
+            : encodeDownloadMetadataSnapshot(data.metadataSnapshot);
     console.log('[Downloads] Enqueue download:', data.title);
     const directory = await authorizer.requireAuthorized(data.downloadFolder);
     await assertRemoteUrlAllowed(data.url, { allowPrivateNetworks: true });
@@ -190,6 +197,9 @@ export async function startDownloadRequest(
                 errorMessage: null,
                 fileName,
                 filePath: null,
+                ...(encodedMetadataSnapshot === undefined
+                    ? {}
+                    : { metadataSnapshot: encodedMetadataSnapshot }),
                 requestHeaders: serializeHeaders(headers),
                 resumeValidator: null,
                 status: 'queued',
@@ -212,6 +222,7 @@ export async function startDownloadRequest(
         contentType: data.contentType,
         episodeNumber: data.episodeNumber,
         fileName,
+        metadataSnapshot: encodedMetadataSnapshot,
         playlistId: data.playlistId,
         posterUrl: data.posterUrl,
         requestHeaders: serializeHeaders(headers),

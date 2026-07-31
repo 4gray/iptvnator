@@ -1,11 +1,14 @@
 import {
+    type DownloadMetadataSnapshot,
     type ElectronBridgeDownloadStatus,
     type ElectronDownloadFileAvailability,
 } from '@iptvnator/shared/interfaces';
 import { lstatSync, type Stats } from 'node:fs';
+import { decodeDownloadMetadataSnapshot } from './download-metadata-snapshot';
 
 interface DownloadFileRow {
     filePath?: string | null;
+    metadataSnapshot?: string | null;
     status: ElectronBridgeDownloadStatus;
 }
 
@@ -45,9 +48,15 @@ export function getDownloadFileAvailability(
 export function decorateDownloadItem<T extends DownloadFileRow>(
     download: T,
     lstat: DownloadLstat = lstatSync
-): T & { fileAvailability: ElectronDownloadFileAvailability } {
+): Omit<T, 'metadataSnapshot'> & {
+    metadataSnapshot: DownloadMetadataSnapshot | undefined;
+    fileAvailability: ElectronDownloadFileAvailability;
+} {
     return {
         ...download,
+        metadataSnapshot: decodeDownloadMetadataSnapshot(
+            download.metadataSnapshot
+        ),
         fileAvailability: getDownloadFileAvailability(download, lstat),
     };
 }

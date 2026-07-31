@@ -18,10 +18,17 @@ describe('downloads events: file availability', () => {
     });
 
     it('decorates every download in the list from the current filesystem state', async () => {
+        const metadataSnapshot = {
+            version: 1,
+            language: 'en',
+            mediaKind: 'movie',
+            title: 'Available Movie',
+        };
         const rows = [
             {
                 filePath: '/downloads/available.mp4',
                 id: 1,
+                metadataSnapshot: JSON.stringify(metadataSnapshot),
                 status: 'completed',
             },
             {
@@ -49,9 +56,21 @@ describe('downloads events: file availability', () => {
         });
 
         await expect(getHandler('DOWNLOADS_GET_LIST')(null)).resolves.toEqual([
-            { ...rows[0], fileAvailability: 'available' },
-            { ...rows[1], fileAvailability: 'missing' },
-            { ...rows[2], fileAvailability: 'not-applicable' },
+            {
+                ...rows[0],
+                metadataSnapshot,
+                fileAvailability: 'available',
+            },
+            {
+                ...rows[1],
+                metadataSnapshot: undefined,
+                fileAvailability: 'missing',
+            },
+            {
+                ...rows[2],
+                metadataSnapshot: undefined,
+                fileAvailability: 'not-applicable',
+            },
         ]);
         expect(mockLstatSync).toHaveBeenCalledTimes(2);
     });
@@ -60,6 +79,7 @@ describe('downloads events: file availability', () => {
         const row = {
             filePath: '/downloads/missing.mp4',
             id: 2,
+            metadataSnapshot: '{corrupt',
             status: 'completed',
         };
         mockGetDatabase.mockResolvedValue({
@@ -77,6 +97,7 @@ describe('downloads events: file availability', () => {
 
         await expect(getHandler('DOWNLOADS_GET')(null, 2)).resolves.toEqual({
             ...row,
+            metadataSnapshot: undefined,
             fileAvailability: 'missing',
         });
     });

@@ -1,3 +1,4 @@
+import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import { and, eq, inArray } from 'drizzle-orm';
 import { app, dialog, ipcMain, shell } from 'electron';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -10,6 +11,7 @@ import {
     isAvailableDownloadFile,
 } from './download-file-availability';
 import { removePartialDownloadFile } from './download-file-path';
+import { updateDownloadMetadataRequest } from './download-metadata-update';
 import {
     resumeDownloadRequest,
     retryDownloadRequest,
@@ -242,6 +244,15 @@ ipcMain.handle('DOWNLOADS_GET', async (_event, downloadId: number) => {
         throw error;
     }
 });
+
+ipcMain.handle(
+    'DOWNLOADS_UPDATE_METADATA',
+    async (
+        _event,
+        downloadId: number,
+        metadataSnapshot: DownloadMetadataSnapshot
+    ) => updateDownloadMetadataRequest(downloadId, metadataSnapshot)
+);
 
 ipcMain.handle('DOWNLOADS_GET_DEFAULT_FOLDER', async () => {
     return downloadDirectoryAuthorizer.getPreferredDirectory();
