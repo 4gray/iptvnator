@@ -264,6 +264,10 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             fetchMovieFileId: (id) => this.catalog.fetchMovieFileId(id),
             fetchLinkToPlay: (portalUrl, macAddress, cmd) =>
                 this.catalog.fetchLinkToPlay(portalUrl, macAddress, cmd),
+            language:
+                this.translateService.currentLang ||
+                this.translateService.defaultLang ||
+                'en',
         });
     }
 

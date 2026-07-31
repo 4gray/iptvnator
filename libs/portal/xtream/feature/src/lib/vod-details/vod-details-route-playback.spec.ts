@@ -426,11 +426,42 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         fixture.detectChanges();
 
         await fixture.componentInstance.downloadVod({
+            info: {
+                name: 'Metadata Movie',
+                description: 'Provider or TMDB description',
+                movie_image:
+                    'https://images.example.test/posters/metadata-movie.jpg',
+                backdrop_path: [
+                    'https://images.example.test/backdrops/metadata-movie.jpg',
+                ],
+                releasedate: '2025-03-14',
+                duration_secs: 7200,
+                genre: 'Drama, Mystery',
+                rating: '8.4',
+                status: 'Released',
+                tmdb_id: 12345,
+                tmdb_cast: [
+                    {
+                        name: 'Ada Actor',
+                        character: 'The Lead',
+                        profileUrl: 'https://image.tmdb.org/t/p/w185/ada.jpg',
+                        tmdbPersonId: 91,
+                    },
+                ],
+                tmdb_directors: [
+                    {
+                        name: 'Dana Director',
+                        profileUrl: null,
+                        tmdbPersonId: 92,
+                    },
+                ],
+            },
             // A DIFFERENT id in the payload: the route's id must win.
             movie_data: {
                 stream_id: 111,
                 name: 'Example',
                 container_extension: 'mp4',
+                category_id: '235',
             },
         } as never);
 
@@ -439,7 +470,37 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // (the Similar rail), and the snapshot still names the film the user
         // came from — so the download would fetch the wrong movie.
         expect(stubs.startDownload).toHaveBeenCalledWith(
-            expect.objectContaining({ xtreamId: 650020 })
+            expect.objectContaining({
+                playlistId: 'playlist-1',
+                xtreamId: 650020,
+                metadataSnapshot: expect.objectContaining({
+                    version: 1,
+                    language: 'en',
+                    mediaKind: 'movie',
+                    title: 'Metadata Movie',
+                    plot: 'Provider or TMDB description',
+                    posterUrl:
+                        'https://images.example.test/posters/metadata-movie.jpg',
+                    backdropUrl:
+                        'https://images.example.test/backdrops/metadata-movie.jpg',
+                    providerCategoryId: '235',
+                    tmdbId: 12345,
+                    genres: ['Drama', 'Mystery'],
+                    cast: [
+                        expect.objectContaining({
+                            name: 'Ada Actor',
+                            role: 'The Lead',
+                            tmdbPersonId: 91,
+                        }),
+                    ],
+                    creators: [
+                        expect.objectContaining({
+                            name: 'Dana Director',
+                            tmdbPersonId: 92,
+                        }),
+                    ],
+                }),
+            })
         );
     });
 

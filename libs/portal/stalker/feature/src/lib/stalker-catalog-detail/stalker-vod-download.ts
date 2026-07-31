@@ -1,5 +1,9 @@
 import type { DownloadsService } from '@iptvnator/services';
-import type { VodDetailsItem } from '@iptvnator/shared/interfaces';
+import { createMovieDownloadSnapshot } from '@iptvnator/portal/shared/util';
+import type {
+    TmdbEnrichedCastMember,
+    VodDetailsItem,
+} from '@iptvnator/shared/interfaces';
 
 /** The Stalker branch of the item union — the only one carrying `cmd`. */
 type StalkerVodDetailsItem = Extract<VodDetailsItem, { type: 'stalker' }>;
@@ -22,7 +26,22 @@ export interface DownloadVodData {
     id?: string | number;
     has_files?: unknown;
     title?: string;
-    info?: { name?: string; movie_image?: string };
+    category_id?: string | number;
+    info?: {
+        name?: string;
+        o_name?: string;
+        description?: string;
+        movie_image?: string;
+        tmdb_backdrop?: string;
+        releasedate?: string;
+        genre?: string;
+        rating_imdb?: string | number;
+        tmdb_id?: string | number;
+        tmdb_cast?: TmdbEnrichedCastMember[];
+        tmdb_directors?: TmdbEnrichedCastMember[];
+        actors?: string;
+        director?: string;
+    };
 }
 
 export interface StalkerVodDownloadPlaylist {
@@ -44,6 +63,46 @@ export interface StalkerVodDownloadDeps {
         macAddress: string,
         cmd: string
     ) => Promise<string | null>;
+    language?: string;
+}
+
+function textList(value: string | undefined): string[] | undefined {
+    const entries = value
+        ?.split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    return entries?.length ? entries : undefined;
+}
+
+function number(value: string | number | undefined): number | undefined {
+    if (value === undefined || String(value).trim() === '') {
+        return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function year(value: string | undefined): number | undefined {
+    const match = value?.match(/(?:^|\D)((?:19|20)\d{2})(?:\D|$)/);
+    return match ? Number(match[1]) : undefined;
+}
+
+function firstText(...values: (string | undefined)[]): string | undefined {
+    return values.map((value) => value?.trim()).find(Boolean);
+}
+
+function people(
+    enriched: TmdbEnrichedCastMember[] | undefined,
+    fallback: string | undefined
+) {
+    return (
+        enriched?.map((person) => ({
+            name: person.name,
+            role: person.character,
+            profileUrl: person.profileUrl ?? undefined,
+            tmdbPersonId: person.tmdbPersonId,
+        })) ?? textList(fallback)?.map((name) => ({ name }))
+    );
 }
 
 export async function startStalkerVodDownload(
@@ -60,6 +119,7 @@ export async function startStalkerVodDownload(
     }
 
     const itemData = item.data as DownloadVodData;
+    const title = firstText(itemData?.info?.name, itemData?.title) ?? 'Unknown';
     const cmdToUse = await resolveDownloadCmd(item, itemData, deps);
 
     const url = await deps.fetchLinkToPlay(
@@ -75,9 +135,31 @@ export async function startStalkerVodDownload(
         playlistId: playlist.id,
         xtreamId: normalizeStalkerEntityIdAsNumber(itemData?.id) ?? 0,
         contentType: 'vod',
-        title: itemData?.info?.name || itemData?.title || 'Unknown',
+        title,
         url,
         posterUrl: itemData?.info?.movie_image,
+        metadataSnapshot: createMovieDownloadSnapshot({
+            language: deps.language?.trim() || 'en',
+            title,
+            originalTitle: itemData.info?.o_name,
+            plot: itemData.info?.description,
+            releaseDate: itemData.info?.releasedate,
+            year: year(itemData.info?.releasedate),
+            genres: textList(itemData.info?.genre),
+            rating: number(itemData.info?.rating_imdb),
+            posterUrl: itemData.info?.movie_image,
+            backdropUrl: itemData.info?.tmdb_backdrop,
+            tmdbId: number(itemData.info?.tmdb_id),
+            providerCategoryId:
+                itemData.category_id === undefined
+                    ? undefined
+                    : String(itemData.category_id),
+            cast: people(itemData.info?.tmdb_cast, itemData.info?.actors),
+            creators: people(
+                itemData.info?.tmdb_directors,
+                itemData.info?.director
+            ),
+        }),
         headers: {
             userAgent: playlist.userAgent,
             referer: playlist.referer,

@@ -29,6 +29,7 @@ import {
     seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
+    type XtreamSerieEpisodeInfo,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import { SafePipe } from '@iptvnator/pipes';
@@ -36,6 +37,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    createSeriesEpisodeDownloadSnapshot,
     createLogger,
     getStalkerReturnToState,
 } from '@iptvnator/portal/shared/util';
@@ -88,6 +90,48 @@ interface SeriesPositionContext {
     readonly playlistId: string;
     readonly seriesXtreamId: number;
     readonly mutationKey: string;
+}
+
+function snapshotTextList(value: string | undefined): string[] | undefined {
+    const entries = value
+        ?.split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    return entries?.length ? entries : undefined;
+}
+
+function snapshotNumber(
+    value: string | number | undefined
+): number | undefined {
+    if (value === undefined || String(value).trim() === '') {
+        return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function snapshotYear(value: string | undefined): number | undefined {
+    const match = value?.match(/(?:^|\D)((?:19|20)\d{2})(?:\D|$)/);
+    return match ? Number(match[1]) : undefined;
+}
+
+function snapshotPeople(
+    enriched: TmdbEnrichedCastMember[] | undefined,
+    fallback: string | undefined
+) {
+    return (
+        enriched?.map((person) => ({
+            name: person.name,
+            role: person.character,
+            profileUrl: person.profileUrl ?? undefined,
+            tmdbPersonId: person.tmdbPersonId,
+        })) ?? snapshotTextList(fallback)?.map((name) => ({ name }))
+    );
+}
+
+function positiveCoordinate(value: number | string | undefined): number {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
 /**
@@ -1061,10 +1105,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         const episodeInfo = this.getEpisodeInfo(episode);
         const posterUrl = episodeInfo?.movie_image;
-        const seasonNum = Number(episode.season || 1);
-        const episodeNum = episode.episode_num || 1;
+        const seasonNum = positiveCoordinate(episode.season);
+        const episodeNum = positiveCoordinate(episode.episode_num);
         const seriesTitle =
-            item.info?.name || this.displayItem()?.info?.name || 'Series';
+            item.info?.name?.trim() ||
+            this.displayItem()?.info?.name?.trim() ||
+            'Series';
         const episodeTitle = `${seriesTitle} - S${String(seasonNum).padStart(
             2,
             '0'
@@ -1077,6 +1123,36 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             title: episodeTitle,
             url,
             posterUrl,
+            metadataSnapshot: createSeriesEpisodeDownloadSnapshot({
+                language:
+                    this.translateService.currentLang ||
+                    this.translateService.defaultLang ||
+                    'en',
+                title: seriesTitle,
+                originalTitle: item.info?.o_name,
+                plot: item.info?.description,
+                releaseDate: item.info?.releasedate,
+                year: snapshotYear(item.info?.releasedate),
+                genres: snapshotTextList(item.info?.genre),
+                rating: snapshotNumber(item.info?.rating_imdb),
+                status: item.info?.tmdb_status,
+                posterUrl: item.info?.movie_image,
+                backdropUrl: item.info?.tmdb_backdrop,
+                tmdbId: item.info?.tmdb_id,
+                providerCategoryId: item.category_id,
+                cast: snapshotPeople(item.info?.tmdb_cast, item.info?.actors),
+                creators: snapshotPeople(
+                    item.info?.tmdb_directors,
+                    item.info?.director
+                ),
+                episode: {
+                    seasonNumber: seasonNum,
+                    episodeNumber: episodeNum,
+                    title: episode.title,
+                    plot: episodeInfo?.plot,
+                    stillUrl: episodeInfo?.movie_image,
+                },
+            }),
             seriesXtreamId: this.toSeriesId(item.id),
             seasonNumber: seasonNum,
             episodeNumber: episodeNum,
@@ -1456,11 +1532,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     private getEpisodeInfo(
         episode: XtreamSerieEpisode
-    ): { movie_image?: string } | undefined {
+    ): XtreamSerieEpisodeInfo | undefined {
         if (!episode.info || Array.isArray(episode.info)) {
             return undefined;
         }
-        return episode.info as { movie_image?: string };
+        return episode.info;
     }
 
     private getEpisodeDownloadId(episode: XtreamSerieEpisode): number {

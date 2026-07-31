@@ -90,6 +90,13 @@ describe('StalkerSeriesViewComponent', () => {
     const openResolvedPlayback = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const tmdbGetSeason = jest.fn();
+    const startDownload = jest.fn();
+    const fetchLinkToPlay = jest.fn();
+    const currentPlaylist = signal({
+        _id: 'stalker-1',
+        portalUrl: 'https://stalker.example.test',
+        macAddress: '00:1A:79:12:34:56',
+    });
 
     beforeEach(async () => {
         selectedContentType.set('series');
@@ -148,6 +155,15 @@ describe('StalkerSeriesViewComponent', () => {
             overview: 'Season overview from TMDB',
             episodes: [],
         });
+        startDownload.mockReset().mockResolvedValue({ success: true });
+        fetchLinkToPlay
+            .mockReset()
+            .mockResolvedValue('https://cdn.example.test/episode.mpg');
+        currentPlaylist.set({
+            _id: 'stalker-1',
+            portalUrl: 'https://stalker.example.test',
+            macAddress: '00:1A:79:12:34:56',
+        });
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -157,7 +173,7 @@ describe('StalkerSeriesViewComponent', () => {
                     useValue: {
                         selectedItem,
                         selectedContentType,
-                        currentPlaylist: signal({ _id: 'stalker-1' }),
+                        currentPlaylist,
                         getSerialSeasonsResource: () => serialSeasonsResource(),
                         getVodSeriesSeasonsResource: () =>
                             vodSeriesSeasonsResource(),
@@ -165,7 +181,7 @@ describe('StalkerSeriesViewComponent', () => {
                         isSerialSeasonsLoading,
                         fetchVodSeriesEpisodes,
                         resolveVodPlayback,
-                        fetchLinkToPlay: jest.fn(),
+                        fetchLinkToPlay,
                         clearSelectedItem: jest.fn(),
                     },
                 },
@@ -199,7 +215,7 @@ describe('StalkerSeriesViewComponent', () => {
                 {
                     provide: DownloadsService,
                     useValue: {
-                        startDownload: jest.fn(),
+                        startDownload,
                     },
                 },
                 {
@@ -222,6 +238,8 @@ describe('StalkerSeriesViewComponent', () => {
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
+                        currentLang: 'en',
+                        defaultLang: 'en',
                         // EMPTY (not of(null)): the real TranslatePipe inside
                         // the detail shell reads `event.lang` from emissions.
                         onLangChange: EMPTY,
@@ -326,6 +344,70 @@ describe('StalkerSeriesViewComponent', () => {
                 '[data-testid="series-quick-start"]'
             )
         ).not.toBeNull();
+    });
+
+    it('captures enriched parent and episode metadata when an episode download starts', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            category_id: '18',
+            info: {
+                name: 'Signal House',
+                description: 'Parent series plot',
+                movie_image:
+                    'https://images.example.test/posters/signal-house.jpg',
+            },
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await fixture.componentInstance.downloadEpisode({
+            id: 'episode-tracking-id',
+            episode_num: 2,
+            title: 'The Call',
+            container_extension: 'mpg',
+            info: {
+                plot: 'Episode-specific plot',
+                movie_image: 'https://images.example.test/stills/the-call.jpg',
+                duration_secs: 3120,
+                rating: 8.6,
+            },
+            custom_sid: 'vod-series',
+            added: '',
+            season: 1,
+            direct_source: '',
+            originalId: '502',
+        } as never);
+
+        expect(startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'stalker-1',
+                playlistType: 'stalker',
+                seriesXtreamId: 50001,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                metadataSnapshot: expect.objectContaining({
+                    version: 1,
+                    language: 'en',
+                    mediaKind: 'series',
+                    title: 'Signal House',
+                    plot: 'Parent series plot',
+                    posterUrl:
+                        'https://images.example.test/posters/signal-house.jpg',
+                    providerCategoryId: '18',
+                    episode: {
+                        seasonNumber: 1,
+                        episodeNumber: 2,
+                        title: 'The Call',
+                        plot: 'Episode-specific plot',
+                        stillUrl:
+                            'https://images.example.test/stills/the-call.jpg',
+                    },
+                }),
+            })
+        );
     });
 
     it('interpolates the episode number for a recently started VOD is_series episode', async () => {

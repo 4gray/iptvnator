@@ -1,9 +1,45 @@
 import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { createMovieDownloadSnapshot } from '@iptvnator/portal/shared/util';
 import { DownloadsService } from '@iptvnator/services';
 import { resolveXtreamVodPlaybackSource } from '@iptvnator/portal/xtream/data-access';
-import { XtreamVodDetails } from '@iptvnator/shared/interfaces';
+import {
+    getXtreamVodInfo,
+    XtreamVodDetails,
+    type XtreamVodInfo,
+} from '@iptvnator/shared/interfaces';
+import { TranslateService } from '@ngx-translate/core';
 import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
+
+function textList(value: string | undefined): string[] | undefined {
+    const entries = value
+        ?.split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    return entries?.length ? entries : undefined;
+}
+
+function number(value: number | string | undefined): number | undefined {
+    if (value === undefined || String(value).trim() === '') {
+        return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function year(value: string | undefined): number | undefined {
+    const match = value?.match(/(?:^|\D)((?:19|20)\d{2})(?:\D|$)/);
+    return match ? Number(match[1]) : undefined;
+}
+
+function durationMinutes(info: XtreamVodInfo | null): number | undefined {
+    const seconds = number(info?.duration_secs);
+    if (seconds && seconds > 0) {
+        return Math.round(seconds / 60);
+    }
+    const minutes = number(info?.episode_run_time);
+    return minutes && minutes > 0 ? Math.round(minutes) : undefined;
+}
 
 /**
  * Offline downloads for the movie on screen.
@@ -16,6 +52,7 @@ import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-pre
 export class VodDetailsDownloadsService {
     private readonly downloadsService = inject(DownloadsService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly translateService = inject(TranslateService);
 
     private routeContentId: Signal<number> = signal(NaN);
 
@@ -90,6 +127,7 @@ export class VodDetailsDownloadsService {
         }
 
         const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
+        const info = getXtreamVodInfo(vodItem);
         const routeVodId = this.routeContentId();
         const id =
             Number.isSafeInteger(routeVodId) && routeVodId > 0
@@ -103,6 +141,42 @@ export class VodDetailsDownloadsService {
             title: presentation.title,
             url: this.xtreamStore.constructVodStreamUrl(vodItem),
             posterUrl: presentation.posterUrl,
+            metadataSnapshot: createMovieDownloadSnapshot({
+                language:
+                    this.translateService.currentLang ||
+                    this.translateService.defaultLang ||
+                    'en',
+                title: presentation.title,
+                originalTitle: info?.o_name,
+                plot: info?.plot || info?.description,
+                releaseDate: info?.releasedate,
+                year: year(info?.releasedate),
+                durationMinutes: durationMinutes(info),
+                genres: textList(info?.genre),
+                rating: number(info?.rating),
+                status: info?.status,
+                posterUrl: presentation.posterUrl,
+                backdropUrl: info?.backdrop_path?.[0],
+                tmdbId: number(info?.tmdb_id),
+                providerCategoryId: vodItem.movie_data?.category_id,
+                cast:
+                    info?.tmdb_cast?.map((person) => ({
+                        name: person.name,
+                        role: person.character,
+                        profileUrl: person.profileUrl ?? undefined,
+                        tmdbPersonId: person.tmdbPersonId,
+                    })) ??
+                    textList(info?.actors || info?.cast)?.map((name) => ({
+                        name,
+                    })),
+                creators:
+                    info?.tmdb_directors?.map((person) => ({
+                        name: person.name,
+                        role: person.character,
+                        profileUrl: person.profileUrl ?? undefined,
+                        tmdbPersonId: person.tmdbPersonId,
+                    })) ?? textList(info?.director)?.map((name) => ({ name })),
+            }),
             headers: {
                 userAgent: playlist.userAgent,
                 referer: playlist.referrer,
