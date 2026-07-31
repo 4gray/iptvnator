@@ -524,4 +524,20 @@ describe('DownloadLibraryComponent', () => {
             'grid-template-columns: repeat(2, minmax(0, 1fr))'
         );
     });
+
+    it('uses native disabled states for ready-card action styling', () => {
+        const styles = readFileSync(
+            join(__dirname, 'download-library.component.scss'),
+            'utf8'
+        );
+        const disabledRule =
+            styles.match(/button:disabled\s*\{([^}]*)\}/)?.[1] ?? '';
+
+        expect(styles).toContain('&:hover:not(:disabled) img');
+        expect(styles).toContain('&:focus-visible:not(:disabled) img');
+        expect(styles).not.toContain("[aria-disabled='true']");
+        expect(styles).not.toContain('&--disabled');
+        expect(disabledRule).toContain('cursor: default');
+        expect(disabledRule).toContain('opacity: 0.48');
+    });
 });

@@ -92,17 +92,9 @@
         transition: transform 180ms ease;
     }
 
-    &:hover:not([aria-disabled='true']) img,
-    &:focus-visible:not([aria-disabled='true']) img {
+    &:hover:not(:disabled) img,
+    &:focus-visible:not(:disabled) img {
         transform: scale(1.025);
-    }
-
-    &--disabled {
-        cursor: not-allowed;
-
-        img {
-            filter: saturate(0.72);
-        }
     }
 }
 
@@ -157,11 +149,6 @@
     text-align: left;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
-
-    &--disabled {
-        color: var(--app-muted-color);
-        cursor: not-allowed;
-    }
 }
 
 .download-library__facts,
