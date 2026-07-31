@@ -6,11 +6,10 @@ import {
     statSync,
     unlinkSync,
 } from 'fs';
-import { createServer } from 'http';
-import type { AddressInfo } from 'net';
 import { join } from 'path';
 import type { Page } from '@playwright/test';
 import {
+    addStalkerPortal,
     addXtreamPortal,
     closeElectronApp,
     createMutableTextServer,
@@ -20,8 +19,19 @@ import {
     resetMockServers,
     saveSettings,
     test,
+    waitForStalkerCatalog,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import { fetchStalkerCategoryFixture } from './portal-mock-fixtures';
+import {
+    createThrottledRangeServer,
+    createTruncatedDownloadServer,
+    getDownloadPlayPaths,
+    getStalkerSeriesDownloadTarget,
+    installDownloadPlayCapture,
+    RANGE_SERVER_ETAG,
+    startDownload,
+} from './downloads.e2e-support';
 
 async function openDownloadsPage(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Open downloads' }).click();
@@ -129,155 +139,6 @@ async function measureLibraryCard(
                 width: card.getBoundingClientRect().width,
             };
         });
-}
-
-interface DownloadSeed {
-    contentType: 'episode' | 'vod';
-    downloadFolder: string;
-    episodeNumber?: number;
-    playlistId: string;
-    seasonNumber?: number;
-    seriesXtreamId?: number;
-    title: string;
-    url: string;
-    xtreamId: number;
-}
-
-async function startDownload(page: Page, seed: DownloadSeed): Promise<number> {
-    const result = await page.evaluate(
-        async (payload) => window.electron?.downloadsStart?.(payload),
-        seed
-    );
-    expect(result?.error ?? null).toBeNull();
-    expect(result?.id).toEqual(expect.any(Number));
-    if (typeof result?.id !== 'number') {
-        throw new Error(`Download did not return an id: ${seed.title}`);
-    }
-    return result.id;
-}
-
-interface RangeServerRequest {
-    ifRange?: string;
-    range?: string;
-}
-
-interface ThrottledRangeServer {
-    close: () => Promise<void>;
-    payload: Buffer;
-    requests: RangeServerRequest[];
-    url: string;
-}
-
-interface TruncatedDownloadServer {
-    close: () => Promise<void>;
-    payload: Buffer;
-    totalBytes: number;
-    url: string;
-}
-
-const RANGE_SERVER_ETAG = '"e2e-range-etag"';
-
-/**
- * Serves a payload slowly on the first (full) request so the UI has a wide
- * window to pause mid-transfer, and answers Range requests with an immediate
- * 206 so the resumed transfer finishes fast. Records Range/If-Range headers.
- */
-async function createThrottledRangeServer(
-    chunkIntervalMs = 150
-): Promise<ThrottledRangeServer> {
-    const payload = Buffer.from(
-        Array.from({ length: 96 * 1024 }, (_, index) =>
-            String(index % 10)
-        ).join('')
-    );
-    const requests: RangeServerRequest[] = [];
-
-    const server = createServer((req, res) => {
-        const range = req.headers.range;
-        const ifRange = req.headers['if-range'];
-        requests.push({
-            ifRange: typeof ifRange === 'string' ? ifRange : undefined,
-            range: typeof range === 'string' ? range : undefined,
-        });
-
-        const offset = range
-            ? Number(/^bytes=(\d+)-$/.exec(range)?.[1] ?? Number.NaN)
-            : 0;
-        if (range && Number.isFinite(offset)) {
-            res.writeHead(206, {
-                'Content-Length': payload.length - offset,
-                'Content-Range': `bytes ${offset}-${payload.length - 1}/${payload.length}`,
-                'Content-Type': 'video/mp4',
-                ETag: RANGE_SERVER_ETAG,
-            });
-            res.end(payload.subarray(offset));
-            return;
-        }
-
-        res.writeHead(200, {
-            'Content-Length': payload.length,
-            'Content-Type': 'video/mp4',
-            ETag: RANGE_SERVER_ETAG,
-        });
-        // First 16 KiB immediately, then a trickle: the transfer stays alive
-        // for tens of seconds unless it is paused or resumed via Range.
-        let sent = 16 * 1024;
-        res.write(payload.subarray(0, sent));
-        const timer = setInterval(() => {
-            if (sent >= payload.length) {
-                clearInterval(timer);
-                res.end();
-                return;
-            }
-            res.write(payload.subarray(sent, sent + 2 * 1024));
-            sent += 2 * 1024;
-        }, chunkIntervalMs);
-        res.on('close', () => clearInterval(timer));
-    });
-
-    await new Promise<void>((resolve) =>
-        server.listen(0, '127.0.0.1', resolve)
-    );
-    const { port } = server.address() as AddressInfo;
-
-    return {
-        close: () =>
-            new Promise<void>((resolve) => server.close(() => resolve())),
-        payload,
-        requests,
-        url: `http://127.0.0.1:${port}/media/e2e-pause-movie.mp4`,
-    };
-}
-
-/**
- * Ends a chunked response cleanly while Content-Range advertises a larger
- * representation. The runtime therefore retains the valid .part for a Range
- * retry instead of treating it as an unusable transport failure.
- */
-async function createTruncatedDownloadServer(): Promise<TruncatedDownloadServer> {
-    const payload = Buffer.alloc(16 * 1024, 7);
-    const totalBytes = payload.length * 4;
-    const server = createServer((_req, res) => {
-        res.writeHead(200, {
-            'Content-Range': `bytes 0-${payload.length - 1}/${totalBytes}`,
-            'Content-Type': 'video/mp4',
-            ETag: '"e2e-truncated-etag"',
-        });
-        res.end(payload);
-    });
-
-    await new Promise<void>((resolve) =>
-        server.listen(0, '127.0.0.1', resolve)
-    );
-    const { port } = server.address() as AddressInfo;
-
-    return {
-        close: () =>
-            new Promise<void>((resolve) => server.close(() => resolve())),
-        payload,
-        totalBytes,
-        url: `http://127.0.0.1:${port}/media/e2e-truncated-movie.mp4`,
-    };
 }
 
 /**
@@ -447,16 +308,31 @@ test.describe('Electron Downloads', () => {
             await app.mainWindow.keyboard.press('Escape');
 
             // Removing the finalized file must move the persisted completed
-            // row out of Ready to watch after a file action refreshes the
-            // authoritative list.
+            // row out of Ready to watch when offline-detail playback refreshes
+            // the authoritative list, then return to Needs attention.
+            await card.locator('.download-library__artwork-button').click();
+            await app.mainWindow.waitForURL((url) =>
+                url.pathname.endsWith(`/workspace/downloads/${startResult?.id}`)
+            );
+            await expect(
+                app.mainWindow.getByText('Available offline').first()
+            ).toBeVisible();
             unlinkSync(finalPath);
-            await card
-                .getByRole('button', { name: 'Play: E2E Movie' })
-                .last()
+            await app.mainWindow
+                .getByRole('button', {
+                    name: 'Play offline',
+                    exact: true,
+                })
                 .click();
+            await app.mainWindow.waitForURL(/\/workspace\/downloads(?:\?.*)?$/);
             const missingRow = app.mainWindow.getByTestId(
                 `download-queue-item-${startResult?.id}`
             );
+            await expect(
+                app.mainWindow.getByRole('heading', {
+                    name: 'Needs attention',
+                })
+            ).toBeVisible();
             await expect(missingRow).toBeVisible({ timeout: 20000 });
             await expect(
                 missingRow.locator('.download-queue__status')
@@ -550,8 +426,10 @@ test.describe('Electron Downloads', () => {
                 app.mainWindow,
                 'Library Source B'
             );
-            const { categoryId: seriesCategoryId, xtreamId: seriesXtreamId } =
-                await getSeriesTarget(app.mainWindow, sourceA);
+            const { xtreamId: seriesXtreamId } = await getSeriesTarget(
+                app.mainWindow,
+                sourceA
+            );
             const { categoryId: vodCategoryId, xtreamId: vodXtreamId } =
                 await getVodTarget(app.mainWindow, sourceA);
             await navigateWithinWorkspace(
@@ -596,7 +474,7 @@ test.describe('Electron Downloads', () => {
                 episodeNumber: 1,
                 title: 'Aurora - S01E01 - Arrival',
             });
-            await startDownload(app.mainWindow, {
+            const secondSeriesEpisodeId = await startDownload(app.mainWindow, {
                 ...common,
                 playlistId: sourceA,
                 xtreamId: 8202,
@@ -688,28 +566,81 @@ test.describe('Electron Downloads', () => {
             const alphaMovieCard = app.mainWindow.getByTestId(
                 `download-library-movie-${alphaMovieId}`
             );
+            await installDownloadPlayCapture(app);
             await alphaMovieCard
                 .locator('.download-library__artwork-button')
                 .click();
+            const expectedOfflinePath = `/workspace/xtreams/${sourceA}/downloads/${alphaMovieId}`;
+            await app.mainWindow.waitForURL((url) =>
+                url.pathname.endsWith(expectedOfflinePath)
+            );
+            await expect(
+                app.mainWindow.getByText('Available offline').first()
+            ).toBeVisible();
+            const playOffline = app.mainWindow.getByRole('button', {
+                name: 'Play offline',
+                exact: true,
+            });
+            await expect(playOffline).toBeVisible();
+            await expect(
+                app.mainWindow.getByRole('button', {
+                    name: /Play from (?:this )?source/i,
+                })
+            ).toHaveCount(0);
+            await expect(
+                app.mainWindow.locator('app-workspace-shell-context-sidebar')
+            ).toHaveCount(0);
+
+            await playOffline.click();
+            await expect
+                .poll(async () => (await getDownloadPlayPaths(app)).length)
+                .toBe(1);
+            expect(await getDownloadPlayPaths(app)).toEqual([
+                join(downloadsDir, 'Alpha Movie.mp4'),
+            ]);
+
+            const viewInPortal = app.mainWindow.getByRole('button', {
+                name: 'View in portal',
+                exact: true,
+            });
+            await expect(viewInPortal).toBeEnabled({ timeout: 20000 });
+            await viewInPortal.click();
             const expectedVodPath = `/workspace/xtreams/${sourceA}/vod/${vodCategoryId}/${vodXtreamId}`;
             await app.mainWindow.waitForURL((url) =>
                 url.pathname.endsWith(expectedVodPath)
             );
             await expect(
-                app.mainWindow.getByText('Offline', { exact: true })
+                app.mainWindow.locator('app-workspace-shell-context-sidebar')
+            ).toBeVisible();
+            const providerDetail = app.mainWindow.locator(
+                'main app-portal-detail-shell'
+            );
+            await expect(
+                providerDetail.getByRole('button', {
+                    name: 'Play',
+                    exact: true,
+                })
             ).toBeVisible();
             await expect(
-                app.mainWindow.getByRole('button', {
+                providerDetail.getByText('Offline', { exact: true })
+            ).toHaveCount(0);
+            await expect(
+                providerDetail.getByRole('button', {
                     name: 'Play Local',
                     exact: true,
                 })
-            ).toBeVisible();
+            ).toHaveCount(0);
             await expect(
-                app.mainWindow.getByRole('button', {
-                    name: 'Play from this source',
+                providerDetail.getByRole('button', {
+                    name: 'Download',
                     exact: true,
                 })
-            ).toBeVisible();
+            ).toHaveCount(0);
+            await expect(
+                providerDetail.getByRole('button', {
+                    name: /Play from (?:this )?source/i,
+                })
+            ).toHaveCount(0);
 
             await openDownloadsPage(app.mainWindow);
             await expect(globalBadge).toHaveText('1');
@@ -767,31 +698,32 @@ test.describe('Electron Downloads', () => {
                     exact: true,
                 })
                 .click();
-            const expectedSeriesPath = `/workspace/xtreams/${sourceA}/series/${seriesCategoryId}/${seriesXtreamId}`;
+            const expectedSeriesPath = `/workspace/downloads/${secondSeriesEpisodeId}`;
             await app.mainWindow.waitForURL((url) =>
                 url.pathname.endsWith(expectedSeriesPath)
             );
-            await openDownloadsPage(app.mainWindow);
-            await expect(seriesCard).toBeVisible();
-
-            const episodeButton = seriesCard.getByRole('button', {
-                name: 'Open downloaded episodes: Aurora',
-            });
-            await episodeButton.focus();
-            await episodeButton.press('Enter');
             await expect(
-                app.mainWindow.getByRole('heading', { name: 'Aurora' })
+                app.mainWindow.getByText('Available offline').first()
             ).toBeVisible();
             await expect(
-                app.mainWindow.locator(
-                    '[data-test-id^="downloaded-series-episode-"]'
-                )
+                app.mainWindow.locator('[data-testid^="offline-episode-"]')
             ).toHaveCount(2);
-            const closeDialog = app.mainWindow.getByTestId(
-                'downloaded-series-close'
-            );
-            await expect(closeDialog).toHaveAccessibleName('Close');
-            await closeDialog.click();
+            await expect(
+                app.mainWindow.getByRole('button', {
+                    name: /Play offline: S01E01/,
+                })
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByRole('button', {
+                    name: /Play offline: S01E02/,
+                })
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.locator('app-workspace-shell-context-sidebar')
+            ).toHaveCount(0);
+
+            await openDownloadsPage(app.mainWindow);
+            await expect(seriesCard).toBeVisible();
 
             await activeItem
                 .getByRole('button', { name: 'Pause Alpha Active Movie' })
@@ -861,6 +793,107 @@ test.describe('Electron Downloads', () => {
         } finally {
             await closeElectronApp(app);
             await activeServer.close();
+            await fileServer.close();
+        }
+    });
+
+    test('@downloads @stalker @electron shows only downloaded non-contiguous series episodes offline', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['stalker']);
+        const seriesFixture = await fetchStalkerCategoryFixture(
+            request,
+            'series'
+        );
+        const { id: seriesId, title: providerTitle } =
+            getStalkerSeriesDownloadTarget(seriesFixture.items[0]);
+
+        const fileServer = await createMutableTextServer(
+            'stalker offline episode',
+            {
+                contentType: 'video/mp4',
+                resourcePath: '/media/stalker-series-episode.mp4',
+            }
+        );
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await addStalkerPortal(app.mainWindow, {
+                name: 'Stalker Download Source',
+            });
+            await waitForStalkerCatalog(app.mainWindow);
+            const playlistId = await getPlaylistId(
+                app.mainWindow,
+                'Stalker Download Source'
+            );
+            await openDownloadsPage(app.mainWindow);
+
+            const downloadsDir = join(dataDir, 'e2e-stalker-downloads');
+            mkdirSync(downloadsDir, { recursive: true });
+            await app.electronApp.evaluate(({ dialog }, folder) => {
+                dialog.showOpenDialog = async () =>
+                    ({
+                        canceled: false,
+                        filePaths: [folder],
+                    }) as Awaited<ReturnType<typeof dialog.showOpenDialog>>;
+            }, downloadsDir);
+            await app.mainWindow
+                .getByRole('button', { name: 'Change Folder' })
+                .click();
+
+            const common = {
+                contentType: 'episode' as const,
+                downloadFolder: downloadsDir,
+                playlistId,
+                seasonNumber: 1,
+                seriesXtreamId: seriesId,
+                url: fileServer.resourceUrl,
+            };
+            const firstEpisodeId = await startDownload(app.mainWindow, {
+                ...common,
+                episodeNumber: 1,
+                title: `${providerTitle} - S01E01 - First`,
+                xtreamId: seriesId * 100 + 1,
+            });
+            const thirdEpisodeId = await startDownload(app.mainWindow, {
+                ...common,
+                episodeNumber: 3,
+                title: `${providerTitle} - S01E03 - Third`,
+                xtreamId: seriesId * 100 + 3,
+            });
+
+            const seriesCard = app.mainWindow.getByTestId(
+                `download-library-series-${playlistId}-${seriesId}`
+            );
+            await expect(seriesCard).toBeVisible({ timeout: 30000 });
+            await expect(seriesCard).toContainText('2 episodes');
+            await seriesCard
+                .locator('.download-library__artwork-button')
+                .click();
+            await app.mainWindow.waitForURL((url) =>
+                url.pathname.endsWith(`/workspace/downloads/${thirdEpisodeId}`)
+            );
+
+            const offlineEpisodes = app.mainWindow.locator(
+                '[data-testid^="offline-episode-"]'
+            );
+            await expect(offlineEpisodes).toHaveCount(2);
+            await expect(
+                app.mainWindow.locator(
+                    `[data-testid="offline-episode-${firstEpisodeId}"]`
+                )
+            ).toContainText('S01E01');
+            await expect(
+                app.mainWindow.locator(
+                    `[data-testid="offline-episode-${thirdEpisodeId}"]`
+                )
+            ).toContainText('S01E03');
+            await expect(
+                app.mainWindow.getByText('S01E02', { exact: true })
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
             await fileServer.close();
         }
     });
