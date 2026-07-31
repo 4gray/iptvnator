@@ -417,7 +417,7 @@ git commit -m "feat(ui): add workspace groups disclosure"
   `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.{ts,html,scss,spec.ts}`
 - Modify: `libs/ui/styles/_portal-layout.scss`
 
-- [ ] **Step 1: Write failing provider component tests**
+- [x] **Step 1: Write failing provider component tests**
 
 For each provider prove:
 
@@ -430,7 +430,7 @@ For each provider prove:
 - root All Items applies the shortcut only to Groups;
 - external MPV/VLC passes `collapsible=false` to Guide.
 
-- [ ] **Step 2: Run both targets and verify RED**
+- [x] **Step 2: Run both targets and verify RED**
 
 ```bash
 pnpm nx test portal-xtream-feature --runInBand
@@ -439,7 +439,7 @@ pnpm nx test portal-stalker-feature --runInBand
 
 Expected: FAIL because the components still consume the shared sidebar state.
 
-- [ ] **Step 3: Replace Xtream state and markup**
+- [x] **Step 3: Replace Xtream state and markup**
 
 Inject `LiveLayoutPanelStateService`, compute Channels effective visibility for
 `showLiveChannelSidebar()`, use `hidePanel('channels')` /
@@ -455,18 +455,18 @@ Keep the resizable Channels DOM mounted and inert when collapsed. Move restore
 UI into a non-overlay boundary rail before `.content-container`. Pass
 `[collapsible]="isEmbeddedPlayer"` and `panelId="live-guide-panel"`.
 
-- [ ] **Step 4: Apply the same contract to Stalker**
+- [x] **Step 4: Apply the same contract to Stalker**
 
 Use the same panel IDs, test IDs, focus behavior, and master shortcut. Radio
 must render no Guide disclosure because it renders no Guide region.
 
-- [ ] **Step 5: Normalize shared boundary rail SCSS**
+- [x] **Step 5: Normalize shared boundary rail SCSS**
 
 Replace the floating restore overlay in `_portal-layout.scss` with a 40px
 flex-shrink-zero boundary rail. Keep width transitions at 180ms, never modify
 the external-player content sizing, and do not touch channel-row styles.
 
-- [ ] **Step 6: Run and verify GREEN**
+- [x] **Step 6: Run and verify GREEN**
 
 ```bash
 pnpm nx test portal-xtream-feature --runInBand
@@ -477,7 +477,7 @@ pnpm nx lint portal-stalker-feature
 
 Expected: all commands exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add libs/portal/xtream/feature libs/portal/stalker/feature libs/ui/styles

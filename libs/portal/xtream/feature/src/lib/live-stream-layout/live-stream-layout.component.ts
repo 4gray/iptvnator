@@ -22,11 +22,14 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
+    LiveLayoutPanelStateService,
+    LIVE_LAYOUT_PANEL,
+} from '@iptvnator/portal/shared/data-access';
+import {
     GridListComponent,
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import {
-    LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     PortalChannelSortMode,
     getPortalChannelSortModeLabel,
@@ -121,9 +124,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
-    private readonly liveSidebarStateService = inject(
-        LiveLayoutSidebarStateService
-    );
+    private readonly livePanelState = inject(LiveLayoutPanelStateService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -212,7 +213,11 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly channelsPanelExpanded = computed(() =>
+        this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.CHANNELS, {
+            applicable: this.showLiveChannelSidebar(),
+        })
+    );
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(
             this.activeCatchupProgram() ?? this.currentEpgItem()
@@ -269,6 +274,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
     private unsubscribeRemoteChannelChange?: () => void;
     private unsubscribeRemoteCommand?: () => void;
+    private previousChannelsPanelApplicable: boolean | undefined;
+    private previousChannelsPanelExpanded: boolean | undefined;
 
     readonly usesEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
@@ -299,6 +306,28 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             const pageIndex = this.routePageIndex();
             if (this.liveRootPageIndex() !== pageIndex) {
                 this.xtreamStore.setPage(pageIndex);
+            }
+        });
+
+        effect(() => {
+            const applicable = this.showLiveChannelSidebar();
+            const expanded = this.channelsPanelExpanded();
+            const shouldTransferFocus =
+                this.previousChannelsPanelApplicable === applicable &&
+                this.previousChannelsPanelExpanded !== undefined &&
+                this.previousChannelsPanelExpanded !== expanded;
+            this.previousChannelsPanelApplicable = applicable;
+            this.previousChannelsPanelExpanded = expanded;
+
+            if (shouldTransferFocus) {
+                queueMicrotask(() => {
+                    const action = expanded ? 'hide' : 'restore';
+                    this.hostElement.nativeElement
+                        .querySelector<HTMLElement>(
+                            `[data-testid="live-channels-panel-${action}"]`
+                        )
+                        ?.focus();
+                });
             }
         });
 
@@ -501,8 +530,24 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         persistLiveEpgPanelState(state);
     }
 
-    toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+    hideChannelsPanel(): void {
+        this.livePanelState.hidePanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        this.focusChannelsPanelAction('restore');
+    }
+
+    showChannelsPanel(): void {
+        this.livePanelState.showPanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        this.focusChannelsPanelAction('hide');
+    }
+
+    private focusChannelsPanelAction(action: 'hide' | 'restore'): void {
+        setTimeout(() => {
+            this.hostElement.nativeElement
+                .querySelector<HTMLElement>(
+                    `[data-testid="live-channels-panel-${action}"]`
+                )
+                ?.focus();
+        }, 0);
     }
 
     @HostListener('document:keydown', ['$event'])
@@ -513,7 +558,11 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             !isTypingInInput(event)
         ) {
             event.preventDefault();
-            this.toggleSidebar();
+            this.livePanelState.toggleMasterSuppression(
+                this.showLiveChannelSidebar()
+                    ? [LIVE_LAYOUT_PANEL.GROUPS, LIVE_LAYOUT_PANEL.CHANNELS]
+                    : [LIVE_LAYOUT_PANEL.GROUPS]
+            );
         }
     }
 

@@ -57,7 +57,10 @@ import {
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
-    LiveLayoutSidebarStateService,
+    LiveLayoutPanelStateService,
+    LIVE_LAYOUT_PANEL,
+} from '@iptvnator/portal/shared/data-access';
+import {
     PORTAL_PLAYER,
     createLogger,
     getAdjacentChannelItem,
@@ -118,9 +121,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
-    private readonly liveSidebarStateService = inject(
-        LiveLayoutSidebarStateService
-    );
+    private readonly livePanelState = inject(LiveLayoutPanelStateService);
+    private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly logger = createLogger('StalkerLiveStream');
     readonly selectedCategoryTitle = this.stalkerStore.getSelectedCategoryName;
 
@@ -304,7 +306,14 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
-    readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
+    readonly channelsPanelApplicable = computed(
+        () => !!this.stalkerStore.selectedCategoryId()
+    );
+    readonly channelsPanelExpanded = computed(() =>
+        this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.CHANNELS, {
+            applicable: this.channelsPanelApplicable(),
+        })
+    );
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
     );
@@ -360,6 +369,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private unsubscribeRemoteCommand?: () => void;
     private epgLoadRequestId = 0;
     private playbackRequestId = 0;
+    private previousChannelsPanelApplicable: boolean | undefined;
+    private previousChannelsPanelExpanded: boolean | undefined;
     private playbackResolution: {
         channelId: string;
         promise: Promise<ResolvedPortalPlayback>;
@@ -367,6 +378,28 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private lastPlaylistId: string | null | undefined = undefined;
 
     constructor() {
+        effect(() => {
+            const applicable = this.channelsPanelApplicable();
+            const expanded = this.channelsPanelExpanded();
+            const shouldTransferFocus =
+                this.previousChannelsPanelApplicable === applicable &&
+                this.previousChannelsPanelExpanded !== undefined &&
+                this.previousChannelsPanelExpanded !== expanded;
+            this.previousChannelsPanelApplicable = applicable;
+            this.previousChannelsPanelExpanded = expanded;
+
+            if (shouldTransferFocus) {
+                queueMicrotask(() => {
+                    const action = expanded ? 'hide' : 'restore';
+                    this.hostElement.nativeElement
+                        .querySelector<HTMLElement>(
+                            `[data-testid="live-channels-panel-${action}"]`
+                        )
+                        ?.focus();
+                });
+            }
+        });
+
         // Load favorites for current playlist
         const playlistId = this.stalkerStore.currentPlaylist()?._id;
         if (playlistId) {
@@ -409,9 +442,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             untracked(() => {
                 if (contentType === 'radio') {
                     this.stalkerStore.setRadioChannels([]);
-                } else if (
-                    !this.stalkerStore.itvSelectedCategoryFromCache()
-                ) {
+                } else if (!this.stalkerStore.itvSelectedCategoryFromCache()) {
                     this.stalkerStore.setItvChannels([]);
                 }
                 this.stalkerStore.setPage(0);
@@ -444,8 +475,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             // store dedupes per channel id, so this is cheap on rerenders.
             if (this.supportsEpgMapping && channels.length > 0) {
                 const channelIds = channels.map((channel) => channel.id);
-                untracked(() =>
-                    void this.stalkerStore.applyMappedItvEpg(channelIds)
+                untracked(
+                    () => void this.stalkerStore.applyMappedItvEpg(channelIds)
                 );
             }
         });
@@ -714,8 +745,24 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         persistLiveEpgPanelState(state);
     }
 
-    toggleSidebar(): void {
-        this.liveSidebarStateService.toggle();
+    hideChannelsPanel(): void {
+        this.livePanelState.hidePanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        this.focusChannelsPanelAction('restore');
+    }
+
+    showChannelsPanel(): void {
+        this.livePanelState.showPanel(LIVE_LAYOUT_PANEL.CHANNELS);
+        this.focusChannelsPanelAction('hide');
+    }
+
+    private focusChannelsPanelAction(action: 'hide' | 'restore'): void {
+        setTimeout(() => {
+            this.hostElement.nativeElement
+                .querySelector<HTMLElement>(
+                    `[data-testid="live-channels-panel-${action}"]`
+                )
+                ?.focus();
+        }, 0);
     }
 
     handleRadioChannelSwitch(direction: 'next' | 'previous'): void {
@@ -730,7 +777,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             !isTypingInInput(event)
         ) {
             event.preventDefault();
-            this.toggleSidebar();
+            this.livePanelState.toggleMasterSuppression(
+                this.channelsPanelApplicable()
+                    ? [LIVE_LAYOUT_PANEL.GROUPS, LIVE_LAYOUT_PANEL.CHANNELS]
+                    : [LIVE_LAYOUT_PANEL.GROUPS]
+            );
         }
     }
 

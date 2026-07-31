@@ -43,6 +43,7 @@
             width: 0 !important;
             min-width: 0 !important;
             border-right-color: transparent;
+            pointer-events: none;
         }
 
         &.sidebar-collapsed .resize-handle {
@@ -67,29 +68,23 @@
         position: relative;
     }
 
-    // ─── Floating restore handle (visible when sidebar is collapsed) ─────────
-    // Anchored top-left of .content-container so it sits in roughly the same
-    // spot as the hide toggle that lived at the sidebar header's top-right.
-    .sidebar-restore {
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        // Player internals, including diagnostic overlays, may use z-index 5
-        // inside the content area. Keep the restore affordance above them for
-        // both paint order and hit testing.
-        z-index: 6;
-        background: rgba(128, 128, 128, 0.18);
-        color: var(--mat-sys-on-surface, rgba(255, 255, 255, 0.75));
-        box-shadow: none;
-        opacity: 0.7;
-        transition:
-            opacity 0.15s ease,
-            background 0.15s ease;
+    .sidebar-panel-toggle {
+        min-width: 40px;
+        min-height: 40px;
+    }
 
-        .mat-mdc-button-persistent-ripple,
-        .mat-mdc-button-touch-target {
-            display: none;
-        }
+    // ─── Boundary restore rail (visible when sidebar is collapsed) ───────────
+    .sidebar-restore {
+        width: 40px;
+        min-width: 40px;
+        height: 100%;
+        min-height: 40px;
+        flex: 0 0 40px;
+        border-radius: 0;
+        background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+        color: var(--mat-sys-on-surface-variant);
+        box-shadow: none;
+        transition: background 0.15s ease;
 
         mat-icon {
             font-size: 20px;
@@ -100,8 +95,7 @@
 
         &:hover,
         &:focus-visible {
-            opacity: 1;
-            background: rgba(128, 128, 128, 0.32);
+            background: var(--mat-sys-surface-container);
         }
     }
 

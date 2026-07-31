@@ -16,11 +16,14 @@ import {
     PORTAL_PLAYER,
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
-    EpgListViewComponent,
-    EpgTimelineComponent,
-} from '@iptvnator/ui/epg';
+    LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY,
+    LIVE_GROUPS_PANEL_STATE_STORAGE_KEY,
+    LiveLayoutPanelStateService,
+    LIVE_LAYOUT_PANEL,
+} from '@iptvnator/portal/shared/data-access';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
@@ -107,6 +110,8 @@ class StubEpgTimelineComponent {
     readonly emptyReason = input<string>('none');
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
+    readonly collapsible = input(true);
+    readonly panelId = input<string | null>(null);
     readonly summary = input<{ title?: string } | null>(null);
     readonly summaryLabelKey = input('');
     readonly selectedDateChange = output<string>();
@@ -202,9 +207,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         loaded: number;
         total: number;
     } | null>(null);
-    const itvFullChannelList = signal<
-        ReturnType<typeof defaultItvChannels>
-    >([]);
+    const itvFullChannelList = signal<ReturnType<typeof defaultItvChannels>>(
+        []
+    );
     const itvSelectedCategoryFromCache = signal(false);
     const isPaginatedContentLoading = signal(false);
 
@@ -311,6 +316,8 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         isPaginatedContentLoading.set(false);
         stalkerStore.preloadItvChannels.mockClear();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY);
         settingsStore.openStreamOnDoubleClick.set(false);
 
         resolveItvPlayback.mockReset();
@@ -406,9 +413,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     useValue: {
                         supportsEpgMapping: false,
                         getEpgMapping: jest.fn().mockResolvedValue(null),
-                        getEpgMappingsBatch: jest
-                            .fn()
-                            .mockResolvedValue(null),
+                        getEpgMappingsBatch: jest.fn().mockResolvedValue(null),
                     },
                 },
             ],
@@ -445,11 +450,16 @@ describe('StalkerLiveStreamLayoutComponent', () => {
 
         fixture = TestBed.createComponent(StalkerLiveStreamLayoutComponent);
         component = fixture.componentInstance;
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        livePanelState.showPanel(LIVE_LAYOUT_PANEL.GROUPS);
+        livePanelState.showPanel(LIVE_LAYOUT_PANEL.CHANNELS);
     });
 
     afterEach(() => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY);
         window.electron = originalElectron;
     });
 
@@ -502,7 +512,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         const channelRows = fixture.debugElement.queryAll(
             By.directive(StubChannelListItemComponent)
         );
@@ -608,11 +620,66 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             By.directive(StubEpgTimelineComponent)
         ).componentInstance as StubEpgTimelineComponent;
         expect(timeline.collapsed()).toBe(false);
+        expect(timeline.collapsible()).toBe(false);
+        expect(timeline.panelId()).toBe('live-guide-panel');
         expect(
             fixture.nativeElement
                 .querySelector('.epg')
                 .classList.contains('epg-collapsed')
         ).toBe(false);
+    });
+
+    it('collapses and restores Channels independently with ARIA and focus transfer', async () => {
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        fixture.detectChanges();
+
+        const hide = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-hide"]'
+        ) as HTMLButtonElement;
+        expect(hide.getAttribute('aria-controls')).toBe('live-channels-panel');
+        hide.click();
+        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const sidebar = fixture.nativeElement.querySelector(
+            '#live-channels-panel'
+        ) as HTMLElement;
+        const restore = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-restore"]'
+        ) as HTMLButtonElement;
+        expect(sidebar.hasAttribute('inert')).toBe(true);
+        expect(sidebar.getAttribute('aria-hidden')).toBe('true');
+        expect(livePanelState.channelsIntent()).toBe('collapsed');
+        expect(livePanelState.groupsIntent()).toBe('expanded');
+        expect(document.activeElement).toBe(restore);
+
+        restore.click();
+        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(document.activeElement).toBe(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-channels-panel-hide"]'
+            )
+        );
+    });
+
+    it('uses Cmd/Ctrl+B as temporary suppression without rewriting intents', () => {
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        fixture.detectChanges();
+
+        component.handleSidebarShortcut(
+            new KeyboardEvent('keydown', { ctrlKey: true, key: 'b' })
+        );
+        fixture.detectChanges();
+
+        expect(livePanelState.masterSuppressed()).toBe(true);
+        expect(livePanelState.groupsIntent()).toBe('expanded');
+        expect(livePanelState.channelsIntent()).toBe('expanded');
+
+        component.handleSidebarShortcut(
+            new KeyboardEvent('keydown', { metaKey: true, key: 'b' })
+        );
+        expect(livePanelState.masterSuppressed()).toBe(false);
     });
 
     it('reuses a pending playback resolution during double-click activation', async () => {
@@ -1114,7 +1181,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(ensureBulkItvEpg).not.toHaveBeenCalled();
         expect(fetchChannelEpg).not.toHaveBeenCalled();
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();

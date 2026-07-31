@@ -3,8 +3,11 @@
 
 @if (showLiveChannelSidebar()) {
     <div
+        id="live-channels-panel"
         class="sidebar"
-        [class.sidebar-collapsed]="isSidebarCollapsed()"
+        [class.sidebar-collapsed]="!channelsPanelExpanded()"
+        [attr.aria-hidden]="!channelsPanelExpanded()"
+        [attr.inert]="channelsPanelExpanded() ? null : ''"
         appResizable
         [minWidth]="250"
         [maxWidth]="600"
@@ -33,10 +36,13 @@
             <button
                 mat-icon-button
                 type="button"
-                [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
-                [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-                [attr.aria-pressed]="isSidebarCollapsed()"
-                (click)="toggleSidebar()"
+                class="sidebar-panel-toggle"
+                data-testid="live-channels-panel-hide"
+                aria-controls="live-channels-panel"
+                [attr.aria-expanded]="channelsPanelExpanded()"
+                [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_PANEL' | translate"
+                [matTooltip]="'LAYOUT.HIDE_CHANNELS_PANEL' | translate"
+                (click)="hideChannelsPanel()"
             >
                 <mat-icon>chevron_left</mat-icon>
             </button>
@@ -78,20 +84,22 @@
         />
     </div>
 }
+@if (showLiveChannelSidebar() && !channelsPanelExpanded()) {
+    <button
+        mat-icon-button
+        type="button"
+        class="sidebar-restore"
+        data-testid="live-channels-panel-restore"
+        aria-controls="live-channels-panel"
+        aria-expanded="false"
+        [attr.aria-label]="'LAYOUT.SHOW_CHANNELS_PANEL' | translate"
+        [matTooltip]="'LAYOUT.SHOW_CHANNELS_PANEL' | translate"
+        (click)="showChannelsPanel()"
+    >
+        <mat-icon>chevron_right</mat-icon>
+    </button>
+}
 <div class="content-container">
-    @if (isSidebarCollapsed()) {
-        <button
-            mat-icon-button
-            type="button"
-            class="sidebar-restore"
-            [attr.aria-label]="'LAYOUT.SHOW_CHANNELS_LIST' | translate"
-            [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-            [attr.aria-pressed]="isSidebarCollapsed()"
-            (click)="toggleSidebar()"
-        >
-            <mat-icon>chevron_right</mat-icon>
-        </button>
-    }
     @if (streamUrl) {
         @if (isEmbeddedPlayer) {
             <div class="video-player">
@@ -185,6 +193,8 @@
                 [isLivePlayback]="!showReturnToLive()"
                 [loading]="isLoadingEpg()"
                 [selectedDate]="selectedLiveEpgDate()"
+                [collapsible]="usesEmbeddedPlayer()"
+                panelId="live-guide-panel"
                 [collapsed]="usesEmbeddedPlayer() && isLiveEpgPanelCollapsed()"
                 [summary]="liveEpgPanelSummary()"
                 [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
@@ -205,6 +215,8 @@
                 [isLivePlayback]="!showReturnToLive()"
                 [loading]="isLoadingEpg()"
                 [selectedDate]="selectedLiveEpgDate()"
+                [collapsible]="usesEmbeddedPlayer()"
+                panelId="live-guide-panel"
                 [collapsed]="usesEmbeddedPlayer() && isLiveEpgPanelCollapsed()"
                 [summary]="liveEpgPanelSummary()"
                 [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"

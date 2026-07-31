@@ -14,10 +14,15 @@ import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     LIVE_SIDEBAR_STATE_STORAGE_KEY,
-    LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
+import {
+    LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY,
+    LIVE_GROUPS_PANEL_STATE_STORAGE_KEY,
+    LiveLayoutPanelStateService,
+    LIVE_LAYOUT_PANEL,
+} from '@iptvnator/portal/shared/data-access';
 import {
     FavoritesService,
     XtreamStore,
@@ -106,6 +111,8 @@ class StubEpgTimelineComponent {
     readonly loading = input(false);
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
+    readonly collapsible = input(true);
+    readonly panelId = input<string | null>(null);
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('');
     readonly programActivated = output<EpgProgramActivationEvent>();
@@ -212,6 +219,8 @@ describe('LiveStreamLayoutComponent', () => {
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY);
         settingsStore.openStreamOnDoubleClick.set(false);
 
         window.electron = {
@@ -336,16 +345,22 @@ describe('LiveStreamLayoutComponent', () => {
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         component = fixture.componentInstance;
 
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        livePanelState.showPanel(LIVE_LAYOUT_PANEL.GROUPS);
+        livePanelState.showPanel(LIVE_LAYOUT_PANEL.CHANNELS);
     });
 
     afterEach(() => {
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        livePanelState.showPanel(LIVE_LAYOUT_PANEL.GROUPS);
+        livePanelState.showPanel(LIVE_LAYOUT_PANEL.CHANNELS);
         fixture.destroy();
         jest.useRealTimers();
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY);
         window.electron = originalElectron;
     });
 
@@ -462,6 +477,8 @@ describe('LiveStreamLayoutComponent', () => {
         );
         expect(timeline).not.toBeNull();
         expect(timeline.componentInstance.collapsed()).toBe(false);
+        expect(timeline.componentInstance.collapsible()).toBe(false);
+        expect(timeline.componentInstance.panelId()).toBe('live-guide-panel');
         expect(
             fixture.nativeElement
                 .querySelector('.epg')
@@ -893,7 +910,9 @@ describe('LiveStreamLayoutComponent', () => {
                 isLive: true,
             })
         );
-        expect(timeline.componentInstance.summary()?.title).toBe('Current Show');
+        expect(timeline.componentInstance.summary()?.title).toBe(
+            'Current Show'
+        );
         expect(timeline.componentInstance.summaryLabelKey()).toBe(
             'EPG.CURRENT_PROGRAM'
         );
@@ -1066,27 +1085,82 @@ describe('LiveStreamLayoutComponent', () => {
         const timeline = fixture.debugElement.query(
             By.directive(StubEpgTimelineComponent)
         );
-        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(true);
+        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(
+            true
+        );
     });
 
-    it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {
+    it('does not show a Channels restore control when Channels is not applicable', () => {
         selectedCategoryId.set(null);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('collapsed');
+        TestBed.inject(LiveLayoutPanelStateService).hidePanel(
+            LIVE_LAYOUT_PANEL.CHANNELS
+        );
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector('.sidebar-restore')
-        ).not.toBeNull();
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-channels-panel-restore"]'
+            )
+        ).toBeNull();
     });
 
-    it('hides the floating restore button when the sidebar is expanded', () => {
+    it('collapses and restores Channels independently with ARIA and focus transfer', async () => {
         selectedCategoryId.set(1);
-        TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('.sidebar-restore')
-        ).toBeNull();
+        const hide = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-hide"]'
+        ) as HTMLButtonElement;
+        expect(hide.getAttribute('aria-controls')).toBe('live-channels-panel');
+        expect(hide.getAttribute('aria-expanded')).toBe('true');
+        hide.click();
+        fixture.detectChanges();
+        jest.advanceTimersByTime(0);
+        await Promise.resolve();
+
+        const sidebar = fixture.nativeElement.querySelector(
+            '#live-channels-panel'
+        ) as HTMLElement;
+        const restore = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-restore"]'
+        ) as HTMLButtonElement;
+        expect(sidebar.hasAttribute('inert')).toBe(true);
+        expect(sidebar.getAttribute('aria-hidden')).toBe('true');
+        expect(livePanelState.channelsIntent()).toBe('collapsed');
+        expect(livePanelState.groupsIntent()).toBe('expanded');
+        expect(document.activeElement).toBe(restore);
+
+        restore.click();
+        fixture.detectChanges();
+        jest.advanceTimersByTime(0);
+        await Promise.resolve();
+        expect(livePanelState.channelsIntent()).toBe('expanded');
+        expect(document.activeElement).toBe(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-channels-panel-hide"]'
+            )
+        );
+    });
+
+    it('uses Cmd/Ctrl+B as temporary suppression without rewriting panel intents', () => {
+        selectedCategoryId.set(1);
+        const livePanelState = TestBed.inject(LiveLayoutPanelStateService);
+        fixture.detectChanges();
+
+        component.handleSidebarShortcut(
+            new KeyboardEvent('keydown', { ctrlKey: true, key: 'b' })
+        );
+        fixture.detectChanges();
+
+        expect(livePanelState.masterSuppressed()).toBe(true);
+        expect(livePanelState.groupsIntent()).toBe('expanded');
+        expect(livePanelState.channelsIntent()).toBe('expanded');
+
+        component.handleSidebarShortcut(
+            new KeyboardEvent('keydown', { metaKey: true, key: 'b' })
+        );
+        expect(livePanelState.masterSuppressed()).toBe(false);
     });
 
     it('persists the channels sidebar width under a dedicated storage key', () => {
