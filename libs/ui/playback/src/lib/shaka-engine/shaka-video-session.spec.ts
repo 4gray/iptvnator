@@ -258,6 +258,34 @@ describe('ShakaVideoSession', () => {
         expect(session.getPlayer()).toBeNull();
     });
 
+    it('preserves the exact streaming startup error through the session boundary', async () => {
+        const environment = createFakeShakaEnvironment({
+            onCreate: (player) => {
+                player.loadResult = Promise.reject({
+                    severity: 2,
+                    category: 5,
+                    code: 5006,
+                });
+            },
+        });
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/startup-failed.mpd');
+        await flush();
+
+        expect(issues).toHaveLength(1);
+        expect(issues[0].code).toBe(
+            PlaybackDiagnosticCode.UnknownPlaybackError
+        );
+        expect(issues[0].shaka).toEqual({
+            severity: 'critical',
+            category: 'streaming',
+            engineCode: 5006,
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
+    });
+
     it('emits a critical in-flight error once before teardown interrupts load', async () => {
         const environment = createFakeShakaEnvironment({
             onCreate: (player) => {
@@ -436,7 +464,7 @@ describe('ShakaVideoSession', () => {
         expect(player.selectTextTrackCalls).toHaveLength(2);
     });
 
-    it('emits an unsupported-container diagnostic when the browser lacks MSE/EME', async () => {
+    it('keeps external fallback available when the browser cannot run Shaka for clear DASH', async () => {
         const environment = createFakeShakaEnvironment();
         environment.browserSupported = false;
         const session = createSession(environment);
@@ -456,6 +484,26 @@ describe('ShakaVideoSession', () => {
             stage: 'unknown',
             failure: 'unknown',
         });
+        expect(issues[0].externalFallbackRecommended).toBe(true);
+    });
+
+    it('keeps external fallback unavailable when browser support fails for KODIPROP DRM', async () => {
+        const environment = createFakeShakaEnvironment();
+        environment.browserSupported = false;
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/encrypted.mpd', {
+            licenseType: 'clearkey',
+            supported: true,
+            clearKeys: { abc: 'def' },
+        });
+        await flush();
+
+        expect(environment.instances).toHaveLength(0);
+        expect(issues).toHaveLength(1);
+        expect(issues[0].code).toBe(
+            PlaybackDiagnosticCode.UnknownPlaybackError
+        );
+        expect(issues[0].externalFallbackRecommended).toBe(false);
     });
 
     it('destroy tears down the engine and blocks later starts', async () => {

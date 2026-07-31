@@ -197,6 +197,19 @@ describe('Shaka playback evidence', () => {
         expect(evidence.httpStatus).toBeUndefined();
     });
 
+    it('preserves the exact public streaming startup code as unknown failure evidence', () => {
+        expect(
+            createEvidence({ severity: 2, category: 5, code: 5006 }, 'terminal')
+        ).toEqual({
+            severity: 'critical',
+            category: 'streaming',
+            engineCode: 5006,
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
+    });
+
     it.each([
         {
             label: 'manifest parsing',

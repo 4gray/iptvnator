@@ -143,7 +143,12 @@ export class ShakaVideoSession {
         }
 
         if (!module.Player.isBrowserSupported()) {
-            this.emitTerminalIfCurrent(generation, null, url);
+            this.emitTerminalIfCurrent(
+                generation,
+                null,
+                url,
+                drm === undefined
+            );
             return;
         }
 
@@ -365,7 +370,8 @@ export class ShakaVideoSession {
     private emitTerminalIfCurrent(
         generation: number,
         error: Partial<ShakaErrorLike> | null,
-        url: string
+        url: string,
+        externalFallbackRecommended?: boolean
     ): void {
         const issue = classifyShakaPlaybackIssue(
             error,
@@ -373,7 +379,12 @@ export class ShakaVideoSession {
             ShakaDisposition.Terminal
         );
         if (issue) {
-            this.emitIfCurrent(generation, issue);
+            this.emitIfCurrent(
+                generation,
+                externalFallbackRecommended === undefined
+                    ? issue
+                    : { ...issue, externalFallbackRecommended }
+            );
         }
     }
 

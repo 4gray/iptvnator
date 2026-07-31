@@ -409,7 +409,17 @@ not prove terminal failure and is ignored. Exact public code/category pairs may
 classify network, DRM/encryption, manifest/parsing, or media/decode failures.
 Ambiguous evidence stays `unknown-playback-error`: in particular, the Manifest
 category alone is not container incompatibility, and Shaka messages never infer
-CORS, codec, DRM, container, or stage.
+CORS, codec, DRM, container, or stage. The public critical
+`STREAMING_ENGINE_STARTUP_INVALID_STATE` code remains exact evidence while its
+stage and failure stay unknown because the code does not identify a user-facing
+media cause.
+
+A failed public `Player.isBrowserSupported()` preflight is not a Shaka error
+and therefore retains fully unknown technical evidence instead of being
+mislabelled as an unsupported container. For clear DASH, the diagnostic still
+offers configured MPV/VLC actions because the failure is specific to the web
+engine. KODIPROP DRM sources keep external fallback disabled because external
+players do not receive their key configuration.
 
 Shaka messages, URLs, headers, request/response bodies, credentials,
 license/key payloads, and arbitrary `error.data` objects are neither retained
