@@ -114,10 +114,13 @@ variants, contextual buttons, and theme-aware styling.
   available, grouped into seasons; every episode Play and Show in folder action
   targets that row's local file. The provider's other seasons and episodes are
   deliberately absent from this view.
-- `View in portal` resolves the exact Xtream or Stalker source item before the
-  action becomes available. It then leaves the offline view and opens the
-  provider's normal detail host in explicit `provider-only` presentation: the
-  complete online catalog and provider playback remain available, while local,
+- `View in portal` resolves an exact category/item route for Xtream. For
+  Stalker it preserves the raw mode and item shape when a matching
+  recently-viewed snapshot is available; otherwise it builds a regular VOD or
+  series target from the persisted identity and title without first proving
+  that the provider still serves it. The handoff opens the normal provider
+  detail host in explicit `provider-only` presentation: provider content and
+  playback remain available when that host resolves them, while local,
   Offline, and download actions are hidden. Regular provider navigation does
   not inherit this one-shot presentation state.
 - A completed row that is no longer locally available is never rendered as a

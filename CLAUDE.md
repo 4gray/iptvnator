@@ -916,11 +916,13 @@ engine` (restart required) or
   fields. Legacy, sparse, stale, or wrong-language snapshots are safely
   backfilled from row/provider metadata and optional TMDB enrichment when the
   focused detail opens.
-- `View in portal` resolves an exact source target and opens the provider's
-  normal detail in one-shot `provider-only` presentation. Provider playback and
-  the complete catalog remain available, while Offline/local/download actions
-  are hidden. This applies to Xtream movies/series and regular, embedded
-  `series[]`, and Ministra `is_series=1` Stalker flows.
+- `View in portal` resolves a concrete Xtream category/item route. Stalker
+  preserves regular, embedded `series[]`, or Ministra `is_series=1` mode only
+  when a matching recently-viewed snapshot supplies that raw shape; otherwise
+  it navigates with an identity/title-derived regular VOD or series fallback
+  that is not existence-checked first. The normal detail uses one-shot
+  `provider-only` presentation: it exposes provider content/playback it can
+  resolve while hiding Offline/local/download actions.
 - If a finalized file disappears while a focused detail is open, the
   authoritative download list refreshes and returns to the manager. A failed
   redirect leaves an actionable missing-file state with Back and Retry.

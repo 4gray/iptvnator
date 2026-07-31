@@ -34,10 +34,11 @@ Related:
   context panel, play only finalized local files, and show only locally
   available episodes for a series.
 - `View in portal` is the explicit bridge from a focused offline detail to the
-  source catalog. It resolves an exact provider target and passes the one-shot
-  `detailPresentation: 'provider-only'` navigation state. The destination keeps
-  provider playback and the complete provider episode catalog, but hides
-  Offline/local/download presentation.
+  source catalog. Xtream resolves a concrete category/item route; Stalker uses
+  the best stored item shape or an identity/title-derived fallback. Both pass
+  the one-shot `detailPresentation: 'provider-only'` navigation state. The
+  destination keeps provider playback and whatever catalog the normal provider
+  host can resolve, but hides Offline/local/download presentation.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 
@@ -159,15 +160,18 @@ Behavior to preserve:
 
 Download handoff behavior:
 
-- `View in portal` preserves Stalker's inline/store-state architecture. The
-  download target carries `openStalkerItem` into the normal VOD or series
-  category host instead of inventing a canonical item route.
-- The provider-only marker follows the exact selected item through regular
-  series, embedded VOD `series[]`, and lazy Ministra VOD `is_series=1` flows.
-  All provider seasons/episodes and provider playback remain available, while
-  the shared VOD or series UI suppresses local Offline and download controls.
-  Consuming the marker is identity-scoped so a later ordinary item open returns
-  to normal provider presentation.
+- `View in portal` preserves Stalker's inline/store-state architecture. A
+  matching recently-viewed snapshot is carried as `openStalkerItem` into the
+  normal category host, preserving regular series, embedded VOD `series[]`, or
+  lazy Ministra VOD `is_series=1` shape when that raw snapshot exists.
+- When no matching snapshot exists, a movie download falls back to a regular
+  VOD item and an episode download to a regular-series item derived from the
+  persisted provider identity and title. This fallback is not existence-checked
+  before navigation and cannot reconstruct embedded or `is_series=1` mode.
+- The provider-only marker is scoped to the resulting selected item. Its normal
+  provider host supplies the seasons, episodes, and playback it can resolve,
+  while the shared VOD or series UI suppresses local Offline and download
+  controls. A later ordinary item open returns to normal provider presentation.
 
 ## Decision Rule For Future Changes
 
