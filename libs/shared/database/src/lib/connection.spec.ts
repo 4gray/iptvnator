@@ -1,4 +1,6 @@
+import { getTableColumns } from 'drizzle-orm';
 import { __databaseConnectionTestHooks } from './connection';
+import { downloads } from './schema';
 
 function compactSql(statement: string): string {
     return statement.replace(/\s+/g, ' ').trim();
@@ -61,8 +63,12 @@ describe('database schema statements', () => {
         }
     });
 
-    function createRebuildSqlite(legacyTableSql: string | undefined) {
+    function createRebuildSqlite(
+        legacyTableSql: string | undefined,
+        legacyMetadataSnapshot?: string
+    ) {
         const statements: string[] = [];
+        let rebuiltMetadataSnapshot: string | undefined;
         const transaction = jest.fn((callback: () => void) => callback);
         const prepare = jest.fn((statement: string) => {
             if (statement.includes('FROM sqlite_master')) {
@@ -75,16 +81,36 @@ describe('database schema statements', () => {
             }
             return {
                 run: () => {
-                    statements.push(compactSql(statement));
+                    const compactStatement = compactSql(statement);
+                    statements.push(compactStatement);
+                    if (
+                        compactStatement.startsWith(
+                            'INSERT INTO downloads'
+                        ) &&
+                        compactStatement.includes('metadata_snapshot') &&
+                        !compactStatement.includes(
+                            'NULL AS metadata_snapshot'
+                        )
+                    ) {
+                        rebuiltMetadataSnapshot = legacyMetadataSnapshot;
+                    }
                 },
             };
         });
 
-        return { prepare, statements, transaction };
+        return {
+            getRebuiltMetadataSnapshot: () => rebuiltMetadataSnapshot,
+            prepare,
+            statements,
+            transaction,
+        };
     }
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
         const schemaSql = createTableStatements.map(compactSql).join('\n');
+        const downloadColumns = Object.values(getTableColumns(downloads)).map(
+            (column) => column.name
+        );
 
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS playlists');
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS categories');
@@ -104,6 +130,8 @@ describe('database schema statements', () => {
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS downloads');
         expect(schemaSql).toContain('request_headers TEXT');
         expect(schemaSql).toContain('resume_validator TEXT');
+        expect(schemaSql).toContain('metadata_snapshot TEXT');
+        expect(downloadColumns).toContain('metadata_snapshot');
         expect(schemaSql).toContain("'paused'");
         expect(schemaSql).toContain(
             'CREATE UNIQUE INDEX IF NOT EXISTS favorites_content_playlist_unique'
@@ -148,6 +176,9 @@ describe('database schema statements', () => {
                 'ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0',
                 'ALTER TABLE content ADD COLUMN backdrop_url TEXT',
             ])
+        );
+        expect(columnMigrationStatements).toContain(
+            'ALTER TABLE downloads ADD COLUMN metadata_snapshot TEXT'
         );
     });
 
@@ -488,6 +519,9 @@ describe('database schema statements', () => {
         expect(statements[createIndex]).toContain('request_headers TEXT');
         expect(statements[createIndex]).toContain('resume_validator TEXT');
         expect(statements[copyIndex]).toContain('NULL AS request_headers');
+        expect(statements[copyIndex]).toContain(
+            'NULL AS metadata_snapshot'
+        );
         expect(statements[copyIndex]).not.toContain('resume_validator');
     });
 
@@ -504,6 +538,42 @@ describe('database schema statements', () => {
         expect(copy).toBeDefined();
         expect(copy).not.toContain('NULL AS request_headers');
         expect(copy).toContain('request_headers');
+    });
+
+    it('preserves metadata snapshots when rebuilding the pause/resume schema', () => {
+        const metadataSnapshot = JSON.stringify({
+            version: 1,
+            language: 'en',
+            mediaKind: 'movie',
+            title: 'Offline title',
+        });
+        const sqlite = createRebuildSqlite(
+            `CREATE TABLE downloads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_headers TEXT,
+                metadata_snapshot TEXT,
+                status TEXT CHECK (
+                    status IN (
+                        'queued',
+                        'downloading',
+                        'completed',
+                        'failed',
+                        'canceled'
+                    )
+                )
+            )`,
+            metadataSnapshot
+        );
+
+        ensureDownloadsPauseResumeSchema(sqlite);
+
+        const copy = sqlite.statements.find((statement) =>
+            statement.startsWith('INSERT INTO downloads')
+        );
+        expect(copy).toBeDefined();
+        expect(copy).toContain('metadata_snapshot');
+        expect(copy).not.toContain('NULL AS metadata_snapshot');
+        expect(sqlite.getRebuiltMetadataSnapshot()).toBe(metadataSnapshot);
     });
 
     it('skips the downloads rebuild when the table already has the paused contract', () => {

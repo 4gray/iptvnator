@@ -335,6 +335,7 @@ export const downloads = sqliteTable(
         posterUrl: text('poster_url'),
         requestHeaders: text('request_headers'),
         resumeValidator: text('resume_validator'),
+        metadataSnapshot: text('metadata_snapshot'),
         // Download progress
         status: text('status', {
             enum: [

@@ -2,6 +2,7 @@ export * from './lib/channel-drm.interface';
 export * from './lib/channel.interface';
 export * from './lib/channel.model';
 export * from './lib/dev-logger.util';
+export * from './lib/download-metadata.interface';
 export * from './lib/embedded-mpv-session.interface';
 export * from './lib/electron-api.interface';
 export * from './lib/epg-channel-metadata.model';

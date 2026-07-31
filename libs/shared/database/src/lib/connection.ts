@@ -105,6 +105,7 @@ const DOWNLOADS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS downloads (
       poster_url TEXT,
       request_headers TEXT,
       resume_validator TEXT,
+      metadata_snapshot TEXT,
       status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled')),
       bytes_downloaded INTEGER DEFAULT 0,
       total_bytes INTEGER,
@@ -379,6 +380,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE epg_programs ADD COLUMN source_url TEXT`,
     // Pause/resume: entity validator (ETag/Last-Modified) sent as If-Range on resume
     `ALTER TABLE downloads ADD COLUMN resume_validator TEXT`,
+    // Offline details: provider-neutral display metadata captured at download time
+    `ALTER TABLE downloads ADD COLUMN metadata_snapshot TEXT`,
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [
@@ -1002,6 +1005,10 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
         const legacyHeadersSelect = hasRequestHeaders
             ? 'request_headers'
             : 'NULL AS request_headers';
+        const hasMetadataSnapshot = row.sql.includes('metadata_snapshot');
+        const legacyMetadataSnapshotSelect = hasMetadataSnapshot
+            ? 'metadata_snapshot'
+            : 'NULL AS metadata_snapshot';
         const rebuild = sqliteDb.transaction(() => {
             for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
                 const match = statement.match(
@@ -1034,6 +1041,7 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         file_path,
                         poster_url,
                         request_headers,
+                        metadata_snapshot,
                         status,
                         bytes_downloaded,
                         total_bytes,
@@ -1055,6 +1063,7 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         file_path,
                         poster_url,
                         ${legacyHeadersSelect},
+                        ${legacyMetadataSnapshotSelect},
                         status,
                         bytes_downloaded,
                         total_bytes,

@@ -4,6 +4,7 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
 } from './embedded-mpv-session.interface';
+import { DownloadMetadataSnapshot } from './download-metadata.interface';
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
 import { ExternalPlayerSession } from './external-player-session.interface';
@@ -516,6 +517,7 @@ export interface ElectronBridgeDownloadStartPayload {
     title: string;
     url: string;
     posterUrl?: string;
+    metadataSnapshot?: DownloadMetadataSnapshot;
     downloadFolder: string;
     headers?: ElectronBridgeDownloadHeaders;
     seriesXtreamId?: number;
@@ -549,6 +551,7 @@ export interface ElectronDownloadItem {
     fileName?: string;
     filePath?: string;
     posterUrl?: string;
+    metadataSnapshot?: DownloadMetadataSnapshot;
     status: ElectronBridgeDownloadStatus;
     fileAvailability: ElectronDownloadFileAvailability;
     bytesDownloaded?: number;
@@ -1083,6 +1086,10 @@ export interface ElectronBridgeApi {
     downloadsRemove: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
     downloadsGetList: (playlistId?: string) => Promise<ElectronDownloadItem[]>;
     downloadsGet: (downloadId: number) => Promise<ElectronDownloadItem | null>;
+    downloadsUpdateMetadata: (
+        downloadId: number,
+        metadataSnapshot: DownloadMetadataSnapshot
+    ) => Promise<ElectronBridgeErrorResult>;
     downloadsGetDefaultFolder: () => Promise<string>;
     downloadsSelectFolder: () => Promise<string | null>;
     downloadsRevealFile: (
