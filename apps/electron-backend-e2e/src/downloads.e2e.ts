@@ -310,7 +310,12 @@ test.describe('Electron Downloads', () => {
             // Removing the finalized file must move the persisted completed
             // row out of Ready to watch when offline-detail playback refreshes
             // the authoritative list, then return to Needs attention.
-            await card.locator('.download-library__artwork-button').click();
+            await card
+                .getByRole('button', {
+                    name: 'Open details: E2E Movie',
+                    exact: true,
+                })
+                .click();
             await app.mainWindow.waitForURL((url) =>
                 url.pathname.endsWith(`/workspace/downloads/${startResult?.id}`)
             );
@@ -334,9 +339,9 @@ test.describe('Electron Downloads', () => {
                 })
             ).toBeVisible();
             await expect(missingRow).toBeVisible({ timeout: 20000 });
-            await expect(
-                missingRow.locator('.download-queue__status')
-            ).toContainText('File missing');
+            await expect(missingRow.getByRole('status')).toContainText(
+                'File missing'
+            );
             await expect(card).toHaveCount(0);
             await expect(
                 missingRow.getByRole('button', { name: 'Play: E2E Movie' })
@@ -568,7 +573,10 @@ test.describe('Electron Downloads', () => {
             );
             await installDownloadPlayCapture(app);
             await alphaMovieCard
-                .locator('.download-library__artwork-button')
+                .getByRole('button', {
+                    name: 'Open details: Alpha Movie',
+                    exact: true,
+                })
                 .click();
             const expectedOfflinePath = `/workspace/xtreams/${sourceA}/downloads/${alphaMovieId}`;
             await app.mainWindow.waitForURL((url) =>
@@ -869,7 +877,10 @@ test.describe('Electron Downloads', () => {
             await expect(seriesCard).toBeVisible({ timeout: 30000 });
             await expect(seriesCard).toContainText('2 episodes');
             await seriesCard
-                .locator('.download-library__artwork-button')
+                .getByRole('button', {
+                    name: `Open details: ${providerTitle}`,
+                    exact: true,
+                })
                 .click();
             await app.mainWindow.waitForURL((url) =>
                 url.pathname.endsWith(`/workspace/downloads/${thirdEpisodeId}`)
