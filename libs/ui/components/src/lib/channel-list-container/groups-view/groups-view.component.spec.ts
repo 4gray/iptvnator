@@ -134,6 +134,7 @@ describe('GroupsViewComponent', () => {
             favoriteIds: Set<string>;
             groupedChannels: Record<string, Channel[]>;
             groupsPanelExpanded: boolean;
+            groupsPanelRestoreAvailable: boolean;
             hiddenGroupTitles: string[];
             progressTick: number;
             searchTerm: string;
@@ -153,6 +154,7 @@ describe('GroupsViewComponent', () => {
             favoriteIds: Set<string>;
             groupedChannels: Record<string, Channel[]>;
             groupsPanelExpanded: boolean;
+            groupsPanelRestoreAvailable: boolean;
             hiddenGroupTitles: string[];
             progressTick: number;
             searchTerm: string;
@@ -198,6 +200,10 @@ describe('GroupsViewComponent', () => {
         fixture.componentRef.setInput(
             'groupsPanelExpanded',
             overrides.groupsPanelExpanded ?? true
+        );
+        fixture.componentRef.setInput(
+            'groupsPanelRestoreAvailable',
+            overrides.groupsPanelRestoreAvailable ?? true
         );
         fixture.componentRef.setInput(
             'channelsPanelExpanded',
@@ -258,6 +264,29 @@ describe('GroupsViewComponent', () => {
                 '[data-testid="live-groups-panel-hide"]'
             )
         );
+    });
+
+    it('omits the Groups restore control while restoration is responsively unavailable', () => {
+        setInputs({
+            groupsPanelExpanded: false,
+            groupsPanelRestoreAvailable: false,
+        });
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-groups-panel-restore"]'
+            )
+        ).toBeNull();
+        expect(
+            fixture.nativeElement
+                .querySelector('#live-groups-panel')
+                .hasAttribute('inert')
+        ).toBe(true);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-channels-panel-hide"]'
+            )
+        ).not.toBeNull();
     });
 
     it('sorts groups with numeric buckets before alphabetic buckets', () => {

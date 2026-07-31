@@ -18,8 +18,8 @@
             data-testid="live-channels-panel-hide"
             aria-controls="live-channels-panel"
             [attr.aria-expanded]="channelsPanelExpanded()"
-            [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
-            [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
+            [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_PANEL' | translate"
+            [matTooltip]="'LAYOUT.HIDE_CHANNELS_PANEL' | translate"
             (click)="channelsPanelExpandedChange.emit(false)"
         >
             <mat-icon>chevron_left</mat-icon>

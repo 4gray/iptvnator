@@ -185,6 +185,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly channelsLoading = input(false);
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
     readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelRestoreAvailable = input(true);
     readonly channelsPanelExpanded = input(true);
     readonly sidebarWidth = input<number | null>(null);
     readonly sidebarWidthRequested = output<number>();

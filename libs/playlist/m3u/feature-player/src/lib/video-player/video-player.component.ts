@@ -1,8 +1,10 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
+    ElementRef,
     HostListener,
     Injector,
     OnDestroy,
@@ -30,6 +32,11 @@ import {
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    LIVE_LAYOUT_PANEL,
+    LiveLayoutPanelStateService,
+    type LiveLayoutPanel,
+} from '@iptvnator/portal/shared/data-access';
 import {
     COMPONENT_OVERLAY_REF,
     EpgDateNavigationDirection,
@@ -73,12 +80,9 @@ import {
     isTypingInInput,
     isWorkspaceLayoutRoute,
     LiveEpgPanelState,
-    LiveSidebarState,
     persistLiveEpgPanelState,
-    persistLiveSidebarState,
     PORTAL_EXTERNAL_PLAYBACK,
     restoreLiveEpgPanelState,
-    restoreLiveSidebarState,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
@@ -154,8 +158,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly hostElement = inject(ElementRef<HTMLElement>);
+    private readonly livePanelState = inject(LiveLayoutPanelStateService);
     private readonly workspaceHeaderContext = inject(
         WorkspaceHeaderContextService
+    );
+    private readonly mobileViewport = toSignal(
+        inject(BreakpointObserver).observe('(max-width: 599px)'),
+        { initialValue: { breakpoints: {}, matches: false } }
     );
     private readonly debugLog = createDevLogger('VideoPlayerComponent');
 
@@ -164,9 +174,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly activePlaybackUrl = this.store.selectSignal(
         selectActivePlaybackUrl
     );
-    readonly activeEpgProgram = this.store.selectSignal(
-        selectActiveEpgProgram
-    );
+    readonly activeEpgProgram = this.store.selectSignal(selectActiveEpgProgram);
     readonly activeEpgProgramOrNull = computed(
         () => this.activeEpgProgram() ?? null
     );
@@ -233,9 +241,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly epgChannelLogo = toSignal(
         toObservable(this.activeChannel).pipe(
             switchMap((channel) => {
-                const key = channel
-                    ? resolveChannelEpgLookupKey(channel)
-                    : '';
+                const key = channel ? resolveChannelEpgLookupKey(channel) : '';
                 if (!key) {
                     return of('');
                 }
@@ -328,13 +334,6 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
-    readonly liveSidebarState = signal<LiveSidebarState>(
-        restoreLiveSidebarState()
-    );
-    readonly isSidebarCollapsed = computed(
-        () => this.liveSidebarState() === 'collapsed'
-    );
-
     /** Channels list */
     readonly channels$: Observable<Channel[]> = this.store.select(
         selectChannels
@@ -363,6 +362,28 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         ),
         { initialValue: 'all' }
     );
+    readonly groupsApplicable = computed(() => this.activeView() === 'groups');
+    readonly channelsApplicable = computed(
+        () => this.activeView() === 'groups' || this.activeView() === 'all'
+    );
+    readonly isMobileViewport = computed(() => this.mobileViewport().matches);
+    readonly groupsResponsiveSuppressed = computed(
+        () => this.groupsApplicable() && this.isMobileViewport()
+    );
+    readonly groupsPanelExpanded = computed(() =>
+        this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.GROUPS, {
+            applicable: this.groupsApplicable(),
+            responsiveSuppressed: this.groupsResponsiveSuppressed(),
+        })
+    );
+    readonly channelsPanelExpanded = computed(() =>
+        this.livePanelState.isPanelExpanded(LIVE_LAYOUT_PANEL.CHANNELS, {
+            applicable: this.channelsApplicable(),
+        })
+    );
+    readonly isAllChannelsPanelCollapsed = computed(
+        () => this.activeView() === 'all' && !this.channelsPanelExpanded()
+    );
 
     /** Selected video player options */
     playerSettings: Partial<Settings> = {
@@ -383,6 +404,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private lastExternalSessionStateKey = this.getExternalSessionStateKey(
         this.externalPlayback.activeSession()
     );
+    private previousAllChannelsPanelExpanded: boolean | undefined;
 
     /** Channel number input state */
     channelNumberInput = '';
@@ -453,6 +475,29 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             this.sidebarWidth.set(
                 this.loadSidebarWidth(this.sidebarStorageKey())
             );
+        });
+
+        effect(() => {
+            const isAllChannelsView = this.activeView() === 'all';
+            const expanded = this.channelsPanelExpanded();
+            const previous = this.previousAllChannelsPanelExpanded;
+            this.previousAllChannelsPanelExpanded = isAllChannelsView
+                ? expanded
+                : undefined;
+            if (
+                !isAllChannelsView ||
+                previous === undefined ||
+                previous === expanded
+            ) {
+                return;
+            }
+
+            queueMicrotask(() => {
+                this.focusPanelAction(
+                    'channels',
+                    expanded ? 'hide' : 'restore'
+                );
+            });
         });
 
         effect(() => {
@@ -585,9 +630,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
 
             const currentEpgProgram = epgProgram as
-                | EpgProgram
-                | null
-                | undefined;
+                EpgProgram | null | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );
@@ -679,12 +722,37 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         persistLiveEpgPanelState(state);
     }
 
-    toggleSidebar(): void {
-        const next: LiveSidebarState = this.isSidebarCollapsed()
-            ? 'expanded'
-            : 'collapsed';
-        this.liveSidebarState.set(next);
-        persistLiveSidebarState(next);
+    onGroupsPanelExpandedChange(expanded: boolean): void {
+        this.setPanelExpanded(LIVE_LAYOUT_PANEL.GROUPS, expanded);
+    }
+
+    onChannelsPanelExpandedChange(expanded: boolean): void {
+        this.setPanelExpanded(LIVE_LAYOUT_PANEL.CHANNELS, expanded);
+    }
+
+    private setPanelExpanded(panel: LiveLayoutPanel, expanded: boolean): void {
+        if (expanded) {
+            this.livePanelState.showPanel(panel);
+        } else {
+            this.livePanelState.hidePanel(panel);
+        }
+
+        const panelName =
+            panel === LIVE_LAYOUT_PANEL.GROUPS ? 'groups' : 'channels';
+        this.focusPanelAction(panelName, expanded ? 'hide' : 'restore');
+    }
+
+    private focusPanelAction(
+        panel: 'groups' | 'channels',
+        action: 'hide' | 'restore'
+    ): void {
+        setTimeout(() => {
+            this.hostElement.nativeElement
+                .querySelector<HTMLElement>(
+                    `[data-testid="live-${panel}-panel-${action}"]`
+                )
+                ?.focus();
+        }, 0);
     }
 
     onLiveEpgDateNavigation(direction: EpgDateNavigationDirection): void {
@@ -892,7 +960,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             event.key.toLowerCase() === 'b'
         ) {
             event.preventDefault();
-            this.toggleSidebar();
+            this.livePanelState.toggleMasterSuppression(
+                this.applicableLeftPanels()
+            );
             return;
         }
         if (event.metaKey || event.ctrlKey || event.altKey) {
@@ -903,6 +973,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             event.preventDefault();
             this.handleChannelNumberInput(event.key);
         }
+    }
+
+    private applicableLeftPanels(): readonly LiveLayoutPanel[] {
+        return this.groupsApplicable()
+            ? [LIVE_LAYOUT_PANEL.GROUPS, LIVE_LAYOUT_PANEL.CHANNELS]
+            : [LIVE_LAYOUT_PANEL.CHANNELS];
     }
 
     /**

@@ -108,6 +108,7 @@ export class GroupsViewComponent {
     /** Current outer sidebar width */
     readonly sidebarWidth = input<number | null>(null);
     readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelRestoreAvailable = input(true);
     readonly channelsPanelExpanded = input(true);
 
     /** Emits when a channel is selected */

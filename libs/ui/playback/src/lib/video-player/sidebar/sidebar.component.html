@@ -23,6 +23,7 @@
     [activeView]="activeView()"
     [recentItems]="activePlaylist()?.recentlyViewed ?? []"
     [groupsPanelExpanded]="groupsPanelExpanded()"
+    [groupsPanelRestoreAvailable]="groupsPanelRestoreAvailable()"
     [channelsPanelExpanded]="channelsPanelExpanded()"
     [sidebarWidth]="sidebarWidth()"
     (sidebarWidthRequested)="onSidebarWidthRequested($event)"

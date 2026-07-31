@@ -28,6 +28,7 @@ export class ChannelListLoadingStateComponent {
     readonly view = input<string>('all');
     readonly showEpg = input(true);
     readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelRestoreAvailable = input(true);
     readonly channelsPanelExpanded = input(true);
     readonly groupsPanelExpandedChange = output<boolean>();
     readonly channelsPanelExpandedChange = output<boolean>();

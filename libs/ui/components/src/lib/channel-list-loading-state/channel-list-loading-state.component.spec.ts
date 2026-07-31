@@ -88,6 +88,24 @@ describe('ChannelListLoadingStateComponent', () => {
         expect(channelsPanelExpandedChange).toHaveBeenCalledWith(false);
     });
 
+    it('omits the loading Groups restore when responsive restoration is unavailable', () => {
+        fixture.componentRef.setInput('view', 'groups');
+        fixture.componentRef.setInput('groupsPanelExpanded', false);
+        fixture.componentRef.setInput('groupsPanelRestoreAvailable', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-groups-panel-restore"]'
+            )
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-channels-panel-hide"]'
+            )
+        ).not.toBeNull();
+    });
+
     it('keeps the Channels control available while All Channels is loading', () => {
         fixture.componentRef.setInput('view', 'all');
         fixture.detectChanges();

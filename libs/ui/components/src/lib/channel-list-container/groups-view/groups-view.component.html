@@ -1,5 +1,5 @@
 <div class="groups-view-layout">
-    @if (!groupsPanelExpanded()) {
+    @if (!groupsPanelExpanded() && groupsPanelRestoreAvailable()) {
         <button
             mat-icon-button
             type="button"

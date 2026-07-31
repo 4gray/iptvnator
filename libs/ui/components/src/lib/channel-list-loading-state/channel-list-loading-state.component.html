@@ -5,7 +5,7 @@
 
     @if (isGroupsView()) {
         <div class="groups-loading-layout">
-            @if (!groupsPanelExpanded()) {
+            @if (!groupsPanelExpanded() && groupsPanelRestoreAvailable()) {
                 <button
                     mat-icon-button
                     type="button"
@@ -121,7 +121,7 @@
             </section>
         </div>
     } @else {
-        <div id="live-channels-panel" class="channels-loading-state">
+        <div class="channels-loading-state">
             <div class="channels-loading-state__copy">
                 <div class="channels-loading-state__title">
                     {{ 'CHANNELS.LOADING' | translate }}

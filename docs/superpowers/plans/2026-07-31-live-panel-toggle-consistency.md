@@ -491,7 +491,7 @@ git commit -m "feat(ui): separate portal live panel toggles"
 - Modify:
   `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.{ts,html,scss,spec.ts}`
 
-- [ ] **Step 1: Write failing M3U feature tests**
+- [x] **Step 1: Write failing M3U feature tests**
 
 Prove All Channels uses the shared Channels intent, Groups passes two
 independent effective inputs, mobile responsive suppression does not persist
@@ -499,7 +499,7 @@ Groups intent, both collapsed controls order Groups before Channels, loading
 retains structural controls, `Cmd/Ctrl+B` preserves intents, and mobile keeps a
 Channels restore button.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```bash
 pnpm nx test playlist-m3u-feature-player --runInBand
@@ -507,7 +507,7 @@ pnpm nx test playlist-m3u-feature-player --runInBand
 
 Expected: FAIL because M3U still owns a local legacy-key signal.
 
-- [ ] **Step 3: Replace local state with the shared service**
+- [x] **Step 3: Replace local state with the shared service**
 
 Remove `restoreLiveSidebarState`/`persistLiveSidebarState` usage. Inject
 `LiveLayoutPanelStateService`, observe `(max-width: 599px)`, and compute
@@ -523,20 +523,20 @@ readonly channelsApplicable = computed(
 Use responsive suppression only for Groups. Pass explicit panel inputs/outputs
 through `app-sidebar` and the loading state.
 
-- [ ] **Step 4: Preserve focus and mobile restore geometry**
+- [x] **Step 4: Preserve focus and mobile restore geometry**
 
 For All Channels, hide the resizable panel with inert/aria-hidden and place the
 restore rail between sidebar and content. For Groups, let the shared
 GroupsView own its two internal rails. On mobile, keep the Channels restore
 rail visible and let content reclaim height when Channels is collapsed.
 
-- [ ] **Step 5: Wire Guide capability**
+- [x] **Step 5: Wire Guide capability**
 
 Pass `collapsible=shouldShowInlinePlayer(activeChannel)` and
 `panelId="live-guide-panel"` to both EPG modes. Radio continues to omit the
 Guide region.
 
-- [ ] **Step 6: Run and verify GREEN**
+- [x] **Step 6: Run and verify GREEN**
 
 ```bash
 pnpm nx test playlist-m3u-feature-player --runInBand
@@ -545,7 +545,7 @@ pnpm nx lint playlist-m3u-feature-player
 
 Expected: both commands exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add libs/playlist/m3u/feature-player

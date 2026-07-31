@@ -29,6 +29,7 @@ export class SidebarComponent {
     readonly showPlaylistHeader = input(true);
     readonly activeView = input<string>('all');
     readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelRestoreAvailable = input(true);
     readonly channelsPanelExpanded = input(true);
     readonly sidebarWidth = input<number | null>(null);
     readonly sidebarWidthRequested = output<number>();

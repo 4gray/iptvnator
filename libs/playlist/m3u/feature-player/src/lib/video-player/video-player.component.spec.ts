@@ -1,4 +1,5 @@
 import { AsyncPipe } from '@angular/common';
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import {
     Component,
     Directive,
@@ -7,9 +8,15 @@ import {
     output,
     signal,
 } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+    ComponentFixture,
+    DeferBlockState,
+    TestBed,
+} from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -30,8 +37,15 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
+    LIVE_SIDEBAR_STATE_STORAGE_KEY,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
+import {
+    LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY,
+    LIVE_GROUPS_PANEL_STATE_STORAGE_KEY,
+    LIVE_LAYOUT_PANEL,
+    LiveLayoutPanelStateService,
+} from '@iptvnator/portal/shared/data-access';
 import {
     DataService,
     PlaylistsService,
@@ -65,22 +79,35 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 class StubChannelListLoadingStateComponent {
     readonly view = input<string | null>(null);
     readonly showEpg = input(true);
+    readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelRestoreAvailable = input(true);
+    readonly channelsPanelExpanded = input(true);
+    readonly groupsPanelExpandedChange = output<boolean>();
+    readonly channelsPanelExpandedChange = output<boolean>();
 }
 
 @Component({
     selector: 'app-sidebar',
     standalone: true,
-    template: '',
+    template: `
+        @if (channelsPanelExpanded()) {
+            <button data-testid="live-channels-panel-hide"></button>
+        }
+    `,
 })
 class StubSidebarComponent {
     readonly channels = input<Channel[]>([]);
     readonly channelsLoading = input(false);
     readonly showPlaylistHeader = input(false);
     readonly activeView = input('');
+    readonly groupsPanelExpanded = input(true);
+    readonly groupsPanelRestoreAvailable = input(true);
+    readonly channelsPanelExpanded = input(true);
     readonly sidebarWidth = input(0);
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
-    readonly sidebarToggleRequested = output<void>();
+    readonly groupsPanelExpandedChange = output<boolean>();
+    readonly channelsPanelExpandedChange = output<boolean>();
 }
 
 @Component({
@@ -140,6 +167,8 @@ class StubEpgTimelineComponent {
     readonly emptyReason = input<string | null>(null);
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
+    readonly collapsible = input(true);
+    readonly panelId = input<string | null>(null);
     readonly summary = input<LiveEpgPanelSummary | null>(null);
     readonly summaryLabelKey = input('');
     readonly programActivated = output<{
@@ -166,11 +195,20 @@ class StubResizableDirective {
     readonly resizeEnd = output<number>();
 }
 
+@Directive({
+    selector: '[matTooltip]',
+    standalone: true,
+})
+class StubMatTooltipDirective {
+    readonly matTooltip = input('');
+}
+
 describe('VideoPlayerComponent', () => {
     let VideoPlayerComponent: typeof import('./video-player.component').VideoPlayerComponent;
     let fixture: ComponentFixture<VideoPlayerComponentInstance>;
     let component: VideoPlayerComponentInstance;
     let headerContext: WorkspaceHeaderContextService;
+    let livePanelState: LiveLayoutPanelStateService;
 
     const playlistId = signal('playlist-1');
     const activeChannel = signal<Channel | null>(null);
@@ -184,6 +222,14 @@ describe('VideoPlayerComponent', () => {
     const activeChannel$ = new BehaviorSubject<Channel | null>(null);
     const currentEpgProgram$ = new BehaviorSubject<EpgProgram | null>(null);
     const epgPrograms$ = new BehaviorSubject<EpgProgram[]>([]);
+    const routeParams$ = new BehaviorSubject<Record<string, string>>({
+        id: 'playlist-1',
+        view: 'all',
+    });
+    const breakpointState$ = new BehaviorSubject<BreakpointState>({
+        breakpoints: {},
+        matches: false,
+    });
     const epgServiceMock = {
         currentEpgPrograms$: epgPrograms$.asObservable(),
         getChannelMetadataForChannels: () => of(new Map()),
@@ -313,6 +359,11 @@ describe('VideoPlayerComponent', () => {
         syncStoreState(null);
         localStorage.removeItem('m3u-sidebar-width');
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY);
+        routeParams$.next({ id: playlistId(), view: 'all' });
+        breakpointState$.next({ breakpoints: {}, matches: false });
         player.set(VideoPlayer.VideoJs);
         showCaptions.set(false);
         stripCountryPrefix.set(false);
@@ -337,7 +388,7 @@ describe('VideoPlayerComponent', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
-                        params: of({ id: playlistId(), view: 'all' }),
+                        params: routeParams$.asObservable(),
                         queryParams: of({}),
                         snapshot: {
                             data: { layout: 'workspace' },
@@ -348,6 +399,12 @@ describe('VideoPlayerComponent', () => {
                 {
                     provide: Router,
                     useValue: routerMock,
+                },
+                {
+                    provide: BreakpointObserver,
+                    useValue: {
+                        observe: jest.fn(() => breakpointState$.asObservable()),
+                    },
                 },
                 {
                     provide: Store,
@@ -424,7 +481,10 @@ describe('VideoPlayerComponent', () => {
                         StubPortalEmptyStateComponent,
                         StubResizableDirective,
                         StubSidebarComponent,
+                        StubMatTooltipDirective,
                         StubWebPlayerViewComponent,
+                        MatButtonModule,
+                        MatIconModule,
                         MockPipe(
                             TranslatePipe,
                             (value: string | null | undefined) => value ?? ''
@@ -437,11 +497,24 @@ describe('VideoPlayerComponent', () => {
         fixture = TestBed.createComponent(VideoPlayerComponent);
         component = fixture.componentInstance;
         headerContext = TestBed.inject(WorkspaceHeaderContextService);
+        livePanelState = TestBed.inject(LiveLayoutPanelStateService);
     });
+
+    async function renderSidebar(
+        state: DeferBlockState = DeferBlockState.Complete
+    ): Promise<void> {
+        fixture.detectChanges();
+        const [deferBlock] = await fixture.getDeferBlocks();
+        await deferBlock?.render(state);
+        fixture.detectChanges();
+    }
 
     afterEach(() => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY);
+        localStorage.removeItem(LIVE_CHANNELS_PANEL_STATE_STORAGE_KEY);
         window.electron = originalElectron;
     });
 
@@ -535,7 +608,9 @@ describe('VideoPlayerComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         expect(headerContext.action()).toBeNull();
     });
 
@@ -625,6 +700,24 @@ describe('VideoPlayerComponent', () => {
                 .querySelector('.epg')
                 ?.classList.contains('epg-collapsed')
         ).toBe(false);
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.collapsible()).toBe(false);
+        expect(timeline.componentInstance.panelId()).toBe('live-guide-panel');
+    });
+
+    it('makes Guide collapsible only while an inline player can honor it', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+
+        fixture.detectChanges();
+
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.collapsible()).toBe(true);
+        expect(timeline.componentInstance.panelId()).toBe('live-guide-panel');
     });
 
     it('keeps DASH channels inline on the HTML5 player even when MPV is configured', () => {
@@ -640,8 +733,7 @@ describe('VideoPlayerComponent', () => {
             By.directive(StubWebPlayerViewComponent)
         );
         expect(playerView).not.toBeNull();
-        const stub =
-            playerView.componentInstance as StubWebPlayerViewComponent;
+        const stub = playerView.componentInstance as StubWebPlayerViewComponent;
         expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
         expect(dataServiceMock.sendIpcEvent).not.toHaveBeenCalled();
     });
@@ -657,8 +749,7 @@ describe('VideoPlayerComponent', () => {
             By.directive(StubWebPlayerViewComponent)
         );
         expect(playerView).not.toBeNull();
-        const stub =
-            playerView.componentInstance as StubWebPlayerViewComponent;
+        const stub = playerView.componentInstance as StubWebPlayerViewComponent;
         expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
     });
 
@@ -675,9 +766,7 @@ describe('VideoPlayerComponent', () => {
         // The external-player guard declines DASH channels, so the inline
         // player must stay — otherwise the session has no player at all.
         expect(
-            fixture.debugElement.query(
-                By.directive(StubWebPlayerViewComponent)
-            )
+            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
         ).not.toBeNull();
     });
 
@@ -956,6 +1045,130 @@ describe('VideoPlayerComponent', () => {
         expect(storeMock.dispatch).toHaveBeenCalledWith(
             EpgActions.returnToLivePlayback()
         );
+    });
+
+    it('uses the shared Channels intent for All Channels and keeps a restore control', async () => {
+        await renderSidebar();
+
+        const sidebar = fixture.debugElement.query(
+            By.directive(StubSidebarComponent)
+        );
+        expect(sidebar.componentInstance.channelsPanelExpanded()).toBe(true);
+
+        sidebar.componentInstance.channelsPanelExpandedChange.emit(false);
+        fixture.detectChanges();
+
+        const panel = fixture.nativeElement.querySelector(
+            '#live-channels-panel'
+        ) as HTMLElement;
+        const restore = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-restore"]'
+        ) as HTMLButtonElement;
+        expect(livePanelState.channelsIntent()).toBe('collapsed');
+        expect(panel.getAttribute('aria-hidden')).toBe('true');
+        expect(panel.hasAttribute('inert')).toBe(true);
+        expect(restore.getAttribute('aria-controls')).toBe(
+            'live-channels-panel'
+        );
+
+        restore.click();
+        fixture.detectChanges();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(livePanelState.channelsIntent()).toBe('expanded');
+        expect(document.activeElement).toBe(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-channels-panel-hide"]'
+            )
+        );
+    });
+
+    it('passes independent effective Groups and Channels state in grouped view', async () => {
+        routeParams$.next({ id: playlistId(), view: 'groups' });
+        await renderSidebar();
+
+        const sidebar = fixture.debugElement.query(
+            By.directive(StubSidebarComponent)
+        );
+        sidebar.componentInstance.groupsPanelExpandedChange.emit(false);
+        fixture.detectChanges();
+
+        expect(livePanelState.groupsIntent()).toBe('collapsed');
+        expect(livePanelState.channelsIntent()).toBe('expanded');
+        expect(sidebar.componentInstance.groupsPanelExpanded()).toBe(false);
+        expect(sidebar.componentInstance.channelsPanelExpanded()).toBe(true);
+    });
+
+    it('suppresses Groups responsively without changing its persisted intent', async () => {
+        routeParams$.next({ id: playlistId(), view: 'groups' });
+        await renderSidebar();
+
+        breakpointState$.next({
+            breakpoints: { '(max-width: 599px)': true },
+            matches: true,
+        });
+        fixture.detectChanges();
+
+        const sidebar = fixture.debugElement.query(
+            By.directive(StubSidebarComponent)
+        );
+        expect(sidebar.componentInstance.groupsPanelExpanded()).toBe(false);
+        expect(sidebar.componentInstance.groupsPanelRestoreAvailable()).toBe(
+            false
+        );
+        expect(sidebar.componentInstance.channelsPanelExpanded()).toBe(true);
+        expect(livePanelState.groupsIntent()).toBe('expanded');
+        expect(localStorage.getItem(LIVE_GROUPS_PANEL_STATE_STORAGE_KEY)).toBe(
+            'expanded'
+        );
+    });
+
+    it('keeps loading controls wired to both effective panel states', async () => {
+        routeParams$.next({ id: playlistId(), view: 'groups' });
+        channelsLoading.set(true);
+        livePanelState.hidePanel(LIVE_LAYOUT_PANEL.CHANNELS);
+
+        await renderSidebar(DeferBlockState.Loading);
+
+        const loading = fixture.debugElement.query(
+            By.directive(StubChannelListLoadingStateComponent)
+        );
+        expect(loading.componentInstance.groupsPanelExpanded()).toBe(true);
+        expect(loading.componentInstance.channelsPanelExpanded()).toBe(false);
+
+        loading.componentInstance.groupsPanelExpandedChange.emit(false);
+        expect(livePanelState.groupsIntent()).toBe('collapsed');
+    });
+
+    it('uses Cmd/Ctrl+B as temporary master suppression without changing intents', async () => {
+        routeParams$.next({ id: playlistId(), view: 'groups' });
+        livePanelState.hidePanel(LIVE_LAYOUT_PANEL.GROUPS);
+        await renderSidebar();
+
+        const shortcut = new KeyboardEvent('keydown', {
+            key: 'b',
+            ctrlKey: true,
+        });
+        jest.spyOn(shortcut, 'preventDefault');
+        component.handleKeyPress(shortcut);
+        fixture.detectChanges();
+
+        const sidebar = fixture.debugElement.query(
+            By.directive(StubSidebarComponent)
+        );
+        expect(shortcut.preventDefault).toHaveBeenCalled();
+        expect(livePanelState.masterSuppressed()).toBe(true);
+        expect(livePanelState.groupsIntent()).toBe('collapsed');
+        expect(livePanelState.channelsIntent()).toBe('expanded');
+        expect(sidebar.componentInstance.groupsPanelExpanded()).toBe(false);
+        expect(sidebar.componentInstance.channelsPanelExpanded()).toBe(false);
+
+        component.handleKeyPress(shortcut);
+        fixture.detectChanges();
+
+        expect(livePanelState.masterSuppressed()).toBe(false);
+        expect(sidebar.componentInstance.groupsPanelExpanded()).toBe(false);
+        expect(sidebar.componentInstance.channelsPanelExpanded()).toBe(true);
     });
 
     it('updates the outer sidebar width while grouped view requests a larger total width', () => {
