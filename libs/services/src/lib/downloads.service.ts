@@ -1,9 +1,13 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
-import type { DownloadItem } from './downloads.models';
+import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import type { DownloadItem, DownloadStartInput } from './downloads.models';
 import { formatDownloadBytes } from './downloads.utils';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 export type { DownloadItem, DownloadStatus } from './downloads.models';
+
+const ACTIVE: DownloadItem['status'][] = ['queued', 'downloading'];
+const FAILED: DownloadItem['status'][] = ['failed', 'canceled'];
 
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
@@ -31,10 +35,7 @@ export class DownloadsService implements OnDestroy {
 
     /** Active downloads count */
     readonly activeCount = computed(
-        () =>
-            this.downloads().filter(
-                (d) => d.status === 'queued' || d.status === 'downloading'
-            ).length
+        () => this.downloads().filter((d) => ACTIVE.includes(d.status)).length
     );
 
     /** Completed downloads count */
@@ -44,10 +45,7 @@ export class DownloadsService implements OnDestroy {
 
     /** Failed downloads count */
     readonly failedCount = computed(
-        () =>
-            this.downloads().filter(
-                (d) => d.status === 'failed' || d.status === 'canceled'
-            ).length
+        () => this.downloads().filter((d) => FAILED.includes(d.status)).length
     );
 
     /** Current download folder */
@@ -131,25 +129,9 @@ export class DownloadsService implements OnDestroy {
     /**
      * Start a new download
      */
-    async startDownload(data: {
-        playlistId: string;
-        xtreamId: number;
-        contentType: 'vod' | 'episode';
-        title: string;
-        url: string;
-        posterUrl?: string;
-        headers?: { userAgent?: string; referer?: string; origin?: string };
-        seriesXtreamId?: number;
-        seasonNumber?: number;
-        episodeNumber?: number;
-        // Playlist info for auto-creation if needed (Stalker playlists)
-        playlistName?: string;
-        playlistType?:
-            'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
-        serverUrl?: string;
-        portalUrl?: string;
-        macAddress?: string;
-    }): Promise<{ success: boolean; id?: number; error?: string }> {
+    async startDownload(
+        data: DownloadStartInput
+    ): Promise<{ success: boolean; id?: number; error?: string }> {
         if (!this.isAvailable()) {
             return { success: false, error: 'Downloads not available' };
         }
@@ -316,6 +298,26 @@ export class DownloadsService implements OnDestroy {
         }
     }
 
+    /** Update the offline metadata snapshot for a managed download. */
+    async updateMetadata(
+        id: number,
+        snapshot: DownloadMetadataSnapshot
+    ): Promise<{ success: boolean; error?: string }> {
+        if (!this.isAvailable()) return { success: false };
+
+        try {
+            const bridge = window.electron;
+            const result = await bridge.downloadsUpdateMetadata(id, snapshot);
+            if (result.success) await this.loadDownloads();
+            return result;
+        } catch (error) {
+            console.error('[DownloadsService] Metadata update error:', error);
+            const message =
+                error instanceof Error ? error.message : String(error);
+            return { success: false, error: message };
+        }
+    }
+
     /**
      * Play a downloaded file
      */
@@ -407,6 +409,13 @@ export class DownloadsService implements OnDestroy {
         return Math.round(
             ((item.bytesDownloaded || 0) / item.totalBytes) * 100
         );
+    }
+
+    /**
+     * Get a download item by managed id
+     */
+    getDownload(downloadId: number): DownloadItem | undefined {
+        return this.downloads().find(({ id }) => id === downloadId);
     }
 
     /**

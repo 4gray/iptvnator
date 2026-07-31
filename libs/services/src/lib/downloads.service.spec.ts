@@ -7,6 +7,10 @@ import {
     runInInjectionContext,
     signal,
 } from '@angular/core';
+import type {
+    DownloadMetadataSnapshot,
+    ElectronBridgeDownloadStartPayload,
+} from '@iptvnator/shared/interfaces';
 import { DownloadItem, DownloadsService } from './downloads.service';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
@@ -16,12 +20,15 @@ type TestDownloadsService = {
     isAvailable: () => boolean;
     isLoadingDownloads: Signal<boolean>;
     hasLoadedDownloads: Signal<boolean>;
+    getDownload: DownloadsService['getDownload'];
     loadDownloads: DownloadsService['loadDownloads'];
     loadDownloadFolder: DownloadsService['loadDownloadFolder'];
     pauseDownload: DownloadsService['pauseDownload'];
     redownloadMissing: DownloadsService['redownloadMissing'];
     resumeDownload: DownloadsService['resumeDownload'];
     selectFolder: DownloadsService['selectFolder'];
+    startDownload: DownloadsService['startDownload'];
+    updateMetadata: DownloadsService['updateMetadata'];
     _isLoadingDownloads: WritableSignal<boolean>;
     _hasLoadedDownloads: WritableSignal<boolean>;
     loadDownloadsRequestId: number;
@@ -29,6 +36,14 @@ type TestDownloadsService = {
 
 type DownloadsElectronStub = {
     downloadsGetDefaultFolder?: jest.Mock<Promise<string>, []>;
+    downloadsStart?: jest.Mock<
+        Promise<{ success: boolean; id?: number; error?: string }>,
+        [ElectronBridgeDownloadStartPayload]
+    >;
+    downloadsUpdateMetadata?: jest.Mock<
+        Promise<{ success: boolean; error?: string }>,
+        [number, DownloadMetadataSnapshot]
+    >;
     downloadsPause?: jest.Mock<Promise<{ success: boolean }>, [number]>;
     downloadsRedownloadMissing?: jest.Mock<
         Promise<{ success: boolean; recovered?: boolean }>,
@@ -40,6 +55,14 @@ type DownloadsElectronStub = {
     >;
     downloadsSelectFolder?: jest.Mock<Promise<string | null>, []>;
     downloadsGetList: jest.Mock<Promise<DownloadItem[]>, []>;
+};
+
+const metadataSnapshot: DownloadMetadataSnapshot = {
+    version: 1,
+    language: 'en',
+    mediaKind: 'movie',
+    title: 'Offline Movie',
+    plot: 'Stored for offline details.',
 };
 
 describe('DownloadsService', () => {
@@ -79,6 +102,18 @@ describe('DownloadsService', () => {
         return { promise, resolve, reject };
     }
 
+    function createMetadataUpdateMock(result: {
+        success: boolean;
+        error?: string;
+    }) {
+        return jest
+            .fn<
+                Promise<{ success: boolean; error?: string }>,
+                [number, DownloadMetadataSnapshot]
+            >()
+            .mockResolvedValue(result);
+    }
+
     function createService(initialDownloads: DownloadItem[] = []) {
         const downloads = signal(initialDownloads);
         const isLoadingDownloads = signal(false);
@@ -101,6 +136,15 @@ describe('DownloadsService', () => {
 
         return service;
     }
+
+    it('exposes a download metadata snapshot on list items', () => {
+        const item: DownloadItem = {
+            ...createDownload(42),
+            metadataSnapshot,
+        };
+
+        expect(item.metadataSnapshot).toBe(metadataSnapshot);
+    });
 
     it('reports availability through the runtime capability', () => {
         const injector = createEnvironmentInjector(
@@ -160,6 +204,45 @@ describe('DownloadsService', () => {
         await expect(service.loadDownloadFolder()).resolves.toBe('/authorized');
         expect(service.downloadFolder()).toBe('/authorized');
         expect(electron.downloadsGetDefaultFolder).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards a metadata snapshot unchanged when starting a download', async () => {
+        const electron = {
+            downloadsGetDefaultFolder: jest.fn(async () => '/downloads'),
+            downloadsGetList: jest.fn(async () => []),
+            downloadsStart: jest
+                .fn<
+                    Promise<{ id: number; success: boolean }>,
+                    [ElectronBridgeDownloadStartPayload]
+                >()
+                .mockResolvedValue({ id: 42, success: true }),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(
+            service.startDownload({
+                playlistId: 'playlist-1',
+                xtreamId: 7,
+                contentType: 'vod',
+                title: 'Offline Movie',
+                url: 'https://example.com/movie.mp4',
+                metadataSnapshot,
+            })
+        ).resolves.toEqual({ id: 42, success: true });
+
+        expect(electron.downloadsStart).toHaveBeenCalledWith({
+            playlistId: 'playlist-1',
+            xtreamId: 7,
+            contentType: 'vod',
+            title: 'Offline Movie',
+            url: 'https://example.com/movie.mp4',
+            metadataSnapshot,
+            downloadFolder: '/downloads',
+        });
+        expect(electron.downloadsStart.mock.calls[0][0].metadataSnapshot).toBe(
+            metadataSnapshot
+        );
     });
 
     it('stores a selected download folder returned by the main process', async () => {
@@ -225,6 +308,134 @@ describe('DownloadsService', () => {
             success: true,
         });
         expect(electron.downloadsRedownloadMissing).toHaveBeenCalledWith(42);
+    });
+
+    it('gets a download from the current signal by managed id', () => {
+        const matching = {
+            ...createDownload(42),
+            metadataSnapshot,
+        };
+        const service = createService([createDownload(7), matching]);
+
+        expect(service.getDownload(42)).toBe(matching);
+        expect(service.getDownload(99)).toBeUndefined();
+    });
+
+    it('updates metadata by managed id and reloads the authoritative list on success', async () => {
+        const refreshed = {
+            ...createDownload(42),
+            metadataSnapshot,
+        };
+        const electron = {
+            downloadsGetList: jest.fn(async () => [refreshed]),
+            downloadsUpdateMetadata: createMetadataUpdateMock({
+                success: true,
+            }),
+        };
+        testWindow.electron = electron;
+        const service = createService([createDownload(42)]);
+
+        await expect(
+            service.updateMetadata(42, metadataSnapshot)
+        ).resolves.toEqual({ success: true });
+
+        expect(electron.downloadsUpdateMetadata).toHaveBeenCalledWith(
+            42,
+            metadataSnapshot
+        );
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(1);
+        expect(service.downloads()).toEqual([refreshed]);
+    });
+
+    it('returns a metadata update bridge failure without reloading', async () => {
+        const electron = {
+            downloadsGetList: jest.fn(async () => []),
+            downloadsUpdateMetadata: createMetadataUpdateMock({
+                error: 'Metadata rejected',
+                success: false,
+            }),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(
+            service.updateMetadata(42, metadataSnapshot)
+        ).resolves.toEqual({
+            error: 'Metadata rejected',
+            success: false,
+        });
+        expect(electron.downloadsGetList).not.toHaveBeenCalled();
+    });
+
+    it('does not touch the bridge when metadata updates are unavailable', async () => {
+        const electron = {
+            downloadsGetList: jest.fn(async () => []),
+            downloadsUpdateMetadata: createMetadataUpdateMock({
+                success: true,
+            }),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+        service.isAvailable = () => false;
+
+        await expect(
+            service.updateMetadata(42, metadataSnapshot)
+        ).resolves.toEqual({ success: false });
+        expect(electron.downloadsUpdateMetadata).not.toHaveBeenCalled();
+        expect(electron.downloadsGetList).not.toHaveBeenCalled();
+    });
+
+    it('returns a safe failure when the metadata update bridge throws', async () => {
+        const error = new Error('metadata update failed');
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const electron = {
+            downloadsGetList: jest.fn(async () => []),
+            downloadsUpdateMetadata: jest
+                .fn<
+                    Promise<{ success: boolean; error?: string }>,
+                    [number, DownloadMetadataSnapshot]
+                >()
+                .mockRejectedValue(error),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(
+            service.updateMetadata(42, metadataSnapshot)
+        ).resolves.toEqual({
+            error: 'metadata update failed',
+            success: false,
+        });
+        expect(electron.downloadsGetList).not.toHaveBeenCalled();
+        expect(console.error).toHaveBeenCalledWith(
+            '[DownloadsService] Metadata update error:',
+            error
+        );
+    });
+
+    it('returns a safe failure when the metadata reload throws', async () => {
+        const error = new Error('metadata reload failed');
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const electron = {
+            downloadsGetList: jest.fn(async () => []),
+            downloadsUpdateMetadata: createMetadataUpdateMock({
+                success: true,
+            }),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+        service.loadDownloads = jest.fn().mockRejectedValue(error);
+
+        await expect(
+            service.updateMetadata(42, metadataSnapshot)
+        ).resolves.toEqual({
+            error: 'metadata reload failed',
+            success: false,
+        });
+        expect(console.error).toHaveBeenCalledWith(
+            '[DownloadsService] Metadata update error:',
+            error
+        );
     });
 
     it('marks downloads as loaded after a failed request while preserving existing data', async () => {

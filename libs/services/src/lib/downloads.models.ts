@@ -1,7 +1,16 @@
-import type { ElectronDownloadFileAvailability } from '@iptvnator/shared/interfaces';
+import type {
+    DownloadMetadataSnapshot,
+    ElectronBridgeDownloadStartPayload,
+    ElectronDownloadFileAvailability,
+} from '@iptvnator/shared/interfaces';
 
 export type DownloadStatus =
     'queued' | 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled';
+
+export type DownloadStartInput = Omit<
+    ElectronBridgeDownloadStartPayload,
+    'downloadFolder'
+>;
 
 export interface DownloadItem {
     id: number;
@@ -17,6 +26,7 @@ export interface DownloadItem {
     filePath?: string;
     fileAvailability?: ElectronDownloadFileAvailability;
     posterUrl?: string;
+    metadataSnapshot?: DownloadMetadataSnapshot;
     status: DownloadStatus;
     bytesDownloaded?: number;
     totalBytes?: number;
