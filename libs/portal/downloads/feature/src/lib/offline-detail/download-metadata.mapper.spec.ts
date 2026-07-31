@@ -87,6 +87,17 @@ describe('download metadata mapper', () => {
         expect(merged.tmdbId).toBe(603);
     });
 
+    it('keeps a normalized Stalker provider title through TMDB enrichment', () => {
+        const merged = mergeSnapshotWithTmdb(
+            providerSnapshot,
+            tmdbMovie,
+            'stalker'
+        );
+
+        expect(merged.title).toBe('Provider title');
+        expect(merged.originalTitle).toBe('Provider original');
+    });
+
     it('maps a Stalker recent payload without copying credentials or playback fields', () => {
         const mapped = mapProviderToDownloadSnapshot({
             source: 'stalker',

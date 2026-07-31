@@ -142,11 +142,15 @@ export function mapProviderToDownloadSnapshot({
     const identity = [root, info];
     const title =
         (source === 'stalker'
-            ? (string(info?.['name']) ??
-              string(info?.['o_name']) ??
-              string(root['o_name']) ??
-              string(root['name']) ??
-              string(root['title']))
+            ? info
+                ? (string(info['name']) ??
+                  string(info['o_name']) ??
+                  string(root['o_name']) ??
+                  string(root['name']) ??
+                  string(root['title']))
+                : (string(root['name']) ??
+                  string(root['o_name']) ??
+                  string(root['title']))
             : string(first(identity, ['title', 'name']))) ?? fallback.title;
     const originalTitle =
         string(first(editorial, ['o_name', 'originalTitle'])) ??
