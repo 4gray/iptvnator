@@ -8,11 +8,14 @@ import {
     expect,
     fillWorkspaceSearch,
     importM3uPlaylistFromNativeDialog,
+    type LaunchedElectronApp,
     launchElectronApp,
     openSources,
+    openSettings,
     openWorkspaceSection,
     resetMockServers,
     restartElectronApp,
+    saveSettings,
     sourceRowByTitle,
     test,
     waitForM3uCatalog,
@@ -185,6 +188,21 @@ test('@live-panels @xtream @electron keeps portal Groups and Channels independen
         ).toBeVisible({
             timeout: 20000,
         });
+
+        await openSettings(page);
+        await page.getByTestId('select-video-player').click();
+        await page.getByTestId('mpv').click();
+        await saveSettings(page);
+        await installExternalPlayerStub(app);
+        await page.goBack();
+        await page.waitForURL(/\/workspace\/xtreams\/.+\/live/);
+        await channelItemByTitle(page, channelTitle).first().click();
+        await expect(page.locator('app-epg-timeline')).toBeVisible({
+            timeout: 20000,
+        });
+        await expect(
+            page.locator('[data-testid="live-guide-toggle"]')
+        ).toHaveCount(0);
     } finally {
         await closeElectronApp(app);
     }
@@ -368,4 +386,34 @@ function requireTitle(title: string, message: string): string {
     }
 
     return title;
+}
+
+async function installExternalPlayerStub(
+    app: LaunchedElectronApp
+): Promise<void> {
+    await app.electronApp.evaluate(({ ipcMain }) => {
+        const openPlayer = async (
+            _event: unknown,
+            url: string,
+            title: string,
+            thumbnail?: string | null
+        ) => {
+            const now = new Date().toISOString();
+
+            return {
+                canClose: false,
+                id: 'e2e-mpv-live-panel',
+                player: 'mpv',
+                startedAt: now,
+                status: 'opened',
+                streamUrl: url,
+                thumbnail: thumbnail ?? null,
+                title,
+                updatedAt: now,
+            };
+        };
+
+        ipcMain.removeHandler('OPEN_MPV_PLAYER');
+        ipcMain.handle('OPEN_MPV_PLAYER', openPlayer);
+    });
 }
