@@ -326,6 +326,39 @@ describe('download request metadata snapshots', () => {
         expect(request.db.update).not.toHaveBeenCalled();
         expect(request.enqueueDownload).not.toHaveBeenCalled();
     });
+
+    it('rejects a restart whose poster reuses the replacement stream URL', async () => {
+        const replacementUrl =
+            'https://replacement.example.test/images/live.jpg';
+        const request = await setupStartMetadataRequest({
+            contentType: 'vod',
+            filePath: null,
+            id: 42,
+            metadataSnapshot: null,
+            playlistId: 'playlist-1',
+            status: 'canceled',
+            title: 'Offline Movie',
+            url: 'https://stored.example.test/movie.mp4',
+            xtreamId: 7,
+        });
+
+        await expect(
+            request.startDownloadRequest(
+                {
+                    ...startPayload({
+                        ...metadataSnapshot,
+                        posterUrl: replacementUrl,
+                    }),
+                    url: replacementUrl,
+                },
+                request.authorizer
+            )
+        ).rejects.toThrow('Invalid download metadata snapshot');
+
+        expect(request.db.insert).not.toHaveBeenCalled();
+        expect(request.db.update).not.toHaveBeenCalled();
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
+    });
 });
 
 describe('download requests resume', () => {

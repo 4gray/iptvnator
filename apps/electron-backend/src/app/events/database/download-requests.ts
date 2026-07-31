@@ -171,6 +171,10 @@ export async function startDownloadRequest(
                 normalizedMetadataSnapshot,
                 item.url
             );
+            assertDownloadMetadataArtworkDiffersFromStream(
+                normalizedMetadataSnapshot,
+                data.url
+            );
         }
         if (!['completed', 'failed', 'canceled'].includes(item.status)) {
             return {
