@@ -57,17 +57,29 @@ Treat Groups, Channels, and Guide as separate persisted user intents:
 | Channels | `live-channels-panel-state`     | `expanded` |
 | Guide    | Existing `live-epg-panel-state` | `expanded` |
 
-A root-provided `LiveLayoutPanelStateService` owns the two left-panel signals
-and their persistence. M3U, the workspace shell, Xtream, Stalker, Favorites,
-and Recent consume the same live service instead of maintaining local copies.
-Guide may continue using its existing state helper in this increment; its
+A root-provided `LiveLayoutPanelStateService` in
+`@iptvnator/portal/shared/data-access` owns the two left-panel signals, their
+persistence, and temporary master suppression. This placement follows the
+current Nx rule that stateful cross-provider orchestration belongs in
+data-access rather than the legacy shared util library. M3U, the workspace
+shell, Xtream, Stalker, Favorites, and Recent consume the same service instead
+of maintaining local copies. The legacy storage parser remains a pure,
+read-only compatibility helper in `@iptvnator/portal/shared/util`. Guide may
+continue using its existing state helper in this increment; its
 control-availability rules must still be consistent across consumers.
 
 The service distinguishes:
 
 - **Intent state:** the user's persisted choice for a panel.
-- **Effective state:** whether the current route, content, viewport, or
-  playback mode can and should render that panel now.
+- **Effective state:** whether the persisted intent is expanded and neither
+  master nor responsive suppression applies for a panel that is structurally
+  present on the current route.
+
+Consumers own route/content applicability and their local responsive
+breakpoint. They pass that context to the service's effective-state resolver;
+the root service does not register route components or keep route-specific
+availability. This prevents a stale or concurrently mounted consumer from
+changing another surface's state.
 
 Route absence, responsive auto-collapse, radio mode, and player capability must
 never overwrite intent. Returning to a compatible layout restores the user's
@@ -129,9 +141,10 @@ Groups or Channels panel structurally present in that surface. Guide is the
 exception: no Guide control is rendered until the Guide region itself exists
 for a selected playable item.
 
-When both Groups and Channels are collapsed, boundary restore controls appear
-in stable left-to-right order: Groups, then Channels. A collapsed panel retains
-no second hidden or duplicate action.
+Collapsed restore controls occupy a compact boundary rail instead of floating
+over player or list content. When both Groups and Channels are collapsed,
+boundary controls appear in stable left-to-right order: Groups, then Channels.
+A collapsed panel retains no second hidden or duplicate action.
 
 ## Control Semantics
 
@@ -175,11 +188,15 @@ Channels intents:
 
 Guide receives no new shortcut in this increment.
 
-On narrow layouts, automatic pressure relief hides Groups before Channels.
-Responsive suppression is effective-only and does not persist. The former
-boundary still offers a pointer and keyboard restore path whenever the layout
-has enough room to honor it. In particular, M3U mobile must no longer hide the
-only Channels restore control.
+On workspace portal layouts at `1023px` and below, automatic pressure relief
+suppresses Groups before Channels, matching issue #1118. On the M3U Groups
+mobile layout below `600px`, the nested Groups rail is likewise
+suppressed before Channels. Responsive suppression is effective-only and does
+not persist. A responsive-suppressed Groups panel does not offer an
+unfulfillable restore control until the viewport is wide enough; once the
+breakpoint clears, its persisted intent becomes effective again or its restore
+control returns. An explicitly collapsed Channels panel always retains a
+pointer and keyboard restore path, including M3U mobile.
 
 ## Visual Behavior
 
@@ -201,14 +218,15 @@ external-player region.
 The implementation should:
 
 1. Replace `LiveLayoutSidebarStateService` with the explicit left-panel state
-   service and migration.
+   service and migration in `@iptvnator/portal/shared/data-access`.
 2. Move M3U from its local same-key signal to that shared service.
 3. Add the missing Groups-header control in the workspace shell and the
    independent Channels controls in applicable live layouts.
 4. Preserve the collection-header exception for Favorites and Recent.
 5. Normalize collapsed restore controls, focus transfer, `inert`, and
    accessible disclosure semantics.
-6. Hide Guide disclosure when the current player host cannot collapse Guide.
+6. Give the shared EPG timeline/list an explicit `collapsible` contract and
+   hide Guide disclosure when the current player host cannot collapse Guide.
 7. Keep controls present through loading, empty, and search-zero states.
 
 The implementation must not:
