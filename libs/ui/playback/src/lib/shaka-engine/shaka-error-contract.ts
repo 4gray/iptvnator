@@ -38,6 +38,16 @@ export const SHAKA_ERROR_CODE = {
     REQUEST_FILTER_ERROR: 1006,
     RESPONSE_FILTER_ERROR: 1007,
     SEGMENT_MISSING: 1011,
+    // Text parsing reachable from DASH playback. HLS-only and app-uninvoked
+    // external-track/src= codes stay outside this boundary.
+    INVALID_TEXT_HEADER: 2000,
+    INVALID_TEXT_CUE: 2001,
+    UNABLE_TO_DETECT_ENCODING: 2003,
+    BAD_ENCODING: 2004,
+    INVALID_XML: 2005,
+    INVALID_MP4_TTML: 2007,
+    INVALID_MP4_VTT: 2008,
+    INVALID_MP4_CEA: 2010,
     BUFFER_READ_OUT_OF_BOUNDS: 3000,
     JS_INTEGER_OVERFLOW: 3001,
     EBML_OVERFLOW: 3002,

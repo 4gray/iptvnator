@@ -412,7 +412,9 @@ category alone is not container incompatibility, and Shaka messages never infer
 CORS, codec, DRM, container, or stage. The public critical
 `STREAMING_ENGINE_STARTUP_INVALID_STATE` code remains exact evidence while its
 stage and failure stay unknown because the code does not identify a user-facing
-media cause.
+media cause. Public DASH text-parser codes are also retained exactly; their
+`TEXT` category proves the parser subsystem, but not a safe manifest, segment,
+or media cause, so stage and failure remain unknown.
 
 A failed public `Player.isBrowserSupported()` preflight is not a Shaka error
 and therefore retains fully unknown technical evidence instead of being

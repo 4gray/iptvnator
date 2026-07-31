@@ -212,10 +212,11 @@ Key files:
   `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
   source kind `shaka`. The Shaka `5.2.2` diagnostic boundary version-locks
   public severity/category/code evidence, ignores recoverable error events,
-  treats rejected loads as terminal lifecycle outcomes, and never retains or
-  renders raw messages or `error.data`. A failed browser-support preflight
-  stays unknown but keeps external fallback for clear DASH; KODIPROP DRM still
-  suppresses it. See the CLAUDE.md "Video Players" feature entry and
+  treats rejected loads as terminal lifecycle outcomes, preserves exact public
+  DASH text-parser category/code evidence with unknown stage/failure, and never
+  retains or renders raw messages or `error.data`. A failed browser-support
+  preflight stays unknown but keeps external fallback for clear DASH; KODIPROP
+  DRM still suppresses it. See the CLAUDE.md "Video Players" feature entry and
   `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped

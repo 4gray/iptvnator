@@ -1004,10 +1004,12 @@ player in settings.
   validated HTTP status. Exact category/code pairs classify failures, while an
   ambiguous Manifest category or unknown pair remains an unknown diagnostic.
   The public streaming-startup code `5006` is retained exactly but keeps
-  unknown stage/failure. A failed `Player.isBrowserSupported()` preflight also
-  stays unknown rather than claiming container incompatibility; clear DASH
-  still offers configured external-player actions, while KODIPROP DRM keeps
-  them disabled because those players never receive its keys.
+  unknown stage/failure. Public DASH text-parser codes likewise retain their
+  exact `TEXT` category/code but keep stage/failure unknown. A failed
+  `Player.isBrowserSupported()` preflight also stays unknown rather than
+  claiming container incompatibility; clear DASH still offers configured
+  external-player actions, while KODIPROP DRM keeps them disabled because
+  those players never receive its keys.
   Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
   with a fixed safe detail string and without starting an engine.
 - HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:

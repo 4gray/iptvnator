@@ -211,6 +211,41 @@ describe('Shaka playback evidence', () => {
     });
 
     it.each([
+        ['INVALID_TEXT_HEADER', 2000],
+        ['INVALID_TEXT_CUE', 2001],
+        ['UNABLE_TO_DETECT_ENCODING', 2003],
+        ['BAD_ENCODING', 2004],
+        ['INVALID_XML', 2005],
+        ['INVALID_MP4_TTML', 2007],
+        ['INVALID_MP4_VTT', 2008],
+        ['INVALID_MP4_CEA', 2010],
+    ])('preserves the exact public DASH text code %s', (_name, code) => {
+        expect(
+            createEvidence({ severity: 2, category: 2, code }, 'terminal')
+        ).toEqual({
+            severity: 'critical',
+            category: 'text',
+            engineCode: code,
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
+    });
+
+    it('rejects public text codes from app-uninvoked explicit-track APIs', () => {
+        expect(
+            createEvidence({ severity: 2, category: 2, code: 2014 }, 'terminal')
+        ).toEqual({
+            severity: 'critical',
+            category: 'text',
+            engineCode: 'unknown',
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
+    });
+
+    it.each([
         {
             label: 'manifest parsing',
             error: { severity: 2, category: 4, code: 4001 },

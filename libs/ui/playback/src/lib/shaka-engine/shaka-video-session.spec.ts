@@ -286,6 +286,39 @@ describe('ShakaVideoSession', () => {
         });
     });
 
+    it('preserves a terminal text-parser event without retaining parser data', async () => {
+        const secret = 'subtitle-parser-secret';
+        const environment = createFakeShakaEnvironment();
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/text-track.mpd');
+        await flush();
+
+        const player = environment.instances[0];
+        player.dispatch('error', {
+            severity: 2,
+            category: 2,
+            code: 2000,
+            message: `malformed WebVTT from ${secret}`,
+            data: [{ cue: secret }],
+        });
+
+        expect(issues).toHaveLength(1);
+        expect(issues[0].code).toBe(
+            PlaybackDiagnosticCode.UnknownPlaybackError
+        );
+        expect(issues[0].shaka).toEqual({
+            severity: 'critical',
+            category: 'text',
+            engineCode: 2000,
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
+        expect(JSON.stringify(issues[0])).not.toContain(secret);
+        expect(player.destroyCount).toBe(1);
+        expect(session.getPlayer()).toBeNull();
+    });
+
     it('emits a critical in-flight error once before teardown interrupts load', async () => {
         const environment = createFakeShakaEnvironment({
             onCreate: (player) => {

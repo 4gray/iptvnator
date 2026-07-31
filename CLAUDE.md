@@ -737,9 +737,10 @@ app as a real argument, so it is not an option.
   `libs/ui/playback/src/lib/shaka-engine/`. Its Shaka `5.2.2` diagnostic
   boundary version-locks public severity/category/code evidence, ignores
   recoverable error events, treats rejected loads as terminal lifecycle
-  outcomes, and never retains or renders raw messages or `error.data`. A failed
-  browser-support preflight stays unknown but keeps external fallback for clear
-  DASH; KODIPROP DRM still suppresses it. Details in
+  outcomes, preserves exact public DASH text-parser category/code evidence with
+  unknown stage/failure, and never retains or renders raw messages or
+  `error.data`. A failed browser-support preflight stays unknown but keeps
+  external fallback for clear DASH; KODIPROP DRM still suppresses it. Details in
   `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
 - External players: MPV, VLC (via IPC to Electron backend)
 - Embedded MPV (experimental, macOS/Windows/Linux): renders mpv video inside the Electron window through a native addon. macOS uses the libmpv render API in an `NSOpenGLView`; Windows uses in-process libmpv with `--wid` against an app-owned child `HWND`; Linux spawns an out-of-process `mpv --wid=<x11-window>` controlled over a JSON IPC socket (X11/XWayland only, requires system `mpv` on PATH; subtitles/speed/aspect/recording are not exported there). mpv's own screensaver inhibition does not apply to any of these paths, so `EmbeddedMpvNativeService` holds an Electron `powerSaveBlocker` (`prevent-display-sleep`) whenever any session's status is `playing`, and releases it on pause, dispose, or shutdown. Renderer bounds are CSS pixels; the service converts them to native units in the main process (`embedded-mpv-bounds.util.ts`: × page zoom everywhere, × display scale on Windows/Linux whose child windows are positioned in physical pixels; frame-copy bounds stay unscaled), and the session controller re-syncs bounds when `devicePixelRatio` changes. Service: `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`; full architecture: `docs/architecture/embedded-mpv-native.md`.
