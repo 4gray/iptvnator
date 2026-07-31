@@ -35,6 +35,7 @@ import {
     buildXtreamEpisodeDownloadRequest,
     getEpisodeDownloadId,
     isStalkerEpisode,
+    type SeasonContainerDownloadMetadataContext,
 } from './episode-download.util';
 import {
     EPISODE_INFO_PLAY,
@@ -55,6 +56,8 @@ export interface SeasonContainerXtreamDownloadContext {
     username?: string;
     password?: string;
 }
+
+export type { SeasonContainerDownloadMetadataContext } from './episode-download.util';
 
 export interface SeasonContainerPlaybackToggleRequest {
     contentXtreamId: number;
@@ -94,6 +97,8 @@ export class SeasonContainerComponent implements OnInit {
     );
     readonly xtreamDownloadContext =
         input<SeasonContainerXtreamDownloadContext | null>(null);
+    readonly downloadMetadataContext =
+        input<SeasonContainerDownloadMetadataContext | null>(null);
     readonly downloadsEnabled = input(true);
     readonly openingEpisodeId = input<number | null>(null);
     /** Episode currently playing in an EXTERNAL player session. */
@@ -384,6 +389,7 @@ export class SeasonContainerComponent implements OnInit {
                 seriesTitle: this.seriesTitle(),
                 fallbackSeasonKey: this.selectedSeason(),
                 posterUrl: this.getEpisodeInfo(episode)?.movie_image,
+                metadataContext: this.downloadMetadataContext() ?? undefined,
             })
         );
     }

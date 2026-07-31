@@ -38,6 +38,7 @@ class StubSeasonContainerComponent {
     readonly seriesTitle = input<string | undefined>(undefined);
     readonly playbackPositions = input<unknown>(null);
     readonly xtreamDownloadContext = input<unknown>(null);
+    readonly downloadMetadataContext = input<unknown>(null);
     readonly downloadsEnabled = input(true);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
@@ -115,6 +116,9 @@ describe('SerialDetailsComponent', () => {
                 cover: 'cover.jpg',
                 backdrop_path: [],
                 genre: 'Drama',
+                category_id: '3',
+                tmdb_id: 901,
+                tmdb_cast: [{ name: 'Sienna Wave', character: 'Mara' }],
             },
             episodes: {
                 '1': [
@@ -352,6 +356,22 @@ describe('SerialDetailsComponent', () => {
             ],
         });
         expect(seasonContainer?.downloadsEnabled()).toBe(true);
+        expect(seasonContainer?.downloadMetadataContext()).toEqual(
+            expect.objectContaining({
+                language: 'en',
+                title: 'Series One',
+                plot: 'Series plot',
+                genres: ['Drama'],
+                providerCategoryId: '3',
+                tmdbId: 901,
+                cast: expect.arrayContaining([
+                    expect.objectContaining({
+                        name: 'Sienna Wave',
+                        role: 'Mara',
+                    }),
+                ]),
+            })
+        );
     });
 
     it('keeps every provider episode but disables download presentation in provider-only mode', async () => {

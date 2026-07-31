@@ -66,10 +66,90 @@ describe('episode-download.util', () => {
             fallbackSeasonKey: '1',
         });
 
-        expect(request.url).toBe('http://host/series/u/p/55.mkv');
-        expect(request.title).toBe('Show - S02E03 - The One');
-        expect(request.seasonNumber).toBe(2);
-        expect(request.seriesXtreamId).toBe(900);
+        expect(request).toEqual({
+            playlistId: 'pl-1',
+            xtreamId: 55,
+            contentType: 'episode',
+            title: 'Show - S02E03 - The One',
+            url: 'http://host/series/u/p/55.mkv',
+            posterUrl: undefined,
+            seriesXtreamId: 900,
+            seasonNumber: 2,
+            episodeNumber: 3,
+        });
+    });
+
+    it('adds the loaded series and episode metadata when provided', () => {
+        const request = buildXtreamEpisodeDownloadRequest({
+            episode: episode({
+                id: '55',
+                episode_num: 3,
+                season: 2,
+                title: 'The One',
+                info: {
+                    plot: 'Episode plot',
+                    movie_image: 'https://images.test/stills/one.jpg',
+                },
+            }),
+            context: { serverUrl: 'http://host' },
+            playlistId: 'pl-1',
+            seriesId: 900,
+            seriesTitle: 'Show',
+            fallbackSeasonKey: '1',
+            metadataContext: {
+                language: 'de',
+                title: 'Show',
+                plot: 'Series plot',
+                genres: ['Drama'],
+                posterUrl: 'poster.jpg',
+                providerCategoryId: '7',
+                cast: [{ name: 'Actor' }],
+            },
+        });
+
+        expect(request.metadataSnapshot).toEqual(
+            expect.objectContaining({
+                language: 'de',
+                mediaKind: 'series',
+                title: 'Show',
+                plot: 'Series plot',
+                genres: ['Drama'],
+                providerCategoryId: '7',
+                cast: [{ name: 'Actor' }],
+                episode: {
+                    seasonNumber: 2,
+                    episodeNumber: 3,
+                    title: 'The One',
+                    plot: 'Episode plot',
+                    stillUrl: 'https://images.test/stills/one.jpg',
+                },
+            })
+        );
+    });
+
+    it('creates a valid sparse snapshot without provider enrichment', () => {
+        const request = buildXtreamEpisodeDownloadRequest({
+            episode: episode({ season: 1, info: [] }),
+            context: {},
+            playlistId: 'pl-1',
+            seriesId: 900,
+            seriesTitle: 'Show',
+            fallbackSeasonKey: undefined,
+            metadataContext: { language: 'en', title: 'Show' },
+        });
+
+        expect(request.metadataSnapshot).toEqual(
+            expect.objectContaining({
+                language: 'en',
+                mediaKind: 'series',
+                title: 'Show',
+                episode: {
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                    title: 'Ep',
+                },
+            })
+        );
     });
 });
 

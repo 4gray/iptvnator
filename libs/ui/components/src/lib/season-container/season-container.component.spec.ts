@@ -12,7 +12,7 @@ import { SeasonContainerComponent } from './season-container.component';
 const downloadsServiceStub = {
     isAvailable: signal(false),
     downloads: () => [],
-    startDownload: async () => undefined,
+    startDownload: jest.fn().mockResolvedValue(undefined),
     isDownloaded: () => false,
     isDownloading: () => false,
     getDownloadedFilePath: () => '',
@@ -59,6 +59,7 @@ describe('SeasonContainerComponent', () => {
 
     beforeEach(async () => {
         downloadsServiceStub.isAvailable.set(false);
+        downloadsServiceStub.startDownload.mockClear();
         await TestBed.configureTestingModule({
             imports: [
                 NoopAnimationsModule,
@@ -146,6 +147,41 @@ describe('SeasonContainerComponent', () => {
         expect(
             fixture.nativeElement.querySelectorAll('.download-btn').length
         ).toBe(0);
+    });
+
+    it('forwards the optional series metadata into the Xtream request', async () => {
+        const target = createEpisode();
+        setRequiredInputs({ '1': [target] });
+        fixture.componentRef.setInput('seriesTitle', 'Signal House');
+        fixture.componentRef.setInput('xtreamDownloadContext', {
+            serverUrl: 'http://host',
+            username: 'u',
+            password: 'p',
+        });
+        fixture.componentRef.setInput('downloadMetadataContext', {
+            language: 'en',
+            title: 'Signal House',
+            plot: 'Series plot',
+        });
+        fixture.detectChanges();
+
+        await component.downloadEpisode(new Event('click'), target);
+
+        expect(downloadsServiceStub.startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'Signal House - S01E01 - Pilot',
+                metadataSnapshot: expect.objectContaining({
+                    mediaKind: 'series',
+                    title: 'Signal House',
+                    plot: 'Series plot',
+                    episode: expect.objectContaining({
+                        seasonNumber: 1,
+                        episodeNumber: 1,
+                        title: 'Pilot',
+                    }),
+                }),
+            })
+        );
     });
 
     it('renders the season-level placeholder when the selected season has no episodes', () => {

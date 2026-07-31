@@ -21,6 +21,7 @@ import {
     PortalDetailShellComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
+    type SeasonContainerDownloadMetadataContext,
     SeasonContainerXtreamDownloadContext,
 } from '@iptvnator/ui/components';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -51,6 +52,7 @@ import {
     SimilarCatalogItem,
     matchRecommendationsToCatalog,
 } from '../tmdb-similar.util';
+import { createXtreamSeriesDownloadMetadataContext } from './serial-download-metadata';
 
 @Component({
     selector: 'app-serial-details',
@@ -102,6 +104,18 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly currentPlaylistId = signal('');
     readonly xtreamDownloadContext =
         signal<SeasonContainerXtreamDownloadContext | null>(null);
+    readonly downloadMetadataContext =
+        computed<SeasonContainerDownloadMetadataContext | null>(() => {
+            const info = this.selectedItem()?.info;
+            return info
+                ? createXtreamSeriesDownloadMetadataContext(
+                      info,
+                      this.translateService.currentLang ||
+                          this.translateService.defaultLang ||
+                          'en'
+                  )
+                : null;
+        });
     /** `playlistId:categoryId:serialId` of the last initialized view */
     private readonly lastInitKey = signal<string | null>(null);
     private readonly backdropBackfillKey = signal<string | null>(null);

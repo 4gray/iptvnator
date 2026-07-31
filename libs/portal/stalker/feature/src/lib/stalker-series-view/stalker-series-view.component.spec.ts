@@ -368,7 +368,7 @@ describe('StalkerSeriesViewComponent', () => {
         await fixture.whenStable();
 
         await fixture.componentInstance.downloadEpisode({
-            episode_num: -3,
+            episode_num: '0',
             title: 'The Call',
             info: {
                 plot: 'Episode-specific plot',
@@ -385,8 +385,8 @@ describe('StalkerSeriesViewComponent', () => {
                 playlistType: 'stalker',
                 seriesXtreamId: 50001,
                 seasonNumber: 0,
-                episodeNumber: -3,
-                title: 'Signal House - S00E-3 - The Call',
+                episodeNumber: '0',
+                title: 'Signal House - S00E00 - The Call',
                 metadataSnapshot: expect.objectContaining({
                     language: 'en',
                     mediaKind: 'series',
@@ -398,8 +398,8 @@ describe('StalkerSeriesViewComponent', () => {
                     cast: [{ name: 'Sienna Wave' }],
                     creators: [{ name: 'Cora Bell' }],
                     episode: {
-                        seasonNumber: 1,
-                        episodeNumber: 1,
+                        seasonNumber: 0,
+                        episodeNumber: 0,
                         title: 'The Call',
                         plot: 'Episode-specific plot',
                         stillUrl:

@@ -37,7 +37,6 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
-    createSeriesEpisodeDownloadSnapshot,
     createLogger,
     getStalkerReturnToState,
 } from '@iptvnator/portal/shared/util';
@@ -84,6 +83,7 @@ import {
     saveStalkerSeriesPosition,
     StalkerSeriesPositionPartialSaveError,
 } from './stalker-series-position-compatibility';
+import { createStalkerSeriesDownloadSnapshot } from './stalker-series-download-metadata';
 
 interface SeriesPositionContext {
     readonly generation: number;
@@ -1109,9 +1109,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const episodeNum = episode.episode_num || 1;
         const seriesTitle =
             item.info?.name || this.displayItem()?.info?.name || 'Series';
-        const snapshotSeriesTitle = seriesTitle.trim() || 'Series';
-        const snapshotSeasonNum = positiveCoordinate(episode.season);
-        const snapshotEpisodeNum = positiveCoordinate(episode.episode_num);
         const episodeTitle = `${seriesTitle} - S${String(seasonNum).padStart(
             2,
             '0'
@@ -1124,35 +1121,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             title: episodeTitle,
             url,
             posterUrl,
-            metadataSnapshot: createSeriesEpisodeDownloadSnapshot({
+            metadataSnapshot: createStalkerSeriesDownloadSnapshot({
+                item,
+                episode,
                 language:
                     this.translateService.currentLang ||
                     this.translateService.defaultLang ||
                     'en',
-                title: snapshotSeriesTitle,
-                originalTitle: item.info?.o_name,
-                plot: item.info?.description,
-                releaseDate: item.info?.releasedate,
-                year: snapshotYear(item.info?.releasedate),
-                genres: snapshotTextList(item.info?.genre),
-                rating: snapshotNumber(item.info?.rating_imdb),
-                status: item.info?.tmdb_status,
-                posterUrl: item.info?.movie_image,
-                backdropUrl: item.info?.tmdb_backdrop,
-                tmdbId: item.info?.tmdb_id,
-                providerCategoryId: item.category_id,
-                cast: snapshotPeople(item.info?.tmdb_cast, item.info?.actors),
-                creators: snapshotPeople(
-                    item.info?.tmdb_directors,
-                    item.info?.director
-                ),
-                episode: {
-                    seasonNumber: snapshotSeasonNum,
-                    episodeNumber: snapshotEpisodeNum,
-                    title: episode.title,
-                    plot: episodeInfo?.plot,
-                    stillUrl: episodeInfo?.movie_image,
-                },
+                seriesTitle,
+                seasonNumber: seasonNum,
+                episodeNumber: episodeNum,
             }),
             seriesXtreamId: this.toSeriesId(item.id),
             seasonNumber: seasonNum,
