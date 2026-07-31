@@ -86,8 +86,8 @@ function normalizePath(url: string): {
     segments: string[];
     queryParams: URLSearchParams;
 } {
-    const [pathWithFragment, query = ''] = url.split('?');
-    const [path] = pathWithFragment.split('#');
+    const [urlWithoutFragment] = url.split('#');
+    const [path, query = ''] = urlWithoutFragment.split('?');
     return {
         segments: path.split('/').filter(Boolean),
         queryParams: new URLSearchParams(query),
