@@ -210,7 +210,10 @@ Key files:
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
   `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
-  source kind `shaka`. See the CLAUDE.md "Video Players" feature entry and
+  source kind `shaka`. The Shaka `5.2.2` diagnostic boundary version-locks
+  public severity/category/code evidence, ignores recoverable error events,
+  treats rejected loads as terminal lifecycle outcomes, and never retains or
+  renders raw messages or `error.data`. See the CLAUDE.md "Video Players" feature entry and
   `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped

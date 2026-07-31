@@ -527,7 +527,7 @@ shaka: {
     category: 'network',
     engineCode: 1001,
     disposition: 'terminal',
-    stage: 'manifest',
+    stage: 'unknown',
     failure: 'network',
     httpStatus: 503,
 },
@@ -536,7 +536,7 @@ shaka: {
 Expect the error-details row to equal:
 
 ```text
-stage=manifest · failure=network · severity=recoverable · category=network · code=1001 · disposition=terminal · HTTP 503
+stage=unknown · failure=network · severity=recoverable · category=network · code=1001 · disposition=terminal · HTTP 503
 ```
 
 Prove the rendered values omit the secret, provider hostname,

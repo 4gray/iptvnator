@@ -181,7 +181,7 @@ seasons, with per-episode watch-progress bars from playback positions.
   prefetch is claimed synchronously and answered seasons (including genuinely
   empty ones) are never re-requested: a failed request leaves `episodes` empty
   with `isLoading` back to false, which would otherwise re-run the effect that
-  issued it and loop. A *failed* request releases the claim but is pinned to
+  issued it and loop. A _failed_ request releases the claim but is pinned to
   the episode that triggered it, so a transient portal error retries on the
   next playback change instead of either looping or giving up permanently.
 - Gating mirrors ambient mode: the `playerUpNextRail` setting (Settings →
@@ -388,6 +388,36 @@ external-player workflows; it is not copied from the HLS error payload into
 the evidence or technical details. HLS startup development logs are event-only:
 they do not include provider-supplied channel names or source URLs.
 
+Shaka Player `5.2.2` errors cross a separate structured boundary before the
+HTML5 or ArtPlayer DASH session emits a diagnostic. Version-locked tests assert
+the installed Shaka version plus the public `Severity`, `Category`, and selected
+online-playback `Code` values used by the boundary. Evidence retains only
+validated severity/category/code, the lifecycle disposition, an exact
+code-derived stage and failure kind, and a validated HTTP status. A direct
+`Network.BAD_HTTP_STATUS` may expose `data[1]` as the status; the same status is
+accepted from the documented nested networking error for
+`Drm.LICENSE_REQUEST_FAILED` and
+`Drm.SERVER_CERTIFICATE_REQUEST_FAILED`. No other `error.data` value is read.
+
+A recoverable Shaka `error` event does not become a terminal playback
+diagnostic because the engine continues its retry/recovery lifecycle. A
+critical event is terminal. A rejected `Player.load()` is also terminal even
+when its last networking error still carries recoverable severity, because the
+load lifecycle has ended; the structured evidence preserves both facts as
+`severity=recoverable` and `disposition=terminal`. Unknown event severity does
+not prove terminal failure and is ignored. Exact public code/category pairs may
+classify network, DRM/encryption, manifest/parsing, or media/decode failures.
+Ambiguous evidence stays `unknown-playback-error`: in particular, the Manifest
+category alone is not container incompatibility, and Shaka messages never infer
+CORS, codec, DRM, container, or stage.
+
+Shaka messages, URLs, headers, request/response bodies, credentials,
+license/key payloads, and arbitrary `error.data` objects are neither retained
+nor rendered. Technical details show only sanitized stage, failure, severity,
+category, code, disposition, and optional HTTP status. Unsupported playlist
+DRM uses a fixed safe description rather than echoing provider license
+configuration.
+
 `network-error` is reserved for provider/network loading failures. Engines that expose concrete browser security evidence, such as CORS, mixed content, Content Security Policy, or private-network-access blocks, use `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 
 mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decode-error` instead of generic `network-error`. These failures usually mean the fetch stream ended before mpegts.js expected a complete transport stream, and external players may still handle the same URL more tolerant of short reads or malformed TS boundaries.
@@ -397,7 +427,7 @@ with a compact warning badge, a native-player fallback headline, and
 player-card actions for configured external players. It exposes technical
 details on demand: diagnostic code, reporting player/source, detected
 container/MIME, video/audio codecs, native browser error fields, sanitized
-structured Video.js/VHS and HLS evidence, and existing mpegts details. HLS
+structured Video.js/VHS, HLS, and Shaka evidence, and existing mpegts details. HLS
 manifest codec metadata also drives a concise browser-support hint for codecs
 that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3,
 E-AC-3, DTS, and MPEG-2 video.

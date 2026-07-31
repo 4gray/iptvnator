@@ -246,7 +246,7 @@ provider-supplied license string.
 The existing technical “Error details” row renders only
 `ShakaPlaybackEvidence`, for example:
 
-`stage=manifest · failure=network · severity=recoverable · category=network · code=1001 · disposition=terminal · HTTP 503`
+`stage=unknown · failure=network · severity=recoverable · category=network · code=1001 · disposition=terminal · HTTP 503`
 
 When structured Shaka evidence exists, legacy `details` and native message
 fields are ignored even if a caller accidentally supplies them. Existing
