@@ -68,7 +68,7 @@ SCSS, ngx-translate.
 - Delete:
   `libs/portal/shared/util/src/lib/live-layout-sidebar-state.service.ts`
 
-- [ ] **Step 1: Write failing migration and service tests**
+- [x] **Step 1: Write failing migration and service tests**
 
 Cover missing/invalid storage, valid legacy seeding, partial new-key migration,
 new-key precedence, idempotence, independent persistence, local action clearing
@@ -94,7 +94,7 @@ expect(service.masterSuppressed()).toBe(false);
 expect(service.channelsIntent()).toBe('expanded');
 ```
 
-- [ ] **Step 2: Run the target and verify RED**
+- [x] **Step 2: Run the target and verify RED**
 
 Run:
 
@@ -105,7 +105,7 @@ pnpm nx test portal-shared-data-access --runInBand
 Expected: FAIL because `LiveLayoutPanelStateService` and its storage constants
 do not exist.
 
-- [ ] **Step 3: Implement the minimal signal service**
+- [x] **Step 3: Implement the minimal signal service**
 
 Use a const-backed panel kind, readonly public signals, and explicit commands:
 
@@ -151,13 +151,13 @@ Migration reads valid new keys first, falls back per missing key to valid
 `live-sidebar-state`, defaults to expanded, writes both new keys, and never
 writes the legacy key.
 
-- [ ] **Step 4: Replace exports and remove the legacy service**
+- [x] **Step 4: Replace exports and stage legacy service removal**
 
 Export the new service from `@iptvnator/portal/shared/data-access`. Remove only
 the injectable legacy service export/file; retain
 `restoreLiveSidebarState()` for migration compatibility.
 
-- [ ] **Step 5: Run the target and verify GREEN**
+- [x] **Step 5: Run the target and verify GREEN**
 
 Run:
 
@@ -169,7 +169,7 @@ pnpm nx lint portal-shared-util
 
 Expected: all commands exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add libs/portal/shared/data-access libs/portal/shared/util

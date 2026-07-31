@@ -6,11 +6,9 @@ import {
 } from './live-sidebar-state';
 
 /**
- * Shared collapse state for the live-TV sidebar across the workspace shell
- * categories rail (Xtream/Stalker), the inline channels rail, and the
- * unified-collection live tab. A single signal keeps all surfaces in sync
- * within a session; localStorage persistence is delegated to the existing
- * `live-sidebar-state` helpers so the storage key stays unchanged.
+ * @deprecated Migrate consumers to `LiveLayoutPanelStateService` from
+ * `@iptvnator/portal/shared/data-access`. This compatibility service remains
+ * until every existing live layout has moved in the current change.
  */
 @Injectable({ providedIn: 'root' })
 export class LiveLayoutSidebarStateService {
