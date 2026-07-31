@@ -15,9 +15,12 @@
             type="button"
             mat-icon-button
             class="all-channels-sidebar-toggle"
+            data-testid="live-channels-panel-hide"
+            aria-controls="live-channels-panel"
+            [attr.aria-expanded]="channelsPanelExpanded()"
             [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_LIST' | translate"
             [matTooltip]="'LAYOUT.TOGGLE_SIDEBAR_TOOLTIP' | translate"
-            (click)="sidebarToggleRequested.emit()"
+            (click)="channelsPanelExpandedChange.emit(false)"
         >
             <mat-icon>chevron_left</mat-icon>
         </button>

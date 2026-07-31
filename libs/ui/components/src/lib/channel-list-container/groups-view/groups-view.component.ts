@@ -107,6 +107,8 @@ export class GroupsViewComponent {
 
     /** Current outer sidebar width */
     readonly sidebarWidth = input<number | null>(null);
+    readonly groupsPanelExpanded = input(true);
+    readonly channelsPanelExpanded = input(true);
 
     /** Emits when a channel is selected */
     readonly channelSelected = output<Channel>();
@@ -124,9 +126,8 @@ export class GroupsViewComponent {
     /** Emits when the groups rail resize ends */
     readonly sidebarWidthRequestEnded = output<number>();
     readonly hiddenGroupTitlesChanged = output<string[]>();
-
-    /** Emits when the user clicks the inline collapse toggle in the groups header */
-    readonly sidebarToggleRequested = output<void>();
+    readonly groupsPanelExpandedChange = output<boolean>();
+    readonly channelsPanelExpandedChange = output<boolean>();
 
     readonly isGroupSearchOpen = signal(false);
     readonly localGroupSearchTerm = signal('');
@@ -150,6 +151,8 @@ export class GroupsViewComponent {
     });
 
     private previousActiveChannelUrl: string | undefined;
+    private previousGroupsPanelExpanded: boolean | undefined;
+    private previousChannelsPanelExpanded: boolean | undefined;
     private preservedContentWidth = 0;
 
     constructor() {
@@ -242,6 +245,45 @@ export class GroupsViewComponent {
             queueMicrotask(() => {
                 this.groupSearchInput()?.nativeElement.focus();
             });
+        });
+
+        effect(() => {
+            const expanded = this.groupsPanelExpanded();
+            this.transferPanelFocus(
+                expanded,
+                this.previousGroupsPanelExpanded,
+                'live-groups-panel'
+            );
+            this.previousGroupsPanelExpanded = expanded;
+        });
+
+        effect(() => {
+            const expanded = this.channelsPanelExpanded();
+            this.transferPanelFocus(
+                expanded,
+                this.previousChannelsPanelExpanded,
+                'live-channels-panel'
+            );
+            this.previousChannelsPanelExpanded = expanded;
+        });
+    }
+
+    private transferPanelFocus(
+        expanded: boolean,
+        previous: boolean | undefined,
+        panelId: string
+    ): void {
+        if (previous === undefined || previous === expanded) {
+            return;
+        }
+
+        queueMicrotask(() => {
+            const action = expanded ? 'hide' : 'restore';
+            this.hostEl.nativeElement
+                .querySelector<HTMLElement>(
+                    `[data-testid="${panelId}-${action}"]`
+                )
+                ?.focus();
         });
     }
 
@@ -511,7 +553,6 @@ export class GroupsViewComponent {
             channelName: channel.name ?? channelKey,
         });
     }
-
 
     openChannelDetails(): void {
         const channel = this.contextMenuChannel();

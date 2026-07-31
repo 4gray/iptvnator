@@ -19,6 +19,36 @@
     background: var(--app-content-bg, var(--mat-sys-surface));
 }
 
+.panel-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    flex: 0 0 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.panel-restore-rail {
+    width: 40px;
+    min-width: 40px;
+    height: 100%;
+    min-height: 40px;
+    flex: 0 0 40px;
+    border-radius: 0;
+    color: var(--mat-sys-on-surface-variant);
+    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+}
+
+.groups-nav-action.panel-hide-button,
+.groups-sidebar-toggle.panel-hide-button {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+}
+
 .groups-nav-panel {
     width: 208px;
     min-width: 164px;

@@ -1,18 +1,54 @@
-<div class="channel-list-loading-state" aria-live="polite" role="status">
-    <span class="visually-hidden">
+<div class="channel-list-loading-state">
+    <span class="visually-hidden" aria-live="polite" role="status">
         {{ 'CHANNELS.LOADING' | translate }}
     </span>
 
     @if (isGroupsView()) {
-        <div class="groups-loading-layout" aria-hidden="true">
-            <aside class="groups-loading-nav">
+        <div class="groups-loading-layout">
+            @if (!groupsPanelExpanded()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="loading-panel-restore"
+                    data-testid="live-groups-panel-restore"
+                    aria-controls="live-groups-panel"
+                    aria-expanded="false"
+                    [attr.aria-label]="'LAYOUT.SHOW_GROUPS_PANEL' | translate"
+                    [matTooltip]="'LAYOUT.SHOW_GROUPS_PANEL' | translate"
+                    (click)="groupsPanelExpandedChange.emit(true)"
+                >
+                    <mat-icon>chevron_right</mat-icon>
+                </button>
+            }
+            <aside
+                id="live-groups-panel"
+                class="groups-loading-nav"
+                [class.loading-panel-collapsed]="!groupsPanelExpanded()"
+                [attr.aria-hidden]="!groupsPanelExpanded()"
+                [attr.inert]="groupsPanelExpanded() ? null : ''"
+            >
                 <header class="groups-loading-nav__header">
                     <h2 class="groups-loading-nav__title">
                         {{ 'CHANNELS.GROUPS' | translate }}
                     </h2>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="loading-panel-hide"
+                        data-testid="live-groups-panel-hide"
+                        aria-controls="live-groups-panel"
+                        [attr.aria-expanded]="groupsPanelExpanded()"
+                        [attr.aria-label]="
+                            'LAYOUT.HIDE_GROUPS_PANEL' | translate
+                        "
+                        [matTooltip]="'LAYOUT.HIDE_GROUPS_PANEL' | translate"
+                        (click)="groupsPanelExpandedChange.emit(false)"
+                    >
+                        <mat-icon>chevron_left</mat-icon>
+                    </button>
                 </header>
 
-                <div class="groups-loading-nav__list">
+                <div class="groups-loading-nav__list" aria-hidden="true">
                     @for (row of groupRows; track row) {
                         <div class="groups-loading-nav__item">
                             <span
@@ -27,7 +63,28 @@
                 </div>
             </aside>
 
-            <section class="groups-loading-content">
+            @if (!channelsPanelExpanded()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="loading-panel-restore"
+                    data-testid="live-channels-panel-restore"
+                    aria-controls="live-channels-panel"
+                    aria-expanded="false"
+                    [attr.aria-label]="'LAYOUT.SHOW_CHANNELS_PANEL' | translate"
+                    [matTooltip]="'LAYOUT.SHOW_CHANNELS_PANEL' | translate"
+                    (click)="channelsPanelExpandedChange.emit(true)"
+                >
+                    <mat-icon>chevron_right</mat-icon>
+                </button>
+            }
+            <section
+                id="live-channels-panel"
+                class="groups-loading-content"
+                [class.loading-panel-collapsed]="!channelsPanelExpanded()"
+                [attr.aria-hidden]="!channelsPanelExpanded()"
+                [attr.inert]="channelsPanelExpanded() ? null : ''"
+            >
                 <header class="groups-loading-content__header">
                     <div class="groups-loading-content__meta">
                         <span
@@ -37,9 +94,24 @@
                             class="grid-skeleton-line groups-loading-content__subtitle"
                         ></span>
                     </div>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="loading-panel-hide"
+                        data-testid="live-channels-panel-hide"
+                        aria-controls="live-channels-panel"
+                        [attr.aria-expanded]="channelsPanelExpanded()"
+                        [attr.aria-label]="
+                            'LAYOUT.HIDE_CHANNELS_PANEL' | translate
+                        "
+                        [matTooltip]="'LAYOUT.HIDE_CHANNELS_PANEL' | translate"
+                        (click)="channelsPanelExpandedChange.emit(false)"
+                    >
+                        <mat-icon>chevron_left</mat-icon>
+                    </button>
                 </header>
 
-                <div class="groups-loading-content__list">
+                <div class="groups-loading-content__list" aria-hidden="true">
                     <app-channel-list-skeleton
                         [count]="9"
                         [showEpg]="showEpg()"
@@ -49,14 +121,27 @@
             </section>
         </div>
     } @else {
-        <div class="channels-loading-state">
+        <div id="live-channels-panel" class="channels-loading-state">
             <div class="channels-loading-state__copy">
                 <div class="channels-loading-state__title">
                     {{ 'CHANNELS.LOADING' | translate }}
                 </div>
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="loading-panel-hide"
+                    data-testid="live-channels-panel-hide"
+                    aria-controls="live-channels-panel"
+                    [attr.aria-expanded]="channelsPanelExpanded()"
+                    [attr.aria-label]="'LAYOUT.HIDE_CHANNELS_PANEL' | translate"
+                    [matTooltip]="'LAYOUT.HIDE_CHANNELS_PANEL' | translate"
+                    (click)="channelsPanelExpandedChange.emit(false)"
+                >
+                    <mat-icon>chevron_left</mat-icon>
+                </button>
             </div>
 
-            <div class="channels-loading-state__list">
+            <div class="channels-loading-state__list" aria-hidden="true">
                 <app-channel-list-skeleton
                     [count]="9"
                     [showEpg]="showEpg()"

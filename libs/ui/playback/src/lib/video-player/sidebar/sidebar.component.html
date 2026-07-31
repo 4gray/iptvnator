@@ -22,8 +22,11 @@
     [channelsLoading]="channelsLoading()"
     [activeView]="activeView()"
     [recentItems]="activePlaylist()?.recentlyViewed ?? []"
+    [groupsPanelExpanded]="groupsPanelExpanded()"
+    [channelsPanelExpanded]="channelsPanelExpanded()"
     [sidebarWidth]="sidebarWidth()"
     (sidebarWidthRequested)="onSidebarWidthRequested($event)"
     (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
-    (sidebarToggleRequested)="sidebarToggleRequested.emit()"
+    (groupsPanelExpandedChange)="groupsPanelExpandedChange.emit($event)"
+    (channelsPanelExpandedChange)="channelsPanelExpandedChange.emit($event)"
 />

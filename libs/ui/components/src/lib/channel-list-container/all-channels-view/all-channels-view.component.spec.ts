@@ -191,17 +191,23 @@ describe('AllChannelsViewComponent', () => {
         ).toEqual(['Zulu Vision', 'Middle News', 'Alpha Signal']);
     });
 
-    it('emits sidebar toggle requests from the inline header action', () => {
-        const sidebarToggleRequested = jest.fn();
-        component.sidebarToggleRequested.subscribe(sidebarToggleRequested);
+    it('requests an explicit Channels collapse from the inline header action', () => {
+        const channelsPanelExpandedChange = jest.fn();
+        component.channelsPanelExpandedChange.subscribe(
+            channelsPanelExpandedChange
+        );
 
         const toggleButton = fixture.nativeElement.querySelector(
-            '.all-channels-sidebar-toggle'
+            '[data-testid="live-channels-panel-hide"]'
         ) as HTMLButtonElement;
 
+        expect(toggleButton.getAttribute('aria-controls')).toBe(
+            'live-channels-panel'
+        );
+        expect(toggleButton.getAttribute('aria-expanded')).toBe('true');
         toggleButton.click();
 
-        expect(sidebarToggleRequested).toHaveBeenCalledTimes(1);
+        expect(channelsPanelExpandedChange).toHaveBeenCalledWith(false);
     });
 
     it('stores viewport coordinates for the context menu and opens the dialog for that channel', async () => {

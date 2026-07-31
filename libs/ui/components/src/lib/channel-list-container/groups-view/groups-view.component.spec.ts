@@ -133,11 +133,13 @@ describe('GroupsViewComponent', () => {
             activeChannelUrl: string | undefined;
             favoriteIds: Set<string>;
             groupedChannels: Record<string, Channel[]>;
+            groupsPanelExpanded: boolean;
             hiddenGroupTitles: string[];
             progressTick: number;
             searchTerm: string;
             sidebarWidth: number | null;
             shouldShowEpg: boolean;
+            channelsPanelExpanded: boolean;
         }> = {}
     ): void {
         fixture = TestBed.createComponent(GroupsViewComponent);
@@ -150,11 +152,13 @@ describe('GroupsViewComponent', () => {
             activeChannelUrl: string | undefined;
             favoriteIds: Set<string>;
             groupedChannels: Record<string, Channel[]>;
+            groupsPanelExpanded: boolean;
             hiddenGroupTitles: string[];
             progressTick: number;
             searchTerm: string;
             sidebarWidth: number | null;
             shouldShowEpg: boolean;
+            channelsPanelExpanded: boolean;
         }> = {}
     ): void {
         fixture.componentRef.setInput(
@@ -191,8 +195,70 @@ describe('GroupsViewComponent', () => {
             'sidebarWidth',
             overrides.sidebarWidth ?? 460
         );
+        fixture.componentRef.setInput(
+            'groupsPanelExpanded',
+            overrides.groupsPanelExpanded ?? true
+        );
+        fixture.componentRef.setInput(
+            'channelsPanelExpanded',
+            overrides.channelsPanelExpanded ?? true
+        );
         fixture.detectChanges();
     }
+
+    it('keeps Groups and Channels independently operable with accessible focus transfer', async () => {
+        const groupsPanelExpandedChange = jest.fn();
+        const channelsPanelExpandedChange = jest.fn();
+        component.groupsPanelExpandedChange.subscribe(
+            groupsPanelExpandedChange
+        );
+        component.channelsPanelExpandedChange.subscribe(
+            channelsPanelExpandedChange
+        );
+
+        const groupsHide = fixture.nativeElement.querySelector(
+            '[data-testid="live-groups-panel-hide"]'
+        ) as HTMLButtonElement;
+        const channelsHide = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-hide"]'
+        ) as HTMLButtonElement;
+
+        expect(groupsHide.getAttribute('aria-controls')).toBe(
+            'live-groups-panel'
+        );
+        expect(channelsHide.getAttribute('aria-controls')).toBe(
+            'live-channels-panel'
+        );
+        groupsHide.click();
+        channelsHide.click();
+        expect(groupsPanelExpandedChange).toHaveBeenCalledWith(false);
+        expect(channelsPanelExpandedChange).toHaveBeenCalledWith(false);
+
+        setInputs({ groupsPanelExpanded: false });
+        await fixture.whenStable();
+        await Promise.resolve();
+
+        const groupsPanel = fixture.nativeElement.querySelector(
+            '#live-groups-panel'
+        ) as HTMLElement;
+        const groupsRestore = fixture.nativeElement.querySelector(
+            '[data-testid="live-groups-panel-restore"]'
+        ) as HTMLButtonElement;
+        expect(groupsPanel.hasAttribute('inert')).toBe(true);
+        expect(groupsPanel.getAttribute('aria-hidden')).toBe('true');
+        expect(document.activeElement).toBe(groupsRestore);
+
+        groupsRestore.click();
+        expect(groupsPanelExpandedChange).toHaveBeenCalledWith(true);
+        setInputs({ groupsPanelExpanded: true });
+        await fixture.whenStable();
+        await Promise.resolve();
+        expect(document.activeElement).toBe(
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-groups-panel-hide"]'
+            )
+        );
+    });
 
     it('sorts groups with numeric buckets before alphabetic buckets', () => {
         setInputs({
@@ -625,14 +691,26 @@ describe('GroupsViewComponent', () => {
     it('renders the empty-category state when no grouped channels exist', () => {
         setInputs({ groupedChannels: {} });
 
-        const emptyState = fixture.nativeElement.querySelector(
-            '.groups-view-empty-state'
+        const layout = fixture.nativeElement.querySelector(
+            '.groups-view-layout'
         ) as HTMLElement | null;
+        const emptyState = fixture.nativeElement.querySelector(
+            '.groups-content-empty-state'
+        ) as HTMLElement | null;
+        const groupsToggle = fixture.nativeElement.querySelector(
+            '[data-testid="live-groups-panel-hide"]'
+        );
+        const channelsToggle = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-hide"]'
+        );
 
+        expect(layout).not.toBeNull();
         expect(emptyState).not.toBeNull();
         expect(emptyState?.textContent).toContain(
             'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
         );
+        expect(groupsToggle).not.toBeNull();
+        expect(channelsToggle).not.toBeNull();
     });
 
     it('keeps the manage action visible when all groups are hidden', () => {

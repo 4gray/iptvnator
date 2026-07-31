@@ -261,7 +261,7 @@ git commit -m "fix(ui): expose guide collapse capability"
 - Modify:
   `libs/ui/components/src/lib/channel-list-loading-state/channel-list-loading-state.component.{ts,html,scss,spec.ts}`
 
-- [ ] **Step 1: Write failing tests for panel-specific outputs**
+- [x] **Step 1: Write failing tests for panel-specific outputs**
 
 Assert that All Channels emits `channelsPanelExpandedChange(false)` from its
 header. Assert that Groups has separate Groups and Channels buttons/restore
@@ -282,7 +282,7 @@ expect(document.activeElement).toBe(groupsRestore);
 The loading-state spec must prove both controls remain in the Groups skeleton
 and Channels remains in the All Channels skeleton.
 
-- [ ] **Step 2: Run Components tests and verify RED**
+- [x] **Step 2: Run Components tests and verify RED**
 
 ```bash
 pnpm nx test components --runInBand
@@ -290,7 +290,7 @@ pnpm nx test components --runInBand
 
 Expected: FAIL because panel-specific inputs/outputs and controls do not exist.
 
-- [ ] **Step 3: Implement the All Channels and loading contracts**
+- [x] **Step 3: Implement the All Channels and loading contracts**
 
 Replace ambiguous `sidebarToggleRequested` with:
 
@@ -303,7 +303,7 @@ Use `live-channels-panel-hide` and `live-channels-panel-restore` test IDs,
 `aria-controls="live-channels-panel"`, `aria-expanded`, translated names, and
 40px targets. Loading-state controls emit the same explicit requested value.
 
-- [ ] **Step 4: Implement independent Groups layout**
+- [x] **Step 4: Implement independent Groups layout**
 
 Give `GroupsViewComponent`:
 
@@ -320,13 +320,13 @@ the hidden width, and focus the counterpart control after a zero-delay render
 turn. The Groups toggle is the final action after search/sort/manage; the
 Channels toggle remains the final action after channel sort.
 
-- [ ] **Step 5: Thread the contract through `ChannelListContainerComponent`**
+- [x] **Step 5: Thread the contract through `ChannelListContainerComponent`**
 
 Add matching inputs and outputs and pass them through the All/Groups/loading
 branches. Do not render panel actions for legacy M3U `favorites`/`recent`
 branches.
 
-- [ ] **Step 6: Run and verify GREEN**
+- [x] **Step 6: Run and verify GREEN**
 
 ```bash
 pnpm nx test components --runInBand
@@ -335,7 +335,7 @@ pnpm nx lint components
 
 Expected: both commands exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add libs/ui/components

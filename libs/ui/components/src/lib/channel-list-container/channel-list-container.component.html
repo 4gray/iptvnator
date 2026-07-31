@@ -2,6 +2,10 @@
     <app-channel-list-loading-state
         [view]="activeView()"
         [showEpg]="shouldShowEpg()"
+        [groupsPanelExpanded]="groupsPanelExpanded()"
+        [channelsPanelExpanded]="channelsPanelExpanded()"
+        (groupsPanelExpandedChange)="groupsPanelExpandedChange.emit($event)"
+        (channelsPanelExpandedChange)="channelsPanelExpandedChange.emit($event)"
     />
 } @else if (displayedChannels().length) {
     @if (viewTitle() && activeView() !== 'groups' && activeView() !== 'all') {
@@ -36,10 +40,13 @@
                 [itemSize]="itemSize()"
                 [activeChannelUrl]="activeChannelUrl()"
                 [favoriteIds]="favoriteIds()"
+                [channelsPanelExpanded]="channelsPanelExpanded()"
                 (channelSelected)="onChannelSelected($event)"
                 (channelPlaybackRequested)="onChannelPlaybackRequested($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
-                (sidebarToggleRequested)="sidebarToggleRequested.emit()"
+                (channelsPanelExpandedChange)="
+                    channelsPanelExpandedChange.emit($event)
+                "
             />
         }
         @case ('groups') {
@@ -55,13 +62,20 @@
                 [favoriteIds]="favoriteIds()"
                 [hiddenGroupTitles]="hiddenGroupTitles()"
                 [sidebarWidth]="sidebarWidth()"
+                [groupsPanelExpanded]="groupsPanelExpanded()"
+                [channelsPanelExpanded]="channelsPanelExpanded()"
                 (channelSelected)="onChannelSelected($event)"
                 (channelPlaybackRequested)="onChannelPlaybackRequested($event)"
                 (favoriteToggled)="onFavoriteToggled($event)"
                 (hiddenGroupTitlesChanged)="onHiddenGroupTitlesChanged($event)"
                 (sidebarWidthRequested)="onSidebarWidthRequested($event)"
                 (sidebarWidthRequestEnded)="onSidebarWidthRequestEnded($event)"
-                (sidebarToggleRequested)="sidebarToggleRequested.emit()"
+                (groupsPanelExpandedChange)="
+                    groupsPanelExpandedChange.emit($event)
+                "
+                (channelsPanelExpandedChange)="
+                    channelsPanelExpandedChange.emit($event)
+                "
             />
         }
         @case ('favorites') {

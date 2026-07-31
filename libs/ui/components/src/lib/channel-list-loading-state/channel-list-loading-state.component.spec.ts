@@ -60,4 +60,50 @@ describe('ChannelListLoadingStateComponent', () => {
             fixture.nativeElement.querySelector('.groups-loading-content')
         ).not.toBeNull();
     });
+
+    it('keeps both panel controls available while Groups is loading', () => {
+        fixture.componentRef.setInput('view', 'groups');
+        fixture.detectChanges();
+        const groupsPanelExpandedChange = jest.fn();
+        const channelsPanelExpandedChange = jest.fn();
+        component.groupsPanelExpandedChange.subscribe(
+            groupsPanelExpandedChange
+        );
+        component.channelsPanelExpandedChange.subscribe(
+            channelsPanelExpandedChange
+        );
+
+        (
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-groups-panel-hide"]'
+            ) as HTMLButtonElement
+        ).click();
+        (
+            fixture.nativeElement.querySelector(
+                '[data-testid="live-channels-panel-hide"]'
+            ) as HTMLButtonElement
+        ).click();
+
+        expect(groupsPanelExpandedChange).toHaveBeenCalledWith(false);
+        expect(channelsPanelExpandedChange).toHaveBeenCalledWith(false);
+    });
+
+    it('keeps the Channels control available while All Channels is loading', () => {
+        fixture.componentRef.setInput('view', 'all');
+        fixture.detectChanges();
+        const channelsPanelExpandedChange = jest.fn();
+        component.channelsPanelExpandedChange.subscribe(
+            channelsPanelExpandedChange
+        );
+
+        const channelsToggle = fixture.nativeElement.querySelector(
+            '[data-testid="live-channels-panel-hide"]'
+        ) as HTMLButtonElement;
+        expect(channelsToggle.getAttribute('aria-controls')).toBe(
+            'live-channels-panel'
+        );
+        channelsToggle.click();
+
+        expect(channelsPanelExpandedChange).toHaveBeenCalledWith(false);
+    });
 });

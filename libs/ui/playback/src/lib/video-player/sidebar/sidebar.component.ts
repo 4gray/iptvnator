@@ -28,10 +28,13 @@ export class SidebarComponent {
     readonly channelsLoading = input(false);
     readonly showPlaylistHeader = input(true);
     readonly activeView = input<string>('all');
+    readonly groupsPanelExpanded = input(true);
+    readonly channelsPanelExpanded = input(true);
     readonly sidebarWidth = input<number | null>(null);
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
-    readonly sidebarToggleRequested = output<void>();
+    readonly groupsPanelExpandedChange = output<boolean>();
+    readonly channelsPanelExpandedChange = output<boolean>();
 
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly translate = inject(TranslateService);

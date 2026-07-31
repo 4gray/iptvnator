@@ -184,10 +184,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     readonly activeView = input<string>('all');
     readonly channelsLoading = input(false);
     readonly recentItems = input<PlaylistRecentlyViewedItem[]>([]);
+    readonly groupsPanelExpanded = input(true);
+    readonly channelsPanelExpanded = input(true);
     readonly sidebarWidth = input<number | null>(null);
     readonly sidebarWidthRequested = output<number>();
     readonly sidebarWidthRequestEnded = output<number>();
-    readonly sidebarToggleRequested = output<void>();
+    readonly groupsPanelExpandedChange = output<boolean>();
+    readonly channelsPanelExpandedChange = output<boolean>();
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
@@ -442,8 +445,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     }
 
     private getPlaylistEpgLookupOptions():
-        | { sourceUrls: string[] }
-        | undefined {
+        { sourceUrls: string[] } | undefined {
         const sourceUrls = this.playlistEpgUrls();
         return sourceUrls.length > 0 ? { sourceUrls } : undefined;
     }

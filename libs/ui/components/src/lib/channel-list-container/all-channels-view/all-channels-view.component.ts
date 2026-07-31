@@ -41,6 +41,9 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
     templateUrl: './all-channels-view.component.html',
     styleUrls: ['./all-channels-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    host: {
+        id: 'live-channels-panel',
+    },
     imports: [
         ChannelListItemComponent,
         MatButtonModule,
@@ -93,8 +96,8 @@ export class AllChannelsViewComponent {
         event: MouseEvent;
     }>();
 
-    /** Emits when the user clicks the inline collapse toggle in the list header */
-    readonly sidebarToggleRequested = output<void>();
+    readonly channelsPanelExpanded = input(true);
+    readonly channelsPanelExpandedChange = output<boolean>();
 
     readonly contextMenuChannel = signal<Channel | null>(null);
     readonly contextMenuPosition = signal({
