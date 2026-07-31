@@ -6,9 +6,6 @@ import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 export type { DownloadItem, DownloadStatus } from './downloads.models';
 
-const ACTIVE: DownloadItem['status'][] = ['queued', 'downloading'];
-const FAILED: DownloadItem['status'][] = ['failed', 'canceled'];
-
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -35,7 +32,10 @@ export class DownloadsService implements OnDestroy {
 
     /** Active downloads count */
     readonly activeCount = computed(
-        () => this.downloads().filter((d) => ACTIVE.includes(d.status)).length
+        () =>
+            this.downloads().filter(
+                (d) => d.status === 'queued' || d.status === 'downloading'
+            ).length
     );
 
     /** Completed downloads count */
@@ -45,7 +45,10 @@ export class DownloadsService implements OnDestroy {
 
     /** Failed downloads count */
     readonly failedCount = computed(
-        () => this.downloads().filter((d) => FAILED.includes(d.status)).length
+        () =>
+            this.downloads().filter(
+                (d) => d.status === 'failed' || d.status === 'canceled'
+            ).length
     );
 
     /** Current download folder */
@@ -129,9 +132,7 @@ export class DownloadsService implements OnDestroy {
     /**
      * Start a new download
      */
-    async startDownload(
-        data: DownloadStartInput
-    ): Promise<{ success: boolean; id?: number; error?: string }> {
+    async startDownload(data: DownloadStartInput) {
         if (!this.isAvailable()) {
             return { success: false, error: 'Downloads not available' };
         }
@@ -142,17 +143,15 @@ export class DownloadsService implements OnDestroy {
         }
 
         try {
-            const result = await window.electron.downloadsStart({
+            return await window.electron.downloadsStart({
                 ...data,
                 downloadFolder: folder,
             });
-            return result;
         } catch (error) {
             console.error('[DownloadsService] Error starting download:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-            };
+            const message =
+                error instanceof Error ? error.message : String(error);
+            return { success: false, error: message };
         }
     }
 
@@ -299,10 +298,7 @@ export class DownloadsService implements OnDestroy {
     }
 
     /** Update the offline metadata snapshot for a managed download. */
-    async updateMetadata(
-        id: number,
-        snapshot: DownloadMetadataSnapshot
-    ): Promise<{ success: boolean; error?: string }> {
+    async updateMetadata(id: number, snapshot: DownloadMetadataSnapshot) {
         if (!this.isAvailable()) return { success: false };
 
         try {
@@ -312,8 +308,7 @@ export class DownloadsService implements OnDestroy {
             return result;
         } catch (error) {
             console.error('[DownloadsService] Metadata update error:', error);
-            const message =
-                error instanceof Error ? error.message : String(error);
+            const message = (error as Error)?.message ?? String(error);
             return { success: false, error: message };
         }
     }
