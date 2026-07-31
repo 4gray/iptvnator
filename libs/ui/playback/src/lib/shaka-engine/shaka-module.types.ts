@@ -26,8 +26,7 @@ export interface ShakaErrorLike {
     severity: number;
     category: number;
     code: number;
-    message?: string;
-    data?: unknown[];
+    data?: readonly unknown[];
 }
 
 export interface ShakaPlayerLike {
@@ -66,10 +65,7 @@ export type ShakaModuleLoader = () => Promise<ShakaModuleLike>;
  */
 export const loadShakaModule: ShakaModuleLoader = async () => {
     const module = (await import('shaka-player')) as unknown as
-        | { default?: ShakaModuleLike }
-        | ShakaModuleLike;
-    return (
-        ((module as { default?: ShakaModuleLike }).default ??
-            module) as ShakaModuleLike
-    );
+        { default?: ShakaModuleLike } | ShakaModuleLike;
+    return ((module as { default?: ShakaModuleLike }).default ??
+        module) as ShakaModuleLike;
 };

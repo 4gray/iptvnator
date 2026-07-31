@@ -96,22 +96,22 @@ profiles are never mixed into them.
 
 The benchmark attributes these non-additive intervals:
 
-| Field | Boundary |
-| --- | --- |
-| `dataAcquireMs` | loopback response acquisition |
-| `m3uParsingMs` | parser call |
-| `normalizationMs` | parsed-item normalization |
-| `mainToRendererCloneProxyMs` | sum of normalized import-result delivery plus the upsert and GET main-response-to-preload-success legs |
-| `storeImportDispatchMs` | renderer import dispatch |
-| `rendererToMainCloneProxyMs` | sum of the upsert and GET preload-source-to-main-request legs |
-| `mainToDatabaseWorkerCloneProxyMs` | sum of the upsert and GET main-request-to-worker-receive legs |
-| `playlistSerializationMs` | database-worker playlist JSON serialization |
-| `sqliteWriteMs` | SQLite upsert, including its autocommit |
-| `sqliteReadMs` | SQLite read of the newly persisted playlist |
-| `playlistDeserializationMs` | database-worker `parseAppPlaylist`, including playlist JSON parsing |
-| `databaseWorkerToMainCloneProxyMs` | sum of the upsert and GET worker-response-post-to-main-response legs |
-| `storePublishChannelsMs` | renderer channel publication |
-| `angularRenderingMs` | publication end to the terminal two-frame paint proof |
+| Field                              | Boundary                                                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `dataAcquireMs`                    | loopback response acquisition                                                                          |
+| `m3uParsingMs`                     | parser call                                                                                            |
+| `normalizationMs`                  | parsed-item normalization                                                                              |
+| `mainToRendererCloneProxyMs`       | sum of normalized import-result delivery plus the upsert and GET main-response-to-preload-success legs |
+| `storeImportDispatchMs`            | renderer import dispatch                                                                               |
+| `rendererToMainCloneProxyMs`       | sum of the upsert and GET preload-source-to-main-request legs                                          |
+| `mainToDatabaseWorkerCloneProxyMs` | sum of the upsert and GET main-request-to-worker-receive legs                                          |
+| `playlistSerializationMs`          | database-worker playlist JSON serialization                                                            |
+| `sqliteWriteMs`                    | SQLite upsert, including its autocommit                                                                |
+| `sqliteReadMs`                     | SQLite read of the newly persisted playlist                                                            |
+| `playlistDeserializationMs`        | database-worker `parseAppPlaylist`, including playlist JSON parsing                                    |
+| `databaseWorkerToMainCloneProxyMs` | sum of the upsert and GET worker-response-post-to-main-response legs                                   |
+| `storePublishChannelsMs`           | renderer channel publication                                                                           |
+| `angularRenderingMs`               | publication end to the terminal two-frame paint proof                                                  |
 
 `ipcStructuredCloneProxyMs` is the explicit sum of the four directional proxy
 fields. Each directional field can combine the applicable initial-result,
@@ -994,10 +994,24 @@ player in settings.
 - `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the
   engine: lazy `import('shaka-player')` on first use (the module is a separate
   lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
-  queue + generation guard against channel-switch races, and Shaka-error →
-  `PlaybackDiagnostic` classification (`PlaybackDiagnosticSource.Shaka`).
+  queue + generation guard against channel-switch races, and a Shaka `5.2.2`
+  public-error boundary. The boundary version-locks its allowlisted
+  severity/category/code values, emits only structured sanitized
+  `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,
+  and treats a rejected load as terminal even if its final retry error retains
+  recoverable severity. Raw messages and `error.data` never cross the boundary;
+  only the documented direct/nested `BAD_HTTP_STATUS` slot may contribute a
+  validated HTTP status. Exact category/code pairs classify failures, while an
+  ambiguous Manifest category or unknown pair remains an unknown diagnostic.
+  The public streaming-startup code `5006` is retained exactly but keeps
+  unknown stage/failure. Public DASH text-parser codes likewise retain their
+  exact `TEXT` category/code but keep stage/failure unknown. A failed
+  `Player.isBrowserSupported()` preflight also stays unknown rather than
+  claiming container incompatibility; clear DASH still offers configured
+  external-player actions, while KODIPROP DRM keeps them disabled because
+  those players never receive its keys.
   Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
-  without starting an engine.
+  with a fixed safe detail string and without starting an engine.
 - HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:
   `customType.mpd` in `ArtPlayerSourceSession`. Shared-controls bridge:
   `WebVideoControlsSource` kind `'shaka'` + `WebVideoShakaControls`

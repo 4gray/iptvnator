@@ -1,116 +1,93 @@
 import type {
     PlaybackDiagnostic,
+    PlaybackDiagnosticCode,
     PlaybackSourceMetadata,
+    ShakaPlaybackDisposition,
+    ShakaPlaybackEvidence,
 } from '../playback-diagnostics/playback-diagnostics.model';
 import {
     PlaybackDiagnosticCode as DiagnosticCode,
     PlaybackDiagnosticSource as DiagnosticSource,
+    ShakaPlaybackCategory,
+    ShakaPlaybackDisposition as ShakaDisposition,
+    ShakaPlaybackFailure,
 } from '../playback-diagnostics/playback-diagnostics.model';
 import { createPlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
-import {
-    isBrowserAccessFailure,
-    isCodecFailure,
-    isDrmOrEncryptionFailure,
-} from '../playback-diagnostics/playback-error-patterns.util';
+import { SHAKA_ERROR_CODE } from './shaka-error-contract';
+import { createShakaPlaybackEvidence } from './shaka-playback-evidence.util';
 import type { ShakaErrorLike } from './shaka-module.types';
 
-/**
- * Numeric `shaka.util.Error.Category` values (stable public Shaka API). Kept
- * local so classification stays a pure function that does not need the lazily
- * loaded module.
- */
-const SHAKA_CATEGORY = {
-    Network: 1,
-    Text: 2,
-    Media: 3,
-    Manifest: 4,
-    Streaming: 5,
-    Drm: 6,
-} as const;
+export {
+    SHAKA_DIAGNOSTIC_VERSION,
+    SHAKA_ERROR_CATEGORY,
+    SHAKA_ERROR_CODE,
+    SHAKA_ERROR_SEVERITY,
+} from './shaka-error-contract';
+export { createShakaPlaybackEvidence } from './shaka-playback-evidence.util';
 
-/** `shaka.util.Error.Code.RESTRICTIONS_CANNOT_BE_MET` — in practice this fires
- * when every variant is restricted by unusable decryption keys. */
-const RESTRICTIONS_CANNOT_BE_MET = 4012;
+const MEDIA_DECODE_CODES = new Set<number>([
+    SHAKA_ERROR_CODE.MEDIA_SOURCE_OPERATION_FAILED,
+    SHAKA_ERROR_CODE.MEDIA_SOURCE_OPERATION_THREW,
+    SHAKA_ERROR_CODE.VIDEO_ERROR,
+]);
 
 export function classifyShakaPlaybackIssue(
     error: Partial<ShakaErrorLike> | null | undefined,
-    metadata: PlaybackSourceMetadata
-): PlaybackDiagnostic {
-    const details = formatShakaErrorDetails(error);
-    const lowerDetails = details.toLowerCase();
-    const category = error?.category;
-
-    if (
-        category === SHAKA_CATEGORY.Drm ||
-        error?.code === RESTRICTIONS_CANNOT_BE_MET ||
-        isDrmOrEncryptionFailure(lowerDetails)
-    ) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.DrmOrEncryption,
-            source: DiagnosticSource.Shaka,
-            metadata,
-            details,
-        });
-    }
-
-    if (category === SHAKA_CATEGORY.Network) {
-        return createPlaybackDiagnostic({
-            code: isBrowserAccessFailure(lowerDetails)
-                ? DiagnosticCode.BrowserAccessError
-                : DiagnosticCode.NetworkError,
-            source: DiagnosticSource.Shaka,
-            metadata,
-            details,
-        });
-    }
-
-    if (
-        category === SHAKA_CATEGORY.Media ||
-        category === SHAKA_CATEGORY.Streaming
-    ) {
-        return createPlaybackDiagnostic({
-            code: isCodecFailure(lowerDetails)
-                ? DiagnosticCode.UnsupportedCodec
-                : DiagnosticCode.MediaDecodeError,
-            source: DiagnosticSource.Shaka,
-            metadata,
-            details,
-        });
-    }
-
-    if (category === SHAKA_CATEGORY.Manifest) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.UnsupportedContainer,
-            source: DiagnosticSource.Shaka,
-            metadata,
-            details,
-        });
+    metadata: PlaybackSourceMetadata,
+    disposition: ShakaPlaybackDisposition
+): PlaybackDiagnostic | null {
+    const evidence = createShakaPlaybackEvidence(error, disposition);
+    if (evidence.disposition === ShakaDisposition.Recoverable) {
+        return null;
     }
 
     return createPlaybackDiagnostic({
-        code: DiagnosticCode.UnknownPlaybackError,
+        code: getDiagnosticCode(evidence),
         source: DiagnosticSource.Shaka,
         metadata,
-        details,
+        httpStatus: evidence.httpStatus,
+        shaka: evidence,
     });
+}
+
+function getDiagnosticCode(
+    evidence: ShakaPlaybackEvidence
+): PlaybackDiagnosticCode {
+    if (evidence.failure === ShakaPlaybackFailure.Network) {
+        return DiagnosticCode.NetworkError;
+    }
+    if (evidence.failure === ShakaPlaybackFailure.Drm) {
+        return DiagnosticCode.DrmOrEncryption;
+    }
+    if (
+        evidence.category === ShakaPlaybackCategory.Manifest &&
+        evidence.engineCode === SHAKA_ERROR_CODE.DASH_UNSUPPORTED_CONTAINER
+    ) {
+        return DiagnosticCode.UnsupportedContainer;
+    }
+    if (
+        evidence.category === ShakaPlaybackCategory.Media &&
+        typeof evidence.engineCode === 'number' &&
+        MEDIA_DECODE_CODES.has(evidence.engineCode)
+    ) {
+        return DiagnosticCode.MediaDecodeError;
+    }
+    return DiagnosticCode.UnknownPlaybackError;
 }
 
 /**
  * Diagnostic for `.mpd` channels that declare a DRM system the app cannot
- * handle (Widevine, PlayReady, malformed ClearKey config, …). Emitted before
- * any Shaka engine is started.
+ * handle. Provider-supplied license strings are intentionally not retained.
  */
 export function createUnsupportedDrmDiagnostic(
-    licenseType: string,
+    _licenseType: string,
     metadata: PlaybackSourceMetadata
 ): PlaybackDiagnostic {
     return createPlaybackDiagnostic({
         code: DiagnosticCode.DrmOrEncryption,
         source: DiagnosticSource.Shaka,
         metadata,
-        details: licenseType
-            ? `Unsupported DRM license configuration: ${licenseType}`
-            : 'Unsupported DRM license configuration',
+        details: 'Unsupported DRM license configuration',
         // External MPV/VLC cannot receive the KODIPROP license config either,
         // so offering them as a fallback would just fail differently.
         externalFallbackRecommended: false,
@@ -118,56 +95,15 @@ export function createUnsupportedDrmDiagnostic(
 }
 
 /** Narrows an unknown rejection to a Shaka-error-like shape, if it is one. */
-export function asShakaError(
-    error: unknown
-): Partial<ShakaErrorLike> | null {
+export function asShakaError(error: unknown): Partial<ShakaErrorLike> | null {
     if (!error || typeof error !== 'object') {
         return null;
     }
 
     const candidate = error as Partial<ShakaErrorLike>;
     return typeof candidate.code === 'number' ||
-        typeof candidate.category === 'number'
+        typeof candidate.category === 'number' ||
+        typeof candidate.severity === 'number'
         ? candidate
         : null;
-}
-
-export function toErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
-    }
-
-    return typeof error === 'string' ? error : String(error);
-}
-
-function formatShakaErrorDetails(
-    error: Partial<ShakaErrorLike> | null | undefined
-): string {
-    if (!error) {
-        return '';
-    }
-
-    const parts = [
-        typeof error.category === 'number'
-            ? `Shaka category ${error.category}`
-            : '',
-        typeof error.code === 'number' ? `code ${error.code}` : '',
-        error.message ?? '',
-        stringifyErrorData(error.data),
-    ];
-
-    return parts.filter((part) => part.length > 0).join(' ');
-}
-
-function stringifyErrorData(data: unknown[] | undefined): string {
-    if (!data || data.length === 0) {
-        return '';
-    }
-
-    try {
-        const serialized = JSON.stringify(data);
-        return serialized === '[]' ? '' : serialized;
-    } catch {
-        return '';
-    }
 }

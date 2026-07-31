@@ -371,6 +371,36 @@ describe('WebPlayerViewComponent', () => {
         expect(renderedDetails).not.toContain('response body');
     });
 
+    it('renders only sanitized structured Shaka evidence in technical details', () => {
+        const issue = createStructuredShakaDiagnostic();
+
+        component.handlePlaybackIssue(issue);
+        fixture.detectChanges();
+
+        const details = component.getDiagnosticDetails(issue);
+        const renderedDetails = details.map(({ value }) => value).join(' ');
+
+        expect(details).toEqual(
+            expect.arrayContaining([
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
+                    value: 'Shaka Player',
+                },
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
+                    value:
+                        'stage=unknown · failure=network · ' +
+                        'severity=recoverable · category=network · ' +
+                        'code=1001 · disposition=terminal · HTTP 503',
+                },
+            ])
+        );
+        expect(renderedDetails).not.toContain('shaka-render-secret');
+        expect(renderedDetails).not.toContain('provider.example');
+        expect(renderedDetails).not.toContain('Authorization');
+        expect(renderedDetails).not.toContain('response body');
+    });
+
     it('keeps query-declared HLS streams on the HLS mime type', () => {
         const streamUrl =
             'https://example.com/play?extension=m3u8&token=signed';
@@ -975,6 +1005,34 @@ function createStructuredVhsDiagnostic(): PlaybackDiagnostic {
             mediaErrorCode: 4,
             disposition: 'terminal',
             stage: 'unknown',
+            httpStatus: 503,
+        },
+        externalFallbackRecommended: false,
+    };
+}
+
+function createStructuredShakaDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.Shaka,
+        sourceUrl:
+            'https://provider.example/live.mpd?token=shaka-render-secret',
+        container: 'mpd',
+        mimeType: 'application/dash+xml',
+        player: 'artplayer',
+        audioCodecs: [],
+        videoCodecs: [],
+        details: 'Authorization response body shaka-render-secret',
+        nativeErrorMessage:
+            'https://provider.example/error?token=shaka-render-secret',
+        httpStatus: 503,
+        shaka: {
+            severity: 'recoverable',
+            category: 'network',
+            engineCode: 1001,
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'network',
             httpStatus: 503,
         },
         externalFallbackRecommended: false,

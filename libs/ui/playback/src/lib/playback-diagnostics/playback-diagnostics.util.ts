@@ -6,6 +6,7 @@ import type {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
     PlaybackSourceMetadata,
+    ShakaPlaybackEvidence,
     VhsPlaybackEngineType as VhsPlaybackEngineTypeValue,
     VhsPlaybackEvidence,
 } from './playback-diagnostics.model';
@@ -257,6 +258,7 @@ export function createPlaybackDiagnostic(options: {
     readonly nativeErrorType?: string;
     readonly vhs?: VhsPlaybackEvidence;
     readonly hls?: HlsPlaybackEvidence;
+    readonly shaka?: ShakaPlaybackEvidence;
     /** Overrides the code-derived recommendation, e.g. when external players
      * are known to be unable to handle the stream either. */
     readonly externalFallbackRecommended?: boolean;
@@ -272,6 +274,7 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorType,
         vhs,
         hls,
+        shaka,
     } = options;
 
     return {
@@ -290,6 +293,7 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorType,
         vhs,
         hls,
+        shaka,
         externalFallbackRecommended:
             options.externalFallbackRecommended ??
             isExternalFallbackRecommended(code),
