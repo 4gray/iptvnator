@@ -5,6 +5,7 @@ import {
     DownloadsService,
     PlaylistsService,
     SettingsStore,
+    TMDB_DETAILS_CACHE_TTL_MS,
     TmdbEnrichmentService,
     type TmdbMovieDetails,
     type TmdbTvDetails,
@@ -505,6 +506,118 @@ describe('DownloadOfflineMetadataService', () => {
 
             expect(tmdb.enrichMovie).toHaveBeenCalledTimes(1);
             expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('throttles a successful sparse provider refresh per language during reload', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(NOW));
+        try {
+            db.getContentByXtreamId.mockResolvedValue({
+                ...providerContent('Local title', 41),
+                category_id: 4,
+                poster_url: '',
+            });
+            const local = snapshot({
+                plot: undefined,
+                posterUrl: undefined,
+                backdropUrl: undefined,
+                enrichedAt: '2020-01-01T00:00:00.000Z',
+            });
+            downloads.updateMetadata.mockImplementationOnce(
+                async (_downloadId, refreshed) => {
+                    await service.resolve(movieDetail({}, refreshed));
+                    return { success: true };
+                }
+            );
+
+            const refreshed = await service.resolve(movieDetail({}, local));
+
+            expect(refreshed.plot).toBeUndefined();
+            expect(refreshed.posterUrl).toBeUndefined();
+            expect(db.getContentByXtreamId).toHaveBeenCalledTimes(1);
+            expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+
+            currentLanguage = 'de';
+            const translated = await service.resolve(
+                movieDetail({}, refreshed)
+            );
+
+            expect(translated.language).toBe('de');
+            expect(db.getContentByXtreamId).toHaveBeenCalledTimes(2);
+            expect(downloads.updateMetadata).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('throttles a successful sparse materially identical TMDB refresh', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(NOW));
+        try {
+            tmdb.isEnabled.mockReturnValue(true);
+            tmdb.enrichMovie.mockResolvedValue({ id: 603 });
+            const local = snapshot({
+                plot: undefined,
+                posterUrl: undefined,
+                backdropUrl: undefined,
+                tmdbId: 603,
+                rating: 0,
+                enrichedAt: '2020-01-01T00:00:00.000Z',
+            });
+
+            const refreshed = await service.resolve(movieDetail({}, local));
+            await service.resolve(movieDetail({}, refreshed));
+
+            expect(tmdb.enrichMovie).toHaveBeenCalledTimes(1);
+            expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('retries a sparse transient TMDB failure', async () => {
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichMovie.mockRejectedValue(new Error('TMDB unavailable'));
+        const local = snapshot({
+            plot: undefined,
+            posterUrl: undefined,
+            backdropUrl: undefined,
+            enrichedAt: '2020-01-01T00:00:00.000Z',
+        });
+
+        await service.resolve(movieDetail({}, local));
+        await service.resolve(movieDetail({}, local));
+
+        expect(tmdb.enrichMovie).toHaveBeenCalledTimes(2);
+        expect(downloads.updateMetadata).not.toHaveBeenCalled();
+    });
+
+    it('expires a completed sparse refresh throttle with the TMDB TTL', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(NOW));
+        try {
+            db.getContentByXtreamId.mockResolvedValue({
+                ...providerContent('Local title', 41),
+                category_id: 4,
+                poster_url: '',
+            });
+            const local = snapshot({
+                plot: undefined,
+                posterUrl: undefined,
+                backdropUrl: undefined,
+                enrichedAt: '2020-01-01T00:00:00.000Z',
+            });
+
+            const refreshed = await service.resolve(movieDetail({}, local));
+            await service.resolve(movieDetail({}, refreshed));
+            jest.advanceTimersByTime(TMDB_DETAILS_CACHE_TTL_MS + 1);
+            await service.resolve(movieDetail({}, refreshed));
+
+            expect(db.getContentByXtreamId).toHaveBeenCalledTimes(2);
+            expect(downloads.updateMetadata).toHaveBeenCalledTimes(2);
         } finally {
             jest.useRealTimers();
         }

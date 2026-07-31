@@ -185,6 +185,7 @@ export function mapProviderToDownloadSnapshot({
             ? (string(info?.['movie_image']) ??
               string(root['cover']) ??
               string(root['screenshot_uri']) ??
+              string(root['poster_url']) ??
               string(root['logo']))
             : string(
                   first(editorial, [

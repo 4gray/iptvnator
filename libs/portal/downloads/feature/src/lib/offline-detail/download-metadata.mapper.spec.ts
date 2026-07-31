@@ -283,6 +283,27 @@ describe('download metadata mapper', () => {
         );
     });
 
+    it('falls back from blank nested Stalker artwork to root poster_url', () => {
+        const mapped = mapProviderToDownloadSnapshot({
+            source: 'stalker',
+            language: 'en',
+            mediaKind: 'movie',
+            fallback: providerSnapshot,
+            provider: {
+                poster_url:
+                    'https://images.example.test/posters/canonical-recent.jpg',
+                info: {
+                    name: 'Nested title',
+                    movie_image: '',
+                },
+            },
+        });
+
+        expect(mapped.posterUrl).toBe(
+            'https://images.example.test/posters/canonical-recent.jpg'
+        );
+    });
+
     it('bounds mapped people and genres to the persisted DTO limits', () => {
         const mapped = mapProviderToDownloadSnapshot({
             source: 'xtream',

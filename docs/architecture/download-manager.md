@@ -123,8 +123,10 @@ variants, contextual buttons, and theme-aware styling.
   typed provider catalog and optional TMDB enrichment. A successful refresh
   advances its freshness timestamp; transient TMDB failures may retain improved
   provider fields without advancing the timestamp or language, so a later visit
-  retries. Concurrent movie and grouped-series refreshes are request-ordered so
-  only the newest generation may persist.
+  retries. Legitimately sparse successful results are remembered in a bounded,
+  language-scoped runtime throttle for the same TTL, preventing persistence
+  reloads from starting an enrichment loop. Concurrent movie and grouped-series
+  refreshes are request-ordered so only the newest generation may persist.
 - Snapshot artwork accepts only safe HTTP(S) image URLs. Renderer normalization
   and main-process persistence independently reject credential-shaped path and
   query keys, including `username`, so provider credentials cannot be cached in

@@ -22,8 +22,9 @@ import {
     type DownloadMetadataProviderSource,
 } from './download-metadata.mapper';
 import {
+    currentMetadataLanguage,
     finalizeMetadataRefresh,
-    LatestMetadataWriteGuard,
+    MetadataRefreshCoordinator,
     needsMetadataRefresh,
     TMDB_REFRESH_STATE,
     type TmdbRefreshResult,
@@ -151,17 +152,17 @@ export class DownloadOfflineMetadataService {
     private readonly playlists = inject(PlaylistsService);
     private readonly settings = inject(SettingsStore);
     private readonly tmdb = inject(TmdbEnrichmentService);
-    private readonly writeGuard = new LatestMetadataWriteGuard();
+    private readonly refreshes = new MetadataRefreshCoordinator();
 
     async resolve(
         detail: DownloadOfflineDetail
     ): Promise<DownloadMetadataSnapshot> {
         const writeKey = metadataWriteKey(detail);
-        const generation = this.writeGuard.begin(writeKey);
+        const generation = this.refreshes.begin(writeKey);
         try {
             return await this.resolveGeneration(detail, writeKey, generation);
         } finally {
-            this.writeGuard.finish(writeKey, generation);
+            this.refreshes.finish(writeKey, generation);
         }
     }
 
@@ -170,10 +171,16 @@ export class DownloadOfflineMetadataService {
         writeKey: string,
         generation: number
     ): Promise<DownloadMetadataSnapshot> {
-        const language = this.currentLanguage();
+        const language = currentMetadataLanguage(this.settings);
         const persisted = existingSnapshot(detail);
         const local = persisted ?? fallbackSnapshot(detail, language);
-        if (!needsMetadataRefresh(persisted, language)) {
+        const completedSparseAttempt = this.refreshes.isCompleted(
+            writeKey,
+            language
+        );
+        if (
+            !needsMetadataRefresh(persisted, language, completedSparseAttempt)
+        ) {
             return local;
         }
 
@@ -210,25 +217,18 @@ export class DownloadOfflineMetadataService {
             return finalized.snapshot;
         }
 
-        if (this.writeGuard.isLatest(writeKey, generation)) {
-            try {
-                await this.downloads.updateMetadata(
+        await this.refreshes.persistLatest({
+            completedAttempt: finalized.completedAttempt,
+            generation,
+            groupKey: writeKey,
+            language,
+            persist: () =>
+                this.downloads.updateMetadata(
                     representative(detail).id,
                     finalized.snapshot
-                );
-            } catch {
-                // Enriched metadata remains useful without backfill.
-            }
-        }
+                ),
+        });
         return finalized.snapshot;
-    }
-
-    private currentLanguage(): string {
-        try {
-            return this.settings.language().trim() || 'en';
-        } catch {
-            return 'en';
-        }
     }
 
     private async loadProviderContext(

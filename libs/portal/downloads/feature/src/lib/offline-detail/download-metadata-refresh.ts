@@ -1,4 +1,7 @@
-import { TMDB_DETAILS_CACHE_TTL_MS } from '@iptvnator/services';
+import {
+    TMDB_DETAILS_CACHE_TTL_MS,
+    type SettingsStore,
+} from '@iptvnator/services';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 
 export const TMDB_REFRESH_STATE = {
@@ -24,8 +27,24 @@ interface FinalizeMetadataRefreshInput {
 }
 
 export interface FinalizedMetadataRefresh {
+    completedAttempt: boolean;
     shouldPersist: boolean;
     snapshot: DownloadMetadataSnapshot;
+}
+
+export const COMPLETED_METADATA_REFRESH_MAX_ENTRIES = 256;
+
+interface CompletedMetadataRefresh {
+    expiresAt: number;
+    generation: number;
+}
+
+interface PersistMetadataRefreshInput {
+    completedAttempt: boolean;
+    generation: number;
+    groupKey: string;
+    language: string;
+    persist(): Promise<{ success: boolean }>;
 }
 
 function isSparse(snapshot: DownloadMetadataSnapshot): boolean {
@@ -42,16 +61,28 @@ function isFresh(snapshot: DownloadMetadataSnapshot): boolean {
     );
 }
 
+export function currentMetadataLanguage(
+    settings: Pick<SettingsStore, 'language'>
+): string {
+    try {
+        return settings.language().trim() || 'en';
+    } catch {
+        return 'en';
+    }
+}
+
 export function needsMetadataRefresh(
     snapshot: DownloadMetadataSnapshot | undefined,
-    language: string
+    language: string,
+    completedSparseAttempt = false
 ): boolean {
-    return (
-        !snapshot ||
-        snapshot.language !== language ||
-        isSparse(snapshot) ||
-        !isFresh(snapshot)
-    );
+    if (!snapshot || snapshot.language !== language) {
+        return true;
+    }
+    if (isSparse(snapshot)) {
+        return !completedSparseAttempt;
+    }
+    return !isFresh(snapshot);
 }
 
 export function withoutMetadataFreshness(
@@ -117,9 +148,55 @@ export function finalizeMetadataRefresh({
     const shouldPersist =
         refreshSucceeded || !materiallyEqual(local, finalized);
     return {
+        completedAttempt: refreshSucceeded,
         shouldPersist,
         snapshot: shouldPersist ? finalized : local,
     };
+}
+
+function completedRefreshKey(groupKey: string, language: string): string {
+    return `${groupKey}\u0000${language}`;
+}
+
+export class CompletedMetadataRefreshThrottle {
+    private readonly attempts = new Map<string, CompletedMetadataRefresh>();
+
+    isCompleted(groupKey: string, language: string): boolean {
+        const now = Date.now();
+        this.deleteExpired(now);
+        return this.attempts.has(completedRefreshKey(groupKey, language));
+    }
+
+    mark(groupKey: string, language: string, generation: number): void {
+        const now = Date.now();
+        const key = completedRefreshKey(groupKey, language);
+        this.deleteExpired(now);
+        this.attempts.delete(key);
+        while (this.attempts.size >= COMPLETED_METADATA_REFRESH_MAX_ENTRIES) {
+            const oldestKey = this.attempts.keys().next().value;
+            if (oldestKey === undefined) break;
+            this.attempts.delete(oldestKey);
+        }
+        this.attempts.set(key, {
+            expiresAt: now + TMDB_DETAILS_CACHE_TTL_MS,
+            generation,
+        });
+    }
+
+    clear(groupKey: string, language: string, generation: number): void {
+        const key = completedRefreshKey(groupKey, language);
+        if (this.attempts.get(key)?.generation === generation) {
+            this.attempts.delete(key);
+        }
+    }
+
+    private deleteExpired(now: number): void {
+        for (const [key, attempt] of this.attempts) {
+            if (attempt.expiresAt < now) {
+                this.attempts.delete(key);
+            }
+        }
+    }
 }
 
 export class LatestMetadataWriteGuard {
@@ -139,6 +216,46 @@ export class LatestMetadataWriteGuard {
     finish(key: string, generation: number): void {
         if (this.isLatest(key, generation)) {
             this.latestByKey.delete(key);
+        }
+    }
+}
+
+export class MetadataRefreshCoordinator {
+    private readonly completed = new CompletedMetadataRefreshThrottle();
+    private readonly writes = new LatestMetadataWriteGuard();
+
+    begin(groupKey: string): number {
+        return this.writes.begin(groupKey);
+    }
+
+    finish(groupKey: string, generation: number): void {
+        this.writes.finish(groupKey, generation);
+    }
+
+    isCompleted(groupKey: string, language: string): boolean {
+        return this.completed.isCompleted(groupKey, language);
+    }
+
+    async persistLatest({
+        completedAttempt,
+        generation,
+        groupKey,
+        language,
+        persist,
+    }: PersistMetadataRefreshInput): Promise<void> {
+        if (!this.writes.isLatest(groupKey, generation)) return;
+        if (completedAttempt) {
+            this.completed.mark(groupKey, language, generation);
+        }
+        try {
+            const result = await persist();
+            if (!result.success && completedAttempt) {
+                this.completed.clear(groupKey, language, generation);
+            }
+        } catch {
+            if (completedAttempt) {
+                this.completed.clear(groupKey, language, generation);
+            }
         }
     }
 }
