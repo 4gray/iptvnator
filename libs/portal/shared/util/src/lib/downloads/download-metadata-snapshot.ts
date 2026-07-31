@@ -52,6 +52,7 @@ const CREDENTIAL_PATH_KEYS = new Set([
     'signature',
     'signingkey',
     'token',
+    'username',
 ]);
 const CREDENTIAL_QUERY_TERMS = [
     'authentication',
@@ -66,6 +67,7 @@ const CREDENTIAL_QUERY_TERMS = [
     'session',
     'signature',
     'token',
+    'username',
 ];
 
 interface DownloadSnapshotFields {

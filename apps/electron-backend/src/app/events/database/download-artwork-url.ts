@@ -31,6 +31,7 @@ const CREDENTIAL_QUERY_TERMS = [
     'session',
     'signature',
     'token',
+    'username',
 ];
 
 const CREDENTIAL_PATH_KEYS = new Set([
@@ -59,6 +60,7 @@ const CREDENTIAL_PATH_KEYS = new Set([
     'signature',
     'signingkey',
     'token',
+    'username',
 ]);
 
 function invalidArtworkUrl(): never {

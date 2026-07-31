@@ -98,6 +98,59 @@ describe('download metadata mapper', () => {
         expect(merged.originalTitle).toBe('Provider original');
     });
 
+    it.each([
+        {
+            label: 'Xtream movie',
+            source: 'xtream' as const,
+            mediaKind: 'movie' as const,
+            details: { id: 603 } satisfies TmdbMovieDetails,
+        },
+        {
+            label: 'Xtream series',
+            source: 'xtream' as const,
+            mediaKind: 'series' as const,
+            details: { id: 900 } satisfies TmdbTvDetails,
+        },
+        {
+            label: 'Stalker movie',
+            source: 'stalker' as const,
+            mediaKind: 'movie' as const,
+            details: { id: 603 } satisfies TmdbMovieDetails,
+        },
+    ])('preserves rich people for sparse $label credits', (scenario) => {
+        const richActor = {
+            tmdbPersonId: 7,
+            name: 'Provider actor',
+            role: 'Lead',
+            profileUrl: 'https://image.tmdb.org/t/p/w185/provider-actor.jpg',
+        };
+        const richCreator = {
+            tmdbPersonId: 11,
+            name: 'Provider creator',
+            role: 'Director',
+            profileUrl: 'https://image.tmdb.org/t/p/w185/provider-creator.jpg',
+        };
+        const merged = mergeSnapshotWithTmdb(
+            {
+                ...providerSnapshot,
+                mediaKind: scenario.mediaKind,
+                cast: [
+                    richActor,
+                    ...Array.from({ length: 30 }, (_, index) => ({
+                        name: `Provider actor ${index + 2}`,
+                    })),
+                ],
+                creators: [richCreator],
+            },
+            scenario.details,
+            scenario.source
+        );
+
+        expect(merged.cast).toHaveLength(30);
+        expect(merged.cast?.[0]).toEqual(richActor);
+        expect(merged.creators?.[0]).toEqual(richCreator);
+    });
+
     it('maps a Stalker recent payload without copying credentials or playback fields', () => {
         const mapped = mapProviderToDownloadSnapshot({
             source: 'stalker',
@@ -208,6 +261,26 @@ describe('download metadata mapper', () => {
         expect(mapped.releaseDate).toBe('2024');
         expect(mapped.year).toBe(2024);
         expect(mapped.episode).toEqual(fallback.episode);
+    });
+
+    it('falls back from blank nested Stalker artwork to the root cover', () => {
+        const mapped = mapProviderToDownloadSnapshot({
+            source: 'stalker',
+            language: 'en',
+            mediaKind: 'movie',
+            fallback: providerSnapshot,
+            provider: {
+                cover: 'https://images.example.test/covers/root-cover.jpg',
+                info: {
+                    name: 'Nested title',
+                    movie_image: '',
+                },
+            },
+        });
+
+        expect(mapped.posterUrl).toBe(
+            'https://images.example.test/covers/root-cover.jpg'
+        );
     });
 
     it('bounds mapped people and genres to the persisted DTO limits', () => {

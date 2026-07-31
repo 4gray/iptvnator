@@ -1,9 +1,42 @@
 import type {
     DownloadMetadataSnapshot,
     StalkerVodInfo,
+    TmdbEnrichedCastMember,
     XtreamSerieInfo,
     XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
+
+const MAX_PEOPLE = 30;
+
+interface SeedPeopleFields {
+    tmdb_cast?: TmdbEnrichedCastMember[];
+    tmdb_directors?: TmdbEnrichedCastMember[];
+}
+
+function seedPeople(
+    people: DownloadMetadataSnapshot['cast']
+): TmdbEnrichedCastMember[] | undefined {
+    const seeded = people?.slice(0, MAX_PEOPLE).map((person) => ({
+        name: person.name,
+        ...(person.role === undefined ? {} : { character: person.role }),
+        profileUrl: person.profileUrl ?? null,
+        ...(person.tmdbPersonId === undefined
+            ? {}
+            : { tmdbPersonId: person.tmdbPersonId }),
+    }));
+    return seeded && seeded.length > 0 ? seeded : undefined;
+}
+
+function seedPeopleFields(
+    snapshot: DownloadMetadataSnapshot
+): SeedPeopleFields {
+    const cast = seedPeople(snapshot.cast);
+    const directors = seedPeople(snapshot.creators);
+    return {
+        ...(cast === undefined ? {} : { tmdb_cast: cast }),
+        ...(directors === undefined ? {} : { tmdb_directors: directors }),
+    };
+}
 
 export function movieSeed(snapshot: DownloadMetadataSnapshot): XtreamVodInfo {
     const cast = snapshot.cast?.map(({ name }) => name).join(', ') ?? '';
@@ -34,6 +67,7 @@ export function movieSeed(snapshot: DownloadMetadataSnapshot): XtreamVodInfo {
         audio: [],
         bitrate: 0,
         rating: snapshot.rating ?? 0,
+        ...seedPeopleFields(snapshot),
     };
 }
 
@@ -59,6 +93,7 @@ export function seriesSeed(
                 : String(snapshot.durationMinutes),
         category_id: snapshot.providerCategoryId ?? '',
         tmdb_id: snapshot.tmdbId,
+        ...seedPeopleFields(snapshot),
     };
 }
 
@@ -80,6 +115,7 @@ export function stalkerSeed(snapshot: DownloadMetadataSnapshot): {
                 snapshot.rating === undefined ? '' : String(snapshot.rating),
             rating_kinopoisk: '',
             tmdb_id: snapshot.tmdbId,
+            ...seedPeopleFields(snapshot),
         },
     };
 }

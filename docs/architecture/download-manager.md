@@ -117,11 +117,18 @@ variants, contextual buttons, and theme-aware styling.
 - Managed MPV/VLC state remains authoritative: Opening disables conflicting
   playback actions, and Stop closes the matched external session before any
   local or provider choice can run.
-- Detail metadata still comes from the owning Xtream or Stalker provider.
-  Download rows do not cache a standalone offline detail payload in this MVP,
-  so a provider that is unavailable may prevent the detail shell from loading;
-  the explicit Play action on the download card remains available for the
-  local file.
+- Download rows carry a versioned, display-only metadata snapshot, so the
+  offline detail resolver can work without the owning Xtream or Stalker
+  provider. Sparse, stale, or wrong-language snapshots are refreshed from the
+  typed provider catalog and optional TMDB enrichment. A successful refresh
+  advances its freshness timestamp; transient TMDB failures may retain improved
+  provider fields without advancing the timestamp or language, so a later visit
+  retries. Concurrent movie and grouped-series refreshes are request-ordered so
+  only the newest generation may persist.
+- Snapshot artwork accepts only safe HTTP(S) image URLs. Renderer normalization
+  and main-process persistence independently reject credential-shaped path and
+  query keys, including `username`, so provider credentials cannot be cached in
+  offline metadata.
 
 ## Global API surface
 
@@ -135,11 +142,12 @@ variants, contextual buttons, and theme-aware styling.
   `/workspace/xtreams/:id/downloads` and
   `/workspace/stalker/:id/downloads`. All three routes render the same global
   store; the `:id` routes derive a view-only playlist scope.
+- Each scope exposes an offline detail child at `downloads/:downloadId`.
 - Downloads navigation is data-driven: `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts` emits a `downloads` section link (`path: [...root, 'downloads']`) for both portals, so they reuse the same download page.
 
 ## Queuing, persistence, and UX notes
 
-- Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, `requestHeaders`, `resumeValidator`, and Xtream identifiers. Existing SQLite tables are rebuilt on startup when their status CHECK still lacks `paused`; the `resume_validator` column is added through the idempotent column migrations.
+- Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, `requestHeaders`, `resumeValidator`, the offline-detail metadata snapshot, and Xtream identifiers. Existing SQLite tables are rebuilt on startup when their status CHECK still lacks `paused`; additive columns are applied through the idempotent column migrations.
 - On startup, `download-recovery.ts` converts stale `downloading` rows with a non-empty `.part` file to `paused`, converts stale `queued` rows to `paused` while keeping any retained `.part` (a resumed download waiting behind an active one persists as `queued` with its partial), and marks stale `downloading` rows without recoverable partial bytes as `failed`.
 - Queue cancellation removes a queued task or records an active cancellation request and aborts the request when available. Pausing follows the same abort path but persists `paused` and keeps the `.part`. Retries reuse the same database entry: a failed row with a retained `filePath` resumes its `.part` through HTTP Range, otherwise the retry starts from zero. Resume appends to the existing `.part` through HTTP Range with `If-Range` validation.
 - A `.part` that cannot be deleted (locked, permission denied) never loses its database path: cancel persists `canceled` while retaining `filePath` for later cleanup, and `DOWNLOADS_REMOVE` keeps the row and answers `success: false` (surfaced as a snackbar) so retrying the remove re-attempts the deletion once the lock is released.
@@ -159,6 +167,5 @@ variants, contextual buttons, and theme-aware styling.
 
 Keeping the backend queue, IPC handlers, shared schema, and renderer signals
 synchronized minimizes drift between platform rules and the UI. Future work
-might cover an offline metadata snapshot for provider-independent details,
-recordings, queue reordering, bulk pause/cancel actions, disk-free space
-telemetry, or playback analytics.
+might cover recordings, queue reordering, bulk pause/cancel actions, disk-free
+space telemetry, or playback analytics.

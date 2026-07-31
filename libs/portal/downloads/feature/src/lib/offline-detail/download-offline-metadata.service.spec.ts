@@ -8,6 +8,7 @@ import {
     TmdbEnrichmentService,
     type TmdbMovieDetails,
     type TmdbTvDetails,
+    type XtreamContent,
 } from '@iptvnator/services';
 import type {
     DownloadMetadataSnapshot,
@@ -44,6 +45,39 @@ type PlaylistsFake = jest.Mocked<
 type TmdbFake = jest.Mocked<
     Pick<TmdbEnrichmentService, 'isEnabled' | 'enrichMovie' | 'enrichTv'>
 >;
+
+interface Deferred<T> {
+    promise: Promise<T>;
+    resolve(value: T): void;
+    reject(reason?: unknown): void;
+}
+
+function deferred<T>(): Deferred<T> {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return { promise, reject, resolve };
+}
+
+function providerContent(
+    title: string,
+    xtreamId: number,
+    type: 'movie' | 'series' = 'movie'
+): XtreamContent {
+    return {
+        id: xtreamId,
+        category_id: 12,
+        title,
+        rating: '7',
+        added: '0',
+        poster_url: 'https://images.example.test/provider.jpg',
+        xtream_id: xtreamId,
+        type,
+    };
+}
 
 function download(overrides: Partial<DownloadItem> = {}): DownloadItem {
     return {
@@ -97,7 +131,8 @@ function movieDetail(
 }
 
 function seriesDetail(
-    seriesSnapshot: DownloadMetadataSnapshot
+    seriesSnapshot: DownloadMetadataSnapshot,
+    itemOverrides: Partial<DownloadItem> = {}
 ): DownloadOfflineDetail {
     const representative = download({
         contentType: 'episode',
@@ -106,6 +141,7 @@ function seriesDetail(
         seasonNumber: 2,
         episodeNumber: 7,
         title: 'Series - S02E07 - Relay',
+        ...itemOverrides,
         metadataSnapshot: seriesSnapshot,
     });
     return {
@@ -238,13 +274,37 @@ describe('DownloadOfflineMetadataService', () => {
 
         const resolved = await service.resolve(movieDetail());
 
-        expect(db.getContentByXtreamId).toHaveBeenCalledWith(41, PLAYLIST_ID);
+        expect(db.getContentByXtreamId).toHaveBeenCalledWith(
+            41,
+            PLAYLIST_ID,
+            'movie'
+        );
         expect(resolved.title).toBe('Xtream provider title');
         expect(resolved.providerCategoryId).toBe('12');
         expect(resolved.posterUrl).toBe(
             'https://images.example.test/xtream-provider.jpg'
         );
         expect(playlists.getPortalRecentlyViewed).not.toHaveBeenCalled();
+    });
+
+    it('uses the series discriminator for an offline episode lookup', async () => {
+        const local = snapshot({
+            mediaKind: 'series',
+            plot: undefined,
+            episode: {
+                title: 'Downloaded episode',
+                seasonNumber: 2,
+                episodeNumber: 7,
+            },
+        });
+
+        await service.resolve(seriesDetail(local));
+
+        expect(db.getContentByXtreamId).toHaveBeenCalledWith(
+            93,
+            PLAYLIST_ID,
+            'series'
+        );
     });
 
     it.each([
@@ -364,7 +424,11 @@ describe('DownloadOfflineMetadataService', () => {
 
         const resolved = await service.resolve(movieDetail({}, local));
 
-        expect(db.getContentByXtreamId).toHaveBeenCalledWith(41, PLAYLIST_ID);
+        expect(db.getContentByXtreamId).toHaveBeenCalledWith(
+            41,
+            PLAYLIST_ID,
+            'movie'
+        );
         expect(resolved.language).toBe('de');
         expect(downloads.updateMetadata).toHaveBeenCalledWith(
             17,
@@ -416,17 +480,109 @@ describe('DownloadOfflineMetadataService', () => {
         expect(downloads.updateMetadata).toHaveBeenCalledWith(17, resolved);
     });
 
-    it('does not persist a stale refresh when only field order and timestamp changed', async () => {
-        const local = snapshot({ enrichedAt: '2020-01-01T00:00:00.000Z' });
-        db.getContentByXtreamId.mockResolvedValue({
-            id: 1,
-            category_id: 4,
-            title: 'Local title',
-            rating: '',
-            added: '0',
-            poster_url: 'https://images.example.test/local.jpg',
-            xtream_id: 41,
-            type: 'movie',
+    it('persists a materially identical successful TMDB refresh once', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(NOW));
+        try {
+            tmdb.isEnabled.mockReturnValue(true);
+            tmdb.enrichMovie.mockResolvedValue({ id: 603 });
+            const local = snapshot({
+                tmdbId: 603,
+                rating: 0,
+                enrichedAt: '2020-01-01T00:00:00.000Z',
+            });
+
+            const refreshed = await service.resolve(movieDetail({}, local));
+
+            expect(refreshed.enrichedAt).toBe(NOW);
+            expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+            expect(downloads.updateMetadata).toHaveBeenCalledWith(
+                17,
+                refreshed
+            );
+
+            await service.resolve(movieDetail({}, refreshed));
+
+            expect(tmdb.enrichMovie).toHaveBeenCalledTimes(1);
+            expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('persists provider metadata without marking a failed TMDB refresh current', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(NOW));
+        try {
+            currentLanguage = 'de';
+            tmdb.isEnabled.mockReturnValue(true);
+            tmdb.enrichMovie.mockRejectedValue(
+                new Error('TMDB temporarily unavailable')
+            );
+            db.getContentByXtreamId.mockResolvedValue(
+                providerContent('Recovered provider title', 41)
+            );
+            const local = snapshot({
+                language: 'en',
+                enrichedAt: '2020-01-01T00:00:00.000Z',
+            });
+
+            const resolved = await service.resolve(movieDetail({}, local));
+
+            expect(resolved.title).toBe('Recovered provider title');
+            expect(resolved.language).toBe('en');
+            expect(resolved.enrichedAt).toBe(local.enrichedAt);
+            expect(downloads.updateMetadata).toHaveBeenCalledWith(17, resolved);
+
+            await service.resolve(movieDetail({}, resolved));
+
+            expect(tmdb.enrichMovie).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('marks a successful provider-only refresh fresh when TMDB is disabled', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(NOW));
+        try {
+            db.getContentByXtreamId.mockResolvedValue({
+                ...providerContent('Local title', 41),
+                category_id: 4,
+                rating: '',
+                poster_url: 'https://images.example.test/local.jpg',
+            });
+            const local = snapshot({
+                enrichedAt: '2020-01-01T00:00:00.000Z',
+            });
+
+            const refreshed = await service.resolve(movieDetail({}, local));
+
+            expect(refreshed.enrichedAt).toBe(NOW);
+            expect(downloads.updateMetadata).toHaveBeenCalledWith(
+                17,
+                refreshed
+            );
+
+            await service.resolve(movieDetail({}, refreshed));
+
+            expect(db.getContentByXtreamId).toHaveBeenCalledTimes(1);
+            expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('retains stale language and freshness when provider and TMDB fail', async () => {
+        currentLanguage = 'de';
+        tmdb.isEnabled.mockReturnValue(true);
+        tmdb.enrichMovie.mockRejectedValue(new Error('TMDB unavailable'));
+        db.getContentByXtreamId.mockRejectedValue(
+            new Error('Provider unavailable')
+        );
+        const local = snapshot({
+            language: 'en',
+            enrichedAt: '2020-01-01T00:00:00.000Z',
         });
 
         await expect(service.resolve(movieDetail({}, local))).resolves.toEqual(
@@ -492,6 +648,77 @@ describe('DownloadOfflineMetadataService', () => {
 
         expect(resolved.mediaKind).toBe('series');
         expect(resolved).not.toHaveProperty('episode');
+    });
+
+    it('does not persist an older movie resolve after a newer generation', async () => {
+        const olderProvider = deferred<XtreamContent | null>();
+        const newerProvider = deferred<XtreamContent | null>();
+        db.getContentByXtreamId
+            .mockImplementationOnce(() => olderProvider.promise)
+            .mockImplementationOnce(() => newerProvider.promise);
+        const local = snapshot({ enrichedAt: '2020-01-01T00:00:00.000Z' });
+        const detail = movieDetail({}, local);
+
+        const olderResolve = service.resolve(detail);
+        const newerResolve = service.resolve(detail);
+        newerProvider.resolve(providerContent('Newer provider title', 41));
+        const newerResult = await newerResolve;
+        olderProvider.resolve(providerContent('Older provider title', 41));
+        const olderResult = await olderResolve;
+
+        expect(newerResult.title).toBe('Newer provider title');
+        expect(olderResult.title).toBe('Older provider title');
+        expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+        expect(downloads.updateMetadata).toHaveBeenCalledWith(17, newerResult);
+    });
+
+    it('guards persistence across different episodes in one series group', async () => {
+        const olderProvider = deferred<XtreamContent | null>();
+        const newerProvider = deferred<XtreamContent | null>();
+        db.getContentByXtreamId
+            .mockImplementationOnce(() => olderProvider.promise)
+            .mockImplementationOnce(() => newerProvider.promise);
+        const olderSnapshot = snapshot({
+            mediaKind: 'series',
+            title: 'Local series',
+            enrichedAt: '2020-01-01T00:00:00.000Z',
+            episode: {
+                title: 'Older episode',
+                seasonNumber: 2,
+                episodeNumber: 7,
+            },
+        });
+        const newerSnapshot = {
+            ...olderSnapshot,
+            episode: {
+                title: 'Newer episode',
+                seasonNumber: 2,
+                episodeNumber: 8,
+            },
+        };
+        const olderDetail = seriesDetail(olderSnapshot);
+        const newerDetail = seriesDetail(newerSnapshot, {
+            id: 18,
+            xtreamId: 502,
+            episodeNumber: 8,
+            title: 'Series - S02E08 - Newer episode',
+        });
+
+        const olderResolve = service.resolve(olderDetail);
+        const newerResolve = service.resolve(newerDetail);
+        newerProvider.resolve(
+            providerContent('Newer series title', 93, 'series')
+        );
+        const newerResult = await newerResolve;
+        olderProvider.resolve(
+            providerContent('Older series title', 93, 'series')
+        );
+        const olderResult = await olderResolve;
+
+        expect(newerResult.title).toBe('Newer series title');
+        expect(olderResult.title).toBe('Older series title');
+        expect(downloads.updateMetadata).toHaveBeenCalledTimes(1);
+        expect(downloads.updateMetadata).toHaveBeenCalledWith(18, newerResult);
     });
 
     it('returns the best local metadata when provider lookup fails', async () => {

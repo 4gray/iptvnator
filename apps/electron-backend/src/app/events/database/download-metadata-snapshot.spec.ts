@@ -4,6 +4,7 @@ import {
     DOWNLOAD_METADATA_MAX_BYTES,
     encodeDownloadMetadataSnapshot,
 } from './download-metadata-snapshot';
+import { normalizeDownloadArtworkUrl } from './download-artwork-url';
 
 const validSnapshot: DownloadMetadataSnapshot = {
     version: 1,
@@ -411,6 +412,15 @@ describe('download metadata snapshot', () => {
                 posterUrl: `https://images.example.test/poster.jpg?${queryKey}=secret`,
             })
         ).toThrow('Invalid download metadata snapshot');
+    });
+
+    it.each([
+        'https://images.example.test/username/account/poster.jpg',
+        'https://images.example.test/poster.jpg?username=account',
+    ])('rejects username-bearing artwork at the canonical validator', (url) => {
+        expect(() => normalizeDownloadArtworkUrl(url)).toThrow(
+            'Invalid download metadata snapshot'
+        );
     });
 
     it('decodes malformed persisted JSON as absent metadata', () => {

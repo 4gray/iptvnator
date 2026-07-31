@@ -181,13 +181,13 @@ export function mapProviderToDownloadSnapshot({
         first(editorial, ['tmdb_directors', 'director', 'creators'])
     );
     const posterUrl =
-        string(
-            source === 'stalker'
-                ? (info?.['movie_image'] ??
-                      root['cover'] ??
-                      root['screenshot_uri'] ??
-                      root['logo'])
-                : first(editorial, [
+        (source === 'stalker'
+            ? (string(info?.['movie_image']) ??
+              string(root['cover']) ??
+              string(root['screenshot_uri']) ??
+              string(root['logo']))
+            : string(
+                  first(editorial, [
                       'movie_image',
                       'cover_big',
                       'cover',
@@ -195,7 +195,7 @@ export function mapProviderToDownloadSnapshot({
                       'posterUrl',
                       'logo',
                   ])
-        ) ?? fallback.posterUrl;
+              )) ?? fallback.posterUrl;
     const backdropUrl =
         backdrop(
             first(editorial, ['tmdb_backdrop', 'backdrop_path', 'backdrop_url'])

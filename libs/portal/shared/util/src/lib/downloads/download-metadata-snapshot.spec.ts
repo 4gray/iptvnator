@@ -154,6 +154,7 @@ describe('download metadata snapshot factories', () => {
         'signature',
         'signingkey',
         'token',
+        'username',
     ])('drops artwork containing backend credential path alias %s', (alias) => {
         const snapshot = createMovieDownloadSnapshot({
             language: 'en',
@@ -188,6 +189,7 @@ describe('download metadata snapshot factories', () => {
         'private-key',
         'secret-key',
         'signing-key',
+        'username',
     ])(
         'drops artwork containing backend credential query alias %s',
         (alias) => {

@@ -5,7 +5,6 @@ import {
     DownloadsService,
     PlaylistsService,
     SettingsStore,
-    TMDB_DETAILS_CACHE_TTL_MS,
     TmdbEnrichmentService,
     type DownloadItem,
 } from '@iptvnator/services';
@@ -22,6 +21,14 @@ import {
     mergeSnapshotWithTmdb,
     type DownloadMetadataProviderSource,
 } from './download-metadata.mapper';
+import {
+    finalizeMetadataRefresh,
+    LatestMetadataWriteGuard,
+    needsMetadataRefresh,
+    TMDB_REFRESH_STATE,
+    type TmdbRefreshResult,
+    withoutMetadataFreshness,
+} from './download-metadata-refresh';
 import type { DownloadOfflineDetail } from './download-offline-detail.viewmodel';
 
 interface ProviderContext {
@@ -40,6 +47,18 @@ function targetId(detail: DownloadOfflineDetail): number {
     return detail.kind === 'series'
         ? (item.seriesXtreamId ?? item.xtreamId)
         : item.xtreamId;
+}
+
+function metadataWriteKey(detail: DownloadOfflineDetail): string {
+    const item = representative(detail);
+    if (
+        detail.kind === 'series' &&
+        Number.isSafeInteger(item.seriesXtreamId) &&
+        (item.seriesXtreamId ?? 0) > 0
+    ) {
+        return `series:${item.playlistId}:${item.seriesXtreamId}`;
+    }
+    return `download:${item.id}`;
 }
 
 function normalizedPortalId(value: unknown): string {
@@ -75,11 +94,13 @@ function fallbackSnapshot(
 ): DownloadMetadataSnapshot {
     const item = representative(detail);
     if (detail.kind === 'movie') {
-        return createMovieDownloadSnapshot({
-            language,
-            title: item.title,
-            posterUrl: item.posterUrl,
-        });
+        return withoutMetadataFreshness(
+            createMovieDownloadSnapshot({
+                language,
+                title: item.title,
+                posterUrl: item.posterUrl,
+            })
+        );
     }
 
     const parent = {
@@ -95,20 +116,22 @@ function fallbackSnapshot(
         !Number.isSafeInteger(episodeNumber) ||
         (episodeNumber ?? -1) < 0
     ) {
-        return {
+        return withoutMetadataFreshness({
             ...createMovieDownloadSnapshot(parent),
             mediaKind: 'series',
-        };
+        });
     }
 
-    return createSeriesEpisodeDownloadSnapshot({
-        ...parent,
-        episode: {
-            title: episodeTitle(item),
-            seasonNumber: seasonNumber as number,
-            episodeNumber: episodeNumber as number,
-        },
-    });
+    return withoutMetadataFreshness(
+        createSeriesEpisodeDownloadSnapshot({
+            ...parent,
+            episode: {
+                title: episodeTitle(item),
+                seasonNumber: seasonNumber as number,
+                episodeNumber: episodeNumber as number,
+            },
+        })
+    );
 }
 
 function existingSnapshot(
@@ -121,61 +144,6 @@ function existingSnapshot(
         : undefined;
 }
 
-function isSparse(snapshot: DownloadMetadataSnapshot): boolean {
-    return !snapshot.plot || (!snapshot.posterUrl && !snapshot.backdropUrl);
-}
-
-function isFresh(snapshot: DownloadMetadataSnapshot): boolean {
-    const enrichedAt = Date.parse(snapshot.enrichedAt ?? '');
-    const age = Date.now() - enrichedAt;
-    return (
-        Number.isFinite(enrichedAt) &&
-        age >= 0 &&
-        age <= TMDB_DETAILS_CACHE_TTL_MS
-    );
-}
-
-function needsRefresh(
-    snapshot: DownloadMetadataSnapshot | undefined,
-    language: string
-): boolean {
-    return (
-        !snapshot ||
-        snapshot.language !== language ||
-        isSparse(snapshot) ||
-        !isFresh(snapshot)
-    );
-}
-
-function materiallyEqual(
-    left: DownloadMetadataSnapshot,
-    right: DownloadMetadataSnapshot
-): boolean {
-    const leftFields = { ...left };
-    const rightFields = { ...right };
-    delete leftFields.enrichedAt;
-    delete rightFields.enrichedAt;
-    return (
-        JSON.stringify(sortedValue(leftFields)) ===
-        JSON.stringify(sortedValue(rightFields))
-    );
-}
-
-function sortedValue(value: unknown): unknown {
-    if (Array.isArray(value)) {
-        return value.map(sortedValue);
-    }
-    if (!value || typeof value !== 'object') {
-        return value;
-    }
-    return Object.keys(value)
-        .sort()
-        .reduce<Record<string, unknown>>((result, key) => {
-            result[key] = sortedValue((value as Record<string, unknown>)[key]);
-            return result;
-        }, {});
-}
-
 @Injectable({ providedIn: 'root' })
 export class DownloadOfflineMetadataService {
     private readonly db = inject(DatabaseService);
@@ -183,19 +151,35 @@ export class DownloadOfflineMetadataService {
     private readonly playlists = inject(PlaylistsService);
     private readonly settings = inject(SettingsStore);
     private readonly tmdb = inject(TmdbEnrichmentService);
+    private readonly writeGuard = new LatestMetadataWriteGuard();
 
     async resolve(
         detail: DownloadOfflineDetail
     ): Promise<DownloadMetadataSnapshot> {
+        const writeKey = metadataWriteKey(detail);
+        const generation = this.writeGuard.begin(writeKey);
+        try {
+            return await this.resolveGeneration(detail, writeKey, generation);
+        } finally {
+            this.writeGuard.finish(writeKey, generation);
+        }
+    }
+
+    private async resolveGeneration(
+        detail: DownloadOfflineDetail,
+        writeKey: string,
+        generation: number
+    ): Promise<DownloadMetadataSnapshot> {
         const language = this.currentLanguage();
         const persisted = existingSnapshot(detail);
         const local = persisted ?? fallbackSnapshot(detail, language);
-        if (!needsRefresh(persisted, language)) {
+        if (!needsMetadataRefresh(persisted, language)) {
             return local;
         }
 
         const context = await this.loadProviderContext(detail);
         let resolved = local;
+        let providerSucceeded = false;
         if (context.provider) {
             try {
                 resolved = mapProviderToDownloadSnapshot({
@@ -205,29 +189,38 @@ export class DownloadOfflineMetadataService {
                     fallback: local,
                     provider: context.provider,
                 });
+                providerSucceeded = true;
             } catch {
                 resolved = local;
             }
         }
-        resolved = await this.enrichWithTmdb(
+        const tmdb = await this.enrichWithTmdb(
             resolved,
             context.source,
             language
         );
-
-        if (materiallyEqual(local, resolved)) {
-            return local;
+        const finalized = finalizeMetadataRefresh({
+            language,
+            local,
+            providerSucceeded,
+            snapshot: tmdb.snapshot,
+            tmdbState: tmdb.state,
+        });
+        if (!finalized.shouldPersist) {
+            return finalized.snapshot;
         }
 
-        try {
-            await this.downloads.updateMetadata(
-                representative(detail).id,
-                resolved
-            );
-        } catch {
-            // Enriched metadata remains useful for this view without backfill.
+        if (this.writeGuard.isLatest(writeKey, generation)) {
+            try {
+                await this.downloads.updateMetadata(
+                    representative(detail).id,
+                    finalized.snapshot
+                );
+            } catch {
+                // Enriched metadata remains useful without backfill.
+            }
         }
-        return resolved;
+        return finalized.snapshot;
     }
 
     private currentLanguage(): string {
@@ -274,7 +267,8 @@ export class DownloadOfflineMetadataService {
                 source,
                 provider: await this.db.getContentByXtreamId(
                     targetId(detail),
-                    item.playlistId
+                    item.playlistId,
+                    detail.kind === 'movie' ? 'movie' : 'series'
                 ),
             };
         } catch {
@@ -286,10 +280,13 @@ export class DownloadOfflineMetadataService {
         snapshot: DownloadMetadataSnapshot,
         source: DownloadMetadataProviderSource,
         language: string
-    ): Promise<DownloadMetadataSnapshot> {
+    ): Promise<TmdbRefreshResult> {
         try {
             if (!this.tmdb.isEnabled()) {
-                return snapshot;
+                return {
+                    snapshot,
+                    state: TMDB_REFRESH_STATE.DISABLED,
+                };
             }
             const query = {
                 title: snapshot.title,
@@ -301,17 +298,21 @@ export class DownloadOfflineMetadataService {
                 snapshot.mediaKind === 'movie'
                     ? await this.tmdb.enrichMovie(query)
                     : await this.tmdb.enrichTv(query);
-            return details
-                ? mergeSnapshotWithTmdb(
-                      snapshot.language === language
-                          ? snapshot
-                          : { ...snapshot, language },
-                      details,
-                      source
-                  )
-                : snapshot;
+            if (!details) {
+                return { snapshot, state: TMDB_REFRESH_STATE.FAILED };
+            }
+            return {
+                snapshot: mergeSnapshotWithTmdb(
+                    snapshot.language === language
+                        ? snapshot
+                        : { ...snapshot, language },
+                    details,
+                    source
+                ),
+                state: TMDB_REFRESH_STATE.SUCCEEDED,
+            };
         } catch {
-            return snapshot;
+            return { snapshot, state: TMDB_REFRESH_STATE.FAILED };
         }
     }
 }
