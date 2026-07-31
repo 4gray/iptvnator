@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Kanal listesini gizle",
-        "SHOW_CHANNELS_LIST": "Kanal listesini göster",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Kanal listesini aç/kapat (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Grupları gizle",
+        "SHOW_GROUPS_PANEL": "Grupları göster",
+        "HIDE_CHANNELS_PANEL": "Kanalları gizle",
+        "SHOW_CHANNELS_PANEL": "Kanalları göster"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Dosya yükle veya başka bir oynatma listesi seçin",

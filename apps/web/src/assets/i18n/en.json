@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Hide channels list",
-        "SHOW_CHANNELS_LIST": "Show channels list",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Toggle channels list (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Hide groups",
+        "SHOW_GROUPS_PANEL": "Show groups",
+        "HIDE_CHANNELS_PANEL": "Hide channels",
+        "SHOW_CHANNELS_PANEL": "Show channels"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload or select other playlist",

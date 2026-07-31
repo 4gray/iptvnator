@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Схаваць спіс каналаў",
-        "SHOW_CHANNELS_LIST": "Паказаць спіс каналаў",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Схаваць групы",
+        "SHOW_GROUPS_PANEL": "Паказаць групы",
+        "HIDE_CHANNELS_PANEL": "Схаваць каналы",
+        "SHOW_CHANNELS_PANEL": "Паказаць каналы"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузіць або выбраць іншы плэйліст",

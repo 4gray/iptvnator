@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Ukryj listę kanałów",
-        "SHOW_CHANNELS_LIST": "Pokaż listę kanałów",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Przełącz listę kanałów (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Ukryj grupy",
+        "SHOW_GROUPS_PANEL": "Pokaż grupy",
+        "HIDE_CHANNELS_PANEL": "Ukryj kanały",
+        "SHOW_CHANNELS_PANEL": "Pokaż kanały"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Prześlij lub wybierz inną listę odtwarzania",

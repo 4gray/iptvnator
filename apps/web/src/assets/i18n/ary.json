@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "إخفاء قائمة القنوات",
-        "SHOW_CHANNELS_LIST": "إظهار قائمة القنوات",
-        "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "إخفاء المجموعات",
+        "SHOW_GROUPS_PANEL": "إظهار المجموعات",
+        "HIDE_CHANNELS_PANEL": "إخفاء القنوات",
+        "SHOW_CHANNELS_PANEL": "إظهار القنوات"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "رفع ولا اختار قائمة تشغيل أخرى",

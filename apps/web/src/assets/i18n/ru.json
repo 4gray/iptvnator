@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Детали ошибки"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Скрыть список каналов",
-        "SHOW_CHANNELS_LIST": "Показать список каналов",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Скрыть группы",
+        "SHOW_GROUPS_PANEL": "Показать группы",
+        "HIDE_CHANNELS_PANEL": "Скрыть каналы",
+        "SHOW_CHANNELS_PANEL": "Показать каналы"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",

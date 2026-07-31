@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Senderliste ausblenden",
-        "SHOW_CHANNELS_LIST": "Senderliste einblenden",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Senderliste umschalten (⌘/Strg+B)"
+        "HIDE_GROUPS_PANEL": "Gruppen ausblenden",
+        "SHOW_GROUPS_PANEL": "Gruppen einblenden",
+        "HIDE_CHANNELS_PANEL": "Sender ausblenden",
+        "SHOW_CHANNELS_PANEL": "Sender einblenden"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",

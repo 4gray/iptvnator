@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "隱藏頻道列表",
-        "SHOW_CHANNELS_LIST": "顯示頻道列表",
-        "TOGGLE_SIDEBAR_TOOLTIP": "切換頻道列表 (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "隱藏群組",
+        "SHOW_GROUPS_PANEL": "顯示群組",
+        "HIDE_CHANNELS_PANEL": "隱藏頻道",
+        "SHOW_CHANNELS_PANEL": "顯示頻道"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上傳或選擇其他播放清單",

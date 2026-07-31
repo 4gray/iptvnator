@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "A hiba részletei"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Csatornalista elrejtése",
-        "SHOW_CHANNELS_LIST": "Csatornalista megjelenítése",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Csatornalista megjelenítése vagy elrejtése (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Csoportok elrejtése",
+        "SHOW_GROUPS_PANEL": "Csoportok megjelenítése",
+        "HIDE_CHANNELS_PANEL": "Csatornák elrejtése",
+        "SHOW_CHANNELS_PANEL": "Csatornák megjelenítése"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Másik lejátszási lista feltöltése vagy kiválasztása",

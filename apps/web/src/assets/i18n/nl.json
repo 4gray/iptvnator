@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Zenderlijst verbergen",
-        "SHOW_CHANNELS_LIST": "Zenderlijst tonen",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Groepen verbergen",
+        "SHOW_GROUPS_PANEL": "Groepen tonen",
+        "HIDE_CHANNELS_PANEL": "Zenders verbergen",
+        "SHOW_CHANNELS_PANEL": "Zenders tonen"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload of selecteer een andere afspeellijst",

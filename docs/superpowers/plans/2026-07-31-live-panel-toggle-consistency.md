@@ -614,27 +614,25 @@ git commit -m "feat(ui): align collection live panel control"
 
 - Modify: `apps/web/src/assets/i18n/*.json`
 
-- [ ] **Step 1: Add the English source keys**
+- [x] **Step 1: Add the English source keys**
 
 Replace the ambiguous tooltip contract with:
 
 ```json
 "LAYOUT": {
-    "HIDE_GROUPS": "Hide groups",
-    "SHOW_GROUPS": "Show groups",
-    "HIDE_CHANNELS": "Hide channels",
-    "SHOW_CHANNELS": "Show channels",
-    "GROUPS_TOGGLE_TOOLTIP": "Hide or show groups",
-    "CHANNELS_TOGGLE_TOOLTIP": "Hide or show channels (⌘/Ctrl+B)"
+    "HIDE_GROUPS_PANEL": "Hide groups",
+    "SHOW_GROUPS_PANEL": "Show groups",
+    "HIDE_CHANNELS_PANEL": "Hide channels",
+    "SHOW_CHANNELS_PANEL": "Show channels"
 }
 ```
 
-- [ ] **Step 2: Add equivalent short translations to every locale**
+- [x] **Step 2: Add equivalent short translations to every locale**
 
 Preserve all existing locale terminology and key order. Remove old layout keys
 only after no source file references them.
 
-- [ ] **Step 3: Verify key parity and usage**
+- [x] **Step 3: Verify key parity and usage**
 
 ```bash
 pnpm run i18n:check
@@ -643,7 +641,7 @@ rg -n "HIDE_CHANNELS_LIST|SHOW_CHANNELS_LIST|TOGGLE_SIDEBAR_TOOLTIP" apps libs
 
 Expected: i18n check exits 0 and `rg` finds no runtime references.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/web/src/assets/i18n

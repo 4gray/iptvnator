@@ -568,9 +568,10 @@
         "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
-        "HIDE_CHANNELS_LIST": "Masquer la liste des chaînes",
-        "SHOW_CHANNELS_LIST": "Afficher la liste des chaînes",
-        "TOGGLE_SIDEBAR_TOOLTIP": "Basculer la liste des chaînes (⌘/Ctrl+B)"
+        "HIDE_GROUPS_PANEL": "Masquer les groupes",
+        "SHOW_GROUPS_PANEL": "Afficher les groupes",
+        "HIDE_CHANNELS_PANEL": "Masquer les chaînes",
+        "SHOW_CHANNELS_PANEL": "Afficher les chaînes"
     },
     "CHANNELS": {
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Transférer ou choisir une autre liste de lecture",
