@@ -252,6 +252,22 @@ describe('download metadata snapshot', () => {
         );
     });
 
+    it('accepts artwork filenames containing title-like credential words', () => {
+        const snapshot: DownloadMetadataSnapshot = {
+            ...validSnapshot,
+            posterUrl: 'https://images.example.test/posters/secret-garden.jpg',
+            episode: {
+                episodeNumber: 9,
+                seasonNumber: 1,
+                stillUrl: 'https://images.example.test/stills/session-9.jpg',
+            },
+        };
+
+        expect(JSON.parse(encodeDownloadMetadataSnapshot(snapshot))).toEqual(
+            snapshot
+        );
+    });
+
     it('normalizes blank optional artwork sentinels as absent', () => {
         expect(
             JSON.parse(
@@ -366,6 +382,8 @@ describe('download metadata snapshot', () => {
         'AUTH',
         'device_mac',
         'api-key',
+        'access_token=secret',
+        'token:abc',
     ])('rejects credential-like artwork path token %s', (pathToken) => {
         expect(() =>
             encodeDownloadMetadataSnapshot({

@@ -293,9 +293,31 @@ describe('download request metadata snapshots', () => {
         }
     );
 
+    it('rejects a new download when its stream differs from artwork only by a fragment', async () => {
+        const artworkUrl = 'https://streams.example.test/images/live.jpg';
+        const request = await setupStartMetadataRequest(undefined);
+
+        await expect(
+            request.startDownloadRequest(
+                {
+                    ...startPayload({
+                        ...metadataSnapshot,
+                        posterUrl: artworkUrl,
+                    }),
+                    url: `${artworkUrl}#player`,
+                },
+                request.authorizer
+            )
+        ).rejects.toThrow('Invalid download metadata snapshot');
+
+        expect(request.db.insert).not.toHaveBeenCalled();
+        expect(request.db.update).not.toHaveBeenCalled();
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
+    });
+
     it('rejects a restart whose poster reuses the normalized stored stream URL', async () => {
         const storedUrl =
-            'https://STREAMS.example.test:443/images/section/../live.jpg';
+            'https://STREAMS.example.test:443/images/section/../live.jpg#player';
         const posterUrl = 'https://streams.example.test/images/live.jpg';
         const request = await setupStartMetadataRequest({
             contentType: 'vod',
@@ -328,8 +350,8 @@ describe('download request metadata snapshots', () => {
     });
 
     it('rejects a restart whose poster reuses the replacement stream URL', async () => {
-        const replacementUrl =
-            'https://replacement.example.test/images/live.jpg';
+        const artworkUrl = 'https://replacement.example.test/images/live.jpg';
+        const replacementUrl = `${artworkUrl}#player`;
         const request = await setupStartMetadataRequest({
             contentType: 'vod',
             filePath: null,
@@ -347,7 +369,7 @@ describe('download request metadata snapshots', () => {
                 {
                     ...startPayload({
                         ...metadataSnapshot,
-                        posterUrl: replacementUrl,
+                        posterUrl: artworkUrl,
                     }),
                     url: replacementUrl,
                 },

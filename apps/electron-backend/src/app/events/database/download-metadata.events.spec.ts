@@ -367,20 +367,20 @@ describe('downloads events: managed metadata updates', () => {
         }
     );
 
-    it('rejects metadata artwork that reuses the stored stream URL', async () => {
-        const url = 'https://streams.example.test/images/live.jpg';
+    it('rejects metadata artwork when the stored stream differs only by a fragment', async () => {
+        const artworkUrl = 'https://streams.example.test/images/live.jpg';
         const database = createSingleRowDatabase({
             contentType: 'vod',
             id: 42,
             playlistId: 'playlist-a',
             seriesXtreamId: null,
-            url,
+            url: `${artworkUrl}#player`,
         });
 
         await expect(
             getHandler('DOWNLOADS_UPDATE_METADATA')(null, 42, {
                 ...movieSnapshot,
-                posterUrl: url,
+                posterUrl: artworkUrl,
             })
         ).resolves.toEqual({
             error: 'Invalid download metadata snapshot',
@@ -393,7 +393,7 @@ describe('downloads events: managed metadata updates', () => {
     });
 
     it('rejects a group update before writing when artwork reuses a member stream URL', async () => {
-        const reusedUrl = 'https://streams.example.test/images/episode-2.jpg';
+        const artworkUrl = 'https://streams.example.test/images/episode-2.jpg';
         const database = createGroupedDatabase(
             {
                 contentType: 'episode',
@@ -417,7 +417,7 @@ describe('downloads events: managed metadata updates', () => {
                     metadataSnapshot: null,
                     seasonNumber: 1,
                     title: 'Two',
-                    url: reusedUrl,
+                    url: `${artworkUrl}#player`,
                 },
             ]
         );
@@ -426,7 +426,7 @@ describe('downloads events: managed metadata updates', () => {
             getHandler('DOWNLOADS_UPDATE_METADATA')(null, 41, {
                 ...movieSnapshot,
                 mediaKind: 'series',
-                posterUrl: reusedUrl,
+                posterUrl: artworkUrl,
             })
         ).resolves.toEqual({
             error: 'Invalid download metadata snapshot',

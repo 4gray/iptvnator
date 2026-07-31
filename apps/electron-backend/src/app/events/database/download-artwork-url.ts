@@ -33,15 +33,43 @@ const CREDENTIAL_QUERY_TERMS = [
     'token',
 ];
 
+const CREDENTIAL_PATH_KEYS = new Set([
+    'accesskey',
+    'accesstoken',
+    'apikey',
+    'auth',
+    'authentication',
+    'authorization',
+    'cookie',
+    'credential',
+    'credentials',
+    'devicemac',
+    'key',
+    'mac',
+    'macaddress',
+    'oauth',
+    'password',
+    'passwd',
+    'privatekey',
+    'refreshtoken',
+    'secret',
+    'secretkey',
+    'session',
+    'sig',
+    'signature',
+    'signingkey',
+    'token',
+]);
+
 function invalidArtworkUrl(): never {
     throw new Error('Invalid download metadata snapshot');
 }
 
 function isCredentialQueryKey(key: string): boolean {
-    return isCredentialToken(normalizeToken(key));
+    return isCredentialQueryToken(normalizeToken(key));
 }
 
-function isCredentialToken(normalized: string): boolean {
+function isCredentialQueryToken(normalized: string): boolean {
     if (
         normalized === 'auth' ||
         normalized === 'key' ||
@@ -62,6 +90,15 @@ function isCredentialToken(normalized: string): boolean {
         'secretkey',
         'signingkey',
     ].some((term) => normalized.includes(term));
+}
+
+function isCredentialPathSegment(segment: string): boolean {
+    const keyValueSeparator = segment.search(/[=:]/);
+    const key =
+        keyValueSeparator === -1
+            ? segment
+            : segment.slice(0, keyValueSeparator);
+    return CREDENTIAL_PATH_KEYS.has(normalizeToken(key));
 }
 
 function normalizeToken(value: string): string {
@@ -105,6 +142,7 @@ export function getNormalizedDownloadUrlIdentity(
         if (url.protocol !== 'http:' && url.protocol !== 'https:') {
             return undefined;
         }
+        url.hash = '';
         return url.href;
     } catch {
         return undefined;
@@ -135,7 +173,7 @@ export function normalizeDownloadArtworkUrl(
     const hasCredentialPathToken = decodedPathname
         .split('/')
         .filter(Boolean)
-        .some((segment) => isCredentialToken(normalizeToken(segment)));
+        .some(isCredentialPathSegment);
     if (
         (url.protocol !== 'http:' && url.protocol !== 'https:') ||
         url.username !== '' ||
