@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
+import { ErrorDetails, ErrorTypes, type ErrorData } from 'hls.js';
 import {
     PlayerControlsComponent,
     WebVideoControlsAdapter,
@@ -240,19 +241,11 @@ describe('HtmlVideoPlayerComponent', () => {
 
         (
             component as unknown as {
-                handleHlsError: (
-                    url: string,
-                    data: {
-                        type: string;
-                        details: string;
-                        fatal: boolean;
-                        error?: Error;
-                    }
-                ) => void;
+                handleHlsError: (url: string, data: ErrorData) => void;
             }
         ).handleHlsError('https://example.com/live/playlist.m3u8', {
-            type: 'networkError',
-            details: 'fragLoadError',
+            type: ErrorTypes.NETWORK_ERROR,
+            details: ErrorDetails.FRAG_LOAD_ERROR,
             fatal: false,
             error: new Error('segment retry'),
         });
@@ -260,36 +253,51 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(issues).toEqual([]);
     });
 
-    it('keeps raw HLS error object context in emitted playback issue details', () => {
-        const issues: Array<{ details?: string }> = [];
+    it('emits only structured HLS evidence for a fatal manifest HTTP failure', () => {
+        const issues: Array<{
+            readonly code?: string;
+            readonly httpStatus?: number;
+            readonly hls?: unknown;
+        }> = [];
         component.playbackIssue.subscribe((issue) => {
             if (issue) issues.push(issue);
         });
+        const secret = 'html-hls-secret-sentinel';
 
         (
             component as unknown as {
-                handleHlsError: (
-                    url: string,
-                    data: {
-                        type: string;
-                        details: string;
-                        fatal: boolean;
-                        error?: unknown;
-                    }
-                ) => void;
+                handleHlsError: (url: string, data: ErrorData) => void;
             }
         ).handleHlsError('https://example.com/live/playlist.m3u8', {
-            type: 'networkError',
-            details: 'manifestLoadError',
+            type: ErrorTypes.NETWORK_ERROR,
+            details: ErrorDetails.MANIFEST_LOAD_ERROR,
             fatal: true,
-            error: {
-                context: 'xhr setup failed',
-                status: 0,
+            error: new Error(`provider message ${secret}`),
+            reason: `provider reason ${secret}`,
+            response: {
+                code: 404,
+                url: `https://provider.example/error?token=${secret}`,
+                text: secret,
+                data: { body: secret },
             },
+            networkDetails: { responseText: secret },
         });
 
-        expect(issues[0].details).toContain('xhr setup failed');
-        expect(issues[0].details).toContain('"status":0');
+        expect(issues[0]).toEqual(
+            expect.objectContaining({
+                code: 'network-error',
+                httpStatus: 404,
+                hls: {
+                    engineType: ErrorTypes.NETWORK_ERROR,
+                    engineDetails: ErrorDetails.MANIFEST_LOAD_ERROR,
+                    disposition: 'fatal',
+                    stage: 'manifest',
+                    failure: 'http',
+                    httpStatus: 404,
+                },
+            })
+        );
+        expect(JSON.stringify(issues[0].hls)).not.toContain(secret);
     });
 
     it('emits playbackEnded exactly once for a native ended event and not during reload or destroy', () => {

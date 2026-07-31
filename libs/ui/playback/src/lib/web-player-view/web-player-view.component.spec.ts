@@ -15,6 +15,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { ErrorDetails, ErrorTypes } from 'hls.js';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
 import {
     PlaybackDiagnostic,
@@ -315,6 +316,30 @@ describe('WebPlayerViewComponent', () => {
                 },
             ])
         );
+    });
+
+    it('renders only sanitized structured HLS evidence in technical details', () => {
+        const issue = createStructuredHlsDiagnostic();
+
+        component.handlePlaybackIssue(issue);
+        fixture.detectChanges();
+
+        const details = component.getDiagnosticDetails(issue);
+        const renderedDetails = details.map(({ value }) => value).join(' ');
+
+        expect(details).toEqual(
+            expect.arrayContaining([
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
+                    value:
+                        'stage=manifest · failure=http · ' +
+                        'type=networkError · details=manifestLoadError · ' +
+                        'disposition=fatal · HTTP 404',
+                },
+            ])
+        );
+        expect(renderedDetails).not.toContain('diagnostic-url-secret');
+        expect(renderedDetails).not.toContain('provider.example');
     });
 
     it('keeps query-declared HLS streams on the HLS mime type', () => {
@@ -874,6 +899,30 @@ function createHttpDiagnostic(): PlaybackDiagnostic {
         nativeErrorMessage: 'source not supported',
         httpStatus: 404,
         nativeErrorType: 'networkrequestfailed',
+        externalFallbackRecommended: false,
+    };
+}
+
+function createStructuredHlsDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.Hls,
+        sourceUrl:
+            'https://provider.example/live.m3u8?token=diagnostic-url-secret',
+        container: 'm3u8',
+        mimeType: 'application/x-mpegURL',
+        player: 'html5',
+        audioCodecs: [],
+        videoCodecs: [],
+        httpStatus: 404,
+        hls: {
+            engineType: ErrorTypes.NETWORK_ERROR,
+            engineDetails: ErrorDetails.MANIFEST_LOAD_ERROR,
+            disposition: 'fatal',
+            stage: 'manifest',
+            failure: 'http',
+            httpStatus: 404,
+        },
         externalFallbackRecommended: false,
     };
 }

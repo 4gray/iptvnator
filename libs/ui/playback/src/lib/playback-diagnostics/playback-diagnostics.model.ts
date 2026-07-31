@@ -2,6 +2,7 @@ import type {
     ExternalPlayerName,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import type { ErrorDetails, ErrorTypes } from 'hls.js';
 
 export const PlaybackDiagnosticCode = {
     UnsupportedContainer: 'unsupported-container',
@@ -65,14 +66,50 @@ export interface NativePlaybackErrorInput {
     readonly metadata?: NativePlaybackErrorMetadataInput;
 }
 
-export interface HlsPlaybackErrorInput {
-    readonly type?: string;
-    readonly details?: string;
-    readonly fatal?: boolean;
-    readonly message?: string;
-    readonly error?: unknown;
-    readonly audioCodecs?: readonly string[];
-    readonly videoCodecs?: readonly string[];
+export const HlsPlaybackDisposition = {
+    Fatal: 'fatal',
+    Recoverable: 'recoverable',
+} as const;
+
+export type HlsPlaybackDisposition =
+    (typeof HlsPlaybackDisposition)[keyof typeof HlsPlaybackDisposition];
+
+export const HlsPlaybackStage = {
+    Manifest: 'manifest',
+    Level: 'level',
+    Segment: 'segment',
+    Key: 'key',
+    Media: 'media',
+    Unknown: 'unknown',
+} as const;
+
+export type HlsPlaybackStage =
+    (typeof HlsPlaybackStage)[keyof typeof HlsPlaybackStage];
+
+export const HlsPlaybackFailure = {
+    Http: 'http',
+    Timeout: 'timeout',
+    Network: 'network',
+    Access: 'access',
+    Unknown: 'unknown',
+} as const;
+
+export type HlsPlaybackFailure =
+    (typeof HlsPlaybackFailure)[keyof typeof HlsPlaybackFailure];
+
+export const HlsPlaybackUnknownEngineType = 'unknown' as const;
+
+export type HlsPlaybackEngineType =
+    | ErrorTypes
+    | typeof HlsPlaybackUnknownEngineType;
+
+export interface HlsPlaybackEvidence {
+    readonly engineType: HlsPlaybackEngineType;
+    readonly engineDetails: ErrorDetails;
+    readonly disposition: HlsPlaybackDisposition;
+    readonly stage: HlsPlaybackStage;
+    readonly failure: HlsPlaybackFailure;
+    readonly httpStatus?: number;
 }
 
 export interface MpegTsPlaybackErrorInput {
@@ -96,6 +133,7 @@ export interface PlaybackDiagnostic {
     readonly nativeErrorMessage?: string;
     readonly httpStatus?: number;
     readonly nativeErrorType?: string;
+    readonly hls?: HlsPlaybackEvidence;
     readonly externalFallbackRecommended: boolean;
 }
 

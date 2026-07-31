@@ -9,6 +9,7 @@ import {
     classifyHlsPlaybackIssue,
     classifyMpegTsPlaybackIssue,
     classifyUnsupportedHlsManifestCodecs,
+    createHlsPlaybackEvidence,
     createPlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { WebVideoControlsAdapter } from '../player-controls';
@@ -312,22 +313,15 @@ export class ArtPlayerSourceSession {
     }
 
     private handleHlsError(url: string, data: ErrorData): void {
-        if (!data.fatal) {
+        const issue = classifyHlsPlaybackIssue(
+            createHlsPlaybackEvidence(data),
+            this.createSourceMetadata(url, 'application/x-mpegURL')
+        );
+        if (!issue) {
             return;
         }
 
-        this.config.emitPlaybackIssue(
-            classifyHlsPlaybackIssue(
-                {
-                    type: data.type,
-                    details: data.details,
-                    fatal: data.fatal,
-                    message: data.error?.message,
-                    error: data.error,
-                },
-                this.createSourceMetadata(url, 'application/x-mpegURL')
-            )
-        );
+        this.config.emitPlaybackIssue(issue);
     }
 
     private createSourceMetadata(

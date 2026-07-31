@@ -206,6 +206,56 @@ describe('ArtPlayerSourceSession', () => {
         ]);
     });
 
+    it('reports only structured evidence for a fatal HLS manifest HTTP failure', () => {
+        const emitted: PlaybackDiagnostic[] = [];
+        const { session, player, video } = createSession({
+            sharedControls: true,
+            emitPlaybackIssue: (issue) => emitted.push(issue),
+        });
+        const secret = 'art-hls-secret-sentinel';
+        session.attach(player);
+        session.customType['m3u8']?.(
+            video,
+            'https://example.test/live.m3u8',
+            player
+        );
+
+        hlsInstances[0].emit(MockHls.Events.ERROR, null, {
+            type: 'networkError',
+            details: 'manifestLoadError',
+            fatal: true,
+            error: new Error(`provider message ${secret}`),
+            reason: `provider reason ${secret}`,
+            response: {
+                code: 503,
+                url: `https://provider.example/error?token=${secret}`,
+                text: secret,
+                data: { body: secret },
+            },
+            context: {
+                url: `https://provider.example/context?token=${secret}`,
+                headers: { Authorization: `Bearer ${secret}` },
+            },
+        });
+
+        expect(emitted).toEqual([
+            expect.objectContaining({
+                code: 'network-error',
+                source: 'hls',
+                httpStatus: 503,
+                hls: {
+                    engineType: 'networkError',
+                    engineDetails: 'manifestLoadError',
+                    disposition: 'fatal',
+                    stage: 'manifest',
+                    failure: 'http',
+                    httpStatus: 503,
+                },
+            }),
+        ]);
+        expect(JSON.stringify(emitted[0].hls)).not.toContain(secret);
+    });
+
     it('ignores a delayed customType callback after its player was destroyed', () => {
         const { session, player, video } = createSession({
             sharedControls: true,

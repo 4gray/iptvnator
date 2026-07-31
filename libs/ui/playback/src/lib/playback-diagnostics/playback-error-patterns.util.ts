@@ -1,17 +1,11 @@
-import type {
-    HlsPlaybackErrorInput,
-    MpegTsPlaybackErrorInput,
-} from './playback-diagnostics.model';
+import type { MpegTsPlaybackErrorInput } from './playback-diagnostics.model';
 
 export function normalizeErrorDetails(
-    error: HlsPlaybackErrorInput | MpegTsPlaybackErrorInput
+    error: MpegTsPlaybackErrorInput
 ): string {
-    const hlsError = 'error' in error ? error.error : undefined;
-    const mpegTsInfo = 'info' in error ? error.info : undefined;
-    const errorMessage = normalizeErrorPayload(hlsError);
-    const info = normalizeErrorPayload(mpegTsInfo);
+    const info = normalizeErrorPayload(error.info);
 
-    return [error.details, error.message, errorMessage, info]
+    return [error.details, error.message, info]
         .filter((part): part is string => Boolean(part))
         .join(' ');
 }

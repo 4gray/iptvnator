@@ -72,6 +72,27 @@ describe('HtmlVideoPlayerComponent shared controls sources', () => {
         expect(bindIndex).toBeLessThan(loadIndex);
     });
 
+    it('does not write HLS provider data to development logs', () => {
+        const secret = 'hls-dev-log-secret';
+        const debug = jest
+            .spyOn(console, 'debug')
+            .mockImplementation(() => undefined);
+        jest.replaceProperty(process.env, 'NODE_ENV', 'development');
+
+        renderSharedControls(HtmlVideoPlayerComponent, fixtures, {
+            channel: {
+                ...TEST_CHANNEL,
+                name: `Provider channel ${secret}`,
+                url: `https://user:${secret}@provider.example/live.m3u8?token=${secret}`,
+                epgParams: `&epg-token=${secret}`,
+            },
+        });
+
+        const serializedLogs = JSON.stringify(debug.mock.calls);
+        expect(serializedLogs).not.toContain(secret);
+        expect(serializedLogs).not.toContain('provider.example');
+    });
+
     it.each([false, true])(
         'passes authoritative isLive=%s to raw MPEG-TS playback',
         (isLive) => {

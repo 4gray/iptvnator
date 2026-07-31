@@ -1,5 +1,5 @@
 import type {
-    HlsPlaybackErrorInput,
+    HlsPlaybackEvidence,
     MpegTsPlaybackErrorInput,
     NativePlaybackErrorInput,
     PlaybackDiagnostic,
@@ -8,21 +8,19 @@ import type {
     PlaybackSourceMetadata,
 } from './playback-diagnostics.model';
 import { PlaybackDiagnosticCode as DiagnosticCode } from './playback-diagnostics.model';
+import { HlsPlaybackDisposition } from './playback-diagnostics.model';
 import { PlaybackDiagnosticSource as DiagnosticSource } from './playback-diagnostics.model';
+import { getHlsPlaybackDiagnosticCode } from './hls-playback-evidence.util';
 import {
     isBrowserAccessFailure,
-    isCodecFailure,
-    isDrmOrEncryptionFailure,
     isEarlyEofFailure,
     isNetworkFailure,
     normalizeErrorDetails,
 } from './playback-error-patterns.util';
-import {
-    isLikelyContainerIssue,
-    mergeCodecMetadata,
-} from './playback-media-source.util';
+import { isLikelyContainerIssue } from './playback-media-source.util';
 
 export * from './playback-diagnostics.model';
+export { createHlsPlaybackEvidence } from './hls-playback-evidence.util';
 export {
     createPlaybackSourceMetadata,
     getLikelyBrowserUnsupportedCodecLabels,
@@ -110,60 +108,19 @@ export function classifyNativePlaybackIssue(
 }
 
 export function classifyHlsPlaybackIssue(
-    error: HlsPlaybackErrorInput,
+    evidence: HlsPlaybackEvidence,
     metadata: PlaybackSourceMetadata
-): PlaybackDiagnostic {
-    const details = normalizeErrorDetails(error);
-    const lowerDetails = details.toLowerCase();
-    const lowerType = (error.type ?? '').toLowerCase();
-    const mergedMetadata = mergeCodecMetadata(metadata, {
-        audioCodecs: error.audioCodecs,
-        videoCodecs: error.videoCodecs,
-    });
-
-    if (isNetworkFailure(lowerType, lowerDetails)) {
-        return createPlaybackDiagnostic({
-            code: isBrowserAccessFailure(lowerDetails)
-                ? DiagnosticCode.BrowserAccessError
-                : DiagnosticCode.NetworkError,
-            source: DiagnosticSource.Hls,
-            metadata: mergedMetadata,
-            details,
-        });
-    }
-
-    if (isDrmOrEncryptionFailure(lowerDetails)) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.DrmOrEncryption,
-            source: DiagnosticSource.Hls,
-            metadata: mergedMetadata,
-            details,
-        });
-    }
-
-    if (isCodecFailure(lowerDetails)) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.UnsupportedCodec,
-            source: DiagnosticSource.Hls,
-            metadata: mergedMetadata,
-            details,
-        });
-    }
-
-    if (lowerType.includes('media') || lowerType.includes('mux')) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.MediaDecodeError,
-            source: DiagnosticSource.Hls,
-            metadata: mergedMetadata,
-            details,
-        });
+): PlaybackDiagnostic | null {
+    if (evidence.disposition === HlsPlaybackDisposition.Recoverable) {
+        return null;
     }
 
     return createPlaybackDiagnostic({
-        code: DiagnosticCode.UnknownPlaybackError,
+        code: getHlsPlaybackDiagnosticCode(evidence),
         source: DiagnosticSource.Hls,
-        metadata: mergedMetadata,
-        details,
+        metadata,
+        httpStatus: evidence.httpStatus,
+        hls: evidence,
     });
 }
 
@@ -261,6 +218,7 @@ export function createPlaybackDiagnostic(options: {
     readonly nativeErrorMessage?: string;
     readonly httpStatus?: number;
     readonly nativeErrorType?: string;
+    readonly hls?: HlsPlaybackEvidence;
     /** Overrides the code-derived recommendation, e.g. when external players
      * are known to be unable to handle the stream either. */
     readonly externalFallbackRecommended?: boolean;
@@ -274,6 +232,7 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorMessage,
         httpStatus,
         nativeErrorType,
+        hls,
     } = options;
 
     return {
@@ -290,6 +249,7 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorMessage,
         httpStatus,
         nativeErrorType,
+        hls,
         externalFallbackRecommended:
             options.externalFallbackRecommended ??
             isExternalFallbackRecommended(code),

@@ -257,7 +257,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 Hls &&
                 Hls.isSupported()
             ) {
-                debugHtmlPlayer('Switching channel to:', channel.name, url);
+                debugHtmlPlayer('Starting HLS playback');
                 const hls = new Hls();
                 this.hls = hls;
                 hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {

@@ -1,3 +1,4 @@
+import { ErrorDetails, ErrorTypes } from 'hls.js';
 import {
     PlaybackDiagnosticCode,
     classifyHlsPlaybackIssue,
@@ -8,13 +9,32 @@ import {
     getPlaybackMediaExtensionFromUrl,
 } from './playback-diagnostics.util';
 
+interface StructuredHlsEvidenceInput {
+    readonly engineType: string;
+    readonly engineDetails: string;
+    readonly disposition: string;
+    readonly stage: string;
+    readonly failure: string;
+    readonly httpStatus?: number;
+}
+
+function classifyStructuredHlsPlaybackIssue(
+    evidence: StructuredHlsEvidenceInput,
+    metadata: Parameters<typeof classifyHlsPlaybackIssue>[1]
+): ReturnType<typeof classifyHlsPlaybackIssue> {
+    return classifyHlsPlaybackIssue(evidence as never, metadata);
+}
+
 describe('playback diagnostics', () => {
     it('classifies HLS incompatible codec errors as unsupported codec fallbacks', () => {
-        const issue = classifyHlsPlaybackIssue(
+        const issue = classifyStructuredHlsPlaybackIssue(
             {
-                type: 'mediaError',
-                details: 'manifestIncompatibleCodecsError',
-                fatal: true,
+                engineType: ErrorTypes.MEDIA_ERROR,
+                engineDetails:
+                    ErrorDetails.MANIFEST_INCOMPATIBLE_CODECS_ERROR,
+                disposition: 'fatal',
+                stage: 'manifest',
+                failure: 'unknown',
             },
             createPlaybackSourceMetadata({
                 url: 'https://example.com/live/index.m3u8',
@@ -25,18 +45,21 @@ describe('playback diagnostics', () => {
             })
         );
 
-        expect(issue.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
-        expect(issue.externalFallbackRecommended).toBe(true);
-        expect(issue.audioCodecs).toEqual(['ac-3']);
-        expect(issue.videoCodecs).toEqual(['avc1.64001f']);
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
+        expect(issue?.externalFallbackRecommended).toBe(true);
+        expect(issue?.audioCodecs).toEqual(['ac-3']);
+        expect(issue?.videoCodecs).toEqual(['avc1.64001f']);
     });
 
     it('classifies HLS buffer codec errors as unsupported codec fallbacks', () => {
-        const issue = classifyHlsPlaybackIssue(
+        const issue = classifyStructuredHlsPlaybackIssue(
             {
-                type: 'mediaError',
-                details: 'bufferIncompatibleCodecsError',
-                fatal: true,
+                engineType: ErrorTypes.MEDIA_ERROR,
+                engineDetails:
+                    ErrorDetails.BUFFER_INCOMPATIBLE_CODECS_ERROR,
+                disposition: 'fatal',
+                stage: 'media',
+                failure: 'unknown',
             },
             createPlaybackSourceMetadata({
                 url: 'https://example.com/live/index.m3u8',
@@ -44,8 +67,8 @@ describe('playback diagnostics', () => {
             })
         );
 
-        expect(issue.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
-        expect(issue.externalFallbackRecommended).toBe(true);
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
+        expect(issue?.externalFallbackRecommended).toBe(true);
     });
 
     it('classifies native decode and unsupported source errors without using network wording', () => {
@@ -204,11 +227,13 @@ describe('playback diagnostics', () => {
     });
 
     it('classifies HLS network errors without claiming codec incompatibility', () => {
-        const issue = classifyHlsPlaybackIssue(
+        const issue = classifyStructuredHlsPlaybackIssue(
             {
-                type: 'networkError',
-                details: 'manifestLoadError',
-                fatal: true,
+                engineType: ErrorTypes.NETWORK_ERROR,
+                engineDetails: ErrorDetails.MANIFEST_LOAD_ERROR,
+                disposition: 'fatal',
+                stage: 'manifest',
+                failure: 'network',
             },
             createPlaybackSourceMetadata({
                 url: 'https://example.com/live/index.m3u8',
@@ -216,16 +241,51 @@ describe('playback diagnostics', () => {
             })
         );
 
-        expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
-        expect(issue.externalFallbackRecommended).toBe(false);
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue?.externalFallbackRecommended).toBe(false);
     });
 
-    it('does not treat provider-side blocked messages as browser access errors', () => {
-        const issue = classifyHlsPlaybackIssue(
+    it('retains structured HLS HTTP and stage evidence', () => {
+        const issue = classifyStructuredHlsPlaybackIssue(
             {
-                type: 'networkError',
-                details: 'manifestLoadError Request blocked by rate limiter',
-                fatal: true,
+                engineType: ErrorTypes.NETWORK_ERROR,
+                engineDetails: ErrorDetails.MANIFEST_LOAD_ERROR,
+                disposition: 'fatal',
+                stage: 'manifest',
+                failure: 'http',
+                httpStatus: 404,
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/index.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue).toEqual(
+            expect.objectContaining({
+                code: PlaybackDiagnosticCode.NetworkError,
+                httpStatus: 404,
+                hls: expect.objectContaining({
+                    engineType: ErrorTypes.NETWORK_ERROR,
+                    engineDetails: ErrorDetails.MANIFEST_LOAD_ERROR,
+                    disposition: 'fatal',
+                    stage: 'manifest',
+                    failure: 'http',
+                    httpStatus: 404,
+                }),
+                externalFallbackRecommended: false,
+            })
+        );
+    });
+
+    it('does not create terminal diagnostics for recoverable HLS events', () => {
+        const issue = classifyStructuredHlsPlaybackIssue(
+            {
+                engineType: ErrorTypes.NETWORK_ERROR,
+                engineDetails: ErrorDetails.FRAG_LOAD_ERROR,
+                disposition: 'recoverable',
+                stage: 'segment',
+                failure: 'network',
             },
             createPlaybackSourceMetadata({
                 url: 'https://provider.example/live/index.m3u8',
@@ -233,65 +293,109 @@ describe('playback diagnostics', () => {
             })
         );
 
-        expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
-        expect(issue.externalFallbackRecommended).toBe(false);
+        expect(issue).toBeNull();
     });
 
-    it('keeps raw HLS error object context in diagnostic details', () => {
-        const issue = classifyHlsPlaybackIssue(
+    it('keeps status-zero HLS failures as network evidence rather than guessing access', () => {
+        const issue = classifyStructuredHlsPlaybackIssue(
             {
-                type: 'networkError',
-                details: 'manifestLoadError',
-                fatal: true,
-                error: {
-                    context: 'xhr setup failed',
-                    status: 0,
+                engineType: ErrorTypes.NETWORK_ERROR,
+                engineDetails: ErrorDetails.MANIFEST_LOAD_ERROR,
+                disposition: 'fatal',
+                stage: 'manifest',
+                failure: 'network',
+            },
+            createPlaybackSourceMetadata({
+                url: 'http://provider.example/live.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue?.httpStatus).toBeUndefined();
+        expect(issue?.externalFallbackRecommended).toBe(false);
+    });
+
+    it('classifies exact HLS decrypt evidence as DRM or encryption', () => {
+        const issue = classifyStructuredHlsPlaybackIssue(
+            {
+                engineType: ErrorTypes.MEDIA_ERROR,
+                engineDetails: ErrorDetails.FRAG_DECRYPT_ERROR,
+                disposition: 'fatal',
+                stage: 'segment',
+                failure: 'unknown',
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/live.m3u8',
+                player: 'html5',
+            })
+        );
+
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
+        expect(issue?.externalFallbackRecommended).toBe(true);
+    });
+
+    it('classifies exact HLS key load failures as network errors', () => {
+        const issue = classifyStructuredHlsPlaybackIssue(
+            {
+                engineType: ErrorTypes.NETWORK_ERROR,
+                engineDetails: ErrorDetails.KEY_LOAD_ERROR,
+                disposition: 'fatal',
+                stage: 'key',
+                failure: 'network',
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/live.m3u8',
+                player: 'artplayer',
+            })
+        );
+
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue?.externalFallbackRecommended).toBe(false);
+    });
+
+    it.each([ErrorTypes.MEDIA_ERROR, ErrorTypes.MUX_ERROR])(
+        'classifies exact HLS %s evidence as a media decode error',
+        (engineType) => {
+            const issue = classifyStructuredHlsPlaybackIssue(
+                {
+                    engineType,
+                    engineDetails: ErrorDetails.FRAG_PARSING_ERROR,
+                    disposition: 'fatal',
+                    stage: 'segment',
+                    failure: 'unknown',
                 },
-            },
-            createPlaybackSourceMetadata({
-                url: 'https://provider.example/live/index.m3u8',
-                player: 'videojs',
-            })
-        );
+                createPlaybackSourceMetadata({
+                    url: 'https://provider.example/live.m3u8',
+                    player: 'html5',
+                })
+            );
 
-        expect(issue.details).toContain('xhr setup failed');
-        expect(issue.details).toContain('"status":0');
-    });
+            expect(issue?.code).toBe(
+                PlaybackDiagnosticCode.MediaDecodeError
+            );
+        }
+    );
 
-    it('classifies HLS browser access blocks separately from provider network failures', () => {
-        const issue = classifyHlsPlaybackIssue(
+    it('keeps unknown structured HLS evidence unknown', () => {
+        const issue = classifyStructuredHlsPlaybackIssue(
             {
-                type: 'networkError',
-                details:
-                    'manifestLoadError Mixed Content: The page at https://app.example was loaded over HTTPS, but requested an insecure stream http://provider.example/live.m3u8. This request has been blocked.',
-                fatal: true,
+                engineType: 'unknown',
+                engineDetails: ErrorDetails.UNKNOWN,
+                disposition: 'fatal',
+                stage: 'unknown',
+                failure: 'unknown',
             },
             createPlaybackSourceMetadata({
-                url: 'http://provider.example/live.m3u8',
-                player: 'videojs',
+                url: 'https://provider.example/live.m3u8?codec=network',
+                player: 'html5',
             })
         );
 
-        expect(issue.code).toBe('browser-access-error');
-        expect(issue.externalFallbackRecommended).toBe(true);
-    });
-
-    it('classifies browser security policy blocks as browser access errors', () => {
-        const issue = classifyHlsPlaybackIssue(
-            {
-                type: 'networkError',
-                details:
-                    'manifestLoadError Refused to connect because it violates the following Content Security Policy directive: "connect-src"',
-                fatal: true,
-            },
-            createPlaybackSourceMetadata({
-                url: 'http://provider.example/live.m3u8',
-                player: 'videojs',
-            })
+        expect(issue?.code).toBe(
+            PlaybackDiagnosticCode.UnknownPlaybackError
         );
-
-        expect(issue.code).toBe(PlaybackDiagnosticCode.BrowserAccessError);
-        expect(issue.externalFallbackRecommended).toBe(true);
+        expect(issue?.externalFallbackRecommended).toBe(false);
     });
 
     it('classifies native CORS failures as browser access errors', () => {
