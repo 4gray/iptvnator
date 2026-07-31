@@ -1,4 +1,10 @@
 import { ErrorDetails, ErrorTypes } from 'hls.js';
+import type {
+    NativePlaybackErrorInput,
+    PlaybackDiagnostic,
+    PlaybackSourceMetadata,
+} from './playback-diagnostics.model';
+import * as diagnostics from './playback-diagnostics.util';
 import {
     PlaybackDiagnosticCode,
     classifyHlsPlaybackIssue,
@@ -25,13 +31,17 @@ function classifyStructuredHlsPlaybackIssue(
     return classifyHlsPlaybackIssue(evidence as never, metadata);
 }
 
+type VhsClassifier = (
+    error: NativePlaybackErrorInput,
+    metadata: PlaybackSourceMetadata
+) => PlaybackDiagnostic;
+
 describe('playback diagnostics', () => {
     it('classifies HLS incompatible codec errors as unsupported codec fallbacks', () => {
         const issue = classifyStructuredHlsPlaybackIssue(
             {
                 engineType: ErrorTypes.MEDIA_ERROR,
-                engineDetails:
-                    ErrorDetails.MANIFEST_INCOMPATIBLE_CODECS_ERROR,
+                engineDetails: ErrorDetails.MANIFEST_INCOMPATIBLE_CODECS_ERROR,
                 disposition: 'fatal',
                 stage: 'manifest',
                 failure: 'unknown',
@@ -55,8 +65,7 @@ describe('playback diagnostics', () => {
         const issue = classifyStructuredHlsPlaybackIssue(
             {
                 engineType: ErrorTypes.MEDIA_ERROR,
-                engineDetails:
-                    ErrorDetails.BUFFER_INCOMPATIBLE_CODECS_ERROR,
+                engineDetails: ErrorDetails.BUFFER_INCOMPATIBLE_CODECS_ERROR,
                 disposition: 'fatal',
                 stage: 'media',
                 failure: 'unknown',
@@ -146,6 +155,150 @@ describe('playback diagnostics', () => {
         expect(issue.externalFallbackRecommended).toBe(false);
     });
 
+    it('classifies exact VHS network evidence without using provider text', () => {
+        const issue = classifyVhsPlaybackIssue(
+            {
+                code: 4,
+                message:
+                    'provider says codec DRM CORS at ' +
+                    'https://provider.example/live.m3u8?token=secret',
+                metadata: { errorType: 'networkrequestfailed' },
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/missing.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue).toEqual(
+            expect.objectContaining({
+                code: PlaybackDiagnosticCode.NetworkError,
+                source: 'vhs',
+                httpStatus: undefined,
+                nativeErrorMessage: undefined,
+                externalFallbackRecommended: false,
+                vhs: {
+                    engineType: 'networkrequestfailed',
+                    mediaErrorCode: 4,
+                    disposition: 'terminal',
+                    stage: 'unknown',
+                },
+            })
+        );
+    });
+
+    it('classifies exact VHS decrypt evidence without inspecting messages', () => {
+        const issue = classifyVhsPlaybackIssue(
+            {
+                code: 3,
+                message: 'provider network timeout',
+                metadata: {
+                    errorType: 'streamingfailedtodecryptsegment',
+                },
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/encrypted.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
+        expect(issue.source).toBe('vhs');
+        expect(issue.externalFallbackRecommended).toBe(true);
+        expect(issue.nativeErrorMessage).toBeUndefined();
+        expect(issue.vhs).toEqual({
+            engineType: 'streamingfailedtodecryptsegment',
+            mediaErrorCode: 3,
+            disposition: 'terminal',
+            stage: 'segment',
+        });
+    });
+
+    it('classifies the public encrypted MediaError code without DRM text', () => {
+        const issue = classifyVhsPlaybackIssue(
+            { code: 5, message: 'provider supplied message' },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/encrypted.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
+        expect(issue.nativeErrorMessage).toBeUndefined();
+    });
+
+    it('keeps generic VHS code three unknown while native code three remains decode evidence', () => {
+        const metadata = createPlaybackSourceMetadata({
+            url: 'https://example.com/live/index.m3u8',
+            player: 'videojs',
+        });
+        const vhsIssue = classifyVhsPlaybackIssue(
+            {
+                code: 3,
+                message:
+                    'Playback cannot continue. No available working or supported playlists.',
+            },
+            metadata
+        );
+        const nativeIssue = classifyNativePlaybackIssue(
+            { code: 3, message: 'native decode failed' },
+            metadata
+        );
+
+        expect(vhsIssue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
+        expect(vhsIssue.externalFallbackRecommended).toBe(false);
+        expect(vhsIssue.nativeErrorMessage).toBeUndefined();
+        expect(nativeIssue.code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
+    });
+
+    it('retains only safe VHS HTTP and allowlisted engine evidence', () => {
+        const secret = 'vhs-classifier-secret';
+        const issue = classifyVhsPlaybackIssue(
+            {
+                code: 4,
+                status: 503,
+                message: `https://provider.example/?token=${secret}`,
+                metadata: {
+                    errorType: 'networkbadstatus',
+                    requestType: 'hls-key',
+                    headers: { Authorization: secret },
+                    responseBody: secret,
+                },
+            } as NativePlaybackErrorInput,
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/index.m3u8',
+                player: 'videojs',
+            })
+        );
+        const serializedEvidence = JSON.stringify(issue.vhs);
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue.httpStatus).toBe(503);
+        expect(issue.nativeErrorMessage).toBeUndefined();
+        expect(serializedEvidence).not.toContain(secret);
+        expect(serializedEvidence).not.toContain('provider.example');
+        expect(serializedEvidence).not.toContain('hls-key');
+        expect(serializedEvidence).not.toContain('Authorization');
+    });
+
+    it('keeps unknown VHS metadata unknown despite cause-shaped provider text', () => {
+        const issue = classifyVhsPlaybackIssue(
+            {
+                code: 3,
+                message: 'CORS codec DRM network timeout',
+                metadata: { errorType: 'providerCodecCorsDrmError' },
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/index.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
+        expect(issue.vhs?.engineType).toBe('unknown');
+        expect(issue.nativeErrorMessage).toBeUndefined();
+    });
+
     it('keeps native code four HLS source failures unknown without status or container evidence', () => {
         const issue = classifyNativePlaybackIssue(
             { code: 4, message: 'source not supported' },
@@ -186,45 +339,49 @@ describe('playback diagnostics', () => {
         { status: 599, accepted: true },
         { status: 600, accepted: false },
         { status: 404.5, accepted: false },
-    ])('accepts native HTTP status $status only when it is a 4xx or 5xx integer', ({
-        status,
-        accepted,
-    }) => {
-        const issue = classifyNativePlaybackIssue(
-            { code: 4, status },
-            createPlaybackSourceMetadata({
-                url: 'https://example.com/live/missing.m3u8',
-                player: 'videojs',
-            })
-        );
+    ])(
+        'accepts native HTTP status $status only when it is a 4xx or 5xx integer',
+        ({ status, accepted }) => {
+            const issue = classifyNativePlaybackIssue(
+                { code: 4, status },
+                createPlaybackSourceMetadata({
+                    url: 'https://example.com/live/missing.m3u8',
+                    player: 'videojs',
+                })
+            );
 
-        expect(issue.code).toBe(
-            accepted
-                ? PlaybackDiagnosticCode.NetworkError
-                : PlaybackDiagnosticCode.UnknownPlaybackError
-        );
-        expect(issue.httpStatus).toBe(accepted ? status : undefined);
-    });
+            expect(issue.code).toBe(
+                accepted
+                    ? PlaybackDiagnosticCode.NetworkError
+                    : PlaybackDiagnosticCode.UnknownPlaybackError
+            );
+            expect(issue.httpStatus).toBe(accepted ? status : undefined);
+        }
+    );
 
     it.each([
         { length: 128, accepted: true },
         { length: 129, accepted: false },
-    ])('retains native error type identifiers up to $length characters', ({
-        length,
-        accepted,
-    }) => {
-        const errorType = 'a'.repeat(length);
-        const issue = classifyNativePlaybackIssue(
-            { code: 4, metadata: { errorType } },
-            createPlaybackSourceMetadata({
-                url: 'https://example.com/live/missing.m3u8',
-                player: 'videojs',
-            })
-        );
+    ])(
+        'retains native error type identifiers up to $length characters',
+        ({ length, accepted }) => {
+            const errorType = 'a'.repeat(length);
+            const issue = classifyNativePlaybackIssue(
+                { code: 4, metadata: { errorType } },
+                createPlaybackSourceMetadata({
+                    url: 'https://example.com/live/missing.m3u8',
+                    player: 'videojs',
+                })
+            );
 
-        expect(issue.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
-        expect(issue.nativeErrorType).toBe(accepted ? errorType : undefined);
-    });
+            expect(issue.code).toBe(
+                PlaybackDiagnosticCode.UnknownPlaybackError
+            );
+            expect(issue.nativeErrorType).toBe(
+                accepted ? errorType : undefined
+            );
+        }
+    );
 
     it('classifies HLS network errors without claiming codec incompatibility', () => {
         const issue = classifyStructuredHlsPlaybackIssue(
@@ -371,9 +528,7 @@ describe('playback diagnostics', () => {
                 })
             );
 
-            expect(issue?.code).toBe(
-                PlaybackDiagnosticCode.MediaDecodeError
-            );
+            expect(issue?.code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
         }
     );
 
@@ -392,9 +547,7 @@ describe('playback diagnostics', () => {
             })
         );
 
-        expect(issue?.code).toBe(
-            PlaybackDiagnosticCode.UnknownPlaybackError
-        );
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.UnknownPlaybackError);
         expect(issue?.externalFallbackRecommended).toBe(false);
     });
 
@@ -586,3 +739,20 @@ describe('playback diagnostics', () => {
         ).toEqual(['HEVC', 'AC-3', 'E-AC-3']);
     });
 });
+
+function classifyVhsPlaybackIssue(
+    error: NativePlaybackErrorInput,
+    metadata: PlaybackSourceMetadata
+): PlaybackDiagnostic {
+    const classifier = (
+        diagnostics as unknown as {
+            readonly classifyVhsPlaybackIssue?: VhsClassifier;
+        }
+    ).classifyVhsPlaybackIssue;
+
+    expect(classifier).toBeDefined();
+    if (!classifier) {
+        throw new Error('classifyVhsPlaybackIssue is not exported');
+    }
+    return classifier(error, metadata);
+}

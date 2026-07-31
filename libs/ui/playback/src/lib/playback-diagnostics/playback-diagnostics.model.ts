@@ -20,6 +20,7 @@ export type PlaybackDiagnosticCode =
 export const PlaybackDiagnosticSource = {
     Source: 'source',
     Native: 'native',
+    Vhs: 'vhs',
     Hls: 'hls',
     MpegTs: 'mpegts',
     Shaka: 'shaka',
@@ -66,6 +67,67 @@ export interface NativePlaybackErrorInput {
     readonly metadata?: NativePlaybackErrorMetadataInput;
 }
 
+export const VhsPlaybackEngineType = {
+    NetworkBadStatus: 'networkbadstatus',
+    NetworkRequestFailed: 'networkrequestfailed',
+    NetworkRequestAborted: 'networkrequestaborted',
+    NetworkRequestTimeout: 'networkrequesttimeout',
+    NetworkBodyParserFailed: 'networkbodyparserfailed',
+    StreamingHlsPlaylistParserError: 'streaminghlsplaylistparsererror',
+    StreamingDashManifestParserError: 'streamingdashmanifestparsererror',
+    StreamingContentSteeringParserError: 'streamingcontentsteeringparsererror',
+    StreamingVttParserError: 'streamingvttparsererror',
+    StreamingFailedToSelectNextSegment: 'streamingfailedtoselectnextsegment',
+    StreamingFailedToDecryptSegment: 'streamingfailedtodecryptsegment',
+    StreamingFailedToTransmuxSegment: 'streamingfailedtotransmuxsegment',
+    StreamingFailedToAppendSegment: 'streamingfailedtoappendsegment',
+    StreamingCodecsChangeError: 'streamingcodecschangeerror',
+} as const;
+
+export const VhsPlaybackUnknownEngineType = 'unknown' as const;
+
+export type VhsPlaybackEngineType =
+    | (typeof VhsPlaybackEngineType)[keyof typeof VhsPlaybackEngineType]
+    | typeof VhsPlaybackUnknownEngineType;
+
+export const VhsPlaybackMediaErrorCode = {
+    Custom: 0,
+    Aborted: 1,
+    Network: 2,
+    Decode: 3,
+    SourceNotSupported: 4,
+    Encrypted: 5,
+    Unknown: 'unknown',
+} as const;
+
+export type VhsPlaybackMediaErrorCode =
+    (typeof VhsPlaybackMediaErrorCode)[keyof typeof VhsPlaybackMediaErrorCode];
+
+export const VhsPlaybackDisposition = {
+    Terminal: 'terminal',
+} as const;
+
+export type VhsPlaybackDisposition =
+    (typeof VhsPlaybackDisposition)[keyof typeof VhsPlaybackDisposition];
+
+export const VhsPlaybackStage = {
+    Manifest: 'manifest',
+    Playlist: 'playlist',
+    Segment: 'segment',
+    Unknown: 'unknown',
+} as const;
+
+export type VhsPlaybackStage =
+    (typeof VhsPlaybackStage)[keyof typeof VhsPlaybackStage];
+
+export interface VhsPlaybackEvidence {
+    readonly engineType: VhsPlaybackEngineType;
+    readonly mediaErrorCode: VhsPlaybackMediaErrorCode;
+    readonly disposition: VhsPlaybackDisposition;
+    readonly stage: VhsPlaybackStage;
+    readonly httpStatus?: number;
+}
+
 export const HlsPlaybackDisposition = {
     Fatal: 'fatal',
     Recoverable: 'recoverable',
@@ -100,8 +162,7 @@ export type HlsPlaybackFailure =
 export const HlsPlaybackUnknownEngineType = 'unknown' as const;
 
 export type HlsPlaybackEngineType =
-    | ErrorTypes
-    | typeof HlsPlaybackUnknownEngineType;
+    ErrorTypes | typeof HlsPlaybackUnknownEngineType;
 
 export interface HlsPlaybackEvidence {
     readonly engineType: HlsPlaybackEngineType;
@@ -133,6 +194,7 @@ export interface PlaybackDiagnostic {
     readonly nativeErrorMessage?: string;
     readonly httpStatus?: number;
     readonly nativeErrorType?: string;
+    readonly vhs?: VhsPlaybackEvidence;
     readonly hls?: HlsPlaybackEvidence;
     readonly externalFallbackRecommended: boolean;
 }

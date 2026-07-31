@@ -21,6 +21,7 @@ import {
     InlinePlaybackPlayer,
     type PlaybackDiagnostic,
     classifyNativePlaybackIssue,
+    classifyVhsPlaybackIssue,
     createPlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import {
@@ -48,6 +49,7 @@ import {
     type VideoPlayerOptions,
     type VideoPlayerSource,
     getVideoJsTechVideo,
+    hasActiveVhsSourceHandler,
 } from './vjs-player.types';
 import { VjsVideoElementSession } from './vjs-video-element-session';
 
@@ -239,16 +241,19 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             typeof this.player.error === 'function'
                 ? this.player.error()
                 : null;
+        const metadata = createPlaybackSourceMetadata({
+            url: source?.src ?? video.currentSrc ?? '',
+            mimeType: source?.type,
+            player: InlinePlaybackPlayer.VideoJs,
+        });
         this.mpegTsSession.syncDuration();
         this.playbackIssue.emit(
-            classifyNativePlaybackIssue(
-                playerError ?? video.error,
-                createPlaybackSourceMetadata({
-                    url: source?.src ?? video.currentSrc ?? '',
-                    mimeType: source?.type,
-                    player: InlinePlaybackPlayer.VideoJs,
-                })
-            )
+            playerError && hasActiveVhsSourceHandler(this.player)
+                ? classifyVhsPlaybackIssue(playerError, metadata)
+                : classifyNativePlaybackIssue(
+                      playerError ?? video.error,
+                      metadata
+                  )
         );
     };
 

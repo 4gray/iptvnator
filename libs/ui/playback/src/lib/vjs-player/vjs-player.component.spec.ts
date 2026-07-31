@@ -204,6 +204,7 @@ describe('VjsPlayerComponent', () => {
     it('preserves Video.js HTTP error context in a playback diagnostic', () => {
         const issues: Array<PlaybackDiagnostic | null> = [];
         component.playbackIssue.subscribe((issue) => issues.push(issue));
+        harness.vhsActive = true;
         render({
             sources: [
                 {
@@ -224,13 +225,110 @@ describe('VjsPlayerComponent', () => {
         expect(issues.at(-1)).toEqual(
             expect.objectContaining({
                 code: 'network-error',
-                source: 'native',
+                source: 'vhs',
                 sourceUrl: 'https://example.test/missing/playlist.m3u8',
                 httpStatus: 404,
-                nativeErrorType: 'networkrequestfailed',
+                nativeErrorMessage: undefined,
+                vhs: {
+                    engineType: 'networkrequestfailed',
+                    mediaErrorCode: 4,
+                    disposition: 'terminal',
+                    stage: 'unknown',
+                    httpStatus: 404,
+                },
                 externalFallbackRecommended: false,
             })
         );
+    });
+
+    it('keeps a generic terminal VHS code three unknown', () => {
+        const issues: Array<PlaybackDiagnostic | null> = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+        harness.vhsActive = true;
+        render({
+            sources: [
+                {
+                    src: 'https://example.test/live/playlist.m3u8',
+                    type: 'application/x-mpegURL',
+                },
+            ],
+        });
+        harness.currentError = {
+            code: 3,
+            message:
+                'Playback cannot continue. No available working or supported playlists.',
+        };
+
+        harness.emit('error');
+
+        expect(issues.at(-1)).toEqual(
+            expect.objectContaining({
+                code: 'unknown-playback-error',
+                source: 'vhs',
+                nativeErrorMessage: undefined,
+                vhs: {
+                    engineType: 'unknown',
+                    mediaErrorCode: 3,
+                    disposition: 'terminal',
+                    stage: 'unknown',
+                },
+                externalFallbackRecommended: false,
+            })
+        );
+    });
+
+    it('keeps non-VHS native code three as media decode evidence', () => {
+        const issues: Array<PlaybackDiagnostic | null> = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+        render({
+            sources: [
+                {
+                    src: 'https://example.test/archive/movie.mp4',
+                    type: 'video/mp4',
+                },
+            ],
+        });
+        harness.currentError = {
+            code: 3,
+            message: 'Native media decode failed',
+        };
+
+        harness.emit('error');
+
+        expect(issues.at(-1)).toEqual(
+            expect.objectContaining({
+                code: 'media-decode-error',
+                source: 'native',
+                nativeErrorMessage: 'Native media decode failed',
+                externalFallbackRecommended: true,
+            })
+        );
+    });
+
+    it('does not publish a diagnostic before the terminal VHS player error', () => {
+        const issues: Array<PlaybackDiagnostic | null> = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+        harness.vhsActive = true;
+        render({
+            sources: [
+                {
+                    src: 'https://example.test/live/playlist.m3u8',
+                    type: 'application/x-mpegURL',
+                },
+            ],
+        });
+        harness.currentError = {
+            code: 2,
+            metadata: { errorType: 'networkrequestfailed' },
+        };
+
+        harness.emit('retryplaylist');
+
+        expect(issues).toEqual([]);
+
+        harness.emit('error');
+
+        expect(issues.at(-1)?.vhs?.disposition).toBe('terminal');
     });
 
     it('rebinds native ended handling after playerreset', () => {
@@ -312,6 +410,7 @@ function createPlayerHarness() {
     const harness = {
         currentVideo: document.createElement('video'),
         currentError: null as NativePlaybackErrorInput | null,
+        vhsActive: false,
         paused: true,
         pauseCompletesImmediately: true,
         ready: () => undefined,
@@ -355,7 +454,10 @@ function createPlayerHarness() {
         paused: jest.fn(() => harness.paused),
         reset: harness.reset,
         src: harness.src,
-        tech: jest.fn(() => ({ el: () => harness.currentVideo })),
+        tech: jest.fn(() => ({
+            el: () => harness.currentVideo,
+            ...(harness.vhsActive ? { vhs: {} } : {}),
+        })),
         volume: harness.volume,
         dispose: jest.fn(),
         qualitySelectorHls: jest.fn(),

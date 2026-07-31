@@ -6,10 +6,16 @@ import type {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
     PlaybackSourceMetadata,
+    VhsPlaybackEngineType as VhsPlaybackEngineTypeValue,
+    VhsPlaybackEvidence,
 } from './playback-diagnostics.model';
 import { PlaybackDiagnosticCode as DiagnosticCode } from './playback-diagnostics.model';
 import { HlsPlaybackDisposition } from './playback-diagnostics.model';
 import { PlaybackDiagnosticSource as DiagnosticSource } from './playback-diagnostics.model';
+import {
+    VhsPlaybackEngineType,
+    VhsPlaybackMediaErrorCode,
+} from './playback-diagnostics.model';
 import { getHlsPlaybackDiagnosticCode } from './hls-playback-evidence.util';
 import {
     isBrowserAccessFailure,
@@ -18,9 +24,11 @@ import {
     normalizeErrorDetails,
 } from './playback-error-patterns.util';
 import { isLikelyContainerIssue } from './playback-media-source.util';
+import { createVhsPlaybackEvidence } from './vhs-playback-evidence.util';
 
 export * from './playback-diagnostics.model';
 export { createHlsPlaybackEvidence } from './hls-playback-evidence.util';
+export { createVhsPlaybackEvidence } from './vhs-playback-evidence.util';
 export {
     createPlaybackSourceMetadata,
     getLikelyBrowserUnsupportedCodecLabels,
@@ -31,6 +39,14 @@ const SOURCE_NOT_SUPPORTED_CODE = 4;
 const DECODE_ERROR_CODE = 3;
 const NETWORK_ERROR_CODE = 2;
 const NATIVE_ERROR_TYPE_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const VHS_NETWORK_ERROR_TYPES: ReadonlySet<VhsPlaybackEngineTypeValue> =
+    new Set([
+        VhsPlaybackEngineType.NetworkBadStatus,
+        VhsPlaybackEngineType.NetworkRequestFailed,
+        VhsPlaybackEngineType.NetworkRequestAborted,
+        VhsPlaybackEngineType.NetworkRequestTimeout,
+        VhsPlaybackEngineType.NetworkBodyParserFailed,
+    ]);
 
 export function classifyNativePlaybackIssue(
     error: NativePlaybackErrorInput | MediaError | null | undefined,
@@ -38,7 +54,8 @@ export function classifyNativePlaybackIssue(
 ): PlaybackDiagnostic {
     const nativeErrorCode = error?.code;
     const nativeErrorMessage = error?.message || undefined;
-    const nativeErrorInput = error as NativePlaybackErrorInput | null | undefined;
+    const nativeErrorInput = error as
+        NativePlaybackErrorInput | null | undefined;
     const httpStatus = getNativeHttpStatus(nativeErrorInput?.status);
     const nativeErrorType = getNativeErrorType(
         nativeErrorInput?.metadata?.errorType
@@ -104,6 +121,26 @@ export function classifyNativePlaybackIssue(
         nativeErrorCode,
         nativeErrorMessage,
         nativeErrorType,
+    });
+}
+
+export function classifyVhsPlaybackIssue(
+    error: NativePlaybackErrorInput,
+    metadata: PlaybackSourceMetadata
+): PlaybackDiagnostic {
+    const evidence = createVhsPlaybackEvidence(error);
+    const code = getVhsPlaybackDiagnosticCode(evidence, metadata);
+
+    return createPlaybackDiagnostic({
+        code,
+        source: DiagnosticSource.Vhs,
+        metadata,
+        nativeErrorCode:
+            typeof evidence.mediaErrorCode === 'number'
+                ? evidence.mediaErrorCode
+                : undefined,
+        httpStatus: evidence.httpStatus,
+        vhs: evidence,
     });
 }
 
@@ -218,6 +255,7 @@ export function createPlaybackDiagnostic(options: {
     readonly nativeErrorMessage?: string;
     readonly httpStatus?: number;
     readonly nativeErrorType?: string;
+    readonly vhs?: VhsPlaybackEvidence;
     readonly hls?: HlsPlaybackEvidence;
     /** Overrides the code-derived recommendation, e.g. when external players
      * are known to be unable to handle the stream either. */
@@ -232,6 +270,7 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorMessage,
         httpStatus,
         nativeErrorType,
+        vhs,
         hls,
     } = options;
 
@@ -249,11 +288,43 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorMessage,
         httpStatus,
         nativeErrorType,
+        vhs,
         hls,
         externalFallbackRecommended:
             options.externalFallbackRecommended ??
             isExternalFallbackRecommended(code),
     };
+}
+
+function getVhsPlaybackDiagnosticCode(
+    evidence: VhsPlaybackEvidence,
+    metadata: PlaybackSourceMetadata
+): PlaybackDiagnosticCode {
+    if (
+        evidence.httpStatus !== undefined ||
+        VHS_NETWORK_ERROR_TYPES.has(evidence.engineType) ||
+        evidence.mediaErrorCode === VhsPlaybackMediaErrorCode.Network
+    ) {
+        return DiagnosticCode.NetworkError;
+    }
+
+    if (
+        evidence.engineType ===
+            VhsPlaybackEngineType.StreamingFailedToDecryptSegment ||
+        evidence.mediaErrorCode === VhsPlaybackMediaErrorCode.Encrypted
+    ) {
+        return DiagnosticCode.DrmOrEncryption;
+    }
+
+    if (
+        evidence.mediaErrorCode ===
+            VhsPlaybackMediaErrorCode.SourceNotSupported &&
+        isLikelyContainerIssue(metadata)
+    ) {
+        return DiagnosticCode.UnsupportedContainer;
+    }
+
+    return DiagnosticCode.UnknownPlaybackError;
 }
 
 function getNativeHttpStatus(status: unknown): number | undefined {

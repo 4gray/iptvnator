@@ -82,7 +82,7 @@ export function getDiagnosticDetails(
         },
         {
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_MESSAGE',
-            value: issue.nativeErrorMessage ?? '',
+            value: issue.vhs ? '' : (issue.nativeErrorMessage ?? ''),
         },
         {
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
@@ -92,6 +92,20 @@ export function getDiagnosticDetails(
 }
 
 function formatDiagnosticErrorDetails(issue: PlaybackDiagnostic): string {
+    if (issue.vhs) {
+        return [
+            `stage=${issue.vhs.stage}`,
+            `type=${issue.vhs.engineType}`,
+            `code=${issue.vhs.mediaErrorCode}`,
+            `disposition=${issue.vhs.disposition}`,
+            issue.vhs.httpStatus === undefined
+                ? ''
+                : `HTTP ${issue.vhs.httpStatus}`,
+        ]
+            .filter((value) => value.length > 0)
+            .join(' · ');
+    }
+
     if (issue.hls) {
         return [
             `stage=${issue.hls.stage}`,
@@ -151,6 +165,8 @@ function formatPlayer(player: PlaybackDiagnostic['player']): string {
 
 function formatDiagnosticSource(source: PlaybackDiagnostic['source']): string {
     switch (source) {
+        case 'vhs':
+            return 'Video.js / VHS';
         case 'hls':
             return 'HLS.js';
         case 'mpegts':
