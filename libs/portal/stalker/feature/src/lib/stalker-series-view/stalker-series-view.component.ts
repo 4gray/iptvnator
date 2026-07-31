@@ -119,14 +119,14 @@ function snapshotPeople(
     enriched: TmdbEnrichedCastMember[] | undefined,
     fallback: string | undefined
 ) {
-    return (
-        enriched?.map((person) => ({
-            name: person.name,
-            role: person.character,
-            profileUrl: person.profileUrl ?? undefined,
-            tmdbPersonId: person.tmdbPersonId,
-        })) ?? snapshotTextList(fallback)?.map((name) => ({ name }))
-    );
+    return enriched?.length
+        ? enriched.map((person) => ({
+              name: person.name,
+              role: person.character,
+              profileUrl: person.profileUrl ?? undefined,
+              tmdbPersonId: person.tmdbPersonId,
+          }))
+        : snapshotTextList(fallback)?.map((name) => ({ name }));
 }
 
 function positiveCoordinate(value: number | string | undefined): number {
@@ -1105,12 +1105,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         const episodeInfo = this.getEpisodeInfo(episode);
         const posterUrl = episodeInfo?.movie_image;
-        const seasonNum = positiveCoordinate(episode.season);
-        const episodeNum = positiveCoordinate(episode.episode_num);
+        const seasonNum = Number(episode.season || 1);
+        const episodeNum = episode.episode_num || 1;
         const seriesTitle =
-            item.info?.name?.trim() ||
-            this.displayItem()?.info?.name?.trim() ||
-            'Series';
+            item.info?.name || this.displayItem()?.info?.name || 'Series';
+        const snapshotSeriesTitle = seriesTitle.trim() || 'Series';
+        const snapshotSeasonNum = positiveCoordinate(episode.season);
+        const snapshotEpisodeNum = positiveCoordinate(episode.episode_num);
         const episodeTitle = `${seriesTitle} - S${String(seasonNum).padStart(
             2,
             '0'
@@ -1128,7 +1129,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     this.translateService.currentLang ||
                     this.translateService.defaultLang ||
                     'en',
-                title: seriesTitle,
+                title: snapshotSeriesTitle,
                 originalTitle: item.info?.o_name,
                 plot: item.info?.description,
                 releaseDate: item.info?.releasedate,
@@ -1146,8 +1147,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     item.info?.director
                 ),
                 episode: {
-                    seasonNumber: seasonNum,
-                    episodeNumber: episodeNum,
+                    seasonNumber: snapshotSeasonNum,
+                    episodeNumber: snapshotEpisodeNum,
                     title: episode.title,
                     plot: episodeInfo?.plot,
                     stillUrl: episodeInfo?.movie_image,

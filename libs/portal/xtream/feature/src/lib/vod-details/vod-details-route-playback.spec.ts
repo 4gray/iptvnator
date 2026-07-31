@@ -421,14 +421,15 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         );
     });
 
-    it('downloads the movie the route currently shows', async () => {
+    it('downloads the route movie with the metadata precedence rendered on screen', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         fixture.detectChanges();
 
         await fixture.componentInstance.downloadVod({
             info: {
                 name: 'Metadata Movie',
-                description: 'Provider or TMDB description',
+                description: 'Rendered description wins',
+                plot: 'Lower-priority plot',
                 movie_image:
                     'https://images.example.test/posters/metadata-movie.jpg',
                 backdrop_path: [
@@ -437,24 +438,14 @@ describe('VodDetailsRouteComponent — playback actions', () => {
                 releasedate: '2025-03-14',
                 duration_secs: 7200,
                 genre: 'Drama, Mystery',
-                rating: '8.4',
+                rating: '9.9',
+                rating_imdb: '7.3',
                 status: 'Released',
                 tmdb_id: 12345,
-                tmdb_cast: [
-                    {
-                        name: 'Ada Actor',
-                        character: 'The Lead',
-                        profileUrl: 'https://image.tmdb.org/t/p/w185/ada.jpg',
-                        tmdbPersonId: 91,
-                    },
-                ],
-                tmdb_directors: [
-                    {
-                        name: 'Dana Director',
-                        profileUrl: null,
-                        tmdbPersonId: 92,
-                    },
-                ],
+                actors: 'Ada Actor, Bea Actor',
+                director: 'Dana Director',
+                tmdb_cast: [],
+                tmdb_directors: [],
             },
             // A DIFFERENT id in the payload: the route's id must win.
             movie_data: {
@@ -478,7 +469,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
                     language: 'en',
                     mediaKind: 'movie',
                     title: 'Metadata Movie',
-                    plot: 'Provider or TMDB description',
+                    plot: 'Rendered description wins',
                     posterUrl:
                         'https://images.example.test/posters/metadata-movie.jpg',
                     backdropUrl:
@@ -486,19 +477,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
                     providerCategoryId: '235',
                     tmdbId: 12345,
                     genres: ['Drama', 'Mystery'],
-                    cast: [
-                        expect.objectContaining({
-                            name: 'Ada Actor',
-                            role: 'The Lead',
-                            tmdbPersonId: 91,
-                        }),
-                    ],
-                    creators: [
-                        expect.objectContaining({
-                            name: 'Dana Director',
-                            tmdbPersonId: 92,
-                        }),
-                    ],
+                    rating: 7.3,
+                    cast: [{ name: 'Ada Actor' }, { name: 'Bea Actor' }],
+                    creators: [{ name: 'Dana Director' }],
                 }),
             })
         );

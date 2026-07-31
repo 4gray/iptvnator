@@ -95,14 +95,14 @@ function people(
     enriched: TmdbEnrichedCastMember[] | undefined,
     fallback: string | undefined
 ) {
-    return (
-        enriched?.map((person) => ({
-            name: person.name,
-            role: person.character,
-            profileUrl: person.profileUrl ?? undefined,
-            tmdbPersonId: person.tmdbPersonId,
-        })) ?? textList(fallback)?.map((name) => ({ name }))
-    );
+    return enriched?.length
+        ? enriched.map((person) => ({
+              name: person.name,
+              role: person.character,
+              profileUrl: person.profileUrl ?? undefined,
+              tmdbPersonId: person.tmdbPersonId,
+          }))
+        : textList(fallback)?.map((name) => ({ name }));
 }
 
 export async function startStalkerVodDownload(
@@ -119,7 +119,9 @@ export async function startStalkerVodDownload(
     }
 
     const itemData = item.data as DownloadVodData;
-    const title = firstText(itemData?.info?.name, itemData?.title) ?? 'Unknown';
+    const downloadTitle = itemData?.info?.name || itemData?.title || 'Unknown';
+    const snapshotTitle =
+        firstText(itemData?.info?.name, itemData?.title) ?? 'Unknown';
     const cmdToUse = await resolveDownloadCmd(item, itemData, deps);
 
     const url = await deps.fetchLinkToPlay(
@@ -135,12 +137,12 @@ export async function startStalkerVodDownload(
         playlistId: playlist.id,
         xtreamId: normalizeStalkerEntityIdAsNumber(itemData?.id) ?? 0,
         contentType: 'vod',
-        title,
+        title: downloadTitle,
         url,
         posterUrl: itemData?.info?.movie_image,
         metadataSnapshot: createMovieDownloadSnapshot({
             language: deps.language?.trim() || 'en',
-            title,
+            title: snapshotTitle,
             originalTitle: itemData.info?.o_name,
             plot: itemData.info?.description,
             releaseDate: itemData.info?.releasedate,

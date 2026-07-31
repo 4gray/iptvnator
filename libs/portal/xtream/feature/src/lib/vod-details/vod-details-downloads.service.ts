@@ -148,34 +148,35 @@ export class VodDetailsDownloadsService {
                     'en',
                 title: presentation.title,
                 originalTitle: info?.o_name,
-                plot: info?.plot || info?.description,
+                plot: info?.description || info?.plot,
                 releaseDate: info?.releasedate,
                 year: year(info?.releasedate),
                 durationMinutes: durationMinutes(info),
                 genres: textList(info?.genre),
-                rating: number(info?.rating),
+                rating: number(info?.rating_imdb),
                 status: info?.status,
                 posterUrl: presentation.posterUrl,
                 backdropUrl: info?.backdrop_path?.[0],
                 tmdbId: number(info?.tmdb_id),
                 providerCategoryId: vodItem.movie_data?.category_id,
-                cast:
-                    info?.tmdb_cast?.map((person) => ({
-                        name: person.name,
-                        role: person.character,
-                        profileUrl: person.profileUrl ?? undefined,
-                        tmdbPersonId: person.tmdbPersonId,
-                    })) ??
-                    textList(info?.actors || info?.cast)?.map((name) => ({
-                        name,
-                    })),
-                creators:
-                    info?.tmdb_directors?.map((person) => ({
-                        name: person.name,
-                        role: person.character,
-                        profileUrl: person.profileUrl ?? undefined,
-                        tmdbPersonId: person.tmdbPersonId,
-                    })) ?? textList(info?.director)?.map((name) => ({ name })),
+                cast: info?.tmdb_cast?.length
+                    ? info.tmdb_cast.map((person) => ({
+                          name: person.name,
+                          role: person.character,
+                          profileUrl: person.profileUrl ?? undefined,
+                          tmdbPersonId: person.tmdbPersonId,
+                      }))
+                    : textList(info?.actors || info?.cast)?.map((name) => ({
+                          name,
+                      })),
+                creators: info?.tmdb_directors?.length
+                    ? info.tmdb_directors.map((person) => ({
+                          name: person.name,
+                          role: person.character,
+                          profileUrl: person.profileUrl ?? undefined,
+                          tmdbPersonId: person.tmdbPersonId,
+                      }))
+                    : textList(info?.director)?.map((name) => ({ name })),
             }),
             headers: {
                 userAgent: playlist.userAgent,

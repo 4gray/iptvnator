@@ -357,6 +357,10 @@ describe('StalkerSeriesViewComponent', () => {
                 description: 'Parent series plot',
                 movie_image:
                     'https://images.example.test/posters/signal-house.jpg',
+                actors: 'Sienna Wave',
+                director: 'Cora Bell',
+                tmdb_cast: [],
+                tmdb_directors: [],
             },
         });
 
@@ -364,20 +368,14 @@ describe('StalkerSeriesViewComponent', () => {
         await fixture.whenStable();
 
         await fixture.componentInstance.downloadEpisode({
-            id: 'episode-tracking-id',
-            episode_num: 2,
+            episode_num: -3,
             title: 'The Call',
-            container_extension: 'mpg',
             info: {
                 plot: 'Episode-specific plot',
                 movie_image: 'https://images.example.test/stills/the-call.jpg',
-                duration_secs: 3120,
-                rating: 8.6,
             },
             custom_sid: 'vod-series',
-            added: '',
-            season: 1,
-            direct_source: '',
+            season: '0',
             originalId: '502',
         } as never);
 
@@ -386,10 +384,10 @@ describe('StalkerSeriesViewComponent', () => {
                 playlistId: 'stalker-1',
                 playlistType: 'stalker',
                 seriesXtreamId: 50001,
-                seasonNumber: 1,
-                episodeNumber: 2,
+                seasonNumber: 0,
+                episodeNumber: -3,
+                title: 'Signal House - S00E-3 - The Call',
                 metadataSnapshot: expect.objectContaining({
-                    version: 1,
                     language: 'en',
                     mediaKind: 'series',
                     title: 'Signal House',
@@ -397,9 +395,11 @@ describe('StalkerSeriesViewComponent', () => {
                     posterUrl:
                         'https://images.example.test/posters/signal-house.jpg',
                     providerCategoryId: '18',
+                    cast: [{ name: 'Sienna Wave' }],
+                    creators: [{ name: 'Cora Bell' }],
                     episode: {
                         seasonNumber: 1,
-                        episodeNumber: 2,
+                        episodeNumber: 1,
                         title: 'The Call',
                         plot: 'Episode-specific plot',
                         stillUrl:

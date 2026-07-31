@@ -38,21 +38,10 @@ describe('startStalkerVodDownload', () => {
                     genre: 'Drama, Thriller',
                     rating_imdb: '7.7',
                     tmdb_id: 541,
-                    tmdb_cast: [
-                        {
-                            name: 'Stella Star',
-                            character: 'Mira',
-                            profileUrl: null,
-                            tmdbPersonId: 77,
-                        },
-                    ],
-                    tmdb_directors: [
-                        {
-                            name: 'Dorian Vale',
-                            profileUrl: null,
-                            tmdbPersonId: 78,
-                        },
-                    ],
+                    actors: 'Stella Star, Mira Moon',
+                    director: 'Dorian Vale',
+                    tmdb_cast: [],
+                    tmdb_directors: [],
                 },
             },
         } as unknown as VodDetailsItem;
@@ -80,19 +69,8 @@ describe('startStalkerVodDownload', () => {
                     providerCategoryId: '7',
                     genres: ['Drama', 'Thriller'],
                     tmdbId: 541,
-                    cast: [
-                        expect.objectContaining({
-                            name: 'Stella Star',
-                            role: 'Mira',
-                            tmdbPersonId: 77,
-                        }),
-                    ],
-                    creators: [
-                        expect.objectContaining({
-                            name: 'Dorian Vale',
-                            tmdbPersonId: 78,
-                        }),
-                    ],
+                    cast: [{ name: 'Stella Star' }, { name: 'Mira Moon' }],
+                    creators: [{ name: 'Dorian Vale' }],
                 }),
             })
         );
@@ -131,6 +109,7 @@ describe('startStalkerVodDownload', () => {
 
         expect(startDownload).toHaveBeenCalledWith(
             expect.objectContaining({
+                title: '   ',
                 metadataSnapshot: expect.objectContaining({
                     mediaKind: 'movie',
                     title: 'Sparse title',
