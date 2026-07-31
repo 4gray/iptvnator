@@ -1,6 +1,11 @@
 @if (selectedCategory()) {
     @if (selectedDetailComponent(); as detailComponentRef) {
-        <ng-container *ngComponentOutlet="detailComponentRef" />
+        <ng-container
+            *ngComponentOutlet="
+                detailComponentRef;
+                inputs: detailComponentInputs()
+            "
+        />
     } @else {
         <div class="category-content-layout">
             <div class="category-content-header">

@@ -55,14 +55,6 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     });
 
     beforeEach(async () => {
-        window.history.replaceState(
-            {
-                detailPresentation: 'provider-only',
-                openStalkerItem: { id: '42' },
-            },
-            '',
-            window.location.href
-        );
         contentType.set('vod');
         selectedItem.set({
             id: '42',
@@ -135,11 +127,11 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     });
 
     afterEach(() => {
-        window.history.replaceState({}, '', window.location.href);
         fixture.destroy();
     });
 
     it('passes provider-only mode to the matching regular VOD', async () => {
+        fixture.componentRef.setInput('providerOnly', true);
         await fixture.whenStable();
 
         const child = fixture.debugElement.query(
@@ -149,7 +141,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         expect(child.providerOnly()).toBe(true);
     });
 
-    it('does not apply stale provider-only state to a different selected item', async () => {
+    it('keeps provider-only presentation disabled for a regular VOD open', async () => {
         selectedItem.set({
             id: '99',
             cmd: '/media/99',
@@ -171,6 +163,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     ] as const)(
         'passes provider-only mode to %s',
         async (_label, type, item) => {
+            fixture.componentRef.setInput('providerOnly', true);
             contentType.set(type);
             selectedItem.set({
                 ...item,

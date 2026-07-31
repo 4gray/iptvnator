@@ -4,6 +4,7 @@ import {
     computed,
     effect,
     inject,
+    input,
     signal,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -16,15 +17,12 @@ import {
     PORTAL_PLAYER,
     createLogger,
     createInlinePlaybackPositionWriter,
-    getOpenStalkerItemState,
-    isProviderOnlyDetailState,
 } from '@iptvnator/portal/shared/util';
 import {
     createPortalFavoritesResource,
     createRefreshTrigger,
     isStalkerSeriesFlag,
     isSelectedStalkerVodFavorite,
-    normalizeStalkerEntityId,
     StalkerSelectedVodItem,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
@@ -86,17 +84,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             null
     );
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
-    readonly providerOnly = computed(() => {
-        const selected = this.selectedItem();
-        const opened = getOpenStalkerItemState(window.history.state);
-        return (
-            isProviderOnlyDetailState(window.history.state) &&
-            !!selected &&
-            !!opened &&
-            normalizeStalkerEntityId(selected.id) ===
-                normalizeStalkerEntityId(opened.id ?? opened.stream_id)
-        );
-    });
+    readonly providerOnly = input(false);
     private readonly selectedVodPosition = signal<PlaybackPositionData | null>(
         null
     );

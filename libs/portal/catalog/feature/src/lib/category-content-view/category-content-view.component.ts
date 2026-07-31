@@ -7,6 +7,7 @@ import {
     ElementRef,
     inject,
     OnInit,
+    signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
@@ -24,16 +25,19 @@ import {
 import {
     clearNavigationStateKeys,
     getOpenStalkerItemState,
+    isProviderOnlyDetailState,
     PortalCatalogFacade,
     OPEN_STALKER_ITEM_STATE_KEY,
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
+    PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
     PortalCatalogSortMode,
 } from '@iptvnator/portal/shared/util';
 
 interface CategoryContentItem {
     id?: number | string;
     is_series?: number | string | boolean;
+    movie_id?: number | string;
     xtream_id?: number | string;
     series_id?: number | string;
     stream_id?: number | string;
@@ -64,6 +68,7 @@ export class CategoryContentViewComponent implements OnInit {
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
+    private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private hasAppliedInitialQueryParams = false;
     private previousSearchQuery: string | null = null;
     private readonly catalog = inject(
@@ -146,6 +151,21 @@ export class CategoryContentViewComponent implements OnInit {
     readonly selectedDetailComponent = computed(() =>
         this.selectedItem() ? this.detailComponent : null
     );
+    readonly detailComponentInputs = computed<
+        Record<string, unknown> | undefined
+    >(() => {
+        if (this.catalog.provider !== 'stalker') {
+            return undefined;
+        }
+
+        const providerItemId = this.providerOnlyStalkerItemId();
+        return {
+            providerOnly:
+                providerItemId !== null &&
+                providerItemId ===
+                    this.stalkerItemIdentity(this.selectedItem()),
+        };
+    });
     readonly contentWithProgress = computed(() =>
         (this.paginatedContent() ?? []).map((item: CategoryContentItem) => ({
             ...item,
@@ -165,6 +185,7 @@ export class CategoryContentViewComponent implements OnInit {
         this.activatedRoute.paramMap
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((params) => {
+                this.providerOnlyStalkerItemId.set(null);
                 this.catalog.initialize(params.get('categoryId'));
                 this.openStalkerItemFromNavigationState();
             });
@@ -216,6 +237,7 @@ export class CategoryContentViewComponent implements OnInit {
     }
 
     onItemClick(item: CategoryContentItem): void {
+        this.providerOnlyStalkerItemId.set(null);
         const navigation = this.catalog.selectItem(item);
         if (navigation?.length) {
             this.router.navigate(navigation, {
@@ -258,14 +280,33 @@ export class CategoryContentViewComponent implements OnInit {
             return;
         }
 
+        const providerOnly = isProviderOnlyDetailState(window.history.state);
         this.catalog.selectItem(item as CategoryContentItem);
         // The item came from a stored snapshot, not the live list — let the
         // provider refresh stale embedded data (e.g. episode lists).
         this.catalog.refreshSnapshotSelection?.();
+        this.providerOnlyStalkerItemId.set(
+            providerOnly
+                ? this.stalkerItemIdentity(item as CategoryContentItem)
+                : null
+        );
         clearNavigationStateKeys([
             OPEN_STALKER_ITEM_STATE_KEY,
             'openFavoriteItem',
             'openRecentItem',
+            PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
         ]);
+    }
+
+    private stalkerItemIdentity(
+        item: CategoryContentItem | null | undefined
+    ): string | null {
+        const rawId =
+            item?.id ?? item?.series_id ?? item?.movie_id ?? item?.stream_id;
+        const normalized = String(rawId ?? '')
+            .trim()
+            .split(':')[0]
+            ?.trim();
+        return normalized || null;
     }
 }
