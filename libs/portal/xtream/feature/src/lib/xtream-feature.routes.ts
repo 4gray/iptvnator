@@ -9,6 +9,11 @@ const loadDownloadsComponent: ComponentLoader = () =>
         (c) => c.DownloadsComponent
     );
 
+const loadDownloadOfflineDetailComponent: ComponentLoader = () =>
+    import('@iptvnator/portal/downloads/feature').then(
+        (c) => c.DownloadOfflineDetailComponent
+    );
+
 const loadXtreamContentGateComponent: ComponentLoader = () =>
     import('./xtream-content-gate.component').then(
         (c) => c.XtreamContentGateComponent
@@ -83,11 +88,13 @@ export function createXtreamRoutes(): Route[] {
                             children: [
                                 {
                                     path: '',
-                                    loadComponent: loadCategoryContentViewComponent,
+                                    loadComponent:
+                                        loadCategoryContentViewComponent,
                                 },
                                 {
                                     path: ':categoryId',
-                                    loadComponent: loadCategoryContentViewComponent,
+                                    loadComponent:
+                                        loadCategoryContentViewComponent,
                                 },
                                 {
                                     path: ':categoryId/:vodId',
@@ -101,11 +108,13 @@ export function createXtreamRoutes(): Route[] {
                             children: [
                                 {
                                     path: '',
-                                    loadComponent: loadCategoryContentViewComponent,
+                                    loadComponent:
+                                        loadCategoryContentViewComponent,
                                 },
                                 {
                                     path: ':categoryId',
-                                    loadComponent: loadCategoryContentViewComponent,
+                                    loadComponent:
+                                        loadCategoryContentViewComponent,
                                 },
                                 {
                                     path: ':categoryId/:serialId',
@@ -136,6 +145,10 @@ export function createXtreamRoutes(): Route[] {
                     path: 'recent',
                     loadComponent: loadXtreamCollectionRouteComponent,
                     data: { mode: 'recent', portalType: 'xtream' },
+                },
+                {
+                    path: 'downloads/:downloadId',
+                    loadComponent: loadDownloadOfflineDetailComponent,
                 },
                 {
                     path: 'downloads',

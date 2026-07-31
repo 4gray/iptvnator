@@ -112,6 +112,13 @@ export const routes: Routes = [
                     ),
             },
             {
+                path: 'downloads/:downloadId',
+                loadComponent: () =>
+                    import('@iptvnator/portal/downloads/feature').then(
+                        (c) => c.DownloadOfflineDetailComponent
+                    ),
+            },
+            {
                 path: 'downloads',
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(
