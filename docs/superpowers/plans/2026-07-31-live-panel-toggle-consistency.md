@@ -827,7 +827,7 @@ For every finding, add or tighten the closest failing test, run it RED, make the
 smallest correction, rerun GREEN, and commit with an appropriate conventional
 message.
 
-- [ ] **Step 8: Push and create the PR without merging**
+- [x] **Step 8: Push and create the PR without merging**
 
 ```bash
 git push -u origin agent/live-panel-toggle-consistency-2
