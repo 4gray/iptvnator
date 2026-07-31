@@ -25,7 +25,7 @@ import {
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { NEVER, of } from 'rxjs';
+import { BehaviorSubject, NEVER, of } from 'rxjs';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 @Component({
@@ -77,6 +77,10 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const vodCategories = signal<Partial<XtreamCategory>[]>([]);
     const vodStreamsPlaylistId = signal<string | null>('playlist-1');
     const vodCategoriesPlaylistId = signal<string | null>('playlist-1');
+    const routeParams = new BehaviorSubject({
+        vodId: '650020',
+        categoryId: '235',
+    });
     const constructVodStreamUrl = jest
         .fn()
         .mockReturnValue('http://example.com/movie/650020.mp4');
@@ -118,6 +122,8 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             },
         }) as XtreamVodDetails;
     beforeEach(async () => {
+        window.history.replaceState({}, '', window.location.href);
+        routeParams.next({ vodId: '650020', categoryId: '235' });
         selectedItem.set(null);
         downloads.set([]);
         downloadsAvailable.set(false);
@@ -186,10 +192,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
-                        params: of({
-                            vodId: '650020',
-                            categoryId: '235',
-                        }),
+                        params: routeParams,
                         snapshot: {
                             params: {
                                 vodId: '650020',
@@ -298,6 +301,11 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             })
             .compileComponents();
         fixture = TestBed.createComponent(VodDetailsRouteComponent);
+    });
+
+    afterEach(() => {
+        window.history.replaceState({}, '', window.location.href);
+        fixture?.destroy();
     });
     it('ignores catalog data owned by another playlist', () => {
         currentPlaylist.set({
@@ -510,6 +518,61 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             host.querySelector<HTMLButtonElement>('button.play-btn')
                 ?.textContent
         ).toContain('DOWNLOADS.PLAY_LOCAL');
+    });
+
+    it('keeps provider playback and hides offline actions in provider-only mode', async () => {
+        window.history.replaceState(
+            { detailPresentation: 'provider-only' },
+            '',
+            window.location.href
+        );
+        selectedItem.set(richItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/metadata-movie.mp4');
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(fixture.componentInstance.providerOnly()).toBe(true);
+        expect(host.textContent).not.toContain('DOWNLOADS.OFFLINE');
+        expect(host.textContent).not.toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).not.toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
+        expect(primary?.textContent).toContain('XTREAM.PLAY');
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(constructVodStreamUrl).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('does not leak provider-only mode when the route host is reused', () => {
+        window.history.replaceState(
+            { detailPresentation: 'provider-only' },
+            '',
+            window.location.href
+        );
+        selectedItem.set(richItem());
+        fixture.detectChanges();
+        expect(fixture.componentInstance.providerOnly()).toBe(true);
+
+        window.history.replaceState({}, '', window.location.href);
+        selectedItem.set({
+            ...richItem(),
+            movie_data: {
+                ...richItem().movie_data,
+                stream_id: 650021,
+            },
+        } as XtreamVodDetails);
+        routeParams.next({ vodId: '650021', categoryId: '236' });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.providerOnly()).toBe(false);
     });
 
     it('plays a rich downloaded movie locally without a usable provider source', async () => {

@@ -58,6 +58,7 @@ describe('SeasonContainerComponent', () => {
     };
 
     beforeEach(async () => {
+        downloadsServiceStub.isAvailable.set(false);
         await TestBed.configureTestingModule({
             imports: [
                 NoopAnimationsModule,
@@ -132,6 +133,21 @@ describe('SeasonContainerComponent', () => {
         ).toBe(2);
     });
 
+    it('keeps episodes playable while download presentation is disabled', () => {
+        downloadsServiceStub.isAvailable.set(true);
+        fixture.componentRef.setInput('downloadsEnabled', false);
+        setRequiredInputs({ '1': [createEpisode()] });
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelectorAll('.episode-card').length
+        ).toBe(1);
+        expect(
+            fixture.nativeElement.querySelectorAll('.download-btn').length
+        ).toBe(0);
+    });
+
     it('renders the season-level placeholder when the selected season has no episodes', () => {
         setRequiredInputs({ '1': [] });
         fixture.detectChanges();
@@ -149,9 +165,8 @@ describe('SeasonContainerComponent', () => {
         });
         fixture.detectChanges();
 
-        const pills = fixture.nativeElement.querySelectorAll(
-            '.season-tabs__pill'
-        );
+        const pills =
+            fixture.nativeElement.querySelectorAll('.season-tabs__pill');
         (pills[1] as HTMLButtonElement).click();
         fixture.detectChanges();
 
@@ -220,9 +235,8 @@ describe('SeasonContainerComponent', () => {
         });
         fixture.detectChanges();
 
-        const pills = fixture.nativeElement.querySelectorAll(
-            '.season-tabs__pill'
-        );
+        const pills =
+            fixture.nativeElement.querySelectorAll('.season-tabs__pill');
         (pills[1] as HTMLButtonElement).click();
         fixture.detectChanges();
         expect(component.selectedSeason()).toBe('2');
@@ -272,9 +286,8 @@ describe('SeasonContainerComponent', () => {
             )
         ).toBeNull();
 
-        const pills = fixture.nativeElement.querySelectorAll(
-            '.season-tabs__pill'
-        );
+        const pills =
+            fixture.nativeElement.querySelectorAll('.season-tabs__pill');
         (pills[1] as HTMLButtonElement).click();
         fixture.detectChanges();
 

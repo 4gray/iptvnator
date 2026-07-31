@@ -8,6 +8,7 @@ import {
 } from '@iptvnator/services';
 import {
     buildStalkerDetailNavigationTarget,
+    PROVIDER_ONLY_DETAIL_PRESENTATION,
     type WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
 import type { StalkerPortalItem } from '@iptvnator/shared/interfaces';
@@ -68,11 +69,12 @@ export class DownloadLibraryNavigationService {
         target: WorkspaceNavigationTarget
     ): Promise<boolean> {
         try {
-            return target.state
-                ? await this.router.navigate(target.link, {
-                      state: target.state,
-                  })
-                : await this.router.navigate(target.link);
+            return await this.router.navigate(target.link, {
+                state: {
+                    ...target.state,
+                    detailPresentation: PROVIDER_ONLY_DETAIL_PRESENTATION,
+                },
+            });
         } catch {
             return false;
         }

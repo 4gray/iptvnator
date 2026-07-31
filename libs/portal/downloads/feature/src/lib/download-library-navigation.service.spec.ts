@@ -10,6 +10,9 @@ import type { Playlist, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { DownloadLibraryNavigationService } from './download-library-navigation.service';
 
 const PLAYLIST_ID = 'playlist-a';
+const PROVIDER_ONLY_STATE = {
+    state: { detailPresentation: 'provider-only' },
+} as const;
 const XTREAM_PLAYLIST = {
     _id: PLAYLIST_ID,
     title: 'Xtream source',
@@ -170,14 +173,10 @@ describe('DownloadLibraryNavigationService', () => {
             PLAYLIST_ID,
             'movie'
         );
-        expect(router.navigate).toHaveBeenCalledWith([
-            '/workspace',
-            'xtreams',
-            PLAYLIST_ID,
-            'vod',
-            '7',
-            '41',
-        ]);
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', PLAYLIST_ID, 'vod', '7', '41'],
+            PROVIDER_ONLY_STATE
+        );
     });
 
     it('returns false when the router refuses an Xtream navigation', async () => {
@@ -188,14 +187,10 @@ describe('DownloadLibraryNavigationService', () => {
 
         await expect(navigation.open(download())).resolves.toBe(false);
 
-        expect(router.navigate).toHaveBeenCalledWith([
-            '/workspace',
-            'xtreams',
-            PLAYLIST_ID,
-            'vod',
-            '7',
-            '41',
-        ]);
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', PLAYLIST_ID, 'vod', '7', '41'],
+            PROVIDER_ONLY_STATE
+        );
     });
 
     it.each(['xtream', 'stalker'] as const)(
@@ -241,14 +236,10 @@ describe('DownloadLibraryNavigationService', () => {
             PLAYLIST_ID,
             'series'
         );
-        expect(router.navigate).toHaveBeenCalledWith([
-            '/workspace',
-            'xtreams',
-            PLAYLIST_ID,
-            'series',
-            '12',
-            '93',
-        ]);
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', PLAYLIST_ID, 'series', '12', '93'],
+            PROVIDER_ONLY_STATE
+        );
     });
 
     it.each([
@@ -279,14 +270,10 @@ describe('DownloadLibraryNavigationService', () => {
         await expect(navigation.open(item)).resolves.toBe(true);
 
         expect(db.getContentByXtreamId).not.toHaveBeenCalled();
-        expect(router.navigate).toHaveBeenCalledWith([
-            '/workspace',
-            'xtreams',
-            PLAYLIST_ID,
-            'vod',
-            '18',
-            '41',
-        ]);
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', PLAYLIST_ID, 'vod', '18', '41'],
+            PROVIDER_ONLY_STATE
+        );
     });
 
     it('resolves a concrete target before navigating that exact cached target', async () => {
@@ -303,7 +290,10 @@ describe('DownloadLibraryNavigationService', () => {
         await expect(navigation.navigateResolvedTarget(target)).resolves.toBe(
             true
         );
-        expect(router.navigate).toHaveBeenCalledWith(target.link);
+        expect(router.navigate).toHaveBeenCalledWith(
+            target.link,
+            PROVIDER_ONLY_STATE
+        );
         expect(db.getContentByXtreamId).toHaveBeenCalledTimes(1);
     });
 
@@ -345,6 +335,7 @@ describe('DownloadLibraryNavigationService', () => {
             ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
             {
                 state: {
+                    detailPresentation: 'provider-only',
                     openStalkerItem: {
                         ...recent,
                         id: '41',
@@ -385,6 +376,7 @@ describe('DownloadLibraryNavigationService', () => {
                 ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
                 {
                     state: {
+                        detailPresentation: 'provider-only',
                         openStalkerItem: {
                             ...recent,
                             id: '72',
@@ -420,6 +412,7 @@ describe('DownloadLibraryNavigationService', () => {
                 ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'series'],
                 {
                     state: {
+                        detailPresentation: 'provider-only',
                         openStalkerItem: {
                             ...recent,
                             id: expectedId,
@@ -451,6 +444,7 @@ describe('DownloadLibraryNavigationService', () => {
             ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
             {
                 state: {
+                    detailPresentation: 'provider-only',
                     openStalkerItem: {
                         ...recent,
                         id: '41:episode',
@@ -494,6 +488,7 @@ describe('DownloadLibraryNavigationService', () => {
                 ],
                 {
                     state: {
+                        detailPresentation: 'provider-only',
                         openStalkerItem: expect.objectContaining({
                             category_id: expected,
                         }),
@@ -515,6 +510,7 @@ describe('DownloadLibraryNavigationService', () => {
             ['/workspace', 'stalker', PLAYLIST_ID, 'vod', 'vod'],
             {
                 state: {
+                    detailPresentation: 'provider-only',
                     openStalkerItem: {
                         id: '41',
                         category_id: 'vod',
@@ -546,6 +542,7 @@ describe('DownloadLibraryNavigationService', () => {
             ['/workspace', 'stalker', PLAYLIST_ID, 'series', 'series'],
             {
                 state: {
+                    detailPresentation: 'provider-only',
                     openStalkerItem: {
                         id: '72',
                         category_id: 'series',

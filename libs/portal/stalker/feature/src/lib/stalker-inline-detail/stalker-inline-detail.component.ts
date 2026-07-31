@@ -40,6 +40,7 @@ export class StalkerInlineDetailComponent {
     readonly playbackPosition = input<number | null>(null);
     readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
     readonly externalPlayback = input<ExternalPlayerSession | null>(null);
+    readonly providerOnly = input(false);
 
     readonly backClicked = output<void>();
     readonly playClicked = output<VodDetailsItem>();
@@ -68,10 +69,7 @@ export class StalkerInlineDetailComponent {
         this.playClicked.emit(item);
     }
 
-    onResumeClicked(event: {
-        item: VodDetailsItem;
-        positionSeconds: number;
-    }) {
+    onResumeClicked(event: { item: VodDetailsItem; positionSeconds: number }) {
         this.resumeClicked.emit(event);
     }
 

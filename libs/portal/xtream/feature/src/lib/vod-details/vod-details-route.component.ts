@@ -23,7 +23,10 @@ import {
     VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import {
+    createLogger,
+    isProviderOnlyDetailState,
+} from '@iptvnator/portal/shared/util';
 import {
     resolveXtreamVodPlaybackSource,
     XtreamStore,
@@ -155,6 +158,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    readonly providerOnly = computed(() => {
+        this.routeParams();
+        return isProviderOnlyDetailState(window.history.state);
+    });
     readonly selectedItem = computed(() => {
         const item =
             this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null;
@@ -292,7 +299,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     readonly hasPlaybackPosition = this.msUi.hasPlaybackPosition;
 
-    readonly isDownloaded = this.downloads.isDownloaded;
+    private readonly downloadedFromLibrary = this.downloads.isDownloaded;
+    readonly isDownloaded = computed(
+        () => !this.providerOnly() && this.downloadedFromLibrary()
+    );
     readonly isDownloading = this.downloads.isDownloading;
     readonly isPausedDownload = this.downloads.isPausedDownload;
     readonly isOfflinePrimary = computed(

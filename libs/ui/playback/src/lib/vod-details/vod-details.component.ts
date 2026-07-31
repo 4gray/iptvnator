@@ -92,6 +92,9 @@ export class VodDetailsComponent {
     /** Active external playback session for launch state */
     readonly externalPlayback = input<ExternalPlayerSession | null>(null);
 
+    /** Provider detail handoff hides local/download presentation only. */
+    readonly providerOnly = input(false);
+
     // ============ Outputs ============
 
     /** Emitted when play button is clicked */
@@ -212,9 +215,15 @@ export class VodDetailsComponent {
         this.downloadsService,
         this.item
     );
-    readonly isDownloaded = this.downloadState.isDownloaded;
-    readonly isDownloading = this.downloadState.isDownloading;
-    readonly isPausedDownload = this.downloadState.isPausedDownload;
+    readonly isDownloaded = computed(
+        () => !this.providerOnly() && this.downloadState.isDownloaded()
+    );
+    readonly isDownloading = computed(
+        () => !this.providerOnly() && this.downloadState.isDownloading()
+    );
+    readonly isPausedDownload = computed(
+        () => !this.providerOnly() && this.downloadState.isPausedDownload()
+    );
 
     private readonly externalButton = createExternalPlaybackButtonState({
         session: this.externalPlayback,

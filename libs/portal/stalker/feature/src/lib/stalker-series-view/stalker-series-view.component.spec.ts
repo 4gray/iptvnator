@@ -38,6 +38,7 @@ class StubSeasonContainerComponent {
     readonly playingEpisodeId = input<number | null>(null);
     readonly seasonDescriptions = input<unknown>(null);
     readonly isLoading = input(false);
+    readonly downloadsEnabled = input(true);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
     readonly episodeDownloadRequested = output<unknown>();
@@ -122,7 +123,7 @@ describe('StalkerSeriesViewComponent', () => {
                 episodeId?: number,
                 startTime?: number
             ) => ({
-            streamUrl: 'http://stalker.example/episode.mpg',
+                streamUrl: 'http://stalker.example/episode.mpg',
                 title: title ?? 'Regular Series',
                 thumbnail: thumbnail ?? 'poster.jpg',
                 startTime,
@@ -303,6 +304,28 @@ describe('StalkerSeriesViewComponent', () => {
             }),
             true
         );
+    });
+
+    it('keeps provider episodes playable while hiding download presentation', async () => {
+        fixture.componentRef.setInput('providerOnly', true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        expect(seasonContainer.downloadsEnabled()).toBe(false);
+        expect(
+            Object.values(
+                seasonContainer.seasons() as Record<string, unknown[]>
+            ).flat()
+        ).toHaveLength(2);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            )
+        ).not.toBeNull();
     });
 
     it('interpolates the episode number for a recently started VOD is_series episode', async () => {
@@ -614,10 +637,12 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         fetchVodSeriesEpisodes.mockClear();
 
-        const seasonOneEpisodes = fixture.componentInstance.mappedSeasons()['1'];
+        const seasonOneEpisodes =
+            fixture.componentInstance.mappedSeasons()['1'];
         const firstEpisode = seasonOneEpisodes[0];
         const secondEpisode = seasonOneEpisodes[1];
-        const seasonTwoEpisode = fixture.componentInstance.mappedSeasons()['2'][0];
+        const seasonTwoEpisode =
+            fixture.componentInstance.mappedSeasons()['2'][0];
 
         fixture.componentInstance.onEpisodeClicked(firstEpisode);
         await fixture.whenStable();

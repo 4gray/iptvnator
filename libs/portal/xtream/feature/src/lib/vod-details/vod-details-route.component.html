@@ -89,7 +89,7 @@
                     {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
                 </button>
             }
-            @if (isElectron()) {
+            @if (isElectron() && !providerOnly()) {
                 @if (isDownloaded()) {
                     @if (externalPrimaryButtonState() === 'idle') {
                         <button

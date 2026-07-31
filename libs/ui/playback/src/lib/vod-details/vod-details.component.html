@@ -230,7 +230,7 @@
         }
 
         <!-- Download buttons (Electron only) -->
-        @if (isElectron()) {
+        @if (isElectron() && !providerOnly()) {
             @if (isDownloaded()) {
                 @if (externalPrimaryButtonState() === 'idle') {
                     <button class="download-btn" (click)="onProviderAction()">

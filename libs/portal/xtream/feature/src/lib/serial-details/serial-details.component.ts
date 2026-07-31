@@ -38,6 +38,7 @@ import {
     XtreamSerieEpisode,
     XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
+import { isProviderOnlyDetailState } from '@iptvnator/portal/shared/util';
 import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
@@ -112,6 +113,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly routeParams = toSignal(this.route.params, {
         initialValue: this.route.snapshot.params,
     });
+    readonly providerOnly = computed(() => {
+        this.routeParams();
+        return isProviderOnlyDetailState(window.history.state);
+    });
 
     // Episode playback state, re-exposed for the template.
     readonly inlinePlayback = this.playback.inlinePlayback;
@@ -172,8 +177,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     });
 
     private readonly loadCrossPortalSimilar = effect(() => {
-        const recommendations =
-            this.selectedItem()?.info?.tmdb_recommendations;
+        const recommendations = this.selectedItem()?.info?.tmdb_recommendations;
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         untracked(() => {
             this.crossPortalItems.set([]);

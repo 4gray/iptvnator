@@ -110,14 +110,17 @@ describe('VodDetailsComponent offline playback', () => {
     const render = async ({
         playbackPosition = null,
         externalPlayback = null,
+        providerOnly = false,
     }: {
         playbackPosition?: number | null;
         externalPlayback?: ExternalPlayerSession | null;
+        providerOnly?: boolean;
     } = {}) => {
         fixture = TestBed.createComponent(VodDetailsComponent);
         fixture.componentRef.setInput('item', STALKER_VOD);
         fixture.componentRef.setInput('playbackPosition', playbackPosition);
         fixture.componentRef.setInput('externalPlayback', externalPlayback);
+        fixture.componentRef.setInput('providerOnly', providerOnly);
         playClicked = jest.fn();
         resumeClicked = jest.fn();
         fixture.componentInstance.playClicked.subscribe(playClicked);
@@ -376,6 +379,25 @@ describe('VodDetailsComponent offline playback', () => {
 
         expect(playClicked).toHaveBeenCalledWith(STALKER_VOD);
         expect(resumeClicked).not.toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('keeps provider Play and hides offline actions in provider-only mode', async () => {
+        completeDownload();
+        await render({ providerOnly: true });
+
+        expect(fixture.nativeElement.textContent).not.toContain('Offline');
+        expect(fixture.nativeElement.textContent).not.toContain('Play Local');
+        expect(fixture.nativeElement.textContent).not.toContain(
+            'Play from this source'
+        );
+        expect(fixture.nativeElement.textContent).not.toContain('Download');
+        expect(buttonText(primaryButton())).toContain('Play');
+
+        primaryButton().click();
+        await fixture.whenStable();
+
+        expect(playClicked).toHaveBeenCalledWith(STALKER_VOD);
         expect(playDownload).not.toHaveBeenCalled();
     });
 

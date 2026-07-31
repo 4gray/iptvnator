@@ -1,8 +1,11 @@
 @if (contentType() === 'vod') {
     @if ((selectedItem()?.series?.length ?? 0) > 0) {
-        <app-stalker-series-view [vodWithSeries]="selectedItem()" />
+        <app-stalker-series-view
+            [vodWithSeries]="selectedItem()"
+            [providerOnly]="providerOnly()"
+        />
     } @else if (isSeriesDetail()) {
-        <app-stalker-series-view />
+        <app-stalker-series-view [providerOnly]="providerOnly()" />
     } @else if (vodDetailsItem()) {
         <app-vod-details
             [item]="vodDetailsItem()!"
@@ -10,6 +13,7 @@
             [playbackPosition]="selectedVodPlaybackPosition()"
             [inlinePlayback]="inlinePlayback()"
             [externalPlayback]="externalPlayback.activeSession()"
+            [providerOnly]="providerOnly()"
             (playClicked)="onVodPlay($event)"
             (resumeClicked)="onVodResume($event)"
             (favoriteToggled)="onVodFavoriteToggled($event)"
@@ -24,5 +28,5 @@
         />
     }
 } @else if (contentType() === 'series') {
-    <app-stalker-series-view />
+    <app-stalker-series-view [providerOnly]="providerOnly()" />
 }

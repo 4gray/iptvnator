@@ -21,7 +21,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
@@ -38,6 +38,7 @@ class StubSeasonContainerComponent {
     readonly seriesTitle = input<string | undefined>(undefined);
     readonly playbackPositions = input<unknown>(null);
     readonly xtreamDownloadContext = input<unknown>(null);
+    readonly downloadsEnabled = input(true);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
     readonly playingEpisodeId = input<number | null>(null);
@@ -105,6 +106,7 @@ describe('SerialDetailsComponent', () => {
     >;
 
     beforeEach(async () => {
+        window.history.replaceState({}, '', window.location.href);
         selectedItem.set({
             series_id: 103,
             info: {
@@ -256,9 +258,9 @@ describe('SerialDetailsComponent', () => {
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        onLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
+                        onDefaultLangChange: EMPTY,
                     },
                 },
                 {
@@ -296,6 +298,7 @@ describe('SerialDetailsComponent', () => {
     });
 
     afterEach(() => {
+        window.history.replaceState({}, '', window.location.href);
         fixture?.destroy();
     });
 
@@ -348,6 +351,29 @@ describe('SerialDetailsComponent', () => {
                 },
             ],
         });
+        expect(seasonContainer?.downloadsEnabled()).toBe(true);
+    });
+
+    it('keeps every provider episode but disables download presentation in provider-only mode', async () => {
+        window.history.replaceState(
+            { detailPresentation: 'provider-only' },
+            '',
+            window.location.href
+        );
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        )?.componentInstance as StubSeasonContainerComponent;
+        expect(fixture.componentInstance.providerOnly()).toBe(true);
+        expect(seasonContainer.downloadsEnabled()).toBe(false);
+        expect(
+            Object.values(
+                seasonContainer.seasons() as Record<string, unknown[]>
+            ).flat()
+        ).toHaveLength(3);
     });
 
     it('invalidates an in-flight detail request on teardown', () => {
@@ -500,9 +526,7 @@ describe('SerialDetailsComponent', () => {
             fixture.nativeElement.querySelector(
                 '[data-testid="series-quick-start"]'
             );
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY_EPISODE');
         expect(quickStartButton?.textContent).toContain(
             'S02E01 \u00b7 Season 2 Episode 1'
         );
@@ -621,9 +645,7 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton()?.textContent).toContain(
             'XTREAM.RESUME_EPISODE'
         );
-        expect(quickStartButton()?.textContent).toContain(
-            'S01E01 · Episode 1'
-        );
+        expect(quickStartButton()?.textContent).toContain('S01E01 · Episode 1');
     });
 
     it('persists the launched episode after an external fallback succeeds', async () => {
