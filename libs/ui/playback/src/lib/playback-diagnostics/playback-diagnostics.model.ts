@@ -173,6 +173,76 @@ export interface HlsPlaybackEvidence {
     readonly httpStatus?: number;
 }
 
+export const ShakaPlaybackSeverity = {
+    Recoverable: 'recoverable',
+    Critical: 'critical',
+    Unknown: 'unknown',
+} as const;
+
+export type ShakaPlaybackSeverity =
+    (typeof ShakaPlaybackSeverity)[keyof typeof ShakaPlaybackSeverity];
+
+export const ShakaPlaybackCategory = {
+    Network: 'network',
+    Text: 'text',
+    Media: 'media',
+    Manifest: 'manifest',
+    Streaming: 'streaming',
+    Drm: 'drm',
+    Player: 'player',
+    Cast: 'cast',
+    Storage: 'storage',
+    Ads: 'ads',
+    Unknown: 'unknown',
+} as const;
+
+export type ShakaPlaybackCategory =
+    (typeof ShakaPlaybackCategory)[keyof typeof ShakaPlaybackCategory];
+
+export const ShakaPlaybackDisposition = {
+    Terminal: 'terminal',
+    Recoverable: 'recoverable',
+} as const;
+
+export type ShakaPlaybackDisposition =
+    (typeof ShakaPlaybackDisposition)[keyof typeof ShakaPlaybackDisposition];
+
+export const ShakaPlaybackStage = {
+    Manifest: 'manifest',
+    Segment: 'segment',
+    Media: 'media',
+    License: 'license',
+    Unknown: 'unknown',
+} as const;
+
+export type ShakaPlaybackStage =
+    (typeof ShakaPlaybackStage)[keyof typeof ShakaPlaybackStage];
+
+export const ShakaPlaybackFailure = {
+    Network: 'network',
+    Drm: 'drm',
+    Manifest: 'manifest',
+    Media: 'media',
+    Unknown: 'unknown',
+} as const;
+
+export type ShakaPlaybackFailure =
+    (typeof ShakaPlaybackFailure)[keyof typeof ShakaPlaybackFailure];
+
+export const ShakaPlaybackUnknownCode = 'unknown' as const;
+
+export type ShakaPlaybackEngineCode = number | typeof ShakaPlaybackUnknownCode;
+
+export interface ShakaPlaybackEvidence {
+    readonly severity: ShakaPlaybackSeverity;
+    readonly category: ShakaPlaybackCategory;
+    readonly engineCode: ShakaPlaybackEngineCode;
+    readonly disposition: ShakaPlaybackDisposition;
+    readonly stage: ShakaPlaybackStage;
+    readonly failure: ShakaPlaybackFailure;
+    readonly httpStatus?: number;
+}
+
 export interface MpegTsPlaybackErrorInput {
     readonly type?: string;
     readonly details?: string;
@@ -196,6 +266,7 @@ export interface PlaybackDiagnostic {
     readonly nativeErrorType?: string;
     readonly vhs?: VhsPlaybackEvidence;
     readonly hls?: HlsPlaybackEvidence;
+    readonly shaka?: ShakaPlaybackEvidence;
     readonly externalFallbackRecommended: boolean;
 }
 

@@ -90,7 +90,8 @@ describe('ShakaVideoSession', () => {
         expect(issues).toHaveLength(1);
         expect(issues[0].code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
         expect(issues[0].source).toBe(PlaybackDiagnosticSource.Shaka);
-        expect(issues[0].details).toContain('com.widevine.alpha');
+        expect(issues[0].details).toBe('Unsupported DRM license configuration');
+        expect(JSON.stringify(issues[0])).not.toContain('com.widevine.alpha');
     });
 
     it('classifies critical shaka error events and ignores recoverable ones', async () => {
@@ -107,11 +108,38 @@ describe('ShakaVideoSession', () => {
         player.dispatch('error', { severity: 2, category: 6, code: 6001 });
         expect(issues).toHaveLength(1);
         expect(issues[0].code).toBe(PlaybackDiagnosticCode.DrmOrEncryption);
+        expect(issues[0].shaka).toEqual({
+            severity: 'critical',
+            category: 'drm',
+            engineCode: 6001,
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'drm',
+        });
         // Without KODIPROP config the DRM hint may still help externally.
         expect(issues[0].externalFallbackRecommended).toBe(true);
         // Critical errors end playback: the dead engine must be torn down.
         expect(player.destroyCount).toBe(1);
         expect(session.getPlayer()).toBeNull();
+    });
+
+    it('ignores error events whose public severity does not prove terminal state', async () => {
+        const environment = createFakeShakaEnvironment();
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/a.mpd');
+        await flush();
+
+        const player = environment.instances[0];
+        player.dispatch('error', {
+            severity: 99,
+            category: 1,
+            code: 1002,
+            message: 'CORS codec license provider guess',
+        });
+
+        expect(issues).toEqual([]);
+        expect(player.destroyCount).toBe(0);
+        expect(session.getPlayer()).toBe(player);
     });
 
     it('drops the external-fallback hint for every failure on ClearKey channels', async () => {
@@ -168,12 +196,156 @@ describe('ShakaVideoSession', () => {
 
         expect(issues).toHaveLength(1);
         expect(issues[0].code).toBe(
-            PlaybackDiagnosticCode.UnsupportedContainer
+            PlaybackDiagnosticCode.UnknownPlaybackError
         );
         expect(issues[0].sourceUrl).toBe('http://example.com/bad.mpd');
+        expect(issues[0].shaka).toEqual({
+            severity: 'critical',
+            category: 'manifest',
+            engineCode: 4001,
+            disposition: 'terminal',
+            stage: 'manifest',
+            failure: 'manifest',
+        });
         // The failed engine must not stay attached or exposed to controls.
         expect(environment.instances[0].destroyCount).toBe(1);
         expect(session.getPlayer()).toBeNull();
+    });
+
+    it('treats a recoverable-severity load rejection as terminal lifecycle evidence', async () => {
+        const secret = 'load-http-secret';
+        const environment = createFakeShakaEnvironment({
+            onCreate: (player) => {
+                player.loadResult = Promise.reject({
+                    severity: 1,
+                    category: 1,
+                    code: 1001,
+                    message: `https://provider.example/?token=${secret}`,
+                    data: [
+                        `https://provider.example/manifest.mpd?token=${secret}`,
+                        503,
+                        `provider body ${secret}`,
+                        { Authorization: `Bearer ${secret}` },
+                    ],
+                });
+            },
+        });
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/retry-exhausted.mpd');
+        await flush();
+
+        expect(issues).toHaveLength(1);
+        expect(issues[0]).toEqual(
+            expect.objectContaining({
+                code: PlaybackDiagnosticCode.NetworkError,
+                httpStatus: 503,
+                shaka: {
+                    severity: 'recoverable',
+                    category: 'network',
+                    engineCode: 1001,
+                    disposition: 'terminal',
+                    stage: 'unknown',
+                    failure: 'network',
+                    httpStatus: 503,
+                },
+            })
+        );
+        const serialized = JSON.stringify(issues[0].shaka);
+        expect(serialized).not.toContain(secret);
+        expect(serialized).not.toContain('provider.example');
+        expect(serialized).not.toContain('Authorization');
+        expect(environment.instances[0].destroyCount).toBe(1);
+        expect(session.getPlayer()).toBeNull();
+    });
+
+    it('emits a critical in-flight error once before teardown interrupts load', async () => {
+        const environment = createFakeShakaEnvironment({
+            onCreate: (player) => {
+                player.stallNextLoad = true;
+            },
+        });
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/stalled.mpd');
+        await flush();
+
+        const player = environment.instances[0];
+        player.dispatch('error', {
+            severity: 2,
+            category: 6,
+            code: 6008,
+        });
+        await flush();
+
+        expect(issues).toHaveLength(1);
+        expect(issues[0].shaka).toEqual(
+            expect.objectContaining({
+                engineCode: 6008,
+                disposition: 'terminal',
+            })
+        );
+        expect(player.destroyCount).toBe(1);
+        expect(session.getPlayer()).toBeNull();
+    });
+
+    it('does not suppress an arbitrary load rejection that only reuses code 7000', async () => {
+        const environment = createFakeShakaEnvironment({
+            onCreate: (player) => {
+                player.loadResult = Promise.reject({
+                    severity: 2,
+                    category: 1,
+                    code: 7000,
+                });
+            },
+        });
+        const session = createSession(environment);
+        session.start(video, 'http://example.com/not-interrupted.mpd');
+        await flush();
+
+        expect(issues).toHaveLength(1);
+        expect(issues[0].code).toBe(
+            PlaybackDiagnosticCode.UnknownPlaybackError
+        );
+        expect(issues[0].shaka).toEqual({
+            severity: 'critical',
+            category: 'network',
+            engineCode: 7000,
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
+    });
+
+    it('drops arbitrary module-loader rejection messages', async () => {
+        const secret = 'module-loader-secret';
+        const session = new ShakaVideoSession({
+            player: InlinePlaybackPlayer.Html5,
+            emitPlaybackIssue: (issue) => issues.push(issue),
+            loadShaka: () =>
+                Promise.reject(
+                    new Error(
+                        `https://user:${secret}@provider.example/shaka.js`
+                    )
+                ),
+        });
+
+        session.start(video, 'http://example.com/a.mpd');
+        await flush();
+
+        expect(issues).toHaveLength(1);
+        expect(issues[0].code).toBe(
+            PlaybackDiagnosticCode.UnknownPlaybackError
+        );
+        expect(issues[0].details).toBeUndefined();
+        expect(issues[0].shaka).toEqual({
+            severity: 'unknown',
+            category: 'unknown',
+            engineCode: 'unknown',
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
+        expect(JSON.stringify(issues[0])).not.toContain(secret);
+        expect(JSON.stringify(issues[0])).not.toContain('provider.example');
     });
 
     it('recovers from a stalled load: stop() interrupts it and the next start proceeds', async () => {
@@ -274,8 +446,16 @@ describe('ShakaVideoSession', () => {
         expect(environment.instances).toHaveLength(0);
         expect(issues).toHaveLength(1);
         expect(issues[0].code).toBe(
-            PlaybackDiagnosticCode.UnsupportedContainer
+            PlaybackDiagnosticCode.UnknownPlaybackError
         );
+        expect(issues[0].shaka).toEqual({
+            severity: 'unknown',
+            category: 'unknown',
+            engineCode: 'unknown',
+            disposition: 'terminal',
+            stage: 'unknown',
+            failure: 'unknown',
+        });
     });
 
     it('destroy tears down the engine and blocks later starts', async () => {

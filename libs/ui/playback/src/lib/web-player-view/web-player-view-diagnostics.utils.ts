@@ -82,7 +82,10 @@ export function getDiagnosticDetails(
         },
         {
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_MESSAGE',
-            value: issue.vhs ? '' : (issue.nativeErrorMessage ?? ''),
+            value:
+                issue.vhs || issue.shaka
+                    ? ''
+                    : (issue.nativeErrorMessage ?? ''),
         },
         {
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
@@ -92,6 +95,22 @@ export function getDiagnosticDetails(
 }
 
 function formatDiagnosticErrorDetails(issue: PlaybackDiagnostic): string {
+    if (issue.shaka) {
+        return [
+            `stage=${issue.shaka.stage}`,
+            `failure=${issue.shaka.failure}`,
+            `severity=${issue.shaka.severity}`,
+            `category=${issue.shaka.category}`,
+            `code=${issue.shaka.engineCode}`,
+            `disposition=${issue.shaka.disposition}`,
+            issue.shaka.httpStatus === undefined
+                ? ''
+                : `HTTP ${issue.shaka.httpStatus}`,
+        ]
+            .filter((value) => value.length > 0)
+            .join(' · ');
+    }
+
     if (issue.vhs) {
         return [
             `stage=${issue.vhs.stage}`,

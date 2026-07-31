@@ -4,18 +4,17 @@ import type {
     PlaybackDiagnostic,
     PlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.model';
-import { PlaybackDiagnosticCode as DiagnosticCode } from '../playback-diagnostics/playback-diagnostics.model';
-import { PlaybackDiagnosticSource as DiagnosticSource } from '../playback-diagnostics/playback-diagnostics.model';
-import {
-    createPlaybackDiagnostic,
-    createPlaybackSourceMetadata,
-} from '../playback-diagnostics/playback-diagnostics.util';
+import { ShakaPlaybackDisposition as ShakaDisposition } from '../playback-diagnostics/playback-diagnostics.model';
+import { createPlaybackSourceMetadata } from '../playback-diagnostics/playback-diagnostics.util';
 import {
     asShakaError,
     classifyShakaPlaybackIssue,
     createUnsupportedDrmDiagnostic,
-    toErrorMessage,
 } from './shaka-error-classifier';
+import {
+    getShakaErrorEventDisposition,
+    isShakaLoadInterrupted,
+} from './shaka-error-lifecycle';
 import { ShakaTextTrackSuppression } from './shaka-text-track-suppression';
 import {
     loadShakaModule,
@@ -33,11 +32,6 @@ export interface ShakaVideoSessionConfig {
 }
 
 const DASH_MIME_TYPE = 'application/dash+xml';
-/** `shaka.util.Error.Severity.RECOVERABLE` — Shaka retries these itself. */
-const SHAKA_SEVERITY_RECOVERABLE = 1;
-/** `shaka.util.Error.Code.LOAD_INTERRUPTED` — expected when a newer
- * `load()`/`destroy()` supersedes an in-flight one. */
-const SHAKA_LOAD_INTERRUPTED = 7000;
 
 const PLAYER_REFRESH_EVENTS = [
     'loaded',
@@ -139,14 +133,8 @@ export class ShakaVideoSession {
         let module: ShakaModuleLike;
         try {
             module = await this.loadModule();
-        } catch (error: unknown) {
-            this.emitIfCurrent(
-                generation,
-                classifyShakaPlaybackIssue(
-                    { message: toErrorMessage(error) },
-                    this.createMetadata(url)
-                )
-            );
+        } catch {
+            this.emitTerminalIfCurrent(generation, null, url);
             return;
         }
 
@@ -155,15 +143,7 @@ export class ShakaVideoSession {
         }
 
         if (!module.Player.isBrowserSupported()) {
-            this.emitIfCurrent(
-                generation,
-                createPlaybackDiagnostic({
-                    code: DiagnosticCode.UnsupportedContainer,
-                    source: DiagnosticSource.Shaka,
-                    metadata: this.createMetadata(url),
-                    details: 'Shaka Player is not supported in this browser',
-                })
-            );
+            this.emitTerminalIfCurrent(generation, null, url);
             return;
         }
 
@@ -228,20 +208,21 @@ export class ShakaVideoSession {
         if (
             this.isStale(generation) ||
             this.player !== player ||
-            shakaError?.code === SHAKA_LOAD_INTERRUPTED
+            isShakaLoadInterrupted(shakaError)
         ) {
             return;
         }
 
-        this.config.emitPlaybackIssue(
-            this.withoutUnusableDrmFallback(
-                classifyShakaPlaybackIssue(
-                    shakaError ?? { message: toErrorMessage(error) },
-                    this.createMetadata(url)
-                ),
-                drmProvided
-            )
+        const issue = classifyShakaPlaybackIssue(
+            shakaError,
+            this.createMetadata(url),
+            ShakaDisposition.Terminal
         );
+        if (issue) {
+            this.config.emitPlaybackIssue(
+                this.withoutUnusableDrmFallback(issue, drmProvided)
+            );
+        }
         // Never leave a non-functional engine attached to the media element
         // or exposed to the shared-controls bridge.
         this.beginPlayerTeardown();
@@ -274,20 +255,24 @@ export class ShakaVideoSession {
                 return;
             }
 
-            const detail = (event as { detail?: Partial<ShakaErrorLike> })
-                .detail;
-            if (detail?.severity === SHAKA_SEVERITY_RECOVERABLE) {
+            const detail = (event as { detail?: unknown }).detail;
+            const shakaError = asShakaError(detail);
+            const disposition = getShakaErrorEventDisposition(shakaError);
+            if (!disposition) {
+                return;
+            }
+
+            const issue = classifyShakaPlaybackIssue(
+                shakaError,
+                this.createMetadata(url),
+                disposition
+            );
+            if (!issue) {
                 return;
             }
 
             this.config.emitPlaybackIssue(
-                this.withoutUnusableDrmFallback(
-                    classifyShakaPlaybackIssue(
-                        detail,
-                        this.createMetadata(url)
-                    ),
-                    drmProvided
-                )
+                this.withoutUnusableDrmFallback(issue, drmProvided)
             );
             // Critical errors end playback; never leave the dead engine
             // attached or exposed to the shared-controls bridge.
@@ -371,12 +356,24 @@ export class ShakaVideoSession {
         return this.destroyed || generation !== this.generation;
     }
 
-    private emitIfCurrent(
-        generation: number,
-        issue: PlaybackDiagnostic
-    ): void {
+    private emitIfCurrent(generation: number, issue: PlaybackDiagnostic): void {
         if (!this.isStale(generation)) {
             this.config.emitPlaybackIssue(issue);
+        }
+    }
+
+    private emitTerminalIfCurrent(
+        generation: number,
+        error: Partial<ShakaErrorLike> | null,
+        url: string
+    ): void {
+        const issue = classifyShakaPlaybackIssue(
+            error,
+            this.createMetadata(url),
+            ShakaDisposition.Terminal
+        );
+        if (issue) {
+            this.emitIfCurrent(generation, issue);
         }
     }
 
