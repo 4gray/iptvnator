@@ -5,7 +5,7 @@ import {
     getPortalData,
     removeFavorite,
 } from '../data-store.js';
-import { extractMac } from './get-categories.handler.js';
+import { extractMac } from '../request-mac.js';
 import {
     RawChannel,
     RawRadioStation,

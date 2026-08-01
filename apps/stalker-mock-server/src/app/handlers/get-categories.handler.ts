@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getPortalData } from '../data-store.js';
+import { extractMac } from '../request-mac.js';
 
 /**
  * Stalker get_categories — returns category list filtered by type.
@@ -21,15 +22,4 @@ export function handleGetCategories(req: Request, res: Response): void {
     }
 
     res.json({ js: categories });
-}
-
-export function extractMac(req: Request): string {
-    const cookie = req.headers['cookie'] ?? '';
-    return (
-        cookie
-            .split(';')
-            .find((c) => c.trim().startsWith('mac='))
-            ?.split('=')[1]
-            ?.trim() ?? '00:00:00:00:00:00'
-    );
 }

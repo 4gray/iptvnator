@@ -88,6 +88,9 @@ describe('SerialDetailsComponent', () => {
         serverUrl: 'http://xtream.example',
         username: 'user',
         password: 'pass',
+        userAgent: 'Provider Player/1.0',
+        referrer: 'https://provider.test/player',
+        origin: 'https://provider.test',
     });
     const fetchSerialDetailsWithMetadata = jest.fn();
     const cancelDetailsRequest = jest.fn();
@@ -356,6 +359,14 @@ describe('SerialDetailsComponent', () => {
             ],
         });
         expect(seasonContainer?.downloadsEnabled()).toBe(true);
+        expect(seasonContainer?.xtreamDownloadContext()).toEqual({
+            serverUrl: 'http://xtream.example',
+            username: 'user',
+            password: 'pass',
+            userAgent: 'Provider Player/1.0',
+            referrer: 'https://provider.test/player',
+            origin: 'https://provider.test',
+        });
         expect(seasonContainer?.downloadMetadataContext()).toEqual(
             expect.objectContaining({
                 language: 'en',

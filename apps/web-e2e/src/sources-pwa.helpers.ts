@@ -1,6 +1,6 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect } from './fixtures';
-import { setInputValue } from './e2e-helpers';
+import { postWithRetry, setInputValue } from './e2e-helpers';
 import {
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
@@ -13,9 +13,11 @@ const STALKER_MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
 export const XTREAM_MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
 export const STALKER_MOCK_SERVER = `http://localhost:${STALKER_MOCK_PORT}`;
 export const STALKER_PORTAL_URL = `${STALKER_MOCK_SERVER}/portal.php`;
-export const EDITED_MAC = '00:1A:79:00:00:03';
+export const EDITED_MAC = '00:1A:79:5F:00:03';
 
-const DEFAULT_MAC = '00:1A:79:00:00:01';
+// Dedicated MACs (see EDITED_MAC): never share a MAC with stalker.e2e.ts,
+// whose parallel worker would otherwise have its state reset mid-test.
+const DEFAULT_MAC = '00:1A:79:5F:00:02';
 const M3U_PLAYLIST_URL = `${XTREAM_MOCK_SERVER}/playlist.m3u`;
 
 type RuntimeErrors = {
@@ -31,11 +33,22 @@ type SourceDialogField =
     | 'title'
     | 'username';
 
+/**
+ * Reset the fixtures this suite uses. The Stalker reset is scoped to the MACs
+ * touched here: that mock is shared with stalker.e2e.ts, which runs in a
+ * parallel Playwright worker, and a global reset would destroy its portal
+ * sessions mid-test.
+ */
 export async function resetPwaMockServers(
     request: APIRequestContext
 ): Promise<void> {
-    await request.post(`${XTREAM_MOCK_SERVER}/reset`);
-    await request.post(`${STALKER_MOCK_SERVER}/reset`);
+    await postWithRetry(request, `${XTREAM_MOCK_SERVER}/reset`);
+    for (const mac of [DEFAULT_MAC, EDITED_MAC]) {
+        await postWithRetry(
+            request,
+            `${STALKER_MOCK_SERVER}/reset?macAddress=${encodeURIComponent(mac)}`
+        );
+    }
 }
 
 export async function interceptPwaProviderRequests(

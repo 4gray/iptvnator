@@ -1,14 +1,22 @@
 import { Router, Request, Response } from 'express';
 import dispatchPortalAction from './dispatch.js';
 
-const router = Router();
-
 /**
  * Main Stalker API dispatcher.
- * All requests arrive as GET /portal.php?action=<action>&...
+ *
+ * Two endpoints are served with the same actions but different strictness:
+ * `/portal.php` (reseller-panel alias, tolerant) and
+ * `/stalker_portal/server/load.php` (canonical Ministra path, enforces the
+ * Bearer token exactly like the real middleware).
  */
-router.get('/', (req: Request, res: Response) => {
-    dispatchPortalAction(req, res);
-});
+export function createPortalRouter(enforceAuth: boolean): Router {
+    const router = Router();
 
-export default router;
+    router.get('/', (req: Request, res: Response) => {
+        dispatchPortalAction(req, res, { enforceAuth });
+    });
+
+    return router;
+}
+
+export default createPortalRouter(false);

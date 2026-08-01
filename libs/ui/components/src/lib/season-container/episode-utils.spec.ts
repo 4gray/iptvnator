@@ -1,4 +1,7 @@
-import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import {
+    XTREAM_CLIENT_USER_AGENT,
+    XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
 import {
     buildXtreamEpisodeDownloadRequest,
     getEpisodeDownloadId,
@@ -76,6 +79,35 @@ describe('episode-download.util', () => {
             seriesXtreamId: 900,
             seasonNumber: 2,
             episodeNumber: 3,
+            headers: {
+                userAgent: XTREAM_CLIENT_USER_AGENT,
+                referer: undefined,
+                origin: undefined,
+            },
+        });
+    });
+
+    it('forwards playlist request headers for the first episode transfer', () => {
+        const request = buildXtreamEpisodeDownloadRequest({
+            episode: episode({ id: '55' }),
+            context: {
+                serverUrl: 'http://host',
+                username: 'u',
+                password: 'p',
+                userAgent: 'Provider Player/1.0',
+                referrer: 'https://provider.test/player',
+                origin: 'https://provider.test',
+            },
+            playlistId: 'pl-1',
+            seriesId: 900,
+            seriesTitle: 'Show',
+            fallbackSeasonKey: '1',
+        });
+
+        expect(request.headers).toEqual({
+            userAgent: 'Provider Player/1.0',
+            referer: 'https://provider.test/player',
+            origin: 'https://provider.test',
         });
     });
 

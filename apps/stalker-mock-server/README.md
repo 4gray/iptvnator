@@ -25,8 +25,54 @@ nx run-many --targets=serve --projects=stalker-mock-server,web
 
 Then in IPTVnator, add a new Stalker portal:
 
-- **Portal URL**: `http://localhost:3210/portal.php`
+- **Portal URL**: `http://localhost:3210/portal.php` (tolerant panel-style endpoint)
+  or `http://localhost:3210/stalker_portal/server/load.php` (canonical Ministra
+  endpoint — see [Two endpoints](#two-endpoints-tolerant-vs-strict) below)
 - **MAC Address**: one of the predefined scenarios below (or any MAC for auto-generated data)
+
+## Two endpoints: tolerant vs strict
+
+The same actions are served at two paths with deliberately different strictness,
+because the app treats them differently: a URL containing `/stalker_portal` is
+imported as a **full portal** (handshake + token + watchdog), anything else as a
+**simple portal** (no authentication at all).
+
+| Path | Behaviour |
+|---|---|
+| `/portal.php` | Tolerant. Ignores the Bearer token and the MAC format, like most reseller panels in the wild. |
+| `/stalker_portal/server/load.php` | Strict. Enforces the token and the MAC format exactly like the real middleware. |
+| `/server/load.php` | Strict. The second full-portal URL shape the app recognizes; enforced identically. |
+
+> **Known app inconsistency:** `StalkerSessionService.isFullStalkerPortal`
+> classifies `/server/load.php` as a full portal, but the import dialog's
+> `isFullStalkerPortalUrl` checks only for `/stalker_portal`, so importing a bare
+> `…/server/load.php` URL persists `isFullStalkerPortal: false` and the app skips
+> the handshake. The mock is deliberately faithful to a **real** portal here
+> (that path enforces auth), which makes it the right fixture to drive the
+> upcoming fix that unifies those two predicates. Until then, import full
+> portals through a `/stalker_portal/...` URL.
+
+The strict endpoint reproduces the parts of Stalker 4.9.35 that a client can
+actually get wrong:
+
+- Every action except `handshake`, `get_profile`, `get_localization` and
+  `do_auth` requires `Authorization: Bearer <token>`.
+- A token only counts once `get_profile` has adopted it — a handshake alone is
+  not a session. Adoption is deliberately stricter than the stock server:
+  only tokens the mock actually issued (or the already-bound one) are
+  accepted, so a client with a broken token pipeline fails loudly.
+- Auth failures come back as **HTTP 200 with a plain-text body**
+  (`Authorization failed.`, `Unauthorized request.`), never a 401/403. Clients
+  that only check status codes will silently render nothing.
+- The handshake is **idempotent**: presenting the MAC's current token returns
+  that same token instead of rotating it.
+- `device_id`/`device_id2` are pinned to the MAC on first non-empty value; any
+  later change — including sending them empty again — is a permanent
+  `device conflict` with the "Your STB is damaged." block message.
+- `signature`, `metrics` and `prehash` are accepted and ignored, exactly as the
+  stock server does.
+- The MAC must match the Infomir OUI format (`00:1A:79:XX:XX:XX`) or
+  `get_profile` answers with a bare `{ status: 1 }`.
 
 ## Predefined Scenario MAC Addresses
 
@@ -40,6 +86,7 @@ Then in IPTVnator, add a new Stalker portal:
 | `00:1A:79:00:00:05` | **embedded-series** | 50% of VOD items have embedded `series[]` arrays — tests the embedded series flow |
 | `00:1A:79:00:00:06` | **legacy-pagination** | No `get_all_channels` support — tests the paginated `get_ordered_list` crawl fallback for the full ITV channel list |
 | `00:1A:79:00:00:07` | **marketing-demo** | 35 original poster movies with the newest 20 first — safe for screenshots and marketing |
+| `00:1A:79:00:00:08` | **login-required** | `get_profile` answers `status: 2` until the client completes `do_auth` with non-empty credentials. The app cannot finish this flow yet (its `do_auth` path is dormant and sends empty credentials), so the scenario is exercised at the HTTP level only — it exists to receive the upcoming client-side `do_auth` work |
 | `<any other MAC>` | **auto** | MAC bytes used as seed → deterministic unique dataset |
 
 ## Configuration
@@ -54,7 +101,8 @@ Then in IPTVnator, add a new Stalker portal:
 | Endpoint | Method | Description |
 |---|---|---|
 | `/health` | `GET` | Health check — returns `{ status: "ok" }` |
-| `/reset` | `POST` | Clear all in-memory data and favorites (useful between test runs) |
+| `/reset` | `POST` | Clear all in-memory data, favorites, sessions and watchdog counters (useful between test runs) |
+| `/invalidate-session?macAddress=<mac>` | `POST` | Drop that MAC's tokens so the next portal call fails with `Authorization failed.` — lets tests assert the client re-handshakes and retries. Pinned device identity survives, as on a real portal |
 
 ## API Coverage
 
@@ -62,8 +110,10 @@ All endpoints are served at `GET /portal.php?action=<action>&...` matching the r
 
 | Action | Description |
 |---|---|
-| `handshake` | Returns a mock Bearer token |
-| `do_auth` | Returns a mock user profile |
+| `handshake` | Issues the access token (idempotent) plus the 5.x `random` nonce and `not_valid` flag |
+| `get_profile` | Turns the handshake token into a session; enforces device-id pinning, and on the strict endpoint the MAC format |
+| `get_events` | Watchdog ping; records the call and returns an empty event set (never affects authorization, as on a real portal) |
+| `do_auth` | Boolean login step: `{js:true}` for non-empty credentials (recorded for the login-required scenario), `{js:false}` otherwise |
 | `get_categories` | Category list filtered by `type` (itv/vod/series) |
 | `get_genres` | Genre list (mirrors categories) |
 | `get_ordered_list` | Paginated content list; if `movie_id` is present → returns seasons |

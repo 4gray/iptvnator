@@ -1,5 +1,6 @@
 import {
     DownloadMetadataSnapshot,
+    XTREAM_CLIENT_USER_AGENT,
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
@@ -19,6 +20,9 @@ export interface XtreamEpisodeDownloadContext {
     serverUrl?: string;
     username?: string;
     password?: string;
+    userAgent?: string;
+    referrer?: string;
+    origin?: string;
 }
 
 /** Provider-neutral metadata already loaded by the detail host. */
@@ -34,6 +38,11 @@ export interface XtreamEpisodeDownloadRequest {
     seriesXtreamId: number;
     seasonNumber: number;
     episodeNumber: number;
+    headers: {
+        userAgent: string;
+        referer?: string;
+        origin?: string;
+    };
     metadataSnapshot?: DownloadMetadataSnapshot;
 }
 
@@ -150,6 +159,11 @@ export function buildXtreamEpisodeDownloadRequest(options: {
         seriesXtreamId: seriesId,
         seasonNumber,
         episodeNumber,
+        headers: {
+            userAgent: context.userAgent?.trim() || XTREAM_CLIENT_USER_AGENT,
+            referer: context.referrer,
+            origin: context.origin,
+        },
         ...(options.metadataContext
             ? {
                   metadataSnapshot: buildMetadataSnapshot(

@@ -6,6 +6,7 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { removePartialDownloadFile } from './download-file-path';
+import { resolveStoredDownloadHeaders } from './download-request-headers';
 import {
     assertDownloadMetadataArtworkDiffersFromStream,
     assertDownloadMetadataMatchesContentType,
@@ -78,40 +79,6 @@ function serializeHeaders(
     headers: Record<string, string> | undefined
 ): string | null {
     return headers ? JSON.stringify(headers) : null;
-}
-
-const STORED_HEADER_ALLOWLIST = ['User-Agent', 'Origin', 'Referer'] as const;
-
-export function parseStoredHeaders(
-    value: string | null
-): Record<string, string> | undefined {
-    if (!value) {
-        return undefined;
-    }
-
-    try {
-        const parsed = JSON.parse(value) as unknown;
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            return undefined;
-        }
-
-        // Re-apply the write-time allowlist so a tampered or imported
-        // database row cannot smuggle arbitrary headers into requests.
-        const entries = parsed as Record<string, unknown>;
-        const headers = STORED_HEADER_ALLOWLIST.reduce<Record<string, string>>(
-            (acc, key) => {
-                const headerValue = entries[key];
-                if (typeof headerValue === 'string') {
-                    acc[key] = headerValue;
-                }
-                return acc;
-            },
-            {}
-        );
-        return Object.keys(headers).length > 0 ? headers : undefined;
-    } catch {
-        return undefined;
-    }
 }
 
 export async function startDownloadRequest(
@@ -320,6 +287,7 @@ export async function retryDownloadRequest(
     const fileName = retainedFilePath
         ? basename(retainedFilePath)
         : createFileName(item.title, item.url);
+    const headers = await resolveStoredDownloadHeaders(db, item);
     const queuedUpdate = retainedFilePath
         ? {
               errorMessage: null,
@@ -345,7 +313,7 @@ export async function retryDownloadRequest(
         directory,
         fileName,
         filePath: retainedFilePath,
-        headers: parseStoredHeaders(item.requestHeaders),
+        headers,
         id: item.id,
         resumeValidator: retainedFilePath ? item.resumeValidator : null,
         totalBytes: retainedFilePath ? item.totalBytes : null,
@@ -388,6 +356,7 @@ export async function resumeDownloadRequest(
     const fileName = item.filePath
         ? basename(item.filePath)
         : createFileName(item.title, item.url);
+    const headers = await resolveStoredDownloadHeaders(db, item);
 
     // Claim the row atomically: a concurrent resume for the same id loses
     // this conditional update and must not enqueue a second task.
@@ -416,7 +385,7 @@ export async function resumeDownloadRequest(
         directory,
         fileName,
         filePath: item.filePath,
-        headers: parseStoredHeaders(item.requestHeaders),
+        headers,
         id: item.id,
         resumeValidator: item.resumeValidator,
         totalBytes: item.totalBytes,
