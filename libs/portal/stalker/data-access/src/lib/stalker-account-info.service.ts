@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { DataService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { getStalkerPortalIdentityFromPlaylist } from './stalker-identity.utils';
 import { StalkerSessionService } from './stalker-session.service';
 import {
     executeStalkerRequest,
@@ -82,19 +81,14 @@ export class StalkerAccountInfoService {
     private async fetchViaProfile(
         playlist: PlaylistMeta
     ): Promise<StalkerAccountSnapshot | null> {
-        const identity = getStalkerPortalIdentityFromPlaylist(
+        // Goes through the session service rather than calling
+        // authenticate() directly: it serializes with any in-flight
+        // ensureToken() and republishes the resulting token, so the
+        // dialog cannot strand an active portal session on a token its
+        // own handshake invalidated.
+        const accountInfo = await this.stalkerSession.refreshAccountProfile(
             toStalkerSessionPlaylist(playlist)
         );
-        const { token, accountInfo } = await this.stalkerSession.authenticate(
-            playlist.portalUrl as string,
-            playlist.macAddress as string,
-            identity
-        );
-
-        // Strict portals invalidate the previous token on every handshake.
-        // Publish the fresh one into the managed session cache so an active
-        // portal session keeps working after the dialog re-authenticated.
-        this.stalkerSession.setCachedToken(playlist._id, token);
 
         if (!accountInfo) {
             return null;

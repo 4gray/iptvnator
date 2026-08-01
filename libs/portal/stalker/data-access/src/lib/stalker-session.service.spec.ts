@@ -166,6 +166,68 @@ describe('StalkerSessionService identity payloads', () => {
         expect(authenticate).toHaveBeenCalledWith(portalUrl, macAddress, {});
     });
 
+    it('serializes refreshAccountProfile behind an in-flight ensureToken', async () => {
+        const playlist = {
+            _id: 'playlist-1',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        let releaseFirst: (value: { token: string }) => void = () => undefined;
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        releaseFirst = resolve;
+                    })
+            )
+            .mockResolvedValueOnce({
+                token: 'profile-token',
+                accountInfo: { login: 'user-1' },
+            });
+
+        const pending = service.ensureToken(playlist);
+        const refresh = service.refreshAccountProfile(playlist);
+
+        // Two handshakes must never overlap: on strict portals the second
+        // would invalidate the first one's token.
+        await Promise.resolve();
+        expect(authenticate).toHaveBeenCalledTimes(1);
+
+        releaseFirst({ token: 'session-token' });
+        await pending;
+        const accountInfo = await refresh;
+
+        expect(authenticate).toHaveBeenCalledTimes(2);
+        expect(accountInfo).toEqual({ login: 'user-1' });
+        // The refreshed token replaces the one its own handshake killed.
+        expect(service.getCachedToken(playlist._id)).toBe('profile-token');
+    });
+
+    it('refreshes the account profile even when a pending authentication fails', async () => {
+        const playlist = {
+            _id: 'playlist-2',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        jest.spyOn(service, 'authenticate')
+            .mockRejectedValueOnce(new Error('handshake refused'))
+            .mockResolvedValueOnce({
+                token: 'profile-token',
+                accountInfo: { login: 'user-2' },
+            });
+
+        const pending = service.ensureToken(playlist).catch(() => undefined);
+        const accountInfo = await service.refreshAccountProfile(playlist);
+        await pending;
+
+        expect(accountInfo).toEqual({ login: 'user-2' });
+    });
+
     it('passes an explicit serial into the initial handshake request', async () => {
         dataService.sendIpcEvent
             .mockResolvedValueOnce({

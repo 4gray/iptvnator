@@ -521,6 +521,63 @@ export class StalkerSessionService {
     }
 
     /**
+     * Re-runs handshake + get_profile to read the portal's current account
+     * block, sharing `ensureToken()`'s per-playlist serialization.
+     *
+     * A handshake invalidates the previous token on strict portals, so two
+     * overlapping ones leave whichever finishes first holding a dead token.
+     * Waiting for any in-flight authentication (and registering this one so
+     * later callers wait for it) keeps handshakes sequential; the resulting
+     * token replaces the cached one, so catalog and playback requests keep
+     * working afterwards.
+     */
+    async refreshAccountProfile(
+        playlist: Playlist
+    ): Promise<StalkerProfileResponse['js']['account_info']> {
+        if (!playlist.portalUrl || !playlist.macAddress) {
+            throw new Error('Portal URL and MAC address are required');
+        }
+
+        const portalUrl = playlist.portalUrl;
+        const macAddress = playlist.macAddress;
+        const identity = getStalkerPortalIdentityFromPlaylist(playlist);
+
+        const inFlight = this.pendingAuth.get(playlist._id);
+        if (inFlight) {
+            this.logger.debug('Waiting for pending authentication...');
+            // A failed pending auth must not abort the refresh; this call
+            // performs its own handshake either way.
+            await inFlight.catch(() => undefined);
+        }
+
+        let accountInfo: StalkerProfileResponse['js']['account_info'];
+        const authPromise = (async () => {
+            try {
+                const result = await this.authenticate(
+                    portalUrl,
+                    macAddress,
+                    identity
+                );
+                accountInfo = result.accountInfo;
+                this.setCachedToken(playlist._id, result.token);
+                return {
+                    token: result.token,
+                    serialNumber: identity.serialNumber,
+                };
+            } finally {
+                if (this.pendingAuth.get(playlist._id) === authPromise) {
+                    this.pendingAuth.delete(playlist._id);
+                }
+            }
+        })();
+
+        this.pendingAuth.set(playlist._id, authPromise);
+        await authPromise;
+
+        return accountInfo;
+    }
+
+    /**
      * Checks if a response or error indicates an authorization failure
      */
     private isAuthorizationError(responseOrError: unknown): boolean {

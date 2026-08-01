@@ -12,9 +12,8 @@ describe('StalkerAccountInfoService', () => {
     let service: StalkerAccountInfoService;
     let dataService: { sendIpcEvent: jest.Mock };
     let stalkerSession: {
-        authenticate: jest.Mock;
+        refreshAccountProfile: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
-        setCachedToken: jest.Mock;
     };
 
     const portalPlaylist = {
@@ -37,9 +36,8 @@ describe('StalkerAccountInfoService', () => {
     beforeEach(() => {
         dataService = { sendIpcEvent: jest.fn() };
         stalkerSession = {
-            authenticate: jest.fn(),
+            refreshAccountProfile: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
-            setCachedToken: jest.fn(),
         };
 
         TestBed.configureTestingModule({
@@ -60,32 +58,23 @@ describe('StalkerAccountInfoService', () => {
             } as PlaylistMeta)
         ).resolves.toBeNull();
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
-        expect(stalkerSession.authenticate).not.toHaveBeenCalled();
+        expect(stalkerSession.refreshAccountProfile).not.toHaveBeenCalled();
     });
 
     it('re-authenticates full portals and maps the profile account block', async () => {
-        stalkerSession.authenticate.mockResolvedValue({
-            token: 'token-1',
-            accountInfo: {
-                login: 'user-77',
-                expire_date: 1_790_000_000,
-                tariff_plan_name: 'Premium',
-                status: '1',
-            },
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'user-77',
+            expire_date: 1_790_000_000,
+            tariff_plan_name: 'Premium',
+            status: '1',
         });
 
         const snapshot = await service.fetchAccountInfo(fullPortalPlaylist);
 
-        expect(stalkerSession.authenticate).toHaveBeenCalledWith(
-            fullPortalPlaylist.portalUrl,
-            fullPortalPlaylist.macAddress,
-            expect.any(Object)
-        );
-        // The fresh token must land in the managed session cache — strict
-        // portals invalidate the previous token on each handshake.
-        expect(stalkerSession.setCachedToken).toHaveBeenCalledWith(
-            fullPortalPlaylist._id,
-            'token-1'
+        // Routed through the session service so the handshake serializes
+        // with ensureToken() and the new token replaces the cached one.
+        expect(stalkerSession.refreshAccountProfile).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: fullPortalPlaylist._id })
         );
         expect(snapshot).toEqual({
             login: 'user-77',
@@ -98,7 +87,7 @@ describe('StalkerAccountInfoService', () => {
     });
 
     it('returns null when the full-portal profile has no account block', async () => {
-        stalkerSession.authenticate.mockResolvedValue({ token: 'token-1' });
+        stalkerSession.refreshAccountProfile.mockResolvedValue(undefined);
 
         await expect(
             service.fetchAccountInfo(fullPortalPlaylist)
