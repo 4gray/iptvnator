@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "القنوات المحمّلة فقط",
             "COMMAND_PALETTE_SHORTCUT": "لوحة الأوامر (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "فتح لوحة الأوامر",
+            "CONTEXT_DRAWER_TOGGLE": "تبديل لوحة الفئات والتصفية",
+            "CONTEXT_DRAWER_TOOLTIP": "الفئات والتصفية",
             "ADD_PLAYLIST_ALL": "إضافة قائمة تشغيل",
             "ADD_PLAYLIST": "إضافة قائمة تشغيل",
             "OPEN_DOWNLOADS": "فتح التنزيلات",

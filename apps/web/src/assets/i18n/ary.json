@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "غير القنوات المشرّجة",
             "COMMAND_PALETTE_SHORTCUT": "لوحة الأوامر (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "حل لوحة الأوامر",
+            "CONTEXT_DRAWER_TOGGLE": "بدل لوحة الفئات والفلاتر",
+            "CONTEXT_DRAWER_TOOLTIP": "الفئات والفلاتر",
             "ADD_PLAYLIST_ALL": "زيد قائمة تشغيل",
             "ADD_PLAYLIST": "زيد قائمة تشغيل",
             "OPEN_DOWNLOADS": "حل التحميلات",

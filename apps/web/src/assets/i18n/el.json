@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Μόνο φορτωμένα κανάλια",
             "COMMAND_PALETTE_SHORTCUT": "Παλέτα εντολών (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Άνοιγμα παλέτας εντολών",
+            "CONTEXT_DRAWER_TOGGLE": "Εναλλαγή του πίνακα κατηγοριών και φίλτρων",
+            "CONTEXT_DRAWER_TOOLTIP": "Κατηγορίες και φίλτρα",
             "ADD_PLAYLIST_ALL": "Προσθήκη λίστας αναπαραγωγής",
             "ADD_PLAYLIST": "Προσθήκη λίστας αναπαραγωγής",
             "OPEN_DOWNLOADS": "Άνοιγμα λήψεων",

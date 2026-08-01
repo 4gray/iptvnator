@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Tylko załadowane kanały",
             "COMMAND_PALETTE_SHORTCUT": "Paleta poleceń (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Otwórz paletę poleceń",
+            "CONTEXT_DRAWER_TOGGLE": "Pokaż lub ukryj panel kategorii i filtrów",
+            "CONTEXT_DRAWER_TOOLTIP": "Kategorie i filtry",
             "ADD_PLAYLIST_ALL": "Dodaj listę odtwarzania",
             "ADD_PLAYLIST": "Dodaj listę odtwarzania",
             "OPEN_DOWNLOADS": "Otwórz pobrane",

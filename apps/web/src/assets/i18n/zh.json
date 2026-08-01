@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "仅已加载的频道",
             "COMMAND_PALETTE_SHORTCUT": "命令面板（Ctrl/Cmd+K）",
             "OPEN_COMMAND_PALETTE": "打开命令面板",
+            "CONTEXT_DRAWER_TOGGLE": "切换分类和筛选面板",
+            "CONTEXT_DRAWER_TOOLTIP": "分类和筛选",
             "ADD_PLAYLIST_ALL": "添加播放列表",
             "ADD_PLAYLIST": "添加播放列表",
             "OPEN_DOWNLOADS": "打开下载",

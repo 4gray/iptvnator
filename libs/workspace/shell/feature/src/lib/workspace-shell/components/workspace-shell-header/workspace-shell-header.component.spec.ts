@@ -224,6 +224,40 @@ describe('WorkspaceShellHeaderComponent', () => {
         }
     );
 
+    it('does not render the context drawer toggle by default', () => {
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-drawer-toggle"]'
+            )
+        ).toBeNull();
+    });
+
+    it('emits context drawer toggle requests when the route has a panel', () => {
+        const requested = jest.fn();
+        component.contextDrawerToggleRequested.subscribe(requested);
+        fixture.componentRef.setInput('showContextDrawerToggle', true);
+        fixture.detectChanges();
+
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-test-id="context-drawer-toggle"]'
+        );
+        button.click();
+
+        expect(requested).toHaveBeenCalledTimes(1);
+    });
+
+    it('reflects the drawer state through aria-expanded', () => {
+        fixture.componentRef.setInput('showContextDrawerToggle', true);
+        fixture.componentRef.setInput('isContextDrawerOpen', true);
+        fixture.detectChanges();
+
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-test-id="context-drawer-toggle"]'
+        );
+
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+    });
+
     it('uses the paired Material primary tokens for the download badge', () => {
         const styleSource = readFileSync(
             join(__dirname, 'workspace-shell-header.component.scss'),

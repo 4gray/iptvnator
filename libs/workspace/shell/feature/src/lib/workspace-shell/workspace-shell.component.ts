@@ -9,6 +9,7 @@ import { WorkspaceShellContextSidebarComponent } from './components/workspace-sh
 import { WorkspaceShellHeaderComponent } from './components/workspace-shell-header/workspace-shell-header.component';
 import { WorkspaceShellImportOverlayComponent } from './components/workspace-shell-import-overlay/workspace-shell-import-overlay.component';
 import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/workspace-shell-rail.component';
+import { WorkspaceShellContextDrawerService } from './services/workspace-shell-context-drawer.service';
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
@@ -41,14 +42,21 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
         WorkspaceShellXtreamImportService,
         WorkspaceShellCommandPaletteService,
         WorkspaceKeyboardShortcutsService,
+        WorkspaceShellContextDrawerService,
     ],
 })
 export class WorkspaceShellComponent {
     readonly facade = inject(WorkspaceShellFacade);
     readonly keyboardShortcuts = inject(WorkspaceKeyboardShortcutsService);
+    readonly contextDrawer = inject(WorkspaceShellContextDrawerService);
     private readonly header = viewChild<WorkspaceShellHeaderShortcutTarget>(
         'workspaceHeader'
     );
+
+    @HostListener('document:keydown.escape')
+    onEscapePressed(): void {
+        this.contextDrawer.close();
+    }
 
     @HostListener('document:keydown', ['$event'])
     onDocumentKeydown(event: KeyboardEvent): void {

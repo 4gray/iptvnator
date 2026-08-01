@@ -3,6 +3,7 @@ import { Component, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
+import { WorkspaceShellContextDrawerService } from '../workspace-shell/services/workspace-shell-context-drawer.service';
 
 @Component({
     selector: 'app-workspace-settings-context-panel',
@@ -18,7 +19,7 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util';
                         class="nav-item settings-section-item"
                         [class.active]="ctx.activeSection() === section.id"
                         [attr.data-test-id]="'settings-section-' + section.id"
-                        (click)="ctx.navigateToSection(section.id)"
+                        (click)="onSectionClicked(section.id)"
                     >
                         <mat-icon>{{ section.icon }}</mat-icon>
                         <span>{{ section.label | translate }}</span>
@@ -41,6 +42,17 @@ import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 export class WorkspaceSettingsContextPanelComponent {
     readonly ctx = inject(SettingsContextService);
     private readonly location = inject(Location);
+    // Optional: only provided inside the workspace shell; section clicks
+    // scroll the settings page without navigating, so the phone drawer's
+    // NavigationEnd auto-close never fires for them.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
+
+    onSectionClicked(sectionId: string) {
+        this.ctx.navigateToSection(sectionId);
+        this.contextDrawer?.close();
+    }
 
     onBack() {
         this.location.back();

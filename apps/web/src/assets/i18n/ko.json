@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "불러온 채널만",
             "COMMAND_PALETTE_SHORTCUT": "명령어 팔레트 (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "명령어 팔레트 열기",
+            "CONTEXT_DRAWER_TOGGLE": "카테고리 및 필터 패널 전환",
+            "CONTEXT_DRAWER_TOOLTIP": "카테고리 및 필터",
             "ADD_PLAYLIST_ALL": "재생목록 추가",
             "ADD_PLAYLIST": "재생목록 추가",
             "OPEN_DOWNLOADS": "다운로드 열기",

@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Толькі загружаныя каналы",
             "COMMAND_PALETTE_SHORTCUT": "Палітра каманд (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Адкрыць палітру каманд",
+            "CONTEXT_DRAWER_TOGGLE": "Паказаць або схаваць панэль катэгорый і фільтраў",
+            "CONTEXT_DRAWER_TOOLTIP": "Катэгорыі і фільтры",
             "ADD_PLAYLIST_ALL": "Дадаць плэйліст",
             "ADD_PLAYLIST": "Дадаць плэйліст",
             "OPEN_DOWNLOADS": "Адкрыць спампаванні",

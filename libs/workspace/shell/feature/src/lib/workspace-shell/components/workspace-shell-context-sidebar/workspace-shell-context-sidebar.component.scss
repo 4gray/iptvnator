@@ -65,31 +65,58 @@
     overflow: hidden;
 }
 
-// Below this width the shell stacks the panel above the content instead of
-// beside it. `!important` is required because ResizableDirective writes the
-// persisted desktop width as an inline style; a 300px panel on a 375px screen
-// leaves ~50px for the actual content. Dragging is meaningless when the panel
-// spans the full width, so the handle goes away with it.
+// Below this width the sidebar leaves the layout entirely and becomes an
+// off-canvas drawer: position: fixed takes the host out of the shell grid, so
+// the route content owns the full pane, and the workspace shell slides the
+// drawer in by toggling the `drawer-open` class on this host. Hidden state
+// uses visibility (delayed until the slide-out finishes) so the off-screen
+// panel can't be tabbed or scrolled into.
 @media (max-width: 640px) {
+    :host {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        // Narrower than the viewport so the backdrop stays tappable — it is
+        // one of the two ways to close the drawer.
+        width: min(320px, 85vw);
+        z-index: 99;
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition:
+            transform 200ms ease,
+            visibility 0s linear 200ms;
+        box-shadow: 8px 0 24px rgba(0, 0, 0, 0.3);
+    }
+
+    :host(.drawer-open) {
+        transform: translateX(0);
+        visibility: visible;
+        transition:
+            transform 200ms ease,
+            visibility 0s;
+    }
+
+    // `!important` is required because ResizableDirective writes the
+    // persisted desktop width as an inline style. Dragging is meaningless
+    // inside the drawer, so the handle goes away with it.
     .context-panel {
         width: 100% !important;
         max-width: none !important;
         // There is no global border-box reset, so the panel's own padding
-        // would push a 100%-wide panel past the viewport.
+        // would push a 100%-wide panel past the drawer.
         box-sizing: border-box;
-        height: auto;
-        // Roughly a third of the screen: enough to show several entries
-        // without pushing the route's own content off the bottom.
-        max-height: 30vh;
-        border-right: none;
-        border-bottom: 1px solid var(--mat-sys-outline-variant);
+        height: 100%;
     }
 
+    // The live layout's collapse toggle folds the panel away beside the
+    // content on desktop. Inside the drawer that state is meaningless — the
+    // user explicitly opened it — and honouring it would show an empty strip.
     .context-panel--collapsed {
-        max-height: 0;
-        padding-top: 0;
-        padding-bottom: 0;
-        border-bottom-color: transparent;
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 12px 10px 10px 12px;
+        border-right-color: var(--mat-sys-outline-variant);
     }
 
     .context-panel :is(.resize-handle) {
@@ -99,15 +126,5 @@
     .context-panel--route,
     .context-panel--sources {
         overflow: hidden;
-    }
-}
-
-// The settings route has no player competing for height — its content is one
-// scrollable form — so on a short landscape phone the panel can take a larger
-// share. 30vh of a 360px screen is 108px, which the panel's own footer and
-// padding consume before a single section row renders.
-@media (max-width: 640px) and (max-height: 599px) {
-    .context-panel--settings {
-        max-height: max(30vh, 148px);
     }
 }

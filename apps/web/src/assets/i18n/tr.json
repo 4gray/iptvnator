@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Yalnızca yüklenmiş kanallar",
             "COMMAND_PALETTE_SHORTCUT": "Komut paleti (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Komut paletini aç",
+            "CONTEXT_DRAWER_TOGGLE": "Kategoriler ve filtreler panelini aç/kapat",
+            "CONTEXT_DRAWER_TOOLTIP": "Kategoriler ve filtreler",
             "ADD_PLAYLIST_ALL": "Oynatma listesi ekle",
             "ADD_PLAYLIST": "Oynatma listesi ekle",
             "OPEN_DOWNLOADS": "İndirilenleri aç",

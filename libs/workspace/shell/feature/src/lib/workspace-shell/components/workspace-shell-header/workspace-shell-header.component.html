@@ -1,4 +1,24 @@
 <header class="workspace-header" [class.is-settings-route]="isSettingsRoute()">
+    <!-- Phone-only (≤640px, CSS-hidden above): on phones the context panel
+         is an off-canvas drawer, and this button is the only way to open
+         it, so it must never be dropped while the route has a panel. -->
+    @if (showContextDrawerToggle()) {
+        <button
+            type="button"
+            class="context-drawer-toggle"
+            mat-icon-button
+            data-test-id="context-drawer-toggle"
+            (click)="onContextDrawerToggleRequested()"
+            [matTooltip]="'WORKSPACE.SHELL.CONTEXT_DRAWER_TOOLTIP' | translate"
+            [attr.aria-label]="
+                'WORKSPACE.SHELL.CONTEXT_DRAWER_TOGGLE' | translate
+            "
+            [attr.aria-expanded]="isContextDrawerOpen()"
+        >
+            <mat-icon>menu_open</mat-icon>
+        </button>
+    }
+
     <!-- Playlist switcher hidden on /settings: those controls are
          playlist-scoped, but Settings is a global page. Per the UX
          audit, leaving them visible implied switching playlists changes

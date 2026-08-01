@@ -7,6 +7,7 @@ import {
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
 import { WorkspaceShellComponent } from './workspace-shell.component';
+import { WorkspaceShellContextDrawerService } from './services/workspace-shell-context-drawer.service';
 import {
     WorkspaceHeaderBulkAction,
     WorkspaceShellFacade,
@@ -54,6 +55,8 @@ class MockWorkspaceShellHeaderComponent {
     readonly isDownloadsView = input(false);
     readonly activeDownloadsCount = input(0);
     readonly isSettingsRoute = input(false);
+    readonly showContextDrawerToggle = input(false);
+    readonly isContextDrawerOpen = input(false);
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
@@ -66,6 +69,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerBulkActionRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
+    readonly contextDrawerToggleRequested = output<void>();
 
     focusSearchInput = jest.fn();
     containsSearchInput = jest.fn(() => false);
@@ -151,6 +155,7 @@ class MockWorkspaceShellFacade {
     readonly activeDownloadsCount = signal(3);
     readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly showContextPanel = signal(true);
+    readonly hasContextPanelContent = signal(true);
     readonly contextPanel = signal<WorkspaceShellContextPanel>('settings');
     readonly currentContext = signal<WorkspacePortalContext | null>(null);
     readonly showExternalPlaybackBar = signal(true);
@@ -225,6 +230,7 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -282,6 +288,7 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -334,6 +341,7 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -382,6 +390,7 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -406,5 +415,80 @@ describe('WorkspaceShellComponent', () => {
         expect(facade.openGlobalSearch).toHaveBeenCalledWith('');
         expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
         jest.useRealTimers();
+    });
+
+    it('opens and closes the context drawer via the toggle, backdrop and Escape', async () => {
+        const facade = new MockWorkspaceShellFacade();
+
+        await TestBed.configureTestingModule({
+            imports: [WorkspaceShellComponent],
+            providers: [provideRouter([])],
+        })
+            .overrideComponent(WorkspaceShellComponent, {
+                set: {
+                    imports: [
+                        RouterOutlet,
+                        MockExternalPlaybackDockComponent,
+                        MockPlaylistDropOverlayComponent,
+                        MockPlaylistDropZoneDirective,
+                        MockWorkspaceShellContextSidebarComponent,
+                        MockWorkspaceShellHeaderComponent,
+                        MockWorkspaceShellImportOverlayComponent,
+                        MockWorkspaceShellRailComponent,
+                    ],
+                    providers: [
+                        {
+                            provide: WorkspaceShellFacade,
+                            useValue: facade,
+                        },
+                        {
+                            provide: WorkspaceKeyboardShortcutsService,
+                            useClass: MockWorkspaceKeyboardShortcutsService,
+                        },
+                        WorkspaceShellContextDrawerService,
+                    ],
+                },
+            })
+            .compileComponents();
+
+        const fixture = TestBed.createComponent(WorkspaceShellComponent);
+        fixture.detectChanges();
+        const sidebar = () =>
+            fixture.nativeElement.querySelector(
+                'app-workspace-shell-context-sidebar'
+            ) as HTMLElement;
+        const backdrop = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-drawer-backdrop"]'
+            ) as HTMLElement | null;
+
+        // Closed by default: no backdrop, no drawer-open class.
+        expect(backdrop()).toBeNull();
+        expect(sidebar().classList.contains('drawer-open')).toBe(false);
+
+        const header = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellHeaderComponent)
+        ).componentInstance as MockWorkspaceShellHeaderComponent;
+        expect(header.showContextDrawerToggle()).toBe(true);
+
+        header.contextDrawerToggleRequested.emit();
+        fixture.detectChanges();
+        expect(sidebar().classList.contains('drawer-open')).toBe(true);
+        expect(header.isContextDrawerOpen()).toBe(true);
+
+        backdrop()?.click();
+        fixture.detectChanges();
+        expect(backdrop()).toBeNull();
+        expect(sidebar().classList.contains('drawer-open')).toBe(false);
+
+        header.contextDrawerToggleRequested.emit();
+        fixture.detectChanges();
+        expect(sidebar().classList.contains('drawer-open')).toBe(true);
+
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+        );
+        fixture.detectChanges();
+        expect(sidebar().classList.contains('drawer-open')).toBe(false);
     });
 });

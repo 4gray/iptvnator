@@ -37,6 +37,9 @@
         [isDownloadsView]="facade.isDownloadsView()"
         [activeDownloadsCount]="facade.activeDownloadsCount()"
         [isSettingsRoute]="facade.isSettingsRoute()"
+        [showContextDrawerToggle]="facade.hasContextPanelContent()"
+        [isContextDrawerOpen]="contextDrawer.isOpen()"
+        (contextDrawerToggleRequested)="contextDrawer.toggle()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
         (searchSubmitted)="facade.onSearchEnter($event)"
@@ -55,7 +58,19 @@
         [class.single-pane]="!facade.showContextPanel()"
     >
         @if (facade.showContextPanel()) {
+            <!-- Phone-only (CSS-hidden above 640px): tapping the scrim is
+                 one of the two ways to close the drawer, so it renders
+                 whenever the drawer is open. -->
+            @if (contextDrawer.isOpen()) {
+                <div
+                    class="context-drawer-backdrop"
+                    data-test-id="context-drawer-backdrop"
+                    aria-hidden="true"
+                    (click)="contextDrawer.close()"
+                ></div>
+            }
             <app-workspace-shell-context-sidebar
+                [class.drawer-open]="contextDrawer.isOpen()"
                 [variant]="facade.contextPanel()"
                 [context]="facade.currentContext()"
                 [section]="facade.currentSection()"

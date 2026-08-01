@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "読み込み済みチャンネルのみ",
             "COMMAND_PALETTE_SHORTCUT": "コマンドパレット（Ctrl/Cmd+K）",
             "OPEN_COMMAND_PALETTE": "コマンドパレットを開く",
+            "CONTEXT_DRAWER_TOGGLE": "カテゴリーとフィルターのパネルを切り替え",
+            "CONTEXT_DRAWER_TOOLTIP": "カテゴリーとフィルター",
             "ADD_PLAYLIST_ALL": "プレイリストを追加",
             "ADD_PLAYLIST": "プレイリストを追加",
             "OPEN_DOWNLOADS": "ダウンロードを開く",

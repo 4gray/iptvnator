@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Только загруженные каналы",
             "COMMAND_PALETTE_SHORTCUT": "Палитра команд (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Открыть палитру команд",
+            "CONTEXT_DRAWER_TOGGLE": "Показать или скрыть панель категорий и фильтров",
+            "CONTEXT_DRAWER_TOOLTIP": "Категории и фильтры",
             "ADD_PLAYLIST_ALL": "Добавить плейлист (все плейлисты)",
             "ADD_PLAYLIST": "Добавить плейлист",
             "OPEN_DOWNLOADS": "Открыть загрузки",

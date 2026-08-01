@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Alleen geladen kanalen",
             "COMMAND_PALETTE_SHORTCUT": "Opdrachtenpalet (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Open opdrachtenpalet",
+            "CONTEXT_DRAWER_TOGGLE": "Paneel met categorieën en filters tonen of verbergen",
+            "CONTEXT_DRAWER_TOOLTIP": "Categorieën en filters",
             "ADD_PLAYLIST_ALL": "Afspeellijst toevoegen",
             "ADD_PLAYLIST": "Afspeellijst toevoegen",
             "OPEN_DOWNLOADS": "Open downloads",

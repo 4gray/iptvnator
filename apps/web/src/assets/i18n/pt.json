@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Apenas canais carregados",
             "COMMAND_PALETTE_SHORTCUT": "Paleta de comandos (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Abrir paleta de comandos",
+            "CONTEXT_DRAWER_TOGGLE": "Mostrar ou ocultar o painel de categorias e filtros",
+            "CONTEXT_DRAWER_TOOLTIP": "Categorias e filtros",
             "ADD_PLAYLIST_ALL": "Adicionar playlist",
             "ADD_PLAYLIST": "Adicionar playlist",
             "OPEN_DOWNLOADS": "Abrir downloads",

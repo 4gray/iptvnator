@@ -176,6 +176,30 @@ export class WorkspaceShellRouteStateService {
     readonly showContextPanel = computed(
         () => this.currentRoute().contextPanel !== 'none'
     );
+    /**
+     * Whether the context sidebar would actually render content for the
+     * current route. Mirrors the guard conditions in the sidebar's template:
+     * the 'sources' variant renders nothing without playlists and the
+     * 'category' variant renders nothing without a resolved portal context.
+     * Drives the phone drawer toggle in the header — a toggle that opens an
+     * empty drawer is worse than no toggle.
+     */
+    readonly hasContextPanelContent = computed(() => {
+        switch (this.contextPanel()) {
+            case 'sources':
+                return !this.hasNoPlaylists();
+            case 'category':
+                return (
+                    this.currentContext() !== null &&
+                    this.currentSection() !== null
+                );
+            case 'settings':
+            case 'collection':
+                return true;
+            default:
+                return false;
+        }
+    });
     readonly railProviderClass = computed(() => {
         const context = this.railContext();
         if (!context) {

@@ -49,6 +49,13 @@ app-workspace-shell-context-sidebar {
     min-height: 0;
 }
 
+// Scrim behind the phone context drawer. Rendered only while the drawer is
+// open; display: none above the breakpoint so a drawer left open when the
+// viewport grows cannot block the desktop layout.
+.context-drawer-backdrop {
+    display: none;
+}
+
 .workspace-now-playing {
     grid-column: 2;
     grid-row: 3;
@@ -93,13 +100,18 @@ app-workspace-shell-context-sidebar {
         grid-column: 1;
         grid-row: 3;
         // Side by side there is no room for both: a 300px context panel on a
-        // 375px screen leaves the content unusable, so they stack instead.
+        // 375px screen leaves the content unusable. The context sidebar
+        // becomes a position: fixed off-canvas drawer (its own stylesheet),
+        // which takes it out of grid flow, so the content owns the full pane.
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(0, 1fr);
+    }
 
-        &.single-pane {
-            grid-template-rows: minmax(0, 1fr);
-        }
+    .context-drawer-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 98;
+        background: rgba(0, 0, 0, 0.4);
     }
 
     .workspace-content {

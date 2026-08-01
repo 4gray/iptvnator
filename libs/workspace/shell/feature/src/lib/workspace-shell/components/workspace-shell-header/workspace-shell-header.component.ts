@@ -66,6 +66,15 @@ export class WorkspaceShellHeaderComponent {
      * isSettingsRoute computed.
      */
     readonly isSettingsRoute = input(false);
+    /**
+     * Phone-width (≤640px) drawer toggle for the context panel. The button
+     * itself is hidden by CSS above the phone breakpoint, so these inputs
+     * only matter on small viewports: `showContextDrawerToggle` reflects
+     * whether the current route has panel content to show, and
+     * `isContextDrawerOpen` feeds aria-expanded.
+     */
+    readonly showContextDrawerToggle = input(false);
+    readonly isContextDrawerOpen = input(false);
 
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
@@ -78,6 +87,7 @@ export class WorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
+    readonly contextDrawerToggleRequested = output<void>();
 
     focusSearchInput(options: { select?: boolean } = {}): void {
         const inputElement = this.searchInput()?.nativeElement;
@@ -140,5 +150,9 @@ export class WorkspaceShellHeaderComponent {
 
     onDownloadsRequested(): void {
         this.downloadsRequested.emit();
+    }
+
+    onContextDrawerToggleRequested(): void {
+        this.contextDrawerToggleRequested.emit();
     }
 }

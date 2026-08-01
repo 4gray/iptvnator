@@ -340,15 +340,25 @@ inventing a nearby value: several surfaces cooperate at this width, and a
 component that picks `599px` leaves a band where the shell has already stacked
 but the component has not.
 
-### Rails become rows or stacks
+### Rails become rows, stacks, or drawers
 
 - The workspace shell rail turns into a horizontal top bar. Everything inside
   it has to opt into the row direction — a nested list that keeps
   `flex-direction: column` stacks its links out of the bar and over the header.
   The bar scrolls sideways once a portal contributes its sections, and the
   settings link is `position: sticky` so it never scrolls out of reach.
-- Side rails stack above the content instead of beside it: the shell context
-  panel, the live-layout channel sidebar, and the M3U channel drawer.
+- The shell context panel (categories, filters, settings sections) is an
+  off-canvas drawer: hidden by default so the route content owns the full
+  pane, opened from a toggle in the workspace header, closed by selection,
+  backdrop tap, Escape, or any navigation. State lives in
+  `WorkspaceShellContextDrawerService` (provided by the shell component); the
+  panels call `close()` after selections that do not navigate — a
+  NavigationEnd listener alone misses Stalker ITV/radio categories, settings
+  sections, sources filters, and collection filters. The drawer positioning
+  is `position: fixed` on the sidebar host, which also removes it from the
+  shell grid, so the phone `workspace-body` stays single-pane.
+- Other side rails stack above the content instead of beside it: the
+  live-layout channel sidebar and the M3U channel drawer.
 
 ### Resizable rails need `!important`
 

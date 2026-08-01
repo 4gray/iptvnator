@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Loaded channels only",
             "COMMAND_PALETTE_SHORTCUT": "Command palette (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Open command palette",
+            "CONTEXT_DRAWER_TOGGLE": "Toggle the categories and filters panel",
+            "CONTEXT_DRAWER_TOOLTIP": "Categories & filters",
             "ADD_PLAYLIST_ALL": "Add playlist",
             "ADD_PLAYLIST": "Add playlist",
             "OPEN_DOWNLOADS": "Open downloads",

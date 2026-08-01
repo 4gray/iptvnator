@@ -13,6 +13,7 @@ import {
     selectAllPlaylistsMeta,
 } from '@iptvnator/m3u-state';
 import { TranslatePipe } from '@ngx-translate/core';
+import { WorkspaceShellContextDrawerService } from '../workspace-shell/services/workspace-shell-context-drawer.service';
 
 type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
 
@@ -34,6 +35,12 @@ const ALL_FILTERS = ['m3u', 'xtream', 'stalker'];
 })
 export class WorkspaceSourcesFiltersPanelComponent {
     private readonly store = inject(Store);
+    // Optional: only provided inside the workspace shell; picking a type
+    // filter is a single-select choice that never navigates, so the phone
+    // drawer closes here to reveal the filtered list.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
 
     private readonly activeTypeFilters = this.store.selectSignal(
         selectActiveTypeFilters
@@ -94,6 +101,7 @@ export class WorkspaceSourcesFiltersPanelComponent {
                 selectedFilters,
             })
         );
+        this.contextDrawer?.close();
     }
 
     getTypeCount(filterId: PlaylistFilterId): number {

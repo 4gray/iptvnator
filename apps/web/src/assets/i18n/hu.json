@@ -1248,6 +1248,8 @@
             "SEARCH_STATUS_LOADED_ONLY": "Csak betöltött csatornák",
             "COMMAND_PALETTE_SHORTCUT": "Parancspaletta (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Parancspaletta megnyitása",
+            "CONTEXT_DRAWER_TOGGLE": "Kategóriák és szűrők paneljének megjelenítése vagy elrejtése",
+            "CONTEXT_DRAWER_TOOLTIP": "Kategóriák és szűrők",
             "ADD_PLAYLIST_ALL": "Lejátszási lista hozzáadása",
             "ADD_PLAYLIST": "Lejátszási lista hozzáadása",
             "OPEN_DOWNLOADS": "Letöltések megnyitása",
