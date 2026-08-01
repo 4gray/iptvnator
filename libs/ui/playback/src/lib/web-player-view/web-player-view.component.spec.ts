@@ -913,6 +913,122 @@ describe('WebPlayerViewComponent', () => {
             )
         ).toBeNull();
     });
+
+    describe('Electron scoped header override ownership', () => {
+        const GATED_STREAM_URL = 'http://portal.example:8080/live/ch1.ts';
+        const GATED_PLAYBACK = {
+            streamUrl: GATED_STREAM_URL,
+            title: 'Gated Channel',
+            isLive: true,
+            headers: {
+                'User-Agent': 'MAG250',
+                Referer: 'http://portal.example',
+                Cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01; stb_lang=en_US',
+                Authorization: 'Bearer TOKEN123',
+            },
+        };
+        let setUserAgent: jest.Mock;
+
+        beforeEach(() => {
+            setUserAgent = jest.fn().mockResolvedValue(true);
+            (window as unknown as { electron?: unknown }).electron = {
+                setUserAgent,
+            };
+        });
+
+        afterEach(() => {
+            fixture.destroy();
+            delete (window as unknown as { electron?: unknown }).electron;
+        });
+
+        it('configures the full header set — incl. credentials — before handing the source to the player', async () => {
+            fixture.componentRef.setInput('playback', GATED_PLAYBACK);
+
+            fixture.detectChanges();
+
+            // The source is handed over only after the override IPC resolves,
+            // so the first media request already carries the credentials.
+            expect(setUserAgent).toHaveBeenCalledWith(
+                'MAG250',
+                'http://portal.example',
+                GATED_STREAM_URL,
+                {
+                    authorization: 'Bearer TOKEN123',
+                    cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01; stb_lang=en_US',
+                }
+            );
+            expect(component.channel).toBeUndefined();
+
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            expect(component.channel.url).toBe(GATED_STREAM_URL);
+        });
+
+        it('omits the credentials object when the playback carries none', async () => {
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'https://example.com/live/plain.m3u8',
+                title: 'Plain Channel',
+                userAgent: 'PlainAgent/1.0',
+            });
+
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(setUserAgent).toHaveBeenCalledWith(
+                'PlainAgent/1.0',
+                undefined,
+                'https://example.com/live/plain.m3u8',
+                undefined
+            );
+        });
+
+        it('applies only the newest playback when a switch supersedes a pending header IPC', async () => {
+            const resolvers: Array<() => void> = [];
+            setUserAgent.mockImplementation(
+                () =>
+                    new Promise<boolean>((resolve) =>
+                        resolvers.push(() => resolve(true))
+                    )
+            );
+
+            fixture.componentRef.setInput('playback', GATED_PLAYBACK);
+            fixture.detectChanges();
+            fixture.componentRef.setInput('playback', {
+                streamUrl: 'http://portal.example:8080/live/ch2.ts',
+                title: 'Next Channel',
+                isLive: true,
+                headers: GATED_PLAYBACK.headers,
+            });
+            fixture.detectChanges();
+
+            // The stale IPC completion must not hand the old source over.
+            resolvers[0]();
+            await fixture.whenStable();
+            expect(component.channel).toBeUndefined();
+
+            resolvers[1]();
+            await fixture.whenStable();
+            expect(component.channel.url).toBe(
+                'http://portal.example:8080/live/ch2.ts'
+            );
+        });
+
+        it('clears the scoped override on destroy so credentials do not outlive playback', async () => {
+            fixture.componentRef.setInput('playback', GATED_PLAYBACK);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            setUserAgent.mockClear();
+
+            fixture.destroy();
+
+            expect(setUserAgent).toHaveBeenCalledWith(
+                undefined,
+                undefined,
+                GATED_STREAM_URL
+            );
+        });
+    });
 });
 
 function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {

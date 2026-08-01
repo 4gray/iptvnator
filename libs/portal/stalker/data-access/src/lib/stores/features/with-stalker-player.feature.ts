@@ -196,14 +196,38 @@ export function withStalkerPlayer() {
                     const selectedItemId =
                         normalizeStalkerEntityIdAsNumber(item?.id) ?? 0;
 
+                    // VOD and series streams sit behind the same portal gate
+                    // as ITV: without the mac cookie/Bearer token an
+                    // auth-enforcing portal answers 403 (they previously
+                    // carried no portal headers at all — audit finding 5).
+                    const token = stalkerSession.getCachedToken(playlist._id);
+                    const headers = buildStalkerExternalPlaybackHeaders(
+                        playlist,
+                        token,
+                        streamUrl
+                    );
+                    const crossOriginStream = isCrossOriginStalkerStream(
+                        playlist,
+                        streamUrl
+                    );
+                    const portalOrigin = getStalkerPortalOrigin(playlist);
+
                     return {
                         streamUrl,
                         title: title ?? '',
                         thumbnail,
                         startTime,
-                        userAgent: playlist.userAgent,
-                        referer: playlist.referrer,
-                        origin: playlist.origin,
+                        headers,
+                        userAgent:
+                            headers['User-Agent'] ||
+                            playlist.userAgent ||
+                            STALKER_MAG_USER_AGENT,
+                        referer: crossOriginStream
+                            ? undefined
+                            : playlist.referrer || portalOrigin,
+                        origin: crossOriginStream
+                            ? undefined
+                            : playlist.origin || portalOrigin,
                         contentInfo: {
                             playlistId: playlist._id,
                             contentXtreamId:
@@ -319,13 +343,36 @@ export function withStalkerPlayer() {
                         item.o_name || item.name || item.title
                     );
 
+                    // Radio streams come off the same portal as ITV and are
+                    // gated the same way — give them the identical header set
+                    // (they previously carried no portal headers at all).
+                    const token = stalkerSession.getCachedToken(playlist._id);
+                    const headers = buildStalkerExternalPlaybackHeaders(
+                        playlist,
+                        token,
+                        streamUrl
+                    );
+                    const crossOriginStream = isCrossOriginStalkerStream(
+                        playlist,
+                        streamUrl
+                    );
+                    const portalOrigin = getStalkerPortalOrigin(playlist);
+
                     return {
                         streamUrl,
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
-                        userAgent: playlist.userAgent,
-                        referer: playlist.referrer,
-                        origin: playlist.origin,
+                        headers,
+                        userAgent:
+                            headers['User-Agent'] ||
+                            playlist.userAgent ||
+                            STALKER_MAG_USER_AGENT,
+                        referer: crossOriginStream
+                            ? undefined
+                            : playlist.referrer || portalOrigin,
+                        origin: crossOriginStream
+                            ? undefined
+                            : playlist.origin || portalOrigin,
                     };
                 };
 

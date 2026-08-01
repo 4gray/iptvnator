@@ -25,6 +25,13 @@ export interface ScenarioConfig {
     marketingFixture?: true;
     /** Answer `get_profile` with `status: 2` until `auth_second_step=1`. */
     requiresLogin?: true;
+    /**
+     * `create_link` returns this server's own `/stream/gated/video.mp4`,
+     * which answers 403 unless the request carries the portal mac cookie AND
+     * the MAC's Bearer token — proves a player's media requests really carry
+     * the portal credentials (the "only VLC works" cluster).
+     */
+    gatedStream?: true;
 }
 
 /**
@@ -135,6 +142,20 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         isSeriesFraction: 0,
         embeddedSeriesFraction: 0,
         marketingFixture: true,
+    },
+    '00:1a:79:00:00:09': {
+        name: 'gated-stream',
+        description:
+            'Streams gated on portal credentials — create_link returns a ' +
+            'local URL that 403s without the mac cookie + Bearer token',
+        seed: 9009,
+        categoryCount: { itv: 2, radio: 1, vod: 1, series: 1 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        gatedStream: true,
     },
 };
 

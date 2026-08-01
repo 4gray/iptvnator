@@ -122,8 +122,9 @@ policy.
 ## Scoped Request Header Overrides
 
 Inline playback can request temporary `User-Agent`, `Referer`, and `Origin`
-header overrides through `window.electron.setUserAgent(userAgent, referer,
-scopeUrl)`.
+header overrides — and, for auth-gated portal streams, `Cookie` and
+`Authorization` credentials — through `window.electron.setUserAgent(userAgent,
+referer, scopeUrl, credentials?)`.
 
 The Electron backend handles that IPC in `apps/electron-backend/src/app/events/shared.events.ts`
 and delegates to `apps/electron-backend/src/app/services/request-header-overrides.service.ts`.
@@ -131,11 +132,18 @@ The service registers one `session.defaultSession.webRequest.onBeforeSendHeaders
 listener and updates layered in-memory overrides instead of stacking a new
 listener for every channel change.
 
+`WebPlayerViewComponent` is the single renderer owner of the scoped override:
+it extracts the full header set from the resolved playback (including the
+Stalker mac cookie and Bearer token), configures the override **before**
+handing the source to any built-in player, and clears the scoped layer on
+destroy. Individual player components must not call the bridge themselves — a
+narrower call would overwrite the credentialed override.
+
 Rules:
 
 - empty playlist-level `userAgent` and `referer` clear all active overrides
-- empty channel-level `userAgent` and `referer` with a `scopeUrl` clear only
-  the scoped channel override, preserving playlist-level defaults
+- empty channel-level values with a `scopeUrl` clear only the scoped channel
+  override, preserving playlist-level defaults
 - channel playback should pass the stream URL as `scopeUrl`
 - scoped overrides apply only to the active stream origin and referer origin
 - playlist-level user agents and referrers may call the bridge without a
@@ -143,10 +151,38 @@ Rules:
   the whole M3U playlist
 - header names are replaced case-insensitively before canonical `User-Agent`,
   `Referer`, and `Origin` names are written
+- header values containing control characters are rejected outright (header
+  smuggling)
+
+Credential rules (`credentials.cookie` / `credentials.authorization`) are
+deliberately stricter than the general scope:
+
+- credentials are accepted **only** with a `scopeUrl` that parses to a
+  concrete origin; an unscoped (playlist-level) call silently drops them —
+  fail closed, never fail broad
+- they are attached **only** to requests whose origin equals the stream URL's
+  exact origin — never to the referer-origin sibling that `User-Agent`/`Referer`
+  also cover, and never to third-party hosts an HLS manifest may point at
+- they live only in the in-memory override: never in the session cookie jar,
+  never on disk, so they cannot outlive the app process
+- they are dropped whenever the scoped override is replaced (channel change)
+  or cleared (playback end, `WebPlayerViewComponent` destroy)
+
+The header-injection design was chosen over `session.cookies.set()`
+deliberately: jar cookies only attach to credentialed requests, which would
+force `withCredentials` into every web engine and break against the
+`Access-Control-Allow-Origin: *` that IPTV panels typically send, and jar
+scoping is domain-based (port-blind) — weaker than the exact-origin match
+above. Injecting at `onBeforeSendHeaders` sits below the CORS/credentials
+layer, so the request stays "uncredentialed" for the fetch spec while the
+wire request carries the portal session.
 
 When changing this flow, keep stale header cleanup covered. Switching from a
 channel or playlist with custom headers to one without custom headers must clear
-the previous override.
+the previous override. The Electron e2e
+`apps/electron-backend-e2e/src/stalker-playback-headers.e2e.ts` pins the
+end-to-end contract against a mock stream that answers 403 without the portal
+credentials.
 
 ## Main-Process Remote Requests
 

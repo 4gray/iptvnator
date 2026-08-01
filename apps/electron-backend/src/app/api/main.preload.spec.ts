@@ -140,7 +140,33 @@ describe('main preload DB IPC contract', () => {
             'set-user-agent',
             'ChannelAgent/1.0',
             'https://portal.example/referrer',
-            'https://stream.example/live.m3u8'
+            'https://stream.example/live.m3u8',
+            undefined
+        );
+    });
+
+    it('forwards scoped stream credentials alongside the header override', async () => {
+        const api = getExposedApi();
+
+        await api.setUserAgent(
+            'ChannelAgent/1.0',
+            'https://portal.example/referrer',
+            'https://stream.example/live.m3u8',
+            {
+                authorization: 'Bearer TOKEN',
+                cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01',
+            }
+        );
+
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'set-user-agent',
+            'ChannelAgent/1.0',
+            'https://portal.example/referrer',
+            'https://stream.example/live.m3u8',
+            {
+                authorization: 'Bearer TOKEN',
+                cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01',
+            }
         );
     });
 

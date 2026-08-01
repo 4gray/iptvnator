@@ -183,6 +183,49 @@ the cross-portal collection resolver (`StreamResolverService`) use
 resolve relative (`/media/...`) or query-only (`?token=...`) `create_link`
 replies against the portal base URL.
 
+## Playback Header Contract
+
+Every playback kind — ITV, VOD, series episodes, and radio — resolves its
+stream and attaches the same portal header set through
+`buildStalkerExternalPlaybackHeaders()`
+(`libs/portal/stalker/data-access/src/lib/stalker-live-playback.utils.ts`).
+The resolved `ResolvedPortalPlayback.headers` feed both the external players
+(MPV/VLC/Embedded MPV via the launch IPC) and the built-in web players (via
+the scoped Electron request-header override owned by `WebPlayerViewComponent`
+— see `docs/architecture/electron-security.md`, "Scoped Request Header
+Overrides").
+
+Two stream profiles exist, selected by one shared predicate:
+
+- **Portal-owned** (`isStalkerStreamCredentialSafe()` in
+  `@iptvnator/shared/interfaces`): the stream host equals the portal host —
+  including a different port or an http→https upgrade, the routine IPTV panel
+  shape (#1158 class). These streams get the full MAG profile: `Cookie`
+  (`mac=…` plus protocol cookies), `Authorization: Bearer <token>` when a
+  session token exists, `User-Agent` (playlist override or the MAG UA — the
+  API path always sent both, the playback set historically sent only
+  `X-User-Agent`), `X-User-Agent`, `SN` when a real serial exists, and
+  `Origin`/`Referer` set to the portal origin.
+- **Foreign / direct** (different host, or an https→http downgrade): the
+  credential-free `KSPlayer` direct-stream profile (`User-Agent: KSPlayer`,
+  `Accept`, `Range`, `Icy-MetaData`, `Connection`). Portal credentials must
+  never reach a third-party host; direct stream URLs carry their access token
+  in the URL minted by `create_link`.
+
+The Electron main process keeps a fallback header context per resolved
+`create_link` URL (`stalker-playback-context.service.ts`) for external-player
+launches that arrive without renderer headers. It classifies streams with the
+same shared predicate — if the two ever diverged,
+`isStalkerDirectStreamProfile` in the external-player path would discard the
+renderer's credentialed headers for streams the main process misread as
+direct.
+
+The mock server's `gated-stream` scenario (MAC `00:1A:79:00:00:09`) makes
+`create_link` return a local `/stream/gated/video.mp4` that answers 403
+without the mac cookie and current Bearer token;
+`apps/electron-backend-e2e/src/stalker-playback-headers.e2e.ts` uses it to
+prove a built-in player's media requests really carry the credentials.
+
 ## Live TV and Radio
 
 The Stalker live route and radio route intentionally share

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { resolveStreamUrl } from '../data-generator.js';
+import { buildRequestOrigin } from '../marketing-poster-url.js';
 import { extractMac } from '../request-mac.js';
+import { getScenario } from '../scenarios.js';
 
 /**
  * Stalker create_link — returns a playable stream URL.
@@ -18,7 +20,17 @@ export function handleCreateLink(req: Request, res: Response): void {
     const itemIndex = cmd
         .split('')
         .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    const streamUrl = resolveStreamUrl(cmd, itemIndex);
+    // The /stalker proxy route dispatches a synthetic request without
+    // Express' .get(), so fall back to the Host header there instead of
+    // crashing — the gated scenario is only meaningful for direct clients
+    // that can attach credentials to media requests anyway.
+    const requestOrigin =
+        typeof req.get === 'function'
+            ? buildRequestOrigin(req)
+            : `http://${req.headers['host'] ?? 'localhost:3210'}`;
+    const streamUrl = getScenario(mac).gatedStream
+        ? `${requestOrigin}/stream/gated/video.mp4`
+        : resolveStreamUrl(cmd, itemIndex);
 
     console.log(`[create_link] MAC=${mac} cmd=${cmd} → ${streamUrl}`);
 
