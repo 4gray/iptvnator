@@ -115,7 +115,10 @@ describe('StalkerAccountInfoService', () => {
             expect.objectContaining({
                 url: portalPlaylist.portalUrl,
                 macAddress: portalPlaylist.macAddress,
-                params: { type: 'account_info', action: 'get_main_info' },
+                params: expect.objectContaining({
+                    type: 'account_info',
+                    action: 'get_main_info',
+                }),
             })
         );
         expect(snapshot).toEqual({
@@ -126,6 +129,48 @@ describe('StalkerAccountInfoService', () => {
             mac: '00:1A:79:00:00:01',
             phone: '10042',
         });
+    });
+
+    it('unwraps the nested js.account_info envelope used by Ministra-style portals', async () => {
+        // Same envelope fetchStalkerExpireDate() consumes in
+        // stalker-player-request.utils — nested facts must win over
+        // flat aliases.
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: {
+                mac: '00:1A:79:00:00:01',
+                tariff_plan: 'Flat Alias Plan',
+                account_info: {
+                    login: 'nested-user',
+                    expire_date: 1_790_000_000,
+                    tariff_plan_name: 'Nested Premium',
+                    status: '1',
+                },
+            },
+        });
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(snapshot).toEqual({
+            login: 'nested-user',
+            expireDate: 1_790_000_000,
+            tariffPlanName: 'Nested Premium',
+            status: 1,
+            mac: '00:1A:79:00:00:01',
+            phone: undefined,
+        });
+    });
+
+    it('sends the JsHttpRequest parameter legacy panels expect', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({ js: {} });
+
+        await service.fetchAccountInfo(portalPlaylist);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                params: expect.objectContaining({ JsHttpRequest: '1-xml' }),
+            })
+        );
     });
 
     it('returns null when get_main_info yields no usable facts', async () => {

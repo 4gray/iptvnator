@@ -24,19 +24,30 @@ export interface StalkerAccountSnapshot {
     phone?: string;
 }
 
+interface StalkerMainInfoFields {
+    mac?: string;
+    phone?: string;
+    login?: string;
+    fname?: string;
+    status?: number | string;
+    tariff_plan?: string;
+    tariff_plan_name?: string;
+    end_date?: number | string;
+    expire_date?: number | string;
+    expire_billing_date?: number | string;
+}
+
 interface StalkerMainInfoResponse {
-    js?: {
-        mac?: string;
-        phone?: string;
-        login?: string;
-        fname?: string;
-        status?: number | string;
-        tariff_plan?: string;
-        tariff_plan_name?: string;
-        end_date?: number | string;
-        expire_date?: number | string;
-        expire_billing_date?: number | string;
-    } | null;
+    js?:
+        | (StalkerMainInfoFields & {
+              /**
+               * Ministra-style portals nest the account block —
+               * `fetchStalkerExpireDate()` in stalker-player-request.utils
+               * reads this exact envelope. Other panels answer flat.
+               */
+              account_info?: StalkerMainInfoFields | null;
+          })
+        | null;
 }
 
 /**
@@ -101,13 +112,25 @@ export class StalkerAccountInfoService {
                 stalkerSession: this.stalkerSession,
             },
             playlist,
-            { type: 'account_info', action: 'get_main_info' }
+            {
+                type: 'account_info',
+                action: 'get_main_info',
+                JsHttpRequest: '1-xml',
+            }
         );
 
-        const info = response?.js;
-        if (!info || typeof info !== 'object') {
+        const flat = response?.js;
+        if (!flat || typeof flat !== 'object') {
             return null;
         }
+
+        // Nested envelope wins field-by-field; flat top-level values remain
+        // as aliases for panels that answer without the account_info block.
+        const nested =
+            flat.account_info && typeof flat.account_info === 'object'
+                ? flat.account_info
+                : {};
+        const info: StalkerMainInfoFields = { ...flat, ...nested };
 
         return normalizeSnapshot({
             login: info.login || info.fname || undefined,

@@ -1016,6 +1016,12 @@ engine` (restart required) or
 - TMDB attribution (logo + disclaimer) is required and shown in the settings TMDB section and About
 - See `docs/architecture/tmdb-metadata-enrichment.md`
 
+**Portal Account Info**:
+
+- Both portal types expose an account-info dialog through the same entry points: header playlist switcher (bottom section for the active playlist + per-row ⋮ menu), dashboard source card ⋮ menu, and the command palette. Gates use the shared predicates in `libs/shared/interfaces/src/lib/portal-account-playlist.utils.ts`; `WorkspaceShellHeaderService.openAccountInfoFor()` picks the dialog by playlist type.
+- Xtream: `AccountInfoComponent` (`libs/portal/xtream/feature/src/lib/account-info/`), queries `get_account_info` live.
+- Stalker: `StalkerAccountInfoComponent` (`libs/portal/stalker/feature/src/lib/stalker-account-info/`), cached-first — renders the import-time `stalkerAccountInfo` snapshot instantly, then `StalkerAccountInfoService` refreshes (full portals: handshake+`get_profile`; `portal.php`: best-effort `account_info/get_main_info`, nested `js.account_info` envelope or flat fields). Details: `docs/architecture/stalker-portal.md` ("Account Info Dialog").
+
 **Favorites and Recently Viewed**:
 
 - Per-playlist favorites and global favorites
