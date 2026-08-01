@@ -10,6 +10,7 @@ import {
     classifyMpegTsPlaybackIssue,
     classifyUnsupportedHlsManifestCodecs,
     createHlsPlaybackEvidence,
+    createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { WebVideoControlsAdapter } from '../player-controls';
@@ -66,7 +67,7 @@ export class ArtPlayerSourceSession {
         | null = null;
     private mpegTsPlayer: mpegts.Player | null = null;
     private mpegTsErrorListener:
-        | ((type: string, details: string, info: unknown) => void)
+        | ((type: unknown, details: unknown, info: unknown) => void)
         | null = null;
     private shakaSession: ShakaVideoSession | null = null;
     private destroyed = false;
@@ -192,7 +193,7 @@ export class ArtPlayerSourceSession {
             }
             this.config.emitPlaybackIssue(
                 classifyMpegTsPlaybackIssue(
-                    { type, details, info },
+                    createMpegTsPlaybackEvidence(type, details, info),
                     this.createSourceMetadata(url, 'video/mp2t')
                 )
             );

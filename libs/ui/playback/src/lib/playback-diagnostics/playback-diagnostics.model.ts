@@ -3,6 +3,9 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { ErrorDetails, ErrorTypes } from 'hls.js';
+import type { MpegTsPlaybackEvidence } from './mpegts-playback-evidence.model';
+
+export * from './mpegts-playback-evidence.model';
 
 export const PlaybackDiagnosticCode = {
     UnsupportedContainer: 'unsupported-container',
@@ -243,13 +246,6 @@ export interface ShakaPlaybackEvidence {
     readonly httpStatus?: number;
 }
 
-export interface MpegTsPlaybackErrorInput {
-    readonly type?: string;
-    readonly details?: string;
-    readonly message?: string;
-    readonly info?: unknown;
-}
-
 export interface PlaybackDiagnostic {
     readonly code: PlaybackDiagnosticCode;
     readonly source: PlaybackDiagnosticSource;
@@ -266,6 +262,7 @@ export interface PlaybackDiagnostic {
     readonly nativeErrorType?: string;
     readonly vhs?: VhsPlaybackEvidence;
     readonly hls?: HlsPlaybackEvidence;
+    readonly mpegTs?: MpegTsPlaybackEvidence;
     readonly shaka?: ShakaPlaybackEvidence;
     readonly externalFallbackRecommended: boolean;
 }

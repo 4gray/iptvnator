@@ -3,6 +3,7 @@ import {
     InlinePlaybackPlayer,
     type PlaybackDiagnostic,
     classifyMpegTsPlaybackIssue,
+    createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
@@ -59,12 +60,7 @@ export class VjsMpegTsSession {
             this.syncDuration();
             this.config.emitPlaybackIssue(
                 classifyMpegTsPlaybackIssue(
-                    {
-                        type: typeof type === 'string' ? type : undefined,
-                        details:
-                            typeof details === 'string' ? details : undefined,
-                        info,
-                    },
+                    createMpegTsPlaybackEvidence(type, details, info),
                     createPlaybackSourceMetadata({
                         url,
                         mimeType: 'video/mp2t',

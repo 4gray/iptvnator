@@ -114,6 +114,52 @@ describe('HtmlVideoPlayerComponent shared controls sources', () => {
         }
     );
 
+    it('emits structured HTTP evidence for mpegts.js failures', () => {
+        mpegTsIsSupported.mockReturnValue(true);
+        const { component } = renderSharedControls(
+            HtmlVideoPlayerComponent,
+            fixtures,
+            {
+                channel: {
+                    ...TEST_CHANNEL,
+                    url: 'https://example.test/missing.ts',
+                },
+            }
+        );
+        const issues: unknown[] = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+        const secret = 'html-mpegts-secret';
+
+        mpegTsInstances[0].emit(
+            'error',
+            'NetworkError',
+            'HttpStatusCodeInvalid',
+            {
+                code: 404,
+                msg: `Not Found ${secret}`,
+                url: `https://provider.example/error?token=${secret}`,
+            }
+        );
+
+        expect(issues).toEqual([
+            expect.objectContaining({
+                code: 'network-error',
+                source: 'mpegts',
+                sourceUrl: 'https://example.test/missing.ts',
+                player: 'html5',
+                httpStatus: 404,
+                mpegTs: expect.objectContaining({
+                    engineType: 'NetworkError',
+                    engineDetails: 'HttpStatusCodeInvalid',
+                    failure: 'http',
+                    httpStatus: 404,
+                }),
+                externalFallbackRecommended: false,
+            }),
+        ]);
+        expect(JSON.stringify(issues)).not.toContain(secret);
+    });
+
     it('owns one MPEG-TS source between media attachment and loading', () => {
         mpegTsIsSupported.mockReturnValue(true);
         const { component } = renderSharedControls(

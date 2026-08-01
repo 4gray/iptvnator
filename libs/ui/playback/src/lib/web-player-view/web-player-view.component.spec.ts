@@ -401,6 +401,37 @@ describe('WebPlayerViewComponent', () => {
         expect(renderedDetails).not.toContain('response body');
     });
 
+    it('renders only sanitized structured mpegts evidence in technical details', () => {
+        const issue = createStructuredMpegTsDiagnostic();
+
+        component.handlePlaybackIssue(issue);
+        fixture.detectChanges();
+
+        const details = component.getDiagnosticDetails(issue);
+        const renderedDetails = details.map(({ value }) => value).join(' ');
+
+        expect(component.getDiagnosticMeta(issue)).toBe('HTTP 404');
+        expect(details).toEqual(
+            expect.arrayContaining([
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
+                    value: 'mpegts.js',
+                },
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
+                    value:
+                        'stage=loader · failure=http · type=NetworkError · ' +
+                        'details=HttpStatusCodeInvalid · ' +
+                        'disposition=terminal · HTTP 404',
+                },
+            ])
+        );
+        expect(renderedDetails).not.toContain('mpegts-render-secret');
+        expect(renderedDetails).not.toContain('provider.example');
+        expect(renderedDetails).not.toContain('Authorization');
+        expect(renderedDetails).not.toContain('response body');
+    });
+
     it('keeps query-declared HLS streams on the HLS mime type', () => {
         const streamUrl =
             'https://example.com/play?extension=m3u8&token=signed';
@@ -1034,6 +1065,33 @@ function createStructuredShakaDiagnostic(): PlaybackDiagnostic {
             stage: 'unknown',
             failure: 'network',
             httpStatus: 503,
+        },
+        externalFallbackRecommended: false,
+    };
+}
+
+function createStructuredMpegTsDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.MpegTs,
+        sourceUrl:
+            'https://provider.example/live.ts?token=mpegts-render-secret',
+        container: 'ts',
+        mimeType: 'video/mp2t',
+        player: 'html5',
+        audioCodecs: [],
+        videoCodecs: [],
+        details: 'Authorization response body mpegts-render-secret',
+        nativeErrorMessage:
+            'https://provider.example/error?token=mpegts-render-secret',
+        httpStatus: 404,
+        mpegTs: {
+            engineType: 'NetworkError',
+            engineDetails: 'HttpStatusCodeInvalid',
+            disposition: 'terminal',
+            stage: 'loader',
+            failure: 'http',
+            httpStatus: 404,
         },
         externalFallbackRecommended: false,
     };

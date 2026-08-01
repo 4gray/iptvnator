@@ -218,6 +218,12 @@ Key files:
   preflight stays unknown but keeps external fallback for clear DASH; KODIPROP
   DRM still suppresses it. See the CLAUDE.md "Video Players" feature entry and
   `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
+- mpegts.js `1.8.0` errors from HTML5, Video.js, and ArtPlayer cross one
+  version-locked structured evidence boundary. Only exact public type/detail
+  pairs, pair-derived stage/failure, terminal disposition, and the validated
+  HTTP 4xx/5xx status slot are retained; raw messages and arbitrary `info`
+  never reach diagnostics. This is a sibling of `PlayerController`, not part
+  of the controls contract.
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped
   `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared
