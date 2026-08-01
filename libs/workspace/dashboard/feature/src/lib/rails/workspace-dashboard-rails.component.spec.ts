@@ -81,14 +81,18 @@ describe('buildDashboardSourceActions', () => {
         ]);
     });
 
-    it('exposes info and remove for Stalker sources', () => {
+    it('exposes info, account, and remove for Stalker sources', () => {
         const playlist = {
             ...basePlaylist,
             macAddress: '00:1A:79:00:00:01',
             portalUrl: 'https://stalker.example.test',
         } as PlaylistMeta;
 
-        expect(actionIds(playlist, false)).toEqual(['playlist-info', 'remove']);
+        expect(actionIds(playlist, false)).toEqual([
+            'playlist-info',
+            'account-info',
+            'remove',
+        ]);
     });
 });
 

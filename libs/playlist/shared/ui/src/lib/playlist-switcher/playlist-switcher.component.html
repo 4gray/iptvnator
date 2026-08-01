@@ -247,6 +247,15 @@
             <mat-icon>info</mat-icon>
             <span>{{ 'WORKSPACE.SHELL.PLAYLIST_INFO' | translate }}</span>
         </button>
+        @if (hasAccountInfo(playlist)) {
+            <button
+                mat-menu-item
+                (click)="requestAccountInfoFor(playlist, $event)"
+            >
+                <mat-icon>person</mat-icon>
+                <span>{{ 'WORKSPACE.SHELL.ACCOUNT_INFO' | translate }}</span>
+            </button>
+        }
         @if (canRefreshPlaylist(playlist)) {
             <button mat-menu-item (click)="refreshPlaylistFor(playlist, $event)">
                 <mat-icon>sync</mat-icon>

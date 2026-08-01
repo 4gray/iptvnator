@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Vai alla sezione serie",
                 "SWITCH_PLAYER_LABEL": "Passa al lettore {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Imposta {{name}} come lettore video attivo",
-                "SWITCH_PLAYER_FEEDBACK": "Lettore impostato su {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Lettore impostato su {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Mostra i dati dell’account del portale Stalker"
             },
             "XTREAM_REFRESH_TITLE": "Aggiornamento playlist",
             "XTREAM_REFRESH_COLLECTING_DATA": "Conservazione dei dati della libreria...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Caricamento",
+    "RETRY": "Riprova",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Informazioni account",
+            "ACCOUNT": "Account",
+            "PORTAL_INFO": "Portale",
+            "LOGIN": "Login",
+            "STATUS": "Stato",
+            "ACTIVE": "Attivo",
+            "INACTIVE": "Inattivo",
+            "TARIFF_PLAN": "Piano tariffario",
+            "EXPIRES": "Scade",
+            "DAYS_LEFT": "Giorni rimanenti",
+            "EXPIRED": "Scaduto",
+            "MAC_ADDRESS": "Indirizzo MAC",
+            "PHONE": "Telefono",
+            "PORTAL_URL": "URL del portale",
+            "PORTAL_TYPE_FULL": "Portale Ministra",
+            "PORTAL_TYPE_LEGACY": "Portale classico (portal.php)",
+            "CACHED_BADGE": "Dati salvati",
+            "REFRESH_FAILED": "Impossibile raggiungere il portale — vengono mostrati i dati salvati al momento dell’aggiunta.",
+            "NO_ACCOUNT_DATA_TITLE": "Nessun dato account",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Questo portale non pubblica informazioni sull’account per questo dispositivo."
         }
     }
 }

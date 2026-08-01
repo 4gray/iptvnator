@@ -13,6 +13,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { WorkspaceHeaderBulkAction } from '../../services/helpers/workspace-shell-constants';
 
 @Component({
@@ -105,6 +106,7 @@ export class WorkspaceShellHeaderComponent {
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
+    readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
 
     focusSearchInput(options: { select?: boolean } = {}): void {
         const inputElement = this.searchInput()?.nativeElement;
@@ -139,6 +141,10 @@ export class WorkspaceShellHeaderComponent {
 
     onAccountInfoRequested(): void {
         this.accountInfoRequested.emit();
+    }
+
+    onAccountInfoForPlaylistRequested(playlist: PlaylistMeta): void {
+        this.accountInfoForPlaylistRequested.emit(playlist);
     }
 
     onAddPlaylistRequested(): void {

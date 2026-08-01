@@ -138,6 +138,7 @@ describe('AppComponent', () => {
                         openGlobalRecent: jest.fn(),
                         openGlobalSearch: jest.fn(),
                         openAccountInfo: jest.fn(),
+                        openStalkerAccountInfo: jest.fn(),
                     },
                 },
             ],

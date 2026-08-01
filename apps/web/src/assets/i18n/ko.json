@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "시리즈 섹션으로 이동",
                 "SWITCH_PLAYER_LABEL": "플레이어를 {{name}}(으)로 전환",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}}을(를) 활성 비디오 플레이어로 설정",
-                "SWITCH_PLAYER_FEEDBACK": "플레이어가 {{name}}(으)로 설정되었습니다"
+                "SWITCH_PLAYER_FEEDBACK": "플레이어가 {{name}}(으)로 설정되었습니다",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Stalker 포털 계정 정보 표시"
             },
             "XTREAM_REFRESH_TITLE": "재생목록 새로 고침 중",
             "XTREAM_REFRESH_COLLECTING_DATA": "라이브러리 데이터를 보존하는 중...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "로드 중",
+    "RETRY": "다시 시도",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "계정 정보",
+            "ACCOUNT": "계정",
+            "PORTAL_INFO": "포털",
+            "LOGIN": "로그인",
+            "STATUS": "상태",
+            "ACTIVE": "활성",
+            "INACTIVE": "비활성",
+            "TARIFF_PLAN": "요금제",
+            "EXPIRES": "만료일",
+            "DAYS_LEFT": "남은 일수",
+            "EXPIRED": "만료됨",
+            "MAC_ADDRESS": "MAC 주소",
+            "PHONE": "전화번호",
+            "PORTAL_URL": "포털 URL",
+            "PORTAL_TYPE_FULL": "Ministra 포털",
+            "PORTAL_TYPE_LEGACY": "레거시 포털(portal.php)",
+            "CACHED_BADGE": "저장된 데이터",
+            "REFRESH_FAILED": "포털에 연결할 수 없습니다 — 포털 추가 시 저장된 데이터를 표시합니다.",
+            "NO_ACCOUNT_DATA_TITLE": "계정 정보 없음",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "이 포털은 이 기기에 대한 계정 정보를 제공하지 않습니다."
         }
     }
 }

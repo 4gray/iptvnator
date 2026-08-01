@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Aller à la section séries",
                 "SWITCH_PLAYER_LABEL": "Basculer le lecteur sur {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Définir {{name}} comme lecteur vidéo actif",
-                "SWITCH_PLAYER_FEEDBACK": "Lecteur défini sur {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Lecteur défini sur {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Afficher les informations du compte du portail Stalker"
             },
             "XTREAM_REFRESH_TITLE": "Actualisation de la playlist",
             "XTREAM_REFRESH_COLLECTING_DATA": "Préservation des données de votre bibliothèque...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Chargement",
+    "RETRY": "Réessayer",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Informations du compte",
+            "ACCOUNT": "Compte",
+            "PORTAL_INFO": "Portail",
+            "LOGIN": "Identifiant",
+            "STATUS": "Statut",
+            "ACTIVE": "Actif",
+            "INACTIVE": "Inactif",
+            "TARIFF_PLAN": "Forfait",
+            "EXPIRES": "Expire",
+            "DAYS_LEFT": "Jours restants",
+            "EXPIRED": "Expiré",
+            "MAC_ADDRESS": "Adresse MAC",
+            "PHONE": "Téléphone",
+            "PORTAL_URL": "URL du portail",
+            "PORTAL_TYPE_FULL": "Portail Ministra",
+            "PORTAL_TYPE_LEGACY": "Portail classique (portal.php)",
+            "CACHED_BADGE": "Données enregistrées",
+            "REFRESH_FAILED": "Le portail est injoignable — affichage des données enregistrées lors de son ajout.",
+            "NO_ACCOUNT_DATA_TITLE": "Aucune donnée de compte",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Ce portail ne publie pas d’informations de compte pour cet appareil."
         }
     }
 }

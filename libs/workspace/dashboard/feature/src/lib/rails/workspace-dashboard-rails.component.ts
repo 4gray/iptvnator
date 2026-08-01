@@ -12,6 +12,8 @@ import { interval, of, startWith, switchMap } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     type EpgProgram,
+    isStalkerAccountPlaylist,
+    isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
 } from '@iptvnator/shared/interfaces';
 import { MatButtonModule } from '@angular/material/button';
@@ -73,7 +75,6 @@ import {
     buildDashboardCollectionViewState,
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
-    isXtreamAccountPlaylist,
     liveRailTitleKeyForSource,
     RAIL_ITEM_LIMIT,
     shouldShowLiveFavoritesSkeleton,
@@ -450,7 +451,7 @@ export class WorkspaceDashboardRailsComponent {
                 this.dialog.open(PlaylistInfoComponent, { data: playlist });
                 break;
             case 'account-info':
-                this.openXtreamAccountInfo(playlist);
+                this.openAccountInfo(playlist);
                 break;
             case 'remove':
                 this.confirmRemovePlaylist(playlist);
@@ -602,26 +603,29 @@ export class WorkspaceDashboardRailsComponent {
         return 'video_library';
     }
 
-    private openXtreamAccountInfo(playlist: PlaylistMeta): void {
-        if (!isXtreamAccountPlaylist(playlist)) {
+    private openAccountInfo(playlist: PlaylistMeta): void {
+        if (isXtreamAccountPlaylist(playlist)) {
+            const title =
+                playlist.title ||
+                playlist.filename ||
+                this.t('WORKSPACE.DASHBOARD.UNTITLED_SOURCE');
+
+            this.shellActions.openAccountInfo({
+                playlist: {
+                    id: playlist._id,
+                    name: title,
+                    title,
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                },
+            });
             return;
         }
 
-        const title =
-            playlist.title ||
-            playlist.filename ||
-            this.t('WORKSPACE.DASHBOARD.UNTITLED_SOURCE');
-
-        this.shellActions.openAccountInfo({
-            playlist: {
-                id: playlist._id,
-                name: title,
-                title,
-                serverUrl: playlist.serverUrl,
-                username: playlist.username,
-                password: playlist.password,
-            },
-        });
+        if (isStalkerAccountPlaylist(playlist)) {
+            this.shellActions.openStalkerAccountInfo({ playlist });
+        }
     }
 
     private confirmRemovePlaylist(playlist: PlaylistMeta): void {

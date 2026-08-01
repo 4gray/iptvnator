@@ -33,7 +33,10 @@ import {
     PortalStatus,
     PortalStatusService,
 } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    isPortalAccountPlaylist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { startWith } from 'rxjs';
 import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
@@ -94,6 +97,7 @@ export class PlaylistSwitcherComponent {
     readonly playlistSelected = output<string>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
+    readonly accountInfoForPlaylistRequested = output<PlaylistMeta>();
     readonly addPlaylistRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
 
@@ -286,6 +290,16 @@ export class PlaylistSwitcherComponent {
         event?.stopPropagation();
         this.menuTrigger().closeMenu();
         this.dialog.open(PlaylistInfoComponent, { data: playlist });
+    }
+
+    hasAccountInfo(playlist: PlaylistMeta): boolean {
+        return isPortalAccountPlaylist(playlist);
+    }
+
+    requestAccountInfoFor(playlist: PlaylistMeta, event?: Event): void {
+        event?.stopPropagation();
+        this.menuTrigger().closeMenu();
+        this.accountInfoForPlaylistRequested.emit(playlist);
     }
 
     refreshPlaylistFor(playlist: PlaylistMeta, event?: Event): void {

@@ -16,7 +16,11 @@ import {
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    isStalkerAccountPlaylist,
+    isXtreamAccountPlaylist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import {
     WorkspaceAccountInfoData,
     WorkspacePortalContext,
@@ -74,9 +78,14 @@ export class WorkspaceShellHeaderService {
     readonly canOpenPlaylistInfo = computed(() =>
         Boolean(this.routeState.activePlaylist())
     );
-    readonly canOpenAccountInfo = computed(() =>
-        Boolean(this.routeState.activePlaylist()?.serverUrl)
-    );
+    readonly canOpenAccountInfo = computed(() => {
+        const playlist = this.routeState.activePlaylist();
+        return Boolean(
+            playlist &&
+                (isXtreamAccountPlaylist(playlist) ||
+                    isStalkerAccountPlaylist(playlist))
+        );
+    });
     readonly canRefreshPlaylist = computed(() =>
         this.playlistRefreshAction.canRefresh(
             this.routeState.activePlaylist()
@@ -234,16 +243,51 @@ export class WorkspaceShellHeaderService {
     }
 
     openAccountInfo(): void {
-        if (!this.canOpenAccountInfo()) {
+        const playlist = this.routeState.activePlaylist();
+        if (!playlist) {
             return;
         }
 
-        const data: WorkspaceAccountInfoData = {
-            vodStreamsCount: this.xtreamStore.vodStreams().length,
-            liveStreamsCount: this.xtreamStore.liveStreams().length,
-            seriesCount: this.xtreamStore.serialStreams().length,
-        };
-        this.workspaceActions.openAccountInfo(data);
+        this.openAccountInfoFor(playlist);
+    }
+
+    /**
+     * Opens the matching account-info dialog for any portal playlist —
+     * the active one (header button, command palette) or a specific row
+     * (playlist switcher item menu).
+     */
+    openAccountInfoFor(playlist: PlaylistMeta): void {
+        if (isXtreamAccountPlaylist(playlist)) {
+            const isActivePlaylist =
+                this.routeState.activePlaylist()?._id === playlist._id;
+            const data: WorkspaceAccountInfoData = {
+                // Stream counts describe the loaded portal session, so they
+                // only apply when the dialog targets the active playlist.
+                ...(isActivePlaylist
+                    ? {
+                          vodStreamsCount:
+                              this.xtreamStore.vodStreams().length,
+                          liveStreamsCount:
+                              this.xtreamStore.liveStreams().length,
+                          seriesCount: this.xtreamStore.serialStreams().length,
+                      }
+                    : {}),
+                playlist: {
+                    id: playlist._id,
+                    name: playlist.title,
+                    title: playlist.title,
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                },
+            };
+            this.workspaceActions.openAccountInfo(data);
+            return;
+        }
+
+        if (isStalkerAccountPlaylist(playlist)) {
+            this.workspaceActions.openStalkerAccountInfo({ playlist });
+        }
     }
 
     refreshCurrentPlaylist(): void {

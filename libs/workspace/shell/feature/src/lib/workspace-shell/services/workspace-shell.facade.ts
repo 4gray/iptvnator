@@ -17,6 +17,7 @@ import {
     CommandBuilderActions,
     CommandBuilderContext,
 } from './helpers/workspace-shell-command-builders';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
 import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
@@ -223,6 +224,10 @@ export class WorkspaceShellFacade {
 
     openAccountInfo(): void {
         this.header.openAccountInfo();
+    }
+
+    openAccountInfoFor(playlist: PlaylistMeta): void {
+        this.header.openAccountInfoFor(playlist);
     }
 
     refreshCurrentPlaylist(): void {

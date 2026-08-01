@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "الانتقال إلى قسم المسلسلات",
                 "SWITCH_PLAYER_LABEL": "تبديل المشغل إلى {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "تعيين {{name}} كمشغل الفيديو النشط",
-                "SWITCH_PLAYER_FEEDBACK": "تم تعيين المشغل إلى {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "تم تعيين المشغل إلى {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "عرض بيانات حساب بوابة Stalker"
             },
             "XTREAM_REFRESH_TITLE": "جارٍ تحديث قائمة التشغيل",
             "XTREAM_REFRESH_COLLECTING_DATA": "جارٍ حفظ بيانات مكتبتك...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "جارٍ التحميل",
+    "RETRY": "إعادة المحاولة",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "معلومات الحساب",
+            "ACCOUNT": "الحساب",
+            "PORTAL_INFO": "البوابة",
+            "LOGIN": "اسم المستخدم",
+            "STATUS": "الحالة",
+            "ACTIVE": "نشط",
+            "INACTIVE": "غير نشط",
+            "TARIFF_PLAN": "خطة الاشتراك",
+            "EXPIRES": "ينتهي في",
+            "DAYS_LEFT": "الأيام المتبقية",
+            "EXPIRED": "منتهي",
+            "MAC_ADDRESS": "عنوان MAC",
+            "PHONE": "الهاتف",
+            "PORTAL_URL": "رابط البوابة",
+            "PORTAL_TYPE_FULL": "بوابة Ministra",
+            "PORTAL_TYPE_LEGACY": "بوابة تقليدية (portal.php)",
+            "CACHED_BADGE": "بيانات محفوظة",
+            "REFRESH_FAILED": "تعذّر الوصول إلى البوابة — يتم عرض البيانات المحفوظة عند إضافة البوابة.",
+            "NO_ACCOUNT_DATA_TITLE": "لا توجد بيانات للحساب",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "لا تنشر هذه البوابة معلومات الحساب لهذا الجهاز."
         }
     }
 }

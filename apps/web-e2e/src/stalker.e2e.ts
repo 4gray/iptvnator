@@ -309,6 +309,26 @@ test('@stalker add a Stalker portal and see it in the playlist list', async ({
     ).toBeVisible();
 });
 
+test('@stalker account info dialog shows subscription facts from the portal', async ({
+    page,
+}) => {
+    await addStalkerPortal(page);
+
+    // Open the header playlist switcher and its "Account info" entry for
+    // the active stalker portal.
+    await page.locator('.playlist-switcher-trigger').click();
+    await page
+        .locator('.context-action-item', { hasText: 'Account info' })
+        .click();
+
+    const dialog = page.locator('mat-dialog-container');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Account Information')).toBeVisible();
+    // Facts served by the mock's account_info/get_main_info handler.
+    await expect(dialog.getByText('Mock Premium 180').first()).toBeVisible();
+    await expect(dialog.getByText(DEFAULT_MAC).first()).toBeVisible();
+});
+
 test('@stalker VOD — categories load from mock server', async ({ page }) => {
     await addStalkerPortal(page);
 
