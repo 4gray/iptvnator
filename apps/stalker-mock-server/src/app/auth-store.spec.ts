@@ -2,8 +2,10 @@ import { Request } from 'express';
 import {
     adoptToken,
     checkRequestAuthorization,
+    hasCompletedDoAuth,
     invalidateSession,
     issueHandshakeToken,
+    markDoAuthCompleted,
     pinDeviceIdentity,
     readBearerToken,
     resetAuthState,
@@ -89,6 +91,28 @@ describe('stalker mock auth store', () => {
         );
     });
 
+    it('refuses to adopt a token the handshake never issued', () => {
+        issueHandshakeToken(MAC);
+
+        // Stricter than the stock server on purpose: a forged or stale token
+        // must not become a session, or the mock cannot catch a client whose
+        // token pipeline is broken.
+        expect(adoptToken(MAC, 'F0RGEDF0RGEDF0RGEDF0RGEDF0RGED12')).toBe(false);
+        expect(
+            checkRequestAuthorization(
+                request({ token: 'F0RGEDF0RGEDF0RGEDF0RGEDF0RGED12' }),
+                true
+            )
+        ).toBe('Authorization failed.');
+    });
+
+    it('re-adopts the already-bound token', () => {
+        const { token } = issueHandshakeToken(MAC);
+        adoptToken(MAC, token);
+
+        expect(adoptToken(MAC, token)).toBe(true);
+    });
+
     it('fails after the session is invalidated so clients must re-authenticate', () => {
         const { token } = issueHandshakeToken(MAC);
         adoptToken(MAC, token);
@@ -97,6 +121,26 @@ describe('stalker mock auth store', () => {
         expect(checkRequestAuthorization(request({ token }), true)).toBe(
             'Authorization failed.'
         );
+    });
+
+    it('keeps pinned device identity across session invalidation', () => {
+        pinDeviceIdentity(MAC, 'dev-1', undefined);
+        invalidateSession(MAC);
+
+        // Losing the token (another device logged in) never unpins device_id
+        // on a real portal, so a changed identity must still conflict.
+        expect(pinDeviceIdentity(MAC, 'other', undefined)).toBe(
+            'device conflict - device_id mismatch'
+        );
+    });
+
+    it('tracks do_auth completion per MAC', () => {
+        expect(hasCompletedDoAuth(MAC)).toBe(false);
+
+        markDoAuthCompleted(MAC);
+
+        expect(hasCompletedDoAuth(MAC)).toBe(true);
+        expect(hasCompletedDoAuth('00:1A:79:00:00:99')).toBe(false);
     });
 
     it('never enforces the token when enforcement is off', () => {

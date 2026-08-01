@@ -20,6 +20,8 @@ interface PortalSession {
     pendingToken?: string;
     /** Token stored for the MAC — what authorizes non-auth actions. */
     accessToken?: string;
+    /** Whether do_auth completed with non-empty credentials for this MAC. */
+    didAuth?: boolean;
     deviceId?: string;
     deviceId2?: string;
 }
@@ -83,11 +85,32 @@ export function issueHandshakeToken(mac: string, presentedToken?: string): {
     return { token, notValid: Boolean(presentedToken) };
 }
 
-/** Adopt the handshake token as the MAC's session token (what get_profile does). */
-export function adoptToken(mac: string, token: string): void {
+/**
+ * Adopt the handshake token as the MAC's session token (what get_profile
+ * does). Deliberately STRICTER than the stock server here: 4.9.35 issues
+ * handshake tokens statelessly and pins whatever Bearer get_profile presents,
+ * so a forged token would become a session on a real portal. The mock only
+ * adopts tokens it actually issued (or the already-bound one), so a client
+ * with a broken or substituted token pipeline fails loudly in tests instead
+ * of passing by accident.
+ */
+export function adoptToken(mac: string, token: string): boolean {
     const session = getSession(mac);
+    if (token !== session.pendingToken && token !== session.accessToken) {
+        return false;
+    }
     session.accessToken = token;
     session.pendingToken = undefined;
+    return true;
+}
+
+/** Record that do_auth completed with non-empty credentials for this MAC. */
+export function markDoAuthCompleted(mac: string): void {
+    getSession(mac).didAuth = true;
+}
+
+export function hasCompletedDoAuth(mac: string): boolean {
+    return getSession(mac).didAuth === true;
 }
 
 export function readBearerToken(req: Request): string | undefined {
@@ -163,9 +186,19 @@ export function checkRequestAuthorization(
     return null;
 }
 
-/** Drop the MAC's session so the next request must re-authenticate. */
+/**
+ * Drop the MAC's tokens so the next request must re-authenticate. Pinned
+ * device identity survives on purpose: on a real portal a lost token (another
+ * device logged in) never unpins device_id, so re-authenticating with a
+ * changed identity must still hit the device-conflict branch.
+ */
 export function invalidateSession(mac: string): void {
-    sessions.delete(mac.toLowerCase());
+    const session = sessions.get(mac.toLowerCase());
+    if (!session) {
+        return;
+    }
+    session.accessToken = undefined;
+    session.pendingToken = undefined;
 }
 
 export function resetAuthState(): void {

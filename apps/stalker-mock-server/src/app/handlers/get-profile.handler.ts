@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
-import { adoptToken, pinDeviceIdentity, readBearerToken } from '../auth-store.js';
+import {
+    adoptToken,
+    hasCompletedDoAuth,
+    pinDeviceIdentity,
+    readBearerToken,
+} from '../auth-store.js';
 import { getScenario } from '../scenarios.js';
 import { extractMac } from '../request-mac.js';
 
@@ -28,7 +33,11 @@ export function handleGetProfile(
         return;
     }
 
-    if (scenario.requiresLogin && req.query['auth_second_step'] !== '1') {
+    // Gate on the actual do_auth completion, not on auth_second_step: the app
+    // sends auth_second_step=1 on its very first get_profile, so a parameter
+    // check would let the login-required flow be bypassed without ever
+    // exercising status 2 -> do_auth -> profile retry.
+    if (scenario.requiresLogin && !hasCompletedDoAuth(mac)) {
         res.json({
             js: {
                 status: 2,

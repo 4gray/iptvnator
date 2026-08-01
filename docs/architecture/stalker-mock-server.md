@@ -51,6 +51,11 @@ paths:
 |---|---|---|
 | `/portal.php` | `createPortalRouter(false)` | Tolerant: ignores the token and the MAC format, like most reseller panels |
 | `/stalker_portal/server/load.php` | `createPortalRouter(true)` | Strict: enforces both, like the real middleware |
+| `/server/load.php` | `createPortalRouter(true)` | Strict: the second URL shape `isFullStalkerPortal` recognizes |
+
+The `/stalker` proxy route applies the same rule through
+`isFullPortalUrlShape()` — every URL the client would authenticate against is
+enforced, so tests cannot silently fall into the tolerant branch.
 
 Keeping the tolerant path is what lets the pre-existing e2e suite (which imports
 `portal.php`) stay meaningful — it covers the simple-portal branch — while the
@@ -66,7 +71,11 @@ The strict behaviours mirror the plaintext Stalker 4.9.35 middleware
   sees "success" and renders nothing. The `/stalker` proxy route still wraps the
   body in the `{ payload }` envelope, matching what `apps/web-backend` does.
 - **A handshake is not a session.** The token only authorizes requests once
-  `get_profile` has adopted it for that MAC.
+  `get_profile` has adopted it for that MAC. Adoption is deliberately
+  *stricter* than the stock server: 4.9.35 issues handshake tokens statelessly
+  and pins whatever Bearer `get_profile` presents, so a forged token would
+  become a session on a real portal — the mock only adopts tokens it actually
+  issued, so a client with a broken token pipeline fails loudly in tests.
 - **Idempotent handshake.** Presenting the MAC's current token returns that same
   token, which is what allows real clients to persist tokens across restarts.
 - **Device-id pinning.** `device_id`/`device_id2` are stored on first non-empty
@@ -78,9 +87,17 @@ The strict behaviours mirror the plaintext Stalker 4.9.35 middleware
 - **MAC format validation.** Non-Infomir MACs (`00:1A:79:XX:XX:XX`) get a bare
   `{ status: 1 }` from `get_profile`.
 
+- **`do_auth` is a boolean login step.** Non-empty credentials answer
+  `{js:true}` and are recorded; the `login-required` scenario's `get_profile`
+  keeps answering `status: 2` until that record exists, because the app sends
+  `auth_second_step=1` on its very first profile request and a parameter check
+  alone would be trivially bypassed.
+
 Session state lives in `src/app/auth-store.ts` and is cleared by `/reset`.
-`POST /invalidate-session?macAddress=<mac>` drops a single session so tests can
-assert the client re-handshakes and retries instead of surfacing an error.
+`POST /invalidate-session?macAddress=<mac>` drops a single MAC's tokens so
+tests can assert the client re-handshakes and retries instead of surfacing an
+error; pinned device identity survives invalidation, as it does on a real
+portal.
 
 ## Data Generation Pipeline
 

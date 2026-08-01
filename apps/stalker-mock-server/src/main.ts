@@ -81,9 +81,22 @@ app.use(
 // Stalker portal.php endpoint (reseller-panel alias — tolerant, no token check)
 app.use('/portal.php', portalRouter);
 
-// Canonical Ministra endpoint — enforces the Bearer token and the MAC format
+// Canonical Ministra endpoints — enforce the Bearer token and the MAC format
 // exactly like the real middleware, so the full-portal auth flow is testable.
+// Both URL shapes the app classifies as "full" must land on the strict branch.
 app.use('/stalker_portal/server/load.php', createPortalRouter(true));
+app.use('/server/load.php', createPortalRouter(true));
+
+/**
+ * Mirror of the app's full-portal predicates (`isFullStalkerPortal` checks
+ * `/stalker_portal/` or `/server/load.php`; import-time normalization checks
+ * `/stalker_portal`). Any URL shape the client would authenticate against must
+ * be enforced by the proxy too, or tests would silently exercise the tolerant
+ * branch.
+ */
+function isFullPortalUrlShape(url: string): boolean {
+    return url.includes('/stalker_portal') || url.includes('/server/load.php');
+}
 
 /**
  * CORS proxy compatibility endpoint — mirrors the IPTVnator backend API shape:
@@ -140,9 +153,9 @@ app.get('/stalker', (req: Request, res: Response) => {
     } as unknown as Response & { send: (body: string) => void };
 
     dispatchPortalAction(syntheticReq, syntheticRes, {
-        // The proxied portal URL decides strictness, matching the two direct
-        // endpoints: a canonical Ministra path enforces the token.
-        enforceAuth: (asString(portalUrl) ?? '').includes('/stalker_portal/'),
+        // The proxied portal URL decides strictness, matching the direct
+        // endpoints: every canonical Ministra path shape enforces the token.
+        enforceAuth: isFullPortalUrlShape(asString(portalUrl) ?? ''),
     });
 
     // The portal answers auth failures with a plain-text body; the real backend
