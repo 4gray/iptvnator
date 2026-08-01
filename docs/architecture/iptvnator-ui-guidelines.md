@@ -357,11 +357,18 @@ but the component has not.
   sections, sources filters, and collection filters. The drawer positioning
   is `position: fixed` on the sidebar host, which also removes it from the
   shell grid, so the phone `workspace-body` stays single-pane. The drawer is
-  modal for keyboard users: `CdkTrapFocus` captures and contains focus while
-  open, the shell restores focus to the header toggle on close (the closed
-  drawer is `visibility: hidden`, so focus left inside it would drop to
-  `<body>`), and the service closes the drawer when the viewport leaves the
-  phone breakpoint so the trap can never hold the in-flow desktop sidebar.
+  modal for keyboard and screen-reader users: `CdkTrapFocus` captures and
+  contains Tab focus while open, the shell marks the rail, header, content,
+  and playback footer `inert` (a focus trap alone does not stop a screen
+  reader's virtual cursor from activating obscured controls), the panel
+  itself is the initial focus target (`tabindex="-1"` + `cdkFocusInitial`,
+  so capture still works when a category list is loading or empty and
+  renders no focusable rows), and the shell restores focus to the header
+  toggle on close — deferred one tick, because the toggle is inside the
+  inert header and `focus()` on a still-inert element is silently ignored.
+  The service closes the drawer when the viewport leaves the phone
+  breakpoint so the trap and inert state can never hold the in-flow desktop
+  layout.
   The toggle's label is variant-aware — categories, filters, or settings
   sections — because a fixed label would misdescribe two of the three.
 - Other side rails stack above the content instead of beside it: the

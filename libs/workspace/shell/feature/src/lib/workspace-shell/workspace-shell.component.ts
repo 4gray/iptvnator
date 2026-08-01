@@ -72,7 +72,10 @@ export class WorkspaceShellComponent {
         effect(() => {
             const open = this.contextDrawer.isOpen();
             if (wasOpen && !open) {
-                this.header()?.focusContextDrawerToggle();
+                // Deferred: the header is inert while the drawer is open,
+                // and focus() on a still-inert element is silently ignored.
+                // The timeout runs after the render that removes `inert`.
+                setTimeout(() => this.header()?.focusContextDrawerToggle());
             }
             wasOpen = open;
         });

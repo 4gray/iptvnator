@@ -430,6 +430,7 @@ describe('WorkspaceShellComponent', () => {
     });
 
     it('opens and closes the context drawer via the toggle, backdrop and Escape', async () => {
+        jest.useFakeTimers();
         const facade = new MockWorkspaceShellFacade();
 
         await TestBed.configureTestingModule({
@@ -488,13 +489,37 @@ describe('WorkspaceShellComponent', () => {
         fixture.detectChanges();
         expect(sidebar().classList.contains('drawer-open')).toBe(true);
         expect(header.isContextDrawerOpen()).toBe(true);
+        // The open drawer is modal: everything behind the backdrop leaves
+        // the focus order and the accessibility tree via `inert`.
+        expect(
+            fixture.nativeElement
+                .querySelector('.workspace-content')
+                .hasAttribute('inert')
+        ).toBe(true);
+        expect(
+            fixture.nativeElement
+                .querySelector('app-workspace-shell-header')
+                .hasAttribute('inert')
+        ).toBe(true);
+        expect(
+            fixture.nativeElement
+                .querySelector('app-workspace-shell-rail')
+                .hasAttribute('inert')
+        ).toBe(true);
 
         backdrop()?.click();
         fixture.detectChanges();
         expect(backdrop()).toBeNull();
         expect(sidebar().classList.contains('drawer-open')).toBe(false);
+        expect(
+            fixture.nativeElement
+                .querySelector('.workspace-content')
+                .hasAttribute('inert')
+        ).toBe(false);
         // Closing must hand focus back to the toggle: the closed drawer is
         // visibility: hidden, so focus left inside it would drop to <body>.
+        // The restore is deferred past the render that un-inerts the header.
+        jest.runOnlyPendingTimers();
         expect(header.focusContextDrawerToggle).toHaveBeenCalled();
 
         header.contextDrawerToggleRequested.emit();
@@ -506,5 +531,7 @@ describe('WorkspaceShellComponent', () => {
         );
         fixture.detectChanges();
         expect(sidebar().classList.contains('drawer-open')).toBe(false);
+        jest.runOnlyPendingTimers();
+        jest.useRealTimers();
     });
 });

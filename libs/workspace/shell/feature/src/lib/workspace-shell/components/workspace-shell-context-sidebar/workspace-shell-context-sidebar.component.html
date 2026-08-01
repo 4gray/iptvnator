@@ -1,5 +1,7 @@
 @if (variant() === 'sources' && hasPlaylists()) {
     <aside
+        tabindex="-1"
+        cdkFocusInitial
         class="context-panel context-panel--sources"
         appResizable
         [minWidth]="220"
@@ -13,6 +15,8 @@
     @if (context(); as context) {
         @if (section(); as section) {
             <aside
+                tabindex="-1"
+                cdkFocusInitial
                 class="context-panel context-panel--route"
                 [class.context-panel--collapsed]="isContextPanelCollapsed()"
                 appResizable
@@ -30,6 +34,8 @@
     }
 } @else if (variant() === 'settings') {
     <aside
+        tabindex="-1"
+        cdkFocusInitial
         class="context-panel context-panel--settings"
         appResizable
         [minWidth]="200"
@@ -41,6 +47,8 @@
     </aside>
 } @else if (variant() === 'collection') {
     <aside
+        tabindex="-1"
+        cdkFocusInitial
         class="context-panel context-panel--route"
         appResizable
         [minWidth]="200"

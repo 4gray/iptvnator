@@ -4,7 +4,15 @@
         <app-workspace-shell-import-overlay />
     }
 
+    <!-- While the drawer is open it is modal: `inert` removes the rail,
+         header, content and playback footer from BOTH the focus order and
+         the accessibility tree — CdkTrapFocus alone constrains Tab focus but
+         a screen reader's virtual cursor could still reach and activate the
+         visually obscured controls behind the backdrop. isOpen can only be
+         true at phone width (the toggle is CSS-hidden above it and the
+         service closes on viewport growth), so desktop is never inerted. -->
     <app-workspace-shell-rail
+        [attr.inert]="contextDrawer.isOpen() ? '' : null"
         [isMacOS]="facade.isMacOS"
         [brandLink]="facade.brandLink()"
         [brandTooltipKey]="facade.brandTooltipKey()"
@@ -19,6 +27,7 @@
 
     <app-workspace-shell-header
         #workspaceHeader
+        [attr.inert]="contextDrawer.isOpen() ? '' : null"
         [playlistTitle]="facade.playlistTitle()"
         [playlistSubtitle]="facade.playlistSubtitle()"
         [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
@@ -86,14 +95,20 @@
             />
         }
 
-        <main class="workspace-content">
+        <main
+            class="workspace-content"
+            [attr.inert]="contextDrawer.isOpen() ? '' : null"
+        >
             <router-outlet />
         </main>
     </div>
 
     @if (facade.showExternalPlaybackBar()) {
         @if (facade.externalPlaybackSession(); as session) {
-            <footer class="workspace-now-playing">
+            <footer
+                class="workspace-now-playing"
+                [attr.inert]="contextDrawer.isOpen() ? '' : null"
+            >
                 <app-external-playback-dock
                     [session]="session"
                     (closeClicked)="facade.closeActiveExternalSession()"
