@@ -93,10 +93,22 @@ export class MockHls {
 }
 
 export class MockMpegTsPlayer {
+    private readonly listeners = new Map<
+        string,
+        Set<(...args: unknown[]) => void>
+    >();
     readonly attachMediaElement = jest.fn(() =>
         lifecycle.push('mpegts:attachMedia')
     );
-    readonly on = jest.fn();
+    readonly on = jest.fn(
+        (event: string, listener: (...args: unknown[]) => void) => {
+            const listeners =
+                this.listeners.get(event) ??
+                new Set<(...args: unknown[]) => void>();
+            listeners.add(listener);
+            this.listeners.set(event, listeners);
+        }
+    );
     readonly load = jest.fn(() => lifecycle.push('mpegts:load'));
     readonly pause = jest.fn();
     readonly unload = jest.fn();
@@ -105,6 +117,12 @@ export class MockMpegTsPlayer {
 
     constructor() {
         mpegTsInstances.push(this);
+    }
+
+    emit(event: string, ...args: unknown[]): void {
+        for (const listener of this.listeners.get(event) ?? []) {
+            listener(...args);
+        }
     }
 }
 

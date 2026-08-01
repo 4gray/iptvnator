@@ -7,6 +7,7 @@ import {
     classifyMpegTsPlaybackIssue,
     classifyUnsupportedHlsManifestCodecs,
     createHlsPlaybackEvidence,
+    createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.util';
 
@@ -69,12 +70,16 @@ export function emitFatalHlsPlaybackError(
 
 export function emitMpegTsPlaybackError(
     url: string,
-    error: { type: string; details: string; info: unknown },
+    error: { type: unknown; details: unknown; info: unknown },
     emitPlaybackIssue: (issue: PlaybackDiagnostic) => void
 ): void {
     emitPlaybackIssue(
         classifyMpegTsPlaybackIssue(
-            error,
+            createMpegTsPlaybackEvidence(
+                error.type,
+                error.details,
+                error.info
+            ),
             createHtml5SourceMetadata(url, 'video/mp2t')
         )
     );
