@@ -60,10 +60,6 @@ function createAbortError(): Error {
     return error;
 }
 
-async function waitForRefreshPreparationPaint(): Promise<void> {
-    await new Promise<void>((resolve) => setTimeout(resolve, 160));
-}
-
 function createPlaylistMeta(
     overrides: Partial<PlaylistMeta> = {}
 ): PlaylistMeta {
@@ -559,6 +555,13 @@ describe('PlaylistRefreshActionService', () => {
             hiddenCategories: [];
         }>();
         let confirmPromise: Promise<void> | undefined;
+        // The service awaits its internal paint delay (rAF + setTimeout)
+        // before it calls deleteXtreamPlaylistContent, so a fixed sleep here
+        // races against real timers under parallel jest load. The mock fires
+        // onEvent synchronously and the service applies it to the signal
+        // synchronously, so resolving this deferred inside the mock is a
+        // deterministic "worker event has been applied" signal.
+        const workerEventDelivered = createDeferred<void>();
 
         databaseService.deleteXtreamPlaylistContent.mockImplementation(
             (
@@ -576,6 +579,7 @@ describe('PlaylistRefreshActionService', () => {
                     current: 50,
                     total: 100,
                 });
+                workerEventDelivered.resolve();
 
                 return refresh.promise;
             }
@@ -587,7 +591,7 @@ describe('PlaylistRefreshActionService', () => {
         );
 
         service.refresh(item);
-        await waitForRefreshPreparationPaint();
+        await workerEventDelivered.promise;
 
         expect(service.refreshPreparation()).toEqual({
             playlistId: item._id,
