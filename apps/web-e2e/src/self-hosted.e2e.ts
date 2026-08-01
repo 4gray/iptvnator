@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { setInputValue } from './e2e-helpers';
+import { postWithRetry, setInputValue } from './e2e-helpers';
 import { expect, test } from './fixtures';
 
 const WEB_BACKEND_URL = 'http://localhost:3333';
@@ -8,7 +8,9 @@ const STALKER_MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
 const XTREAM_MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
 const STALKER_MOCK_SERVER = `http://localhost:${STALKER_MOCK_PORT}`;
 const STALKER_PORTAL_URL = `${STALKER_MOCK_SERVER}/portal.php`;
-const DEFAULT_MAC = '00:1A:79:00:00:01';
+// Dedicated MAC: mock state is per-MAC and stalker.e2e.ts runs in a parallel
+// worker, so sharing one would let each suite's reset clear the other's state.
+const DEFAULT_MAC = '00:1A:79:5F:00:01';
 
 async function installRuntimeConfig(page: Page): Promise<void> {
     await page.route('**/assets/app-config.js', async (route) => {
@@ -101,8 +103,15 @@ function expectRequestsUseTargetId(requests: string[], path: string): void {
 }
 
 test.beforeEach(async ({ page, request }) => {
-    await request.post(`${XTREAM_MOCK_SERVER}/reset`);
-    await request.post(`${STALKER_MOCK_SERVER}/reset`);
+    await postWithRetry(request, `${XTREAM_MOCK_SERVER}/reset`);
+    // Scope the Stalker reset to the MAC this file uses: a global reset would
+    // wipe the sessions of stalker.e2e.ts running in a parallel worker.
+    await postWithRetry(
+        request,
+        `${STALKER_MOCK_SERVER}/reset?macAddress=${encodeURIComponent(
+            DEFAULT_MAC
+        )}`
+    );
     await installRuntimeConfig(page);
     await page.goto('/');
 });

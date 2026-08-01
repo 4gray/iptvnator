@@ -116,10 +116,12 @@ The control plane is absent by default. It is mounted only when
 `IPTVNATOR_XTREAM_MOCK_CONTROL_TOKEN` and a literal loopback `HOST`
 (`127.0.0.1` or `::1`). Every `/__control/*` request must carry that exact value
 in `x-iptvnator-performance-token`, including `OPTIONS` preflight requests.
-Configuration is validated before the HTTP listener opens. Normal development
-mode preserves the legacy wildcard bind when `HOST` is unset; control mode
-instead defaults to `127.0.0.1` and rejects an explicitly configured
-non-loopback host. The Nx serve targets do not pin `PORT`, so an explicit shell
+Configuration is validated before the HTTP listener opens. Both modes now
+default to `127.0.0.1` when `HOST` is unset — the fixture serves fabricated but
+unauthenticated content, so it should not be reachable from other hosts by
+accident. Set `HOST=0.0.0.0` explicitly to expose it, which is what you need
+when driving the mock from a phone, an STB, a container, or another machine.
+Control mode additionally *rejects* an explicitly configured non-loopback host. The Nx serve targets do not pin `PORT`, so an explicit shell
 value reaches the parser; its no-value default remains `3211`.
 
 Use a dedicated port rather than the normal `3211` E2E server:

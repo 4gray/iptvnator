@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getPortalData } from '../data-store.js';
 import { getScenario } from '../scenarios.js';
-import { extractMac } from './get-categories.handler.js';
+import { extractMac } from '../request-mac.js';
 
 /**
  * Stalker/Ministra get_all_channels — returns the COMPLETE ITV channel list

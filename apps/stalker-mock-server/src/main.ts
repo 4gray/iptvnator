@@ -2,9 +2,11 @@ import http from 'http';
 import { join } from 'node:path';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import portalRouter from './app/routes/portal.route.js';
+import portalRouter, { createPortalRouter } from './app/routes/portal.route.js';
 import dispatchPortalAction from './app/routes/dispatch.js';
-import { resetAll } from './app/data-store.js';
+import { invalidateSession, resetAuthState } from './app/auth-store.js';
+import { resetWatchdogPings } from './app/handlers/get-events.handler.js';
+import { resetAll, resetMac } from './app/data-store.js';
 import { SCENARIOS } from './app/scenarios.js';
 import {
     buildRequestOrigin,
@@ -12,6 +14,10 @@ import {
 } from './app/marketing-poster-url.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
+// Loopback by default: the fixture serves fabricated but unauthenticated
+// content, so it should not be reachable from other hosts unless a dev
+// explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at it).
+const HOST = process.env['HOST'] ?? '127.0.0.1';
 const app = express();
 const MARKETING_POSTER_DIRECTORY = join(
     process.cwd(),
@@ -76,8 +82,25 @@ app.use(
     })
 );
 
-// Stalker portal.php endpoint (direct portal protocol, Electron mode)
+// Stalker portal.php endpoint (reseller-panel alias — tolerant, no token check)
 app.use('/portal.php', portalRouter);
+
+// Canonical Ministra endpoints — enforce the Bearer token and the MAC format
+// exactly like the real middleware, so the full-portal auth flow is testable.
+// Both URL shapes the app classifies as "full" must land on the strict branch.
+app.use('/stalker_portal/server/load.php', createPortalRouter(true));
+app.use('/server/load.php', createPortalRouter(true));
+
+/**
+ * Mirror of the app's full-portal predicates (`isFullStalkerPortal` checks
+ * `/stalker_portal/` or `/server/load.php`; import-time normalization checks
+ * `/stalker_portal`). Any URL shape the client would authenticate against must
+ * be enforced by the proxy too, or tests would silently exercise the tolerant
+ * branch.
+ */
+function isFullPortalUrlShape(url: string): boolean {
+    return url.includes('/stalker_portal') || url.includes('/server/load.php');
+}
 
 /**
  * CORS proxy compatibility endpoint — mirrors the IPTVnator backend API shape:
@@ -89,27 +112,64 @@ app.use('/portal.php', portalRouter);
  * so no app code changes are required.
  */
 app.get('/stalker', (req: Request, res: Response) => {
-    const { macAddress, url: _url, ...rest } = req.query as Record<string, string>;
-    const mac = macAddress ?? '00:1a:79:00:00:01';
+    const {
+        macAddress,
+        url: portalUrl,
+        ...rest
+    } = req.query as Record<string, unknown>;
+    // `token` deliberately stays in `rest`: the real backend proxy forwards
+    // every param except `targetId` to the portal *and* sets the Authorization
+    // header, and `handshake` reads the presented token from the query. Strip
+    // it here and the idempotent-handshake path becomes untestable.
+    const token = rest['token'];
+
+    // A repeated query key arrives as an array, so every value used below must
+    // be narrowed to a string before it reaches a string API.
+    const asString = (value: unknown): string | undefined =>
+        typeof value === 'string' ? value : undefined;
+
+    const mac = asString(macAddress) ?? '00:1a:79:00:00:01';
+
+    // The real backend proxy turns the token query param into a Bearer header
+    // before calling the portal; mirror that so token handling is exercised.
+    const headers: Record<string, string> = { cookie: `mac=${mac}` };
+    const bearer = asString(token);
+    if (bearer) {
+        headers['authorization'] = `Bearer ${bearer}`;
+    }
 
     // Build a lightweight synthetic request. We need a fresh object with mutable
     // `query` and a Cookie header containing the MAC for the handler helpers.
     const syntheticReq = {
         query: rest,
-        headers: { cookie: `mac=${mac}` },
+        headers,
         params: {},
     } as unknown as Request;
 
     // Capture the JSON response and wrap it in the proxy envelope { payload: ... }
     let captured: unknown;
+    let plainTextBody: string | undefined;
     const syntheticRes = {
         json: (data: unknown) => {
             captured = data;
         },
-    } as unknown as Response;
+        status: () => syntheticRes,
+        type: () => syntheticRes,
+        send: (body: string) => {
+            plainTextBody = body;
+        },
+    } as unknown as Response & { send: (body: string) => void };
 
-    dispatchPortalAction(syntheticReq, syntheticRes);
-    res.json({ payload: captured });
+    dispatchPortalAction(syntheticReq, syntheticRes, {
+        // The proxied portal URL decides strictness, matching the direct
+        // endpoints: every canonical Ministra path shape enforces the token.
+        enforceAuth: isFullPortalUrlShape(asString(portalUrl) ?? ''),
+    });
+
+    // The portal answers auth failures with a plain-text body; the real backend
+    // proxy still wraps whatever it got in the { payload } envelope, so the
+    // renderer sees the raw string there rather than a transport error.
+    res.json({ payload: plainTextBody ?? captured });
 });
 
 // Health check
@@ -117,10 +177,56 @@ app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Reset all in-memory data (useful between Playwright test runs)
-app.post('/reset', (_req: Request, res: Response) => {
-    resetAll();
-    res.json({ status: 'reset', timestamp: new Date().toISOString() });
+/**
+ * Reset in-memory state between test runs.
+ *
+ * `?macAddress=<mac>` scopes the reset to that MAC and is what specs should
+ * use: mock state is per-MAC, so a scoped reset cannot wipe the session of a
+ * spec file running concurrently in another Playwright worker. Without the
+ * parameter everything is cleared, which is only safe when nothing else is
+ * talking to this server.
+ */
+app.post('/reset', (req: Request, res: Response) => {
+    const macParam = req.query['macAddress'];
+    // Repeated `macAddress` params let a suite clear all of its MACs in one
+    // request instead of one round trip each.
+    const macs = (Array.isArray(macParam) ? macParam : [macParam]).filter(
+        (value): value is string => typeof value === 'string' && value !== ''
+    );
+
+    if (macs.length > 0) {
+        for (const mac of macs) {
+            resetMac(mac);
+            resetAuthState(mac);
+            resetWatchdogPings(mac);
+        }
+    } else {
+        resetAll();
+        resetAuthState();
+        resetWatchdogPings();
+    }
+
+    res.json({
+        status: 'reset',
+        ...(macs.length > 0 ? { macs } : {}),
+        timestamp: new Date().toISOString(),
+    });
+});
+
+/**
+ * Drop a MAC's session so the next portal request fails with
+ * `Authorization failed.` — lets e2e assert the client re-handshakes and
+ * retries instead of surfacing an error.
+ */
+app.post('/invalidate-session', (req: Request, res: Response) => {
+    const macParam = req.query['macAddress'];
+    const mac = typeof macParam === 'string' ? macParam : '';
+    if (!mac) {
+        res.status(400).json({ error: 'macAddress query param is required' });
+        return;
+    }
+    invalidateSession(mac);
+    res.json({ status: 'invalidated', mac });
 });
 
 // ---------------------------------------------------------------------------
@@ -158,7 +264,7 @@ process.on('unhandledRejection', (reason) => {
 process.stdin.resume();
 process.stdin.on('end', () => { /* ignore stdin close */ });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
     const divider = '─'.repeat(62);
     console.log(`\n${divider}`);
     console.log(`  🎬  Stalker Mock Server  →  http://localhost:${PORT}`);

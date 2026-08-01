@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { generateSeasons } from '../data-generator.js';
 import { getPortalData } from '../data-store.js';
 import { getScenario } from '../scenarios.js';
-import { extractMac } from './get-categories.handler.js';
+import { extractMac } from '../request-mac.js';
 
 /**
  * Stalker get_ordered_list with type=series for seasons/episodes.

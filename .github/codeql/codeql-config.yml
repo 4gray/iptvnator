@@ -1,0 +1,20 @@
+name: 'IPTVnator CodeQL config'
+
+# The mock servers are development/E2E fixtures. They bind to loopback by
+# default (HOST=0.0.0.0 is an explicit opt-in for pointing a phone/STB at
+# them), serve fabricated data, ship in no released artifact, and deliberately
+# imitate the quirks of the upstream IPTV protocols — including reading a
+# session token from a GET query string, which is what the real Stalker
+# backend proxy does and therefore what the app must be tested against.
+#
+# CodeQL's web-service hygiene rules (missing rate limiting, sensitive data in
+# GET requests) assume an internet-facing service and produce only false
+# positives here; a rate limiter on a fixture that the E2E suite hammers would
+# actively break the tests. paths-ignore is all-or-nothing per path — CodeQL
+# has no per-path rule filter — so this deliberately trades away injection/
+# path-traversal coverage for the two fixture apps, which parse no input
+# beyond the local test driver. Everything the app itself ships keeps full
+# coverage.
+paths-ignore:
+    - apps/stalker-mock-server
+    - apps/xtream-mock-server
