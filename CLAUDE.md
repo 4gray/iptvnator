@@ -723,6 +723,14 @@ app as a real argument, so it is not an option.
 **Video Players**:
 
 - Built-in web players: HTML5+hls.js, Video.js, and ArtPlayer
+- mpegts.js `1.8.0` errors from all three built-in players cross one
+  version-locked structured evidence boundary. It retains only exact public
+  type/detail pairs, pair-derived stage/failure, terminal disposition, and a
+  validated HTTP 4xx/5xx status; raw messages and arbitrary `info` never reach
+  stored or rendered diagnostics. HTTP/network failures avoid false decoder
+  recommendations, while exact format, codec, truncated-stream, and
+  MediaSource failures retain actionable fallback guidance. This diagnostic
+  layer remains separate from the shared `PlayerController` controls contract.
 - DASH + ClearKey (M3U module): `.mpd` channels play through a lazily loaded
   Shaka Player source engine inside the HTML5 and ArtPlayer components (no new
   player in settings). ClearKey keys come from `#KODIPROP:inputstream.adaptive.*`

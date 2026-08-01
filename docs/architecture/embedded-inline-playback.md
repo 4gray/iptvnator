@@ -432,14 +432,36 @@ configuration.
 
 `network-error` is reserved for provider/network loading failures. Engines that expose concrete browser security evidence, such as CORS, mixed content, Content Security Policy, or private-network-access blocks, use `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 
-mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decode-error` instead of generic `network-error`. These failures usually mean the fetch stream ended before mpegts.js expected a complete transport stream, and external players may still handle the same URL more tolerant of short reads or malformed TS boundaries.
+mpegts.js `1.8.0` errors cross one shared structured boundary before the HTML5,
+Video.js, or ArtPlayer owner emits a diagnostic. Version-locked tests compare
+the installed public `ErrorTypes` and `ErrorDetails` exports with the accepted
+contract. Evidence retains only an exact type/detail pair, terminal
+disposition, a pair-derived stage and failure, and a validated HTTP 4xx/5xx
+status from the top-level `info.code` slot of
+`NetworkError + HttpStatusCodeInvalid`.
+
+Exact public pairs classify HTTP/timeout/exception as network failures,
+`FormatUnsupported` as an unsupported container, `CodecUnsupported` as an
+unsupported codec, and `FormatError`/`MediaMSEError` as media failures.
+`UnrecoverableEarlyEof` remains a fallback-actionable `media-decode-error`:
+mpegts.js has already exhausted its internal finite-source early-EOF recovery,
+and another demuxer may tolerate the truncated transport stream. Mismatched or
+unknown pairs fail closed to `unknown-playback-error`.
+
+Arbitrary `info`, messages, URLs, headers, bodies, credentials, and provider
+objects are neither retained nor rendered. A generic `Exception` does not
+prove CORS, mixed content, CSP, or private-network access, so mpegts.js no
+longer creates `browser-access-error` from message text. HTTP and other network
+failures do not claim an external decoder will fix the provider response;
+container, codec, truncated-stream, format, and MediaSource failures retain
+the existing explicit MPV/VLC fallback behavior.
 
 The diagnostic surface covers the inline player viewport when playback fails,
 with a compact warning badge, a native-player fallback headline, and
 player-card actions for configured external players. It exposes technical
 details on demand: diagnostic code, reporting player/source, detected
 container/MIME, video/audio codecs, native browser error fields, sanitized
-structured Video.js/VHS, HLS, and Shaka evidence, and existing mpegts details. HLS
+structured Video.js/VHS, HLS, Shaka, and mpegts.js evidence. HLS
 manifest codec metadata also drives a concise browser-support hint for codecs
 that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3,
 E-AC-3, DTS, and MPEG-2 video.
