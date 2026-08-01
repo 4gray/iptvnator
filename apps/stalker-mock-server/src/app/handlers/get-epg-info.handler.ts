@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getPortalData } from '../data-store.js';
-import { extractMac } from './get-categories.handler.js';
+import { extractMac } from '../request-mac.js';
 
 /**
  * Stalker get_epg_info — returns bulk EPG keyed by channel id.

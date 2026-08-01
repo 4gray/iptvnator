@@ -2,8 +2,10 @@ import http from 'http';
 import { join } from 'node:path';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import portalRouter from './app/routes/portal.route.js';
+import portalRouter, { createPortalRouter } from './app/routes/portal.route.js';
 import dispatchPortalAction from './app/routes/dispatch.js';
+import { invalidateSession, resetAuthState } from './app/auth-store.js';
+import { resetWatchdogPings } from './app/handlers/get-events.handler.js';
 import { resetAll } from './app/data-store.js';
 import { SCENARIOS } from './app/scenarios.js';
 import {
@@ -76,8 +78,12 @@ app.use(
     })
 );
 
-// Stalker portal.php endpoint (direct portal protocol, Electron mode)
+// Stalker portal.php endpoint (reseller-panel alias — tolerant, no token check)
 app.use('/portal.php', portalRouter);
+
+// Canonical Ministra endpoint — enforces the Bearer token and the MAC format
+// exactly like the real middleware, so the full-portal auth flow is testable.
+app.use('/stalker_portal/server/load.php', createPortalRouter(true));
 
 /**
  * CORS proxy compatibility endpoint — mirrors the IPTVnator backend API shape:
@@ -89,27 +95,53 @@ app.use('/portal.php', portalRouter);
  * so no app code changes are required.
  */
 app.get('/stalker', (req: Request, res: Response) => {
-    const { macAddress, url: _url, ...rest } = req.query as Record<string, string>;
+    const {
+        macAddress,
+        url: portalUrl,
+        token,
+        ...rest
+    } = req.query as Record<string, string>;
     const mac = macAddress ?? '00:1a:79:00:00:01';
+
+    // The real backend proxy turns the token query param into a Bearer header
+    // before calling the portal; mirror that so token handling is exercised.
+    const headers: Record<string, string> = { cookie: `mac=${mac}` };
+    if (token) {
+        headers['authorization'] = `Bearer ${token}`;
+    }
 
     // Build a lightweight synthetic request. We need a fresh object with mutable
     // `query` and a Cookie header containing the MAC for the handler helpers.
     const syntheticReq = {
         query: rest,
-        headers: { cookie: `mac=${mac}` },
+        headers,
         params: {},
     } as unknown as Request;
 
     // Capture the JSON response and wrap it in the proxy envelope { payload: ... }
     let captured: unknown;
+    let plainTextBody: string | undefined;
     const syntheticRes = {
         json: (data: unknown) => {
             captured = data;
         },
-    } as unknown as Response;
+        status: () => syntheticRes,
+        type: () => syntheticRes,
+        send: (body: string) => {
+            plainTextBody = body;
+        },
+    } as unknown as Response & { send: (body: string) => void };
 
-    dispatchPortalAction(syntheticReq, syntheticRes);
-    res.json({ payload: captured });
+    dispatchPortalAction(syntheticReq, syntheticRes, {
+        // The proxied portal URL decides strictness, matching the two direct
+        // endpoints: a canonical Ministra path enforces the token.
+        enforceAuth: (portalUrl ?? '').includes('/stalker_portal/'),
+    });
+
+    // The portal answers auth failures with a plain-text body; the real backend
+    // proxy still wraps whatever it got in the { payload } envelope, so the
+    // renderer sees the raw string there rather than a transport error.
+    res.json({ payload: plainTextBody ?? captured });
 });
 
 // Health check
@@ -120,7 +152,24 @@ app.get('/health', (_req: Request, res: Response) => {
 // Reset all in-memory data (useful between Playwright test runs)
 app.post('/reset', (_req: Request, res: Response) => {
     resetAll();
+    resetAuthState();
+    resetWatchdogPings();
     res.json({ status: 'reset', timestamp: new Date().toISOString() });
+});
+
+/**
+ * Drop a MAC's session so the next portal request fails with
+ * `Authorization failed.` — lets e2e assert the client re-handshakes and
+ * retries instead of surfacing an error.
+ */
+app.post('/invalidate-session', (req: Request, res: Response) => {
+    const mac = String(req.query['macAddress'] ?? '');
+    if (!mac) {
+        res.status(400).json({ error: 'macAddress query param is required' });
+        return;
+    }
+    invalidateSession(mac);
+    res.json({ status: 'invalidated', mac });
 });
 
 // ---------------------------------------------------------------------------

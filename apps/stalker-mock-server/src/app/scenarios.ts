@@ -23,6 +23,8 @@ export interface ScenarioConfig {
     supportsGetAllChannels?: boolean;
     /** Replace generated VOD with the shared screenshot-safe poster catalog. */
     marketingFixture?: true;
+    /** Answer `get_profile` with `status: 2` until `auth_second_step=1`. */
+    requiresLogin?: true;
 }
 
 /**
@@ -108,6 +110,19 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         isSeriesFraction: 0,
         embeddedSeriesFraction: 0,
         supportsGetAllChannels: false,
+    },
+    '00:1a:79:00:00:08': {
+        name: 'login-required',
+        description:
+            'Portal answering get_profile with status 2 until do_auth completes',
+        seed: 8008,
+        categoryCount: { itv: 4, radio: 4, vod: 4, series: 4 },
+        itemsPerCategory: 10,
+        seasonsPerSeries: 2,
+        episodesPerSeason: 4,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        requiresLogin: true,
     },
     '00:1a:79:00:00:07': {
         name: 'marketing-demo',

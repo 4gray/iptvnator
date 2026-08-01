@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { resolveStreamUrl } from '../data-generator.js';
-import { extractMac } from './get-categories.handler.js';
+import { extractMac } from '../request-mac.js';
 
 /**
  * Stalker create_link — returns a playable stream URL.

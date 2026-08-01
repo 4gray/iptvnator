@@ -37,7 +37,50 @@ Stalker portals use MAC address as the primary credential. The mock server follo
 
 ### In-Memory Only
 
-No files or databases are written. All state (generated content + favorites) lives in process memory and resets on server restart. This is intentional — tests should not share state across runs.
+No files or databases are written. All state (generated content + favorites + portal sessions) lives in process memory and resets on server restart. This is intentional — tests should not share state across runs.
+
+### Two Endpoints With Different Strictness
+
+The app decides how to talk to a portal from the shape of its URL: a URL
+containing `/stalker_portal` is imported as a **full portal** (handshake,
+`Authorization: Bearer`, watchdog), anything else as a **simple portal** with no
+authentication at all. The mock therefore serves the same action set at two
+paths:
+
+| Path | Router | Behaviour |
+|---|---|---|
+| `/portal.php` | `createPortalRouter(false)` | Tolerant: ignores the token and the MAC format, like most reseller panels |
+| `/stalker_portal/server/load.php` | `createPortalRouter(true)` | Strict: enforces both, like the real middleware |
+
+Keeping the tolerant path is what lets the pre-existing e2e suite (which imports
+`portal.php`) stay meaningful — it covers the simple-portal branch — while the
+strict path finally covers the authenticated branch that had no coverage at all.
+
+The strict behaviours mirror the plaintext Stalker 4.9.35 middleware
+(`server/lib/stb.class.php`), the last openly readable ancestor of the encoded
+5.x core:
+
+- **Plain-text auth failures.** `Authorization failed.` / `Unauthorized request.`
+  are returned with **HTTP 200** and a `text/html` body, because the real server
+  `exit`s before the JSON envelope is built. A client checking only status codes
+  sees "success" and renders nothing. The `/stalker` proxy route still wraps the
+  body in the `{ payload }` envelope, matching what `apps/web-backend` does.
+- **A handshake is not a session.** The token only authorizes requests once
+  `get_profile` has adopted it for that MAC.
+- **Idempotent handshake.** Presenting the MAC's current token returns that same
+  token, which is what allows real clients to persist tokens across restarts.
+- **Device-id pinning.** `device_id`/`device_id2` are stored on first non-empty
+  value; any later change — including reverting to empty — is a permanent
+  `device conflict` carrying the "Your STB is damaged." block message. This is
+  the only identity check the stock server actually enforces.
+- **`signature`, `metrics`, `prehash` are ignored**, exactly as upstream ignores
+  them; they exist for portals with a custom `access_filter.php`.
+- **MAC format validation.** Non-Infomir MACs (`00:1A:79:XX:XX:XX`) get a bare
+  `{ status: 1 }` from `get_profile`.
+
+Session state lives in `src/app/auth-store.ts` and is cleared by `/reset`.
+`POST /invalidate-session?macAddress=<mac>` drops a single session so tests can
+assert the client re-handshakes and retries instead of surfacing an error.
 
 ## Data Generation Pipeline
 
@@ -308,6 +351,6 @@ test('browse VOD categories', async ({ page }) => {
 
 - **New content types**: Add a new generator function in `data-generator.ts` and a new handler in `handlers/`.
 - **New scenarios**: Add to `SCENARIOS` in `scenarios.ts`.
-- **Stateful session tokens**: `handshake.handler.ts` generates a token from the MAC — extend this to track token expiry for testing re-auth flows.
-- **Error simulation**: Add a special MAC or query param to trigger error responses (e.g. 401, 500) for testing error handling in the Stalker store.
+- **Session behaviour**: `auth-store.ts` owns tokens and device pinning. Add TTLs or a "token replaced by another device" mode there rather than in the handlers.
+- **Error simulation**: Add a special MAC or query param to trigger error responses for testing error handling in the Stalker store. Note that portal-level auth errors are *not* HTTP errors — see [Two Endpoints With Different Strictness](#two-endpoints-with-different-strictness).
 - **Slow responses**: Add a `MOCK_DELAY_MS` env var and apply it in middleware for testing loading states.
