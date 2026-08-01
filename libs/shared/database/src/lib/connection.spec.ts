@@ -123,6 +123,7 @@ function rebuildDownloadsInElectron(metadataSnapshot: string): {
             env: {
                 ...process.env,
                 ELECTRON_RUN_AS_NODE: '1',
+                TSX_TSCONFIG_PATH: resolve(process.cwd(), 'tsconfig.base.json'),
             },
         }
     );
