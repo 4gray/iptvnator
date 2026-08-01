@@ -239,15 +239,19 @@ export function createWebBackendApp(
             const { cmd, ...proxyParams } = getProxyParams(req, ['targetId']);
             const portalUrl = new URL(url.href);
             portalUrl.hash = '';
-            let requestUrl = portalUrl.href;
-            if (cmd) {
-                const separator = requestUrl.endsWith('?')
-                    ? ''
-                    : portalUrl.search
-                      ? '&'
-                      : '?';
-                requestUrl = `${requestUrl}${separator}cmd=${encodeStalkerCmdValue(cmd)}`;
-            }
+            const registeredQuery = portalUrl.search.replace(/^\?/, '');
+            portalUrl.search = '';
+            const query = [
+                registeredQuery,
+                cmd ? `cmd=${encodeStalkerCmdValue(cmd)}` : '',
+            ]
+                .filter(Boolean)
+                .join('&');
+            // cmd is appended strictly behind the literal `?`, so it can only
+            // ever form query content — never host or path.
+            const requestUrl = query
+                ? `${portalUrl.href}?${query}`
+                : portalUrl.href;
 
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
