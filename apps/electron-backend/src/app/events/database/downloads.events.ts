@@ -7,7 +7,7 @@ import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import {
-    decorateDownloadItem,
+    decorateDownloadItemAsync,
     isAvailableDownloadFile,
 } from './download-file-availability';
 import { removePartialDownloadFile } from './download-file-path';
@@ -229,7 +229,7 @@ ipcMain.handle('DOWNLOADS_GET_LIST', async (_event, playlistId?: string) => {
                   .where(eq(schema.downloads.playlistId, playlistId))
                   .orderBy(schema.downloads.createdAt)
             : query.orderBy(schema.downloads.createdAt));
-        return rows.map((row) => decorateDownloadItem(row));
+        return Promise.all(rows.map((row) => decorateDownloadItemAsync(row)));
     } catch (error) {
         console.error('[Downloads] Error getting download list:', error);
         throw error;
@@ -244,7 +244,7 @@ ipcMain.handle('DOWNLOADS_GET', async (_event, downloadId: number) => {
             .from(schema.downloads)
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
-        return result[0] ? decorateDownloadItem(result[0]) : null;
+        return result[0] ? await decorateDownloadItemAsync(result[0]) : null;
     } catch (error) {
         console.error('[Downloads] Error getting download:', error);
         throw error;
