@@ -403,7 +403,7 @@ describe('requestWithValidatedRedirects', () => {
         });
     });
 
-    it('replays the request body on a same-host scheme-change redirect', async () => {
+    it('replays the request body on a same-host scheme-upgrade redirect', async () => {
         axiosMock
             .mockResolvedValueOnce({
                 status: 307,
@@ -423,6 +423,58 @@ describe('requestWithValidatedRedirects', () => {
 
         expect(axiosMock).toHaveBeenCalledTimes(2);
         expect(axiosMock.mock.calls[1][0].data).toEqual({ payload: true });
+    });
+
+    it('strips sensitive headers when a same-host redirect downgrades https to http', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: { location: 'http://portal.example/portal.php' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: { js: {} },
+            });
+
+        await requestWithValidatedRedirects(
+            'https://portal.example/portal.php',
+            {
+                auth: { password: 'secret', username: 'provider' },
+                headers: {
+                    Authorization: 'Bearer secret',
+                    Cookie: 'mac=00:1A:79:AA:BB:CC',
+                    Accept: '*/*',
+                },
+                method: 'GET',
+                params: { token: 'secret' },
+            },
+            { resolveHostname: publicResolver }
+        );
+
+        // A session obtained over TLS must never be replayed in cleartext.
+        const redirectedConfig = axiosMock.mock.calls[1][0];
+        expect(redirectedConfig.headers).toMatchObject({ Accept: '*/*' });
+        expect(redirectedConfig.headers).not.toHaveProperty('Authorization');
+        expect(redirectedConfig.headers).not.toHaveProperty('Cookie');
+        expect(redirectedConfig.auth).toBeUndefined();
+        expect(redirectedConfig.params).toBeUndefined();
+    });
+
+    it('rejects a same-host https-to-http redirect that would replay a request body', async () => {
+        axiosMock.mockResolvedValueOnce({
+            status: 307,
+            headers: { location: 'http://portal.example/submit' },
+        });
+
+        await expect(
+            requestWithValidatedRedirects(
+                'https://portal.example/submit',
+                { data: { secret: true }, method: 'POST' },
+                { resolveHostname: publicResolver }
+            )
+        ).rejects.toThrow(/request bodies/i);
+        expect(axiosMock).toHaveBeenCalledTimes(1);
     });
 
     it('does not forward axios params to a cross-host redirect', async () => {
