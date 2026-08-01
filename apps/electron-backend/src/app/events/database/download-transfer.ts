@@ -60,7 +60,13 @@ export async function transferToPartialFile(
     task: DownloadTask,
     reservation: ReservedPartialDownloadFile
 ): Promise<TransferProgress> {
-    const resumeOffset = getResumeOffset(task, reservation);
+    const retainedOffset = getResumeOffset(task, reservation);
+    const resumeOffset = task.resumeValidator ? retainedOffset : 0;
+    if (retainedOffset > 0 && resumeOffset === 0) {
+        console.warn(
+            `[Downloads] Restarting ${reservation.filename} from the beginning (saved partial has no ETag or Last-Modified validator)`
+        );
+    }
 
     const headers = {
         ...(task.headers ?? {}),
@@ -156,7 +162,8 @@ export async function transferToPartialFile(
             error,
             reservation,
             effectiveOffset,
-            totalBytes
+            totalBytes,
+            task.resumeValidator
         );
         if (interruptedProgress) {
             await persistProgress(db, task, interruptedProgress.progress);
@@ -181,7 +188,8 @@ function getInterruptedTransferProgress(
     error: unknown,
     reservation: ReservedPartialDownloadFile,
     initialBytes: number,
-    totalBytes: number | null
+    totalBytes: number | null,
+    resumeValidator: string | null | undefined
 ): { networkCode: string; progress: TransferProgress } | null {
     const networkCode =
         error && typeof error === 'object' && 'code' in error
@@ -189,7 +197,8 @@ function getInterruptedTransferProgress(
             : '';
     if (
         !RETAINABLE_NETWORK_ERROR_CODES.has(networkCode) ||
-        totalBytes === null
+        totalBytes === null ||
+        !resumeValidator
     ) {
         return null;
     }

@@ -42,17 +42,16 @@ describe('download runtime pause and resume', () => {
     it('persists active pause without deleting the partial file', async () => {
         jest.resetModules();
 
-        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
         const db = {
             update: jest.fn(() => ({ set })),
         };
         const removePartialDownloadFile = jest.fn();
         const stream = new PassThrough();
         const requestWithValidatedRedirects = jest.fn(
-            async (
-                _url: string,
-                options: { signal?: AbortSignal }
-            ) => {
+            async (_url: string, options: { signal?: AbortSignal }) => {
                 options.signal?.addEventListener('abort', () => {
                     stream.destroy(new Error('aborted'));
                 });
@@ -119,10 +118,12 @@ describe('download runtime pause and resume', () => {
         }
     });
 
-    it('uses an HTTP Range header when a partial file already exists', async () => {
+    it('uses an HTTP Range header when a validated partial file already exists', async () => {
         jest.resetModules();
 
-        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
         const db = {
             update: jest.fn(() => ({ set })),
         };
@@ -168,13 +169,17 @@ describe('download runtime pause and resume', () => {
         runtime.enqueueDownload({
             ...createTask(),
             filePath: '/downloads/movie.mp4',
+            resumeValidator: '"etag-1"',
         });
         await waitForCallCount(requestWithValidatedRedirects, 1);
 
         expect(requestWithValidatedRedirects).toHaveBeenCalledWith(
             'https://example.test/movie.mp4',
             expect.objectContaining({
-                headers: expect.objectContaining({ Range: 'bytes=50-' }),
+                headers: expect.objectContaining({
+                    'If-Range': '"etag-1"',
+                    Range: 'bytes=50-',
+                }),
             }),
             { allowPrivateNetworks: true }
         );
@@ -184,7 +189,9 @@ describe('download runtime pause and resume', () => {
     it('deletes a queued resumed partial file when the queued task is canceled', async () => {
         jest.resetModules();
 
-        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
         const db = {
             update: jest.fn(() => ({ set })),
         };
@@ -271,7 +278,9 @@ describe('download runtime pause and resume', () => {
     it('retains the partial path when canceling a queued task whose partial cannot be deleted', async () => {
         jest.resetModules();
 
-        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
         const db = { update: jest.fn(() => ({ set })) };
         const removePartialDownloadFile = jest.fn(() => {
             throw new Error('EPERM: locked');
@@ -338,7 +347,9 @@ describe('download runtime pause and resume', () => {
     it('retains the partial path when canceling a paused row whose partial cannot be deleted', async () => {
         jest.resetModules();
 
-        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
         const db = {
             select: jest.fn(() => ({
                 from: jest.fn(() => ({

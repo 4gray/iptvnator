@@ -51,10 +51,14 @@ export async function resolveStoredDownloadHeaders(
         .from(schema.playlists)
         .where(eq(schema.playlists.id, item.playlistId))
         .limit(1);
-    if (playlists[0]?.type !== 'xtream') {
+    const playlistType = playlists[0]?.type;
+    if (playlistType !== undefined && playlistType !== 'xtream') {
         return headers;
     }
 
+    // Download rows intentionally survive individual playlist deletion. Older
+    // rows have no stored provider marker, so a missing source must use the
+    // IPTV-player fallback as the only recoverable identity-compatible default.
     return {
         ...headers,
         'User-Agent': XTREAM_CLIENT_USER_AGENT,

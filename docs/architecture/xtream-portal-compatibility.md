@@ -102,7 +102,11 @@ Electron's `XTREAM_REQUEST` and stream-probe handlers plus Xtream VOD download
 requests share the exported `XTREAM_CLIENT_USER_AGENT` fallback. A playlist's
 explicit User-Agent still wins for its stream probe and download. Legacy
 download rows without a stored User-Agent receive the fallback when retrying,
-resuming, or recovering a missing completed file. Some Xtream
+resuming, or recovering a missing completed file. Download rows intentionally
+survive individual source deletion; when the playlist row is already gone and
+its type can no longer be recovered, a headerless legacy download receives the
+same IPTV-player fallback, while a still-identifiable Stalker row remains
+unchanged. Some Xtream
 panels sit behind a WAF (e.g. Cloudflare) configured to challenge
 generic/incomplete browser-looking User-Agents while allowlisting known IPTV
 player clients; a player-style User-Agent (currently a VLC signature) avoids

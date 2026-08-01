@@ -1,7 +1,9 @@
 import type { DownloadsDatabase } from './download-task';
 
-function createDatabase(playlistType: 'xtream' | 'stalker') {
-    const limit = jest.fn().mockResolvedValue([{ type: playlistType }]);
+function createDatabase(playlistType?: 'xtream' | 'stalker') {
+    const limit = jest
+        .fn()
+        .mockResolvedValue(playlistType ? [{ type: playlistType }] : []);
     const db = {
         select: jest.fn(() => ({
             from: jest.fn(() => ({
@@ -43,6 +45,21 @@ describe('stored download request headers', () => {
                 requestHeaders: null,
             })
         ).resolves.toBeUndefined();
+    });
+
+    it('adds the player fallback when a legacy row outlives its deleted source', async () => {
+        const { db } = createDatabase();
+        const { resolveStoredDownloadHeaders } =
+            await import('./download-request-headers');
+
+        await expect(
+            resolveStoredDownloadHeaders(db, {
+                playlistId: 'deleted-playlist',
+                requestHeaders: null,
+            })
+        ).resolves.toEqual({
+            'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+        });
     });
 
     it('preserves an explicit stored User-Agent without querying the playlist', async () => {

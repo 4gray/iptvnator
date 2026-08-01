@@ -151,6 +151,34 @@ describe('download resume validation', () => {
         );
     });
 
+    it('restarts without Range when a retained partial has no validator', async () => {
+        const harness = await setupResumeHarness({
+            finalSize: 4,
+            partialSize: 50,
+            response: {
+                data: Readable.from([Buffer.from('full')]),
+                headers: { 'content-length': '4', etag: '"etag-new"' },
+                status: 200,
+            },
+        });
+
+        harness.runtime.enqueueDownload(
+            createTask({
+                filePath: '/downloads/movie.mp4',
+                totalBytes: 54,
+            })
+        );
+        await waitForStatus(harness.set, 'completed');
+
+        const requestOptions =
+            harness.requestWithValidatedRedirects.mock.calls[0][1];
+        expect(requestOptions.headers).toEqual({});
+        expect(harness.createWriteStream).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            { flags: 'w' }
+        );
+    });
+
     it('restarts from byte zero when a resume request is answered with 200', async () => {
         const harness = await setupResumeHarness({
             finalSize: 4,
@@ -215,6 +243,7 @@ describe('download resume validation', () => {
             harness.runtime.enqueueDownload(
                 createTask({
                     filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
                     totalBytes: 54,
                 })
             );
@@ -251,6 +280,7 @@ describe('download resume validation', () => {
             harness.runtime.enqueueDownload(
                 createTask({
                     filePath: '/downloads/movie.mp4',
+                    resumeValidator: '"etag-1"',
                     totalBytes: 100,
                 })
             );
@@ -390,6 +420,12 @@ describe('download resume validation', () => {
             code: 'ECONNRESET',
             headers: {},
             label: 'response without an advertised total',
+            partialSizeAfterTransferError: 20,
+        },
+        {
+            code: 'ECONNRESET',
+            headers: { 'content-length': '100' },
+            label: 'response without a representation validator',
             partialSizeAfterTransferError: 20,
         },
         {
