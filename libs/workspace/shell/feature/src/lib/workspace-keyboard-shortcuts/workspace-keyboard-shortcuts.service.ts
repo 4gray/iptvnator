@@ -7,6 +7,7 @@ import {
     isTypingInInput,
 } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { WorkspaceShellContextDrawerService } from '../workspace-shell/services/workspace-shell-context-drawer.service';
 import {
     WorkspaceKeyboardShortcutsDialogComponent,
     WorkspaceKeyboardShortcutsDialogData,
@@ -17,6 +18,12 @@ export class WorkspaceKeyboardShortcutsService {
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    // Optional: provided by the workspace shell component alongside this
+    // service. The help key must not open a dialog over the modal phone
+    // context drawer.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
     private readonly onDocumentKeydown = (event: KeyboardEvent): void =>
         this.handleKeydown(event);
 
@@ -72,7 +79,11 @@ export class WorkspaceKeyboardShortcutsService {
     }
 
     private handleKeydown(event: KeyboardEvent): void {
-        if (isTypingInInput(event) || !isKeyboardShortcutHelpTrigger(event)) {
+        if (
+            isTypingInInput(event) ||
+            !isKeyboardShortcutHelpTrigger(event) ||
+            this.contextDrawer?.isOpen()
+        ) {
             return;
         }
 

@@ -19,6 +19,7 @@ import {
 } from './helpers/workspace-shell-command-builders';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
+import { WorkspaceShellContextDrawerService } from './workspace-shell-context-drawer.service';
 import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
@@ -48,8 +49,18 @@ export class WorkspaceShellFacade {
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
     );
+    // Optional: provided by the workspace shell component alongside this
+    // facade. While the phone context drawer is modal, opening the command
+    // palette over it would stack two competing focus-trapped surfaces.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
     private readonly onDocumentKeydown = (event: KeyboardEvent): void => {
         if (!(event.ctrlKey || event.metaKey)) {
+            return;
+        }
+
+        if (this.contextDrawer?.isOpen()) {
             return;
         }
 
