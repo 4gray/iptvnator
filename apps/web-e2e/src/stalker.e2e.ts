@@ -962,6 +962,21 @@ test.describe('@stalker full portal authentication', () => {
 
         await addFullStalkerPortal(page, { mac: AUTH_REAUTH_MAC });
 
+        // `addFullStalkerPortal` only awaits the route change, and on a slow
+        // runner the first authenticated content request has not necessarily
+        // gone out by then — poll for it instead of reading the log once.
+        await expect
+            .poll(
+                () =>
+                    requests.some(
+                        (entry) =>
+                            CONTENT_ACTIONS.includes(entry.action) &&
+                            entry.token
+                    ),
+                { timeout: 30_000 }
+            )
+            .toBe(true);
+
         // The token the initial import authenticated with — recovery must end
         // up on a DIFFERENT one, or nothing was actually re-negotiated.
         const tokenBeforeInvalidation = requests.find(
