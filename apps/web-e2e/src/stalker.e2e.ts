@@ -64,8 +64,12 @@ const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
  * The Infomir OUI matters: the strict endpoint validates the MAC format.
  */
 const AUTH_FLOW_MAC = '00:1A:79:AD:00:01';
-const AUTH_TEXT_MAC = '00:1A:79:AD:00:02';
 const AUTH_REAUTH_MAC = '00:1A:79:AD:00:03';
+/**
+ * Deliberately NOT an Infomir MAC: the strict endpoint rejects get_profile for
+ * it, so no token is ever adopted and content requests fail permanently.
+ */
+const AUTH_REJECTED_MAC = 'AA:BB:CC:DD:EE:01';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -162,9 +166,9 @@ async function addStalkerPortal(
  */
 async function addFullStalkerPortal(
     page: Page,
-    options: { name?: string; mac: string }
+    options: { name?: string; mac: string; expectContent?: boolean }
 ): Promise<void> {
-    const { name = 'Full Stalker Portal', mac } = options;
+    const { name = 'Full Stalker Portal', mac, expectContent = true } = options;
 
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
@@ -179,7 +183,10 @@ async function addFullStalkerPortal(
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();
-    await page.waitForURL(/stalker.*vod/, { timeout: 30_000 });
+
+    if (expectContent) {
+        await page.waitForURL(/stalker.*vod/, { timeout: 30_000 });
+    }
 }
 
 /** Portal actions the app sent, in order, with the token each carried. */
@@ -870,11 +877,46 @@ test.describe('@stalker full portal authentication', () => {
 
     test('never surfaces the portal plain-text auth failure as content', async ({
         page,
+        request,
     }) => {
-        await addFullStalkerPortal(page, { mac: AUTH_TEXT_MAC });
+        const requests = recordPortalRequests(page);
 
-        // A body of "Authorization failed." must never be rendered — if the
-        // token pipeline breaks, the app has to fail loudly instead.
+        // A MAC outside the Infomir OUI makes the strict endpoint answer
+        // get_profile with a bare {status:1}, so no token is ever adopted and
+        // every content request keeps returning the plain-text failure. Unlike
+        // an invalidated session this cannot be repaired by the app's retry,
+        // which is what makes the negative assertion below meaningful instead
+        // of vacuous.
+        const failureBody = await (
+            await request.get(
+                `${BACKEND_PROXY}?url=${encodeURIComponent(
+                    FULL_PORTAL_URL
+                )}&macAddress=${encodeURIComponent(
+                    AUTH_REJECTED_MAC
+                )}&action=get_categories&type=vod`
+            )
+        ).json();
+        expect(failureBody.payload).toBe('Authorization failed.');
+
+        await addFullStalkerPortal(page, {
+            mac: AUTH_REJECTED_MAC,
+            expectContent: false,
+        });
+
+        // The app must have actually hit the failing portal...
+        await expect
+            .poll(
+                () =>
+                    requests.filter((entry) =>
+                        CONTENT_ACTIONS.includes(entry.action)
+                    ).length,
+                { timeout: 30_000 }
+            )
+            .toBeGreaterThan(0);
+
+        // ...and must never render the raw portal response as content. A
+        // portal answers auth failures with HTTP 200 + plain text, so an app
+        // that trusts the status code would happily paint these strings.
         await expect(page.locator('body')).not.toContainText(
             'Authorization failed.'
         );

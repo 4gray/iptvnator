@@ -52,8 +52,6 @@ imported as a **full portal** (handshake + token + watchdog), anything else as a
 > upcoming fix that unifies those two predicates. Until then, import full
 > portals through a `/stalker_portal/...` URL.
 
-> **Known app-side gap:** the
-
 The strict endpoint reproduces the parts of Stalker 4.9.35 that a client can
 actually get wrong:
 
