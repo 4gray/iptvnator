@@ -8,6 +8,17 @@ jest.mock('child_process', () => ({
     spawn: jest.fn(),
 }));
 
+// Passthrough by default (the VLC specs bind a real ephemeral port via
+// createServer); individual tests override createConnection to capture the
+// JSON IPC traffic of a reused mpv instance.
+jest.mock('net', () => ({
+    ...jest.requireActual('net'),
+    createConnection: jest.fn((...args: unknown[]) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        jest.requireActual('net').createConnection(...(args as [any]))
+    ),
+}));
+
 jest.mock('../app', () => ({
     __esModule: true,
     default: {
@@ -30,6 +41,7 @@ jest.mock('../services/store.service', () => ({
 
 import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+import { createConnection } from 'net';
 import {
     MPV_PLAYER_PATH,
     MPV_REUSE_INSTANCE,
@@ -129,6 +141,65 @@ describe('external player shutdown on app quit', () => {
         // and Stalker portals reject the stream with HTTP 400.
         expect(headerArg).toContain('(KHTML\\, like Gecko) MAG250');
         expect(headerArg).not.toContain('(KHTML, like Gecko)');
+    });
+
+    it('escapes commas in http header fields on the reused-instance IPC path', async () => {
+        // Reset any reusable instance a previous test may have left behind so
+        // the first launch below spawns rather than reuses.
+        shutdownMpvSession();
+
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: true,
+        });
+
+        // First launch spawns the reusable instance and records its IPC socket.
+        await openMpvPlayer({
+            title: 'First stream',
+            url: 'https://portal.example/ch/1',
+        });
+
+        // Capture the JSON IPC traffic of the second, reused launch.
+        const written: string[] = [];
+        (createConnection as unknown as jest.Mock).mockImplementation(() => {
+            const socket = Object.assign(new EventEmitter(), {
+                write: jest.fn((chunk: string) => written.push(chunk)),
+                end: jest.fn(),
+                destroy: jest.fn(),
+            });
+            setImmediate(() => socket.emit('connect'));
+            return socket;
+        });
+
+        await openMpvPlayer({
+            title: 'Stalker live stream',
+            url: 'https://portal.example/ch/1234',
+            headers: {
+                'X-User-Agent':
+                    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250',
+            },
+        });
+
+        const commands = written.map(
+            (chunk) =>
+                JSON.parse(chunk.trim()).command as Array<string | number>
+        );
+        const setHeaderFields = commands.find(
+            (command) =>
+                command[0] === 'set_property' &&
+                command[1] === 'http-header-fields'
+        );
+
+        // The value must survive the JSON IPC transport with the mpv escape
+        // intact: mpv re-parses the property as a comma-separated stringlist
+        // on its side, so an unescaped comma truncates the MAG user agent.
+        expect(setHeaderFields).toBeDefined();
+        expect(setHeaderFields?.[2]).toContain('(KHTML\\, like Gecko) MAG250');
+        expect(setHeaderFields?.[2]).not.toContain('(KHTML, like Gecko)');
+
+        shutdownMpvSession();
     });
 
     it('does not track non-reusable MPV processes for shutdown', async () => {
