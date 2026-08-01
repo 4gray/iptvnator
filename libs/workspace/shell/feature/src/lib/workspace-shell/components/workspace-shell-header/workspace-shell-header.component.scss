@@ -291,14 +291,40 @@
 }
 
 @media (max-width: 640px) {
+    .workspace-header {
+        padding-inline: 8px;
+        gap: 8px;
+    }
+
     .playlist-switcher {
-        width: auto;
-        min-width: 140px;
-        flex: 1;
+        width: 140px;
+        min-width: 0;
+        flex: 0 0 140px;
     }
 
     .search-field {
-        .search-chip--status {
+        // Without a floor of its own the three header regions add up to more
+        // than a phone-width header and the icons overlap.
+        min-width: 0;
+        flex: 1 1 auto;
+        padding-inline: 8px;
+
+        .search-chip--status,
+        .search-chip--scope {
+            display: none;
+        }
+
+        // Keyboard-only affordances on a screen that usually has no keyboard.
+        // The palette still opens via the actual shortcut and the rail.
+        .command-trigger {
+            display: none;
+        }
+    }
+
+    .header-actions--leading {
+        margin-left: 0;
+
+        .shortcuts-trigger {
             display: none;
         }
     }

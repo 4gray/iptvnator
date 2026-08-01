@@ -227,13 +227,39 @@
 @media (max-width: 640px) {
     .app-rail {
         flex-direction: row;
-        justify-content: space-between;
-        padding: 6px 10px;
+        justify-content: flex-start;
+        gap: 4px;
+        padding: 6px 8px;
         border-right: none;
         border-bottom: 1px solid var(--mat-sys-outline-variant);
+        // A phone cannot fit every portal section at once, so the bar
+        // scrolls sideways instead of squeezing the icons into overlap.
+        overflow-x: auto;
+        overflow-y: hidden;
 
+        &.is-macos {
+            padding-top: 6px;
+        }
+
+        // The brand links to the dashboard, which the first workspace link
+        // already does. On a bar this narrow that duplicate costs a section.
         .brand {
-            margin-bottom: 0;
+            display: none;
+        }
+
+        a {
+            flex: 0 0 auto;
+        }
+
+        a.is-active::after,
+        a.active::after {
+            right: auto;
+            top: auto;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 18px;
+            height: 3px;
         }
     }
 
@@ -245,6 +271,10 @@
 
     .rail-context-region {
         width: auto;
+        // The vertical rail caps this at 48px; in a row that cap would
+        // stack every portal section on top of itself.
+        max-width: none;
+        flex: 0 0 auto;
         flex-direction: row;
         margin: 0;
         padding: 2px 4px;
@@ -261,7 +291,19 @@
         }
     }
 
+    // Settings sits at the end of a bar that scrolls sideways once a portal
+    // adds its sections, so it is pinned instead of scrolling out of reach.
     .rail-footer {
         margin-top: 0;
+        margin-left: auto;
+        flex: 0 0 auto;
+        position: sticky;
+        right: 0;
+        padding-left: 4px;
+        background: linear-gradient(
+            to right,
+            transparent,
+            var(--app-rail-bg, var(--mat-sys-surface-container-low)) 25%
+        );
     }
 }

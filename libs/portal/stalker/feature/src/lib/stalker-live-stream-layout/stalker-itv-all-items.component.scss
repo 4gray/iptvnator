@@ -12,6 +12,11 @@
 
 .category-content-header {
     @include panel.standard-panel-header($sticky: true);
+
+    // Same reason as the Xtream live header: the paginator does not shrink,
+    // so it must be able to drop to its own line rather than crowd the meta
+    // out of existence.
+    flex-wrap: wrap;
 }
 
 .category-meta {
@@ -49,7 +54,9 @@
 // painting its own (mismatched) Material surface color.
 mat-paginator {
     background: transparent !important;
-    flex-shrink: 0;
+    // Its own container already wraps internally, so letting it shrink turns
+    // a clipped next-page arrow into a second line of the paginator itself.
+    min-width: 0;
     --mat-paginator-container-size: 40px;
     --mat-paginator-enabled-icon-color: var(
         --app-body-color,
@@ -69,4 +76,25 @@ app-grid-list.all-items-grid {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
         transparent;
+}
+
+// Mirrors the Xtream live header: on a phone the page-size select is the
+// widest part of the paginator and the least useful one, and the count it
+// costs is already stated by the range beside it.
+@media (max-width: 640px) {
+    .category-content-header {
+        padding-inline: 12px;
+    }
+
+    .category-subtitle {
+        display: none;
+    }
+
+    mat-paginator {
+        min-width: 0;
+
+        ::ng-deep .mat-mdc-paginator-page-size {
+            display: none;
+        }
+    }
 }

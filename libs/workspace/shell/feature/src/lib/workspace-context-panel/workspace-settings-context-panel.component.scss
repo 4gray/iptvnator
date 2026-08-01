@@ -26,10 +26,17 @@
     flex: 1;
     min-height: 0;
     padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
+// `height: 100%` here does not resolve against a stretched flex item, so the
+// list kept its full content height and painted over the footer whenever the
+// panel was shorter than its sections (a phone, or a short desktop window).
 .settings-sections-list {
-    height: 100%;
+    flex: 1;
+    min-height: 0;
 }
 
 .settings-panel-footer {

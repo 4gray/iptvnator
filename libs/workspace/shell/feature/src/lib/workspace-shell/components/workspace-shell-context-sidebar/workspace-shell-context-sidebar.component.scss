@@ -57,3 +57,47 @@
     min-height: 0;
     overflow: hidden;
 }
+
+.context-panel--settings app-workspace-settings-context-panel {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+// Below this width the shell stacks the panel above the content instead of
+// beside it. `!important` is required because ResizableDirective writes the
+// persisted desktop width as an inline style; a 300px panel on a 375px screen
+// leaves ~50px for the actual content. Dragging is meaningless when the panel
+// spans the full width, so the handle goes away with it.
+@media (max-width: 640px) {
+    .context-panel {
+        width: 100% !important;
+        max-width: none !important;
+        // There is no global border-box reset, so the panel's own padding
+        // would push a 100%-wide panel past the viewport.
+        box-sizing: border-box;
+        height: auto;
+        // Roughly a third of the screen: enough to show several entries
+        // without pushing the route's own content off the bottom.
+        max-height: 30vh;
+        border-right: none;
+        border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .context-panel--collapsed {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-bottom-color: transparent;
+    }
+
+    .context-panel :is(.resize-handle) {
+        display: none;
+    }
+
+    .context-panel--route,
+    .context-panel--sources {
+        overflow: hidden;
+    }
+}

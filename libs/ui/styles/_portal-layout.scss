@@ -178,4 +178,42 @@
             width: 100% !important;
         }
     }
+
+    // ─── Phone layout ────────────────────────────────────────────────────────
+    // Side by side, the 400px channel list leaves nothing for the player on a
+    // phone, so the two stack instead. The width needs `!important` because
+    // ResizableDirective writes the persisted desktop width inline; dragging
+    // is meaningless at full width, so the handle goes too.
+    @media (max-width: 640px) {
+        :host {
+            flex-direction: column;
+        }
+
+        .sidebar {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: none;
+            flex-shrink: 1;
+            max-height: 42vh;
+            border-right: none;
+            border-bottom: 1px solid var(--app-separator);
+
+            &.sidebar-collapsed {
+                max-height: 0;
+                border-bottom-color: transparent;
+            }
+
+            .resize-handle {
+                display: none;
+            }
+        }
+
+        // The player's floor, not the list's ceiling, is what has to hold: a
+        // phone shows the categories panel above this layout too, and without
+        // a stated minimum the video ends up a sliver under two lists.
+        .content-container {
+            flex: 1 1 auto;
+            min-height: 240px;
+        }
+    }
 }

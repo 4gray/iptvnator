@@ -90,6 +90,18 @@
         line-height: 1.3;
         letter-spacing: 0.02em;
         color: var(--mat-sys-on-surface-variant);
+        // A wrapping subtitle pushes the trigger past the 56px header row.
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+// On a phone the header row has no width to spare: the source type is already
+// implied by the icon, so the name gets the whole trigger.
+@media (max-width: 640px) {
+    .playlist-info .channels-count {
+        display: none;
     }
 }
 
