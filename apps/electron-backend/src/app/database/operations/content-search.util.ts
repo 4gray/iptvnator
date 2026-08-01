@@ -368,3 +368,73 @@ export function scoreSearchTextMatch(
 
     return null;
 }
+
+/**
+ * Splits a global ("advanced") search query into chips. Chips are the
+ * user-committed search units of the header chip input, joined on the wire by
+ * newlines (a char the single-line chip input can't contain). A query without
+ * a newline is a single chip — the whole term — which keeps every non-chip
+ * caller (and older `?q=` links) behaving exactly as before.
+ */
+export function parseSearchChips(query: unknown): string[] {
+    if (typeof query !== 'string') {
+        return [];
+    }
+
+    return query
+        .split('\n')
+        .map((chip) => chip.trim())
+        .filter((chip) => chip.length > 0);
+}
+
+/**
+ * OR-across-chips score for global ("advanced") search. Each chip is matched
+ * as a joined unit (all its words present, via {@link scoreSearchTextMatch}),
+ * and a candidate matches if ANY chip matches. Candidates are ranked by how
+ * many chips they satisfy — more matched chips sort first — with the strongest
+ * single-chip match breaking ties. Returns null when no chip matches.
+ *
+ * `value` may be several searchable fields (M3U channel name, TVG name, group
+ * title): a chip counts as matched when it matches ANY field, so a candidate
+ * satisfying different chips in different fields is still ranked by the total
+ * number of distinct chips matched. A single string field collapses to
+ * `scoreSearchTextMatch`, so one-chip / single-field searches keep the exact
+ * ordering they had before chips existed.
+ */
+export function scoreGlobalSearchChips(
+    value: string | readonly string[],
+    chips: readonly string[]
+): number | null {
+    if (chips.length === 0) {
+        return null;
+    }
+
+    const fields = typeof value === 'string' ? [value] : value;
+    let matchedChips = 0;
+    let bestChipScore = Number.POSITIVE_INFINITY;
+    for (const chip of chips) {
+        let chipScore: number | null = null;
+        for (const field of fields) {
+            const fieldScore = scoreSearchTextMatch(field, chip);
+            if (fieldScore !== null) {
+                chipScore =
+                    chipScore === null
+                        ? fieldScore
+                        : Math.min(chipScore, fieldScore);
+            }
+        }
+        if (chipScore !== null) {
+            matchedChips += 1;
+            bestChipScore = Math.min(bestChipScore, chipScore);
+        }
+    }
+
+    if (matchedChips === 0) {
+        return null;
+    }
+
+    // Chip count dominates (fewer missing => lower => ranked first); the best
+    // single-chip score (0..50) breaks ties within the same count.
+    const missingChips = chips.length - matchedChips;
+    return missingChips * 1000 + bestChipScore;
+}

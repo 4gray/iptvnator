@@ -28,17 +28,47 @@
                     {{ searchScopeLabel() }}
                 </span>
             }
-            <input
-                #searchInput
-                type="search"
-                spellcheck="false"
-                [value]="searchQuery()"
-                (input)="onSearchInput($event)"
-                (keydown.enter)="onSearchEnter($event)"
-                [disabled]="!canUseSearch()"
-                [placeholder]="searchPlaceholder() | translate"
-                [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
-            />
+            @if (chipSearchMode()) {
+                <mat-chip-grid
+                    #chipGrid
+                    class="search-chip-grid"
+                    [attr.aria-label]="'WORKSPACE.SHELL.SEARCH_LABEL' | translate"
+                >
+                    @for (chip of chips(); track $index) {
+                        <mat-chip-row (removed)="removeChip($index)">
+                            {{ chip }}
+                            <button
+                                matChipRemove
+                                [attr.aria-label]="'Remove ' + chip"
+                            >
+                                <mat-icon>cancel</mat-icon>
+                            </button>
+                        </mat-chip-row>
+                    }
+                    <input
+                        #searchInput
+                        [matChipInputFor]="chipGrid"
+                        [matChipInputAddOnBlur]="false"
+                        (matChipInputTokenEnd)="addChip($event)"
+                        [disabled]="!canUseSearch()"
+                        [placeholder]="searchPlaceholder() | translate"
+                    />
+                </mat-chip-grid>
+            } @else {
+                <input
+                    #searchInput
+                    type="search"
+                    spellcheck="false"
+                    [value]="searchQuery()"
+                    (input)="onSearchInput($event)"
+                    (keydown.enter)="onSearchEnter($event)"
+                    [disabled]="!canUseSearch()"
+                    [placeholder]="searchPlaceholder() | translate"
+                    [attr.aria-label]="
+                        'WORKSPACE.SHELL.SEARCH_LABEL' | translate
+                    "
+                />
+            }
             @if (searchStatusLabel()) {
                 <span class="search-chip search-chip--status">
                     {{ searchStatusLabel() }}

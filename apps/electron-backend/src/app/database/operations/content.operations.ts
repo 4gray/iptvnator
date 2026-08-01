@@ -28,7 +28,8 @@ import {
     getSqlSearchTokenGroups,
     isShortSearchTokenGroup,
     normalizeSearchMatchText,
-    scoreSearchTextMatch,
+    parseSearchChips,
+    scoreGlobalSearchChips,
     shouldUseContentTitleFts,
     shouldUseContentTitlePrefixIndex,
 } from './content-search.util';
@@ -400,6 +401,95 @@ async function selectXtreamGlobalSearchCandidatesWithContentScan(
 }
 
 /**
+ * Xtream candidate rows for a single search chip (all its words required),
+ * using the fastest applicable index strategy: short-first-token prefix GLOB
+ * plus a compound-word FTS supplement, trigram FTS, or a LIKE content scan.
+ * `globalSearch` calls this once per chip and unions the results, so each chip
+ * keeps the same well-indexed matching a whole one-chip query had.
+ */
+async function selectXtreamGlobalSearchCandidatesForChip(
+    db: AppDatabase,
+    chip: string,
+    types: string[],
+    excludeHidden: boolean,
+    candidateLimit: number
+): Promise<XtreamGlobalSearchCandidate[]> {
+    if (shouldUseContentTitlePrefixIndex(chip)) {
+        const candidates =
+            await selectXtreamGlobalSearchCandidatesWithTitleIndex(
+                db,
+                chip,
+                types,
+                excludeHidden,
+                candidateLimit
+            );
+
+        // The prefix arm only sees titles that start with the short first
+        // token ("A&E" -> GLOB 'a*'), so a compound word like "a&e" is
+        // additionally looked up as a trigram FTS substring to reach titles
+        // such as "US: A&E" (issue #1161). The non-compound words of the chip
+        // stay applied as LIKE conditions so this arm cannot fill the
+        // candidate limit with compound-only matches.
+        const compoundMatchQuery = buildCompoundFtsMatchQuery(chip);
+        if (!compoundMatchQuery) {
+            return candidates;
+        }
+
+        try {
+            const compoundCandidates =
+                await selectXtreamGlobalSearchCandidatesWithFts(
+                    db,
+                    compoundMatchQuery,
+                    types,
+                    excludeHidden,
+                    candidateLimit,
+                    buildCompoundResidualTitleSql(chip)
+                );
+            return dedupeXtreamCandidatesById([
+                ...candidates,
+                ...compoundCandidates,
+            ]);
+        } catch {
+            return selectXtreamGlobalSearchCandidatesWithContentScan(
+                db,
+                chip,
+                types,
+                excludeHidden,
+                candidateLimit
+            );
+        }
+    }
+
+    if (shouldUseContentTitleFts(chip)) {
+        try {
+            return await selectXtreamGlobalSearchCandidatesWithFts(
+                db,
+                buildContentTitleFtsMatchQuery(chip),
+                types,
+                excludeHidden,
+                candidateLimit
+            );
+        } catch {
+            return selectXtreamGlobalSearchCandidatesWithContentScan(
+                db,
+                chip,
+                types,
+                excludeHidden,
+                candidateLimit
+            );
+        }
+    }
+
+    return selectXtreamGlobalSearchCandidatesWithContentScan(
+        db,
+        chip,
+        types,
+        excludeHidden,
+        candidateLimit
+    );
+}
+
+/**
  * Per-word M3U payload prefilter conditions, AND-ed by the caller — the same
  * compound-word composition as `buildContentTitleSearchConditions`: "A&E"
  * must reach channel names like "US: A&E" (issue #1161), while the other
@@ -533,14 +623,17 @@ function getM3uPayloadChannels(payload: ParsedM3uPlaylistPayload): Channel[] {
         .filter((item): item is Channel => item !== null);
 }
 
-function scoreM3uChannel(channel: Channel, searchTerm: string): number | null {
-    const scores = [
-        scoreSearchTextMatch(channel.name, searchTerm),
-        scoreSearchTextMatch(channel.tvg.name, searchTerm),
-        scoreSearchTextMatch(channel.group.title, searchTerm),
-    ].filter((score): score is number => score !== null);
-
-    return scores.length > 0 ? Math.min(...scores) : null;
+function scoreM3uChannel(
+    channel: Channel,
+    chips: readonly string[]
+): number | null {
+    // One combined score across the searchable fields so a chip counts as
+    // matched when it hits any field — a channel satisfying different chips in
+    // different fields is ranked by the total chips matched, not per field.
+    return scoreGlobalSearchChips(
+        [channel.name, channel.tvg.name, channel.group.title],
+        chips
+    );
 }
 
 function toM3uGlobalSearchResult(
@@ -570,7 +663,7 @@ function toM3uGlobalSearchResult(
 
 function buildScoredM3uGlobalSearchResults(
     rows: readonly M3uPlaylistSearchRow[],
-    searchTerm: string,
+    chips: readonly string[],
     excludeHidden = false,
     maxResults = MAX_GLOBAL_SEARCH_CANDIDATE_LIMIT
 ): ScoredGlobalSearchResult<M3uGlobalSearchResult>[] {
@@ -588,7 +681,7 @@ function buildScoredM3uGlobalSearchResults(
                 continue;
             }
 
-            const score = scoreM3uChannel(channel, searchTerm);
+            const score = scoreM3uChannel(channel, chips);
             if (score === null) {
                 continue;
             }
@@ -614,7 +707,11 @@ export function buildM3uGlobalSearchResults(
     options?: GlobalSearchPaginationOptions | number
 ): M3uGlobalSearchResult[] {
     return paginateScoredResults(
-        buildScoredM3uGlobalSearchResults(rows, searchTerm, excludeHidden),
+        buildScoredM3uGlobalSearchResults(
+            rows,
+            parseSearchChips(searchTerm),
+            excludeHidden
+        ),
         normalizeGlobalSearchPagination(options)
     );
 }
@@ -1103,84 +1200,29 @@ export async function globalSearch(
         return [];
     }
 
+    // Each committed chip is its own search unit (all its words required);
+    // candidates matching any chip are unioned, then ranked by how many chips
+    // they satisfy. A plain one-chip query keeps the original behavior.
+    const chips = parseSearchChips(searchTerm);
     const pagination = normalizeGlobalSearchPagination(options);
     const candidateLimit = getGlobalSearchCandidateLimit();
     const results: ScoredGlobalSearchResult[] = [];
 
     if (hasGlobalSearchSource(sources, GLOBAL_SEARCH_RESULT_SOURCES.Xtream)) {
-        let candidates: XtreamGlobalSearchCandidate[];
-
-        if (shouldUseContentTitlePrefixIndex(searchTerm)) {
-            candidates = await selectXtreamGlobalSearchCandidatesWithTitleIndex(
-                db,
-                searchTerm,
-                types,
-                excludeHidden,
-                candidateLimit
-            );
-
-            // The prefix arm only sees titles that start with the short first
-            // token ("A&E" -> GLOB 'a*'), so a compound word like "a&e" is
-            // additionally looked up as a trigram FTS substring to reach
-            // titles such as "US: A&E" (issue #1161). The non-compound words
-            // of the query stay applied as LIKE conditions so this arm cannot
-            // fill the candidate limit with compound-only matches.
-            const compoundMatchQuery = buildCompoundFtsMatchQuery(searchTerm);
-            if (compoundMatchQuery) {
-                try {
-                    const compoundCandidates =
-                        await selectXtreamGlobalSearchCandidatesWithFts(
-                            db,
-                            compoundMatchQuery,
-                            types,
-                            excludeHidden,
-                            candidateLimit,
-                            buildCompoundResidualTitleSql(searchTerm)
-                        );
-                    candidates = dedupeXtreamCandidatesById([
-                        ...candidates,
-                        ...compoundCandidates,
-                    ]);
-                } catch {
-                    candidates =
-                        await selectXtreamGlobalSearchCandidatesWithContentScan(
-                            db,
-                            searchTerm,
-                            types,
-                            excludeHidden,
-                            candidateLimit
-                        );
-                }
-            }
-        } else if (shouldUseContentTitleFts(searchTerm)) {
-            try {
-                candidates = await selectXtreamGlobalSearchCandidatesWithFts(
+        const perChipCandidates = await Promise.all(
+            chips.map((chip) =>
+                selectXtreamGlobalSearchCandidatesForChip(
                     db,
-                    buildContentTitleFtsMatchQuery(searchTerm),
+                    chip,
                     types,
                     excludeHidden,
                     candidateLimit
-                );
-            } catch {
-                candidates =
-                    await selectXtreamGlobalSearchCandidatesWithContentScan(
-                        db,
-                        searchTerm,
-                        types,
-                        excludeHidden,
-                        candidateLimit
-                    );
-            }
-        } else {
-            candidates =
-                await selectXtreamGlobalSearchCandidatesWithContentScan(
-                    db,
-                    searchTerm,
-                    types,
-                    excludeHidden,
-                    candidateLimit
-                );
-        }
+                )
+            )
+        );
+        const candidates = dedupeXtreamCandidatesById(
+            perChipCandidates.flat()
+        );
 
         results.push(
             ...candidates
@@ -1188,9 +1230,9 @@ export async function globalSearch(
                     (
                         item
                     ): ScoredGlobalSearchResult<XtreamGlobalSearchResult> | null => {
-                        const score = scoreSearchTextMatch(
+                        const score = scoreGlobalSearchChips(
                             item.title ?? '',
-                            searchTerm
+                            chips
                         );
                         if (score === null) {
                             return null;
@@ -1222,6 +1264,12 @@ export async function globalSearch(
         types.includes(GLOBAL_SEARCH_CONTENT_TYPES.Live) &&
         hasGlobalSearchSource(sources, GLOBAL_SEARCH_RESULT_SOURCES.M3u)
     ) {
+        // A playlist is scanned if any chip's words are present in its payload
+        // (chips OR-ed); per-chip conditions keep each chip's words AND-ed.
+        const chipConditions = chips
+            .map((chip) => buildM3uPayloadSearchConditions(chip))
+            .filter((conditions) => conditions.length > 0)
+            .map((conditions) => and(...conditions));
         const rows = await db
             .select({
                 id: schema.playlists.id,
@@ -1233,7 +1281,7 @@ export async function globalSearch(
                 and(
                     inArray(schema.playlists.type, [...M3U_PLAYLIST_TYPES]),
                     sql`${schema.playlists.payload} IS NOT NULL`,
-                    ...buildM3uPayloadSearchConditions(searchTerm)
+                    chipConditions.length > 0 ? or(...chipConditions) : undefined
                 )
             )
             .orderBy(schema.playlists.name)
@@ -1242,7 +1290,7 @@ export async function globalSearch(
         results.push(
             ...buildScoredM3uGlobalSearchResults(
                 rows,
-                searchTerm,
+                chips,
                 excludeHidden,
                 candidateLimit
             )

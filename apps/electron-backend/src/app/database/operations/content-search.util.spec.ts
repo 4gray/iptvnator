@@ -5,6 +5,8 @@ import {
     getCompoundResidualTokenGroups,
     getCompoundSearchWords,
     getSearchWordPlans,
+    parseSearchChips,
+    scoreGlobalSearchChips,
     scoreSearchTextMatch,
     shouldUseContentTitlePrefixIndex,
 } from './content-search.util';
@@ -146,6 +148,76 @@ describe('content-search.util', () => {
         it('keeps single short tokens anchored to the title start', () => {
             expect(scoreSearchTextMatch('TV Sport News', 'tv')).toBe(10);
             expect(scoreSearchTextMatch('Test TV', 'tv')).toBeNull();
+        });
+    });
+
+    describe('parseSearchChips', () => {
+        it('splits committed chips on newlines and trims blanks', () => {
+            expect(parseSearchChips('fr bein\n1968')).toEqual([
+                'fr bein',
+                '1968',
+            ]);
+            expect(parseSearchChips('  fr  \n\n 1968 \n')).toEqual([
+                'fr',
+                '1968',
+            ]);
+        });
+
+        it('treats a plain query as a single chip', () => {
+            expect(parseSearchChips('France 1968')).toEqual(['France 1968']);
+        });
+    });
+
+    describe('scoreGlobalSearchChips', () => {
+        it('collapses a single chip to the plain text score', () => {
+            const chip = 'France 1968';
+            expect(scoreGlobalSearchChips('France 1968', [chip])).toBe(
+                scoreSearchTextMatch('France 1968', chip)
+            );
+        });
+
+        it('requires every word of a chip (joined, not segmented)', () => {
+            // "France 2000" is missing the "1968" word of the single chip.
+            expect(
+                scoreGlobalSearchChips('France 2000', ['France 1968'])
+            ).toBeNull();
+        });
+
+        it('matches any chip and ranks more matched chips first', () => {
+            const chips = ['fr', 'bein', '1968'];
+            const three = scoreGlobalSearchChips('FR beIN 1968', chips);
+            const two = scoreGlobalSearchChips('FR beIN HD', chips);
+            const one = scoreGlobalSearchChips('FR Movies', chips);
+            expect(three).not.toBeNull();
+            expect(two).not.toBeNull();
+            expect(one).not.toBeNull();
+            expect(three as number).toBeLessThan(two as number);
+            expect(two as number).toBeLessThan(one as number);
+        });
+
+        it('returns null when no chip matches', () => {
+            expect(
+                scoreGlobalSearchChips('Spain 2020', ['fr', 'bein', '1968'])
+            ).toBeNull();
+        });
+
+        it('counts a chip as matched when it hits any of several fields', () => {
+            // "France" is in field 0, "1968" in field 2 -> both chips matched.
+            const both = scoreGlobalSearchChips(
+                ['France TV', '', '1968 Movies'],
+                ['France', '1968']
+            );
+            // Only "France" is present -> a one-chip (missing 1) match.
+            const one = scoreGlobalSearchChips(
+                ['France TV', '', 'Drama'],
+                ['France', '1968']
+            );
+
+            expect(both).not.toBeNull();
+            expect(one).not.toBeNull();
+            expect(both as number).toBeLessThan(1000);
+            expect(one as number).toBeGreaterThanOrEqual(1000);
+            expect(both as number).toBeLessThan(one as number);
         });
     });
 });

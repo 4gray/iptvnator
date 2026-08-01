@@ -116,6 +116,18 @@
         }
     }
 
+    // Global-search chip input: the committed search chips plus the entry
+    // field share the search bar. Keep it on one line — the header is a single
+    // compact row — and let overflow scroll rather than grow the header.
+    .search-chip-grid {
+        flex: 1;
+        min-width: 0;
+
+        input {
+            min-width: 64px;
+        }
+    }
+
     .command-trigger__icon {
         display: none;
         font-size: 16px;
