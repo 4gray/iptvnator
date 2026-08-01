@@ -101,6 +101,36 @@ describe('external player shutdown on app quit', () => {
         expect(proc.kill).toHaveBeenCalledTimes(1);
     });
 
+    it('escapes commas in http header fields passed to mpv', async () => {
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: false,
+        });
+
+        await openMpvPlayer({
+            title: 'Stalker live stream',
+            url: 'https://portal.example/ch/1234',
+            headers: {
+                'X-User-Agent':
+                    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250',
+            },
+        });
+
+        const args = (spawn as unknown as jest.Mock).mock
+            .calls[0][1] as string[];
+        const headerArg = args.find((arg) =>
+            arg.startsWith('--http-header-fields=')
+        );
+
+        // mpv parses the option as a comma-separated list; the comma inside
+        // the MAG user agent must arrive escaped or the header is truncated
+        // and Stalker portals reject the stream with HTTP 400.
+        expect(headerArg).toContain('(KHTML\\, like Gecko) MAG250');
+        expect(headerArg).not.toContain('(KHTML, like Gecko)');
+    });
+
     it('does not track non-reusable MPV processes for shutdown', async () => {
         const proc = createMockChildProcess();
         (spawn as unknown as jest.Mock).mockReturnValue(proc);

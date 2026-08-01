@@ -19,6 +19,7 @@ import {
     shouldReuseMpvInstance,
     shouldUseMpvSocketBridge,
 } from './external-player-launch-context';
+import { joinMpvHeaderFields } from '../util/mpv-string-list.util';
 import { resolveEffectiveExternalPlaybackRequest } from './external-player-playback-request';
 import {
     buildPlayerStartError,
@@ -295,7 +296,7 @@ export async function openMpvPlayer({
                 if (headerFields.length > 0) {
                     await sendMpvCommand('set_property', [
                         'http-header-fields',
-                        headerFields.join(','),
+                        joinMpvHeaderFields(headerFields),
                     ]);
                 }
 
@@ -372,7 +373,7 @@ export async function openMpvPlayer({
         }
 
         if (headerFields.length > 0) {
-            args.push(`--http-header-fields=${headerFields.join(',')}`);
+            args.push(`--http-header-fields=${joinMpvHeaderFields(headerFields)}`);
         }
 
         if (title) {
