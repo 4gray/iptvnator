@@ -85,11 +85,16 @@ export class StalkerAccountInfoService {
         const identity = getStalkerPortalIdentityFromPlaylist(
             toStalkerSessionPlaylist(playlist)
         );
-        const { accountInfo } = await this.stalkerSession.authenticate(
+        const { token, accountInfo } = await this.stalkerSession.authenticate(
             playlist.portalUrl as string,
             playlist.macAddress as string,
             identity
         );
+
+        // Strict portals invalidate the previous token on every handshake.
+        // Publish the fresh one into the managed session cache so an active
+        // portal session keeps working after the dialog re-authenticated.
+        this.stalkerSession.setCachedToken(playlist._id, token);
 
         if (!accountInfo) {
             return null;
@@ -154,6 +159,36 @@ function normalizeSnapshot(
         (value) => value !== undefined
     );
     return hasAnyFact ? snapshot : null;
+}
+
+/**
+ * Normalizes the `Playlist.stalkerAccountInfo` snapshot persisted at import
+ * time. The import path stores the portal's `expire_date`/`status` verbatim,
+ * so despite the declared number types the runtime values can be date
+ * strings or millisecond timestamps — run them through the same parsers the
+ * fresh path uses before the dialog renders them.
+ */
+export function normalizeStoredStalkerAccountInfo(
+    cached:
+        | {
+              login?: string;
+              expireDate?: number | string;
+              tariffPlanName?: string;
+              status?: number | string;
+          }
+        | null
+        | undefined
+): StalkerAccountSnapshot | null {
+    if (!cached || typeof cached !== 'object') {
+        return null;
+    }
+
+    return normalizeSnapshot({
+        login: cached.login || undefined,
+        expireDate: parseStalkerDate(cached.expireDate),
+        tariffPlanName: cached.tariffPlanName || undefined,
+        status: parseStalkerNumber(cached.status),
+    });
 }
 
 /**

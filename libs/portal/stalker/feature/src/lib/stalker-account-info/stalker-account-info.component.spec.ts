@@ -105,6 +105,30 @@ describe('StalkerAccountInfoComponent', () => {
         expect(component.expiresSoon()).toBe(true);
     });
 
+    it('normalizes stringly-typed cached values persisted at import time', async () => {
+        accountInfoService.fetchAccountInfo.mockRejectedValue(
+            new Error('offline')
+        );
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                stalkerAccountInfo: {
+                    login: 'cached-user',
+                    // Import persists portal values verbatim; a date string
+                    // must not blow up daysLeft/expiry rendering.
+                    expireDate: '2099-12-31',
+                    status: '1',
+                },
+            })
+        );
+
+        await createComponent();
+
+        expect(component.loadState()).toBe('ready');
+        expect(component.statusKind()).toBe('active');
+        expect(component.expiryDate()?.getFullYear()).toBe(2099);
+        expect(component.daysLeft()).toBeGreaterThan(0);
+    });
+
     it('keeps the cached snapshot when the portal publishes nothing', async () => {
         accountInfoService.fetchAccountInfo.mockResolvedValue(null);
         playlistsService.getPlaylist.mockReturnValue(

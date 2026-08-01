@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { DataService } from '@iptvnator/services';
 import { PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import {
+    normalizeStoredStalkerAccountInfo,
     parseStalkerDate,
     StalkerAccountInfoService,
 } from './stalker-account-info.service';
@@ -13,6 +14,7 @@ describe('StalkerAccountInfoService', () => {
     let stalkerSession: {
         authenticate: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
+        setCachedToken: jest.Mock;
     };
 
     const portalPlaylist = {
@@ -37,6 +39,7 @@ describe('StalkerAccountInfoService', () => {
         stalkerSession = {
             authenticate: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
+            setCachedToken: jest.fn(),
         };
 
         TestBed.configureTestingModule({
@@ -77,6 +80,12 @@ describe('StalkerAccountInfoService', () => {
             fullPortalPlaylist.portalUrl,
             fullPortalPlaylist.macAddress,
             expect.any(Object)
+        );
+        // The fresh token must land in the managed session cache — strict
+        // portals invalidate the previous token on each handshake.
+        expect(stalkerSession.setCachedToken).toHaveBeenCalledWith(
+            fullPortalPlaylist._id,
+            'token-1'
         );
         expect(snapshot).toEqual({
             login: 'user-77',
@@ -187,6 +196,51 @@ describe('StalkerAccountInfoService', () => {
         await expect(
             service.fetchAccountInfo(portalPlaylist)
         ).rejects.toThrow('offline');
+    });
+});
+
+describe('normalizeStoredStalkerAccountInfo', () => {
+    it('parses stringly-typed persisted values from the import path', () => {
+        expect(
+            normalizeStoredStalkerAccountInfo({
+                login: 'user-1',
+                expireDate: '2026-10-01' as unknown as number,
+                tariffPlanName: 'Premium',
+                status: '1' as unknown as number,
+            })
+        ).toEqual({
+            login: 'user-1',
+            expireDate: Math.round(Date.parse('2026-10-01') / 1000),
+            tariffPlanName: 'Premium',
+            status: 1,
+        });
+    });
+
+    it('passes through well-formed numeric snapshots unchanged', () => {
+        expect(
+            normalizeStoredStalkerAccountInfo({
+                login: 'user-1',
+                expireDate: 1_790_000_000,
+                tariffPlanName: 'Premium',
+                status: 1,
+            })
+        ).toEqual({
+            login: 'user-1',
+            expireDate: 1_790_000_000,
+            tariffPlanName: 'Premium',
+            status: 1,
+        });
+    });
+
+    it('returns null for missing or fact-free snapshots', () => {
+        expect(normalizeStoredStalkerAccountInfo(undefined)).toBeNull();
+        expect(normalizeStoredStalkerAccountInfo(null)).toBeNull();
+        expect(normalizeStoredStalkerAccountInfo({})).toBeNull();
+        expect(
+            normalizeStoredStalkerAccountInfo({
+                expireDate: '0000-00-00' as unknown as number,
+            })
+        ).toBeNull();
     });
 });
 

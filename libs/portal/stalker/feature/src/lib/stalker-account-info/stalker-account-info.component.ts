@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import {
+    normalizeStoredStalkerAccountInfo,
     StalkerAccountInfoService,
     StalkerAccountSnapshot,
 } from '@iptvnator/portal/stalker/data-access';
@@ -248,8 +249,13 @@ export class StalkerAccountInfoComponent {
             const playlist = await firstValueFrom(
                 this.playlistsService.getPlaylist(this.playlist._id)
             );
-            const cached = playlist?.stalkerAccountInfo;
-            if (cached && Object.values(cached).some((v) => v !== undefined)) {
+            // The import path persists portal values verbatim, so the
+            // stored expiry may be a date string or milliseconds despite
+            // the declared type — normalize before rendering.
+            const cached = normalizeStoredStalkerAccountInfo(
+                playlist?.stalkerAccountInfo
+            );
+            if (cached) {
                 this.snapshot.set(cached);
                 this.snapshotSource.set('cached');
                 this.loadState.set('ready');
