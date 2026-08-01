@@ -911,9 +911,10 @@ engine` (restart required) or
 
 **Download Manager**:
 
-- Xtream VOD downloads default to the same provider-compatible
-  `XTREAM_CLIENT_USER_AGENT` used by API requests and stream probes, while an
-  explicit playlist User-Agent still wins. Retry, resume, and missing-file
+- Fresh Xtream movie and series-episode downloads propagate the playlist's
+  User-Agent, Referer, and Origin, defaulting User-Agent to the same
+  provider-compatible `XTREAM_CLIENT_USER_AGENT` used by API requests and
+  stream probes. Retry, resume, and missing-file
   recovery also add the fallback to legacy Xtream rows that have no stored
   User-Agent. Because download rows survive source deletion, a headerless
   legacy row whose playlist is already absent receives the same IPTV-player

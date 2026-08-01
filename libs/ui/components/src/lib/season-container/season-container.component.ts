@@ -36,6 +36,7 @@ import {
     getEpisodeDownloadId,
     isStalkerEpisode,
     type SeasonContainerDownloadMetadataContext,
+    type XtreamEpisodeDownloadContext,
 } from './episode-download.util';
 import {
     EPISODE_INFO_PLAY,
@@ -51,11 +52,7 @@ import { SeasonTabsComponent } from './season-tabs.component';
 type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
-export interface SeasonContainerXtreamDownloadContext {
-    serverUrl?: string;
-    username?: string;
-    password?: string;
-}
+export type SeasonContainerXtreamDownloadContext = XtreamEpisodeDownloadContext;
 
 export type { SeasonContainerDownloadMetadataContext } from './episode-download.util';
 

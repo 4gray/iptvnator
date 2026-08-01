@@ -260,6 +260,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
                           serverUrl: playlist.serverUrl,
                           username: playlist.username,
                           password: playlist.password,
+                          userAgent: playlist.userAgent,
+                          referrer: playlist.referrer,
+                          origin: playlist.origin,
                       }
                     : null
             );

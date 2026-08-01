@@ -98,9 +98,11 @@ and private-network checks.
 
 ## User-Agent
 
-Electron's `XTREAM_REQUEST` and stream-probe handlers plus Xtream VOD download
-requests share the exported `XTREAM_CLIENT_USER_AGENT` fallback. A playlist's
-explicit User-Agent still wins for its stream probe and download. Legacy
+Electron's `XTREAM_REQUEST` and stream-probe handlers plus fresh Xtream movie
+and series-episode download requests share the exported
+`XTREAM_CLIENT_USER_AGENT` fallback. A playlist's explicit User-Agent,
+Referer, and Origin are propagated to either download kind; the explicit
+User-Agent still wins over the fallback. Legacy
 download rows without a stored User-Agent receive the fallback when retrying,
 resuming, or recovering a missing completed file. Download rows intentionally
 survive individual source deletion; when the playlist row is already gone and

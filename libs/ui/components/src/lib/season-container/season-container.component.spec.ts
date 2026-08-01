@@ -157,6 +157,9 @@ describe('SeasonContainerComponent', () => {
             serverUrl: 'http://host',
             username: 'u',
             password: 'p',
+            userAgent: 'Provider Player/1.0',
+            referrer: 'https://provider.test/player',
+            origin: 'https://provider.test',
         });
         fixture.componentRef.setInput('downloadMetadataContext', {
             language: 'en',
@@ -170,6 +173,11 @@ describe('SeasonContainerComponent', () => {
         expect(downloadsServiceStub.startDownload).toHaveBeenCalledWith(
             expect.objectContaining({
                 title: 'Signal House - S01E01 - Pilot',
+                headers: {
+                    userAgent: 'Provider Player/1.0',
+                    referer: 'https://provider.test/player',
+                    origin: 'https://provider.test',
+                },
                 metadataSnapshot: expect.objectContaining({
                     mediaKind: 'series',
                     title: 'Signal House',
