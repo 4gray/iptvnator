@@ -237,10 +237,16 @@ export async function requestWithValidatedRedirects<T = unknown>(
                 method: 'GET',
             };
         }
-        if (nextUrl.origin !== validatedUrl.origin) {
+        // Credentials are scoped to the host, not the origin: IPTV portals
+        // routinely redirect between schemes and ports of the same host
+        // (http -> https upgrades, port moves), and stripping the session
+        // cookie/token there breaks the portal outright (#1158). A redirect to
+        // a *different* host still loses Authorization/Cookie/basic
+        // auth/params so provider credentials never leak to third parties.
+        if (nextUrl.hostname !== validatedUrl.hostname) {
             if (requestConfig.data !== undefined) {
                 throw new UnsafeUrlError(
-                    'Cross-origin redirects with request bodies are not supported',
+                    'Cross-host redirects with request bodies are not supported',
                     502
                 );
             }

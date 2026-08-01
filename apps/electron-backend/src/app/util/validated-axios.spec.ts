@@ -297,7 +297,7 @@ describe('requestWithValidatedRedirects', () => {
         await expect(resolvePinnedAddress(1)).resolves.toBe('142.250.191.110');
     });
 
-    it('removes sensitive headers when a redirect changes origin', async () => {
+    it('removes sensitive headers when a redirect changes host', async () => {
         axiosMock
             .mockResolvedValueOnce({
                 status: 302,
@@ -330,7 +330,102 @@ describe('requestWithValidatedRedirects', () => {
         expect(redirectedConfig.headers).not.toHaveProperty('Cookie');
     });
 
-    it('does not forward axios params to a cross-origin redirect', async () => {
+    it('keeps sensitive headers when a redirect upgrades the scheme on the same host', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: { location: 'https://portal.example/portal.php' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: { js: { token: 'abc' } },
+            });
+
+        await requestWithValidatedRedirects(
+            'http://portal.example/portal.php',
+            {
+                auth: { password: 'secret', username: 'provider' },
+                headers: {
+                    Authorization: 'Bearer secret',
+                    Cookie: 'mac=00:1A:79:AA:BB:CC',
+                    Accept: '*/*',
+                },
+                method: 'GET',
+                params: { token: 'secret' },
+            },
+            { resolveHostname: publicResolver }
+        );
+
+        const redirectedConfig = axiosMock.mock.calls[1][0];
+        expect(redirectedConfig.headers).toMatchObject({
+            Accept: '*/*',
+            Authorization: 'Bearer secret',
+            Cookie: 'mac=00:1A:79:AA:BB:CC',
+        });
+        expect(redirectedConfig.auth).toEqual({
+            password: 'secret',
+            username: 'provider',
+        });
+        expect(redirectedConfig.params).toEqual({ token: 'secret' });
+    });
+
+    it('keeps sensitive headers when a redirect changes the port on the same host', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: {
+                    location: 'http://portal.example:8080/server/load.php',
+                },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: { js: {} },
+            });
+
+        await requestWithValidatedRedirects(
+            'http://portal.example/server/load.php',
+            {
+                headers: {
+                    Authorization: 'Bearer secret',
+                    Cookie: 'mac=00:1A:79:AA:BB:CC',
+                },
+                method: 'GET',
+            },
+            { resolveHostname: publicResolver }
+        );
+
+        const redirectedConfig = axiosMock.mock.calls[1][0];
+        expect(redirectedConfig.headers).toMatchObject({
+            Authorization: 'Bearer secret',
+            Cookie: 'mac=00:1A:79:AA:BB:CC',
+        });
+    });
+
+    it('replays the request body on a same-host scheme-change redirect', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 307,
+                headers: { location: 'https://portal.example/submit' },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                headers: {},
+                data: 'ok',
+            });
+
+        await requestWithValidatedRedirects(
+            'http://portal.example/submit',
+            { data: { payload: true }, method: 'POST' },
+            { resolveHostname: publicResolver }
+        );
+
+        expect(axiosMock).toHaveBeenCalledTimes(2);
+        expect(axiosMock.mock.calls[1][0].data).toEqual({ payload: true });
+    });
+
+    it('does not forward axios params to a cross-host redirect', async () => {
         axiosMock
             .mockResolvedValueOnce({
                 status: 302,
@@ -354,7 +449,7 @@ describe('requestWithValidatedRedirects', () => {
         expect(axiosMock.mock.calls[1][0].params).toBeUndefined();
     });
 
-    it('does not forward axios basic auth to a cross-origin redirect', async () => {
+    it('does not forward axios basic auth to a cross-host redirect', async () => {
         axiosMock
             .mockResolvedValueOnce({
                 status: 302,
@@ -378,7 +473,7 @@ describe('requestWithValidatedRedirects', () => {
         expect(axiosMock.mock.calls[1][0].auth).toBeUndefined();
     });
 
-    it('rejects a cross-origin redirect that would replay a request body', async () => {
+    it('rejects a cross-host redirect that would replay a request body', async () => {
         axiosMock.mockResolvedValueOnce({
             status: 307,
             headers: { location: 'https://other.example/submit' },
