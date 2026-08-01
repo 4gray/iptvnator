@@ -26,14 +26,16 @@ describe('StalkerAccountInfoComponent', () => {
 
     const freshSnapshot = {
         login: 'user-42',
-        expireDate: Math.round(Date.now() / 1000) + 30 * 86_400,
+        // floor, not round: rounding the epoch up puts the expiry a few
+        // hundred ms past the 30-day mark and ceil() then yields 31.
+        expireDate: Math.floor(Date.now() / 1000) + 30 * 86_400,
         tariffPlanName: 'Premium',
         status: 1,
     };
 
     const cachedSnapshot = {
         login: 'cached-user',
-        expireDate: Math.round(Date.now() / 1000) + 3 * 86_400,
+        expireDate: Math.floor(Date.now() / 1000) + 3 * 86_400,
         tariffPlanName: 'Basic',
         status: 1,
     };
