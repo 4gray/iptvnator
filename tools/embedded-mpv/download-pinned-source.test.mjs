@@ -54,6 +54,20 @@ test('pins official FreeType mirrors in the macOS runtime builder', () => {
         builderSource,
         /0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289/
     );
+    assert.match(
+        builderSource,
+        /const\s*\{\s*sourceSha256,\s*sourceUrl,\s*sourceUrls\s*\}\s*=\s*downloadPinnedSource/
+    );
+    assert.match(builderSource, /sourcePackage\.sourceUrl = sourceUrl/);
+    assert.match(builderSource, /sourcePackage\.sourceUrls = sourceUrls/);
+    assert.match(
+        builderSource,
+        /sourceUrl:\s*sourcePackage\.sourceUrl\s*\?\?\s*sourcePackage\.url/
+    );
+    assert.match(
+        builderSource,
+        /sourcePackage\.sourceUrls\s*\?\s*\{\s*sourceUrls:\s*sourcePackage\.sourceUrls\s*\}/
+    );
 });
 
 test('includes the pinned downloader in the macOS runtime cache key', () => {
@@ -91,6 +105,7 @@ test('uses the next mirror when the primary source is unavailable', () => {
         assert.deepEqual(result, {
             sourceSha256: sha256(archive),
             sourceUrl: urls[1],
+            sourceUrls: urls,
         });
         assert.equal(fs.existsSync(`${archivePath}.partial`), false);
     });

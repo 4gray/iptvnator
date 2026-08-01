@@ -86,9 +86,11 @@ The macOS builder verifies every downloaded archive against its pinned
 SHA-256 digest before extraction. FreeType uses its official SourceForge
 distribution as the primary source and the official Savannah distribution as
 a fallback; a failed or mismatched download is discarded before the next
-mirror is attempted. Changes to the downloader participate in the runtime
-cache key, so cached native artifacts cannot outlive source-acquisition policy
-changes.
+mirror is attempted. The runtime manifest records the selected URL for a new
+download and the complete ordered candidate list for every archive, so
+fallback use remains visible in the source provenance. Changes to the
+downloader participate in the runtime cache key, so cached native artifacts
+cannot outlive source-acquisition policy changes.
 
 The Linux builder runs only on Linux x64. It requires the tool versions and
 system development interfaces declared in `build-linux-runtime.cjs`, including

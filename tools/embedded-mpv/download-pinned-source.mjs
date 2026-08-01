@@ -19,11 +19,16 @@ export function downloadPinnedSource({
 }) {
     const partialPath = `${archivePath}.partial`;
     const failures = [];
+    const sourceUrls = [...urls];
 
     if (fs.existsSync(archivePath)) {
         const actualSha256 = sha256File(archivePath);
         if (actualSha256 === expectedSha256) {
-            return { sourceSha256: actualSha256, sourceUrl: null };
+            return {
+                sourceSha256: actualSha256,
+                sourceUrl: null,
+                sourceUrls,
+            };
         }
         failures.push(
             `cached archive: ${checksumFailure(
@@ -34,7 +39,7 @@ export function downloadPinnedSource({
         fs.rmSync(archivePath, { force: true });
     }
 
-    for (const url of urls) {
+    for (const url of sourceUrls) {
         fs.rmSync(partialPath, { force: true });
         try {
             download({ destinationPath: partialPath, url });
@@ -45,7 +50,7 @@ export function downloadPinnedSource({
                 );
             }
             fs.renameSync(partialPath, archivePath);
-            return { sourceSha256: actualSha256, sourceUrl: url };
+            return { sourceSha256: actualSha256, sourceUrl: url, sourceUrls };
         } catch (error) {
             failures.push(`${url}: ${error.message}`);
             fs.rmSync(partialPath, { force: true });

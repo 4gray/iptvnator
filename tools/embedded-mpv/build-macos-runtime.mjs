@@ -318,7 +318,7 @@ function downloadSources() {
         }
 
         const archivePath = archivePathFor(sourcePackage);
-        const { sourceSha256 } = downloadPinnedSource({
+        const { sourceSha256, sourceUrl, sourceUrls } = downloadPinnedSource({
             archivePath,
             expectedSha256: sourcePackage.expectedSha256,
             urls: [sourcePackage.url, ...(sourcePackage.mirrors ?? [])],
@@ -352,6 +352,8 @@ function downloadSources() {
             '1',
         ]);
         sourcePackage.sha256 = sourceSha256;
+        sourcePackage.sourceUrl = sourceUrl;
+        sourcePackage.sourceUrls = sourceUrls;
     }
 }
 
@@ -511,7 +513,13 @@ function sourceMetadata(packageId) {
     const sourcePackage = packageById.get(packageId);
     return {
         version: sourcePackage.version,
-        sourceUrl: sourcePackage.url ?? sourcePackage.gitUrl,
+        sourceUrl:
+            sourcePackage.sourceUrl ??
+            sourcePackage.url ??
+            sourcePackage.gitUrl,
+        ...(sourcePackage.sourceUrls
+            ? { sourceUrls: sourcePackage.sourceUrls }
+            : {}),
         ...(sourcePackage.tag ? { sourceTag: sourcePackage.tag } : {}),
         ...(sourcePackage.sha256
             ? { sourceSha256: sourcePackage.sha256 }
@@ -541,7 +549,13 @@ function writeManifest() {
                 sourcePackage.id,
                 {
                     version: sourcePackage.version,
-                    sourceUrl: sourcePackage.url ?? sourcePackage.gitUrl,
+                    sourceUrl:
+                        sourcePackage.sourceUrl ??
+                        sourcePackage.url ??
+                        sourcePackage.gitUrl,
+                    ...(sourcePackage.sourceUrls
+                        ? { sourceUrls: sourcePackage.sourceUrls }
+                        : {}),
                     ...(sourcePackage.tag
                         ? { sourceTag: sourcePackage.tag }
                         : {}),
