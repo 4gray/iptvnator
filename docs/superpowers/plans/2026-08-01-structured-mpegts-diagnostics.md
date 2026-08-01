@@ -83,7 +83,7 @@ recoverable EarlyEof is handled internally before the public player error
 - Create:
   `libs/ui/playback/src/lib/playback-diagnostics/mpegts-playback-evidence.util.spec.ts`
 
-- [ ] **Step 1: Write the failing installed-runtime contract test**
+- [x] **Step 1: Write the failing installed-runtime contract test**
 
 Create `mpegts-playback-evidence.util.spec.ts` and assert the real installed
 runtime before using any mocks:
@@ -138,7 +138,7 @@ NODE_OPTIONS=--experimental-vm-modules node node_modules/jest/bin/jest.js \
 
 Expected: FAIL because the model and evidence modules do not exist.
 
-- [ ] **Step 2: Add the focused evidence model**
+- [x] **Step 2: Add the focused evidence model**
 
 Create `mpegts-playback-evidence.model.ts` with const-derived unions:
 
@@ -205,7 +205,7 @@ export interface MpegTsPlaybackEvidence {
 Use const-derived aliases for disposition, stage, and failure rather than
 duplicating string unions if TypeScript reports drift.
 
-- [ ] **Step 3: Add failing sanitization and mapping cases**
+- [x] **Step 3: Add failing sanitization and mapping cases**
 
 Extend the spec with a table covering every consistent pair and expected
 stage/failure. Add explicit cases proving:
@@ -244,7 +244,7 @@ unknown objects, and circular payloads do not add `httpStatus` or throw.
 
 Run the focused spec. Expected: FAIL because the factory is missing.
 
-- [ ] **Step 4: Implement the minimal sanitizer**
+- [x] **Step 4: Implement the minimal sanitizer**
 
 Create `mpegts-playback-evidence.util.ts` with:
 
@@ -285,13 +285,13 @@ eight accepted pairs. `readHttpStatus` reads only top-level `code` and accepts
 integers 400–599. Do not stringify, clone, enumerate, or inspect any message or
 unknown property.
 
-- [ ] **Step 5: Run the evidence spec green**
+- [x] **Step 5: Run the evidence spec green**
 
 Run the focused Jest command from Step 1.
 
 Expected: PASS with the runtime contract and sanitizer cases green.
 
-- [ ] **Step 6: Commit the evidence boundary**
+- [x] **Step 6: Commit the evidence boundary**
 
 ```bash
 git add -- \
@@ -316,7 +316,7 @@ git commit -m "fix(playback): sanitize mpegts error evidence"
 - Test:
   `libs/ui/playback/src/lib/playback-diagnostics/mpegts-playback-evidence.util.spec.ts`
 
-- [ ] **Step 1: Write failing classifier tests**
+- [x] **Step 1: Write failing classifier tests**
 
 Add table-driven expectations that pass evidence, not raw errors:
 
@@ -353,7 +353,7 @@ unsupported format → container, codec → codec, and inconsistent/other/unknow
 Run the evidence and diagnostics specs. Expected: FAIL because the classifier
 still accepts raw `MpegTsPlaybackErrorInput` and emits `details`.
 
-- [ ] **Step 2: Wire evidence into the shared diagnostic model**
+- [x] **Step 2: Wire evidence into the shared diagnostic model**
 
 In `playback-diagnostics.model.ts`:
 
@@ -370,7 +370,7 @@ readonly mpegTs?: MpegTsPlaybackEvidence;
 
 to `PlaybackDiagnostic`.
 
-- [ ] **Step 3: Implement evidence-only classification**
+- [x] **Step 3: Implement evidence-only classification**
 
 Change the signature to:
 
@@ -387,7 +387,7 @@ Map the exact failures from the approved design, pass
 destructuring, and result. Export `createMpegTsPlaybackEvidence` from the
 diagnostics facade.
 
-- [ ] **Step 4: Remove obsolete mpegts text helpers**
+- [x] **Step 4: Remove obsolete mpegts text helpers**
 
 Delete `normalizeErrorDetails`, `isNetworkFailure`, `isEarlyEofFailure`, and
 their serialization helpers from `playback-error-patterns.util.ts`. Keep
@@ -403,13 +403,13 @@ rg -n "normalizeErrorDetails|isNetworkFailure|isEarlyEofFailure|MpegTsPlaybackEr
 
 Expected: no matches.
 
-- [ ] **Step 5: Run classifier tests green**
+- [x] **Step 5: Run classifier tests green**
 
 Run both focused specs by path.
 
 Expected: PASS with no raw message or arbitrary payload retained.
 
-- [ ] **Step 6: Commit structured classification**
+- [x] **Step 6: Commit structured classification**
 
 ```bash
 git add -- \
@@ -432,13 +432,13 @@ git commit -m "fix(playback): classify exact mpegts failures"
 - Modify:
   `libs/ui/playback/src/lib/html-video-player/html-video-player.component.shared-controls.sources.spec.ts`
 
-- [ ] **Step 1: Make the mpegts fixture emit registered events**
+- [x] **Step 1: Make the mpegts fixture emit registered events**
 
 Give `MockMpegTsPlayer` a listener map and `emit(event, ...args)` helper, matching
 the existing VJS and ArtPlayer test doubles. Preserve lifecycle logging for
 `on`, `off`, attachment, and load.
 
-- [ ] **Step 2: Write the failing HTML5 HTTP regression**
+- [x] **Step 2: Write the failing HTML5 HTTP regression**
 
 Start a `.ts` source, emit:
 
@@ -456,7 +456,7 @@ structured `mpegTs` evidence, no raw `details`, and no external fallback.
 Run the focused sources spec. Expected: FAIL because the HTML5 helper still
 passes a raw error object to the classifier.
 
-- [ ] **Step 3: Normalize before classification**
+- [x] **Step 3: Normalize before classification**
 
 Import `createMpegTsPlaybackEvidence` in
 `html-video-player-diagnostics.ts` and change:
@@ -470,7 +470,7 @@ classifyMpegTsPlaybackIssue(
 
 Accept unknown callback values so normalization owns validation.
 
-- [ ] **Step 4: Run the HTML5 regression green and commit**
+- [x] **Step 4: Run the HTML5 regression green and commit**
 
 Run the focused sources spec, then:
 
@@ -492,7 +492,7 @@ git commit -m "fix(playback): structure HTML5 mpegts errors"
 - Modify: `libs/ui/playback/src/lib/art-player/art-player-source-session.spec.ts`
 - Modify: `libs/ui/playback/src/lib/art-player/art-player.component.spec.ts`
 
-- [ ] **Step 1: Replace the misleading VJS CORS regression**
+- [x] **Step 1: Replace the misleading VJS CORS regression**
 
 Change the existing synthetic `FetchError`/CORS case to the real public event:
 
@@ -512,7 +512,7 @@ generic network diagnostic.
 
 Run the VJS session spec. Expected: FAIL under the raw classifier contract.
 
-- [ ] **Step 2: Normalize in VjsMpegTsSession**
+- [x] **Step 2: Normalize in VjsMpegTsSession**
 
 Import the factory and call:
 
@@ -529,7 +529,7 @@ classifyMpegTsPlaybackIssue(
 
 Keep duration sync, listener cleanup, play, and teardown unchanged.
 
-- [ ] **Step 3: Add the failing ArtPlayer structured regression**
+- [x] **Step 3: Add the failing ArtPlayer structured regression**
 
 Emit `MediaError + CodecUnsupported` with a secret-bearing `info` object.
 Assert `unsupported-codec`, `player=artplayer`, structured evidence, fallback
@@ -539,14 +539,14 @@ fixtures to exact public constants.
 Run the ArtPlayer source-session and component specs. Expected: FAIL until the
 session uses the factory.
 
-- [ ] **Step 4: Normalize in ArtPlayerSourceSession**
+- [x] **Step 4: Normalize in ArtPlayerSourceSession**
 
 Import `createMpegTsPlaybackEvidence` and pass the callback arguments through
 it before the shared classifier. Change the stored listener parameter types to
 `unknown` so the sanitizer, not the adapter, owns validation. Preserve the
 destroyed/current-engine guard.
 
-- [ ] **Step 5: Run all three engine-owner specs green and commit**
+- [x] **Step 5: Run all three engine-owner specs green and commit**
 
 Run HTML5 sources, VJS session, ArtPlayer source-session, and ArtPlayer
 component specs by path. Then:
@@ -570,7 +570,7 @@ git commit -m "fix(playback): share mpegts evidence across players"
 - Modify:
   `libs/ui/playback/src/lib/web-player-view/web-player-view.component.spec.ts`
 
-- [ ] **Step 1: Write the failing rendering and privacy regression**
+- [x] **Step 1: Write the failing rendering and privacy regression**
 
 Add `createStructuredMpegTsDiagnostic()` with structured HTTP 404 evidence plus
 legacy `details` and native message fields containing sentinels. Assert:
@@ -592,7 +592,7 @@ expect(component.getDiagnosticMeta(issue)).toBe('HTTP 404');
 
 Run the component spec. Expected: FAIL because mpegts evidence is not formatted.
 
-- [ ] **Step 2: Add the structured formatter branch**
+- [x] **Step 2: Add the structured formatter branch**
 
 Before VHS/HLS legacy formatting, add:
 
@@ -616,7 +616,7 @@ if (issue.mpegTs) {
 Also suppress the native-message row when `issue.mpegTs` exists, matching the
 HLS/VHS/Shaka structured boundaries.
 
-- [ ] **Step 3: Run the view regression green and commit**
+- [x] **Step 3: Run the view regression green and commit**
 
 ```bash
 git add -- \
@@ -634,20 +634,20 @@ git commit -m "fix(playback): render structured mpegts evidence"
 - Modify: `CLAUDE.md`
 - Create: `.changes/playback-structured-mpegts-diagnostics.md`
 
-- [ ] **Step 1: Update the canonical diagnostic contract**
+- [x] **Step 1: Update the canonical diagnostic contract**
 
 Replace the current early-EOF-only mpegts paragraph with the 1.8.0 public
 boundary: exact type/detail pairs, terminal player events, validated HTTP
 status, classification mapping, rejected raw fields, all three owners, and the
 absence of message-based browser-access guesses.
 
-- [ ] **Step 2: Keep repository guidance current**
+- [x] **Step 2: Keep repository guidance current**
 
 Add the same concise contract to the mpegts ownership summaries in `AGENTS.md`
 and `CLAUDE.md`: all three owners use the shared version-locked evidence
 boundary; raw payloads do not cross it; shared controls remain unchanged.
 
-- [ ] **Step 3: Add the user-facing release note**
+- [x] **Step 3: Add the user-facing release note**
 
 Create:
 
@@ -665,7 +665,7 @@ and MediaSource failures now produce more accurate fallback guidance.
 
 Keep the body below 400 characters.
 
-- [ ] **Step 4: Validate docs and note, then commit**
+- [x] **Step 4: Validate docs and note, then commit**
 
 Run:
 
@@ -690,13 +690,13 @@ git commit -m "docs(playback): document structured mpegts diagnostics"
 
 - Verify all files changed since `origin/master`
 
-- [ ] **Step 1: Run focused regression tests**
+- [x] **Step 1: Run focused regression tests**
 
 Run all new and changed spec files by path with the web ESM Jest config.
 
 Expected: every focused suite passes.
 
-- [ ] **Step 2: Run the affected validation ladder**
+- [x] **Step 2: Run the affected validation ladder**
 
 ```bash
 pnpm nx test ui-playback
@@ -711,7 +711,7 @@ player lifecycle, actions, and UI layout do not change; engine events, all
 three adapters, classification, privacy, and rendered output have deterministic
 unit/integration coverage.
 
-- [ ] **Step 3: Inspect size, scope, and accidental raw-data retention**
+- [x] **Step 3: Inspect size, scope, and accidental raw-data retention**
 
 ```bash
 git diff --check origin/master...HEAD
@@ -726,7 +726,7 @@ rg -n "JSON\.stringify|info\.msg|error\.message|normalizeErrorDetails|isNetworkF
 Expected: no mpegts error serialization/message inference; any unrelated
 matches are inspected and justified.
 
-- [ ] **Step 4: Perform the requested local Codex review**
+- [x] **Step 4: Perform the requested local Codex review**
 
 Review `origin/master...HEAD` specifically for P1/P2 defects:
 
@@ -743,7 +743,7 @@ Fix every confirmed P1/P2 finding through a new failing regression first, rerun
 the focused and affected validation ladders, and commit the fixes. Repeat until
 the review is clean.
 
-- [ ] **Step 5: Verify the final branch state**
+- [x] **Step 5: Verify the final branch state**
 
 ```bash
 git status --short --branch
