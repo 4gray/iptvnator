@@ -304,16 +304,22 @@
     }
 
     .playlist-switcher {
-        width: 140px;
-        min-width: 0;
-        flex: 0 0 140px;
+        width: auto;
+        // Fixed at 140px this crowded the search field off a 320px header
+        // whenever a route contributed its shortcut button; the switcher is
+        // the one region whose content can ellipsize, so it is what shrinks.
+        min-width: 88px;
+        flex: 0 1 140px;
     }
 
     .search-field {
-        // Without a floor of its own the three header regions add up to more
-        // than a phone-width header and the icons overlap.
-        min-width: 0;
-        flex: 1 1 auto;
+        // The floor is the field's own chrome — icon, palette trigger, gaps
+        // and padding. Below it the contents spill onto the buttons beside
+        // the field; above it the input just gets whatever space remains.
+        // Zero basis, not auto: the input's intrinsic size would otherwise
+        // count as content and squeeze the switcher even when room is ample.
+        min-width: 74px;
+        flex: 1 1 0;
         padding-inline: 8px;
 
         .search-chip--status,
