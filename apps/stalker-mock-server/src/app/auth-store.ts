@@ -95,7 +95,9 @@ export function readBearerToken(req: Request): string | undefined {
     if (typeof header !== 'string') {
         return undefined;
     }
-    const match = /Bearer\s+(.*)$/i.exec(header.trim());
+    // `\s+(.*)` would backtrack polynomially on "bearer" + a long run of
+    // spaces, so require the token to start with a non-space character.
+    const match = /^Bearer[ \t]+(\S.*)$/i.exec(header.trim());
     return match?.[1]?.trim() || undefined;
 }
 

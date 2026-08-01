@@ -100,14 +100,21 @@ app.get('/stalker', (req: Request, res: Response) => {
         url: portalUrl,
         token,
         ...rest
-    } = req.query as Record<string, string>;
-    const mac = macAddress ?? '00:1a:79:00:00:01';
+    } = req.query as Record<string, unknown>;
+
+    // A repeated query key arrives as an array, so every value used below must
+    // be narrowed to a string before it reaches a string API.
+    const asString = (value: unknown): string | undefined =>
+        typeof value === 'string' ? value : undefined;
+
+    const mac = asString(macAddress) ?? '00:1a:79:00:00:01';
 
     // The real backend proxy turns the token query param into a Bearer header
     // before calling the portal; mirror that so token handling is exercised.
     const headers: Record<string, string> = { cookie: `mac=${mac}` };
-    if (token) {
-        headers['authorization'] = `Bearer ${token}`;
+    const bearer = asString(token);
+    if (bearer) {
+        headers['authorization'] = `Bearer ${bearer}`;
     }
 
     // Build a lightweight synthetic request. We need a fresh object with mutable
@@ -135,7 +142,7 @@ app.get('/stalker', (req: Request, res: Response) => {
     dispatchPortalAction(syntheticReq, syntheticRes, {
         // The proxied portal URL decides strictness, matching the two direct
         // endpoints: a canonical Ministra path enforces the token.
-        enforceAuth: (portalUrl ?? '').includes('/stalker_portal/'),
+        enforceAuth: (asString(portalUrl) ?? '').includes('/stalker_portal/'),
     });
 
     // The portal answers auth failures with a plain-text body; the real backend
@@ -163,7 +170,8 @@ app.post('/reset', (_req: Request, res: Response) => {
  * retries instead of surfacing an error.
  */
 app.post('/invalidate-session', (req: Request, res: Response) => {
-    const mac = String(req.query['macAddress'] ?? '');
+    const macParam = req.query['macAddress'];
+    const mac = typeof macParam === 'string' ? macParam : '';
     if (!mac) {
         res.status(400).json({ error: 'macAddress query param is required' });
         return;
