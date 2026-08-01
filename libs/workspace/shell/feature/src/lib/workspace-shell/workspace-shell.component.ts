@@ -2,6 +2,7 @@ import { CdkTrapFocus } from '@angular/cdk/a11y';
 import {
     Component,
     effect,
+    ElementRef,
     HostListener,
     inject,
     viewChild,
@@ -60,6 +61,9 @@ export class WorkspaceShellComponent {
     private readonly header = viewChild<WorkspaceShellHeaderShortcutTarget>(
         'workspaceHeader'
     );
+    private readonly workspaceContent = viewChild<ElementRef<HTMLElement>>(
+        'workspaceContent'
+    );
 
     constructor() {
         // Focus restoration is the closing half of the drawer's focus
@@ -75,7 +79,15 @@ export class WorkspaceShellComponent {
                 // Deferred: the header is inert while the drawer is open,
                 // and focus() on a still-inert element is silently ignored.
                 // The timeout runs after the render that removes `inert`.
-                setTimeout(() => this.header()?.focusContextDrawerToggle());
+                setTimeout(() => {
+                    if (this.header()?.focusContextDrawerToggle()) {
+                        return;
+                    }
+                    // The toggle is gone — a drawer selection navigated to
+                    // a route without a context panel. Focus lands on the
+                    // route content instead of silently dropping to <body>.
+                    this.workspaceContent()?.nativeElement.focus();
+                });
             }
             wasOpen = open;
         });
@@ -146,5 +158,5 @@ function isEditableTarget(target: EventTarget | null): boolean {
 interface WorkspaceShellHeaderShortcutTarget {
     containsSearchInput(target: EventTarget | null): boolean;
     focusSearchInput(options?: { select?: boolean }): void;
-    focusContextDrawerToggle(): void;
+    focusContextDrawerToggle(): boolean;
 }

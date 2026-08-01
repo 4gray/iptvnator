@@ -510,7 +510,11 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         if (
             (event.metaKey || event.ctrlKey) &&
             event.key.toLowerCase() === 'b' &&
-            !isTypingInInput(event)
+            !isTypingInInput(event) &&
+            // Behind the workspace's phone context drawer the route content
+            // is inert; this document-level listener still fires, so it
+            // opts out itself instead of toggling an obscured sidebar.
+            !this.hostElement.nativeElement.closest('[inert]')
         ) {
             event.preventDefault();
             this.toggleSidebar();

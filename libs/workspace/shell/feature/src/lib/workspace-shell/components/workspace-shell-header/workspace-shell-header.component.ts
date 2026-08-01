@@ -174,11 +174,19 @@ export class WorkspaceShellHeaderComponent {
     }
 
     /**
-     * Returns focus to the drawer toggle after the drawer closes. A no-op
-     * when the toggle is not rendered (or display: none above the phone
-     * breakpoint, where focus() silently does nothing).
+     * Returns focus to the drawer toggle after the drawer closes. Reports
+     * whether the toggle actually received focus — after a navigation to a
+     * route without a context panel the toggle is gone (and above the phone
+     * breakpoint it is display: none, where focus() silently does nothing),
+     * and the caller then needs a fallback target.
      */
-    focusContextDrawerToggle(): void {
-        this.contextDrawerToggle()?.nativeElement.focus();
+    focusContextDrawerToggle(): boolean {
+        const toggle = this.contextDrawerToggle()?.nativeElement;
+        if (!toggle) {
+            return false;
+        }
+
+        toggle.focus();
+        return document.activeElement === toggle;
     }
 }

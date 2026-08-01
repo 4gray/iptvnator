@@ -76,7 +76,7 @@ class MockWorkspaceShellHeaderComponent {
 
     focusSearchInput = jest.fn();
     containsSearchInput = jest.fn(() => false);
-    focusContextDrawerToggle = jest.fn();
+    focusContextDrawerToggle = jest.fn(() => true);
 }
 
 @Component({

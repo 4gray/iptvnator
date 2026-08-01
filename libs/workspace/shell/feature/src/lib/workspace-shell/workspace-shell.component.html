@@ -95,8 +95,13 @@
             />
         }
 
+        <!-- tabindex="-1": programmatic focus target for the drawer-close
+             fallback when the toggle is gone (navigated to a route without
+             a context panel); not in the Tab order. -->
         <main
+            #workspaceContent
             class="workspace-content"
+            tabindex="-1"
             [attr.inert]="contextDrawer.isOpen() ? '' : null"
         >
             <router-outlet />
