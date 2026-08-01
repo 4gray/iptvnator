@@ -62,6 +62,7 @@ describe('destination collision handling', () => {
         runtime.enqueueDownload({
             ...createTask(),
             filePath: '/downloads/movie.mp4',
+            resumeValidator: '"etag-1"',
             totalBytes: 100,
         });
         await waitForStatus(set, 'completed');
