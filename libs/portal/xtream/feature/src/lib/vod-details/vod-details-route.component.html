@@ -1,5 +1,6 @@
 <ng-template #vodActions>
-    @if (playableVodItem(); as playableItem) {
+    @let playableItem = playableVodItem();
+    @if (playableItem || isDownloaded()) {
         @if (hasPlaybackPosition()) {
             <button
                 class="play-btn play-btn--resume"
@@ -13,20 +14,26 @@
                 "
             >
                 <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">{{
-                        externalPrimaryIcon()
-                    }}</mat-icon>
+                    <mat-icon class="play-btn__icon">
+                        {{
+                            isOfflinePrimary()
+                                ? 'play_circle'
+                                : externalPrimaryIcon()
+                        }}
+                    </mat-icon>
                 </span>
                 <span class="play-btn__label">
                     @if (externalPrimaryLabel(); as label) {
                         {{ label }}
+                    } @else if (isOfflinePrimary()) {
+                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                     } @else {
                         {{ 'XTREAM.RESUME' | translate }}
                         {{ formatPosition() }}
                     }
                 </span>
             </button>
-            @if (!isExternalStopAction()) {
+            @if (externalPrimaryButtonState() === 'idle' && !isDownloaded()) {
                 <button
                     class="play-btn play-btn--restart"
                     (click)="restartVod(playableItem)"
@@ -48,105 +55,125 @@
                 "
             >
                 <span class="play-btn__icon-shell" aria-hidden="true">
-                    <mat-icon class="play-btn__icon">{{
-                        externalPrimaryIcon()
-                    }}</mat-icon>
+                    <mat-icon class="play-btn__icon">
+                        {{
+                            isOfflinePrimary()
+                                ? 'play_circle'
+                                : externalPrimaryIcon()
+                        }}
+                    </mat-icon>
                 </span>
                 <span class="play-btn__label">
                     @if (externalPrimaryLabel(); as label) {
                         {{ label }}
+                    } @else if (isOfflinePrimary()) {
+                        {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
                     } @else {
                         {{ 'XTREAM.PLAY' | translate }}
                     }
                 </span>
             </button>
         }
-        @if (!isFavorite()) {
-            <button class="favorite-btn" (click)="toggleFavorite()">
-                <mat-icon>add</mat-icon>
-                {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
-            </button>
-        } @else {
-            <button
-                class="favorite-btn favorite-btn--active"
-                (click)="toggleFavorite()"
-            >
-                <mat-icon>check</mat-icon>
-                {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
-            </button>
-        }
-        @if (isElectron()) {
-            @if (isDownloaded()) {
-                <button
-                    class="download-btn download-btn--completed"
-                    (click)="playFromLocal()"
-                >
-                    <mat-icon>play_circle</mat-icon>
-                    {{ 'DOWNLOADS.PLAY_LOCAL' | translate }}
-                </button>
-            } @else if (isPausedDownload()) {
-                <button
-                    class="download-btn download-btn--paused"
-                    (click)="resumePausedDownload()"
-                >
-                    <mat-icon>play_arrow</mat-icon>
-                    {{ 'DOWNLOADS.RESUME' | translate }}
-                </button>
-            } @else if (isDownloading()) {
-                <button class="download-btn download-btn--downloading" disabled>
-                    <mat-icon>downloading</mat-icon>
-                    {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+        @if (playableItem) {
+            @if (!isFavorite()) {
+                <button class="favorite-btn" (click)="toggleFavorite()">
+                    <mat-icon>add</mat-icon>
+                    {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}
                 </button>
             } @else {
                 <button
-                    class="download-btn"
-                    (click)="downloadVod(playableItem)"
+                    class="favorite-btn favorite-btn--active"
+                    (click)="toggleFavorite()"
                 >
-                    <mat-icon>download</mat-icon>
-                    {{ 'DOWNLOADS.DOWNLOAD' | translate }}
+                    <mat-icon>check</mat-icon>
+                    {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
                 </button>
             }
-        }
-
-        @if (multiSource.hasAlternatives()) {
-            <app-vod-sources-chip
-                [sources]="multiSource.sources()"
-                [title]="multiSourceTitle()"
-                [matchKind]="multiSource.matchKind()"
-                [count]="multiSource.alternativeCount()"
-                [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
-                [autoFailoverSupported]="autoFailoverSupported()"
-                [playbackLive]="playbackLive()"
-                (playRequested)="playFromSource($event)"
-                (pinRequested)="pinSource($event)"
-                (checkRequested)="checkSource($event)"
-                (autoFailoverToggled)="setAutoFailover($event)"
-            />
-        }
-
-        @if (activeSourceCaption(); as caption) {
-            <p class="source-caption">
-                <span class="source-caption__label">
-                    {{ 'PORTALS.MULTI_SOURCE.PLAYING_FROM' | translate }}
-                </span>
-                <span class="source-caption__source">{{ caption.source }}</span>
-                @if (multiSource.hasAlternatives()) {
-                    <span class="source-caption__extra">
-                        @if (caption.alternativeCount === 1) {
+            @if (isElectron() && !providerOnly()) {
+                @if (isDownloaded()) {
+                    @if (externalPrimaryButtonState() === 'idle') {
+                        <button
+                            class="download-btn"
+                            (click)="playFromProviderSource(playableItem)"
+                        >
+                            <mat-icon>play_arrow</mat-icon>
                             {{
-                                'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE'
+                                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
                                     | translate
                             }}
-                        } @else {
-                            {{
-                                'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
-                                    | translate
-                                        : { count: caption.alternativeCount }
-                            }}
-                        }
-                    </span>
+                        </button>
+                    }
+                } @else if (isPausedDownload()) {
+                    <button
+                        class="download-btn download-btn--paused"
+                        (click)="resumePausedDownload()"
+                    >
+                        <mat-icon>play_arrow</mat-icon>
+                        {{ 'DOWNLOADS.RESUME' | translate }}
+                    </button>
+                } @else if (isDownloading()) {
+                    <button
+                        class="download-btn download-btn--downloading"
+                        disabled
+                    >
+                        <mat-icon>downloading</mat-icon>
+                        {{ 'DOWNLOADS.STATUS.DOWNLOADING' | translate }}
+                    </button>
+                } @else {
+                    <button
+                        class="download-btn"
+                        (click)="downloadVod(playableItem)"
+                    >
+                        <mat-icon>download</mat-icon>
+                        {{ 'DOWNLOADS.DOWNLOAD' | translate }}
+                    </button>
                 }
-            </p>
+            }
+
+            @if (multiSource.hasAlternatives()) {
+                <app-vod-sources-chip
+                    [sources]="multiSource.sources()"
+                    [title]="multiSourceTitle()"
+                    [matchKind]="multiSource.matchKind()"
+                    [count]="multiSource.alternativeCount()"
+                    [autoFailoverEnabled]="multiSource.autoFailoverEnabled()"
+                    [autoFailoverSupported]="autoFailoverSupported()"
+                    [playbackLive]="playbackLive()"
+                    (playRequested)="playFromSource($event)"
+                    (pinRequested)="pinSource($event)"
+                    (checkRequested)="checkSource($event)"
+                    (autoFailoverToggled)="setAutoFailover($event)"
+                />
+            }
+
+            @if (activeSourceCaption(); as caption) {
+                <p class="source-caption">
+                    <span class="source-caption__label">
+                        {{ 'PORTALS.MULTI_SOURCE.PLAYING_FROM' | translate }}
+                    </span>
+                    <span class="source-caption__source">{{
+                        caption.source
+                    }}</span>
+                    @if (multiSource.hasAlternatives()) {
+                        <span class="source-caption__extra">
+                            @if (caption.alternativeCount === 1) {
+                                {{
+                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE'
+                                        | translate
+                                }}
+                            } @else {
+                                {{
+                                    'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
+                                        | translate
+                                            : {
+                                                  count: caption.alternativeCount,
+                                              }
+                                }}
+                            }
+                        </span>
+                    }
+                </p>
+            }
         }
     }
 </ng-template>
@@ -209,6 +236,11 @@
             }
             @if (info.country) {
                 <span class="details__tag">{{ info.country }}</span>
+            }
+            @if (isDownloaded()) {
+                <span class="details__tag">
+                    {{ 'DOWNLOADS.OFFLINE' | translate }}
+                </span>
             }
         </ng-template>
 
@@ -450,6 +482,11 @@
             }
             @if (fallback.format) {
                 <span class="details__tag">{{ fallback.format }}</span>
+            }
+            @if (isDownloaded()) {
+                <span class="details__tag">
+                    {{ 'DOWNLOADS.OFFLINE' | translate }}
+                </span>
             }
         </ng-template>
 

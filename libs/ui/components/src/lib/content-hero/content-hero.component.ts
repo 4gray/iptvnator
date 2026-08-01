@@ -37,17 +37,37 @@ export class ContentHeroComponent {
     readonly backdropUrl = input<string>();
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
+    readonly backLabel = input<string>();
 
     readonly backClicked = output<void>();
     readonly posterError = signal(false);
+    private readonly failedBackdropUrl = signal<string | undefined>(undefined);
+    readonly backdropSourceUrl = computed(
+        () => this.backdropUrl() || this.posterUrl()
+    );
+    readonly backdropError = computed(() => {
+        const source = this.backdropSourceUrl();
+        return !!source && this.failedBackdropUrl() === source;
+    });
+    readonly backdropImageUrl = computed(() =>
+        this.backdropError() ? undefined : this.backdropSourceUrl()
+    );
+    readonly usesPosterBackdrop = computed(
+        () => !this.backdropUrl() && !!this.posterUrl() && !this.backdropError()
+    );
 
-    readonly descriptionEl = viewChild<ElementRef<HTMLElement>>('descriptionEl');
+    readonly descriptionEl =
+        viewChild<ElementRef<HTMLElement>>('descriptionEl');
     readonly isDescriptionExpanded = signal(false);
     readonly hasDescriptionOverflow = signal(false);
 
     private resizeObserver?: ResizeObserver;
 
     constructor() {
+        effect(() => {
+            this.posterUrl();
+            untracked(() => this.posterError.set(false));
+        });
         effect(() => {
             // Re-measure whenever description content or the element changes.
             this.description();
@@ -68,6 +88,10 @@ export class ContentHeroComponent {
 
     onPosterError(): void {
         this.posterError.set(true);
+    }
+
+    onBackdropError(): void {
+        this.failedBackdropUrl.set(this.backdropSourceUrl());
     }
 
     readonly formattedTitle = computed(() => {
@@ -120,7 +144,9 @@ export class ContentHeroComponent {
             this.measureOverflow(el);
             return;
         }
-        this.resizeObserver = new ResizeObserver(() => this.measureOverflow(el));
+        this.resizeObserver = new ResizeObserver(() =>
+            this.measureOverflow(el)
+        );
         this.resizeObserver.observe(el);
     }
 }

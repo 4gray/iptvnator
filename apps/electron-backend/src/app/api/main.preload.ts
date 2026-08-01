@@ -24,6 +24,7 @@ import {
     toXtreamPreloadPerformanceTargetMethod,
 } from './xtream-preload-performance-capture';
 import type {
+    DownloadMetadataSnapshot,
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
@@ -978,12 +979,23 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DOWNLOADS_RESUME', downloadId, downloadFolder),
     downloadsRetry: (downloadId: number, downloadFolder: string) =>
         ipcRenderer.invoke('DOWNLOADS_RETRY', downloadId, downloadFolder),
+    downloadsRedownloadMissing: (downloadId: number) =>
+        ipcRenderer.invoke('DOWNLOADS_REDOWNLOAD_MISSING', downloadId),
     downloadsRemove: (downloadId: number) =>
         ipcRenderer.invoke('DOWNLOADS_REMOVE', downloadId),
     downloadsGetList: (playlistId?: string) =>
         ipcRenderer.invoke('DOWNLOADS_GET_LIST', playlistId),
     downloadsGet: (downloadId: number) =>
         ipcRenderer.invoke('DOWNLOADS_GET', downloadId),
+    downloadsUpdateMetadata: (
+        downloadId: number,
+        metadataSnapshot: DownloadMetadataSnapshot
+    ) =>
+        ipcRenderer.invoke(
+            'DOWNLOADS_UPDATE_METADATA',
+            downloadId,
+            metadataSnapshot
+        ),
     downloadsGetDefaultFolder: () =>
         ipcRenderer.invoke('DOWNLOADS_GET_DEFAULT_FOLDER'),
     downloadsSelectFolder: () => ipcRenderer.invoke('DOWNLOADS_SELECT_FOLDER'),

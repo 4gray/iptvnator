@@ -4,6 +4,7 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
 } from './embedded-mpv-session.interface';
+import { DownloadMetadataSnapshot } from './download-metadata.interface';
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
 import { ExternalPlayerSession } from './external-player-session.interface';
@@ -136,6 +137,9 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
 
 export type ElectronBridgeDownloadStatus =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES];
+
+export type ElectronDownloadFileAvailability =
+    'available' | 'missing' | 'not-applicable';
 
 export const ELECTRON_BRIDGE_APP_UPDATE_STATUSES = {
     Unsupported: 'unsupported',
@@ -386,8 +390,7 @@ export interface ElectronBridgePlaylistRow {
 }
 
 export type ElectronBridgePlaylistUpsertInput =
-    | Playlist
-    | ElectronBridgePlaylistInput;
+    Playlist | ElectronBridgePlaylistInput;
 
 export interface ElectronBridgeCategoryRow {
     id: number;
@@ -514,6 +517,7 @@ export interface ElectronBridgeDownloadStartPayload {
     title: string;
     url: string;
     posterUrl?: string;
+    metadataSnapshot?: DownloadMetadataSnapshot;
     downloadFolder: string;
     headers?: ElectronBridgeDownloadHeaders;
     seriesXtreamId?: number;
@@ -530,6 +534,10 @@ export interface ElectronBridgeDownloadStartResult extends ElectronBridgeErrorRe
     id?: number;
 }
 
+export interface ElectronBridgeDownloadRedownloadResult extends ElectronBridgeErrorResult {
+    recovered?: boolean;
+}
+
 export interface ElectronDownloadItem {
     id: number;
     playlistId: string;
@@ -543,7 +551,9 @@ export interface ElectronDownloadItem {
     fileName?: string;
     filePath?: string;
     posterUrl?: string;
+    metadataSnapshot?: DownloadMetadataSnapshot;
     status: ElectronBridgeDownloadStatus;
+    fileAvailability: ElectronDownloadFileAvailability;
     bytesDownloaded?: number;
     totalBytes?: number;
     errorMessage?: string;
@@ -928,9 +938,7 @@ export interface ElectronBridgeApi {
         playlistId: string,
         pins: VodSourcePin[]
     ) => Promise<ElectronBridgeResult>;
-    dbClearVodSourcePin: (
-        matchKeys: string[]
-    ) => Promise<ElectronBridgeResult>;
+    dbClearVodSourcePin: (matchKeys: string[]) => Promise<ElectronBridgeResult>;
     onChannelChange?: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => () => void;
@@ -1072,9 +1080,16 @@ export interface ElectronBridgeApi {
         downloadId: number,
         downloadFolder: string
     ) => Promise<ElectronBridgeErrorResult>;
+    downloadsRedownloadMissing: (
+        downloadId: number
+    ) => Promise<ElectronBridgeDownloadRedownloadResult>;
     downloadsRemove: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
     downloadsGetList: (playlistId?: string) => Promise<ElectronDownloadItem[]>;
     downloadsGet: (downloadId: number) => Promise<ElectronDownloadItem | null>;
+    downloadsUpdateMetadata: (
+        downloadId: number,
+        metadataSnapshot: DownloadMetadataSnapshot
+    ) => Promise<ElectronBridgeErrorResult>;
     downloadsGetDefaultFolder: () => Promise<string>;
     downloadsSelectFolder: () => Promise<string | null>;
     downloadsRevealFile: (

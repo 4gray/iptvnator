@@ -54,6 +54,199 @@ describe('workspace-shell-route.utils', () => {
         expect(parseWorkspaceShellRoute('/workspace/downloads')).toEqual(
             expect.objectContaining({
                 kind: 'downloads',
+                section: null,
+                contextPanel: 'none',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+    });
+
+    it('disables collection shell state for focused download details', () => {
+        expect(
+            parseWorkspaceShellRoute('/workspace/downloads/42?q=x#details')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                context: null,
+                section: null,
+                contextPanel: 'none',
+                searchMode: 'none',
+                usesQuerySearch: false,
+            })
+        );
+
+        expect(
+            parseWorkspaceShellRoute('/workspace/xtreams/pl-1/downloads/42')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                context: {
+                    provider: 'xtreams',
+                    playlistId: 'pl-1',
+                },
+                section: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'none',
+                usesQuerySearch: false,
+            })
+        );
+
+        expect(
+            parseWorkspaceShellRoute('/workspace/stalker/pl-1/downloads/42')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                context: {
+                    provider: 'stalker',
+                    playlistId: 'pl-1',
+                },
+                section: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'none',
+                usesQuerySearch: false,
+            })
+        );
+    });
+
+    it.each([
+        [
+            'keeps Xtream query state before a fragment',
+            '/workspace/xtreams/pl-1/favorites?scope=all#details',
+            true,
+        ],
+        [
+            'keeps Stalker query state before a fragment',
+            '/workspace/stalker/pl-1/favorites?scope=all#details',
+            true,
+        ],
+        [
+            'ignores query-like text inside a fragment',
+            '/workspace/xtreams/pl-1/favorites#details?scope=all',
+            false,
+        ],
+    ])('%s', (_name, url, expectedAllScope) => {
+        expect(parseWorkspaceShellRoute(url).isPortalFavoritesAllScope).toBe(
+            expectedAllScope
+        );
+    });
+
+    it('keeps manager shell state outside exact focused download routes', () => {
+        expect(parseWorkspaceShellRoute('/workspace/downloads/')).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute('/workspace/downloads/42/extra')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute('/workspace/xtreams/pl-1/downloads')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/xtreams/pl-1/downloads/42/extra'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute('/workspace/stalker/pl-1/downloads')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/stalker/pl-1/downloads/42/extra'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+    });
+
+    it('ignores fragments when identifying download manager routes', () => {
+        expect(
+            parseWorkspaceShellRoute('/workspace/downloads/#details')
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/xtreams/pl-1/downloads/#details'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/stalker/pl-1/downloads/#details'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'portal',
+                section: 'downloads',
+                contextPanel: 'collection',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
+            })
+        );
+        expect(
+            parseWorkspaceShellRoute(
+                '/workspace/downloads/#details?query=ignored'
+            )
+        ).toEqual(
+            expect.objectContaining({
+                kind: 'downloads',
+                contextPanel: 'none',
+                searchMode: 'local-filter',
+                usesQuerySearch: true,
             })
         );
     });
@@ -103,9 +296,7 @@ describe('workspace-shell-route.utils', () => {
     });
 
     it('parses Stalker portal routes and detects context-panel/query-search state', () => {
-        expect(
-            parseWorkspaceShellRoute('/workspace/stalker/pl-2/itv')
-        ).toEqual(
+        expect(parseWorkspaceShellRoute('/workspace/stalker/pl-2/itv')).toEqual(
             expect.objectContaining({
                 kind: 'portal',
                 context: {

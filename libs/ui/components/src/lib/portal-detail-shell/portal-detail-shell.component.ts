@@ -50,6 +50,7 @@ export class PortalDetailShellComponent {
     readonly backdropUrl = input<string>();
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
+    readonly backLabel = input<string>();
     /** True while inline playback is active — flips the layout to watch state. */
     readonly playbackActive = input(false);
 

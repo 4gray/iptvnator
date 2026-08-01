@@ -35,6 +35,7 @@ import {
     buildXtreamEpisodeDownloadRequest,
     getEpisodeDownloadId,
     isStalkerEpisode,
+    type SeasonContainerDownloadMetadataContext,
 } from './episode-download.util';
 import {
     EPISODE_INFO_PLAY,
@@ -55,6 +56,8 @@ export interface SeasonContainerXtreamDownloadContext {
     username?: string;
     password?: string;
 }
+
+export type { SeasonContainerDownloadMetadataContext } from './episode-download.util';
 
 export interface SeasonContainerPlaybackToggleRequest {
     contentXtreamId: number;
@@ -94,6 +97,9 @@ export class SeasonContainerComponent implements OnInit {
     );
     readonly xtreamDownloadContext =
         input<SeasonContainerXtreamDownloadContext | null>(null);
+    readonly downloadMetadataContext =
+        input<SeasonContainerDownloadMetadataContext | null>(null);
+    readonly downloadsEnabled = input(true);
     readonly openingEpisodeId = input<number | null>(null);
     /** Episode currently playing in an EXTERNAL player session. */
     readonly activeEpisodeId = input<number | null>(null);
@@ -187,9 +193,7 @@ export class SeasonContainerComponent implements OnInit {
                 return;
             }
             this.lastAutoSelectKey = key;
-            this.selectedSeason.set(
-                untracked(() => this.resolveAutoSeason())
-            );
+            this.selectedSeason.set(untracked(() => this.resolveAutoSeason()));
         });
 
         // Fire the lazy-load/enrichment hooks for auto-selected seasons too —
@@ -364,6 +368,7 @@ export class SeasonContainerComponent implements OnInit {
 
     async downloadEpisode(event: Event, episode: XtreamSerieEpisode) {
         event.stopPropagation();
+        if (!this.downloadsEnabled()) return;
 
         if (isStalkerEpisode(episode)) {
             this.episodeDownloadRequested.emit(episode);
@@ -384,12 +389,13 @@ export class SeasonContainerComponent implements OnInit {
                 seriesTitle: this.seriesTitle(),
                 fallbackSeasonKey: this.selectedSeason(),
                 posterUrl: this.getEpisodeInfo(episode)?.movie_image,
+                metadataContext: this.downloadMetadataContext() ?? undefined,
             })
         );
     }
 
     isEpisodeDownloaded(episode: XtreamSerieEpisode): boolean {
-        if (!this.playlistId()) {
+        if (!this.downloadsEnabled() || !this.playlistId()) {
             return false;
         }
 
@@ -402,7 +408,7 @@ export class SeasonContainerComponent implements OnInit {
     }
 
     isEpisodeDownloading(episode: XtreamSerieEpisode): boolean {
-        if (!this.playlistId()) {
+        if (!this.downloadsEnabled() || !this.playlistId()) {
             return false;
         }
 
@@ -415,7 +421,7 @@ export class SeasonContainerComponent implements OnInit {
     }
 
     isEpisodePaused(episode: XtreamSerieEpisode): boolean {
-        if (!this.playlistId()) {
+        if (!this.downloadsEnabled() || !this.playlistId()) {
             return false;
         }
 

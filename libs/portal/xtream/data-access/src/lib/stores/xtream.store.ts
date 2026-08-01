@@ -143,6 +143,7 @@ export const XtreamStore = signalStore(
 
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
+                store.setSelectedItem(null);
                 xtreamApiService
                     .getVodInfo(credentials, params.vodId)
                     .then((vodDetails: XtreamVodDetails) => {
@@ -171,7 +172,8 @@ export const XtreamStore = signalStore(
                         void enrichVodSelectionWithTmdb(
                             store,
                             tmdbEnrichment,
-                            params.vodId
+                            params.vodId,
+                            isCurrentRequest
                         );
 
                         if (!recovery) {
@@ -241,6 +243,7 @@ export const XtreamStore = signalStore(
 
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
+                store.setSelectedItem(null);
                 xtreamApiService
                     .getSeriesInfo(credentials, params.serialId)
                     .then((serialDetails: XtreamSerieDetails) => {
@@ -253,7 +256,8 @@ export const XtreamStore = signalStore(
                         void enrichSerialSelectionWithTmdb(
                             store,
                             tmdbEnrichment,
-                            params.serialId
+                            params.serialId,
+                            isCurrentRequest
                         );
                     })
                     .catch((error: unknown) => {
@@ -278,10 +282,15 @@ export const XtreamStore = signalStore(
              * opens a season; a no-op without a show-level TMDB match.
              */
             enrichSelectedSerialSeason(seasonKey: string): void {
+                const playlistId = store.currentPlaylist()?.id;
+                if (!playlistId) {
+                    return;
+                }
                 void enrichSerialSeasonWithTmdb(
                     store,
                     tmdbEnrichment,
-                    seasonKey
+                    seasonKey,
+                    () => store.currentPlaylist()?.id === playlistId
                 );
             },
         };

@@ -1,4 +1,13 @@
-import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import {
+    DownloadMetadataSnapshot,
+    XtreamSerieEpisode,
+    XtreamSerieEpisodeInfo,
+} from '@iptvnator/shared/interfaces';
+import {
+    createMovieDownloadSnapshot,
+    createSeriesEpisodeDownloadSnapshot,
+    type DownloadMovieSnapshotInput,
+} from '@iptvnator/portal/shared/util';
 
 /**
  * Pure helpers for mapping episodes (Xtream and Stalker-mapped) to the
@@ -12,6 +21,9 @@ export interface XtreamEpisodeDownloadContext {
     password?: string;
 }
 
+/** Provider-neutral metadata already loaded by the detail host. */
+export type SeasonContainerDownloadMetadataContext = DownloadMovieSnapshotInput;
+
 export interface XtreamEpisodeDownloadRequest {
     playlistId: string;
     xtreamId: number;
@@ -22,6 +34,42 @@ export interface XtreamEpisodeDownloadRequest {
     seriesXtreamId: number;
     seasonNumber: number;
     episodeNumber: number;
+    metadataSnapshot?: DownloadMetadataSnapshot;
+}
+
+function rowCoordinate(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function buildMetadataSnapshot(
+    metadata: SeasonContainerDownloadMetadataContext,
+    episode: XtreamSerieEpisode,
+    seasonNumber: unknown,
+    episodeNumber: unknown
+): DownloadMetadataSnapshot {
+    const normalizedSeason = rowCoordinate(seasonNumber);
+    const normalizedEpisode = rowCoordinate(episodeNumber);
+    if (normalizedSeason === undefined || normalizedEpisode === undefined) {
+        return {
+            ...createMovieDownloadSnapshot(metadata),
+            mediaKind: 'series',
+        };
+    }
+
+    const info = Array.isArray(episode.info)
+        ? undefined
+        : (episode.info as XtreamSerieEpisodeInfo);
+    return createSeriesEpisodeDownloadSnapshot({
+        ...metadata,
+        episode: {
+            seasonNumber: normalizedSeason,
+            episodeNumber: normalizedEpisode,
+            title: episode.title,
+            plot: info?.plot,
+            stillUrl: info?.movie_image,
+        },
+    });
 }
 
 export function hashString(str: string): number {
@@ -75,6 +123,7 @@ export function buildXtreamEpisodeDownloadRequest(options: {
     seriesTitle: string;
     fallbackSeasonKey: string | undefined;
     posterUrl?: string;
+    metadataContext?: SeasonContainerDownloadMetadataContext;
 }): XtreamEpisodeDownloadRequest {
     const { episode, context, playlistId, seriesId, seriesTitle } = options;
     const serverUrl = context.serverUrl?.replace(/\/$/, '') || '';
@@ -84,7 +133,9 @@ export function buildXtreamEpisodeDownloadRequest(options: {
     const seasonNumber =
         episode.season || Number(options.fallbackSeasonKey) || 1;
     const episodeNumber = episode.episode_num || 1;
-    const title = `${seriesTitle || 'Series'} - S${String(seasonNumber).padStart(
+    const title = `${seriesTitle || 'Series'} - S${String(
+        seasonNumber
+    ).padStart(
         2,
         '0'
     )}E${String(episodeNumber).padStart(2, '0')} - ${episode.title}`;
@@ -99,5 +150,15 @@ export function buildXtreamEpisodeDownloadRequest(options: {
         seriesXtreamId: seriesId,
         seasonNumber,
         episodeNumber,
+        ...(options.metadataContext
+            ? {
+                  metadataSnapshot: buildMetadataSnapshot(
+                      options.metadataContext,
+                      episode,
+                      seasonNumber,
+                      episodeNumber
+                  ),
+              }
+            : {}),
     };
 }

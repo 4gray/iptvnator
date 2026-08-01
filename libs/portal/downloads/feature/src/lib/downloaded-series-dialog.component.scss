@@ -1,0 +1,158 @@
+:host {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    color: var(--app-body-color);
+}
+
+.downloaded-series-dialog__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 24px 14px;
+    border-bottom: 1px solid var(--app-separator);
+    background: var(--app-widget-header-bg);
+
+    h2[mat-dialog-title] {
+        margin: 3px 0 0;
+        padding: 0;
+        color: var(--app-heading-color);
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    p {
+        margin: 6px 0 0;
+        color: var(--app-muted-color);
+        font-size: 0.78rem;
+    }
+}
+
+.downloaded-series-dialog__eyebrow {
+    color: var(--app-eyebrow-color);
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+mat-dialog-content {
+    max-height: min(66vh, 620px);
+    padding: 10px 12px 18px;
+    background: var(--app-widget-bg);
+}
+
+.downloaded-series-dialog__list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.downloaded-series-dialog__episode {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 64px;
+    padding: 8px 10px 8px 12px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    transition:
+        border-color 140ms ease,
+        background-color 140ms ease;
+
+    &:hover,
+    &:focus-within {
+        border-color: var(--app-separator);
+        background: var(--app-card-hover-bg);
+    }
+}
+
+.downloaded-series-dialog__identity {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 10px;
+    min-width: 0;
+}
+
+.downloaded-series-dialog__number {
+    grid-row: 1 / span 2;
+    min-width: 54px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-primary) 12%,
+        var(--app-widget-header-bg)
+    );
+    color: var(--mat-sys-primary);
+    font-family: var(--mat-sys-label-small-font);
+    font-size: 0.73rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+.downloaded-series-dialog__title {
+    overflow: hidden;
+    color: var(--app-heading-color);
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.downloaded-series-dialog__size {
+    color: var(--app-muted-color);
+    font-family:
+        'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
+        monospace;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.downloaded-series-dialog__actions {
+    display: flex;
+    align-items: center;
+
+    button {
+        color: var(--app-body-color);
+    }
+}
+
+button:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+}
+
+button:disabled {
+    cursor: progress;
+}
+
+@media (max-width: 620px) {
+    .downloaded-series-dialog__header {
+        padding: 18px 16px 12px;
+    }
+
+    .downloaded-series-dialog__episode {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    .downloaded-series-dialog__actions {
+        justify-content: flex-end;
+        border-top: 1px solid var(--app-separator);
+        padding-top: 5px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .downloaded-series-dialog__episode {
+        transition: none;
+    }
+}

@@ -1,6 +1,7 @@
 import { Component, input, output, signal } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -9,7 +10,7 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ReplaySubject, of } from 'rxjs';
+import { EMPTY, ReplaySubject, of } from 'rxjs';
 import {
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
@@ -52,7 +53,9 @@ class MockPlaylistErrorViewComponent {
     standalone: true,
     template: '',
 })
-class MockDetailComponent {}
+class MockDetailComponent {
+    readonly providerOnly = input(false);
+}
 
 describe('CategoryContentViewComponent', () => {
     let fixture: ComponentFixture<CategoryContentViewComponent>;
@@ -63,8 +66,9 @@ describe('CategoryContentViewComponent', () => {
     const categoryItemCount = signal(0);
     const contentSortMode = signal<PortalCatalogSortMode | null>(null);
     const minRating = signal<number | null>(null);
+    const selectedItem = signal<Record<string, unknown> | null>(null);
     const catalog = {
-        provider: 'xtream' as const,
+        provider: 'xtream' as 'xtream' | 'stalker',
         pageSizeOptions: [10, 25, 50],
         contentType: signal('vod'),
         limit: signal(25),
@@ -73,7 +77,7 @@ describe('CategoryContentViewComponent', () => {
         paginatedContent: signal<unknown[]>([]),
         selectedCategoryTitle: signal('Movies'),
         categoryItemCount,
-        selectedItem: signal(null),
+        selectedItem,
         totalPages: signal(0),
         contentSortMode,
         supportsRatingSort: true,
@@ -88,10 +92,14 @@ describe('CategoryContentViewComponent', () => {
         setContentSortMode: jest.fn(),
         setMinRating: jest.fn(),
         selectItem: jest.fn().mockReturnValue(null),
+        refreshSnapshotSelection: jest.fn(),
         getItemProgress: jest.fn().mockReturnValue({}),
     };
 
     beforeEach(async () => {
+        window.history.replaceState({}, '', window.location.href);
+        catalog.provider = 'xtream';
+        selectedItem.set(null);
         isPaginatedContentLoading.set(true);
         categoryItemCount.set(0);
         contentSortMode.set(null);
@@ -105,6 +113,7 @@ describe('CategoryContentViewComponent', () => {
         catalog.setMinRating.mockClear();
         catalog.selectItem.mockClear();
         catalog.selectItem.mockReturnValue(null);
+        catalog.refreshSnapshotSelection.mockClear();
         router = {
             navigate: jest.fn(),
         };
@@ -133,9 +142,9 @@ describe('CategoryContentViewComponent', () => {
                                     ? 'Fetching playlist data from source...'
                                     : key
                             ),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        onLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
+                        onDefaultLangChange: EMPTY,
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
@@ -184,6 +193,10 @@ describe('CategoryContentViewComponent', () => {
         fixture = TestBed.createComponent(CategoryContentViewComponent);
     });
 
+    afterEach(() => {
+        window.history.replaceState({}, '', window.location.href);
+    });
+
     it('shows loading copy in the subtitle instead of 0 items while xtream content is still warming up', () => {
         fixture.detectChanges();
 
@@ -226,9 +239,7 @@ describe('CategoryContentViewComponent', () => {
         expect(refineButton).not.toBeNull();
         expect(sortChip).not.toBeNull();
         expect(sortChip?.tagName).not.toBe('BUTTON');
-        expect(
-            fixture.nativeElement.querySelector('.sort-action')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('.sort-action')).toBeNull();
         expect(
             fixture.nativeElement.querySelector('.rating-filter-action')
         ).toBeNull();
@@ -303,7 +314,8 @@ describe('CategoryContentViewComponent', () => {
                 ?.textContent
         ).toContain('WORKSPACE.SORT_NAME_ASC');
         expect(
-            ratingChip?.querySelector('.refinement-chip-label-full')?.textContent
+            ratingChip?.querySelector('.refinement-chip-label-full')
+                ?.textContent
         ).toContain('WORKSPACE.FILTER_RATING');
         expect(
             ratingChip?.querySelector('.refinement-chip-label-compact')
@@ -472,5 +484,74 @@ describe('CategoryContentViewComponent', () => {
             relativeTo: expect.any(Object),
             queryParamsHandling: 'preserve',
         });
+    });
+
+    it('hands provider-only presentation to the exact Stalker item after consuming navigation state', async () => {
+        const item = { id: '42', category_id: 'vod' };
+        catalog.provider = 'stalker';
+        catalog.selectItem.mockImplementation((selected) => {
+            selectedItem.set(selected);
+            return null;
+        });
+        window.history.replaceState(
+            {
+                detailPresentation: 'provider-only',
+                openStalkerItem: item,
+                preserved: 'value',
+            },
+            '',
+            window.location.href
+        );
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const detail = fixture.debugElement.query(
+            By.directive(MockDetailComponent)
+        ).componentInstance as MockDetailComponent;
+        expect(catalog.selectItem).toHaveBeenCalledWith(item);
+        expect(catalog.refreshSnapshotSelection).toHaveBeenCalled();
+        expect(detail.providerOnly()).toBe(true);
+        expect(window.history.state).toEqual({ preserved: 'value' });
+    });
+
+    it('does not retain the consumed provider-only presentation across identity, regular-open, or route changes', async () => {
+        const item = { id: '42', category_id: 'vod' };
+        catalog.provider = 'stalker';
+        catalog.selectItem.mockImplementation((selected) => {
+            selectedItem.set(selected);
+            return null;
+        });
+        window.history.replaceState(
+            {
+                detailPresentation: 'provider-only',
+                openStalkerItem: item,
+            },
+            '',
+            window.location.href
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        selectedItem.set({ id: '99', category_id: 'vod' });
+        await fixture.whenStable();
+        let detail = fixture.debugElement.query(
+            By.directive(MockDetailComponent)
+        ).componentInstance as MockDetailComponent;
+        expect(detail.providerOnly()).toBe(false);
+
+        fixture.componentInstance.onItemClick(item);
+        await fixture.whenStable();
+        detail = fixture.debugElement.query(By.directive(MockDetailComponent))
+            .componentInstance as MockDetailComponent;
+        expect(detail.providerOnly()).toBe(false);
+
+        window.history.replaceState({}, '', window.location.href);
+        paramMap$.next(convertToParamMap({ categoryId: 'another-category' }));
+        selectedItem.set(item);
+        await fixture.whenStable();
+        detail = fixture.debugElement.query(By.directive(MockDetailComponent))
+            .componentInstance as MockDetailComponent;
+        expect(detail.providerOnly()).toBe(false);
     });
 });

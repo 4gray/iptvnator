@@ -155,7 +155,7 @@
                                     }}</mat-icon>
                                 </button>
                                 <div class="episode-card__actions">
-                                    @if (isElectron()) {
+                                    @if (isElectron() && downloadsEnabled()) {
                                         @if (isEpisodeDownloaded(episode)) {
                                             <button
                                                 mat-icon-button
@@ -173,9 +173,7 @@
                                             >
                                                 <mat-icon>play_circle</mat-icon>
                                             </button>
-                                        } @else if (
-                                            isEpisodePaused(episode)
-                                        ) {
+                                        } @else if (isEpisodePaused(episode)) {
                                             <button
                                                 mat-icon-button
                                                 class="download-btn download-btn--paused"
@@ -260,10 +258,7 @@
                                             class="episode-card__info-btn"
                                             data-testid="episode-info-button"
                                             (click)="
-                                                openEpisodeInfo(
-                                                    $event,
-                                                    episode
-                                                )
+                                                openEpisodeInfo($event, episode)
                                             "
                                             [matTooltip]="
                                                 'PORTALS.EPISODE_INFO'
@@ -417,7 +412,7 @@
                                         }}</mat-icon>
                                     }
                                 </button>
-                                @if (isElectron()) {
+                                @if (isElectron() && downloadsEnabled()) {
                                     @if (isEpisodeDownloaded(episode)) {
                                         <button
                                             mat-icon-button

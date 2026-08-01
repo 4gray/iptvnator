@@ -1,0 +1,117 @@
+<header class="downloaded-series-dialog__header">
+    <div>
+        <span class="downloaded-series-dialog__eyebrow">
+            {{ 'DOWNLOADS.DOWNLOADED_EPISODES' | translate }}
+        </span>
+        <h2 mat-dialog-title>{{ group.title }}</h2>
+        <p>
+            {{
+                episodeCountKey(currentMembers().length)
+                    | translate: { count: currentMembers().length }
+            }}
+            @if (group.sourceName.trim()) {
+                <span aria-hidden="true">·</span>
+                {{ group.sourceName }}
+            }
+        </p>
+    </div>
+    <button
+        mat-icon-button
+        type="button"
+        mat-dialog-close
+        data-test-id="downloaded-series-close"
+        [aria-label]="'CLOSE' | translate"
+        [matTooltip]="'CLOSE' | translate"
+    >
+        <mat-icon aria-hidden="true">close</mat-icon>
+    </button>
+</header>
+
+<mat-dialog-content>
+    <ol class="downloaded-series-dialog__list">
+        @for (member of currentMembers(); track member.id) {
+            <li
+                class="downloaded-series-dialog__episode"
+                [attr.data-test-id]="'downloaded-series-episode-' + member.id"
+                [attr.aria-busy]="isPending(member) ? 'true' : null"
+            >
+                <div class="downloaded-series-dialog__identity">
+                    @if (episodeLabel(member); as label) {
+                        <span class="downloaded-series-dialog__number">
+                            {{ label }}
+                        </span>
+                    }
+                    <span class="downloaded-series-dialog__title">
+                        {{ member.title }}
+                    </span>
+                    <span class="downloaded-series-dialog__size">
+                        {{ formatBytes(member.bytesDownloaded) }}
+                    </span>
+                </div>
+
+                <div class="downloaded-series-dialog__actions">
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="isPending(member)"
+                        [attr.aria-label]="
+                            ('DOWNLOADS.PLAY' | translate) +
+                            ': ' +
+                            episodeIdentity(member)
+                        "
+                        [matTooltip]="'DOWNLOADS.PLAY' | translate"
+                        (click)="emitAction('play', member)"
+                    >
+                        <mat-icon aria-hidden="true">play_arrow</mat-icon>
+                    </button>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="isPending(member)"
+                        [attr.aria-label]="
+                            ('DOWNLOADS.REVEAL' | translate) +
+                            ': ' +
+                            episodeIdentity(member)
+                        "
+                        [matTooltip]="'DOWNLOADS.REVEAL' | translate"
+                        (click)="emitAction('reveal', member)"
+                    >
+                        <mat-icon aria-hidden="true">folder_open</mat-icon>
+                    </button>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="isPending(member)"
+                        [attr.aria-label]="
+                            ('DOWNLOADS.COPY_URL' | translate) +
+                            ': ' +
+                            episodeIdentity(member)
+                        "
+                        [matTooltip]="'DOWNLOADS.COPY_URL' | translate"
+                        (click)="emitAction('copy-url', member)"
+                    >
+                        <mat-icon aria-hidden="true">content_copy</mat-icon>
+                    </button>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="isPending(member)"
+                        [attr.aria-label]="
+                            ('DOWNLOADS.REMOVE_FROM_MANAGER' | translate) +
+                            ': ' +
+                            episodeIdentity(member)
+                        "
+                        [matTooltip]="
+                            'DOWNLOADS.REMOVE_FROM_MANAGER' | translate
+                        "
+                        (click)="emitAction('remove', member)"
+                    >
+                        <mat-icon aria-hidden="true">
+                            remove_circle_outline
+                        </mat-icon>
+                    </button>
+                </div>
+            </li>
+        }
+    </ol>
+</mat-dialog-content>

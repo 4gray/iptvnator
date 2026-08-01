@@ -132,6 +132,37 @@ describe('enrichVodSelectionWithTmdb', () => {
         expect(store.setSelectedItem).not.toHaveBeenCalled();
     });
 
+    it('drops a same-id result after its playlist request becomes stale', async () => {
+        let isCurrentRequest = true;
+        const store = createStore(vodItem);
+        const enrichment = createEnrichment({
+            enrichMovie: jest.fn().mockImplementation(async () => {
+                isCurrentRequest = false;
+                store.replaceItem({
+                    ...vodItem,
+                    info: {
+                        ...vodItem.info,
+                        name: 'Movie from playlist B',
+                        plot: 'Playlist B plot',
+                    },
+                });
+                return { id: 603, overview: 'Playlist A TMDB overview' };
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichVodSelectionWithTmdb(
+            store,
+            enrichment,
+            '42',
+            () => isCurrentRequest
+        );
+
+        expect(store.setSelectedItem).not.toHaveBeenCalled();
+        expect(store.selectedItem()?.['info']).toEqual(
+            expect.objectContaining({ plot: 'Playlist B plot' })
+        );
+    });
+
     it('keeps provider data when no confident match was found', async () => {
         const store = createStore(vodItem);
         const enrichment = createEnrichment();
@@ -173,6 +204,37 @@ describe('enrichSerialSelectionWithTmdb', () => {
         await enrichSerialSelectionWithTmdb(store, enrichment, '7');
 
         expect(enrichment.enrichTv).not.toHaveBeenCalled();
+    });
+
+    it('drops a same-id result after its playlist request becomes stale', async () => {
+        let isCurrentRequest = true;
+        const store = createStore(serialItem);
+        const enrichment = createEnrichment({
+            enrichTv: jest.fn().mockImplementation(async () => {
+                isCurrentRequest = false;
+                store.replaceItem({
+                    ...serialItem,
+                    info: {
+                        ...serialItem.info,
+                        name: 'Series from playlist B',
+                        plot: 'Playlist B plot',
+                    },
+                });
+                return { id: 70523, overview: 'Playlist A TMDB overview' };
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSelectionWithTmdb(
+            store,
+            enrichment,
+            '7',
+            () => isCurrentRequest
+        );
+
+        expect(store.setSelectedItem).not.toHaveBeenCalled();
+        expect(store.selectedItem()?.['info']).toEqual(
+            expect.objectContaining({ plot: 'Playlist B plot' })
+        );
     });
 });
 
@@ -249,5 +311,42 @@ describe('enrichSerialSeasonWithTmdb', () => {
         await enrichSerialSeasonWithTmdb(store, enrichment, '1');
 
         expect(enrichment.getSeasonEpisodes).toHaveBeenCalledWith(82856, 1);
+    });
+
+    it('drops a same-id season result after its playlist becomes stale', async () => {
+        let isCurrentPlaylist = true;
+        const store = createStore(
+            seasonSliceItem('Series from playlist A', {
+                '1': [{ episode_num: 1, season: 1 }],
+            })
+        );
+        const enrichment = createEnrichment({
+            getSeasonEpisodes: jest.fn().mockImplementation(async () => {
+                isCurrentPlaylist = false;
+                store.replaceItem(
+                    seasonSliceItem('Series from playlist B', {
+                        '1': [{ episode_num: 1, season: 1 }],
+                    })
+                );
+                return [{ episode_number: 1, name: 'Playlist A episode' }];
+            }),
+        } as Partial<TmdbEnrichmentService>);
+
+        await enrichSerialSeasonWithTmdb(
+            store,
+            enrichment,
+            '1',
+            () => isCurrentPlaylist
+        );
+
+        expect(store.setSelectedItem).not.toHaveBeenCalled();
+        expect(
+            (
+                store.selectedItem()?.['episodes'] as Record<
+                    string,
+                    { title: string }[]
+                >
+            )['1'][0].title
+        ).toBe('Episode 1');
     });
 });

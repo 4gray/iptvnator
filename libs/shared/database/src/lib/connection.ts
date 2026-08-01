@@ -105,13 +105,13 @@ const DOWNLOADS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS downloads (
       poster_url TEXT,
       request_headers TEXT,
       resume_validator TEXT,
+      metadata_snapshot TEXT,
       status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled')),
       bytes_downloaded INTEGER DEFAULT 0,
       total_bytes INTEGER,
       error_message TEXT,
       created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+      updated_at TEXT DEFAULT (datetime('now'))
   )`;
 const DOWNLOADS_INDEX_STATEMENTS = [
     `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
@@ -379,6 +379,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE epg_programs ADD COLUMN source_url TEXT`,
     // Pause/resume: entity validator (ETag/Last-Modified) sent as If-Range on resume
     `ALTER TABLE downloads ADD COLUMN resume_validator TEXT`,
+    // Offline details: provider-neutral display metadata captured at download time
+    `ALTER TABLE downloads ADD COLUMN metadata_snapshot TEXT`,
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [
@@ -579,8 +581,7 @@ function normalizeXtreamContentAddedEpochs(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(XTREAM_ADDED_EPOCH_SECONDS_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -697,8 +698,7 @@ function upgradeContentTitleFtsTokenizer(sqliteDb: Database.Database): boolean {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(CONTENT_TITLE_FTS_DIACRITICS_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         // The marker alone is not evidence. `createTables` declares this table
         // too, with the plain tokenizer, so a table recreated by that path
@@ -759,8 +759,7 @@ function ensureContentTitleFts(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(CONTENT_TITLE_FTS_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -803,8 +802,7 @@ function backfillEpgProgramSourceUrls(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -938,8 +936,7 @@ function cleanupLegacyTmdbSearchCache(sqliteDb: Database.Database): void {
         const migrationState = sqliteDb
             .prepare(`SELECT value FROM app_state WHERE key = ?`)
             .get(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY) as
-            | { value?: unknown }
-            | undefined;
+            { value?: unknown } | undefined;
 
         if (migrationState?.value === 'done') {
             return;
@@ -978,9 +975,9 @@ function cleanupLegacyTmdbSearchCache(sqliteDb: Database.Database): void {
 }
 
 /**
- * Existing downloads tables had a status CHECK without 'paused'. SQLite cannot
- * alter CHECK constraints in place, so rebuild only when the table SQL still
- * reflects the old contract or lacks request_headers.
+ * Downloads remain locally owned after their source playlist is removed.
+ * SQLite cannot alter CHECK or foreign-key constraints in place, so rebuild
+ * when the table still has the old pause/header contract or source cascade.
  */
 function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
     try {
@@ -995,13 +992,24 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
 
         const hasPausedStatus = row.sql.includes(`'paused'`);
         const hasRequestHeaders = row.sql.includes('request_headers');
-        if (hasPausedStatus && hasRequestHeaders) {
+        const hasPlaylistForeignKey = /\bREFERENCES\s+["`[]?playlists\b/i.test(
+            row.sql
+        );
+        if (hasPausedStatus && hasRequestHeaders && !hasPlaylistForeignKey) {
             return;
         }
 
         const legacyHeadersSelect = hasRequestHeaders
             ? 'request_headers'
             : 'NULL AS request_headers';
+        const hasMetadataSnapshot = row.sql.includes('metadata_snapshot');
+        const legacyMetadataSnapshotSelect = hasMetadataSnapshot
+            ? 'metadata_snapshot'
+            : 'NULL AS metadata_snapshot';
+        const hasResumeValidator = row.sql.includes('resume_validator');
+        const legacyResumeValidatorSelect = hasResumeValidator
+            ? 'resume_validator'
+            : 'NULL AS resume_validator';
         const rebuild = sqliteDb.transaction(() => {
             for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
                 const match = statement.match(
@@ -1034,6 +1042,8 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         file_path,
                         poster_url,
                         request_headers,
+                        resume_validator,
+                        metadata_snapshot,
                         status,
                         bytes_downloaded,
                         total_bytes,
@@ -1055,6 +1065,8 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                         file_path,
                         poster_url,
                         ${legacyHeadersSelect},
+                        ${legacyResumeValidatorSelect},
+                        ${legacyMetadataSnapshotSelect},
                         status,
                         bytes_downloaded,
                         total_bytes,
@@ -1064,18 +1076,16 @@ function ensureDownloadsPauseResumeSchema(sqliteDb: Database.Database): void {
                     FROM downloads_pause_resume_legacy`
                 )
                 .run();
-            sqliteDb
-                .prepare(`DROP TABLE downloads_pause_resume_legacy`)
-                .run();
+            sqliteDb.prepare(`DROP TABLE downloads_pause_resume_legacy`).run();
             for (const statement of DOWNLOADS_INDEX_STATEMENTS) {
                 sqliteDb.prepare(statement).run();
             }
         });
 
         rebuild();
-        console.log('[DB] Rebuilt downloads table with pause/resume schema');
+        console.log('[DB] Rebuilt downloads table with local ownership schema');
     } catch (error) {
-        console.warn('[DB] downloads pause/resume migration failed:', error);
+        console.warn('[DB] downloads ownership migration failed:', error);
     }
 }
 

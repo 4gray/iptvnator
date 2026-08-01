@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { VideoPlayer } from '@iptvnator/shared/interfaces';
+import { XtreamVodDetails } from '@iptvnator/shared/interfaces';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 import {
@@ -21,13 +21,14 @@ describe('VodDetailsRouteComponent — playback actions', () => {
     const {
         currentPlaylist,
         activeSession,
-        addRecentItem,
         closeSession,
+        downloadsAvailable,
+        getDownloadedFilePath,
         getPlaybackPosition,
+        isDownloaded,
+        playDownload,
+        routeParams,
         selectedItem,
-        selectedPlayer,
-        snackBarOpen,
-        updateSettings,
     } = stubs;
 
     beforeEach(async () => {
@@ -113,6 +114,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
 
     it('stops the external player when the button says Stop', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
         activeSession.set({
             player: 'mpv',
             status: 'playing',
@@ -136,6 +140,129 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // first keeps running — the control doing the opposite of its label.
         expect(playPinned).not.toHaveBeenCalled();
         expect(closeSession).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('stops external playback without a usable provider item', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
+        activeSession.set({
+            player: 'mpv',
+            status: 'playing',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+
+        const component = fixture.componentInstance;
+        expect(component.isExternalStopAction()).toBe(true);
+
+        await component.onPrimaryAction(null);
+
+        expect(closeSession).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('plays a completed download before provider resume or pin resolution', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
+        const component = fixture.componentInstance;
+        const playback = fixture.debugElement.injector.get(
+            VodDetailsPlaybackService
+        );
+        playback.routePlaybackPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            positionSeconds: 120,
+            durationSeconds: 7744,
+        });
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+
+        await component.onPrimaryAction({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never);
+
+        expect(playDownload).toHaveBeenCalledWith('/downloads/example.mp4');
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
+    });
+
+    it('does not bypass a pending external launch through the primary handler', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/example.mp4');
+        activeSession.set({
+            player: 'mpv',
+            status: 'launching',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const component = fixture.componentInstance;
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+
+        await component.onPrimaryAction({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never);
+
+        expect(component.isExternalLaunchPending()).toBe(true);
+        expect(playDownload).not.toHaveBeenCalled();
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
+    });
+
+    it('does not let the provider secondary bypass a pending external launch', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        activeSession.set({
+            player: 'mpv',
+            status: 'launching',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const component = fixture.componentInstance;
+        const playPinned = jest.spyOn(
+            component.multiSource,
+            'playPinnedSource'
+        );
+
+        await component.playFromProviderSource({
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example',
+                container_extension: 'mp4',
+            },
+        } as never);
+
+        expect(component.isExternalLaunchPending()).toBe(true);
+        expect(playPinned).not.toHaveBeenCalled();
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
     });
 
     it('follows external playback progress, which has no timeupdate', () => {
@@ -225,16 +352,107 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         expect(playback.hasPlaybackPosition()).toBe(false);
     });
 
-    it('downloads the movie the route currently shows', async () => {
+    it('does not expose a stale movie after a reused route changes identity', async () => {
+        currentPlaylist.set({ id: 'playlist-1' });
+        selectedItem.set({
+            info: { name: 'Movie A', description: 'Movie A details' },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Movie A',
+                container_extension: 'mp4',
+            },
+        } as XtreamVodDetails);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.selectedVodInfo()?.name).toBe(
+            'Movie A'
+        );
+
+        // The router reuses the detail component. The B request can fail,
+        // leaving the store's last successful selection (A) in place while
+        // route/download state has already switched to B.
+        downloadsAvailable.set(true);
+        isDownloaded.mockImplementation((vodId: number) => vodId === 650021);
+        routeParams.next({ vodId: '650021', categoryId: '235' });
+        stubs.detailsError.set('Movie B unavailable');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.selectedVodId()).toBe(650021);
+        expect(fixture.componentInstance.isDownloaded()).toBe(true);
+        expect(fixture.componentInstance.selectedItem()).toBeNull();
+        expect(fixture.componentInstance.selectedVodInfo()).toBeNull();
+        expect(fixture.componentInstance.playableVodItem()).toBeNull();
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.textContent).not.toContain('Movie A');
+        expect(host.textContent).toContain('Movie B unavailable');
+        expect(host.textContent).not.toContain('DOWNLOADS.OFFLINE');
+        expect(host.textContent).not.toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).not.toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
+        expect(host.querySelector('button.play-btn')).toBeNull();
+
+        await fixture.componentInstance.playFromProviderSource(
+            fixture.componentInstance.playableVodItem()
+        );
+
+        expect(stubs.openResolvedPlayback).not.toHaveBeenCalled();
+
+        selectedItem.set({
+            info: { name: 'Movie B', description: 'Movie B details' },
+            movie_data: {
+                stream_id: 650021,
+                name: 'Movie B',
+                container_extension: 'mkv',
+            },
+        } as XtreamVodDetails);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.selectedVodInfo()?.name).toBe(
+            'Movie B'
+        );
+        expect(host.textContent).toContain('Movie B');
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(host.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
+    });
+
+    it('downloads the route movie with the metadata precedence rendered on screen', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
         fixture.detectChanges();
 
         await fixture.componentInstance.downloadVod({
+            info: {
+                name: 'Metadata Movie',
+                description: 'Rendered description wins',
+                plot: 'Lower-priority plot',
+                movie_image:
+                    'https://images.example.test/posters/metadata-movie.jpg',
+                backdrop_path: [
+                    'https://images.example.test/backdrops/metadata-movie.jpg',
+                ],
+                releasedate: '2025-03-14',
+                duration_secs: 7200,
+                genre: 'Drama, Mystery',
+                rating: '9.9',
+                rating_imdb: '7.3',
+                status: 'Released',
+                tmdb_id: 12345,
+                actors: 'Ada Actor, Bea Actor',
+                director: 'Dana Director',
+                tmdb_cast: [],
+                tmdb_directors: [],
+            },
             // A DIFFERENT id in the payload: the route's id must win.
             movie_data: {
                 stream_id: 111,
                 name: 'Example',
                 container_extension: 'mp4',
+                category_id: '235',
             },
         } as never);
 
@@ -243,7 +461,27 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // (the Similar rail), and the snapshot still names the film the user
         // came from — so the download would fetch the wrong movie.
         expect(stubs.startDownload).toHaveBeenCalledWith(
-            expect.objectContaining({ xtreamId: 650020 })
+            expect.objectContaining({
+                playlistId: 'playlist-1',
+                xtreamId: 650020,
+                metadataSnapshot: expect.objectContaining({
+                    version: 1,
+                    language: 'en',
+                    mediaKind: 'movie',
+                    title: 'Metadata Movie',
+                    plot: 'Rendered description wins',
+                    posterUrl:
+                        'https://images.example.test/posters/metadata-movie.jpg',
+                    backdropUrl:
+                        'https://images.example.test/backdrops/metadata-movie.jpg',
+                    providerCategoryId: '235',
+                    tmdbId: 12345,
+                    genres: ['Drama', 'Mystery'],
+                    rating: 7.3,
+                    cast: [{ name: 'Ada Actor' }, { name: 'Bea Actor' }],
+                    creators: [{ name: 'Dana Director' }],
+                }),
+            })
         );
     });
 

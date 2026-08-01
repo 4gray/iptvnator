@@ -1,8 +1,6 @@
-import {
-    Component,
-    input,
-    output,
-} from '@angular/core';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconButton } from '@angular/material/button';
@@ -84,8 +82,9 @@ describe('WorkspaceShellHeaderComponent', () => {
     it('emits search input changes as user types', () => {
         const emitted: string[] = [];
         component.searchChanged.subscribe((value) => emitted.push(value));
-        const input: HTMLInputElement =
-            fixture.nativeElement.querySelector('input[type="search"]');
+        const input: HTMLInputElement = fixture.nativeElement.querySelector(
+            'input[type="search"]'
+        );
 
         input.value = 'matrix';
         input.dispatchEvent(new Event('input'));
@@ -94,8 +93,9 @@ describe('WorkspaceShellHeaderComponent', () => {
     });
 
     it('focuses and selects the search input on request', () => {
-        const input: HTMLInputElement =
-            fixture.nativeElement.querySelector('input[type="search"]');
+        const input: HTMLInputElement = fixture.nativeElement.querySelector(
+            'input[type="search"]'
+        );
         input.value = 'matrix';
         input.blur();
 
@@ -171,5 +171,69 @@ describe('WorkspaceShellHeaderComponent', () => {
         ).map((element: Element) => element.textContent?.trim());
 
         expect(chips).toEqual(['Movies / All Items', 'Loaded channels only']);
+    });
+
+    it('renders the global active download count without duplicating the button name', () => {
+        fixture.componentRef.setInput('isElectron', true);
+        fixture.componentRef.setInput('activeDownloadsCount', 3);
+        fixture.detectChanges();
+
+        const badge: HTMLElement | null = fixture.nativeElement.querySelector(
+            '[data-test-id="global-download-count"]'
+        );
+
+        expect(badge?.textContent?.trim()).toBe('3');
+        expect(badge?.getAttribute('aria-hidden')).toBe('true');
+        expect(
+            fixture.nativeElement.querySelector('.download-activity-bar')
+        ).not.toBeNull();
+    });
+
+    it('does not render a global download badge when no downloads are active', () => {
+        fixture.componentRef.setInput('isElectron', true);
+        fixture.componentRef.setInput('activeDownloadsCount', 0);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="global-download-count"]'
+            )
+        ).toBeNull();
+    });
+
+    it.each([
+        [0, 'WORKSPACE.SHELL.OPEN_DOWNLOADS'],
+        [1, 'WORKSPACE.SHELL.OPEN_DOWNLOADS (1)'],
+        [3, 'WORKSPACE.SHELL.OPEN_DOWNLOADS (3)'],
+    ])(
+        'exposes %i active downloads in the downloads button accessible name',
+        (activeDownloadsCount, expectedLabel) => {
+            fixture.componentRef.setInput('isElectron', true);
+            fixture.componentRef.setInput(
+                'activeDownloadsCount',
+                activeDownloadsCount
+            );
+            fixture.detectChanges();
+
+            const button: HTMLButtonElement =
+                fixture.nativeElement.querySelector(
+                    '.download-btn-wrap button'
+                );
+
+            expect(button.getAttribute('aria-label')).toBe(expectedLabel);
+        }
+    );
+
+    it('uses the paired Material primary tokens for the download badge', () => {
+        const styleSource = readFileSync(
+            join(__dirname, 'workspace-shell-header.component.scss'),
+            'utf8'
+        );
+        const badgeStyles = styleSource.match(
+            /\.download-count-badge\s*\{([^}]*)\}/
+        )?.[1];
+
+        expect(badgeStyles).toContain('color: var(--mat-sys-on-primary);');
+        expect(badgeStyles).toContain('background: var(--mat-sys-primary);');
     });
 });

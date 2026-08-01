@@ -21,6 +21,7 @@ import {
     PortalDetailShellComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
+    type SeasonContainerDownloadMetadataContext,
     SeasonContainerXtreamDownloadContext,
 } from '@iptvnator/ui/components';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -38,6 +39,7 @@ import {
     XtreamSerieEpisode,
     XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
+import { isProviderOnlyDetailState } from '@iptvnator/portal/shared/util';
 import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
@@ -50,6 +52,7 @@ import {
     SimilarCatalogItem,
     matchRecommendationsToCatalog,
 } from '../tmdb-similar.util';
+import { createXtreamSeriesDownloadMetadataContext } from './serial-download-metadata';
 
 @Component({
     selector: 'app-serial-details',
@@ -101,6 +104,18 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly currentPlaylistId = signal('');
     readonly xtreamDownloadContext =
         signal<SeasonContainerXtreamDownloadContext | null>(null);
+    readonly downloadMetadataContext =
+        computed<SeasonContainerDownloadMetadataContext | null>(() => {
+            const info = this.selectedItem()?.info;
+            return info
+                ? createXtreamSeriesDownloadMetadataContext(
+                      info,
+                      this.translateService.currentLang ||
+                          this.translateService.defaultLang ||
+                          'en'
+                  )
+                : null;
+        });
     /** `playlistId:categoryId:serialId` of the last initialized view */
     private readonly lastInitKey = signal<string | null>(null);
     private readonly backdropBackfillKey = signal<string | null>(null);
@@ -111,6 +126,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
      */
     private readonly routeParams = toSignal(this.route.params, {
         initialValue: this.route.snapshot.params,
+    });
+    readonly providerOnly = computed(() => {
+        this.routeParams();
+        return isProviderOnlyDetailState(window.history.state);
     });
 
     // Episode playback state, re-exposed for the template.
@@ -172,8 +191,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     });
 
     private readonly loadCrossPortalSimilar = effect(() => {
-        const recommendations =
-            this.selectedItem()?.info?.tmdb_recommendations;
+        const recommendations = this.selectedItem()?.info?.tmdb_recommendations;
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         untracked(() => {
             this.crossPortalItems.set([]);

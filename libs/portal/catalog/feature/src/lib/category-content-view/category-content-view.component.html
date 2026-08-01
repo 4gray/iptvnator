@@ -1,6 +1,11 @@
 @if (selectedCategory()) {
     @if (selectedDetailComponent(); as detailComponentRef) {
-        <ng-container *ngComponentOutlet="detailComponentRef" />
+        <ng-container
+            *ngComponentOutlet="
+                detailComponentRef;
+                inputs: detailComponentInputs()
+            "
+        />
     } @else {
         <div class="category-content-layout">
             <div class="category-content-header">
@@ -67,10 +72,14 @@
                         type="button"
                         mat-button
                         class="refine-action"
-                        [class.refine-action-active]="activeRefinementCount() > 0"
+                        [class.refine-action-active]="
+                            activeRefinementCount() > 0
+                        "
                         [matMenuTriggerFor]="refineMenu"
                         [matTooltip]="'WORKSPACE.REFINE_ACTION' | translate"
-                        [attr.aria-label]="'WORKSPACE.REFINE_ACTION' | translate"
+                        [attr.aria-label]="
+                            'WORKSPACE.REFINE_ACTION' | translate
+                        "
                     >
                         <mat-icon>tune</mat-icon>
                         <span>{{ 'WORKSPACE.REFINE_ACTION' | translate }}</span>
@@ -83,7 +92,9 @@
                     <mat-menu #refineMenu="matMenu" class="refine-menu">
                         @if (canSortContent()) {
                             <div class="refine-menu-section-title">
-                                {{ 'WORKSPACE.REFINE_SORT_SECTION' | translate }}
+                                {{
+                                    'WORKSPACE.REFINE_SORT_SECTION' | translate
+                                }}
                             </div>
                             <button
                                 mat-menu-item
@@ -173,7 +184,10 @@
                                     <mat-icon>check</mat-icon>
                                 }
                             </button>
-                            @for (threshold of ratingThresholds; track threshold) {
+                            @for (
+                                threshold of ratingThresholds;
+                                track threshold
+                            ) {
                                 <button
                                     mat-menu-item
                                     (click)="setMinRating(threshold)"

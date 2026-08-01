@@ -29,6 +29,7 @@ import {
     seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
+    type XtreamSerieEpisodeInfo,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import { SafePipe } from '@iptvnator/pipes';
@@ -82,12 +83,55 @@ import {
     saveStalkerSeriesPosition,
     StalkerSeriesPositionPartialSaveError,
 } from './stalker-series-position-compatibility';
+import { createStalkerSeriesDownloadSnapshot } from './stalker-series-download-metadata';
 
 interface SeriesPositionContext {
     readonly generation: number;
     readonly playlistId: string;
     readonly seriesXtreamId: number;
     readonly mutationKey: string;
+}
+
+function snapshotTextList(value: string | undefined): string[] | undefined {
+    const entries = value
+        ?.split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    return entries?.length ? entries : undefined;
+}
+
+function snapshotNumber(
+    value: string | number | undefined
+): number | undefined {
+    if (value === undefined || String(value).trim() === '') {
+        return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function snapshotYear(value: string | undefined): number | undefined {
+    const match = value?.match(/(?:^|\D)((?:19|20)\d{2})(?:\D|$)/);
+    return match ? Number(match[1]) : undefined;
+}
+
+function snapshotPeople(
+    enriched: TmdbEnrichedCastMember[] | undefined,
+    fallback: string | undefined
+) {
+    return enriched?.length
+        ? enriched.map((person) => ({
+              name: person.name,
+              role: person.character,
+              profileUrl: person.profileUrl ?? undefined,
+              tmdbPersonId: person.tmdbPersonId,
+          }))
+        : snapshotTextList(fallback)?.map((name) => ({ name }));
+}
+
+function positiveCoordinate(value: number | string | undefined): number {
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
 /**
@@ -181,6 +225,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * When provided, uses this instead of fetching seasons from API
      */
     readonly vodWithSeries = input<StalkerVodSource | null>(null);
+    readonly providerOnly = input(false);
 
     readonly selectedItem = this.stalkerStore.selectedItem;
 
@@ -197,8 +242,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     readonly similarInPortals = signal<CrossPortalSimilarItem[]>([]);
     private readonly loadSimilarInPortals = effect(() => {
-        const recommendations =
-            this.displayItem()?.info?.tmdb_recommendations;
+        const recommendations = this.displayItem()?.info?.tmdb_recommendations;
         untracked(() => {
             this.similarInPortals.set([]);
             if (
@@ -293,21 +337,22 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             const seasons = this.mappedSeasons();
             const episodes = seasonKey ? seasons[seasonKey] : undefined;
             if (tmdbId && seasonKey && !seasonsLoading && episodes?.length) {
-                untracked(() =>
-                    void this.tmdbSeasons.fetchSeason(
-                        tmdbId,
-                        seasonKey,
-                        episodes,
-                        {
-                            // The season marker can live in either title
-                            // field (generic name + descriptive o_name)
-                            rawTitle: pickSeasonMarkedTitle(
-                                item?.info?.name,
-                                item?.info?.o_name
-                            ),
-                            seasonCount: Object.keys(seasons).length,
-                        }
-                    )
+                untracked(
+                    () =>
+                        void this.tmdbSeasons.fetchSeason(
+                            tmdbId,
+                            seasonKey,
+                            episodes,
+                            {
+                                // The season marker can live in either title
+                                // field (generic name + descriptive o_name)
+                                rawTitle: pickSeasonMarkedTitle(
+                                    item?.info?.name,
+                                    item?.info?.o_name
+                                ),
+                                seasonCount: Object.keys(seasons).length,
+                            }
+                        )
                 );
             }
         });
@@ -596,19 +641,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         // before the answer arrives. A failure releases the claim below.
         this.prefetchedSpilloverSeasonIds.add(prefetchKey);
 
-        untracked(() =>
-            void this.loadEpisodesForSeason(nextSeason).then((answered) => {
-                if (answered) {
-                    this.spilloverPrefetchFailure = null;
-                    return;
-                }
+        untracked(
+            () =>
+                void this.loadEpisodesForSeason(nextSeason).then((answered) => {
+                    if (answered) {
+                        this.spilloverPrefetchFailure = null;
+                        return;
+                    }
 
-                this.spilloverPrefetchFailure = {
-                    key: prefetchKey,
-                    episodeId,
-                };
-                this.prefetchedSpilloverSeasonIds.delete(prefetchKey);
-            })
+                    this.spilloverPrefetchFailure = {
+                        key: prefetchKey,
+                        episodeId,
+                    };
+                    this.prefetchedSpilloverSeasonIds.delete(prefetchKey);
+                })
         );
     });
 
@@ -955,10 +1001,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.closeInlinePlayer();
-            void this.portalPlayer.openResolvedPlayback(
-                resolvedPlayback,
-                true
-            );
+            void this.portalPlayer.openResolvedPlayback(resolvedPlayback, true);
         } catch (error) {
             this.logger.error('Failed to start inline series playback', error);
             const errorMessage =
@@ -1078,6 +1121,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             title: episodeTitle,
             url,
             posterUrl,
+            metadataSnapshot: createStalkerSeriesDownloadSnapshot({
+                item,
+                episode,
+                language:
+                    this.translateService.currentLang ||
+                    this.translateService.defaultLang ||
+                    'en',
+                seriesTitle,
+                seasonNumber: seasonNum,
+                episodeNumber: episodeNum,
+            }),
             seriesXtreamId: this.toSeriesId(item.id),
             seasonNumber: seasonNum,
             episodeNumber: episodeNum,
@@ -1457,11 +1511,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     private getEpisodeInfo(
         episode: XtreamSerieEpisode
-    ): { movie_image?: string } | undefined {
+    ): XtreamSerieEpisodeInfo | undefined {
         if (!episode.info || Array.isArray(episode.info)) {
             return undefined;
         }
-        return episode.info as { movie_image?: string };
+        return episode.info;
     }
 
     private getEpisodeDownloadId(episode: XtreamSerieEpisode): number {

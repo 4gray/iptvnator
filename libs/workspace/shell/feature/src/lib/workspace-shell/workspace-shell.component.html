@@ -1,8 +1,4 @@
-<div
-    class="workspace-shell"
-    appPlaylistDropZone
-    #dropZone="playlistDropZone"
->
+<div class="workspace-shell" appPlaylistDropZone #dropZone="playlistDropZone">
     <app-playlist-drop-overlay [state]="dropZone.overlayState()" />
     @if (facade.showXtreamImportOverlay()) {
         <app-workspace-shell-import-overlay />
@@ -39,7 +35,7 @@
         [isElectron]="facade.isElectron"
         [hasNoPlaylists]="facade.hasNoPlaylists()"
         [isDownloadsView]="facade.isDownloadsView()"
-        [hasActiveDownloads]="facade.hasActiveDownloads()"
+        [activeDownloadsCount]="facade.activeDownloadsCount()"
         [isSettingsRoute]="facade.isSettingsRoute()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
@@ -54,7 +50,10 @@
         (accountInfoRequested)="facade.openAccountInfo()"
     />
 
-    <div class="workspace-body" [class.single-pane]="!facade.showContextPanel()">
+    <div
+        class="workspace-body"
+        [class.single-pane]="!facade.showContextPanel()"
+    >
         @if (facade.showContextPanel()) {
             <app-workspace-shell-context-sidebar
                 [variant]="facade.contextPanel()"
@@ -75,9 +74,7 @@
                 <app-external-playback-dock
                     [session]="session"
                     (closeClicked)="facade.closeActiveExternalSession()"
-                    (artworkClicked)="
-                        facade.openActiveExternalSessionTarget()
-                    "
+                    (artworkClicked)="facade.openActiveExternalSessionTarget()"
                 />
             </footer>
         }

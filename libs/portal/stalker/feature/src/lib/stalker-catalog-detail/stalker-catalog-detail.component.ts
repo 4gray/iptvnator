@@ -4,6 +4,7 @@ import {
     computed,
     effect,
     inject,
+    input,
     signal,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -83,6 +84,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             null
     );
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    readonly providerOnly = input(false);
     private readonly selectedVodPosition = signal<PlaybackPositionData | null>(
         null
     );
@@ -262,6 +264,10 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             fetchMovieFileId: (id) => this.catalog.fetchMovieFileId(id),
             fetchLinkToPlay: (portalUrl, macAddress, cmd) =>
                 this.catalog.fetchLinkToPlay(portalUrl, macAddress, cmd),
+            language:
+                this.translateService.currentLang ||
+                this.translateService.defaultLang ||
+                'en',
         });
     }
 

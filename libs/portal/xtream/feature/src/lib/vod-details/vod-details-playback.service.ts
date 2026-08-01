@@ -64,6 +64,8 @@ export class VodDetailsPlaybackService {
         PlaybackPositionRuntimeBridgeService
     );
     private readonly logger = createLogger('VodDetailsPlayback');
+    private positionLoadGeneration = 0;
+    private destroyed = false;
 
     /** Signals bound from the host component via `bind()` */
     private readonly bindings = signal<VodDetailsPlaybackBindings | null>(null);
@@ -147,7 +149,11 @@ export class VodDetailsPlaybackService {
                 }
             ) ?? null;
 
-        inject(DestroyRef).onDestroy(() => unsubscribePositionUpdates?.());
+        inject(DestroyRef).onDestroy(() => {
+            this.destroyed = true;
+            this.positionLoadGeneration++;
+            unsubscribePositionUpdates?.();
+        });
     }
 
     private ownsContent(
@@ -325,11 +331,21 @@ export class VodDetailsPlaybackService {
     }
 
     async loadPosition(playlistId: string, vodId: number): Promise<void> {
+        const generation = ++this.positionLoadGeneration;
         const position = await this.playbackPositions.getPlaybackPosition(
             playlistId,
             vodId,
             'vod'
         );
+        if (
+            this.destroyed ||
+            generation !== this.positionLoadGeneration ||
+            this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+            this.bindings()?.vodId() !== vodId
+        ) {
+            return;
+        }
+
         this.vodPlaybackPosition.set(position);
         this.routePlaybackPosition.set(position);
     }

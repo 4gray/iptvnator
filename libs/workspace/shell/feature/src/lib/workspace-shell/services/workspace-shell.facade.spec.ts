@@ -376,6 +376,21 @@ describe('WorkspaceShellFacade', () => {
         expect(facade.isMacOS).toBe(false);
     });
 
+    it('exposes the global active download count and derives activity when supported', () => {
+        downloadsActiveCountSignal.set(3);
+
+        expect(facade.activeDownloadsCount()).toBe(3);
+        expect(facade.hasActiveDownloads()).toBe(true);
+    });
+
+    it('hides the active download count when downloads are unsupported', () => {
+        runtime.supportsDownloads = false;
+        downloadsActiveCountSignal.set(3);
+
+        expect(facade.activeDownloadsCount()).toBe(0);
+        expect(facade.hasActiveDownloads()).toBe(false);
+    });
+
     it('routes dashboard search Enter into the active Xtream playlist search', () => {
         const xtreamStore = TestBed.inject(
             XtreamStore

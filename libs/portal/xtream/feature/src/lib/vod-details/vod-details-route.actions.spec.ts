@@ -13,6 +13,7 @@ import {
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     CrossPortalSimilarService,
+    type DownloadItem,
     DownloadsService,
     PlaybackPositionRuntimeBridgeService,
     SettingsStore,
@@ -24,7 +25,7 @@ import {
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { NEVER, of } from 'rxjs';
+import { BehaviorSubject, NEVER, of } from 'rxjs';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 @Component({
@@ -64,7 +65,8 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const selectedItem = signal<XtreamVodDetails | null>(null);
     const downloadsAvailable = signal(false);
     const isFavorite = signal(false);
-    const downloads = signal([]);
+    const downloads = signal<DownloadItem[]>([]);
+    const activeSession = signal<unknown>(null);
     const currentPlaylist = signal({
         id: 'playlist-1',
         userAgent: 'IPTVnator',
@@ -75,12 +77,19 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const vodCategories = signal<Partial<XtreamCategory>[]>([]);
     const vodStreamsPlaylistId = signal<string | null>('playlist-1');
     const vodCategoriesPlaylistId = signal<string | null>('playlist-1');
+    const routeParams = new BehaviorSubject({
+        vodId: '650020',
+        categoryId: '235',
+    });
     const constructVodStreamUrl = jest
         .fn()
         .mockReturnValue('http://example.com/movie/650020.mp4');
     const isEmbeddedPlayer = jest.fn().mockReturnValue(true);
     const openResolvedPlayback = jest.fn();
     const startDownload = jest.fn().mockResolvedValue(undefined);
+    const isDownloaded = jest.fn().mockReturnValue(false);
+    const getDownloadedFilePath = jest.fn();
+    const playDownload = jest.fn().mockResolvedValue(undefined);
     const toggleFavorite = jest.fn();
     const sparseItem = (): SparseVodItem => ({
         info: [],
@@ -89,9 +98,36 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         name: 'Catalog movie',
         stream_icon: 'https://example.com/catalog-poster.jpg',
     });
+    const richItem = (): XtreamVodDetails =>
+        ({
+            info: {
+                name: 'Metadata movie',
+                description: 'A populated description',
+                movie_image: 'https://example.com/metadata-poster.jpg',
+                releasedate: '2025-01-02',
+            },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Metadata movie',
+                container_extension: 'mp4',
+            },
+        }) as XtreamVodDetails;
+    const unplayableRichItem = (): XtreamVodDetails =>
+        ({
+            ...richItem(),
+            movie_data: {
+                stream_id: 650020,
+                name: 'Metadata movie',
+                container_extension: '',
+            },
+        }) as XtreamVodDetails;
     beforeEach(async () => {
+        window.history.replaceState({}, '', window.location.href);
+        routeParams.next({ vodId: '650020', categoryId: '235' });
         selectedItem.set(null);
+        downloads.set([]);
         downloadsAvailable.set(false);
+        activeSession.set(null);
         isFavorite.set(false);
         currentPlaylist.set({
             id: 'playlist-1',
@@ -107,6 +143,48 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         isEmbeddedPlayer.mockReset().mockReturnValue(true);
         openResolvedPlayback.mockClear();
         startDownload.mockClear();
+        isDownloaded
+            .mockReset()
+            .mockImplementation(
+                (
+                    xtreamId: number,
+                    playlistId: string,
+                    contentType: 'vod' | 'episode'
+                ) => {
+                    const item = downloads().find(
+                        (download) =>
+                            download.xtreamId === xtreamId &&
+                            download.playlistId === playlistId &&
+                            download.contentType === contentType
+                    );
+                    return (
+                        item?.status === 'completed' &&
+                        !!item.filePath &&
+                        item.fileAvailability !== 'missing'
+                    );
+                }
+            );
+        getDownloadedFilePath
+            .mockReset()
+            .mockImplementation(
+                (
+                    xtreamId: number,
+                    playlistId: string,
+                    contentType: 'vod' | 'episode'
+                ) => {
+                    const item = downloads().find(
+                        (download) =>
+                            download.xtreamId === xtreamId &&
+                            download.playlistId === playlistId &&
+                            download.contentType === contentType
+                    );
+                    return item?.status === 'completed' &&
+                        item.fileAvailability !== 'missing'
+                        ? item.filePath
+                        : undefined;
+                }
+            );
+        playDownload.mockClear();
         toggleFavorite.mockClear();
         await TestBed.configureTestingModule({
             imports: [VodDetailsRouteComponent],
@@ -114,10 +192,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
-                        params: of({
-                            vodId: '650020',
-                            categoryId: '235',
-                        }),
+                        params: routeParams,
                         snapshot: {
                             params: {
                                 vodId: '650020',
@@ -167,13 +242,13 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                     useValue: {
                         isAvailable: downloadsAvailable,
                         downloads,
-                        isDownloaded: jest.fn().mockReturnValue(false),
+                        isDownloaded,
                         isDownloading: jest.fn().mockReturnValue(false),
                         isPaused: jest.fn().mockReturnValue(false),
                         resumeDownloadByContent: jest.fn(),
                         startDownload,
-                        getDownloadedFilePath: jest.fn(),
-                        playDownload: jest.fn(),
+                        getDownloadedFilePath,
+                        playDownload,
                     },
                 },
                 {
@@ -187,7 +262,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
                     useValue: {
-                        activeSession: signal(null),
+                        activeSession,
                         closeSession: jest.fn(),
                     },
                 },
@@ -226,6 +301,11 @@ describe('VodDetailsRouteComponent fallback actions', () => {
             })
             .compileComponents();
         fixture = TestBed.createComponent(VodDetailsRouteComponent);
+    });
+
+    afterEach(() => {
+        window.history.replaceState({}, '', window.location.href);
+        fixture?.destroy();
     });
     it('ignores catalog data owned by another playlist', () => {
         currentPlaylist.set({
@@ -357,5 +437,243 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         expect(
             host.querySelector('app-portal-detail-shell')?.classList
         ).not.toContain('shell-host--watch');
+    });
+
+    it('renders Offline and offline-first actions for sparse downloaded details', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/catalog-movie.mp4');
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(primary?.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(
+            Array.from(host.querySelectorAll('button.download-btn')).some(
+                (button) =>
+                    button.textContent?.includes(
+                        'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+                    )
+            )
+        ).toBe(true);
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(playDownload).toHaveBeenCalledWith(
+            '/downloads/catalog-movie.mp4'
+        );
+        expect(constructVodStreamUrl).not.toHaveBeenCalled();
+    });
+
+    it('keeps a missing completed file on provider playback', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        downloads.set([
+            {
+                contentType: 'vod',
+                fileAvailability: 'missing',
+                filePath: '/downloads/catalog-movie.mp4',
+                id: 42,
+                playlistId: 'playlist-1',
+                status: 'completed',
+                title: 'Catalog movie',
+                url: 'https://example.test/catalog-movie.mp4',
+                xtreamId: 650020,
+            },
+        ]);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(host.textContent).not.toContain('DOWNLOADS.OFFLINE');
+        expect(primary?.textContent).toContain('XTREAM.PLAY');
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(playDownload).not.toHaveBeenCalled();
+        expect(constructVodStreamUrl).toHaveBeenCalled();
+    });
+
+    it('renders Offline in rich downloaded details', () => {
+        selectedItem.set(richItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+        ).toBeNull();
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(
+            host.querySelector<HTMLButtonElement>('button.play-btn')
+                ?.textContent
+        ).toContain('DOWNLOADS.PLAY_LOCAL');
+    });
+
+    it('keeps provider playback and hides offline actions in provider-only mode', async () => {
+        window.history.replaceState(
+            { detailPresentation: 'provider-only' },
+            '',
+            window.location.href
+        );
+        selectedItem.set(richItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/metadata-movie.mp4');
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(fixture.componentInstance.providerOnly()).toBe(true);
+        expect(host.textContent).not.toContain('DOWNLOADS.OFFLINE');
+        expect(host.textContent).not.toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).not.toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
+        expect(primary?.textContent).toContain('XTREAM.PLAY');
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(constructVodStreamUrl).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('does not leak provider-only mode when the route host is reused', () => {
+        window.history.replaceState(
+            { detailPresentation: 'provider-only' },
+            '',
+            window.location.href
+        );
+        selectedItem.set(richItem());
+        fixture.detectChanges();
+        expect(fixture.componentInstance.providerOnly()).toBe(true);
+
+        window.history.replaceState({}, '', window.location.href);
+        selectedItem.set({
+            ...richItem(),
+            movie_data: {
+                ...richItem().movie_data,
+                stream_id: 650021,
+            },
+        } as XtreamVodDetails);
+        routeParams.next({ vodId: '650021', categoryId: '236' });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.providerOnly()).toBe(false);
+    });
+
+    it('plays a rich downloaded movie locally without a usable provider source', async () => {
+        selectedItem.set(unplayableRichItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        getDownloadedFilePath.mockReturnValue('/downloads/metadata-movie.mp4');
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary =
+            host.querySelector<HTMLButtonElement>('button.play-btn');
+        expect(fixture.componentInstance.playableVodItem()).toBeNull();
+        expect(host.textContent).toContain('DOWNLOADS.OFFLINE');
+        expect(primary?.textContent).toContain('DOWNLOADS.PLAY_LOCAL');
+        expect(host.textContent).not.toContain(
+            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+        );
+
+        primary?.click();
+        await fixture.whenStable();
+
+        expect(playDownload).toHaveBeenCalledWith(
+            '/downloads/metadata-movie.mp4'
+        );
+        expect(constructVodStreamUrl).not.toHaveBeenCalled();
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+    });
+
+    it('keeps pinned provider playback behind the downloaded secondary action', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        const playPinned = jest
+            .spyOn(fixture.componentInstance.multiSource, 'playPinnedSource')
+            .mockResolvedValue('played');
+
+        fixture.detectChanges();
+
+        const providerButton = Array.from(
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelectorAll<HTMLButtonElement>('button')
+        ).find((button) =>
+            button.textContent?.includes(
+                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+            )
+        );
+        providerButton?.click();
+        await fixture.whenStable();
+
+        expect(playPinned).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+        expect(constructVodStreamUrl).not.toHaveBeenCalled();
+    });
+
+    it('hides Restart and provider playback while a downloaded movie is opening externally', async () => {
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        activeSession.set({
+            player: 'mpv',
+            status: 'launching',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            },
+        });
+        const position = {
+            contentXtreamId: 650020,
+            contentType: 'vod',
+            playlistId: 'playlist-1',
+            positionSeconds: 42,
+            durationSeconds: 120,
+        } satisfies PlaybackPositionData;
+
+        fixture.detectChanges();
+        fixture.componentInstance.vodPlaybackPosition.set(position);
+        fixture.componentInstance.routePlaybackPosition.set(position);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const primary = host.querySelector<HTMLButtonElement>(
+            'button.play-btn--resume'
+        );
+        expect(primary?.disabled).toBe(true);
+        expect(primary?.textContent).toContain('Opening in MPV...');
+        expect(
+            Array.from(host.querySelectorAll('button')).some((button) =>
+                button.textContent?.includes('XTREAM.RESTART')
+            )
+        ).toBe(false);
+        expect(
+            Array.from(host.querySelectorAll('button')).some((button) =>
+                button.textContent?.includes(
+                    'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+                )
+            )
+        ).toBe(false);
     });
 });

@@ -22,7 +22,6 @@ function createDeleteHarness() {
         ['select:favorites', [{ id: 1 }, { id: 2 }]],
         ['select:recently-viewed', [{ id: 3 }]],
         ['select:playback-positions', []],
-        ['select:downloads', [{ id: 4 }]],
         ['select:categories', [{ id: 10 }, { id: 11 }]],
         [
             'select:content',
@@ -80,15 +79,14 @@ describe('playlist delete performance phases', () => {
             )
         ).resolves.toEqual({ success: true });
 
-        expect(harness.transaction).toHaveBeenCalledTimes(7);
-        // Seven committed chunks plus the final playlist row each keep both
+        expect(harness.transaction).toHaveBeenCalledTimes(6);
+        // Six committed chunks plus the final playlist row each keep both
         // the pre-write and post-progress cooperative checkpoints.
-        expect(checkpoint).toHaveBeenCalledTimes(16);
-        expect(harness.timeline.slice(1, 7)).toEqual([
+        expect(checkpoint).toHaveBeenCalledTimes(14);
+        expect(harness.timeline.slice(1, 6)).toEqual([
             'select:favorites',
             'select:recently-viewed',
             'select:playback-positions',
-            'select:downloads',
             'select:categories',
             'select:content',
         ]);
@@ -117,7 +115,7 @@ describe('playlist delete performance phases', () => {
             },
             {
                 boundary: 'end',
-                metadata: { itemCount: 211 },
+                metadata: { itemCount: 210 },
                 phase: XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_COLLECT_IDS,
             },
             {
@@ -126,7 +124,7 @@ describe('playlist delete performance phases', () => {
             },
             {
                 boundary: 'end',
-                metadata: { itemCount: 212 },
+                metadata: { itemCount: 211 },
                 phase: XTREAM_DATABASE_PERFORMANCE_PHASE.SQLITE_PLAYLIST_DELETE_WRITE_TRANSACTIONS,
             },
         ]);

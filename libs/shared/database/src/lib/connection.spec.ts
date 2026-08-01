@@ -1,4 +1,11 @@
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { getTableColumns } from 'drizzle-orm';
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { __databaseConnectionTestHooks } from './connection';
+import { categories, downloads } from './schema';
 
 function compactSql(statement: string): string {
     return statement.replace(/\s+/g, ' ').trim();
@@ -15,6 +22,117 @@ function createdObjectNames(prefix: string, statements: readonly string[]) {
             return match?.[1] ?? null;
         })
         .filter((name): name is string => Boolean(name));
+}
+
+function rebuildDownloadsInElectron(metadataSnapshot: string): {
+    metadataSnapshot: string;
+    retainedAfterPlaylistDelete: boolean;
+    schemaSql: string;
+} {
+    const electronPath = createRequire(__filename)('electron') as string;
+    const connectionUrl = pathToFileURL(
+        resolve(__dirname, 'connection.ts')
+    ).href;
+    const script = `
+        const { default: Database } = await import('better-sqlite3');
+        const { __databaseConnectionTestHooks } = await import(${JSON.stringify(
+            connectionUrl
+        )});
+        const metadataSnapshot = ${JSON.stringify(metadataSnapshot)};
+        const sqlite = new Database(':memory:');
+        sqlite.pragma('foreign_keys = ON');
+        sqlite.exec(\`
+            CREATE TABLE playlists (id TEXT PRIMARY KEY);
+            CREATE TABLE downloads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id TEXT NOT NULL,
+                xtream_id INTEGER NOT NULL,
+                content_type TEXT NOT NULL,
+                series_xtream_id INTEGER,
+                season_number INTEGER,
+                episode_number INTEGER,
+                title TEXT NOT NULL,
+                url TEXT NOT NULL,
+                file_name TEXT,
+                file_path TEXT,
+                poster_url TEXT,
+                request_headers TEXT,
+                metadata_snapshot TEXT,
+                status TEXT NOT NULL DEFAULT 'queued'
+                    CHECK (status IN (
+                        'queued',
+                        'downloading',
+                        'completed',
+                        'failed',
+                        'canceled'
+                    )),
+                bytes_downloaded INTEGER,
+                total_bytes INTEGER,
+                error_message TEXT,
+                created_at TEXT,
+                updated_at TEXT
+                , FOREIGN KEY (playlist_id) REFERENCES playlists (id)
+                    ON DELETE CASCADE
+            );
+        \`);
+        sqlite.prepare('INSERT INTO playlists (id) VALUES (?)')
+            .run('playlist-1');
+        sqlite.prepare(\`
+            INSERT INTO downloads (
+                playlist_id,
+                xtream_id,
+                content_type,
+                title,
+                url,
+                metadata_snapshot
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        \`).run(
+            'playlist-1',
+            42,
+            'vod',
+            'Offline title',
+            'https://example.com/movie',
+            metadataSnapshot
+        );
+        console.log = () => undefined;
+        __databaseConnectionTestHooks.ensureDownloadsPauseResumeSchema(sqlite);
+        const row = sqlite.prepare(
+            'SELECT metadata_snapshot FROM downloads WHERE id = 1'
+        ).get();
+        const table = sqlite.prepare(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'downloads'"
+        ).get();
+        sqlite.prepare('DELETE FROM playlists WHERE id = ?')
+            .run('playlist-1');
+        const retainedAfterPlaylistDelete = Boolean(sqlite.prepare(
+            'SELECT id FROM downloads WHERE id = 1'
+        ).get());
+        sqlite.close();
+        process.stdout.write(JSON.stringify({
+            metadataSnapshot: row.metadata_snapshot,
+            retainedAfterPlaylistDelete,
+            schemaSql: table.sql,
+        }));
+    `;
+    const output = execFileSync(
+        electronPath,
+        ['--import', 'tsx', '--eval', script],
+        {
+            cwd: process.cwd(),
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                ELECTRON_RUN_AS_NODE: '1',
+                TSX_TSCONFIG_PATH: resolve(process.cwd(), 'tsconfig.base.json'),
+            },
+        }
+    );
+
+    return JSON.parse(output) as {
+        metadataSnapshot: string;
+        retainedAfterPlaylistDelete: boolean;
+        schemaSql: string;
+    };
 }
 
 describe('database schema statements', () => {
@@ -85,6 +203,17 @@ describe('database schema statements', () => {
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
         const schemaSql = createTableStatements.map(compactSql).join('\n');
+        const downloadsSchemaSql =
+            createTableStatements
+                .map(compactSql)
+                .find((statement) =>
+                    statement.startsWith('CREATE TABLE IF NOT EXISTS downloads')
+                ) ?? '';
+        const downloadColumns = Object.values(getTableColumns(downloads)).map(
+            (column) => column.name
+        );
+        const categoryForeignKeys = getTableConfig(categories).foreignKeys;
+        const downloadForeignKeys = getTableConfig(downloads).foreignKeys;
 
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS playlists');
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS categories');
@@ -102,8 +231,15 @@ describe('database schema statements', () => {
             'CREATE TABLE IF NOT EXISTS playback_positions'
         );
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS downloads');
+        expect(downloadsSchemaSql).not.toContain(
+            'FOREIGN KEY (playlist_id) REFERENCES playlists'
+        );
+        expect(categoryForeignKeys).toHaveLength(1);
+        expect(downloadForeignKeys).toHaveLength(0);
         expect(schemaSql).toContain('request_headers TEXT');
         expect(schemaSql).toContain('resume_validator TEXT');
+        expect(schemaSql).toContain('metadata_snapshot TEXT');
+        expect(downloadColumns).toContain('metadata_snapshot');
         expect(schemaSql).toContain("'paused'");
         expect(schemaSql).toContain(
             'CREATE UNIQUE INDEX IF NOT EXISTS favorites_content_playlist_unique'
@@ -148,6 +284,9 @@ describe('database schema statements', () => {
                 'ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0',
                 'ALTER TABLE content ADD COLUMN backdrop_url TEXT',
             ])
+        );
+        expect(columnMigrationStatements).toContain(
+            'ALTER TABLE downloads ADD COLUMN metadata_snapshot TEXT'
         );
     });
 
@@ -488,7 +627,8 @@ describe('database schema statements', () => {
         expect(statements[createIndex]).toContain('request_headers TEXT');
         expect(statements[createIndex]).toContain('resume_validator TEXT');
         expect(statements[copyIndex]).toContain('NULL AS request_headers');
-        expect(statements[copyIndex]).not.toContain('resume_validator');
+        expect(statements[copyIndex]).toContain('NULL AS metadata_snapshot');
+        expect(statements[copyIndex]).toContain('NULL AS resume_validator');
     });
 
     it('copies stored headers when only the paused status is missing', () => {
@@ -506,6 +646,42 @@ describe('database schema statements', () => {
         expect(copy).toContain('request_headers');
     });
 
+    it('preserves metadata snapshots when rebuilding the pause/resume schema', () => {
+        const metadataSnapshot = JSON.stringify({
+            version: 1,
+            language: 'en',
+            mediaKind: 'movie',
+            title: 'Offline title',
+        });
+        const rebuilt = rebuildDownloadsInElectron(metadataSnapshot);
+
+        expect(rebuilt.schemaSql).toContain(`'paused'`);
+        expect(rebuilt.schemaSql).not.toContain('REFERENCES playlists');
+        expect(rebuilt.metadataSnapshot).toBe(metadataSnapshot);
+        expect(rebuilt.retainedAfterPlaylistDelete).toBe(true);
+    });
+
+    it('rebuilds a current downloads table that still cascades with its source playlist', () => {
+        const sqlite = createRebuildSqlite(
+            `CREATE TABLE downloads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+                request_headers TEXT,
+                resume_validator TEXT,
+                status TEXT CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled'))
+            )`
+        );
+
+        ensureDownloadsPauseResumeSchema(sqlite);
+
+        expect(sqlite.transaction).toHaveBeenCalledTimes(1);
+        const replacement = sqlite.statements.find((statement) =>
+            statement.startsWith('CREATE TABLE IF NOT EXISTS downloads')
+        );
+        expect(replacement).toBeDefined();
+        expect(replacement).not.toContain('REFERENCES playlists');
+    });
+
     it('skips the downloads rebuild when the table already has the paused contract', () => {
         const sqlite = createRebuildSqlite(
             `CREATE TABLE downloads (id INTEGER PRIMARY KEY AUTOINCREMENT, request_headers TEXT, resume_validator TEXT, status TEXT CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled')))`
@@ -518,8 +694,7 @@ describe('database schema statements', () => {
     });
 
     it('backfills migrated EPG program source URLs in bounded batches', () => {
-        const { backfillEpgProgramSourceUrls } =
-            __databaseConnectionTestHooks;
+        const { backfillEpgProgramSourceUrls } = __databaseConnectionTestHooks;
         let updateStatement = '';
         const backfillRun = jest
             .fn()

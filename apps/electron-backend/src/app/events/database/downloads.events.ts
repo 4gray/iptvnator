@@ -1,18 +1,24 @@
+import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import { and, eq, inArray } from 'drizzle-orm';
 import { app, dialog, ipcMain, shell } from 'electron';
-import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
+import {
+    decorateDownloadItemAsync,
+    isAvailableDownloadFile,
+} from './download-file-availability';
 import { removePartialDownloadFile } from './download-file-path';
+import { updateDownloadMetadataRequest } from './download-metadata-update';
 import {
     resumeDownloadRequest,
     retryDownloadRequest,
     startDownloadRequest,
     type StartDownloadRequest,
 } from './download-requests';
+import { redownloadMissingRequest } from './download-redownload';
 import { resetStaleDownloads } from './download-recovery';
 import {
     broadcastDownloadUpdate,
@@ -159,6 +165,17 @@ ipcMain.handle(
     }
 );
 
+ipcMain.handle(
+    'DOWNLOADS_REDOWNLOAD_MISSING',
+    async (_event, downloadId: number) => {
+        const result = await redownloadMissingRequest(downloadId);
+        if (result.recovered) {
+            broadcastDownloadUpdate();
+        }
+        return result;
+    }
+);
+
 ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
     try {
         console.log('[Downloads] Remove download:', downloadId);
@@ -167,7 +184,7 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
             .select({
                 filePath: schema.downloads.filePath,
                 status: schema.downloads.status,
-        })
+            })
             .from(schema.downloads)
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
@@ -207,11 +224,12 @@ ipcMain.handle('DOWNLOADS_GET_LIST', async (_event, playlistId?: string) => {
     try {
         const db = await getDatabase();
         const query = db.select().from(schema.downloads);
-        return playlistId
+        const rows = await (playlistId
             ? query
                   .where(eq(schema.downloads.playlistId, playlistId))
                   .orderBy(schema.downloads.createdAt)
-            : query.orderBy(schema.downloads.createdAt);
+            : query.orderBy(schema.downloads.createdAt));
+        return Promise.all(rows.map((row) => decorateDownloadItemAsync(row)));
     } catch (error) {
         console.error('[Downloads] Error getting download list:', error);
         throw error;
@@ -226,12 +244,21 @@ ipcMain.handle('DOWNLOADS_GET', async (_event, downloadId: number) => {
             .from(schema.downloads)
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
-        return result[0] || null;
+        return result[0] ? await decorateDownloadItemAsync(result[0]) : null;
     } catch (error) {
         console.error('[Downloads] Error getting download:', error);
         throw error;
     }
 });
+
+ipcMain.handle(
+    'DOWNLOADS_UPDATE_METADATA',
+    async (
+        _event,
+        downloadId: number,
+        metadataSnapshot: DownloadMetadataSnapshot
+    ) => updateDownloadMetadataRequest(downloadId, metadataSnapshot)
+);
 
 ipcMain.handle('DOWNLOADS_GET_DEFAULT_FOLDER', async () => {
     return downloadDirectoryAuthorizer.getPreferredDirectory();
@@ -252,7 +279,10 @@ ipcMain.handle('DOWNLOADS_SELECT_FOLDER', async () => {
 });
 
 ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
-    if (!(await isManagedDownloadFile(filePath)) || !existsSync(filePath)) {
+    if (
+        !(await isManagedDownloadFile(filePath)) ||
+        !isAvailableDownloadFile(filePath)
+    ) {
         return { error: 'File not found', success: false };
     }
     shell.showItemInFolder(filePath);
@@ -260,11 +290,19 @@ ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
 });
 
 ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
-    if (!(await isManagedDownloadFile(filePath)) || !existsSync(filePath)) {
+    if (
+        !(await isManagedDownloadFile(filePath)) ||
+        !isAvailableDownloadFile(filePath)
+    ) {
         return { error: 'File not found', success: false };
     }
-    await shell.openPath(filePath);
-    return { success: true };
+    const error = await shell.openPath(filePath);
+    if (!error) {
+        return { success: true };
+    }
+    return isAvailableDownloadFile(filePath)
+        ? { error, success: false }
+        : { error: 'File not found', success: false };
 });
 
 ipcMain.handle(
@@ -278,7 +316,10 @@ ipcMain.handle(
                 'canceled',
             ]);
             const terminalFilter = playlistId
-                ? and(eq(schema.downloads.playlistId, playlistId), terminalStatus)
+                ? and(
+                      eq(schema.downloads.playlistId, playlistId),
+                      terminalStatus
+                  )
                 : terminalStatus;
             const rows = await db
                 .select({

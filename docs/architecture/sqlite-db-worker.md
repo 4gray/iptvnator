@@ -245,11 +245,13 @@ counts only content and category deletion candidates; favorite,
 recently-viewed, and hidden-category user data is timed but is not added to
 that count. The matching write count uses the same deletion-candidate
 definition. Playlist-delete collection counts every collected favorite,
-recently-viewed, playback-position, download, content, and category ID. Its
-write count adds the final playlist row. Both write spans include every
-existing cooperative checkpoint, 100-row transaction, progress callback, and,
-for playlist deletion, the final playlist-row autocommit; they are not exact
-SQLite commit-time measurements.
+recently-viewed, playback-position, content, and category ID. Download rows are
+intentionally excluded: they own local offline files independently of the
+source playlist and survive source deletion, with provider handoff disabled
+while that source is absent. The write count adds the final playlist row. Both
+write spans include every existing cooperative checkpoint, 100-row
+transaction, progress callback, and, for playlist deletion, the final
+playlist-row autocommit; they are not exact SQLite commit-time measurements.
 
 Successful end markers carry only row/item counts. Error or cancellation still
 closes the active phase without metadata and preserves the original error.

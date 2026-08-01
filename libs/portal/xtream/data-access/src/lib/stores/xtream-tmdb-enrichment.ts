@@ -32,13 +32,17 @@ type SelectionRecord = { readonly [key: string]: unknown };
 export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
     store: EnrichableSelectionStore<TItem>,
     enrichment: TmdbEnrichmentService,
-    vodId: string | number
+    vodId: string | number,
+    isCurrentRequest: () => boolean = () => true
 ): Promise<void> {
     if (!enrichment.isEnabled()) {
         return;
     }
 
     const isCurrent = (): TItem | null => {
+        if (!isCurrentRequest()) {
+            return null;
+        }
         const item = store.selectedItem();
         return item && String(item['stream_id']) === String(vodId)
             ? item
@@ -87,13 +91,17 @@ export async function enrichSerialSelectionWithTmdb<
 >(
     store: EnrichableSelectionStore<TItem>,
     enrichment: TmdbEnrichmentService,
-    serialId: string | number
+    serialId: string | number,
+    isCurrentRequest: () => boolean = () => true
 ): Promise<void> {
     if (!enrichment.isEnabled()) {
         return;
     }
 
     const isCurrent = (): TItem | null => {
+        if (!isCurrentRequest()) {
+            return null;
+        }
         const item = store.selectedItem();
         return item && String(item['series_id']) === String(serialId)
             ? item
@@ -136,20 +144,18 @@ export async function enrichSerialSelectionWithTmdb<
  * enrichSerialSelectionWithTmdb). Merges real episode names, overviews and
  * stills into `episodes[seasonKey]` by episode number.
  */
-export async function enrichSerialSeasonWithTmdb<
-    TItem extends SelectionRecord,
->(
+export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     store: EnrichableSelectionStore<TItem>,
     enrichment: TmdbEnrichmentService,
-    seasonKey: string
+    seasonKey: string,
+    isCurrentSelection: () => boolean = () => true
 ): Promise<void> {
-    if (!enrichment.isEnabled()) {
+    if (!enrichment.isEnabled() || !isCurrentSelection()) {
         return;
     }
 
     const selected = store.selectedItem() as unknown as
-        | (XtreamSerieDetails & { series_id?: string | number })
-        | null;
+        (XtreamSerieDetails & { series_id?: string | number }) | null;
     const serialId = selected?.series_id;
     const info = selected?.info;
     const episodes = selected?.episodes?.[seasonKey];
@@ -180,13 +186,12 @@ export async function enrichSerialSeasonWithTmdb<
         info.tmdb_id,
         seasonNumber
     );
-    if (!tmdbEpisodes?.length) {
+    if (!tmdbEpisodes?.length || !isCurrentSelection()) {
         return;
     }
 
     const current = store.selectedItem() as unknown as
-        | (XtreamSerieDetails & { series_id?: string | number })
-        | null;
+        (XtreamSerieDetails & { series_id?: string | number }) | null;
     const currentEpisodes = current?.episodes?.[seasonKey];
     if (
         !current ||

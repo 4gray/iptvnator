@@ -17,7 +17,7 @@ import {
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 /**
@@ -32,6 +32,10 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
 /** Every stub the harness installs, so specs can drive and assert on them. */
 export function createVodDetailsRouteStubs() {
     return {
+        routeParams: new BehaviorSubject({
+            vodId: '650020',
+            categoryId: '235',
+        }),
         selectedItem: signal<XtreamVodDetails | null>(null),
         isLoadingDetails: signal(false),
         detailsError: signal<string | null>(null),
@@ -54,7 +58,14 @@ export function createVodDetailsRouteStubs() {
         addRecentItem: jest.fn(),
         cancelDetailsRequest: jest.fn(),
         vodStreamsPlaylistId: signal<string | null>(null),
+        downloadsAvailable: signal(false),
         downloads: signal([]),
+        isDownloaded: jest.fn().mockReturnValue(false),
+        isDownloading: jest.fn().mockReturnValue(false),
+        isPausedDownload: jest.fn().mockReturnValue(false),
+        resumeDownloadByContent: jest.fn().mockResolvedValue(undefined),
+        getDownloadedFilePath: jest.fn(),
+        playDownload: jest.fn().mockResolvedValue(undefined),
         getPlaybackPosition: jest.fn().mockResolvedValue(null),
         savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
         activeSession: signal<unknown>(null),
@@ -75,6 +86,7 @@ export type VodDetailsRouteStubs = ReturnType<
 
 /** Back to the state a fresh `beforeEach` expects. */
 export function resetVodDetailsRouteStubs(stubs: VodDetailsRouteStubs): void {
+    stubs.routeParams.next({ vodId: '650020', categoryId: '235' });
     stubs.selectedItem.set(null);
     stubs.isLoadingDetails.set(false);
     stubs.detailsError.set(null);
@@ -82,6 +94,7 @@ export function resetVodDetailsRouteStubs(stubs: VodDetailsRouteStubs): void {
     stubs.currentPlaylist.set(null);
     stubs.vodStreams.set([]);
     stubs.vodCategories.set([]);
+    stubs.downloadsAvailable.set(false);
     stubs.activeSession.set(null);
     stubs.selectedPlayer.set(VideoPlayer.Html5Player);
     stubs.updateSettings.mockClear().mockResolvedValue(undefined);
@@ -91,6 +104,11 @@ export function resetVodDetailsRouteStubs(stubs: VodDetailsRouteStubs): void {
             value.mockClear();
         }
     }
+
+    stubs.isDownloaded.mockReturnValue(false);
+    stubs.isDownloading.mockReturnValue(false);
+    stubs.isPausedDownload.mockReturnValue(false);
+    stubs.getDownloadedFilePath.mockReturnValue(undefined);
 }
 
 /**
@@ -140,7 +158,7 @@ export async function configureVodDetailsRouteTestBed(
             {
                 provide: ActivatedRoute,
                 useValue: {
-                    params: of({ vodId: '650020', categoryId: '235' }),
+                    params: stubs.routeParams,
                     snapshot: {
                         params: { vodId: '650020', categoryId: '235' },
                     },
@@ -191,13 +209,15 @@ export async function configureVodDetailsRouteTestBed(
             {
                 provide: DownloadsService,
                 useValue: {
-                    isAvailable: signal(false),
+                    isAvailable: stubs.downloadsAvailable,
                     downloads: stubs.downloads,
-                    isDownloaded: jest.fn().mockReturnValue(false),
-                    isDownloading: jest.fn().mockReturnValue(false),
+                    isDownloaded: stubs.isDownloaded,
+                    isDownloading: stubs.isDownloading,
+                    isPaused: stubs.isPausedDownload,
+                    resumeDownloadByContent: stubs.resumeDownloadByContent,
                     startDownload: stubs.startDownload,
-                    getDownloadedFilePath: jest.fn(),
-                    playDownload: jest.fn(),
+                    getDownloadedFilePath: stubs.getDownloadedFilePath,
+                    playDownload: stubs.playDownload,
                 },
             },
             {

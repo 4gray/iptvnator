@@ -42,7 +42,12 @@
                     <span class="label">{{ 'XTREAM.CAST' | translate }}</span>
                     @if (info.tmdb_cast?.length) {
                         <div class="details__cast-strip">
-                            @for (member of info.tmdb_cast; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                            @for (
+                                member of info.tmdb_cast;
+                                track member.tmdbPersonId
+                                    ? 'p' + member.tmdbPersonId
+                                    : 'i' + $index
+                            ) {
                                 <span
                                     class="details__cast-chip"
                                     [class.details__cast-chip--clickable]="
@@ -84,10 +89,17 @@
             }
             @if (info.director || info.tmdb_directors?.length) {
                 <div class="details__meta-item">
-                    <span class="label">{{ 'XTREAM.DIRECTOR' | translate }}</span>
+                    <span class="label">{{
+                        'XTREAM.DIRECTOR' | translate
+                    }}</span>
                     @if (info.tmdb_directors?.length) {
                         <div class="details__cast-strip">
-                            @for (member of info.tmdb_directors; track member.tmdbPersonId ? 'p' + member.tmdbPersonId : 'i' + $index) {
+                            @for (
+                                member of info.tmdb_directors;
+                                track member.tmdbPersonId
+                                    ? 'p' + member.tmdbPersonId
+                                    : 'i' + $index
+                            ) {
                                 <span
                                     class="details__cast-chip"
                                     [class.details__cast-chip--clickable]="
@@ -139,8 +151,7 @@
                     <span class="play-btn__copy">
                         <span class="play-btn__label">
                             {{
-                                action.labelKey
-                                    | translate: action.labelParams
+                                action.labelKey | translate: action.labelParams
                             }}
                         </span>
                         <span class="play-btn__meta">
@@ -195,6 +206,8 @@
             [seriesTitle]="info.name"
             [playbackPositions]="episodePlaybackPositions()"
             [xtreamDownloadContext]="xtreamDownloadContext()"
+            [downloadMetadataContext]="downloadMetadataContext()"
+            [downloadsEnabled]="!providerOnly()"
             [openingEpisodeId]="openingEpisodeId()"
             [activeEpisodeId]="activeEpisodeId()"
             [playingEpisodeId]="
@@ -239,15 +252,16 @@
                         }
                         @for (
                             item of similarInPortals();
-                            track 'x' + item.match.playlistId + '-' + item.match.xtreamId
+                            track 'x' +
+                                item.match.playlistId +
+                                '-' +
+                                item.match.xtreamId
                         ) {
                             <button
                                 type="button"
                                 class="details__similar-card"
                                 [title]="
-                                    item.title +
-                                    ' — ' +
-                                    item.match.playlistName
+                                    item.title + ' — ' + item.match.playlistName
                                 "
                                 (click)="openSimilarInPortals(item)"
                             >

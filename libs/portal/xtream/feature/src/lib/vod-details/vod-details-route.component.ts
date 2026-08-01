@@ -23,7 +23,10 @@ import {
     VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import {
+    createLogger,
+    isProviderOnlyDetailState,
+} from '@iptvnator/portal/shared/util';
 import {
     resolveXtreamVodPlaybackSource,
     XtreamStore,
@@ -67,6 +70,26 @@ import { VodDetailsDownloadsService } from './vod-details-downloads.service';
 import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
+
+type XtreamVodIdentityItem = XtreamVodDetails & {
+    readonly id?: number | string;
+    readonly stream_id?: number | string;
+    readonly xtream_id?: number | string;
+};
+
+function resolveVodIdentity(item: XtreamVodDetails): number | null {
+    const candidate = item as XtreamVodIdentityItem;
+    const value =
+        item.movie_data?.stream_id ??
+        candidate.xtream_id ??
+        candidate.stream_id ??
+        candidate.id;
+    const id = typeof value === 'string' ? Number(value) : value;
+
+    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0
+        ? id
+        : null;
+}
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -134,11 +157,19 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isElectron = this.downloadsService.isAvailable;
 
     readonly isFavorite = this.xtreamStore.isFavorite;
-    readonly selectedItem = computed(
-        () =>
-            this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
-    );
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    readonly providerOnly = computed(() => {
+        this.routeParams();
+        return isProviderOnlyDetailState(window.history.state);
+    });
+    readonly selectedItem = computed(() => {
+        const item =
+            this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null;
+
+        return item && resolveVodIdentity(item) === this.selectedVodId()
+            ? item
+            : null;
+    });
     private readonly scopedVodCategories = computed(() => {
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         return playlistId &&
@@ -268,9 +299,16 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     readonly hasPlaybackPosition = this.msUi.hasPlaybackPosition;
 
-    readonly isDownloaded = this.downloads.isDownloaded;
+    private readonly downloadedFromLibrary = this.downloads.isDownloaded;
+    readonly isDownloaded = computed(
+        () => !this.providerOnly() && this.downloadedFromLibrary()
+    );
     readonly isDownloading = this.downloads.isDownloading;
     readonly isPausedDownload = this.downloads.isPausedDownload;
+    readonly isOfflinePrimary = computed(
+        () =>
+            this.isDownloaded() && this.externalPrimaryButtonState() === 'idle'
+    );
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
@@ -475,7 +513,26 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         // make the control do the opposite of what it says — launching a
         // second player while the first keeps running.
         if (this.playback.isExternalStopAction()) {
-            this.playback.onPrimaryAction(vodItem);
+            await this.playback.stopExternalPlayback();
+            return;
+        }
+
+        if (this.playback.isExternalLaunchPending()) {
+            return;
+        }
+
+        if (this.isDownloaded()) {
+            await this.playFromLocal();
+            return;
+        }
+
+        await this.playFromProviderSource(vodItem);
+    }
+
+    async playFromProviderSource(
+        vodItem: XtreamVodDetails | null
+    ): Promise<void> {
+        if (this.externalPrimaryButtonState() !== 'idle') {
             return;
         }
 

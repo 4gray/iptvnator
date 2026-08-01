@@ -38,6 +38,7 @@ class StubSeasonContainerComponent {
     readonly playingEpisodeId = input<number | null>(null);
     readonly seasonDescriptions = input<unknown>(null);
     readonly isLoading = input(false);
+    readonly downloadsEnabled = input(true);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
     readonly episodeDownloadRequested = output<unknown>();
@@ -89,6 +90,13 @@ describe('StalkerSeriesViewComponent', () => {
     const openResolvedPlayback = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const tmdbGetSeason = jest.fn();
+    const startDownload = jest.fn();
+    const fetchLinkToPlay = jest.fn();
+    const currentPlaylist = signal({
+        _id: 'stalker-1',
+        portalUrl: 'https://stalker.example.test',
+        macAddress: '00:1A:79:12:34:56',
+    });
 
     beforeEach(async () => {
         selectedContentType.set('series');
@@ -122,7 +130,7 @@ describe('StalkerSeriesViewComponent', () => {
                 episodeId?: number,
                 startTime?: number
             ) => ({
-            streamUrl: 'http://stalker.example/episode.mpg',
+                streamUrl: 'http://stalker.example/episode.mpg',
                 title: title ?? 'Regular Series',
                 thumbnail: thumbnail ?? 'poster.jpg',
                 startTime,
@@ -147,6 +155,15 @@ describe('StalkerSeriesViewComponent', () => {
             overview: 'Season overview from TMDB',
             episodes: [],
         });
+        startDownload.mockReset().mockResolvedValue({ success: true });
+        fetchLinkToPlay
+            .mockReset()
+            .mockResolvedValue('https://cdn.example.test/episode.mpg');
+        currentPlaylist.set({
+            _id: 'stalker-1',
+            portalUrl: 'https://stalker.example.test',
+            macAddress: '00:1A:79:12:34:56',
+        });
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -156,7 +173,7 @@ describe('StalkerSeriesViewComponent', () => {
                     useValue: {
                         selectedItem,
                         selectedContentType,
-                        currentPlaylist: signal({ _id: 'stalker-1' }),
+                        currentPlaylist,
                         getSerialSeasonsResource: () => serialSeasonsResource(),
                         getVodSeriesSeasonsResource: () =>
                             vodSeriesSeasonsResource(),
@@ -164,7 +181,7 @@ describe('StalkerSeriesViewComponent', () => {
                         isSerialSeasonsLoading,
                         fetchVodSeriesEpisodes,
                         resolveVodPlayback,
-                        fetchLinkToPlay: jest.fn(),
+                        fetchLinkToPlay,
                         clearSelectedItem: jest.fn(),
                     },
                 },
@@ -198,7 +215,7 @@ describe('StalkerSeriesViewComponent', () => {
                 {
                     provide: DownloadsService,
                     useValue: {
-                        startDownload: jest.fn(),
+                        startDownload,
                     },
                 },
                 {
@@ -221,6 +238,8 @@ describe('StalkerSeriesViewComponent', () => {
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
+                        currentLang: 'en',
+                        defaultLang: 'en',
                         // EMPTY (not of(null)): the real TranslatePipe inside
                         // the detail shell reads `event.lang` from emissions.
                         onLangChange: EMPTY,
@@ -302,6 +321,92 @@ describe('StalkerSeriesViewComponent', () => {
                 streamUrl: 'http://stalker.example/episode.mpg',
             }),
             true
+        );
+    });
+
+    it('keeps provider episodes playable while hiding download presentation', async () => {
+        fixture.componentRef.setInput('providerOnly', true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        expect(seasonContainer.downloadsEnabled()).toBe(false);
+        expect(
+            Object.values(
+                seasonContainer.seasons() as Record<string, unknown[]>
+            ).flat()
+        ).toHaveLength(2);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            )
+        ).not.toBeNull();
+    });
+
+    it('captures enriched parent and episode metadata when an episode download starts', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            category_id: '18',
+            info: {
+                name: 'Signal House',
+                description: 'Parent series plot',
+                movie_image:
+                    'https://images.example.test/posters/signal-house.jpg',
+                actors: 'Sienna Wave',
+                director: 'Cora Bell',
+                tmdb_cast: [],
+                tmdb_directors: [],
+            },
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await fixture.componentInstance.downloadEpisode({
+            episode_num: '0',
+            title: 'The Call',
+            info: {
+                plot: 'Episode-specific plot',
+                movie_image: 'https://images.example.test/stills/the-call.jpg',
+            },
+            custom_sid: 'vod-series',
+            season: '0',
+            originalId: '502',
+        } as never);
+
+        expect(startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'stalker-1',
+                playlistType: 'stalker',
+                seriesXtreamId: 50001,
+                seasonNumber: 0,
+                episodeNumber: '0',
+                title: 'Signal House - S00E00 - The Call',
+                metadataSnapshot: expect.objectContaining({
+                    language: 'en',
+                    mediaKind: 'series',
+                    title: 'Signal House',
+                    plot: 'Parent series plot',
+                    posterUrl:
+                        'https://images.example.test/posters/signal-house.jpg',
+                    providerCategoryId: '18',
+                    cast: [{ name: 'Sienna Wave' }],
+                    creators: [{ name: 'Cora Bell' }],
+                    episode: {
+                        seasonNumber: 0,
+                        episodeNumber: 0,
+                        title: 'The Call',
+                        plot: 'Episode-specific plot',
+                        stillUrl:
+                            'https://images.example.test/stills/the-call.jpg',
+                    },
+                }),
+            })
         );
     });
 
@@ -614,10 +719,12 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         fetchVodSeriesEpisodes.mockClear();
 
-        const seasonOneEpisodes = fixture.componentInstance.mappedSeasons()['1'];
+        const seasonOneEpisodes =
+            fixture.componentInstance.mappedSeasons()['1'];
         const firstEpisode = seasonOneEpisodes[0];
         const secondEpisode = seasonOneEpisodes[1];
-        const seasonTwoEpisode = fixture.componentInstance.mappedSeasons()['2'][0];
+        const seasonTwoEpisode =
+            fixture.componentInstance.mappedSeasons()['2'][0];
 
         fixture.componentInstance.onEpisodeClicked(firstEpisode);
         await fixture.whenStable();

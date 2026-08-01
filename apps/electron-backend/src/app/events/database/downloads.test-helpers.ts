@@ -14,8 +14,10 @@ export const mockRemoveDownloadFromRuntime = jest.fn();
 export const mockBroadcastDownloadUpdate = jest.fn();
 export const mockRemovePartialDownloadFile = jest.fn();
 export const mockPauseDownload = jest.fn();
+export const mockRedownloadMissingRequest = jest.fn();
 export const mockResumeDownloadRequest = jest.fn();
-export const mockExistsSync = jest.fn();
+export const mockLstat = jest.fn();
+export const mockLstatSync = jest.fn();
 export const mockOpenPath = jest.fn();
 export const mockShowItemInFolder = jest.fn();
 export const mockEq = jest.fn();
@@ -54,15 +56,23 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     mockBroadcastDownloadUpdate.mockReset();
     mockRemovePartialDownloadFile.mockReset();
     mockPauseDownload.mockReset();
+    mockRedownloadMissingRequest.mockReset();
     mockResumeDownloadRequest.mockReset();
-    mockExistsSync.mockReset();
+    mockLstat.mockReset();
+    mockLstatSync.mockReset();
     mockOpenPath.mockReset().mockResolvedValue('');
     mockShowItemInFolder.mockReset();
     mockEq.mockReset();
 
     jest.doMock('node:fs', () => ({
         ...jest.requireActual<typeof import('node:fs')>('node:fs'),
-        existsSync: mockExistsSync,
+        lstatSync: mockLstatSync,
+    }));
+    jest.doMock('node:fs/promises', () => ({
+        ...jest.requireActual<typeof import('node:fs/promises')>(
+            'node:fs/promises'
+        ),
+        lstat: mockLstat,
     }));
     jest.doMock('drizzle-orm', () => {
         const actual =
@@ -97,6 +107,9 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     }));
     jest.doMock('./download-file-path', () => ({
         removePartialDownloadFile: mockRemovePartialDownloadFile,
+    }));
+    jest.doMock('./download-redownload', () => ({
+        redownloadMissingRequest: mockRedownloadMissingRequest,
     }));
     jest.doMock('./download-runtime', () => ({
         broadcastDownloadUpdate: mockBroadcastDownloadUpdate,
@@ -147,14 +160,17 @@ export function expectManagedPathLookup(
     expect(mockEq).toHaveBeenCalledTimes(1);
     expect(mockEq.mock.calls[0][0] === downloadsFilePathColumn).toBe(true);
     expect(mockEq.mock.calls[0][1]).toBe(filePath);
-    expect(
-        lookup.where.mock.calls[0][0] === mockEq.mock.results[0].value
-    ).toBe(true);
+    expect(lookup.where.mock.calls[0][0] === mockEq.mock.results[0].value).toBe(
+        true
+    );
     expect(lookup.limit).toHaveBeenCalledTimes(1);
     expect(lookup.limit).toHaveBeenCalledWith(1);
 }
 
-export function mockDownloadRow(row: { filePath: string | null; status: string }) {
+export function mockDownloadRow(row: {
+    filePath: string | null;
+    status: string;
+}) {
     const deleteWhere = jest.fn().mockResolvedValue(undefined);
     const db = {
         delete: jest.fn(() => ({ where: deleteWhere })),

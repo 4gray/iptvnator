@@ -1084,8 +1084,75 @@
             "COMPLETED": "Завершана",
             "FAILED": "Няўдала",
             "CANCELED": "Скасавана",
-            "PAUSED": "На паўзе"
-        }
+            "PAUSED": "На паўзе",
+            "FILE_MISSING": "File missing"
+        },
+        "ACTIVE_COUNT": "{{count}} active",
+        "TRACKED_DOWNLOADS": "Tracked downloads",
+        "CLEAR_FINISHED": "Clear finished",
+        "DOWNLOADING_NOW": "Downloading now",
+        "NEEDS_ATTENTION": "Needs attention",
+        "READY_TO_WATCH": "Ready to watch",
+        "OFFLINE": "Offline",
+        "OFFLINE_BADGE": "Offline",
+        "FILTER": {
+            "LABEL": "Filter downloads",
+            "ALL": "All",
+            "MOVIES": "Movies",
+            "SERIES": "Series",
+            "IN_PROGRESS": "In progress"
+        },
+        "REMOVE_FROM_MANAGER": "Remove from manager",
+        "REMOVE_COMPLETED_DIALOG": {
+            "TITLE": "Remove from manager?",
+            "MESSAGE": "This removes the entry from IPTVnator. The downloaded media file remains on disk."
+        },
+        "REMOVE_PARTIAL_DIALOG": {
+            "TITLE": "Remove partial download?",
+            "MESSAGE": "This removes the entry and any retained partial download. It can no longer be resumed."
+        },
+        "CLEAR_FINISHED_DIALOG": {
+            "TITLE": "Clear finished downloads?",
+            "MESSAGE": "Completed media files remain on disk. Retained partial data for failed or canceled entries is deleted."
+        },
+        "ARTWORK_UNAVAILABLE": "Artwork unavailable",
+        "EPISODE_COUNT_ONE": "1 episode",
+        "EPISODE_COUNT_OTHER": "{{count}} episodes",
+        "MORE_ACTIONS": "More actions",
+        "MOVIE": "Movie",
+        "EPISODE": "Episode",
+        "SERIES": "Series",
+        "OPEN_ARTWORK": "Open {{title}}",
+        "OPEN_DETAILS": "Open details",
+        "OPEN_EPISODES": "Open downloaded episodes",
+        "SEASON": "Season {{season}}",
+        "SEASON_RANGE": "Seasons {{first}}–{{last}}",
+        "DOWNLOADED_EPISODES": "Downloaded episodes",
+        "OFFLINE_DETAIL": {
+            "AVAILABLE": "Available offline",
+            "PLAY": "Play offline",
+            "VIEW_IN_PORTAL": "View in portal",
+            "VIEW_IN_PORTAL_UNAVAILABLE": "The source item is no longer available",
+            "DOWNLOADED_EPISODES": "{{count}} downloaded episodes",
+            "FILE_SIZE": "{{size}}",
+            "NOT_FOUND_TITLE": "Download not found",
+            "NOT_FOUND_BODY": "This download is no longer available.",
+            "BACK": "Back to Downloads"
+        },
+        "ARIA": {
+            "OPEN": "Open {{title}}",
+            "POSTER_UNAVAILABLE": "Artwork unavailable for {{title}}",
+            "PROGRESS": "Download progress for {{title}}",
+            "PAUSE": "Pause {{title}}",
+            "CANCEL": "Cancel {{title}}",
+            "RESUME": "Resume {{title}}",
+            "REMOVE": "Remove {{title}} from manager",
+            "RETRY": "Retry {{title}}",
+            "MORE_ACTIONS": "More actions for {{title}}",
+            "COPY_URL": "Copy download URL for {{title}}",
+            "DOWNLOAD_AGAIN": "Download {{title}} again"
+        },
+        "DOWNLOAD_AGAIN": "Download again"
     },
     "REMOTE_CONTROL": {
         "TITLE": "Аддаленае кіраванне",
