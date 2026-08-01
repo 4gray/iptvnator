@@ -42,7 +42,10 @@ https://example.channels/path-to-file/4.m3u8
 `;
 const HLS_STUB = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 const DEFAULT_PORT = 3211;
-const DEFAULT_NORMAL_HOST = '0.0.0.0';
+// Loopback by default: the fixtures serve fabricated but unauthenticated
+// content, so they should not be reachable from other hosts unless a dev
+// explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at them).
+const DEFAULT_NORMAL_HOST = '127.0.0.1';
 const DEFAULT_CONTROL_HOST = '127.0.0.1';
 const PERFORMANCE_USERNAME = 'performance';
 const PERFORMANCE_PASSWORD = 'performance';

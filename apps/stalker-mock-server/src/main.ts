@@ -14,6 +14,10 @@ import {
 } from './app/marketing-poster-url.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3210', 10);
+// Loopback by default: the fixture serves fabricated but unauthenticated
+// content, so it should not be reachable from other hosts unless a dev
+// explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at it).
+const HOST = process.env['HOST'] ?? '127.0.0.1';
 const app = express();
 const MARKETING_POSTER_DIRECTORY = join(
     process.cwd(),
@@ -228,7 +232,7 @@ process.on('unhandledRejection', (reason) => {
 process.stdin.resume();
 process.stdin.on('end', () => { /* ignore stdin close */ });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
     const divider = '─'.repeat(62);
     console.log(`\n${divider}`);
     console.log(`  🎬  Stalker Mock Server  →  http://localhost:${PORT}`);

@@ -88,7 +88,7 @@ actually get wrong:
 | `00:1A:79:00:00:05` | **embedded-series** | 50% of VOD items have embedded `series[]` arrays — tests the embedded series flow |
 | `00:1A:79:00:00:06` | **legacy-pagination** | No `get_all_channels` support — tests the paginated `get_ordered_list` crawl fallback for the full ITV channel list |
 | `00:1A:79:00:00:07` | **marketing-demo** | 35 original poster movies with the newest 20 first — safe for screenshots and marketing |
-| `00:1A:79:00:00:08` | **login-required** | `get_profile` answers `status: 2` until the client completes `do_auth` with non-empty credentials |
+| `00:1A:79:00:00:08` | **login-required** | `get_profile` answers `status: 2` until the client completes `do_auth` with non-empty credentials. The app cannot finish this flow yet (its `do_auth` path is dormant and sends empty credentials), so the scenario is exercised at the HTTP level only — it exists to receive the upcoming client-side `do_auth` work |
 | `<any other MAC>` | **auto** | MAC bytes used as seed → deterministic unique dataset |
 
 ## Configuration

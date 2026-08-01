@@ -22,11 +22,27 @@ import {
  *   - 3 seasons × 8 episodes per series item
  *
  * Tag: @stalker — run only stalker tests with: nx e2e web-e2e --grep "@stalker"
+ *
+ * SERIAL BY DESIGN: every test here shares one mock-server process whose state
+ * (generated data, favorites, portal sessions) is global, and `beforeEach`
+ * wipes it with `POST /reset`. Under the workspace-wide `fullyParallel` preset
+ * those resets would race each other — and any sibling spec file — so this file
+ * pins itself to a single worker. Keep the full-portal authentication tests
+ * below in THIS file for the same reason: split across files they would run
+ * concurrently again and reset each other's sessions mid-assertion.
  */
+
+test.describe.configure({ mode: 'serial' });
 
 const MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
 const MOCK_SERVER = `http://localhost:${MOCK_PORT}`;
 const PORTAL_URL = `${MOCK_SERVER}/portal.php`;
+/**
+ * Canonical Ministra path. `PORTAL_URL` above is classified by the app as a
+ * "simple" portal (no handshake, no token, no watchdog); this shape is the
+ * authenticated branch, which the mock guards like the real middleware.
+ */
+const FULL_PORTAL_URL = `${MOCK_SERVER}/stalker_portal/server/load.php`;
 const BACKEND_PROXY = `${MOCK_SERVER}/stalker`;
 
 /** Default scenario MAC — balanced catalog, 8 categories, 40 items */
@@ -40,6 +56,16 @@ const EMBEDDED_SERIES_MAC = '00:1A:79:00:00:05';
 
 /** Legacy pagination MAC — portal without get_all_channels support */
 const LEGACY_PAGINATION_MAC = '00:1A:79:00:00:06';
+
+/**
+ * Dedicated MACs for the full-portal authentication tests. Mock state is keyed
+ * by MAC, so keeping these distinct from the content scenarios above means an
+ * auth test can never consume or invalidate a session another test relies on.
+ * The Infomir OUI matters: the strict endpoint validates the MAC format.
+ */
+const AUTH_FLOW_MAC = '00:1A:79:AD:00:01';
+const AUTH_TEXT_MAC = '00:1A:79:AD:00:02';
+const AUTH_REAUTH_MAC = '00:1A:79:AD:00:03';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -128,6 +154,86 @@ async function addStalkerPortal(
     await addButton.click();
     await expect(dialog).toBeHidden();
     await page.waitForURL(/stalker.*vod/);
+}
+
+/**
+ * Add a Stalker portal through the canonical Ministra URL, which the app
+ * imports as a FULL portal: handshake, Bearer token and watchdog.
+ */
+async function addFullStalkerPortal(
+    page: Page,
+    options: { name?: string; mac: string }
+): Promise<void> {
+    const { name = 'Full Stalker Portal', mac } = options;
+
+    await page.getByRole('button', { name: 'Add playlist' }).click();
+    const dialog = page.locator('mat-dialog-container');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
+
+    await setInputValue(dialog.locator('input#title'), name);
+    await setInputValue(dialog.locator('input#portalUrl'), FULL_PORTAL_URL);
+    await setInputValue(dialog.locator('input#macAddress'), mac);
+
+    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    await expect(addButton).toBeEnabled({ timeout: 10_000 });
+    await addButton.click();
+    await expect(dialog).toBeHidden();
+    await page.waitForURL(/stalker.*vod/, { timeout: 30_000 });
+}
+
+/** Portal actions the app sent, in order, with the token each carried. */
+function recordPortalActions(page: Page): {
+    actions: string[];
+    tokensByAction: Map<string, string | null>;
+} {
+    const actions: string[] = [];
+    const tokensByAction = new Map<string, string | null>();
+
+    page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (!url.pathname.endsWith('/stalker')) {
+            return;
+        }
+        const action = url.searchParams.get('action');
+        if (!action) {
+            return;
+        }
+        actions.push(action);
+        if (!tokensByAction.has(action)) {
+            tokensByAction.set(action, url.searchParams.get('token'));
+        }
+    });
+
+    return { actions, tokensByAction };
+}
+
+const CONTENT_ACTIONS = [
+    'get_categories',
+    'get_genres',
+    'get_ordered_list',
+    'get_all_channels',
+];
+
+/** Every portal request in order, with the token it carried. */
+function recordPortalRequests(
+    page: Page
+): Array<{ action: string; token: string | null }> {
+    const requests: Array<{ action: string; token: string | null }> = [];
+
+    page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (!url.pathname.endsWith('/stalker')) {
+            return;
+        }
+        const action = url.searchParams.get('action');
+        if (!action) {
+            return;
+        }
+        requests.push({ action, token: url.searchParams.get('token') });
+    });
+
+    return requests;
 }
 
 // ---------------------------------------------------------------------------
@@ -701,4 +807,144 @@ test('@stalker series — seasons load for a series item', async ({
     expect(Array.isArray(seasons[0].series)).toBeTruthy();
     // Default scenario has 8 episodes per season
     expect(seasons[0].series.length).toBe(8);
+});
+
+/**
+ * Full-portal authentication. The tests above import through the tolerant
+ * `/portal.php` alias (simple portal, no auth); these use the canonical
+ * Ministra endpoint, which the mock guards like the real middleware:
+ *
+ *   - every action except handshake/get_profile/get_localization/do_auth needs
+ *     `Authorization: Bearer <token>`
+ *   - a token only counts once `get_profile` has adopted it
+ *   - auth failures come back as HTTP 200 with a plain-text body, never a 401
+ */
+test.describe('@stalker full portal authentication', () => {
+    // Importing a full portal costs a handshake, a profile call and the first
+    // content load — on a cold dev server that alone approaches Playwright's
+    // 30s default budget.
+    test.beforeEach(() => {
+        test.setTimeout(90_000);
+    });
+
+    test('handshakes and authenticates before loading content', async ({
+        page,
+    }) => {
+        const { actions, tokensByAction } = recordPortalActions(page);
+
+        await addFullStalkerPortal(page, { mac: AUTH_FLOW_MAC });
+
+        // The portal only answers content actions for an adopted token, so
+        // reaching the VOD categories at all proves the whole chain ran.
+        await expect(page.locator('.category-item').first()).toBeVisible({
+            timeout: 30_000,
+        });
+
+        expect(actions).toContain('handshake');
+        expect(actions).toContain('get_profile');
+        expect(actions.indexOf('handshake')).toBeLessThan(
+            actions.indexOf('get_profile')
+        );
+
+        const contentAction = actions.find((action) =>
+            ['get_categories', 'get_genres'].includes(action)
+        );
+        expect(contentAction).toBeDefined();
+        expect(actions.indexOf('get_profile')).toBeLessThan(
+            actions.indexOf(contentAction as string)
+        );
+
+        // Content requests must carry the token; the handshake must not.
+        expect(tokensByAction.get('handshake')).toBeFalsy();
+        expect(tokensByAction.get(contentAction as string)).toBeTruthy();
+
+        // The full-portal workflow must also keep the watchdog alive — an
+        // authenticated get_events fires immediately (init=1) on activation.
+        // Without this assertion the suite would stay green if the watchdog
+        // wiring silently died, because its failures are swallowed by design.
+        await expect
+            .poll(() => actions.includes('get_events'), { timeout: 30_000 })
+            .toBe(true);
+        expect(tokensByAction.get('get_events')).toBeTruthy();
+    });
+
+    test('never surfaces the portal plain-text auth failure as content', async ({
+        page,
+    }) => {
+        await addFullStalkerPortal(page, { mac: AUTH_TEXT_MAC });
+
+        // A body of "Authorization failed." must never be rendered — if the
+        // token pipeline breaks, the app has to fail loudly instead.
+        await expect(page.locator('body')).not.toContainText(
+            'Authorization failed.'
+        );
+        await expect(page.locator('body')).not.toContainText(
+            'Unauthorized request.'
+        );
+    });
+
+    test('re-authenticates after the portal drops the session', async ({
+        page,
+        request,
+    }) => {
+        const requests = recordPortalRequests(page);
+
+        await addFullStalkerPortal(page, { mac: AUTH_REAUTH_MAC });
+
+        // The token the initial import authenticated with — recovery must end
+        // up on a DIFFERENT one, or nothing was actually re-negotiated.
+        const tokenBeforeInvalidation = requests.find(
+            (entry) => CONTENT_ACTIONS.includes(entry.action) && entry.token
+        )?.token;
+        expect(tokenBeforeInvalidation).toBeTruthy();
+
+        // Server-side session loss is what a real expired/replaced token looks
+        // like: the next request gets "Authorization failed." with HTTP 200.
+        const invalidated = await request.post(
+            `${MOCK_SERVER}/invalidate-session?macAddress=${encodeURIComponent(
+                AUTH_REAUTH_MAC
+            )}`
+        );
+        expect(invalidated.ok()).toBe(true);
+
+        const requestCountBeforeNavigation = requests.length;
+
+        // Navigating to another content type forces a fresh portal request.
+        await page.getByRole('link', { name: /live|itv/i }).click();
+
+        // Recovery is only proven end to end when a CONTENT request goes out
+        // under a freshly negotiated token — a re-handshake alone could still
+        // leave the original request unreplayed or unauthorized. The mock only
+        // answers content for an adopted token, so this doubles as proof the
+        // new token was adopted via get_profile.
+        await expect
+            .poll(
+                () =>
+                    requests
+                        .slice(requestCountBeforeNavigation)
+                        .filter(
+                            (entry) =>
+                                CONTENT_ACTIONS.includes(entry.action) &&
+                                entry.token &&
+                                entry.token !== tokenBeforeInvalidation
+                        ).length,
+                { timeout: 30_000 }
+            )
+            .toBeGreaterThan(0);
+
+        const recovered = requests.slice(requestCountBeforeNavigation);
+        expect(
+            recovered.filter((entry) => entry.action === 'handshake').length
+        ).toBeGreaterThan(0);
+
+        // And the recovered session must actually render: the ITV categories
+        // can only come from an authorized request against the new token.
+        await expect(page.locator('.category-item').first()).toBeVisible({
+            timeout: 15_000,
+        });
+
+        await expect(page.locator('body')).not.toContainText(
+            'Authorization failed.'
+        );
+    });
 });
