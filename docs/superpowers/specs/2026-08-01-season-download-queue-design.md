@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-01
 
-**Status:** Approved design; awaiting written-spec review
+**Status:** Approved
 
 **Scope:** Xtream and Stalker series details in the Electron application
 
