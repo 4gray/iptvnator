@@ -42,11 +42,22 @@ async function navigateWithinWorkspace(
     page: Page,
     path: string
 ): Promise<void> {
-    await page.evaluate((target) => {
-        window.history.pushState(null, '', target);
+    const targetPathname = await page.evaluate((target) => {
+        const targetUrl = new URL(window.location.href);
+        const workspaceIndex = targetUrl.pathname.lastIndexOf('/workspace');
+        const rendererPath =
+            workspaceIndex >= 0
+                ? targetUrl.pathname.slice(0, workspaceIndex)
+                : targetUrl.pathname.replace(/\/$/, '');
+
+        targetUrl.pathname = `${rendererPath}${target}`;
+        targetUrl.search = '';
+        targetUrl.hash = '';
+        window.history.pushState(null, '', targetUrl);
         window.dispatchEvent(new PopStateEvent('popstate'));
+        return targetUrl.pathname;
     }, path);
-    await page.waitForURL((url) => url.pathname === path);
+    await page.waitForURL((url) => url.pathname === targetPathname);
 }
 
 async function getPlaylistId(page: Page, title: string): Promise<string> {
