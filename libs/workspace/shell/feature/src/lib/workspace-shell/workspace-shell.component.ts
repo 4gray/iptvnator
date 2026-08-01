@@ -1,4 +1,10 @@
-import { Component, HostListener, inject, viewChild } from '@angular/core';
+import {
+    Component,
+    HostListener,
+    inject,
+    signal,
+    viewChild,
+} from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 import {
@@ -46,9 +52,9 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 export class WorkspaceShellComponent {
     readonly facade = inject(WorkspaceShellFacade);
     readonly keyboardShortcuts = inject(WorkspaceKeyboardShortcutsService);
-    private readonly header = viewChild<WorkspaceShellHeaderShortcutTarget>(
-        'workspaceHeader'
-    );
+    readonly railExpanded = signal(false);
+    private readonly header =
+        viewChild<WorkspaceShellHeaderShortcutTarget>('workspaceHeader');
 
     @HostListener('document:keydown', ['$event'])
     onDocumentKeydown(event: KeyboardEvent): void {

@@ -1,10 +1,4 @@
-import {
-    Component,
-    Directive,
-    input,
-    output,
-    signal,
-} from '@angular/core';
+import { Component, Directive, input, output, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';
@@ -26,15 +20,14 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 })
 class MockWorkspaceShellRailComponent {
     readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = input<unknown[]>([]);
     readonly primaryContextLinks = input<unknown[]>([]);
     readonly secondaryContextLinks = input<unknown[]>([]);
     readonly selectedSection = input<string | null>(null);
     readonly railProviderClass = input('');
     readonly isSettingsRoute = input(false);
+    readonly expanded = input(false);
+    readonly expandedChange = output<boolean>();
 }
 
 @Component({
@@ -129,9 +122,6 @@ class MockWorkspaceKeyboardShortcutsService {
 }
 
 class MockWorkspaceShellFacade {
-    readonly brandLink = signal('/workspace/dashboard');
-    readonly brandTooltipKey = signal('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = signal('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = signal([]);
     readonly primaryContextLinks = signal([]);
     readonly secondaryContextLinks = signal([]);
@@ -254,6 +244,18 @@ describe('WorkspaceShellComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-external-playback-dock')
         ).not.toBeNull();
+
+        const rail = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellRailComponent)
+        );
+        rail.componentInstance.expandedChange.emit(true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement
+                .querySelector('.workspace-shell')
+                ?.classList.contains('rail-expanded')
+        ).toBe(true);
     });
 
     it('renders the xtream import overlay child only when the facade flag is true', async () => {

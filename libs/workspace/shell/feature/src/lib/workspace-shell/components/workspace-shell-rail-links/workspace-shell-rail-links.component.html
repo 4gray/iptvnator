@@ -1,4 +1,4 @@
-<nav class="rail-links">
+<nav class="rail-links" [class.is-expanded]="expanded()">
     @for (link of links(); track link.path.join('/')) {
         <a
             class="portal-rail-link nav-item"
@@ -6,15 +6,19 @@
             [routerLinkActive]="activeClass()"
             [routerLinkActiveOptions]="{ exact: link.exact ?? false }"
             [matTooltip]="link.tooltip"
+            [matTooltipDisabled]="expanded()"
             [matTooltipPosition]="'right'"
             [attr.aria-label]="link.tooltip"
             [attr.aria-current]="isActive(link) ? 'page' : null"
             [class.active]="activeClass() === 'active' && isActive(link)"
-            [class.is-active]="
-                activeClass() === 'is-active' && isActive(link)
-            "
+            [class.is-active]="activeClass() === 'is-active' && isActive(link)"
         >
             <mat-icon>{{ resolveIcon(link) }}</mat-icon>
+            @if (expanded()) {
+                <span class="portal-rail-link-label">
+                    {{ link.tooltip }}
+                </span>
+            }
         </a>
     }
 </nav>

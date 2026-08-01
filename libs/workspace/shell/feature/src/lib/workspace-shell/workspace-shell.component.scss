@@ -1,3 +1,5 @@
+@use './styles/breakpoints' as shell-breakpoints;
+
 :host {
     display: block;
     width: 100%;
@@ -15,6 +17,10 @@
     overflow: hidden;
     background: var(--app-shell-bg, var(--mat-sys-surface));
     color: var(--mat-sys-on-surface);
+}
+
+.workspace-shell.rail-expanded {
+    grid-template-columns: max-content minmax(0, 1fr);
 }
 
 app-workspace-shell-rail {
@@ -65,7 +71,6 @@ app-workspace-shell-context-sidebar {
     box-shadow: -4px 8px 20px var(--app-content-shadow, rgba(0, 0, 0, 0.18));
 }
 
-
 @media (max-width: 780px) {
     .workspace-shell {
         grid-template-columns: 56px 1fr;
@@ -73,10 +78,14 @@ app-workspace-shell-context-sidebar {
     }
 }
 
-@media (max-width: 640px) {
+@include shell-breakpoints.compact {
     .workspace-shell {
         grid-template-columns: 1fr;
         grid-template-rows: 52px 56px minmax(0, 1fr) auto;
+    }
+
+    .workspace-shell.rail-expanded {
+        grid-template-columns: 1fr;
     }
 
     app-workspace-shell-rail {
