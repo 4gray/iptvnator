@@ -114,6 +114,34 @@ function recordPortalActions(page: Page): {
     return { actions, tokensByAction };
 }
 
+const CONTENT_ACTIONS = [
+    'get_categories',
+    'get_genres',
+    'get_ordered_list',
+    'get_all_channels',
+];
+
+/** Every portal request in order, with the token it carried. */
+function recordPortalRequests(
+    page: Page
+): Array<{ action: string; token: string | null }> {
+    const requests: Array<{ action: string; token: string | null }> = [];
+
+    page.on('request', (request) => {
+        const url = new URL(request.url());
+        if (!url.pathname.endsWith('/stalker')) {
+            return;
+        }
+        const action = url.searchParams.get('action');
+        if (!action) {
+            return;
+        }
+        requests.push({ action, token: url.searchParams.get('token') });
+    });
+
+    return requests;
+}
+
 test.beforeEach(async ({ page, request }) => {
     // Importing a full portal costs a handshake, a profile call and the first
     // content load — on a cold dev server that alone approaches Playwright's
@@ -177,9 +205,16 @@ test.describe('@stalker full portal authentication', () => {
         page,
         request,
     }) => {
+        const requests = recordPortalRequests(page);
+
         await addFullStalkerPortal(page);
 
-        const { actions } = recordPortalActions(page);
+        // The token the initial import authenticated with — recovery must end
+        // up on a DIFFERENT one, or nothing was actually re-negotiated.
+        const tokenBeforeInvalidation = requests.find(
+            (entry) => CONTENT_ACTIONS.includes(entry.action) && entry.token
+        )?.token;
+        expect(tokenBeforeInvalidation).toBeTruthy();
 
         // Server-side session loss is what a real expired/replaced token looks
         // like: the next request gets "Authorization failed." with HTTP 200.
@@ -190,14 +225,41 @@ test.describe('@stalker full portal authentication', () => {
         );
         expect(invalidated.ok()).toBe(true);
 
+        const requestCountBeforeNavigation = requests.length;
+
         // Navigating to another content type forces a fresh portal request.
         await page.getByRole('link', { name: /live|itv/i }).click();
 
+        // Recovery is only proven end to end when a CONTENT request goes out
+        // under a freshly negotiated token — a re-handshake alone could still
+        // leave the original request unreplayed or unauthorized. The mock only
+        // answers content for an adopted token, so this doubles as proof the
+        // new token was adopted via get_profile.
         await expect
-            .poll(() => actions.filter((a) => a === 'handshake').length, {
-                timeout: 30_000,
-            })
+            .poll(
+                () =>
+                    requests
+                        .slice(requestCountBeforeNavigation)
+                        .filter(
+                            (entry) =>
+                                CONTENT_ACTIONS.includes(entry.action) &&
+                                entry.token &&
+                                entry.token !== tokenBeforeInvalidation
+                        ).length,
+                { timeout: 30_000 }
+            )
             .toBeGreaterThan(0);
+
+        const recovered = requests.slice(requestCountBeforeNavigation);
+        expect(
+            recovered.filter((entry) => entry.action === 'handshake').length
+        ).toBeGreaterThan(0);
+
+        // And the recovered session must actually render: the ITV categories
+        // can only come from an authorized request against the new token.
+        await expect(page.locator('.category-item').first()).toBeVisible({
+            timeout: 15_000,
+        });
 
         await expect(page.locator('body')).not.toContainText(
             'Authorization failed.'

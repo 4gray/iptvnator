@@ -43,6 +43,17 @@ imported as a **full portal** (handshake + token + watchdog), anything else as a
 | `/stalker_portal/server/load.php` | Strict. Enforces the token and the MAC format exactly like the real middleware. |
 | `/server/load.php` | Strict. The second full-portal URL shape the app recognizes; enforced identically. |
 
+> **Known app inconsistency:** `StalkerSessionService.isFullStalkerPortal`
+> classifies `/server/load.php` as a full portal, but the import dialog's
+> `isFullStalkerPortalUrl` checks only for `/stalker_portal`, so importing a bare
+> `…/server/load.php` URL persists `isFullStalkerPortal: false` and the app skips
+> the handshake. The mock is deliberately faithful to a **real** portal here
+> (that path enforces auth), which makes it the right fixture to drive the
+> upcoming fix that unifies those two predicates. Until then, import full
+> portals through a `/stalker_portal/...` URL.
+
+> **Known app-side gap:** the
+
 The strict endpoint reproduces the parts of Stalker 4.9.35 that a client can
 actually get wrong:
 
