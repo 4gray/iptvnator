@@ -200,6 +200,33 @@ export class WorkspaceShellRouteStateService {
                 return false;
         }
     });
+    /**
+     * The phone drawer toggle must say what the drawer actually holds:
+     * categories on portal routes, playlist-type filters on the sources and
+     * collection routes, and section navigation on the settings route.
+     */
+    readonly contextDrawerLabelKeys = computed(() => {
+        switch (this.contextPanel()) {
+            case 'settings':
+                return {
+                    aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',
+                    tooltip:
+                        'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
+                };
+            case 'sources':
+            case 'collection':
+                return {
+                    aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_FILTERS_TOGGLE',
+                    tooltip: 'WORKSPACE.SHELL.CONTEXT_DRAWER_FILTERS_TOOLTIP',
+                };
+            default:
+                return {
+                    aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_CATEGORIES_TOGGLE',
+                    tooltip:
+                        'WORKSPACE.SHELL.CONTEXT_DRAWER_CATEGORIES_TOOLTIP',
+                };
+        }
+    });
     readonly railProviderClass = computed(() => {
         const context = this.railContext();
         if (!context) {

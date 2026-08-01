@@ -258,6 +258,36 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(button.getAttribute('aria-expanded')).toBe('true');
     });
 
+    it('labels the drawer toggle from the variant-aware keys', () => {
+        fixture.componentRef.setInput('showContextDrawerToggle', true);
+        fixture.componentRef.setInput(
+            'contextDrawerToggleAriaKey',
+            'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE'
+        );
+        fixture.detectChanges();
+
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-test-id="context-drawer-toggle"]'
+        );
+
+        expect(button.getAttribute('aria-label')).toBe(
+            'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE'
+        );
+    });
+
+    it('focuses the drawer toggle on request', () => {
+        fixture.componentRef.setInput('showContextDrawerToggle', true);
+        fixture.detectChanges();
+
+        component.focusContextDrawerToggle();
+
+        expect(document.activeElement).toBe(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-drawer-toggle"]'
+            )
+        );
+    });
+
     it('uses the paired Material primary tokens for the download badge', () => {
         const styleSource = readFileSync(
             join(__dirname, 'workspace-shell-header.component.scss'),

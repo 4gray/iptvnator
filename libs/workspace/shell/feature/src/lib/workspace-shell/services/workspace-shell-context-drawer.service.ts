@@ -37,6 +37,27 @@ export class WorkspaceShellContextDrawerService {
                 takeUntilDestroyed(this.destroyRef)
             )
             .subscribe(() => this.openState.set(false));
+
+        // A drawer left open while the viewport grows past the phone
+        // breakpoint would keep its focus trap active on the now in-flow
+        // desktop sidebar, holding keyboard focus hostage. Guarded because
+        // JSDOM has no matchMedia.
+        const media =
+            typeof window !== 'undefined' &&
+            typeof window.matchMedia === 'function'
+                ? window.matchMedia('(max-width: 640px)')
+                : null;
+        if (media) {
+            const onChange = (event: MediaQueryListEvent) => {
+                if (!event.matches) {
+                    this.openState.set(false);
+                }
+            };
+            media.addEventListener('change', onChange);
+            this.destroyRef.onDestroy(() =>
+                media.removeEventListener('change', onChange)
+            );
+        }
     }
 
     toggle(): void {

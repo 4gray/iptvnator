@@ -1,4 +1,11 @@
-import { Component, HostListener, inject, viewChild } from '@angular/core';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
+import {
+    Component,
+    effect,
+    HostListener,
+    inject,
+    viewChild,
+} from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 import {
@@ -22,6 +29,7 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 @Component({
     selector: 'app-workspace-shell',
     imports: [
+        CdkTrapFocus,
         ExternalPlaybackDockComponent,
         PlaylistDropOverlayComponent,
         PlaylistDropZoneDirective,
@@ -52,6 +60,23 @@ export class WorkspaceShellComponent {
     private readonly header = viewChild<WorkspaceShellHeaderShortcutTarget>(
         'workspaceHeader'
     );
+
+    constructor() {
+        // Focus restoration is the closing half of the drawer's focus
+        // contract: CdkTrapFocus captures focus into the drawer on open, but
+        // deactivating a trap does not restore focus, and the closed drawer
+        // is visibility: hidden — whatever was focused inside it silently
+        // drops to <body>. Returning it to the toggle keeps keyboard users
+        // where they acted.
+        let wasOpen = false;
+        effect(() => {
+            const open = this.contextDrawer.isOpen();
+            if (wasOpen && !open) {
+                this.header()?.focusContextDrawerToggle();
+            }
+            wasOpen = open;
+        });
+    }
 
     @HostListener('document:keydown.escape')
     onEscapePressed(): void {
@@ -102,4 +127,5 @@ function isEditableTarget(target: EventTarget | null): boolean {
 interface WorkspaceShellHeaderShortcutTarget {
     containsSearchInput(target: EventTarget | null): boolean;
     focusSearchInput(options?: { select?: boolean }): void;
+    focusContextDrawerToggle(): void;
 }

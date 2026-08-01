@@ -95,6 +95,7 @@ export class WorkspaceShellFacade {
     readonly contextPanel = this.routeState.contextPanel;
     readonly showContextPanel = this.routeState.showContextPanel;
     readonly hasContextPanelContent = this.routeState.hasContextPanelContent;
+    readonly contextDrawerLabelKeys = this.routeState.contextDrawerLabelKeys;
     readonly showXtreamImportOverlay =
         this.xtreamImport.showXtreamImportOverlay;
     readonly searchCapability = this.search.searchCapability;

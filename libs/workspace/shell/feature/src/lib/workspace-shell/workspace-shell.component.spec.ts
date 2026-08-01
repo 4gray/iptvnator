@@ -1,3 +1,4 @@
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { Component, Directive, input, output, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
@@ -57,6 +58,8 @@ class MockWorkspaceShellHeaderComponent {
     readonly isSettingsRoute = input(false);
     readonly showContextDrawerToggle = input(false);
     readonly isContextDrawerOpen = input(false);
+    readonly contextDrawerToggleAriaKey = input('');
+    readonly contextDrawerTooltipKey = input('');
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
@@ -73,6 +76,7 @@ class MockWorkspaceShellHeaderComponent {
 
     focusSearchInput = jest.fn();
     containsSearchInput = jest.fn(() => false);
+    focusContextDrawerToggle = jest.fn();
 }
 
 @Component({
@@ -156,6 +160,10 @@ class MockWorkspaceShellFacade {
     readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly showContextPanel = signal(true);
     readonly hasContextPanelContent = signal(true);
+    readonly contextDrawerLabelKeys = signal({
+        aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',
+        tooltip: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
+    });
     readonly contextPanel = signal<WorkspaceShellContextPanel>('settings');
     readonly currentContext = signal<WorkspacePortalContext | null>(null);
     readonly showExternalPlaybackBar = signal(true);
@@ -212,6 +220,7 @@ describe('WorkspaceShellComponent', () => {
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
@@ -270,6 +279,7 @@ describe('WorkspaceShellComponent', () => {
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
@@ -323,6 +333,7 @@ describe('WorkspaceShellComponent', () => {
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
@@ -372,6 +383,7 @@ describe('WorkspaceShellComponent', () => {
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
@@ -427,6 +439,7 @@ describe('WorkspaceShellComponent', () => {
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
@@ -480,6 +493,9 @@ describe('WorkspaceShellComponent', () => {
         fixture.detectChanges();
         expect(backdrop()).toBeNull();
         expect(sidebar().classList.contains('drawer-open')).toBe(false);
+        // Closing must hand focus back to the toggle: the closed drawer is
+        // visibility: hidden, so focus left inside it would drop to <body>.
+        expect(header.focusContextDrawerToggle).toHaveBeenCalled();
 
         header.contextDrawerToggleRequested.emit();
         fixture.detectChanges();

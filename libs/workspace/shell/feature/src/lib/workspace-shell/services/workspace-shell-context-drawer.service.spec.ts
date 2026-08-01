@@ -57,3 +57,60 @@ describe('WorkspaceShellContextDrawerService', () => {
         expect(service.isOpen()).toBe(true);
     });
 });
+
+describe('WorkspaceShellContextDrawerService viewport tracking', () => {
+    let changeListener: ((event: { matches: boolean }) => void) | undefined;
+    let removeEventListener: jest.Mock;
+
+    beforeEach(() => {
+        removeEventListener = jest.fn();
+        // JSDOM has no matchMedia; the service treats its absence as
+        // "no viewport tracking", so a mock is required to reach the path.
+        (window as { matchMedia?: unknown }).matchMedia = jest.fn(() => ({
+            matches: true,
+            addEventListener: (
+                _type: string,
+                listener: (event: { matches: boolean }) => void
+            ) => {
+                changeListener = listener;
+            },
+            removeEventListener,
+        }));
+    });
+
+    afterEach(() => {
+        delete (window as { matchMedia?: unknown }).matchMedia;
+        changeListener = undefined;
+    });
+
+    function createService(): WorkspaceShellContextDrawerService {
+        TestBed.configureTestingModule({
+            providers: [
+                WorkspaceShellContextDrawerService,
+                {
+                    provide: Router,
+                    useValue: { events: new Subject().asObservable() },
+                },
+            ],
+        });
+        return TestBed.inject(WorkspaceShellContextDrawerService);
+    }
+
+    it('closes when the viewport leaves the phone breakpoint', () => {
+        const service = createService();
+        service.toggle();
+
+        changeListener?.({ matches: false });
+
+        expect(service.isOpen()).toBe(false);
+    });
+
+    it('stays open while the viewport remains at phone width', () => {
+        const service = createService();
+        service.toggle();
+
+        changeListener?.({ matches: true });
+
+        expect(service.isOpen()).toBe(true);
+    });
+});

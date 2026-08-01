@@ -39,6 +39,8 @@
         [isSettingsRoute]="facade.isSettingsRoute()"
         [showContextDrawerToggle]="facade.hasContextPanelContent()"
         [isContextDrawerOpen]="contextDrawer.isOpen()"
+        [contextDrawerToggleAriaKey]="facade.contextDrawerLabelKeys().aria"
+        [contextDrawerTooltipKey]="facade.contextDrawerLabelKeys().tooltip"
         (contextDrawerToggleRequested)="contextDrawer.toggle()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"
@@ -69,8 +71,14 @@
                     (click)="contextDrawer.close()"
                 ></div>
             }
+            <!-- The trap only ever activates through the phone toggle: on
+                 desktop isOpen stays false, and the service closes the
+                 drawer when the viewport leaves the phone breakpoint, so
+                 the in-flow desktop sidebar can never hold the trap. -->
             <app-workspace-shell-context-sidebar
                 [class.drawer-open]="contextDrawer.isOpen()"
+                [cdkTrapFocus]="contextDrawer.isOpen()"
+                [cdkTrapFocusAutoCapture]="contextDrawer.isOpen()"
                 [variant]="facade.contextPanel()"
                 [context]="facade.currentContext()"
                 [section]="facade.currentSection()"

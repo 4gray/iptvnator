@@ -356,7 +356,14 @@ but the component has not.
   NavigationEnd listener alone misses Stalker ITV/radio categories, settings
   sections, sources filters, and collection filters. The drawer positioning
   is `position: fixed` on the sidebar host, which also removes it from the
-  shell grid, so the phone `workspace-body` stays single-pane.
+  shell grid, so the phone `workspace-body` stays single-pane. The drawer is
+  modal for keyboard users: `CdkTrapFocus` captures and contains focus while
+  open, the shell restores focus to the header toggle on close (the closed
+  drawer is `visibility: hidden`, so focus left inside it would drop to
+  `<body>`), and the service closes the drawer when the viewport leaves the
+  phone breakpoint so the trap can never hold the in-flow desktop sidebar.
+  The toggle's label is variant-aware — categories, filters, or settings
+  sections — because a fixed label would misdescribe two of the three.
 - Other side rails stack above the content instead of beside it: the
   live-layout channel sidebar and the M3U channel drawer.
 
