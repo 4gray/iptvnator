@@ -138,8 +138,10 @@
         }
     }
 
+    // Keeps the mixin's player floor rather than releasing it: `height: 50vh`
+    // is a preference, not a reservation, so on a short landscape phone the
+    // drawer could otherwise squeeze the video away entirely.
     .content-container {
         height: 50vh;
-        min-height: 0;
     }
 }

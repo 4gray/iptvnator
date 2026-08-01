@@ -210,10 +210,25 @@
 
         // The player's floor, not the list's ceiling, is what has to hold: a
         // phone shows the categories panel above this layout too, and without
-        // a stated minimum the video ends up a sliver under two lists.
+        // a stated minimum the video ends up a sliver under two lists. The
+        // floor yields on a landscape phone, where 240px is most of the shell
+        // body and claiming it would starve the list instead.
         .content-container {
             flex: 1 1 auto;
-            min-height: 240px;
+            min-height: min(240px, 50vh);
+        }
+
+        // Inside that container the guide is `flex: 0 0 <basis>`, so on a
+        // short screen it took its full basis out of a container that no
+        // longer had it and the video was left with nothing. Here the video
+        // keeps a floor and the guide is what gives way.
+        .video-player {
+            min-height: 120px;
+        }
+
+        .epg.epg--inline {
+            flex-shrink: 1;
+            min-height: 0;
         }
     }
 }

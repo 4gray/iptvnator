@@ -55,7 +55,14 @@
                     'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
                 "
             >
-                {{ commandShortcutLabel }}
+                <!-- The shortcut label is the affordance on a keyboard; on a
+                     phone it means nothing, but this button is the only way
+                     to open the palette, so it becomes an icon rather than
+                     disappearing. -->
+                <span class="command-trigger__shortcut">{{
+                    commandShortcutLabel
+                }}</span>
+                <mat-icon class="command-trigger__icon">bolt</mat-icon>
             </button>
         </label>
     }

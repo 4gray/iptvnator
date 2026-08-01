@@ -116,6 +116,13 @@
         }
     }
 
+    .command-trigger__icon {
+        display: none;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+
     .command-trigger {
         display: inline-flex;
         align-items: center;
@@ -314,10 +321,28 @@
             display: none;
         }
 
-        // Keyboard-only affordances on a screen that usually has no keyboard.
-        // The palette still opens via the actual shortcut and the rail.
+        // An <input> carries an intrinsic min-width from its `size`, and
+        // `min-width: auto` on a flex item honours it — so the input refused
+        // to shrink and pushed the trigger out of the field and onto the
+        // buttons beside it.
+        input {
+            min-width: 0;
+        }
+
+        // This button is the only pointer-driven way into the command
+        // palette, so it stays; only its keyboard-shortcut label is swapped
+        // for an icon that means something without a keyboard.
         .command-trigger {
+            min-width: 28px;
+            padding: 0 4px;
+        }
+
+        .command-trigger__shortcut {
             display: none;
+        }
+
+        .command-trigger__icon {
+            display: inline-flex;
         }
     }
 
