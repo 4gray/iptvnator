@@ -803,6 +803,48 @@ describe('content.operations', () => {
         expect(results.map((item) => item.title)).toEqual(['A&E', 'US: A&E']);
     });
 
+    it('ranks multi-chip (OR) matches by chips matched and drops non-matches', () => {
+        const makeChannel = (id: string, name: string) => ({
+            id,
+            url: `https://stream.test/${id}.m3u8`,
+            name,
+            group: { title: 'Movies' },
+            tvg: { id, name: '', url: '', logo: '', rec: '' },
+            http: { referrer: '', 'user-agent': '', origin: '' },
+            radio: '',
+        });
+
+        const results = buildM3uGlobalSearchResults(
+            [
+                {
+                    id: 'm3u-1',
+                    name: 'M3U One',
+                    payload: JSON.stringify({
+                        playlist: {
+                            items: [
+                                makeChannel('one-year', 'Spain 1968'),
+                                makeChannel('both', 'France 1968 Movie'),
+                                makeChannel('none', 'Germany 2020'),
+                                makeChannel('one-name', 'France 2000'),
+                            ],
+                        },
+                    }),
+                },
+            ],
+            // Two committed chips: [France] OR [1968].
+            'France\n1968',
+            false
+        );
+
+        // Both-chips match first; each single-chip match still appears (tie
+        // broken by title); the title matching neither chip is dropped.
+        expect(results.map((item) => item.title)).toEqual([
+            'France 1968 Movie',
+            'France 2000',
+            'Spain 1968',
+        ]);
+    });
+
     it('finds compound-word titles anywhere via per-playlist search (issue #1161)', async () => {
         const makeRow = (id: number, title: string) => ({
             id,
