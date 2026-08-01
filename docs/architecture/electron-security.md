@@ -164,8 +164,15 @@ validation while retaining the original hostname for TLS SNI, certificate
 validation, and virtual hosting. This prevents DNS rebinding between validation
 and connection. Callers with custom TLS policy provide a typed agent factory;
 the validated request layer supplies the pinned lookup instead of copying
-private Node `Agent.options` state. Cross-origin redirects must not forward `Authorization`,
-`Cookie`, `Proxy-Authorization`, Axios `params`, or request bodies.
+private Node `Agent.options` state. Credential stripping is scoped to the host
+rather than the origin, with one transport-security carve-out: same-hostname
+redirects that upgrade the scheme (http→https) or move ports keep
+`Authorization`, `Cookie`, basic auth, `params`, and request bodies, because
+IPTV portals routinely answer with such redirects and losing the session
+cookie/token there breaks the portal outright (#1158) while disclosing nothing
+to a third party. Redirects that change the host **or downgrade https→http**
+must not forward any of those — the former would hand provider credentials to a
+third party, the latter would replay a TLS-obtained session in cleartext.
 
 EPG URLs are strict by default because an M3U playlist can supply them through
 `url-tvg`. Operators who intentionally use a LAN-hosted EPG source should prefer
