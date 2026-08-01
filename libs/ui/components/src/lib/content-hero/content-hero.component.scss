@@ -599,3 +599,14 @@ ngx-skeleton-loader {
     min-height: 330px; // Fallback
     aspect-ratio: 2 / 3;
 }
+
+// After the rule above so it wins the cascade at equal specificity: that
+// 330px skeleton fallback is sized for the desktop poster width, while the
+// stacked phone hero renders the poster 140px wide — its aspect-ratio height
+// is ~210px, and the leftover minimum was pure empty space pushing the title
+// and actions ~120px down on every loaded detail page.
+@media (max-width: 640px) {
+    .poster {
+        min-height: 0;
+    }
+}

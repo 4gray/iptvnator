@@ -49,3 +49,22 @@
 .settings-back-button:hover:not(.active):not(.selected) {
     background: var(--app-selection-surface);
 }
+
+// On a landscape phone the stacked panel gets ~108-148px, and this panel's
+// fixed chrome (title + footer) alone is about that tall — the section list
+// was collapsing to nothing behind an overlapping footer. The rail already
+// labels the page, so the caption is what gives way, and the footer sheds
+// the padding it carries for taller screens.
+@media (max-width: 640px) and (max-height: 599px) {
+    .panel-title {
+        display: none;
+    }
+
+    .settings-panel-body {
+        padding-top: 8px;
+    }
+
+    .settings-panel-footer {
+        padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    }
+}
