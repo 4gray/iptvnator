@@ -111,27 +111,67 @@ describe('VjsMpegTsSession', () => {
         expect(duration).toHaveBeenCalledWith(200);
     });
 
-    it('classifies engine errors with Video.js source metadata', () => {
+    it('emits structured HTTP evidence with Video.js source metadata', () => {
+        const mpegTsPlayer = createMpegTsPlayer();
+        createPlayerMock.mockReturnValue(mpegTsPlayer);
+        const video = document.createElement('video');
+        const { session, emitPlaybackIssue } = createSession();
+        const secret = 'vjs-mpegts-secret';
+
+        session.start('https://example.test/live/stream.ts', video);
+        mpegTsPlayer.emit(
+            'error',
+            'NetworkError',
+            'HttpStatusCodeInvalid',
+            {
+                code: 503,
+                msg: `Service Unavailable ${secret}`,
+                headers: { Authorization: secret },
+            }
+        );
+
+        expect(emitPlaybackIssue).toHaveBeenCalledWith(
+            expect.objectContaining({
+                code: 'network-error',
+                source: 'mpegts',
+                sourceUrl: 'https://example.test/live/stream.ts',
+                player: 'videojs',
+                httpStatus: 503,
+                mpegTs: expect.objectContaining({
+                    engineType: 'NetworkError',
+                    engineDetails: 'HttpStatusCodeInvalid',
+                    failure: 'http',
+                    httpStatus: 503,
+                }),
+                externalFallbackRecommended: false,
+            })
+        );
+        expect(JSON.stringify(emitPlaybackIssue.mock.calls)).not.toContain(
+            secret
+        );
+    });
+
+    it('does not guess browser access from a generic mpegts exception', () => {
         const mpegTsPlayer = createMpegTsPlayer();
         createPlayerMock.mockReturnValue(mpegTsPlayer);
         const video = document.createElement('video');
         const { session, emitPlaybackIssue } = createSession();
 
         session.start('https://example.test/live/stream.ts', video);
-        mpegTsPlayer.emit(
-            'error',
-            'NetworkError',
-            'FetchError',
-            new Error('CORS blocked')
-        );
+        mpegTsPlayer.emit('error', 'NetworkError', 'Exception', {
+            code: -1,
+            msg: 'blocked by CORS policy',
+        });
 
         expect(emitPlaybackIssue).toHaveBeenCalledWith(
             expect.objectContaining({
-                code: 'browser-access-error',
-                source: 'mpegts',
-                sourceUrl: 'https://example.test/live/stream.ts',
-                player: 'videojs',
+                code: 'network-error',
+                mpegTs: expect.objectContaining({ failure: 'network' }),
+                externalFallbackRecommended: false,
             })
+        );
+        expect(JSON.stringify(emitPlaybackIssue.mock.calls)).not.toContain(
+            'CORS'
         );
     });
 

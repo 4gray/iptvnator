@@ -239,10 +239,11 @@ describe('ArtPlayerComponent', () => {
             artPlayerInstances[0].video,
             'https://example.com/live/channel.ts'
         );
+        const secret = 'art-component-mpegts-secret';
         mpegTsInstances[0].handlers.get('error')?.(
-            'mediaError',
-            'unsupported codec',
-            {}
+            'MediaError',
+            'CodecUnsupported',
+            { message: secret }
         );
 
         expect(issues).toEqual([
@@ -250,9 +251,15 @@ describe('ArtPlayerComponent', () => {
                 code: 'unsupported-codec',
                 source: 'mpegts',
                 sourceUrl: 'https://example.com/live/channel.ts',
+                mpegTs: expect.objectContaining({
+                    engineType: 'MediaError',
+                    engineDetails: 'CodecUnsupported',
+                    failure: 'codec',
+                }),
                 externalFallbackRecommended: true,
             }),
         ]);
+        expect(JSON.stringify(issues)).not.toContain(secret);
     });
 
     it('emits playbackEnded exactly once for a native ended event and not during reload or destroy', () => {

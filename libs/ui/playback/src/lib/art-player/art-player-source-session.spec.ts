@@ -186,10 +186,11 @@ describe('ArtPlayerSourceSession', () => {
             details: 'stale callback',
             fatal: true,
         });
+        const secret = 'art-mpegts-secret';
         mpegTsInstances.at(-1)?.handlers.get('error')?.(
-            'mediaError',
-            'unsupported codec',
-            {}
+            'MediaError',
+            'CodecUnsupported',
+            { message: secret, headers: { Authorization: secret } }
         );
 
         expect(emitted).toEqual([
@@ -199,11 +200,18 @@ describe('ArtPlayerSourceSession', () => {
                 player: 'artplayer',
             }),
             expect.objectContaining({
+                code: 'unsupported-codec',
                 source: 'mpegts',
                 sourceUrl: 'https://example.test/live.ts',
                 player: 'artplayer',
+                mpegTs: expect.objectContaining({
+                    engineType: 'MediaError',
+                    engineDetails: 'CodecUnsupported',
+                    failure: 'codec',
+                }),
             }),
         ]);
+        expect(JSON.stringify(emitted)).not.toContain(secret);
     });
 
     it('reports only structured evidence for a fatal HLS manifest HTTP failure', () => {
