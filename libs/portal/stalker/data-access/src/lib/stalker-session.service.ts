@@ -552,27 +552,29 @@ export class StalkerSessionService {
 
         let accountInfo: StalkerProfileResponse['js']['account_info'];
         const authPromise = (async () => {
-            try {
-                const result = await this.authenticate(
-                    portalUrl,
-                    macAddress,
-                    identity
-                );
-                accountInfo = result.accountInfo;
-                this.setCachedToken(playlist._id, result.token);
-                return {
-                    token: result.token,
-                    serialNumber: identity.serialNumber,
-                };
-            } finally {
-                if (this.pendingAuth.get(playlist._id) === authPromise) {
-                    this.pendingAuth.delete(playlist._id);
-                }
-            }
+            const result = await this.authenticate(
+                portalUrl,
+                macAddress,
+                identity
+            );
+            accountInfo = result.accountInfo;
+            this.setCachedToken(playlist._id, result.token);
+            return {
+                token: result.token,
+                serialNumber: identity.serialNumber,
+            };
         })();
 
         this.pendingAuth.set(playlist._id, authPromise);
-        await authPromise;
+        try {
+            await authPromise;
+        } finally {
+            // Only retire our own entry: a caller that started a later
+            // authentication owns the map slot from then on.
+            if (this.pendingAuth.get(playlist._id) === authPromise) {
+                this.pendingAuth.delete(playlist._id);
+            }
+        }
 
         return accountInfo;
     }
