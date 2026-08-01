@@ -483,6 +483,7 @@ jobs:
                     const safeDeploymentTarget = deploymentTarget.replace(/[^A-Za-z0-9_.-]/g, '-');
                     sourceHashFiles.push(
                       'tools/embedded-mpv/build-macos-runtime.mjs',
+                      'tools/embedded-mpv/download-pinned-source.mjs',
                       'tools/embedded-mpv/stage-macos-runtime.mjs'
                     );
                     try {

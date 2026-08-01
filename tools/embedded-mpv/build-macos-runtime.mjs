@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import { downloadPinnedSource } from './download-pinned-source.mjs';
 
 const rawArgs = process.argv.slice(2);
 const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
@@ -17,31 +17,44 @@ const sourcePackages = [
     {
         id: 'freetype',
         version: '2.13.3',
-        url: 'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz',
+        url: 'https://downloads.sourceforge.net/project/freetype/freetype2/2.13.3/freetype-2.13.3.tar.xz',
+        mirrors: [
+            'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz',
+        ],
+        expectedSha256:
+            '0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289',
         license: 'FreeType License or GPL-2.0-or-later',
     },
     {
         id: 'fribidi',
         version: '1.0.16',
         url: 'https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz',
+        expectedSha256:
+            '1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c',
         license: 'LGPL-2.1-or-later',
     },
     {
         id: 'harfbuzz',
         version: '8.5.0',
         url: 'https://github.com/harfbuzz/harfbuzz/releases/download/8.5.0/harfbuzz-8.5.0.tar.xz',
+        expectedSha256:
+            '77e4f7f98f3d86bf8788b53e6832fb96279956e1c3961988ea3d4b7ca41ddc27',
         license: 'MIT',
     },
     {
         id: 'libass',
         version: '0.17.3',
         url: 'https://github.com/libass/libass/releases/download/0.17.3/libass-0.17.3.tar.xz',
+        expectedSha256:
+            'eae425da50f0015c21f7b3a9c7262a910f0218af469e22e2931462fed3c50959',
         license: 'ISC',
     },
     {
         id: 'ffmpeg',
         version: '8.1',
         url: 'https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz',
+        expectedSha256:
+            'b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a',
         license: 'LGPL-compatible configuration',
     },
     {
@@ -55,6 +68,8 @@ const sourcePackages = [
         id: 'mpv',
         version: '0.41.0',
         url: 'https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz',
+        expectedSha256:
+            'ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209',
         license: 'LGPL-compatible configuration with -Dgpl=false',
     },
 ];
@@ -220,12 +235,6 @@ function sourcePathFor(packageId) {
     return path.join(sourceRoot, packageId);
 }
 
-function sha256File(filePath) {
-    const hash = crypto.createHash('sha256');
-    hash.update(fs.readFileSync(filePath));
-    return hash.digest('hex');
-}
-
 function runCapture(command, commandArgs, options = {}) {
     const result = spawnSync(command, commandArgs, {
         cwd: options.cwd ?? workspaceRoot,
@@ -309,18 +318,27 @@ function downloadSources() {
         }
 
         const archivePath = archivePathFor(sourcePackage);
-        if (!fs.existsSync(archivePath)) {
-            run('curl', [
-                '-fL',
-                '--retry',
-                '3',
-                '--retry-delay',
-                '5',
-                '-o',
-                archivePath,
-                sourcePackage.url,
-            ]);
-        }
+        const { sourceSha256, sourceUrl, sourceUrls } = downloadPinnedSource({
+            archivePath,
+            expectedSha256: sourcePackage.expectedSha256,
+            urls: [sourcePackage.url, ...(sourcePackage.mirrors ?? [])],
+            download: ({ destinationPath, url }) =>
+                run('curl', [
+                    '--fail',
+                    '--location',
+                    '--retry',
+                    '3',
+                    '--retry-all-errors',
+                    '--connect-timeout',
+                    '30',
+                    '--proto',
+                    '=https',
+                    '--tlsv1.2',
+                    '--output',
+                    destinationPath,
+                    url,
+                ]),
+        });
 
         const packageSourcePath = sourcePathFor(sourcePackage.id);
         fs.rmSync(packageSourcePath, { recursive: true, force: true });
@@ -333,7 +351,9 @@ function downloadSources() {
             '--strip-components',
             '1',
         ]);
-        sourcePackage.sha256 = sha256File(archivePath);
+        sourcePackage.sha256 = sourceSha256;
+        sourcePackage.sourceUrl = sourceUrl;
+        sourcePackage.sourceUrls = sourceUrls;
     }
 }
 
@@ -493,7 +513,13 @@ function sourceMetadata(packageId) {
     const sourcePackage = packageById.get(packageId);
     return {
         version: sourcePackage.version,
-        sourceUrl: sourcePackage.url ?? sourcePackage.gitUrl,
+        sourceUrl:
+            sourcePackage.sourceUrl ??
+            sourcePackage.url ??
+            sourcePackage.gitUrl,
+        ...(sourcePackage.sourceUrls
+            ? { sourceUrls: sourcePackage.sourceUrls }
+            : {}),
         ...(sourcePackage.tag ? { sourceTag: sourcePackage.tag } : {}),
         ...(sourcePackage.sha256
             ? { sourceSha256: sourcePackage.sha256 }
@@ -523,7 +549,13 @@ function writeManifest() {
                 sourcePackage.id,
                 {
                     version: sourcePackage.version,
-                    sourceUrl: sourcePackage.url ?? sourcePackage.gitUrl,
+                    sourceUrl:
+                        sourcePackage.sourceUrl ??
+                        sourcePackage.url ??
+                        sourcePackage.gitUrl,
+                    ...(sourcePackage.sourceUrls
+                        ? { sourceUrls: sourcePackage.sourceUrls }
+                        : {}),
                     ...(sourcePackage.tag
                         ? { sourceTag: sourcePackage.tag }
                         : {}),
