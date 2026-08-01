@@ -234,6 +234,13 @@ mat-paginator {
 
     mat-paginator {
         justify-self: start;
+
+        // The page-size select wraps onto a line of its own here, costing a
+        // row of an already short screen for a control nobody reaches for
+        // while browsing on a phone. The range and the arrows stay.
+        ::ng-deep .mat-mdc-paginator-page-size {
+            display: none;
+        }
     }
 }
 

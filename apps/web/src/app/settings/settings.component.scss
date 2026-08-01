@@ -751,6 +751,9 @@
     );
     margin-left: 0;
     margin-right: 0;
+    // Stretched to the full layout width, so its own inline padding would be
+    // added on top and push the settings page into a horizontal scroll.
+    box-sizing: border-box;
     z-index: 100;
     display: flex;
     justify-content: flex-end;

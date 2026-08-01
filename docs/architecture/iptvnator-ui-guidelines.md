@@ -253,9 +253,11 @@ remain local when the meaning is explicit.
   width is preserved so uncollapsing restores the user's previous resized
   width. Both rails share the same 180 ms width transition so motion stays in
   lockstep.
-- Below 600 px viewport, the M3U layout's mobile bottom-drawer rule overrides
-  the desktop collapse to `height: 0` instead of `width: 0`, and the floating
-  restore handle is hidden.
+- At the phone breakpoint the M3U layout's bottom-drawer rule overrides the
+  desktop collapse to `height: 0` instead of `width: 0`. The floating restore
+  handle stays visible there: the collapse toggle is reachable by touch, so
+  hiding the handle left a phone with no way to bring the list back short of
+  `Cmd/Ctrl+B`.
 
 ### EPG Card
 
@@ -330,6 +332,50 @@ Settings use the same system but are flatter than content-heavy views.
 - Denser tinted surfaces are acceptable
 - Neutral rows can use low-opacity dark overlays
 - Keep strong blue tint reserved for active sections and selected items
+
+## Phone Layout
+
+`640px` is the phone breakpoint. Use `@media (max-width: 640px)` rather than
+inventing a nearby value: several surfaces cooperate at this width, and a
+component that picks `599px` leaves a band where the shell has already stacked
+but the component has not.
+
+### Rails become rows or stacks
+
+- The workspace shell rail turns into a horizontal top bar. Everything inside
+  it has to opt into the row direction — a nested list that keeps
+  `flex-direction: column` stacks its links out of the bar and over the header.
+  The bar scrolls sideways once a portal contributes its sections, and the
+  settings link is `position: sticky` so it never scrolls out of reach.
+- Side rails stack above the content instead of beside it: the shell context
+  panel, the live-layout channel sidebar, and the M3U channel drawer.
+
+### Resizable rails need `!important`
+
+`ResizableDirective` writes the persisted desktop width as an inline style, so
+a phone rule must be `width: 100% !important` to win. Hide `.resize-handle` in
+the same rule — dragging is meaningless at full width. Since there is no global
+`border-box` reset, a full-width rail with its own padding also needs
+`box-sizing: border-box` or it overflows the viewport.
+
+### State the content's floor, not the list's ceiling
+
+On routes that stack two lists above the player (live TV shows the categories
+panel and the channel list), capping both lists still leaves the video a
+sliver. Give the player container a `min-height` instead and let the lists
+shrink into what is left.
+
+### What to drop
+
+Prefer removing a control over shrinking everything around it:
+
+- Keyboard-only affordances — the `⌘K` badge, the shortcuts button.
+- The `mat-paginator` page-size select, which is the widest part of the
+  control and the least useful one on a phone. The range and arrows stay.
+- Counts and subtitles that a neighbouring control already states.
+
+Never drop the only way back to a hidden surface. A collapse toggle that is
+reachable by touch needs its restore affordance to be reachable too.
 
 ## Theme Guidance
 

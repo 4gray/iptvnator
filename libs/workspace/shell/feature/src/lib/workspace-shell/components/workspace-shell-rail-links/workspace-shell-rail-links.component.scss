@@ -97,3 +97,34 @@
     background: var(--rail-link-active-icon, var(--app-selection-color));
     box-shadow: 0 0 10px var(--rail-link-active-glow, var(--app-selection-glow));
 }
+
+// The rail turns into a horizontal top bar below this width, so the links
+// have to follow. Without the row direction the host keeps stacking its
+// links downwards out of the 52px bar and they overlap the header.
+@media (max-width: 640px) {
+    :host {
+        width: auto;
+    }
+
+    .rail-links {
+        flex-direction: row;
+        width: auto;
+    }
+
+    .portal-rail-link {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 auto;
+    }
+
+    .portal-rail-link.is-active::after,
+    .portal-rail-link.active::after {
+        right: auto;
+        top: auto;
+        bottom: -3px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 18px;
+        height: 3px;
+    }
+}

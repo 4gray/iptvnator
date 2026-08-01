@@ -92,6 +92,19 @@ app-workspace-shell-context-sidebar {
     .workspace-body {
         grid-column: 1;
         grid-row: 3;
+        // Side by side there is no room for both: a 300px context panel on a
+        // 375px screen leaves the content unusable, so they stack instead.
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+
+        &.single-pane {
+            grid-template-rows: minmax(0, 1fr);
+        }
+    }
+
+    .workspace-content {
+        border-radius: 0;
+        box-shadow: none;
     }
 
     .workspace-now-playing {
