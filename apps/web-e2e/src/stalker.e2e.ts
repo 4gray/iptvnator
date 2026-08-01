@@ -106,12 +106,38 @@ async function interceptStalkerRequests(page: Page): Promise<void> {
     });
 }
 
+/** Every MAC this file touches; each is reset individually (see below). */
+const OWNED_MACS = [
+    DEFAULT_MAC,
+    MINIMAL_MAC,
+    EMBEDDED_SERIES_MAC,
+    LEGACY_PAGINATION_MAC,
+    AUTH_FLOW_MAC,
+    AUTH_REAUTH_MAC,
+    AUTH_REJECTED_MAC,
+];
+
+/**
+ * Reset only the MACs this file owns. Mock state is per-MAC and other spec
+ * files (self-hosted.e2e.ts) talk to the same server from a parallel worker,
+ * so a global reset here would wipe their sessions mid-test — and theirs
+ * would wipe ours.
+ */
 async function resetMockServer(request: APIRequestContext): Promise<void> {
+    await Promise.all(OWNED_MACS.map((mac) => resetMockServerMac(request, mac)));
+}
+
+async function resetMockServerMac(
+    request: APIRequestContext,
+    mac: string
+): Promise<void> {
     let lastError: unknown;
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-            const response = await request.post(`${MOCK_SERVER}/reset`);
+            const response = await request.post(
+                `${MOCK_SERVER}/reset?macAddress=${encodeURIComponent(mac)}`
+            );
             if (response.ok()) {
                 return;
             }
@@ -630,9 +656,12 @@ test('@stalker mock server reset clears cached state', async ({ request }) => {
     );
     expect(before.ok()).toBeTruthy();
 
-    // Reset
-    const reset = await request.post(`${MOCK_SERVER}/reset`);
+    // Scoped reset — a global one would clear MACs owned by parallel specs.
+    const reset = await request.post(
+        `${MOCK_SERVER}/reset?macAddress=${encodeURIComponent(DEFAULT_MAC)}`
+    );
     expect(reset.ok()).toBeTruthy();
+    expect((await reset.json()).mac).toBe(DEFAULT_MAC);
 
     // Data is regenerated identically (deterministic seed)
     const after = await request.get(

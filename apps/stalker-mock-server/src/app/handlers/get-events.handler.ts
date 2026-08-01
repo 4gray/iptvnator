@@ -35,6 +35,10 @@ export function getWatchdogPings(
     return watchdogPings.get(mac.toLowerCase());
 }
 
-export function resetWatchdogPings(): void {
+export function resetWatchdogPings(mac?: string): void {
+    if (mac) {
+        watchdogPings.delete(mac.toLowerCase());
+        return;
+    }
     watchdogPings.clear();
 }

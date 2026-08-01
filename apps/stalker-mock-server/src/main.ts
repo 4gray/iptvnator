@@ -6,7 +6,7 @@ import portalRouter, { createPortalRouter } from './app/routes/portal.route.js';
 import dispatchPortalAction from './app/routes/dispatch.js';
 import { invalidateSession, resetAuthState } from './app/auth-store.js';
 import { resetWatchdogPings } from './app/handlers/get-events.handler.js';
-import { resetAll } from './app/data-store.js';
+import { resetAll, resetMac } from './app/data-store.js';
 import { SCENARIOS } from './app/scenarios.js';
 import {
     buildRequestOrigin,
@@ -173,12 +173,34 @@ app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Reset all in-memory data (useful between Playwright test runs)
-app.post('/reset', (_req: Request, res: Response) => {
-    resetAll();
-    resetAuthState();
-    resetWatchdogPings();
-    res.json({ status: 'reset', timestamp: new Date().toISOString() });
+/**
+ * Reset in-memory state between test runs.
+ *
+ * `?macAddress=<mac>` scopes the reset to that MAC and is what specs should
+ * use: mock state is per-MAC, so a scoped reset cannot wipe the session of a
+ * spec file running concurrently in another Playwright worker. Without the
+ * parameter everything is cleared, which is only safe when nothing else is
+ * talking to this server.
+ */
+app.post('/reset', (req: Request, res: Response) => {
+    const macParam = req.query['macAddress'];
+    const mac = typeof macParam === 'string' ? macParam : undefined;
+
+    if (mac) {
+        resetMac(mac);
+        resetAuthState(mac);
+        resetWatchdogPings(mac);
+    } else {
+        resetAll();
+        resetAuthState();
+        resetWatchdogPings();
+    }
+
+    res.json({
+        status: 'reset',
+        ...(mac ? { mac } : {}),
+        timestamp: new Date().toISOString(),
+    });
 });
 
 /**

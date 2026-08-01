@@ -102,7 +102,13 @@ function expectRequestsUseTargetId(requests: string[], path: string): void {
 
 test.beforeEach(async ({ page, request }) => {
     await request.post(`${XTREAM_MOCK_SERVER}/reset`);
-    await request.post(`${STALKER_MOCK_SERVER}/reset`);
+    // Scope the Stalker reset to the MAC this file uses: a global reset would
+    // wipe the sessions of stalker.e2e.ts running in a parallel worker.
+    await request.post(
+        `${STALKER_MOCK_SERVER}/reset?macAddress=${encodeURIComponent(
+            DEFAULT_MAC
+        )}`
+    );
     await installRuntimeConfig(page);
     await page.goto('/');
 });

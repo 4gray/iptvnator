@@ -44,6 +44,17 @@ export function resetFavorites(mac: string): void {
     favoritesStore.delete(mac.toLowerCase());
 }
 
+/**
+ * Reset everything cached for one MAC. Preferred over `resetAll()` in tests:
+ * mock state is per-MAC, so a scoped reset cannot disturb a spec that runs
+ * concurrently against a different MAC.
+ */
+export function resetMac(mac: string): void {
+    const key = mac.toLowerCase();
+    portalCache.delete(key);
+    favoritesStore.delete(key);
+}
+
 /** Reset all cached data (exposed via /reset endpoint). */
 export function resetAll(): void {
     portalCache.clear();

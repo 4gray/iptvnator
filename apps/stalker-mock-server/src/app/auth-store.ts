@@ -201,7 +201,11 @@ export function invalidateSession(mac: string): void {
     session.pendingToken = undefined;
 }
 
-export function resetAuthState(): void {
+export function resetAuthState(mac?: string): void {
+    if (mac) {
+        sessions.delete(mac.toLowerCase());
+        return;
+    }
     sessions.clear();
     tokenCounter = 0;
 }
