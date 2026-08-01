@@ -289,6 +289,19 @@ std::string normalizeEnvValue(const char* value)
     return result;
 }
 
+void replaceAllInPlace(std::string& value, const std::string& from, const std::string& to)
+{
+    if (from.empty()) {
+        return;
+    }
+
+    size_t position = 0;
+    while ((position = value.find(from, position)) != std::string::npos) {
+        value.replace(position, from.length(), to);
+        position += to.length();
+    }
+}
+
 std::string joinHeaderFields(const Napi::Object& headers)
 {
     const Napi::Array propertyNames = headers.GetPropertyNames();
@@ -311,6 +324,15 @@ std::string joinHeaderFields(const Napi::Object& headers)
         if (key.empty() || value.empty()) {
             continue;
         }
+
+        // mpv's `--http-header-fields` option is a comma-separated list
+        // (OPT_STRINGLIST). Header values that themselves contain commas
+        // (e.g. the Stalker MAG250 user agent "...(KHTML, like Gecko) MAG250")
+        // must be escaped so mpv does not split them into bogus fields and
+        // the server rejects the request with HTTP 400. mpv strips the
+        // backslash and keeps the comma inside the header value.
+        replaceAllInPlace(value, "\\", "\\\\");
+        replaceAllInPlace(value, ",", "\\,");
 
         fields.push_back(key + ": " + value);
     }
