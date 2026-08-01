@@ -526,11 +526,28 @@ describe('WorkspaceShellComponent', () => {
         fixture.detectChanges();
         expect(sidebar().classList.contains('drawer-open')).toBe(true);
 
-        document.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-        );
+        const escapeWhileOpen = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(escapeWhileOpen);
         fixture.detectChanges();
         expect(sidebar().classList.contains('drawer-open')).toBe(false);
+        // Consumed, so downstream Escape handlers (inline player close,
+        // controls shortcuts) skip it — one keypress must not close both
+        // the drawer and the obscured playback surface.
+        expect(escapeWhileOpen.defaultPrevented).toBe(true);
+
+        // With the drawer closed the shell must leave Escape alone.
+        const escapeWhileClosed = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(escapeWhileClosed);
+        expect(escapeWhileClosed.defaultPrevented).toBe(false);
+
         jest.runOnlyPendingTimers();
         jest.useRealTimers();
     });

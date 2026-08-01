@@ -140,6 +140,7 @@ export class PlayerControlsComponent implements OnDestroy {
     constructor() {
         this.shortcuts.attach({
             isAvailable: () => this.shortcutsEnabled() && this.showControls(),
+            hostElement: () => this.host,
             canTogglePaused: () => this.canTogglePlay(),
             canSeek: () => this.capabilities().seek && this.state().canSeek,
             canAdjustVolume: () => this.capabilities().volume,

@@ -368,7 +368,12 @@ but the component has not.
   inert header and `focus()` on a still-inert element is silently ignored.
   The service closes the drawer when the viewport leaves the phone
   breakpoint so the trap and inert state can never hold the in-flow desktop
-  layout.
+  layout. While open, the shell consumes Escape (downstream consumers —
+  the inline player's close handler, the shared controls shortcuts — check
+  `defaultPrevented`, so one keypress cannot close both the drawer and the
+  obscured player), and document-level playback shortcuts opt out on their
+  own by checking for an `inert` ancestor, since `inert` does not silence
+  document-level listeners.
   The toggle's label is variant-aware — categories, filters, or settings
   sections — because a fixed label would misdescribe two of the three.
 - Other side rails stack above the content instead of beside it: the

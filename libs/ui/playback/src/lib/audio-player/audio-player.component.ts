@@ -248,6 +248,12 @@ export class AudioPlayerComponent {
         )
             return;
 
+        // Inside an inert region (e.g. behind the workspace's phone context
+        // drawer) the player is out of the interaction model: inert strips
+        // pointer and Tab access, but this document-level listener still
+        // fires, so it must opt out itself.
+        if (this.hostEl.nativeElement.closest('[inert]')) return;
+
         if (event.key === 'ArrowUp') {
             event.preventDefault();
             this.setVolume(this.volume() + 0.05);

@@ -81,8 +81,18 @@ export class WorkspaceShellComponent {
         });
     }
 
-    @HostListener('document:keydown.escape')
-    onEscapePressed(): void {
+    @HostListener('document:keydown.escape', ['$event'])
+    onEscapePressed(event: KeyboardEvent): void {
+        if (event.defaultPrevented || !this.contextDrawer.isOpen()) {
+            return;
+        }
+
+        // Consume the event: this listener registers before any routed
+        // content's, and downstream Escape consumers (the portal detail
+        // shell's inline player, the shared controls shortcuts) check
+        // defaultPrevented — without this, one keypress would close both
+        // the drawer and the obscured playback surface behind it.
+        event.preventDefault();
         this.contextDrawer.close();
     }
 
