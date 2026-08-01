@@ -2,6 +2,7 @@ import {
     EmbeddedMpvFrameSource,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { joinMpvHeaderFields } from '../util/mpv-string-list.util';
 import type { NativeEmbeddedMpvSessionSnapshot } from './embedded-mpv-native.service';
 
 /**
@@ -65,9 +66,14 @@ export function buildLoadPlaybackCommand(
         fields.push(`opt.start=${playback.startTime}`);
     }
     if (playback.headers && Object.keys(playback.headers).length > 0) {
-        const headerFields = Object.entries(playback.headers)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(',');
+        // The helper %len%-quotes the value at the loadfile-options level, but
+        // mpv still parses it as a comma-separated stringlist afterwards, so
+        // commas inside header values must be mpv-escaped here.
+        const headerFields = joinMpvHeaderFields(
+            Object.entries(playback.headers).map(
+                ([key, value]) => `${key}: ${value}`
+            )
+        );
         fields.push(
             `opt.http-header-fields=${encodeProtocolValue(headerFields)}`
         );
