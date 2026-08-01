@@ -4,6 +4,12 @@
     min-height: 0;
 }
 
+// Dismiss affordance for the phone drawer; the desktop sidebar is not
+// dismissable, so the whole row only exists below the breakpoint.
+.context-drawer-header {
+    display: none;
+}
+
 .context-panel {
     border-right: 1px solid var(--mat-sys-outline-variant);
     background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
@@ -97,6 +103,36 @@
             visibility 0s;
     }
 
+    :host {
+        display: flex;
+        flex-direction: column;
+        background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    }
+
+    .context-drawer-header {
+        display: flex;
+        justify-content: flex-end;
+        padding: 8px 8px 0;
+        flex-shrink: 0;
+    }
+
+    .context-drawer-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--app-on-surface, var(--mat-sys-on-surface));
+        cursor: pointer;
+
+        &:hover {
+            background: var(--app-card-hover-bg, rgba(255, 255, 255, 0.08));
+        }
+    }
+
     // `!important` is required because ResizableDirective writes the
     // persisted desktop width as an inline style. Dragging is meaningless
     // inside the drawer, so the handle goes away with it.
@@ -106,7 +142,11 @@
         // There is no global border-box reset, so the panel's own padding
         // would push a 100%-wide panel past the drawer.
         box-sizing: border-box;
-        height: 100%;
+        // The close-button row above takes its share; the panel fills the
+        // rest of the drawer column.
+        height: auto;
+        flex: 1 1 auto;
+        min-height: 0;
     }
 
     // The live layout's collapse toggle folds the panel away beside the

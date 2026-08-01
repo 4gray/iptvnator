@@ -371,9 +371,15 @@ but the component has not.
   layout. While open, the shell consumes Escape (downstream consumers —
   the inline player's close handler, the shared controls shortcuts — check
   `defaultPrevented`, so one keypress cannot close both the drawer and the
-  obscured player), and document-level playback shortcuts opt out on their
-  own by checking for an `inert` ancestor, since `inert` does not silence
-  document-level listeners.
+  obscured player) and suppresses its own Ctrl/Cmd+F global-search
+  navigation, and document-level playback shortcuts (shared controls,
+  Embedded MPV legacy dock, radio audio player) opt out on their own by
+  checking for an `inert` ancestor, since `inert` does not silence
+  document-level listeners. The drawer carries its own phone-only close
+  button: touch screen-reader users have no hardware Escape and cannot
+  reach the inert header toggle or the aria-hidden backdrop, so the
+  trapped surface itself must offer dismissal even when its list is
+  loading or empty.
   The toggle's label is variant-aware — categories, filters, or settings
   sections — because a fixed label would misdescribe two of the three.
 - Other side rails stack above the content instead of beside it: the

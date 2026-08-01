@@ -262,8 +262,9 @@ including Escape: `inert` strips pointer and Tab access but document-level
 listeners still fire, so the optional `hostElement` handler on
 `ControlsShortcutHandlers` lets the shortcuts opt out while a modal surface
 above the player (e.g. the workspace's phone context drawer) owns the
-keyboard. The radio audio player applies the same rule to its own
-document-level volume/mute keys.
+keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
+the radio audio player's document-level volume/mute keys apply the same
+rule.
 
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute

@@ -4,7 +4,11 @@ import {
     input,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatIcon } from '@angular/material/icon';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { WorkspaceShellContextDrawerService } from '../../services/workspace-shell-context-drawer.service';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
 
 @Directive({
@@ -58,15 +62,36 @@ describe('WorkspaceShellContextSidebarComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellContextSidebarComponent],
+            providers: [
+                {
+                    provide: WorkspaceShellContextDrawerService,
+                    useValue: { close: jest.fn() },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: of(null),
+                        onTranslationChange: of(null),
+                        onDefaultLangChange: of(null),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellContextSidebarComponent, {
                 set: {
                     imports: [
+                        MatIcon,
                         MockResizableDirective,
                         MockWorkspaceContextPanelComponent,
                         MockWorkspaceCollectionContextPanelComponent,
                         MockWorkspaceSettingsContextPanelComponent,
                         MockWorkspaceSourcesFiltersPanelComponent,
+                        TranslatePipe,
                     ],
                 },
             })
@@ -75,6 +100,24 @@ describe('WorkspaceShellContextSidebarComponent', () => {
         fixture = TestBed.createComponent(WorkspaceShellContextSidebarComponent);
         liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
         liveSidebarService.setState('expanded');
+    });
+
+    it('closes the phone drawer from its always-available close button', () => {
+        fixture.componentRef.setInput('variant', 'settings');
+        fixture.detectChanges();
+
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-test-id="context-drawer-close"]'
+        );
+        expect(button).not.toBeNull();
+        expect(button.getAttribute('aria-label')).toBe('CLOSE');
+
+        button.click();
+
+        const drawer = TestBed.inject(
+            WorkspaceShellContextDrawerService
+        ) as unknown as { close: jest.Mock };
+        expect(drawer.close).toHaveBeenCalledTimes(1);
     });
 
     it('renders the settings panel for the settings variant', () => {

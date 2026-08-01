@@ -5,6 +5,8 @@ import {
     inject,
     input,
 } from '@angular/core';
+import { MatIcon } from '@angular/material/icon';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     LiveLayoutSidebarStateService,
@@ -14,6 +16,7 @@ import {
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
+import { WorkspaceShellContextDrawerService } from '../../services/workspace-shell-context-drawer.service';
 import { WorkspaceCollectionContextPanelComponent } from '../../../workspace-context-panel/workspace-collection-context-panel.component';
 import { WorkspaceContextPanelComponent } from '../../../workspace-context-panel/workspace-context-panel.component';
 import { WorkspaceSettingsContextPanelComponent } from '../../../workspace-context-panel/workspace-settings-context-panel.component';
@@ -28,7 +31,9 @@ const LIVE_SECTIONS: ReadonlySet<PortalRailSection> = new Set([
 @Component({
     selector: 'app-workspace-shell-context-sidebar',
     imports: [
+        MatIcon,
         ResizableDirective,
+        TranslatePipe,
         WorkspaceCollectionContextPanelComponent,
         WorkspaceContextPanelComponent,
         WorkspaceSettingsContextPanelComponent,
@@ -42,6 +47,12 @@ export class WorkspaceShellContextSidebarComponent {
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
+    // Optional: only provided inside the workspace shell, and only relevant
+    // when the sidebar renders as the phone drawer — the close button that
+    // calls this is CSS-hidden above the phone breakpoint.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
 
     readonly variant = input.required<WorkspaceShellContextPanel>();
     readonly context = input<WorkspacePortalContext | null>(null);
@@ -61,4 +72,8 @@ export class WorkspaceShellContextSidebarComponent {
             this.isLiveCategoryRoute() &&
             this.liveSidebarStateService.isCollapsed()
     );
+
+    closeDrawer(): void {
+        this.contextDrawer?.close();
+    }
 }

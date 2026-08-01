@@ -1,3 +1,19 @@
+<!-- Phone-only (CSS-hidden above 640px): touch screen-reader users have no
+     hardware Escape and cannot reach the inert header toggle or the
+     aria-hidden backdrop, so the trapped drawer itself must always carry a
+     dismiss control — even when a category list is loading or empty. -->
+<div class="context-drawer-header">
+    <button
+        type="button"
+        class="context-drawer-close"
+        data-test-id="context-drawer-close"
+        (click)="closeDrawer()"
+        [attr.aria-label]="'CLOSE' | translate"
+    >
+        <mat-icon>close</mat-icon>
+    </button>
+</div>
+
 @if (variant() === 'sources' && hasPlaylists()) {
     <aside
         tabindex="-1"

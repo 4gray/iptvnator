@@ -548,6 +548,21 @@ describe('WorkspaceShellComponent', () => {
         document.dispatchEvent(escapeWhileClosed);
         expect(escapeWhileClosed.defaultPrevented).toBe(false);
 
+        // Ctrl/Cmd+F must not navigate to global search while the drawer is
+        // modal — it would act on the obscured, inert background.
+        header.contextDrawerToggleRequested.emit();
+        fixture.detectChanges();
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'f',
+                metaKey: true,
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        jest.runOnlyPendingTimers();
+        expect(facade.openGlobalSearch).not.toHaveBeenCalled();
+
         jest.runOnlyPendingTimers();
         jest.useRealTimers();
     });

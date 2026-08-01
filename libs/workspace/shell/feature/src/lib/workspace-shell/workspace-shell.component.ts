@@ -81,8 +81,10 @@ export class WorkspaceShellComponent {
         });
     }
 
+    // Typed Event, not KeyboardEvent: Angular types a key-filtered host
+    // listener's $event as Event, and only preventDefault is needed here.
     @HostListener('document:keydown.escape', ['$event'])
-    onEscapePressed(event: KeyboardEvent): void {
+    onEscapePressed(event: Event): void {
         if (event.defaultPrevented || !this.contextDrawer.isOpen()) {
             return;
         }
@@ -101,7 +103,11 @@ export class WorkspaceShellComponent {
         if (
             event.defaultPrevented ||
             !this.facade.isElectron ||
-            !isFindShortcut(event)
+            !isFindShortcut(event) ||
+            // The open drawer is modal: Ctrl/Cmd+F would navigate to global
+            // search behind it (the search input it focuses is inside the
+            // inert header, so the shortcut would act on obscured UI).
+            this.contextDrawer.isOpen()
         ) {
             return;
         }
