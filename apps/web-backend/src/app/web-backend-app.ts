@@ -233,10 +233,21 @@ export function createWebBackendApp(
             // serializer would fully percent-encode it, diverging from what a
             // real STB (and the Electron transport) sends. Append it to the
             // URL with the shared encoder and let axios serialize the rest.
+            // The fragment is dropped first: a registered URL carrying `#...`
+            // would otherwise swallow the appended cmd, and a trailing bare
+            // `?` must not become `??cmd=`.
             const { cmd, ...proxyParams } = getProxyParams(req, ['targetId']);
-            const requestUrl = cmd
-                ? `${url.href}${url.search ? '&' : '?'}cmd=${encodeStalkerCmdValue(cmd)}`
-                : url.href;
+            const portalUrl = new URL(url.href);
+            portalUrl.hash = '';
+            let requestUrl = portalUrl.href;
+            if (cmd) {
+                const separator = requestUrl.endsWith('?')
+                    ? ''
+                    : portalUrl.search
+                      ? '&'
+                      : '?';
+                requestUrl = `${requestUrl}${separator}cmd=${encodeStalkerCmdValue(cmd)}`;
+            }
 
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]

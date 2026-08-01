@@ -440,6 +440,44 @@ https://stream.example/live.m3u8`);
         );
     });
 
+    it('keeps cmd in the query when the registered portal URL carries a fragment or bare ?', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ js: { cmd: 'http://cdn/a.m3u8' } });
+        httpClient.queueResponse({ js: { cmd: 'http://cdn/b.m3u8' } });
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                // A fragment on the registered URL must not swallow the
+                // appended cmd (fragments are never sent to the portal).
+                const fragmentTarget = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php#legacy'
+                );
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${fragmentTarget}&action=create_link&cmd=${encodeURIComponent('/media/1.mpg')}`
+                );
+
+                // A trailing bare '?' must not produce '??cmd='.
+                const bareQueryTarget = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/load.php?'
+                );
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${bareQueryTarget}&action=create_link&cmd=${encodeURIComponent('/media/2.mpg')}`
+                );
+
+                expect(httpClient.requests.map((request) => request.url)).toEqual([
+                    'http://stalker.example/portal.php?cmd=/media/1.mpg',
+                    'http://stalker.example/load.php?cmd=/media/2.mpg',
+                ]);
+            }
+        );
+    });
+
     it('normalizes provider errors for portal proxy calls', async () => {
         const httpClient = new StubHttpClient();
         httpClient.queueFailure(403, 'Forbidden');
