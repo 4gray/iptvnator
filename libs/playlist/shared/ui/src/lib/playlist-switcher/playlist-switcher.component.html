@@ -202,16 +202,16 @@
         }
     </div>
 
-    @if (showAddPlaylist() || showAccountInfo()) {
+    @if (showAddPlaylist() || showAccountInfo() || showPlaylistInfo()) {
         <div class="context-actions-section">
-            @if (showAddPlaylist()) {
+            @if (showPlaylistInfo()) {
                 <button
                     class="context-action-item"
-                    (click)="requestAddPlaylist()"
+                    (click)="requestPlaylistInfo()"
                 >
-                    <mat-icon>add</mat-icon>
+                    <mat-icon>info</mat-icon>
                     <span>{{
-                        'WORKSPACE.SHELL.ADD_PLAYLIST' | translate
+                        'WORKSPACE.SHELL.PLAYLIST_INFO' | translate
                     }}</span>
                 </button>
             }
@@ -223,6 +223,17 @@
                     <mat-icon>person</mat-icon>
                     <span>{{
                         'WORKSPACE.SHELL.ACCOUNT_INFO' | translate
+                    }}</span>
+                </button>
+            }
+            @if (showAddPlaylist()) {
+                <button
+                    class="context-action-item"
+                    (click)="requestAddPlaylist()"
+                >
+                    <mat-icon>add</mat-icon>
+                    <span>{{
+                        'WORKSPACE.SHELL.ADD_PLAYLIST' | translate
                     }}</span>
                 </button>
             }

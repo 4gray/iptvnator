@@ -169,3 +169,23 @@
     @include grid.content-grid;
     padding-bottom: 1rem;
 }
+
+// The header packs the title, the type filters and the scope toggle into one
+// row. On a phone that row is wider than the screen, and the scope checkbox
+// was the part pushed off the right edge, so the row becomes a column.
+@media (max-width: 640px) {
+    .header .header-top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .header .header-left {
+        gap: 12px;
+    }
+
+    .header .header-right {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
