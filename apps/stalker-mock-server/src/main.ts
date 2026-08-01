@@ -115,9 +115,13 @@ app.get('/stalker', (req: Request, res: Response) => {
     const {
         macAddress,
         url: portalUrl,
-        token,
         ...rest
     } = req.query as Record<string, unknown>;
+    // `token` deliberately stays in `rest`: the real backend proxy forwards
+    // every param except `targetId` to the portal *and* sets the Authorization
+    // header, and `handshake` reads the presented token from the query. Strip
+    // it here and the idempotent-handshake path becomes untestable.
+    const token = rest['token'];
 
     // A repeated query key arrives as an array, so every value used below must
     // be narrowed to a string before it reaches a string API.
@@ -184,12 +188,18 @@ app.get('/health', (_req: Request, res: Response) => {
  */
 app.post('/reset', (req: Request, res: Response) => {
     const macParam = req.query['macAddress'];
-    const mac = typeof macParam === 'string' ? macParam : undefined;
+    // Repeated `macAddress` params let a suite clear all of its MACs in one
+    // request instead of one round trip each.
+    const macs = (Array.isArray(macParam) ? macParam : [macParam]).filter(
+        (value): value is string => typeof value === 'string' && value !== ''
+    );
 
-    if (mac) {
-        resetMac(mac);
-        resetAuthState(mac);
-        resetWatchdogPings(mac);
+    if (macs.length > 0) {
+        for (const mac of macs) {
+            resetMac(mac);
+            resetAuthState(mac);
+            resetWatchdogPings(mac);
+        }
     } else {
         resetAll();
         resetAuthState();
@@ -198,7 +208,7 @@ app.post('/reset', (req: Request, res: Response) => {
 
     res.json({
         status: 'reset',
-        ...(mac ? { mac } : {}),
+        ...(macs.length > 0 ? { macs } : {}),
         timestamp: new Date().toISOString(),
     });
 });

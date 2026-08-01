@@ -23,16 +23,14 @@ import {
  *
  * Tag: @stalker — run only stalker tests with: nx e2e web-e2e --grep "@stalker"
  *
- * SERIAL BY DESIGN: every test here shares one mock-server process whose state
- * (generated data, favorites, portal sessions) is global, and `beforeEach`
- * wipes it with `POST /reset`. Under the workspace-wide `fullyParallel` preset
- * those resets would race each other — and any sibling spec file — so this file
- * pins itself to a single worker. Keep the full-portal authentication tests
- * below in THIS file for the same reason: split across files they would run
- * concurrently again and reset each other's sessions mid-assertion.
+ * ISOLATION: one mock-server process is shared by every spec file, and the
+ * suite runs under the workspace-wide `fullyParallel` preset. State there is
+ * keyed by MAC, so isolation comes from ownership rather than serialization:
+ * `beforeEach` resets only the MACs listed in `OWNED_MACS`, and sibling files
+ * (self-hosted, sources-pwa) own disjoint MACs of their own. The full-portal
+ * authentication tests additionally use MACs no other test touches, so their
+ * portal sessions cannot be cleared mid-assertion.
  */
-
-test.describe.configure({ mode: 'serial' });
 
 const MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
 const MOCK_SERVER = `http://localhost:${MOCK_PORT}`;
@@ -106,7 +104,7 @@ async function interceptStalkerRequests(page: Page): Promise<void> {
     });
 }
 
-/** Every MAC this file touches; each is reset individually (see below). */
+/** Every MAC this file owns; all are cleared in one batched reset request. */
 const OWNED_MACS = [
     DEFAULT_MAC,
     MINIMAL_MAC,
@@ -118,26 +116,20 @@ const OWNED_MACS = [
 ];
 
 /**
- * Reset only the MACs this file owns. Mock state is per-MAC and other spec
- * files (self-hosted.e2e.ts) talk to the same server from a parallel worker,
- * so a global reset here would wipe their sessions mid-test — and theirs
- * would wipe ours.
+ * Reset only the MACs this file owns, in a single request. Mock state is
+ * per-MAC and sibling spec files talk to the same server from parallel
+ * workers, so a global reset here would wipe their state mid-test — and
+ * theirs would wipe ours.
  */
 async function resetMockServer(request: APIRequestContext): Promise<void> {
-    await Promise.all(OWNED_MACS.map((mac) => resetMockServerMac(request, mac)));
-}
-
-async function resetMockServerMac(
-    request: APIRequestContext,
-    mac: string
-): Promise<void> {
+    const query = OWNED_MACS.map(
+        (mac) => `macAddress=${encodeURIComponent(mac)}`
+    ).join('&');
     let lastError: unknown;
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-            const response = await request.post(
-                `${MOCK_SERVER}/reset?macAddress=${encodeURIComponent(mac)}`
-            );
+            const response = await request.post(`${MOCK_SERVER}/reset?${query}`);
             if (response.ok()) {
                 return;
             }
@@ -661,7 +653,7 @@ test('@stalker mock server reset clears cached state', async ({ request }) => {
         `${MOCK_SERVER}/reset?macAddress=${encodeURIComponent(DEFAULT_MAC)}`
     );
     expect(reset.ok()).toBeTruthy();
-    expect((await reset.json()).mac).toBe(DEFAULT_MAC);
+    expect((await reset.json()).macs).toEqual([DEFAULT_MAC]);
 
     // Data is regenerated identically (deterministic seed)
     const after = await request.get(
