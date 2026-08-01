@@ -97,9 +97,16 @@
     }
 }
 
-// On a phone the header row has no width to spare: the source type is already
-// implied by the icon, so the name gets the whole trigger.
+// On a phone the header row has no width to spare, and the shell allows this
+// trigger to shrink to 88px there. The decorative type icon goes so that the
+// trigger's fixed chrome (refresh, chevron, gaps, padding) actually fits that
+// floor with the name ellipsizing; the subtitle goes because the name is the
+// only part worth the room.
 @media (max-width: 640px) {
+    .trigger-icon-container {
+        display: none;
+    }
+
     .playlist-info .channels-count {
         display: none;
     }
