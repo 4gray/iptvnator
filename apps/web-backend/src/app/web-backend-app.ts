@@ -7,7 +7,10 @@ import zlib from 'node:zlib';
 import axios from 'axios';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
-import { normalizeXtreamServerUrl } from '@iptvnator/shared/interfaces';
+import {
+    encodeStalkerCmdValue,
+    normalizeXtreamServerUrl,
+} from '@iptvnator/shared/interfaces';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 
 export interface WebBackendHttpGetOptions {
@@ -225,10 +228,20 @@ export function createWebBackendApp(
         }
 
         try {
+            // `cmd` must reach the portal in the reference wire format (raw
+            // slashes, pre-encoded sequences untouched) — axios' default
+            // serializer would fully percent-encode it, diverging from what a
+            // real STB (and the Electron transport) sends. Append it to the
+            // URL with the shared encoder and let axios serialize the rest.
+            const { cmd, ...proxyParams } = getProxyParams(req, ['targetId']);
+            const requestUrl = cmd
+                ? `${url.href}${url.search ? '&' : '?'}cmd=${encodeStalkerCmdValue(cmd)}`
+                : url.href;
+
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
-            const response = await httpClient.get(url.href, {
-                params: getProxyParams(req, ['targetId']),
+            const response = await httpClient.get(requestUrl, {
+                params: proxyParams,
                 headers: {
                     ...(macAddress ? { Cookie: `mac=${macAddress}` } : {}),
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -37,6 +37,7 @@ export * from './lib/portal-playback.interface';
 export * from './lib/random-id.util';
 export * from './lib/security-policy-error.utils';
 export * from './lib/settings.interface';
+export * from './lib/stalker-cmd-encoding.util';
 export * from './lib/stalker-portal-actions.enum';
 export * from './lib/store-keys.enum';
 export * from './lib/stream-format.enum';
