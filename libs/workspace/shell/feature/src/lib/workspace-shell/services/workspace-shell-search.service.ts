@@ -36,6 +36,19 @@ export class WorkspaceShellSearchService {
 
     readonly searchQuery = this.searchSync.searchQuery;
     readonly appliedSearchQuery = this.searchSync.appliedSearchQuery;
+    /**
+     * The global ("advanced") search bar is the only chip-input search: its
+     * query is a set of committed chips serialized as newline-delimited units.
+     */
+    readonly isGlobalSearch = computed(
+        () => this.routeState.currentRoute().kind === 'global-search'
+    );
+    readonly searchChips = computed(() =>
+        this.appliedSearchQuery()
+            .split('\n')
+            .map((chip) => chip.trim())
+            .filter((chip) => chip.length > 0)
+    );
     readonly searchCapability = computed<WorkspaceSearchCapability>(() => {
         this.languageTick();
 
@@ -175,6 +188,19 @@ export class WorkspaceShellSearchService {
 
     onSearchInput(value: string): void {
         this.searchSync.onSearchInput(value);
+    }
+
+    /**
+     * Commits the global-search chips: joined by newlines into the string
+     * query so the existing `?q=` sync and IPC contract stay string-typed.
+     * `globalSearch` splits them back into chips.
+     */
+    onSearchChips(chips: readonly string[]): void {
+        const value = chips
+            .map((chip) => chip.trim())
+            .filter((chip) => chip.length > 0)
+            .join('\n');
+        this.searchSync.setSearchState(value);
     }
 
     onSearchEnter(value: string): void {

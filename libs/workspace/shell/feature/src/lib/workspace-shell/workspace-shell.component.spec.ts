@@ -46,6 +46,8 @@ class MockWorkspaceShellHeaderComponent {
     readonly searchPlaceholder = input('');
     readonly searchScopeLabel = input('');
     readonly searchStatusLabel = input('');
+    readonly chipSearchMode = input(false);
+    readonly searchChips = input<readonly string[]>([]);
     readonly headerShortcut = input<unknown>(null);
     readonly canRefreshPlaylist = input(false);
     readonly isRefreshingPlaylist = input(false);
@@ -57,6 +59,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
+    readonly searchChipsChanged = output<string[]>();
     readonly commandPaletteRequested = output<void>();
     readonly shortcutsRequested = output<void>();
     readonly addPlaylistRequested = output<void>();
@@ -143,6 +146,8 @@ class MockWorkspaceShellFacade {
     );
     readonly searchScopeLabel = signal('Movies / All Items');
     readonly searchStatusLabel = signal('');
+    readonly isGlobalSearch = signal(false);
+    readonly searchChips = signal<string[]>([]);
     readonly headerShortcut = signal(null);
     readonly canRefreshPlaylist = signal(false);
     readonly isRefreshingPlaylist = signal(false);
@@ -183,6 +188,7 @@ class MockWorkspaceShellFacade {
 
     onSearchInput = jest.fn();
     onSearchEnter = jest.fn();
+    onSearchChips = jest.fn();
     openCommandPalette = jest.fn();
     openGlobalSearch = jest.fn();
     openAddPlaylistDialog = jest.fn();

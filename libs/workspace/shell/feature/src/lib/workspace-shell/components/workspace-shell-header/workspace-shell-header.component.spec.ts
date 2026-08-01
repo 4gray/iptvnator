@@ -4,6 +4,10 @@ import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconButton } from '@angular/material/button';
+import {
+    MatChipInputEvent,
+    MatChipsModule,
+} from '@angular/material/chips';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
@@ -56,6 +60,7 @@ describe('WorkspaceShellHeaderComponent', () => {
             .overrideComponent(WorkspaceShellHeaderComponent, {
                 set: {
                     imports: [
+                        MatChipsModule,
                         MatIcon,
                         MatIconButton,
                         MatTooltip,
@@ -223,6 +228,67 @@ describe('WorkspaceShellHeaderComponent', () => {
             expect(button.getAttribute('aria-label')).toBe(expectedLabel);
         }
     );
+
+    const chipEvent = (value: string): MatChipInputEvent =>
+        ({
+            value,
+            chipInput: { clear: jest.fn() },
+        }) as unknown as MatChipInputEvent;
+
+    it('commits a typed value as a chip and emits the full list', () => {
+        fixture.componentRef.setInput('chipSearchMode', true);
+        fixture.componentRef.setInput('searchChips', []);
+        fixture.detectChanges();
+        const emitted: string[][] = [];
+        component.searchChipsChanged.subscribe((value) => emitted.push(value));
+
+        component.addChip(chipEvent('fr bein'));
+
+        expect(component.chips()).toEqual(['fr bein']);
+        expect(emitted).toEqual([['fr bein']]);
+    });
+
+    it('ignores blank and duplicate chips', () => {
+        fixture.componentRef.setInput('chipSearchMode', true);
+        fixture.componentRef.setInput('searchChips', ['fr']);
+        fixture.detectChanges();
+        const emitted: string[][] = [];
+        component.searchChipsChanged.subscribe((value) => emitted.push(value));
+
+        component.addChip(chipEvent('   '));
+        component.addChip(chipEvent('fr'));
+
+        expect(emitted).toEqual([]);
+        expect(component.chips()).toEqual(['fr']);
+    });
+
+    it('removes a chip by index and emits the reduced list', () => {
+        fixture.componentRef.setInput('chipSearchMode', true);
+        fixture.componentRef.setInput('searchChips', ['fr', 'bein', '1968']);
+        fixture.detectChanges();
+        const emitted: string[][] = [];
+        component.searchChipsChanged.subscribe((value) => emitted.push(value));
+
+        component.removeChip(1);
+
+        expect(component.chips()).toEqual(['fr', '1968']);
+        expect(emitted).toEqual([['fr', '1968']]);
+    });
+
+    it('renders committed chips in the bar and hides the plain input in chip mode', () => {
+        fixture.componentRef.setInput('chipSearchMode', true);
+        fixture.componentRef.setInput('searchChips', ['fr bein', '1968']);
+        fixture.detectChanges();
+
+        const chipText = Array.from(
+            fixture.nativeElement.querySelectorAll('mat-chip-row')
+        ).map((element: Element) => element.textContent?.trim());
+        expect(chipText.some((text) => text?.includes('fr bein'))).toBe(true);
+        expect(chipText.some((text) => text?.includes('1968'))).toBe(true);
+        expect(
+            fixture.nativeElement.querySelector('input[type="search"]')
+        ).toBeNull();
+    });
 
     it('uses the paired Material primary tokens for the download badge', () => {
         const styleSource = readFileSync(

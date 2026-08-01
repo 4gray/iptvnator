@@ -101,6 +101,8 @@ export class WorkspaceShellFacade {
     readonly searchPlaceholder = this.search.searchPlaceholder;
     readonly searchScopeLabel = this.search.searchScopeLabel;
     readonly searchStatusLabel = this.search.searchStatusLabel;
+    readonly isGlobalSearch = this.search.isGlobalSearch;
+    readonly searchChips = this.search.searchChips;
     readonly railProviderClass = this.routeState.railProviderClass;
     readonly primaryContextLinks = this.routeState.primaryContextLinks;
     readonly secondaryContextLinks = this.routeState.secondaryContextLinks;
@@ -168,6 +170,10 @@ export class WorkspaceShellFacade {
 
     onSearchEnter(value: string): void {
         this.search.onSearchEnter(value);
+    }
+
+    onSearchChips(chips: string[]): void {
+        this.search.onSearchChips(chips);
     }
 
     openAddPlaylistDialog(): void {
