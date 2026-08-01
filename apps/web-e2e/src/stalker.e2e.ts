@@ -23,14 +23,24 @@ import {
  *
  * Tag: @stalker — run only stalker tests with: nx e2e web-e2e --grep "@stalker"
  *
- * ISOLATION: one mock-server process is shared by every spec file, and the
- * suite runs under the workspace-wide `fullyParallel` preset. State there is
- * keyed by MAC, so isolation comes from ownership rather than serialization:
- * `beforeEach` resets only the MACs listed in `OWNED_MACS`, and sibling files
- * (self-hosted, sources-pwa) own disjoint MACs of their own. The full-portal
- * authentication tests additionally use MACs no other test touches, so their
- * portal sessions cannot be cleared mid-assertion.
+ * ISOLATION works on two levels, because one mock-server process is shared by
+ * every spec file and its state is keyed by MAC:
+ *
+ * - ACROSS FILES: `beforeEach` resets only the MACs in `OWNED_MACS`, and the
+ *   sibling files that touch this server (self-hosted, sources-pwa) own a
+ *   disjoint `00:1A:79:5F:*` range, so neither can clear the other's state.
+ * - WITHIN THIS FILE: tests deliberately share scenario MACs (`default`,
+ *   `minimal`, `embedded-series` — their fixture shapes are what the
+ *   assertions are written against), and every `beforeEach` resets all of
+ *   them. Under the workspace-wide `fullyParallel` preset that would let one
+ *   test wipe another's data or session mid-run, so the file pins itself to a
+ *   single worker.
+ *
+ * Giving each test its own MAC instead would mean inventing a scenario per
+ * test; serializing one file is the cheaper trade.
  */
+
+test.describe.configure({ mode: 'serial' });
 
 const MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
 const MOCK_SERVER = `http://localhost:${MOCK_PORT}`;
