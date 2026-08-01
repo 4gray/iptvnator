@@ -195,11 +195,16 @@
             max-width: none;
             flex-shrink: 1;
             max-height: 42vh;
+            // Without a floor of its own the player's minimum can take the
+            // whole body on a short screen and the list vanishes while still
+            // marked expanded, leaving no way to pick another channel.
+            min-height: 72px;
             border-right: none;
             border-bottom: 1px solid var(--app-separator);
 
             &.sidebar-collapsed {
                 max-height: 0;
+                min-height: 0;
                 border-bottom-color: transparent;
             }
 
@@ -208,27 +213,32 @@
             }
         }
 
-        // The player's floor, not the list's ceiling, is what has to hold: a
-        // phone shows the categories panel above this layout too, and without
-        // a stated minimum the video ends up a sliver under two lists. The
-        // floor yields on a landscape phone, where 240px is most of the shell
-        // body and claiming it would starve the list instead.
         .content-container {
             flex: 1 1 auto;
-            min-height: min(240px, 50vh);
         }
 
-        // Inside that container the guide is `flex: 0 0 <basis>`, so on a
-        // short screen it took its full basis out of a container that no
-        // longer had it and the video was left with nothing. Here the video
-        // keeps a floor and the guide is what gives way.
+        // Inside that container the guide is `flex: 0 0 <basis>` while the
+        // video is `flex: 1 1 0`, so shrinking is distributed by basis and
+        // the video — basis zero — absorbed none of it and collapsed. Here
+        // the video keeps a floor and the guide is what gives way.
         .video-player {
-            min-height: 120px;
+            min-height: 96px;
         }
 
         .epg.epg--inline {
             flex-shrink: 1;
             min-height: 0;
+        }
+    }
+
+    // The player's floor, not the list's ceiling, is what has to hold — but
+    // only where the screen can afford it. A landscape phone already spends
+    // 30vh on the stacked categories panel, so claiming 240px more here left
+    // nothing for the channel list; there, the two panes just share what is
+    // left. Keyed on height because that, not width, is what runs out.
+    @media (max-width: 640px) and (min-height: 600px) {
+        .content-container {
+            min-height: 240px;
         }
     }
 }
