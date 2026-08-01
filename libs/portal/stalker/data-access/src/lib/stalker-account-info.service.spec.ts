@@ -121,7 +121,7 @@ describe('StalkerAccountInfoService', () => {
         );
         expect(snapshot).toEqual({
             login: 'Fallback Name',
-            expireDate: Math.round(Date.parse('2026-10-01') / 1000),
+            expireDate: Math.round(new Date(2026, 9, 1).getTime() / 1000),
             tariffPlanName: 'Basic 30',
             status: 1,
             mac: '00:1A:79:00:00:01',
@@ -171,6 +171,36 @@ describe('StalkerAccountInfoService', () => {
         );
     });
 
+    it('treats a stalker_portal URL as a full portal when the flag is absent', async () => {
+        // Restored older backups persist `undefined` for the flag after the
+        // one-shot metadata migration already ran.
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'restored-user',
+        });
+
+        const snapshot = await service.fetchAccountInfo({
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/stalker_portal/c/',
+            isFullStalkerPortal: undefined,
+        } as PlaylistMeta);
+
+        expect(stalkerSession.refreshAccountProfile).toHaveBeenCalled();
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(snapshot?.login).toBe('restored-user');
+    });
+
+    it('keeps portal.php panels on the legacy path when the flag is absent', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({ js: { login: 'legacy' } });
+
+        await service.fetchAccountInfo({
+            ...portalPlaylist,
+            isFullStalkerPortal: undefined,
+        } as PlaylistMeta);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalled();
+        expect(stalkerSession.refreshAccountProfile).not.toHaveBeenCalled();
+    });
+
     it('returns null when get_main_info yields no usable facts', async () => {
         dataService.sendIpcEvent.mockResolvedValue({ js: {} });
 
@@ -199,7 +229,7 @@ describe('normalizeStoredStalkerAccountInfo', () => {
             })
         ).toEqual({
             login: 'user-1',
-            expireDate: Math.round(Date.parse('2026-10-01') / 1000),
+            expireDate: Math.round(new Date(2026, 9, 1).getTime() / 1000),
             tariffPlanName: 'Premium',
             status: 1,
         });
@@ -239,7 +269,24 @@ describe('parseStalkerDate', () => {
         expect(parseStalkerDate('1790000000')).toBe(1_790_000_000);
         expect(parseStalkerDate(1_790_000_000_000)).toBe(1_790_000_000);
         expect(parseStalkerDate('2026-10-01')).toBe(
-            Math.round(Date.parse('2026-10-01') / 1000)
+            Math.round(new Date(2026, 9, 1).getTime() / 1000)
+        );
+    });
+
+    it('reads a bare date as a local calendar day, not UTC midnight', () => {
+        // Date.parse('2026-10-01') is UTC midnight, which renders as
+        // September 30 anywhere west of UTC.
+        const parsed = parseStalkerDate('2026-10-01') as number;
+        const rendered = new Date(parsed * 1000);
+
+        expect(rendered.getFullYear()).toBe(2026);
+        expect(rendered.getMonth()).toBe(9);
+        expect(rendered.getDate()).toBe(1);
+    });
+
+    it('keeps timestamps that carry a time or offset on standard parsing', () => {
+        expect(parseStalkerDate('2026-10-01T12:00:00Z')).toBe(
+            Math.round(Date.parse('2026-10-01T12:00:00Z') / 1000)
         );
     });
 

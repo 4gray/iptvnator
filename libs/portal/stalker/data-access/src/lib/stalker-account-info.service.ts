@@ -71,7 +71,7 @@ export class StalkerAccountInfoService {
             return null;
         }
 
-        if (playlist.isFullStalkerPortal) {
+        if (isFullStalkerPortalPlaylist(playlist)) {
             return this.fetchViaProfile(playlist);
         }
 
@@ -146,6 +146,27 @@ export class StalkerAccountInfoService {
     }
 }
 
+/**
+ * Whether a playlist should use the full `/stalker_portal/` flow.
+ *
+ * The persisted flag is authoritative when present, but a playlist
+ * restored from an older backup can carry `undefined` after the one-shot
+ * metadata migration has already run — fall back to the same URL rule
+ * that migration uses (`withExplicitLegacyStalkerPortalFlag` in
+ * PlaylistsService) rather than mislabelling it as a legacy panel.
+ */
+export function isFullStalkerPortalPlaylist(playlist: PlaylistMeta): boolean {
+    if (playlist.isFullStalkerPortal !== undefined) {
+        return Boolean(playlist.isFullStalkerPortal);
+    }
+
+    const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
+    return (
+        portalUrl.includes('/stalker_portal') ||
+        portalUrl.includes('/server/load.php')
+    );
+}
+
 function normalizeSnapshot(
     snapshot: StalkerAccountSnapshot
 ): StalkerAccountSnapshot | null {
@@ -208,7 +229,25 @@ export function parseStalkerDate(
             : Math.round(numeric);
     }
 
-    const parsed = Date.parse(String(value).trim());
+    const text = String(value).trim();
+
+    // A bare `YYYY-MM-DD` is a calendar date, but Date.parse reads it as
+    // UTC midnight — rendered locally that shows the previous day west of
+    // UTC and moves the days-left boundary. Build it in local time instead.
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+    if (dateOnly) {
+        const [, year, month, day] = dateOnly;
+        const local = new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day)
+        ).getTime();
+        return Number.isFinite(local) && local > 0
+            ? Math.round(local / 1000)
+            : undefined;
+    }
+
+    const parsed = Date.parse(text);
     if (!Number.isFinite(parsed) || parsed <= 0) {
         return undefined;
     }

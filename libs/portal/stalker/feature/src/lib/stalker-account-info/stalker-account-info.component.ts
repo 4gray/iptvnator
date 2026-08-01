@@ -93,6 +93,15 @@ export class StalkerAccountInfoComponent {
         }
         return Math.ceil((expiry.getTime() - Date.now()) / DAY_IN_MS);
     });
+    /**
+     * Read from the raw timestamp, not daysLeft: an expiry that passed
+     * less than 24h ago rounds up to 0 (or -0), which is not negative, so
+     * the counter would claim "0 days left" on a dead subscription.
+     */
+    readonly hasExpired = computed(() => {
+        const expiry = this.expiryDate();
+        return expiry ? expiry.getTime() <= Date.now() : false;
+    });
     readonly expiresSoon = computed(() => {
         const daysLeft = this.daysLeft();
         return daysLeft !== null && daysLeft <= 7;
@@ -103,16 +112,15 @@ export class StalkerAccountInfoComponent {
         const daysLeft = this.daysLeft();
 
         if (daysLeft !== null) {
+            const expired = this.hasExpired();
             stats.push({
                 icon: 'timer',
-                labelKey:
-                    daysLeft < 0
-                        ? 'STALKER.ACCOUNT_INFO.EXPIRED'
-                        : 'STALKER.ACCOUNT_INFO.DAYS_LEFT',
-                value:
-                    daysLeft < 0
-                        ? this.formatDate(this.expiryDate())
-                        : String(daysLeft),
+                labelKey: expired
+                    ? 'STALKER.ACCOUNT_INFO.EXPIRED'
+                    : 'STALKER.ACCOUNT_INFO.DAYS_LEFT',
+                value: expired
+                    ? this.formatDate(this.expiryDate())
+                    : String(daysLeft),
                 warning: this.expiresSoon(),
             });
         }

@@ -181,6 +181,23 @@ describe('StalkerAccountInfoComponent', () => {
         expect(component.snapshotSource()).toBe('fresh');
     });
 
+    it('reports an expiry that passed hours ago as expired, not "0 days left"', async () => {
+        accountInfoService.fetchAccountInfo.mockResolvedValue({
+            ...freshSnapshot,
+            expireDate: Math.floor(Date.now() / 1000) - 3600,
+        });
+
+        await createComponent();
+
+        // Math.ceil of a fraction of a day rounds up to 0/-0, so the
+        // counter must not decide expiry.
+        expect(component.daysLeft()).toBe(-0);
+        expect(component.hasExpired()).toBe(true);
+        expect(component.heroStats()[0].labelKey).toBe(
+            'STALKER.ACCOUNT_INFO.EXPIRED'
+        );
+    });
+
     it('renders no status pill for unknown status values', async () => {
         accountInfoService.fetchAccountInfo.mockResolvedValue({
             ...freshSnapshot,
