@@ -31,11 +31,25 @@ type SourceDialogField =
     | 'title'
     | 'username';
 
+/**
+ * Reset the fixtures this suite uses. The Stalker reset is scoped to the MACs
+ * touched here: that mock is shared with stalker.e2e.ts, which runs in a
+ * parallel Playwright worker, and a global reset would destroy its portal
+ * sessions mid-test.
+ */
 export async function resetPwaMockServers(
     request: APIRequestContext
 ): Promise<void> {
     await request.post(`${XTREAM_MOCK_SERVER}/reset`);
-    await request.post(`${STALKER_MOCK_SERVER}/reset`);
+    await Promise.all(
+        [DEFAULT_MAC, EDITED_MAC].map((mac) =>
+            request.post(
+                `${STALKER_MOCK_SERVER}/reset?macAddress=${encodeURIComponent(
+                    mac
+                )}`
+            )
+        )
+    );
 }
 
 export async function interceptPwaProviderRequests(
