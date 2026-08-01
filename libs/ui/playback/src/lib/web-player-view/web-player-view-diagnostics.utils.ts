@@ -83,7 +83,7 @@ export function getDiagnosticDetails(
         {
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_MESSAGE',
             value:
-                issue.vhs || issue.shaka
+                issue.vhs || issue.mpegTs || issue.shaka
                     ? ''
                     : (issue.nativeErrorMessage ?? ''),
         },
@@ -95,6 +95,21 @@ export function getDiagnosticDetails(
 }
 
 function formatDiagnosticErrorDetails(issue: PlaybackDiagnostic): string {
+    if (issue.mpegTs) {
+        return [
+            `stage=${issue.mpegTs.stage}`,
+            `failure=${issue.mpegTs.failure}`,
+            `type=${issue.mpegTs.engineType}`,
+            `details=${issue.mpegTs.engineDetails}`,
+            `disposition=${issue.mpegTs.disposition}`,
+            issue.mpegTs.httpStatus === undefined
+                ? ''
+                : `HTTP ${issue.mpegTs.httpStatus}`,
+        ]
+            .filter((value) => value.length > 0)
+            .join(' · ');
+    }
+
     if (issue.shaka) {
         return [
             `stage=${issue.shaka.stage}`,
