@@ -82,6 +82,14 @@ pnpm embedded-mpv:build-runtime:linux -- /tmp/linux-prefix
 pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/linux-prefix
 ```
 
+The macOS builder verifies every downloaded archive against its pinned
+SHA-256 digest before extraction. FreeType uses its official SourceForge
+distribution as the primary source and the official Savannah distribution as
+a fallback; a failed or mismatched download is discarded before the next
+mirror is attempted. Changes to the downloader participate in the runtime
+cache key, so cached native artifacts cannot outlive source-acquisition policy
+changes.
+
 The Linux builder runs only on Linux x64. It requires the tool versions and
 system development interfaces declared in `build-linux-runtime.cjs`, including
 Meson 1.6 or newer, gperf 3.1 or newer, Ninja, CMake, NASM, pkg-config,
