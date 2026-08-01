@@ -34,6 +34,27 @@ export class TruncatedTransferError extends Error {
     }
 }
 
+const RETAINABLE_NETWORK_ERROR_CODES = new Set([
+    'ECONNABORTED',
+    'ECONNRESET',
+    'EPIPE',
+    'ETIMEDOUT',
+    'ERR_HTTP2_STREAM_CANCEL',
+    'ERR_HTTP2_STREAM_ERROR',
+    'ERR_STREAM_PREMATURE_CLOSE',
+]);
+
+export class InterruptedTransferError extends Error {
+    constructor(
+        readonly progress: TransferProgress,
+        networkCode: string
+    ) {
+        super(
+            `DOWNLOAD_NETWORK_INTERRUPTED (${networkCode}): Retry to continue from the saved partial file`
+        );
+    }
+}
+
 export async function transferToPartialFile(
     db: DownloadsDatabase,
     task: DownloadTask,
@@ -130,6 +151,21 @@ export async function transferToPartialFile(
 
     try {
         await pipeline(readable, output);
+    } catch (error) {
+        const interruptedProgress = getInterruptedTransferProgress(
+            error,
+            reservation,
+            effectiveOffset,
+            totalBytes
+        );
+        if (interruptedProgress) {
+            await persistProgress(db, task, interruptedProgress.progress);
+            throw new InterruptedTransferError(
+                interruptedProgress.progress,
+                interruptedProgress.networkCode
+            );
+        }
+        throw error;
     } finally {
         abortController.signal.removeEventListener('abort', abortStream);
     }
@@ -139,6 +175,38 @@ export async function transferToPartialFile(
         throw new TruncatedTransferError({ bytesDownloaded, totalBytes });
     }
     return { bytesDownloaded, totalBytes };
+}
+
+function getInterruptedTransferProgress(
+    error: unknown,
+    reservation: ReservedPartialDownloadFile,
+    initialBytes: number,
+    totalBytes: number | null
+): { networkCode: string; progress: TransferProgress } | null {
+    const networkCode =
+        error && typeof error === 'object' && 'code' in error
+            ? String(error.code)
+            : '';
+    if (
+        !RETAINABLE_NETWORK_ERROR_CODES.has(networkCode) ||
+        totalBytes === null
+    ) {
+        return null;
+    }
+
+    const bytesDownloaded = getPartialDownloadSize(reservation.path);
+    if (
+        bytesDownloaded === 0 ||
+        bytesDownloaded < initialBytes ||
+        bytesDownloaded >= totalBytes
+    ) {
+        return null;
+    }
+
+    return {
+        networkCode,
+        progress: { bytesDownloaded, totalBytes },
+    };
 }
 
 function getResumeOffset(

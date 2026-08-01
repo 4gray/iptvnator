@@ -8,6 +8,7 @@ import { ipcMain } from 'electron';
 import {
     PortalDebugEvent,
     XTREAM_CANCEL_SESSION,
+    XTREAM_CLIENT_USER_AGENT,
     XTREAM_MAIN_PERFORMANCE_PHASE,
     normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
@@ -19,11 +20,6 @@ import {
     createXtreamMeasuredTransformResponse,
 } from './xtream-performance';
 import { cancelXtreamSessionRequests } from './xtream-session-cancellation';
-
-// Some Xtream panels sit behind Cloudflare (or similar WAFs) configured to
-// challenge generic browser-looking User-Agents while allowlisting known
-// IPTV player clients. A VLC-style User-Agent reliably passes those checks.
-const XTREAM_CLIENT_USER_AGENT = 'VLC/3.0.18 LibVLC/3.0.18';
 
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {

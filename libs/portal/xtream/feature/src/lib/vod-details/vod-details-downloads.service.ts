@@ -5,6 +5,7 @@ import { DownloadsService } from '@iptvnator/services';
 import { resolveXtreamVodPlaybackSource } from '@iptvnator/portal/xtream/data-access';
 import {
     getXtreamVodInfo,
+    XTREAM_CLIENT_USER_AGENT,
     XtreamVodDetails,
     type XtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
@@ -179,7 +180,8 @@ export class VodDetailsDownloadsService {
                     : textList(info?.director)?.map((name) => ({ name })),
             }),
             headers: {
-                userAgent: playlist.userAgent,
+                userAgent:
+                    playlist.userAgent?.trim() || XTREAM_CLIENT_USER_AGENT,
                 referer: playlist.referrer,
                 origin: playlist.origin,
             },

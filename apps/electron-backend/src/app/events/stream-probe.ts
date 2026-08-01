@@ -13,13 +13,10 @@
 
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
+import { XTREAM_CLIENT_USER_AGENT } from '@iptvnator/shared/interfaces';
 import { UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 
-// Some Xtream panels sit behind Cloudflare (or similar WAFs) configured to
-// challenge generic browser-looking User-Agents while allowlisting known
-// IPTV player clients. A VLC-style User-Agent reliably passes those checks.
-const PROBE_CLIENT_USER_AGENT = 'VLC/3.0.18 LibVLC/3.0.18';
 const PROBE_TIMEOUT_MS = 10000;
 
 export interface StreamProbePayload {
@@ -64,7 +61,7 @@ export async function runStreamProbe(
             // The playlist's own User-Agent wins when it has one: the default
             // below is a guess that merely gets past most WAFs, while that
             // one is what the server was configured to expect.
-            'User-Agent': payload.userAgent?.trim() || PROBE_CLIENT_USER_AGENT,
+            'User-Agent': payload.userAgent?.trim() || XTREAM_CLIENT_USER_AGENT,
             ...(payload.referer?.trim()
                 ? { Referer: payload.referer.trim() }
                 : {}),
@@ -95,8 +92,7 @@ export async function runStreamProbe(
         );
         // A ranged GET opens a stream we never read — release it immediately.
         const responseBody = response.data as
-            | { destroy?: () => void }
-            | undefined;
+            { destroy?: () => void } | undefined;
         responseBody?.destroy?.();
         return {
             status: response.status,

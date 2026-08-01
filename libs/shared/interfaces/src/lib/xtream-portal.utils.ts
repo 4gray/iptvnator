@@ -1,8 +1,5 @@
 export type XtreamPortalStatusType =
-    | 'active'
-    | 'inactive'
-    | 'expired'
-    | 'unavailable';
+    'active' | 'inactive' | 'expired' | 'unavailable';
 
 export interface XtreamPortalStatusResponseLike {
     user_info?: {
@@ -18,6 +15,10 @@ export interface XtreamCredentialsFromUrl {
 }
 
 const XTREAM_API_ENDPOINT_PATTERN = /\/(?:get|player_api)\.php$/i;
+
+// Some Xtream panels challenge generic Node HTTP clients while allowing
+// established IPTV players. Keep API, probe, and download requests aligned.
+export const XTREAM_CLIENT_USER_AGENT = 'VLC/3.0.18 LibVLC/3.0.18';
 
 export function normalizeXtreamServerUrl(value: string): string {
     const trimmed = value.trim();

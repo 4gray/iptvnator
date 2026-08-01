@@ -911,6 +911,13 @@ engine` (restart required) or
 
 **Download Manager**:
 
+- Xtream VOD downloads default to the same provider-compatible
+  `XTREAM_CLIENT_USER_AGENT` used by API requests and stream probes, while an
+  explicit playlist User-Agent still wins. Retry, resume, and missing-file
+  recovery also add the fallback to legacy Xtream rows that have no stored
+  User-Agent. Allowlisted connection resets after bytes reach disk retain the partial and show a credential-safe
+  `DOWNLOAD_NETWORK_INTERRUPTED` code; Retry continues with Range/If-Range
+  instead of starting from zero.
 - The desktop-only manager shares one global download store across the global,
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed

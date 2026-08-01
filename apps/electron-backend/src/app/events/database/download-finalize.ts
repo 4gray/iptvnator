@@ -14,12 +14,16 @@ import type {
     DownloadTask,
     TransferProgress,
 } from './download-task';
-import { describeError, TruncatedTransferError } from './download-transfer';
+import {
+    describeError,
+    InterruptedTransferError,
+    TruncatedTransferError,
+} from './download-transfer';
 
 /**
  * Persistence for a failed startDownload() attempt, after its cancel/pause
- * checkpoints have been ruled out. Chooses between: retaining a truncated
- * transfer for a Range retry, committing an already-finalized file,
+ * checkpoints have been ruled out. Chooses between: retaining a recoverable
+ * partial for a Range retry, committing an already-finalized file,
  * retaining a completed partial, or the generic delete-partial failure.
  */
 export async function handleDownloadFailure(
@@ -28,8 +32,12 @@ export async function handleDownloadFailure(
     reservation: ReservedPartialDownloadFile | undefined,
     error: unknown
 ): Promise<void> {
-    if (error instanceof TruncatedTransferError && reservation) {
-        // The short response is retained so a retry can continue the
+    if (
+        (error instanceof TruncatedTransferError ||
+            error instanceof InterruptedTransferError) &&
+        reservation
+    ) {
+        // The recoverable partial is retained so a retry can continue the
         // transfer via Range instead of starting over.
         await persistCompletedPartialFailure(
             db,
@@ -338,7 +346,9 @@ function canCopyCompletedPartialAfterLinkFailure(error: unknown): boolean {
 }
 
 /** @returns false when a .part exists but could not be deleted. */
-export function removePartialFile(filePath: string | null | undefined): boolean {
+export function removePartialFile(
+    filePath: string | null | undefined
+): boolean {
     try {
         removePartialDownloadFile(filePath);
         return true;
