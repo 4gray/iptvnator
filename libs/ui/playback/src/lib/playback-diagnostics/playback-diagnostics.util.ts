@@ -22,7 +22,6 @@ import {
     VhsPlaybackMediaErrorCode,
 } from './playback-diagnostics.model';
 import { getHlsPlaybackDiagnosticCode } from './hls-playback-evidence.util';
-import { createMpegTsPlaybackEvidence } from './mpegts-playback-evidence.util';
 import { isBrowserAccessFailure } from './playback-error-patterns.util';
 import { isLikelyContainerIssue } from './playback-media-source.util';
 import { createVhsPlaybackEvidence } from './vhs-playback-evidence.util';
