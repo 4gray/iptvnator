@@ -10,6 +10,7 @@ import {
     classifyHlsPlaybackIssue,
     classifyMpegTsPlaybackIssue,
     classifyNativePlaybackIssue,
+    createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
     getLikelyBrowserUnsupportedCodecLabels,
     getPlaybackMediaExtensionFromUrl,
@@ -584,13 +585,12 @@ describe('playback diagnostics', () => {
         expect(issue.externalFallbackRecommended).toBe(false);
     });
 
-    it('classifies mpegts browser fetch restrictions separately from generic network errors', () => {
+    it('does not guess mpegts browser access from exception messages', () => {
+        const secret = 'blocked by CORS policy';
         const issue = classifyMpegTsPlaybackIssue(
-            {
-                type: 'NetworkError',
-                details:
-                    'Fetch blocked by access-control policy while loading segment',
-            },
+            createMpegTsPlaybackEvidence('NetworkError', 'Exception', {
+                msg: secret,
+            }),
             createPlaybackSourceMetadata({
                 url: 'https://provider.example/live/channel.ts',
                 mimeType: 'video/mp2t',
@@ -598,17 +598,18 @@ describe('playback diagnostics', () => {
             })
         );
 
-        expect(issue.code).toBe('browser-access-error');
-        expect(issue.externalFallbackRecommended).toBe(true);
+        expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue.externalFallbackRecommended).toBe(false);
+        expect(JSON.stringify(issue)).not.toContain(secret);
     });
 
     it('classifies mpegts early EOF failures as fallback-actionable media errors', () => {
         const issue = classifyMpegTsPlaybackIssue(
-            {
-                type: 'NetworkError',
-                details: 'UnrecoverableEarlyEof',
-                info: { msg: 'Fetch stream meet Early-EOF' },
-            },
+            createMpegTsPlaybackEvidence(
+                'NetworkError',
+                'UnrecoverableEarlyEof',
+                { msg: 'Fetch stream meet Early-EOF' }
+            ),
             createPlaybackSourceMetadata({
                 url: 'https://provider.example/movie/123.ts',
                 mimeType: 'video/mp2t',
@@ -618,15 +619,17 @@ describe('playback diagnostics', () => {
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
         expect(issue.externalFallbackRecommended).toBe(true);
-        expect(issue.details).toContain('Early-EOF');
+        expect(issue.mpegTs?.failure).toBe('truncated-stream');
+        expect(issue.details).toBeUndefined();
     });
 
     it('classifies mpegts codec errors as unsupported codec fallbacks', () => {
         const issue = classifyMpegTsPlaybackIssue(
-            {
-                type: 'MediaError',
-                details: 'MediaCodecUnsupported',
-            },
+            createMpegTsPlaybackEvidence(
+                'MediaError',
+                'CodecUnsupported',
+                undefined
+            ),
             createPlaybackSourceMetadata({
                 url: 'https://example.com/live/channel.ts',
                 mimeType: 'video/mp2t',

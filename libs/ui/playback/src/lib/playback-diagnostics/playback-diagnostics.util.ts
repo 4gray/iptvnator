@@ -1,6 +1,6 @@
 import type {
     HlsPlaybackEvidence,
-    MpegTsPlaybackErrorInput,
+    MpegTsPlaybackEvidence,
     NativePlaybackErrorInput,
     PlaybackDiagnostic,
     PlaybackDiagnosticCode,
@@ -12,23 +12,24 @@ import type {
 } from './playback-diagnostics.model';
 import { PlaybackDiagnosticCode as DiagnosticCode } from './playback-diagnostics.model';
 import { HlsPlaybackDisposition } from './playback-diagnostics.model';
+import {
+    MpegTsPlaybackEngineDetails,
+    MpegTsPlaybackFailure,
+} from './mpegts-playback-evidence.model';
 import { PlaybackDiagnosticSource as DiagnosticSource } from './playback-diagnostics.model';
 import {
     VhsPlaybackEngineType,
     VhsPlaybackMediaErrorCode,
 } from './playback-diagnostics.model';
 import { getHlsPlaybackDiagnosticCode } from './hls-playback-evidence.util';
-import {
-    isBrowserAccessFailure,
-    isEarlyEofFailure,
-    isNetworkFailure,
-    normalizeErrorDetails,
-} from './playback-error-patterns.util';
+import { createMpegTsPlaybackEvidence } from './mpegts-playback-evidence.util';
+import { isBrowserAccessFailure } from './playback-error-patterns.util';
 import { isLikelyContainerIssue } from './playback-media-source.util';
 import { createVhsPlaybackEvidence } from './vhs-playback-evidence.util';
 
 export * from './playback-diagnostics.model';
 export { createHlsPlaybackEvidence } from './hls-playback-evidence.util';
+export { createMpegTsPlaybackEvidence } from './mpegts-playback-evidence.util';
 export { createVhsPlaybackEvidence } from './vhs-playback-evidence.util';
 export {
     createPlaybackSourceMetadata,
@@ -163,65 +164,15 @@ export function classifyHlsPlaybackIssue(
 }
 
 export function classifyMpegTsPlaybackIssue(
-    error: MpegTsPlaybackErrorInput,
+    evidence: MpegTsPlaybackEvidence,
     metadata: PlaybackSourceMetadata
 ): PlaybackDiagnostic {
-    const details = normalizeErrorDetails(error);
-    const lowerDetails = details.toLowerCase();
-    const lowerType = (error.type ?? '').toLowerCase();
-
-    if (isEarlyEofFailure(lowerDetails)) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.MediaDecodeError,
-            source: DiagnosticSource.MpegTs,
-            metadata,
-            details,
-        });
-    }
-
-    if (isNetworkFailure(lowerType, lowerDetails)) {
-        return createPlaybackDiagnostic({
-            code: isBrowserAccessFailure(lowerDetails)
-                ? DiagnosticCode.BrowserAccessError
-                : DiagnosticCode.NetworkError,
-            source: DiagnosticSource.MpegTs,
-            metadata,
-            details,
-        });
-    }
-
-    if (lowerDetails.includes('codec')) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.UnsupportedCodec,
-            source: DiagnosticSource.MpegTs,
-            metadata,
-            details,
-        });
-    }
-
-    if (lowerDetails.includes('format') || lowerDetails.includes('mse')) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.UnsupportedContainer,
-            source: DiagnosticSource.MpegTs,
-            metadata,
-            details,
-        });
-    }
-
-    if (lowerType.includes('media')) {
-        return createPlaybackDiagnostic({
-            code: DiagnosticCode.MediaDecodeError,
-            source: DiagnosticSource.MpegTs,
-            metadata,
-            details,
-        });
-    }
-
     return createPlaybackDiagnostic({
-        code: DiagnosticCode.UnknownPlaybackError,
+        code: getMpegTsPlaybackDiagnosticCode(evidence),
         source: DiagnosticSource.MpegTs,
         metadata,
-        details,
+        httpStatus: evidence.httpStatus,
+        mpegTs: evidence,
     });
 }
 
@@ -258,6 +209,7 @@ export function createPlaybackDiagnostic(options: {
     readonly nativeErrorType?: string;
     readonly vhs?: VhsPlaybackEvidence;
     readonly hls?: HlsPlaybackEvidence;
+    readonly mpegTs?: MpegTsPlaybackEvidence;
     readonly shaka?: ShakaPlaybackEvidence;
     /** Overrides the code-derived recommendation, e.g. when external players
      * are known to be unable to handle the stream either. */
@@ -274,6 +226,7 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorType,
         vhs,
         hls,
+        mpegTs,
         shaka,
     } = options;
 
@@ -293,11 +246,35 @@ export function createPlaybackDiagnostic(options: {
         nativeErrorType,
         vhs,
         hls,
+        mpegTs,
         shaka,
         externalFallbackRecommended:
             options.externalFallbackRecommended ??
             isExternalFallbackRecommended(code),
     };
+}
+
+function getMpegTsPlaybackDiagnosticCode(
+    evidence: MpegTsPlaybackEvidence
+): PlaybackDiagnosticCode {
+    switch (evidence.failure) {
+        case MpegTsPlaybackFailure.Http:
+        case MpegTsPlaybackFailure.Timeout:
+        case MpegTsPlaybackFailure.Network:
+            return DiagnosticCode.NetworkError;
+        case MpegTsPlaybackFailure.TruncatedStream:
+        case MpegTsPlaybackFailure.MediaSource:
+            return DiagnosticCode.MediaDecodeError;
+        case MpegTsPlaybackFailure.Codec:
+            return DiagnosticCode.UnsupportedCodec;
+        case MpegTsPlaybackFailure.Format:
+            return evidence.engineDetails ===
+                MpegTsPlaybackEngineDetails.FormatUnsupported
+                ? DiagnosticCode.UnsupportedContainer
+                : DiagnosticCode.MediaDecodeError;
+        default:
+            return DiagnosticCode.UnknownPlaybackError;
+    }
 }
 
 function getVhsPlaybackDiagnosticCode(

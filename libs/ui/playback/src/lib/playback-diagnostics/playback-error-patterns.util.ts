@@ -1,25 +1,3 @@
-import type { MpegTsPlaybackErrorInput } from './playback-diagnostics.model';
-
-export function normalizeErrorDetails(
-    error: MpegTsPlaybackErrorInput
-): string {
-    const info = normalizeErrorPayload(error.info);
-
-    return [error.details, error.message, info]
-        .filter((part): part is string => Boolean(part))
-        .join(' ');
-}
-
-export function isNetworkFailure(type: string, details: string): boolean {
-    return (
-        type.includes('network') ||
-        details.includes('network') ||
-        details.includes('loaderror') ||
-        details.includes('timeout') ||
-        details.includes('status')
-    );
-}
-
 export function isBrowserAccessFailure(details: string): boolean {
     return (
         details.includes('cors') ||
@@ -37,54 +15,4 @@ export function isBrowserAccessFailure(details: string): boolean {
         details.includes('err_blocked') ||
         details.includes('err_cleartext')
     );
-}
-
-export function isEarlyEofFailure(details: string): boolean {
-    const compactDetails = details.replace(/[^a-z0-9]/g, '');
-    return compactDetails.includes('earlyeof');
-}
-
-export function isCodecFailure(details: string): boolean {
-    return (
-        details.includes('codec') ||
-        details.includes('incompatiblecodecs') ||
-        details.includes('addcodec')
-    );
-}
-
-export function isDrmOrEncryptionFailure(details: string): boolean {
-    return (
-        details.includes('decrypt') ||
-        details.includes('keysystem') ||
-        details.includes('keyload') ||
-        details.includes('license') ||
-        details.includes('drm')
-    );
-}
-
-function normalizeErrorPayload(payload: unknown): string {
-    if (!payload) {
-        return '';
-    }
-
-    if (typeof payload === 'string') {
-        return payload;
-    }
-
-    if (payload instanceof Error) {
-        const extraDetails = stringifyUnknown(payload);
-        return [payload.message, extraDetails === '{}' ? '' : extraDetails]
-            .filter(Boolean)
-            .join(' ');
-    }
-
-    return stringifyUnknown(payload);
-}
-
-function stringifyUnknown(value: unknown): string {
-    try {
-        return JSON.stringify(value) || '';
-    } catch {
-        return String(value);
-    }
 }
