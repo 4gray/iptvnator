@@ -4,10 +4,7 @@ import {
     type DownloadItem,
     type DownloadStartInput,
 } from '@iptvnator/services';
-import {
-    ELECTRON_BRIDGE_DOWNLOAD_START_REASONS,
-    type XtreamSerieEpisode,
-} from '@iptvnator/shared/interfaces';
+import { ELECTRON_BRIDGE_DOWNLOAD_START_REASONS } from '@iptvnator/shared/interfaces';
 import {
     createEpisodeDownloadIdentityKey,
     createLogger,
@@ -20,7 +17,6 @@ import {
     type EpisodeDownloadCandidate,
     type EpisodeDownloadSubmission,
     type SeasonDownloadResult,
-    type SeasonEpisodeDownloadAdapter,
 } from './season-download.models';
 
 @Injectable({ providedIn: 'root' })
@@ -68,19 +64,12 @@ export class SeasonDownloadCoordinator {
     }
 
     async enqueueSeason(
-        episodes: readonly XtreamSerieEpisode[],
-        adapter: SeasonEpisodeDownloadAdapter,
-        fallbackSeasonKey?: string
+        candidates: readonly (EpisodeDownloadCandidate | null)[]
     ): Promise<SeasonDownloadResult> {
         const result = { added: 0, skipped: 0, failed: 0 };
         const reserved: EpisodeDownloadCandidate[] = [];
 
-        for (const episode of episodes) {
-            const candidate = this.createCandidate(
-                adapter,
-                episode,
-                fallbackSeasonKey
-            );
+        for (const candidate of candidates) {
             if (!candidate || !this.reserve(candidate)) {
                 result.skipped += 1;
                 continue;
@@ -141,19 +130,6 @@ export class SeasonDownloadCoordinator {
         } catch {
             this.logger.warn('Episode download submission failed');
             return EPISODE_DOWNLOAD_SUBMISSIONS.Failed;
-        }
-    }
-
-    private createCandidate(
-        adapter: SeasonEpisodeDownloadAdapter,
-        episode: XtreamSerieEpisode,
-        fallbackSeasonKey: string | undefined
-    ): EpisodeDownloadCandidate | null {
-        try {
-            return adapter.createCandidate(episode, fallbackSeasonKey);
-        } catch {
-            this.logger.warn('Episode download candidate creation failed');
-            return null;
         }
     }
 

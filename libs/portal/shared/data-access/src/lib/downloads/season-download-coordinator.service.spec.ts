@@ -5,15 +5,9 @@ import {
     type DownloadItem,
     type DownloadStartInput,
 } from '@iptvnator/services';
-import type {
-    ElectronBridgeDownloadStartResult,
-    XtreamSerieEpisode,
-} from '@iptvnator/shared/interfaces';
+import type { ElectronBridgeDownloadStartResult } from '@iptvnator/shared/interfaces';
 import type { EpisodeDownloadIdentity } from '@iptvnator/portal/shared/util';
-import type {
-    EpisodeDownloadCandidate,
-    SeasonEpisodeDownloadAdapter,
-} from './season-download.models';
+import type { EpisodeDownloadCandidate } from './season-download.models';
 import { SeasonDownloadCoordinator } from './season-download-coordinator.service';
 
 interface DownloadsServiceStub {
@@ -101,16 +95,11 @@ describe('SeasonDownloadCoordinator', () => {
         const firstStart = deferred<ElectronBridgeDownloadStartResult>();
         const first = candidate(FIRST_IDENTITY);
         const second = candidate(identity(102, 2));
-        const adapter = adapterFor([first, second]);
         downloadsService.startDownload
             .mockImplementationOnce(() => firstStart.promise)
             .mockResolvedValueOnce({ success: true });
 
-        const submission = coordinator.enqueueSeason(
-            [episode(101, 1), episode(102, 2)],
-            adapter,
-            '1'
-        );
+        const submission = coordinator.enqueueSeason([first, second]);
         await flushMicrotasks();
 
         expect(first.prepare).toHaveBeenCalledTimes(1);
@@ -132,50 +121,53 @@ describe('SeasonDownloadCoordinator', () => {
         });
     });
 
-    it('partitions invalid, duplicate, blocked, stable skip, and unsuccessful submissions', async () => {
-        const stable = candidate(FIRST_IDENTITY);
-        const duplicate = candidate(FIRST_IDENTITY);
-        const unsuccessful = candidate(identity(102, 2));
-        const paused = candidate(identity(103, 3));
+    it('partitions added, invalid, paused, stable skip, and unsuccessful candidates', async () => {
+        const added = candidate(FIRST_IDENTITY);
+        const paused = candidate(identity(102, 2));
+        const stable = candidate(identity(103, 3));
+        const unsuccessful = candidate(identity(104, 4));
         downloadsService.downloads.set([
             download(paused.identity, { status: 'paused' }),
         ]);
         downloadsService.startDownload
+            .mockResolvedValueOnce({ success: true })
             .mockResolvedValueOnce({
                 success: false,
                 reason: 'already-in-progress',
             })
             .mockResolvedValueOnce({
                 success: false,
-                error: 'Backend declined the request',
+                error: 'rejected',
             });
-        const adapter = adapterFor([
-            null,
-            stable,
-            duplicate,
-            unsuccessful,
-            paused,
-        ]);
 
         await expect(
-            coordinator.enqueueSeason(
-                [
-                    episode(100, 0),
-                    episode(101, 1),
-                    episode(101, 1),
-                    episode(102, 2),
-                    episode(103, 3),
-                ],
-                adapter,
-                '1'
-            )
-        ).resolves.toEqual({ added: 0, skipped: 4, failed: 1 });
+            coordinator.enqueueSeason([
+                added,
+                null,
+                paused,
+                stable,
+                unsuccessful,
+            ])
+        ).resolves.toEqual({ added: 1, skipped: 3, failed: 1 });
 
-        expect(stable.prepare).toHaveBeenCalledTimes(1);
-        expect(duplicate.prepare).not.toHaveBeenCalled();
-        expect(unsuccessful.prepare).toHaveBeenCalledTimes(1);
+        expect(added.prepare).toHaveBeenCalledTimes(1);
         expect(paused.prepare).not.toHaveBeenCalled();
-        expect(downloadsService.loadDownloads).not.toHaveBeenCalled();
+        expect(stable.prepare).toHaveBeenCalledTimes(1);
+        expect(unsuccessful.prepare).toHaveBeenCalledTimes(1);
+        expect(downloadsService.startDownload).toHaveBeenCalledTimes(3);
+        expect(downloadsService.startDownload).toHaveBeenNthCalledWith(
+            1,
+            request(added.identity)
+        );
+        expect(downloadsService.startDownload).toHaveBeenNthCalledWith(
+            2,
+            request(stable.identity)
+        );
+        expect(downloadsService.startDownload).toHaveBeenNthCalledWith(
+            3,
+            request(unsuccessful.identity)
+        );
+        expect(downloadsService.loadDownloads).toHaveBeenCalledTimes(1);
     });
 
     it('continues after preparation rejects and refreshes once after successes', async () => {
@@ -200,20 +192,12 @@ describe('SeasonDownloadCoordinator', () => {
 
         try {
             await expect(
-                coordinator.enqueueSeason(
-                    [
-                        episode(101, 1),
-                        episode(102, 2),
-                        episode(103, 3),
-                        episode(104, 4),
-                    ],
-                    adapterFor([
-                        rejected,
-                        ipcFailure,
-                        firstSuccess,
-                        secondSuccess,
-                    ])
-                )
+                coordinator.enqueueSeason([
+                    rejected,
+                    ipcFailure,
+                    firstSuccess,
+                    secondSuccess,
+                ])
             ).resolves.toEqual({ added: 2, skipped: 0, failed: 2 });
 
             expect(downloadsService.startDownload).toHaveBeenCalledTimes(3);
@@ -270,10 +254,7 @@ describe('SeasonDownloadCoordinator', () => {
         const duplicate = candidate(FIRST_IDENTITY);
 
         await expect(
-            coordinator.enqueueSeason(
-                [episode(101, 1), episode(101, 1)],
-                adapterFor([first, duplicate])
-            )
+            coordinator.enqueueSeason([first, duplicate])
         ).resolves.toEqual({ added: 1, skipped: 1, failed: 0 });
 
         expect(first.prepare).toHaveBeenCalledTimes(1);
@@ -291,10 +272,7 @@ describe('SeasonDownloadCoordinator', () => {
             return refresh.promise;
         });
 
-        const submission = coordinator.enqueueSeason(
-            [episode(101, 1), episode(102, 2)],
-            adapterFor([first, second])
-        );
+        const submission = coordinator.enqueueSeason([first, second]);
         await refreshStarted.promise;
 
         expect(coordinator.isPending(first.identity)).toBe(true);
@@ -333,32 +311,6 @@ function candidate(
         Promise.resolve(request(value))
 ): EpisodeDownloadCandidate & { readonly prepare: jest.Mock } {
     return { identity: value, prepare: jest.fn(prepare) };
-}
-
-function episode(
-    xtreamId: number,
-    episodeNumber: number
-): XtreamSerieEpisode {
-    return {
-        id: String(xtreamId),
-        episode_num: episodeNumber,
-        title: `Episode ${episodeNumber}`,
-        container_extension: 'mp4',
-        info: [],
-        custom_sid: '',
-        added: '',
-        season: 1,
-        direct_source: '',
-    };
-}
-
-function adapterFor(
-    candidates: readonly (EpisodeDownloadCandidate | null)[]
-): SeasonEpisodeDownloadAdapter {
-    let index = 0;
-    return {
-        createCandidate: jest.fn(() => candidates[index++] ?? null),
-    };
 }
 
 function download(
