@@ -222,6 +222,12 @@ export function withContent() {
             const xtreamApiService = inject(XtreamApiService);
             const importTypes: ContentType[] = ['live', 'vod', 'series'];
             let activeInitializationPromise: Promise<void> | null = null;
+            // Types that actually contacted the provider (or saved remote
+            // data) in the current initialization. Cancellation cleanup must
+            // only clear these: a type served entirely from the local cache
+            // has nothing partial to clean up, and clearing it would throw
+            // away a healthy catalog and force a full redownload.
+            const sessionRemoteWorkTypes = new Set<ContentType>();
             let cachedHydrationGeneration = 0;
             const activeCachedHydrationPromises = new Map<
                 string,
@@ -685,6 +691,15 @@ export function withContent() {
                 }));
             };
 
+            const publishTypedImportPhase =
+                (type: ContentType) =>
+                (phase: string): void => {
+                    if (phase !== 'loading-cached') {
+                        sessionRemoteWorkTypes.add(type);
+                    }
+                    publishImportPhase(phase);
+                };
+
             const trackImportEvent = (event: DbOperationEvent): void => {
                 const operationId = event.operationId;
 
@@ -730,6 +745,12 @@ export function withContent() {
                     event.operation === 'save-content' &&
                     store.activeImportContentType()
                 ) {
+                    // A save event proves this type is writing remote data,
+                    // independent of the loading phase that preceded it.
+                    const activeType = store.activeImportContentType();
+                    if (activeType) {
+                        sessionRemoteWorkTypes.add(activeType);
+                    }
                     patchState(store, (state) => ({
                         activeImportCurrentCount:
                             event.current ?? state.activeImportCurrentCount,
@@ -779,6 +800,14 @@ export function withContent() {
             ): Promise<void> => {
                 for (const type of importTypes) {
                     if (completedTypes.has(type)) {
+                        continue;
+                    }
+
+                    // Only types that performed remote/save work this session
+                    // can hold partial data. A type still pending because it
+                    // was being read from the local cache keeps its healthy
+                    // catalog instead of being cleared into a redownload.
+                    if (!sessionRemoteWorkTypes.has(type)) {
                         continue;
                     }
 
@@ -843,6 +872,7 @@ export function withContent() {
                     'xtream-import-session'
                 );
 
+                sessionRemoteWorkTypes.clear();
                 patchState(store, {
                     isImporting: false,
                     isCancellingImport: false,
@@ -1072,7 +1102,7 @@ export function withContent() {
                                 'live',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: publishImportPhase,
+                                    onPhaseChange: publishTypedImportPhase('live'),
                                 }
                             ),
                             dataSource.getCategories(
@@ -1081,7 +1111,7 @@ export function withContent() {
                                 'vod',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: publishImportPhase,
+                                    onPhaseChange: publishTypedImportPhase('vod'),
                                 }
                             ),
                             dataSource.getCategories(
@@ -1090,7 +1120,7 @@ export function withContent() {
                                 'series',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: publishImportPhase,
+                                    onPhaseChange: publishTypedImportPhase('series'),
                                 }
                             ),
                         ]);
@@ -1173,7 +1203,7 @@ export function withContent() {
                                 operationId: liveOperationId,
                                 sessionId: options?.sessionId,
                                 onEvent: trackImportEvent,
-                                onPhaseChange: publishImportPhase,
+                                onPhaseChange: publishTypedImportPhase('live'),
                             }
                         )) as XtreamLiveStream[];
                         throwIfImportCancelled(options?.importSessionId);
@@ -1210,7 +1240,7 @@ export function withContent() {
                                 operationId: vodOperationId,
                                 sessionId: options?.sessionId,
                                 onEvent: trackImportEvent,
-                                onPhaseChange: publishImportPhase,
+                                onPhaseChange: publishTypedImportPhase('vod'),
                             }
                         )) as XtreamVodStream[];
                         throwIfImportCancelled(options?.importSessionId);
@@ -1248,7 +1278,7 @@ export function withContent() {
                                 operationId: seriesOperationId,
                                 sessionId: options?.sessionId,
                                 onEvent: trackImportEvent,
-                                onPhaseChange: publishImportPhase,
+                                onPhaseChange: publishTypedImportPhase('series'),
                             }
                         )) as XtreamSerieItem[];
                         throwIfImportCancelled(options?.importSessionId);

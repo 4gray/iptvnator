@@ -175,6 +175,49 @@ describe('withContent loading-cached phase', () => {
         expect(store.contentInitBlockReason()).toBe('cancelled');
     });
 
+    it('clears only the type that performed remote work when a mixed import is cancelled', async () => {
+        dataSource.getCategories.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                _type: string,
+                options?: PhaseOptions
+            ) => {
+                options?.onPhaseChange?.('loading-cached');
+                return Promise.resolve([]);
+            }
+        );
+        dataSource.getContent.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                type: ContentType,
+                _onProgress?: (count: number) => void,
+                _onTotal?: (total: number) => void,
+                options?: PhaseOptions
+            ) => {
+                if (type === 'live') {
+                    // Live misses the cache, contacts the provider, then the
+                    // user cancels mid-download.
+                    options?.onPhaseChange?.('loading-live');
+                    return Promise.reject(createAbortError());
+                }
+                options?.onPhaseChange?.('loading-cached');
+                return Promise.resolve([]);
+            }
+        );
+
+        await store.initializeContent();
+
+        // Only live held partial remote data; vod/series were cache-only and
+        // must keep their healthy catalogs.
+        expect(databaseService.clearXtreamImportCache).toHaveBeenCalledTimes(1);
+        expect(databaseService.clearXtreamImportCache).toHaveBeenCalledWith(
+            expect.any(String),
+            'live'
+        );
+    });
+
     it('still marks the import as running once a remote phase is reported', async () => {
         dataSource.getCategories.mockImplementation(
             (
