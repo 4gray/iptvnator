@@ -377,9 +377,11 @@ but the component has not.
   `?` shortcuts dialog — dialogs must not stack a second focus trap on the
   modal drawer, and navigation must not act behind it), and document-level
   shortcuts owned by routed content (shared controls, Embedded MPV legacy
-  dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle)
-  opt out on their own by checking for an `inert` ancestor, since `inert`
-  does not silence document-level listeners. The service is root-provided
+  dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle,
+  the M3U player's digit-key channel switching and sidebar toggle) opt out
+  on their own by checking for an `inert` ancestor, since `inert` does not
+  silence document-level listeners. Any NEW document-level key listener on
+  routed content must apply the same `closest('[inert]')` guard. The service is root-provided
   from `@iptvnator/workspace/shell/util` so consumers outside the shell's
   element injector (AppComponent's Ctrl/Cmd+R handler) can observe it
   without pulling the lazy shell chunk into the eager bundle. The shell

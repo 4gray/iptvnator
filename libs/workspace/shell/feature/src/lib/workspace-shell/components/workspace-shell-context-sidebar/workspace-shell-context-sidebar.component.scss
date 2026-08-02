@@ -86,7 +86,12 @@
         // Narrower than the viewport so the backdrop stays tappable — it is
         // one of the two ways to close the drawer.
         width: min(320px, 85vw);
-        z-index: 99;
+        // Above every routed/app surface (settings action bar 100, EPG and
+        // update panels 900/901 — inert removes them from interaction but
+        // not from paint order), below the CDK overlay container (1000):
+        // dialogs opened from inside the drawer, e.g. Manage categories,
+        // must stack on top of it.
+        z-index: 951;
         transform: translateX(-100%);
         visibility: hidden;
         transition:

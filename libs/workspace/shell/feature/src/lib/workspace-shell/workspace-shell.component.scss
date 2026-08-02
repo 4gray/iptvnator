@@ -110,7 +110,9 @@ app-workspace-shell-context-sidebar {
         display: block;
         position: fixed;
         inset: 0;
-        z-index: 98;
+        // Paired with the drawer's 951: above the settings action bar (100)
+        // and the root EPG/update panels (900/901), below CDK overlays.
+        z-index: 950;
         background: rgba(0, 0, 0, 0.4);
     }
 
