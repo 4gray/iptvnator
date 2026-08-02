@@ -236,6 +236,40 @@ describe('StalkerAccountInfoService', () => {
         expect(snapshot).toMatchObject({ login: 'partial-user' });
     });
 
+    it('re-routes to the profile flow when the post-repair main-info retry rejects', async () => {
+        // A full installation that does not implement get_main_info answers
+        // the internal retry with 404 — the rejection must reach the
+        // repaired-mode check instead of failing the dialog.
+        dataService.sendIpcEvent.mockRejectedValue(
+            new Error('HTTP Error 404: Not Found')
+        );
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'full-user',
+        });
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(snapshot).toMatchObject({ login: 'full-user' });
+    });
+
+    it('rethrows a main-info failure when no repair changed the mode', async () => {
+        const boom = new Error('HTTP Error 404: Not Found');
+        dataService.sendIpcEvent.mockRejectedValue(boom);
+
+        await expect(service.fetchAccountInfo(portalPlaylist)).rejects.toBe(
+            boom
+        );
+    });
+
     it('rethrows profile failures the repair declines to act on', async () => {
         const boom = new Error('timeout of 15000ms exceeded');
         stalkerSession.refreshAccountProfile.mockRejectedValue(boom);

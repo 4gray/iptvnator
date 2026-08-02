@@ -81,7 +81,17 @@ export class StalkerAccountInfoService {
             return this.fetchViaProfile(effectivePlaylist);
         }
 
-        const snapshot = await this.fetchViaMainInfo(effectivePlaylist);
+        // A REJECTED main-info call must reach the same repaired-mode check
+        // as an empty or partial one: a repair can flip the portal to full
+        // mid-request, and a full installation that does not implement
+        // `get_main_info` answers the internal retry with 404.
+        let snapshot: StalkerAccountSnapshot | null = null;
+        let mainInfoError: unknown;
+        try {
+            snapshot = await this.fetchViaMainInfo(effectivePlaylist);
+        } catch (error) {
+            mainInfoError = error;
+        }
 
         // `fetchViaMainInfo` runs through executeStalkerRequest, whose lazy
         // repair retries the SAME action internally. If that repair proved
@@ -102,6 +112,11 @@ export class StalkerAccountInfoService {
             // publishes nothing — losing data to the re-route would be
             // worse than the incomplete answer.
             return profileSnapshot ?? snapshot;
+        }
+
+        // No mode change: a main-info failure is the caller's failure.
+        if (mainInfoError !== undefined) {
+            throw mainInfoError;
         }
 
         return snapshot;
