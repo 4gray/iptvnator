@@ -93,9 +93,10 @@ variants, contextual buttons, and theme-aware styling.
   whose file is available or whose availability is still unknown. Failed,
   canceled, completed-missing, and unambiguous row-less episodes are eligible;
   a completed-missing row is restarted as a fresh download. Before resetting
-  such a completed row, `DOWNLOADS_START` rechecks its retained path in the main
-  process. A restored file returns stable `reason: 'already-downloaded'` without
-  mutation; active matches return `reason: 'already-in-progress'`. The
+  such a completed row, `DOWNLOADS_START` asynchronously rechecks its retained
+  path in the main process. A restored file returns stable
+  `reason: 'already-downloaded'` without mutation; active matches return
+  `reason: 'already-in-progress'`. The
   coordinator counts both as skipped. There is no batch IPC, parallel transfer,
   or queue reordering: destination authorization, persisted header handling,
   and the backend's one-active-transfer FIFO semantics remain unchanged.

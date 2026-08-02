@@ -11,7 +11,7 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { removePartialDownloadFile } from './download-file-path';
-import { isAvailableDownloadFile } from './download-file-availability';
+import { getDownloadFileAvailabilityAsync } from './download-file-availability';
 import { resolveExistingDownloadIdentity } from './download-request-identity';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
 import {
@@ -150,7 +150,7 @@ export async function startDownloadRequest(
         if (
             item.contentType === 'episode' &&
             item.status === 'completed' &&
-            isAvailableDownloadFile(item.filePath)
+            (await getDownloadFileAvailabilityAsync(item)) === 'available'
         ) {
             return {
                 error: 'Download already completed',

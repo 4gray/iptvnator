@@ -41,6 +41,10 @@ async function setupStartMetadataRequest(
         update: jest.fn(() => ({ set })),
     };
     const enqueueDownload = jest.fn();
+    const getDownloadFileAvailabilityAsync = jest.fn(async () =>
+        completedFileAvailable ? 'available' : 'missing'
+    );
+    const isAvailableDownloadFile = jest.fn(() => completedFileAvailable);
     const authorizer = {
         requireAuthorized: jest.fn(async (directory: string) => directory),
     } as unknown as DownloadDirectoryAuthorizer;
@@ -55,7 +59,8 @@ async function setupStartMetadataRequest(
         enqueueDownload,
     }));
     jest.doMock('./download-file-availability', () => ({
-        isAvailableDownloadFile: jest.fn(() => completedFileAvailable),
+        getDownloadFileAvailabilityAsync,
+        isAvailableDownloadFile,
     }));
 
     const { startDownloadRequest } = await import('./download-requests');
@@ -64,7 +69,9 @@ async function setupStartMetadataRequest(
         db,
         downloadLimit,
         enqueueDownload,
+        getDownloadFileAvailabilityAsync,
         insertValues,
+        isAvailableDownloadFile,
         set,
         startDownloadRequest,
     };
@@ -461,6 +468,10 @@ describe('download request identity resolution', () => {
         expect(request.db.insert).not.toHaveBeenCalled();
         expect(request.db.update).not.toHaveBeenCalled();
         expect(request.enqueueDownload).not.toHaveBeenCalled();
+        expect(request.getDownloadFileAvailabilityAsync).toHaveBeenCalledWith(
+            completedRow
+        );
+        expect(request.isAvailableDownloadFile).not.toHaveBeenCalled();
     });
 
     it.each(['queued', 'downloading', 'paused'] as const)(
