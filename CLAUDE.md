@@ -922,7 +922,9 @@ engine` (restart required) or
   authoritative refresh after accepted submissions, and reports added,
   skipped, and failed counts. Xtream and Stalker adapters remain responsible
   for provider URLs, headers, and metadata; the backend still runs one active
-  transfer with a FIFO queue.
+  transfer with a FIFO queue. `DOWNLOADS_START` remains the sole start IPC; its
+  stable `reason: 'already-in-progress'` result is counted as skipped, and no
+  batch IPC or schema migration is introduced.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
   for both providers; Stalker playback identifiers only resolve the URL. Exact
   `(playlistId, contentType, xtreamId)` matches are authoritative, while
