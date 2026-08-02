@@ -216,6 +216,33 @@ describe('StalkerPortalDiscoveryService', () => {
         });
     });
 
+    it('rejects a candidate whose get_profile answers a structured denial', async () => {
+        // The handshake can hand out a token whose profile call still
+        // denies; accepting it would persist an unusable endpoint and skip
+        // the healthy sibling.
+        mockProbes({
+            'http://mixed.example/portal.php': {
+                resolve: 'Authorization failed.',
+            },
+            'http://mixed.example/server/load.php': {
+                resolve: { js: [{ id: '1' }] },
+            },
+        });
+        authenticate.mockResolvedValue({
+            token: 'TOKEN-BAD',
+            profileResponse: { js: { error: 'Invalid token' } },
+        });
+
+        const outcome = await service.discover('http://mixed.example/c', MAC);
+
+        // Discovery moved on and resolved the healthy sibling instead.
+        expect(outcome).toEqual({
+            status: 'resolved',
+            portalUrl: 'http://mixed.example/server/load.php',
+            isFullStalkerPortal: false,
+        });
+    });
+
     it('reports unreachable when every candidate 404s', async () => {
         mockProbes({
             'http://empty.example/portal.php': {

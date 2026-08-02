@@ -11,6 +11,7 @@ import {
     buildStalkerEndpointCandidates,
     classifyStalkerProbeResponse,
     getStalkerRequestErrorStatus,
+    isStalkerAuthFailureResponse,
     isStalkerProbeTimeout,
 } from './stalker-portal-discovery.utils';
 
@@ -196,6 +197,18 @@ export class StalkerPortalDiscoveryService {
                 ),
                 AUTH_TIMEOUT_MS
             );
+            // A handshake can hand out a token whose `get_profile` still
+            // answers a structured denial (`{js:{error:'Invalid token'}}`);
+            // `authenticate()` only inspects `msg`/`block_msg`, so reporting
+            // `resolved` here would persist an unusable endpoint and stop
+            // before a healthy sibling is probed.
+            if (isStalkerAuthFailureResponse(auth.profileResponse)) {
+                return {
+                    status: 'auth-rejected',
+                    portalUrl: candidate,
+                    error: auth.profileResponse,
+                };
+            }
             return {
                 status: 'resolved',
                 portalUrl: candidate,

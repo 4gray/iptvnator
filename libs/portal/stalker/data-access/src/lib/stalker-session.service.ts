@@ -527,6 +527,8 @@ export class StalkerSessionService {
     ): Promise<{
         token: string;
         accountInfo?: StalkerProfileResponse['js']['account_info'];
+        /** Raw envelope so callers can apply their own failure checks. */
+        profileResponse?: StalkerProfileResponse;
     }> {
         const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
 
@@ -561,6 +563,7 @@ export class StalkerSessionService {
             return {
                 token,
                 accountInfo: profileResponse?.js?.account_info,
+                profileResponse,
             };
         } catch (error) {
             // Profile fetch failed - this is a real error, propagate it

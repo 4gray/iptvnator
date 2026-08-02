@@ -119,8 +119,10 @@ share of users are on working reseller panels, and only probing can tell the
 two apart, so there is deliberately **no eager one-shot migration**. Instead
 `StalkerPortalRepairService` re-probes a portal only after a request
 actually failed with a shape that a wrong endpoint/mode produces (the
-plain-text auth bodies, HTTP 404, terminal handshake errors — never
-timeouts), at most once per SOURCE CONFIGURATION (endpoint + mode + MAC +
+plain-text auth bodies AND their JSON envelopes (`js.error`/`js.msg`),
+HTTP 404 (endpoint absent), HTTP 401/403 (endpoint behind an HTTP auth
+gate), and terminal handshake/profile errors — never timeouts or other
+network failures), at most once per SOURCE CONFIGURATION (endpoint + mode + MAC +
 identity fingerprint) per playlist per session — an edited configuration
 may probe when it fails, while every already-probed one stays latched for
 the session — and persists only a configuration discovery has proven to
