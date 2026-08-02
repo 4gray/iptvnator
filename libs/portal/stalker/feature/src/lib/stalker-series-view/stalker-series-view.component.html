@@ -202,13 +202,13 @@
                 "
                 [seasonDescriptions]="seasonDescriptions()"
                 [downloadsEnabled]="!providerOnly()"
+                [downloadAdapter]="episodeDownloadAdapter()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
                     isCurrentSeasonLoading(seasonContainer?.selectedSeason())
                 "
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
-                (episodeDownloadRequested)="downloadEpisode($event)"
                 (playbackToggleRequested)="
                     handlePlaybackToggleRequestedFromUi($event)
                 "

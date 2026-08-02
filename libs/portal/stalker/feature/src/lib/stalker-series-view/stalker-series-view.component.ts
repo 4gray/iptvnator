@@ -29,7 +29,6 @@ import {
     seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
-    type XtreamSerieEpisodeInfo,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import { SafePipe } from '@iptvnator/pipes';
@@ -69,7 +68,6 @@ import {
 import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
-    DownloadsService,
     PlaybackPositionRuntimeBridgeService,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
@@ -83,7 +81,7 @@ import {
     saveStalkerSeriesPosition,
     StalkerSeriesPositionPartialSaveError,
 } from './stalker-series-position-compatibility';
-import { createStalkerSeriesDownloadSnapshot } from './stalker-series-download-metadata';
+import { createStalkerSeriesDownloadAdapter } from './stalker-series-download.adapter';
 
 interface SeriesPositionContext {
     readonly generation: number;
@@ -188,7 +186,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
     );
-    private readonly downloadsService = inject(DownloadsService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     readonly backClicked = output<void>();
@@ -533,6 +530,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.displayItem()?.info?.tmdb_trailer)
     );
+
+    readonly episodeDownloadAdapter = computed(() => {
+        const playlist = this.stalkerStore.currentPlaylist();
+        const item = this.displayItem();
+        return createStalkerSeriesDownloadAdapter({
+            playlist,
+            item,
+            language:
+                this.translateService.currentLang ||
+                this.translateService.defaultLang ||
+                'en',
+            seriesId: this.toSeriesId(item?.id ?? 0),
+            resolveUrl: (command, episodeNumber) =>
+                this.stalkerStore.fetchLinkToPlay(
+                    playlist?.portalUrl ?? '',
+                    playlist?.macAddress ?? '',
+                    command,
+                    episodeNumber
+                ),
+        });
+    });
 
     /**
      * Adapts both Regular and VOD series data into the format expected by SeasonContainerComponent.
@@ -1072,81 +1090,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         );
     }
 
-    async downloadEpisode(episode: XtreamSerieEpisode): Promise<void> {
-        const playlist = this.stalkerStore.currentPlaylist();
-        const item = this.displayItem();
-
-        if (!playlist || !playlist.portalUrl || !playlist.macAddress || !item) {
-            return;
-        }
-
-        const customSid = (episode as { custom_sid?: string }).custom_sid;
-        const cmd =
-            customSid === 'vod-series'
-                ? `/media/file_${(episode as { originalId?: string }).originalId}.mpg`
-                : ((episode as { originalCmd?: string }).originalCmd ?? '');
-
-        let url: string;
-        try {
-            url = await this.stalkerStore.fetchLinkToPlay(
-                playlist.portalUrl,
-                playlist.macAddress,
-                cmd,
-                episode.episode_num
-            );
-            if (!url) {
-                this.logger.error('Failed to resolve Stalker stream URL');
-                return;
-            }
-        } catch (error) {
-            this.logger.error('Error resolving Stalker stream URL', error);
-            return;
-        }
-
-        const episodeInfo = this.getEpisodeInfo(episode);
-        const posterUrl = episodeInfo?.movie_image;
-        const seasonNum = Number(episode.season || 1);
-        const episodeNum = episode.episode_num || 1;
-        const seriesTitle =
-            item.info?.name || this.displayItem()?.info?.name || 'Series';
-        const episodeTitle = `${seriesTitle} - S${String(seasonNum).padStart(
-            2,
-            '0'
-        )}E${String(episodeNum).padStart(2, '0')} - ${episode.title}`;
-
-        await this.downloadsService.startDownload({
-            playlistId: playlist._id,
-            xtreamId: this.getEpisodeDownloadId(episode),
-            contentType: 'episode',
-            title: episodeTitle,
-            url,
-            posterUrl,
-            metadataSnapshot: createStalkerSeriesDownloadSnapshot({
-                item,
-                episode,
-                language:
-                    this.translateService.currentLang ||
-                    this.translateService.defaultLang ||
-                    'en',
-                seriesTitle,
-                seasonNumber: seasonNum,
-                episodeNumber: episodeNum,
-            }),
-            seriesXtreamId: this.toSeriesId(item.id),
-            seasonNumber: seasonNum,
-            episodeNumber: episodeNum,
-            headers: {
-                userAgent: playlist.userAgent,
-                referer: playlist.referrer,
-                origin: playlist.origin,
-            },
-            playlistName: playlist.title || 'Stalker Portal',
-            playlistType: 'stalker',
-            portalUrl: playlist.portalUrl,
-            macAddress: playlist.macAddress,
-        });
-    }
-
     private async loadSeriesPositions(
         context: SeriesPositionContext
     ): Promise<void> {
@@ -1507,54 +1450,5 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const updated = new Map(this.episodePlaybackPositions());
         updated.delete(contentXtreamId);
         this.episodePlaybackPositions.set(updated);
-    }
-
-    private getEpisodeInfo(
-        episode: XtreamSerieEpisode
-    ): XtreamSerieEpisodeInfo | undefined {
-        if (!episode.info || Array.isArray(episode.info)) {
-            return undefined;
-        }
-        return episode.info;
-    }
-
-    private getEpisodeDownloadId(episode: XtreamSerieEpisode): number {
-        const customSid = (episode as { custom_sid?: string }).custom_sid;
-
-        if (customSid === 'regular-series') {
-            const cmd = (episode as { originalCmd?: string }).originalCmd;
-            if (cmd) {
-                const match = cmd.match(/file_(\d+)/);
-                if (match) {
-                    return Number(match[1]);
-                }
-                return this.hashString(cmd);
-            }
-            return Number(episode.id);
-        }
-
-        if (customSid === 'vod-series') {
-            const originalId = (episode as { originalId?: string | number })
-                .originalId;
-            const numericId = Number(originalId);
-            return Number.isNaN(numericId)
-                ? this.hashString(String(originalId))
-                : numericId;
-        }
-
-        const numericId = Number(episode.id);
-        return Number.isNaN(numericId)
-            ? this.hashString(String(episode.id))
-            : numericId;
-    }
-
-    private hashString(str: string): number {
-        let hash = 0;
-        for (let index = 0; index < str.length; index++) {
-            const char = str.charCodeAt(index);
-            hash = (hash << 5) - hash + char;
-            hash &= hash;
-        }
-        return Math.abs(hash);
     }
 }

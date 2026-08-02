@@ -6,6 +6,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { SeasonContainerComponent } from '@iptvnator/ui/components';
+import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -17,7 +18,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { DownloadsService, TmdbEnrichmentService } from '@iptvnator/services';
+import { TmdbEnrichmentService } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
@@ -39,9 +40,9 @@ class StubSeasonContainerComponent {
     readonly seasonDescriptions = input<unknown>(null);
     readonly isLoading = input(false);
     readonly downloadsEnabled = input(true);
+    readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
-    readonly episodeDownloadRequested = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
     readonly selectedSeason = signal<string | undefined>(undefined);
 }
@@ -90,10 +91,10 @@ describe('StalkerSeriesViewComponent', () => {
     const openResolvedPlayback = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const tmdbGetSeason = jest.fn();
-    const startDownload = jest.fn();
     const fetchLinkToPlay = jest.fn();
     const currentPlaylist = signal({
         _id: 'stalker-1',
+        title: 'Living Room Portal',
         portalUrl: 'https://stalker.example.test',
         macAddress: '00:1A:79:12:34:56',
     });
@@ -155,12 +156,12 @@ describe('StalkerSeriesViewComponent', () => {
             overview: 'Season overview from TMDB',
             episodes: [],
         });
-        startDownload.mockReset().mockResolvedValue({ success: true });
         fetchLinkToPlay
             .mockReset()
             .mockResolvedValue('https://cdn.example.test/episode.mpg');
         currentPlaylist.set({
             _id: 'stalker-1',
+            title: 'Living Room Portal',
             portalUrl: 'https://stalker.example.test',
             macAddress: '00:1A:79:12:34:56',
         });
@@ -210,12 +211,6 @@ describe('StalkerSeriesViewComponent', () => {
                     provide: Router,
                     useValue: {
                         navigateByUrl: jest.fn(),
-                    },
-                },
-                {
-                    provide: DownloadsService,
-                    useValue: {
-                        startDownload,
                     },
                 },
                 {
@@ -346,7 +341,7 @@ describe('StalkerSeriesViewComponent', () => {
         ).not.toBeNull();
     });
 
-    it('captures enriched parent and episode metadata when an episode download starts', async () => {
+    it('binds a Stalker adapter that prepares canonical episode metadata', async () => {
         selectedContentType.set('vod');
         selectedItem.set({
             id: '50001',
@@ -357,54 +352,59 @@ describe('StalkerSeriesViewComponent', () => {
                 description: 'Parent series plot',
                 movie_image:
                     'https://images.example.test/posters/signal-house.jpg',
-                actors: 'Sienna Wave',
-                director: 'Cora Bell',
-                tmdb_cast: [],
-                tmdb_directors: [],
             },
         });
 
         fixture.detectChanges();
         await fixture.whenStable();
 
-        await fixture.componentInstance.downloadEpisode({
-            episode_num: '0',
-            title: 'The Call',
-            info: {
-                plot: 'Episode-specific plot',
-                movie_image: 'https://images.example.test/stills/the-call.jpg',
-            },
-            custom_sid: 'vod-series',
-            season: '0',
-            originalId: '502',
-        } as never);
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        const candidate = seasonContainer.downloadAdapter()?.createCandidate(
+            {
+                id: '61001',
+                episode_num: 3,
+                title: 'The Call',
+                custom_sid: 'vod-series',
+                season: 2,
+                originalId: '502',
+            } as never,
+            '2'
+        );
 
-        expect(startDownload).toHaveBeenCalledWith(
+        if (!candidate) {
+            throw new Error('expected a bound Stalker download adapter');
+        }
+        const request = await candidate.prepare();
+
+        expect(fetchLinkToPlay).toHaveBeenCalledWith(
+            'https://stalker.example.test',
+            '00:1A:79:12:34:56',
+            '/media/file_502.mpg',
+            3
+        );
+        expect(request).toEqual(
             expect.objectContaining({
                 playlistId: 'stalker-1',
                 playlistType: 'stalker',
                 seriesXtreamId: 50001,
-                seasonNumber: 0,
-                episodeNumber: '0',
-                title: 'Signal House - S00E00 - The Call',
+                xtreamId: 61001,
+                seasonNumber: 2,
+                episodeNumber: 3,
+                title: 'Signal House - S02E03 - The Call',
+                url: 'https://cdn.example.test/episode.mpg',
+                playlistName: 'Living Room Portal',
                 metadataSnapshot: expect.objectContaining({
                     language: 'en',
                     mediaKind: 'series',
                     title: 'Signal House',
                     plot: 'Parent series plot',
-                    posterUrl:
-                        'https://images.example.test/posters/signal-house.jpg',
                     providerCategoryId: '18',
-                    cast: [{ name: 'Sienna Wave' }],
-                    creators: [{ name: 'Cora Bell' }],
-                    episode: {
-                        seasonNumber: 0,
-                        episodeNumber: 0,
-                        title: 'The Call',
-                        plot: 'Episode-specific plot',
-                        stillUrl:
-                            'https://images.example.test/stills/the-call.jpg',
-                    },
+                    episode: expect.objectContaining({
+                        seasonNumber: 2,
+                        episodeNumber: 3,
+                    }),
                 }),
             })
         );
