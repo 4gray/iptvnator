@@ -1,5 +1,10 @@
 import { Injectable, inject } from '@angular/core';
-import { Playlist, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import {
+    isFullStalkerPortalPlaylist,
+    isFullStalkerPortalUrl,
+    Playlist,
+    STALKER_REQUEST,
+} from '@iptvnator/shared/interfaces';
 import { DataService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -108,13 +113,13 @@ export class StalkerSessionService {
     private activeWatchdogPlaylistId: string | null = null;
 
     /**
-     * Checks if a URL is a full stalker portal URL (requires handshake)
-     * Full stalker portal URLs contain /stalker_portal/ in the path
+     * Checks if a URL looks like a full stalker portal URL (requires
+     * handshake). Delegates to the shared predicate in
+     * `@iptvnator/shared/interfaces` — the flag persisted by endpoint
+     * discovery is authoritative; this URL rule is only the legacy fallback.
      */
     isFullStalkerPortal(url: string): boolean {
-        return (
-            url.includes('/stalker_portal/') || url.includes('/server/load.php')
-        );
+        return isFullStalkerPortalUrl(url);
     }
 
     /**
@@ -156,7 +161,7 @@ export class StalkerSessionService {
 
         if (
             !playlist ||
-            !playlist.isFullStalkerPortal ||
+            !isFullStalkerPortalPlaylist(playlist) ||
             !playlist.portalUrl ||
             !playlist.macAddress
         ) {
@@ -209,7 +214,7 @@ export class StalkerSessionService {
             !playlist ||
             !playlist.portalUrl ||
             !playlist.macAddress ||
-            !playlist.isFullStalkerPortal
+            !isFullStalkerPortalPlaylist(playlist)
         ) {
             this.stopWatchdog(playlistId);
             return;
@@ -468,7 +473,7 @@ export class StalkerSessionService {
         playlist: Playlist
     ): Promise<{ token: string | null; serialNumber?: string }> {
         // If not a full stalker portal, no token needed
-        if (!playlist.isFullStalkerPortal) {
+        if (!isFullStalkerPortalPlaylist(playlist)) {
             return { token: null };
         }
 
@@ -682,7 +687,7 @@ export class StalkerSessionService {
 
             // Check for authorization failure in response
             if (this.isAuthorizationError(response)) {
-                if (retryOnAuthFailure && playlist.isFullStalkerPortal) {
+                if (retryOnAuthFailure && isFullStalkerPortalPlaylist(playlist)) {
                     // Retire the failed token so the retry re-authenticates
                     this.retireFailedToken(playlist._id, token);
                     // Retry once with fresh authentication
@@ -702,7 +707,7 @@ export class StalkerSessionService {
             if (
                 this.isAuthorizationError(error) &&
                 retryOnAuthFailure &&
-                playlist.isFullStalkerPortal
+                isFullStalkerPortalPlaylist(playlist)
             ) {
                 // Retire the failed token and retry with new handshake
                 this.retireFailedToken(playlist._id, token);

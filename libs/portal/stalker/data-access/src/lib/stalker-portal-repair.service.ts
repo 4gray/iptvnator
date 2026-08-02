@@ -1,0 +1,222 @@
+import { Injectable, Injector, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { PlaylistsService } from '@iptvnator/services';
+import {
+    isFullStalkerPortalPlaylist,
+    type PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
+import { createLogger } from '@iptvnator/portal/shared/util';
+import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
+import {
+    getStalkerRequestErrorStatus,
+    isStalkerAuthFailureBody,
+} from './stalker-portal-discovery.utils';
+import { getStalkerPortalIdentityFromPlaylist } from './stalker-identity.utils';
+import { StalkerSessionService } from './stalker-session.service';
+import { type StalkerPortalRepairApi } from './stores/utils/stalker-request.utils';
+
+interface StalkerPortalModeOverride {
+    portalUrl: string;
+    isFullStalkerPortal: boolean;
+}
+
+/**
+ * Lazy repair for playlists whose persisted portal endpoint or mode is
+ * wrong. The flag used to be a URL-shape guess frozen at import, so a
+ * canonical `…/server/load.php` portal could sit misclassified as
+ * token-free forever — every request answered `Authorization failed.` and
+ * the only "fix" was deleting the playlist (losing favorites, recents and
+ * positions).
+ *
+ * Deliberately NOT an eager one-shot migration: a large share of users are
+ * on reseller `portal.php` panels that work without any auth, and nothing
+ * short of probing can distinguish those from misclassified canonical
+ * portals. Instead, repair is evidence-driven and conservative:
+ *
+ * - it runs only after a request ACTUALLY failed with a repair trigger
+ *   (the middleware's plain-text auth bodies, or HTTP 404 — a portal that
+ *   works is never probed, let alone rewritten);
+ * - it probes at most once per playlist per session;
+ * - it persists only a configuration that discovery PROVED to answer, and
+ *   only when that configuration differs from the failing one.
+ *
+ * A successful repair also installs an in-session override so already-held
+ * stale playlist objects (store state, route snapshots) start using the
+ * corrected endpoint immediately — the persisted row makes it permanent.
+ */
+@Injectable({ providedIn: 'root' })
+export class StalkerPortalRepairService implements StalkerPortalRepairApi {
+    private readonly discovery = inject(StalkerPortalDiscoveryService);
+    // Resolved lazily: PlaylistsService pulls the whole persistence stack
+    // (IndexedDB, snackbar, translations) and is only needed at the moment a
+    // repair actually persists — never on the hot request path.
+    private readonly injector = inject(Injector);
+    private readonly stalkerSession = inject(StalkerSessionService);
+    private readonly logger = createLogger('StalkerPortalRepair');
+
+    private readonly overrides = new Map<string, StalkerPortalModeOverride>();
+    private readonly attempted = new Set<string>();
+    private readonly pendingRepairs = new Map<
+        string,
+        Promise<PlaylistMeta | null>
+    >();
+
+    /**
+     * Returns the playlist with a completed repair applied, or the playlist
+     * unchanged (same reference) when there is nothing to apply.
+     */
+    applyOverride<T extends PlaylistMeta>(playlist: T): T {
+        const override = this.overrides.get(playlist._id);
+        if (
+            !override ||
+            (playlist.portalUrl === override.portalUrl &&
+                playlist.isFullStalkerPortal === override.isFullStalkerPortal)
+        ) {
+            return playlist;
+        }
+
+        return { ...playlist, ...override };
+    }
+
+    /**
+     * Whether a failure justifies probing at all. Only the failure shapes a
+     * wrong endpoint/mode actually produces qualify: the middleware's
+     * plain-text auth bodies (misclassified canonical portal answering a
+     * token-less request), HTTP 404 (persisted endpoint does not exist on
+     * this server), and the session service's terminal auth/handshake
+     * errors. Timeouts and other network failures never trigger a probe —
+     * a portal that is temporarily down must not be reclassified.
+     */
+    shouldAttemptRepair(playlist: PlaylistMeta, failure: unknown): boolean {
+        if (!playlist._id || !playlist.portalUrl || !playlist.macAddress) {
+            return false;
+        }
+
+        if (isStalkerAuthFailureBody(failure)) {
+            return true;
+        }
+
+        if (getStalkerRequestErrorStatus(failure) === 404) {
+            return true;
+        }
+
+        if (failure !== null && typeof failure === 'object' && 'message' in failure) {
+            const message = String(
+                (failure as { message?: unknown }).message ?? ''
+            );
+            return /authorization failed|handshake failed/i.test(message);
+        }
+
+        return false;
+    }
+
+    /**
+     * Probes the stored portal and, when discovery proves a DIFFERENT
+     * working configuration, persists it and returns the patched playlist
+     * for a one-shot retry. Returns null when nothing may change: probe
+     * found nothing, probe confirmed the stored configuration (the failure
+     * has another cause, e.g. an expired subscription), or a repair for
+     * this playlist already ran this session.
+     */
+    async repairPortal(playlist: PlaylistMeta): Promise<PlaylistMeta | null> {
+        const playlistId = playlist._id;
+
+        const pending = this.pendingRepairs.get(playlistId);
+        if (pending) {
+            await pending;
+            return this.reapplyIfChanged(playlist);
+        }
+
+        if (this.attempted.has(playlistId)) {
+            return this.reapplyIfChanged(playlist);
+        }
+
+        this.attempted.add(playlistId);
+        const run = this.runRepair(playlist);
+        this.pendingRepairs.set(playlistId, run);
+        try {
+            return await run;
+        } finally {
+            this.pendingRepairs.delete(playlistId);
+        }
+    }
+
+    private reapplyIfChanged(playlist: PlaylistMeta): PlaylistMeta | null {
+        const applied = this.applyOverride(playlist);
+        return applied === playlist ? null : applied;
+    }
+
+    private async runRepair(
+        playlist: PlaylistMeta
+    ): Promise<PlaylistMeta | null> {
+        const outcome = await this.discovery.discover(
+            playlist.portalUrl ?? '',
+            playlist.macAddress ?? '',
+            getStalkerPortalIdentityFromPlaylist(playlist)
+        );
+
+        if (outcome.status !== 'resolved') {
+            this.logger.info(
+                `Portal probe found no working configuration (${outcome.status}); leaving playlist untouched`
+            );
+            return null;
+        }
+
+        const storedMode = isFullStalkerPortalPlaylist(playlist);
+        if (
+            outcome.portalUrl === playlist.portalUrl &&
+            outcome.isFullStalkerPortal === storedMode
+        ) {
+            // The stored configuration is exactly what probing proves — the
+            // failure has a different cause and rewriting would fix nothing.
+            return null;
+        }
+
+        this.overrides.set(playlist._id, {
+            portalUrl: outcome.portalUrl,
+            isFullStalkerPortal: outcome.isFullStalkerPortal,
+        });
+
+        if (outcome.isFullStalkerPortal && outcome.token) {
+            // The classification handshake already authenticated; reuse its
+            // token so the retry does not immediately handshake again.
+            this.stalkerSession.setCachedToken(playlist._id, outcome.token);
+        } else if (!outcome.isFullStalkerPortal) {
+            this.stalkerSession.clearCachedToken(playlist._id);
+        }
+
+        this.logger.info(
+            `Repaired portal mode: isFullStalkerPortal=${outcome.isFullStalkerPortal}`
+        );
+
+        await this.persistRepair(playlist._id, outcome.portalUrl, outcome.isFullStalkerPortal);
+
+        return this.applyOverride(playlist);
+    }
+
+    private async persistRepair(
+        playlistId: string,
+        portalUrl: string,
+        isFullStalkerPortal: boolean
+    ): Promise<void> {
+        try {
+            // Minimal patch on purpose: updatePlaylistMeta merges only the
+            // defined fields into a freshly read row, so a stale in-memory
+            // meta object can never clobber favorites or other user state.
+            await firstValueFrom(
+                this.injector.get(PlaylistsService).updatePlaylistMeta({
+                    _id: playlistId,
+                    portalUrl,
+                    isFullStalkerPortal,
+                } as PlaylistMeta)
+            );
+        } catch (error) {
+            // The in-session override still applies; persistence gets
+            // another chance the next time the stored row fails.
+            this.logger.warn(
+                'Persisting repaired portal mode failed; keeping session-only override',
+                error
+            );
+        }
+    }
+}

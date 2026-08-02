@@ -95,6 +95,14 @@ app.use('/portal.php', portalRouter);
 app.use('/stalker_portal/server/load.php', createPortalRouter(true));
 app.use('/server/load.php', createPortalRouter(true));
 
+// Genuine-Ministra host simulation: everything under /ministra serves ONLY
+// the canonical `server/load.php` endpoint — `/ministra/portal.php` 404s like
+// a real Stalker/Ministra installation (portal.php is a reseller-panel alias
+// the official middleware never ships). This is what lets e2e prove the
+// endpoint-discovery fallthrough: `http://host/ministra/c` must probe
+// portal.php, hit the 404, and land on server/load.php in full-portal mode.
+app.use('/ministra/server/load.php', createPortalRouter(true));
+
 /**
  * Mirror of the app's full-portal predicates (`isFullStalkerPortal` checks
  * `/stalker_portal/` or `/server/load.php`; import-time normalization checks

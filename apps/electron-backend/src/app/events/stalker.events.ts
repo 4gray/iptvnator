@@ -100,10 +100,15 @@ ipcMain.handle(
                     response.status,
                     response.statusText
                 );
-                throw {
-                    message: `HTTP Error: ${response.statusText}`,
-                    status: response.status,
-                };
+                // The numeric code must live in the MESSAGE: ipcRenderer
+                // strips custom properties from rejected values, and the
+                // renderer's endpoint discovery needs to tell a 404 (probe
+                // next candidate) from a network failure (stop probing).
+                const httpError = new Error(
+                    `HTTP Error ${response.status}: ${response.statusText}`
+                ) as Error & { status: number };
+                httpError.status = response.status;
+                throw httpError;
             }
 
             // Return the response data

@@ -11,6 +11,10 @@ const PLAYLIST = {
     title: 'Demo Stalker',
     portalUrl: 'http://demo.example/stalker_portal/server/load.php',
     macAddress: '00:1A:79:00:00:01',
+    // Explicit: with the flag undefined the shared predicate would fall back
+    // to the URL shape, classify this as a full portal and route through the
+    // (empty) session mock instead of the DataService mock under test.
+    isFullStalkerPortal: false,
 } as PlaylistMeta;
 
 const SNAPSHOT: StalkerVodSource = {

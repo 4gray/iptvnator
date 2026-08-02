@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
-import { PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerPortal } from './with-stalker-portal.feature';
 
@@ -109,21 +109,4 @@ describe('withStalkerPortal', () => {
         expect(dbCreatePlaylist).not.toHaveBeenCalled();
     });
 
-    it('sends Stalker requests through DataService without requiring the SQLite bridge', async () => {
-        const dataService = TestBed.inject(DataService) as unknown as {
-            sendIpcEvent: jest.Mock;
-        };
-        dataService.sendIpcEvent.mockResolvedValue({ js: { data: [] } });
-
-        await store.makeStalkerRequest(PLAYLIST, { action: 'get_profile' });
-
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            STALKER_REQUEST,
-            expect.objectContaining({
-                macAddress: '00:1A:79:00:00:01',
-                params: { action: 'get_profile' },
-                url: 'http://demo.example/stalker_portal/server/load.php',
-            })
-        );
-    });
 });

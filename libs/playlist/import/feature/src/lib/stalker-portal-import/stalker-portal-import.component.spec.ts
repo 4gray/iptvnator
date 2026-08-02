@@ -2,17 +2,23 @@ import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
+import { StalkerPortalDiscoveryService } from '@iptvnator/portal/stalker/data-access';
 import { StalkerPortalImportComponent } from './stalker-portal-import.component';
 
 describe('StalkerPortalImportComponent identity handling', () => {
     let component: StalkerPortalImportComponent;
-    let stalkerSession: { authenticate: jest.Mock };
+    let portalDiscovery: { discover: jest.Mock };
     let store: { dispatch: jest.Mock };
 
     beforeEach(() => {
-        stalkerSession = {
-            authenticate: jest.fn().mockResolvedValue({ token: 'token-1' }),
+        portalDiscovery = {
+            discover: jest.fn().mockResolvedValue({
+                status: 'resolved',
+                portalUrl:
+                    'https://portal.example.com/stalker_portal/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'token-1',
+            }),
         };
         store = {
             dispatch: jest.fn(),
@@ -20,7 +26,10 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
         TestBed.configureTestingModule({
             providers: [
-                { provide: StalkerSessionService, useValue: stalkerSession },
+                {
+                    provide: StalkerPortalDiscoveryService,
+                    useValue: portalDiscovery,
+                },
                 { provide: Store, useValue: store },
                 {
                     provide: MatSnackBar,
@@ -54,8 +63,8 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
         await component.addPlaylist();
 
-        expect(stalkerSession.authenticate).toHaveBeenCalledWith(
-            'https://portal.example.com/stalker_portal/server/load.php',
+        expect(portalDiscovery.discover).toHaveBeenCalledWith(
+            'https://portal.example.com/stalker_portal/c',
             '00:1A:79:AA:BB:CC',
             {
                 serialNumber: 'CUSTOMSN123',
@@ -69,6 +78,10 @@ describe('StalkerPortalImportComponent identity handling', () => {
         const playlist = store.dispatch.mock.calls[0][0].playlist;
         expect(playlist).toEqual(
             expect.objectContaining({
+                portalUrl:
+                    'https://portal.example.com/stalker_portal/server/load.php',
+                isFullStalkerPortal: true,
+                stalkerToken: 'token-1',
                 stalkerSerialNumber: 'CUSTOMSN123',
                 stalkerDeviceId1: 'DEVICE-ID-1',
                 stalkerDeviceId2: 'DEVICE-ID-2',
@@ -99,8 +112,8 @@ describe('StalkerPortalImportComponent identity handling', () => {
 
         await component.addPlaylist();
 
-        expect(stalkerSession.authenticate).toHaveBeenCalledWith(
-            'https://portal.example.com/stalker_portal/server/load.php',
+        expect(portalDiscovery.discover).toHaveBeenCalledWith(
+            'https://portal.example.com/stalker_portal/c',
             '00:1A:79:AA:BB:CC',
             {}
         );

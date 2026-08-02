@@ -277,6 +277,8 @@ export class ElectronService extends DataService {
         requestId?: string;
         token?: string;
         serialNumber?: string;
+        /** Endpoint-discovery probes expect failures; no error snackbar. */
+        silent?: boolean;
     }) {
         const context = createPortalDebugRequestContext({
             provider: 'stalker',
@@ -295,13 +297,15 @@ export class ElectronService extends DataService {
         } catch (err: unknown) {
             const errorInfo = this.getErrorDetails(err);
             this.logger.error('Stalker request error:', err);
-            this.snackBar.open(
-                `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
-                'Close',
-                {
-                    duration: 5000,
-                }
-            );
+            if (!payload.silent) {
+                this.snackBar.open(
+                    `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
+            }
             throw err;
         }
     }

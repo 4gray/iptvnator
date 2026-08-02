@@ -1,6 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { DataService } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    isFullStalkerPortalPlaylist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
+import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
 import {
     executeStalkerRequest,
@@ -63,6 +67,7 @@ interface StalkerMainInfoResponse {
 export class StalkerAccountInfoService {
     private readonly dataService = inject(DataService);
     private readonly stalkerSession = inject(StalkerSessionService);
+    private readonly portalRepair = inject(StalkerPortalRepairService);
 
     async fetchAccountInfo(
         playlist: PlaylistMeta
@@ -71,11 +76,12 @@ export class StalkerAccountInfoService {
             return null;
         }
 
-        if (isFullStalkerPortalPlaylist(playlist)) {
-            return this.fetchViaProfile(playlist);
+        const effectivePlaylist = this.portalRepair.applyOverride(playlist);
+        if (isFullStalkerPortalPlaylist(effectivePlaylist)) {
+            return this.fetchViaProfile(effectivePlaylist);
         }
 
-        return this.fetchViaMainInfo(playlist);
+        return this.fetchViaMainInfo(effectivePlaylist);
     }
 
     private async fetchViaProfile(
@@ -109,6 +115,7 @@ export class StalkerAccountInfoService {
             {
                 dataService: this.dataService,
                 stalkerSession: this.stalkerSession,
+                portalRepair: this.portalRepair,
             },
             playlist,
             {
@@ -146,26 +153,10 @@ export class StalkerAccountInfoService {
     }
 }
 
-/**
- * Whether a playlist should use the full `/stalker_portal/` flow.
- *
- * The persisted flag is authoritative when present, but a playlist
- * restored from an older backup can carry `undefined` after the one-shot
- * metadata migration has already run — fall back to the same URL rule
- * that migration uses (`withExplicitLegacyStalkerPortalFlag` in
- * PlaylistsService) rather than mislabelling it as a legacy panel.
- */
-export function isFullStalkerPortalPlaylist(playlist: PlaylistMeta): boolean {
-    if (playlist.isFullStalkerPortal !== undefined) {
-        return Boolean(playlist.isFullStalkerPortal);
-    }
-
-    const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
-    return (
-        portalUrl.includes('/stalker_portal') ||
-        portalUrl.includes('/server/load.php')
-    );
-}
+// The portal-mode predicate moved to `@iptvnator/shared/interfaces`
+// (stalker-portal-mode.util) so every consumer shares one rule; re-exported
+// here for existing importers.
+export { isFullStalkerPortalPlaylist };
 
 function normalizeSnapshot(
     snapshot: StalkerAccountSnapshot

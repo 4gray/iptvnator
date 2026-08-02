@@ -40,6 +40,7 @@ export * from './lib/security-policy-error.utils';
 export * from './lib/settings.interface';
 export * from './lib/stalker-cmd-encoding.util';
 export * from './lib/stalker-portal-actions.enum';
+export * from './lib/stalker-portal-mode.util';
 export * from './lib/store-keys.enum';
 export * from './lib/stream-format.enum';
 export * from './lib/catalog-title-match.interface';

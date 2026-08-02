@@ -22,6 +22,7 @@ import {
     Channel,
     DbStores,
     extractStalkerItemId,
+    isFullStalkerPortalUrl,
     isM3uRecentlyViewedItem,
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
@@ -254,13 +255,10 @@ export class PlaylistsService {
         }
 
         const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
-        const isFullPortal =
-            portalUrl.includes('/stalker_portal') ||
-            portalUrl.includes('/server/load.php');
 
         return {
             ...playlist,
-            isFullStalkerPortal: isFullPortal,
+            isFullStalkerPortal: isFullStalkerPortalUrl(portalUrl),
         };
     }
 

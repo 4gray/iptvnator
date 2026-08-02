@@ -217,32 +217,6 @@ async function addFullStalkerPortal(
     }
 }
 
-/** Portal actions the app sent, in order, with the token each carried. */
-function recordPortalActions(page: Page): {
-    actions: string[];
-    tokensByAction: Map<string, string | null>;
-} {
-    const actions: string[] = [];
-    const tokensByAction = new Map<string, string | null>();
-
-    page.on('request', (request) => {
-        const url = new URL(request.url());
-        if (!url.pathname.endsWith('/stalker')) {
-            return;
-        }
-        const action = url.searchParams.get('action');
-        if (!action) {
-            return;
-        }
-        actions.push(action);
-        if (!tokensByAction.has(action)) {
-            tokensByAction.set(action, url.searchParams.get('token'));
-        }
-    });
-
-    return { actions, tokensByAction };
-}
-
 const CONTENT_ACTIONS = [
     'get_categories',
     'get_genres',
@@ -888,7 +862,8 @@ test.describe('@stalker full portal authentication', () => {
     test('handshakes and authenticates before loading content', async ({
         page,
     }) => {
-        const { actions, tokensByAction } = recordPortalActions(page);
+        const requests = recordPortalRequests(page);
+        const actionsInOrder = () => requests.map((entry) => entry.action);
 
         await addFullStalkerPortal(page, { mac: AUTH_FLOW_MAC });
 
@@ -898,32 +873,48 @@ test.describe('@stalker full portal authentication', () => {
             timeout: 30_000,
         });
 
+        // Endpoint discovery classifies the portal with a token-less
+        // get_genres probe BEFORE any authentication: the plain-text
+        // "Authorization failed." answer is what proves this endpoint
+        // enforces the token, so the probe must precede the handshake.
+        const probeIndex = requests.findIndex(
+            (entry) => entry.action === 'get_genres'
+        );
+        expect(probeIndex).toBeGreaterThanOrEqual(0);
+        expect(requests[probeIndex].token).toBeFalsy();
+
+        const actions = actionsInOrder();
         expect(actions).toContain('handshake');
         expect(actions).toContain('get_profile');
+        expect(probeIndex).toBeLessThan(actions.indexOf('handshake'));
         expect(actions.indexOf('handshake')).toBeLessThan(
             actions.indexOf('get_profile')
         );
 
-        const contentAction = actions.find((action) =>
-            ['get_categories', 'get_genres'].includes(action)
-        );
-        expect(contentAction).toBeDefined();
-        expect(actions.indexOf('get_profile')).toBeLessThan(
-            actions.indexOf(contentAction as string)
-        );
-
-        // Content requests must carry the token; the handshake must not.
-        expect(tokensByAction.get('handshake')).toBeFalsy();
-        expect(tokensByAction.get(contentAction as string)).toBeTruthy();
+        // The first authenticated content request comes after get_profile
+        // and must carry the adopted token; the handshake must not.
+        const contentEntry = requests
+            .slice(actions.indexOf('get_profile') + 1)
+            .find((entry) => CONTENT_ACTIONS.includes(entry.action));
+        expect(contentEntry).toBeDefined();
+        expect(contentEntry?.token).toBeTruthy();
+        expect(
+            requests.find((entry) => entry.action === 'handshake')?.token
+        ).toBeFalsy();
 
         // The full-portal workflow must also keep the watchdog alive — an
         // authenticated get_events fires immediately (init=1) on activation.
         // Without this assertion the suite would stay green if the watchdog
         // wiring silently died, because its failures are swallowed by design.
         await expect
-            .poll(() => actions.includes('get_events'), { timeout: 30_000 })
+            .poll(
+                () =>
+                    requests.some(
+                        (entry) => entry.action === 'get_events' && entry.token
+                    ),
+                { timeout: 30_000 }
+            )
             .toBe(true);
-        expect(tokensByAction.get('get_events')).toBeTruthy();
     });
 
     test('never surfaces the portal plain-text auth failure as content', async ({

@@ -48,10 +48,82 @@ Primary route tree lives in
 
 1. Angular Stalker screens call methods/resources in `StalkerStore`.
 2. `StalkerStore` builds request params based on selected content type and current view state.
-3. Requests go through `DataService.sendIpcEvent(STALKER_REQUEST, ...)` or `StalkerSessionService` (full portal auth).
+3. Every portal API call funnels through `executeStalkerRequest()`
+   (`libs/portal/stalker/data-access/src/lib/stores/utils/stalker-request.utils.ts`),
+   the single choke point that decides the transport per portal mode:
+   full portals go through `StalkerSessionService` (handshake + Bearer token +
+   retry), token-free panels call
+   `DataService.sendIpcEvent(STALKER_REQUEST, ...)` directly. It also hooks
+   the lazy portal repair (see "Portal Mode and Endpoint Discovery").
 4. Electron main process handles `STALKER_REQUEST` in
    `apps/electron-backend/src/app/events/stalker.events.ts`.
-5. Axios calls Stalker `load.php` API with required headers/cookies and returns the raw `response.data` to the renderer; normalization happens in the store feature slices.
+5. Axios calls the portal's persisted API endpoint (`portal.php` on
+   reseller panels, `server/load.php` on canonical Stalker/Ministra) with
+   required headers/cookies and returns the raw `response.data` to the
+   renderer; normalization happens in the store feature slices.
+
+## Portal Mode and Endpoint Discovery
+
+Two portal modes exist, persisted per playlist as
+`Playlist.isFullStalkerPortal`:
+
+- **Full portal** (canonical Stalker/Ministra middleware): every request
+  except `handshake`, `get_profile`, `get_localization`, and `do_auth`
+  requires `Authorization: Bearer <token>`; auth failures are HTTP 200 with a
+  plain-text body (`Authorization failed.`, `Access denied.`,
+  `Unauthorized request.`), never a 401/403. While a full portal is the
+  active playlist, `StalkerSessionService` keeps a **watchdog** running —
+  periodic authenticated `watchdog/get_events` pings (currently every 25 s;
+  the protocol default expects 120 s, tracked for a later PR) whose failures
+  are non-fatal.
+- **Simple portal** (reseller-style `portal.php` panels): no auth lifecycle
+  at all — requests carry only the `mac=` cookie.
+
+The single predicate lives in `@iptvnator/shared/interfaces`
+(`stalker-portal-mode.util.ts`): `isFullStalkerPortalPlaylist()` treats the
+persisted flag as authoritative and falls back to the URL shape
+(`isFullStalkerPortalUrl()`: `/stalker_portal` or `/server/load.php`) only
+for legacy rows where the flag is undefined. Historically three diverging
+copies of this rule existed (import, session service, legacy-flag migration)
+and their drift shipped broken configurations (#850, #686, #755); no new
+consumer may re-implement the rule.
+
+**Endpoint discovery (import).** `portal.php` does not exist in official
+Stalker/Ministra — it is a reseller-panel alias; the canonical endpoint
+derived from a `…/c` URL is `<base>/server/load.php`. Instead of guessing
+from the URL shape, `StalkerPortalDiscoveryService`
+(`libs/portal/stalker/data-access`) probes candidates in order — the pasted
+URL itself when it already names a `.php` endpoint, then `<base>/portal.php`
+→ `<base>/server/load.php` → `<base>/stalker_portal/server/load.php` — and
+classifies each endpoint by observed behavior: a token-less
+`itv/get_genres` that returns data proves a token-free panel; the plain-text
+auth failure proves the endpoint enforces the token, which is confirmed by
+running the real handshake + `get_profile`. The import dialog persists the
+proven endpoint and mode. When no candidate answers at all, panel-style URLs
+fall back to the pre-discovery behavior (legacy `…/c` → `portal.php` rewrite,
+simple mode, import succeeds with a warning) so temporarily offline panels
+can still be added; canonical-shaped URLs abort like the old mandatory
+handshake did. A 4xx answer moves to the next candidate; a network-level
+failure aborts discovery (all candidates share the host).
+
+**Lazy repair (existing playlists).** The flag is frozen in the DB, so
+records persisted by the old guess stay broken without repair — but a large
+share of users are on working reseller panels, and only probing can tell the
+two apart, so there is deliberately **no eager one-shot migration**. Instead
+`StalkerPortalRepairService` re-probes a portal only after a request
+actually failed with a shape that a wrong endpoint/mode produces (the
+plain-text auth bodies, HTTP 404, terminal handshake errors — never
+timeouts), at most once per playlist per session, and persists only a
+configuration discovery has proven to answer, and only when it differs from
+the failing one. A repaired configuration is applied immediately via an
+in-session override inside `executeStalkerRequest()` (stale store snapshots
+keep working) and persisted through a minimal
+`PlaylistsService.updatePlaylistMeta` patch (`portalUrl` +
+`isFullStalkerPortal` only, so user state can never be clobbered). Portals
+that work are never probed, let alone rewritten. E2E coverage:
+`apps/electron-backend-e2e/src/stalker-portal-discovery.e2e.ts` against the
+mock's tolerant `/portal.php`, strict `/server/load.php`, and
+`portal.php`-less `/ministra/*` hosts.
 
 ## Main UI Components
 

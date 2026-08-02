@@ -18,6 +18,7 @@ import {
 } from '../../models';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerItvCacheService } from '../../stalker-itv-cache.service';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
     ResourceState,
@@ -194,6 +195,7 @@ export function withStalkerContent() {
                 store,
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService),
                 translateService = inject(TranslateService),
                 itvCache = inject(StalkerItvCacheService)
             ) => {
@@ -202,6 +204,7 @@ export function withStalkerContent() {
                 const requestDeps = {
                     dataService,
                     stalkerSession,
+                    portalRepair,
                 };
 
                 return {

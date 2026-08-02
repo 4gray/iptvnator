@@ -479,6 +479,8 @@ export class PwaService extends DataService {
         params: Record<string, string>;
         macAddress: string;
         token?: string;
+        /** Endpoint-discovery probes expect failures; no error snackbar. */
+        silent?: boolean;
     }) {
         let context = createPortalDebugRequestContext({
             provider: 'stalker',
@@ -534,13 +536,15 @@ export class PwaService extends DataService {
             logPortalDebugEvent(createPortalDebugErrorEvent(context, err));
             this.logger.error('Stalker request error:', err);
 
-            this.snackBar.open(
-                `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
-                'Close',
-                {
-                    duration: 5000,
-                }
-            );
+            if (!payload.silent) {
+                this.snackBar.open(
+                    `Error: ${errorInfo?.message ?? ' Not found'}, status: ${errorInfo?.status ?? 404}`,
+                    'Close',
+                    {
+                        duration: 5000,
+                    }
+                );
+            }
             throw err;
         }
     }

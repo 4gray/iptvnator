@@ -16,6 +16,7 @@ import {
     isCrossOriginStalkerStream,
     STALKER_MAG_USER_AGENT,
 } from '../../stalker-live-playback.utils';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
     normalizeStalkerEntityId,
@@ -54,6 +55,7 @@ export function withStalkerPlayer() {
                 playlistService = inject(PlaylistsService),
                 playerService = inject(PORTAL_PLAYER),
                 stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService),
                 snackBar = inject(MatSnackBar),
                 translate = inject(TranslateService),
                 ngrxStore = inject(Store)
@@ -63,6 +65,7 @@ export function withStalkerPlayer() {
                 const requestDeps = {
                     dataService,
                     stalkerSession,
+                    portalRepair,
                 };
 
                 const createRequestPlaylist = (

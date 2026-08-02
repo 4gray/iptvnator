@@ -13,11 +13,16 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    legacyTransformStalkerPortalUrl,
+    StalkerPortalDiscoveryService,
     StalkerPortalIdentity,
-    StalkerSessionService,
     normalizeStalkerPortalIdentity,
 } from '@iptvnator/portal/stalker/data-access';
-import { createRandomId, Playlist } from '@iptvnator/shared/interfaces';
+import {
+    createRandomId,
+    isFullStalkerPortalUrl,
+    Playlist,
+} from '@iptvnator/shared/interfaces';
 
 @Component({
     imports: [
@@ -72,7 +77,7 @@ export class StalkerPortalImportComponent {
         userAgent: new FormControl(''),
     });
 
-    private readonly stalkerSessionService = inject(StalkerSessionService);
+    private readonly portalDiscovery = inject(StalkerPortalDiscoveryService);
     private readonly store = inject(Store);
     private readonly snackBar = inject(MatSnackBar);
     readonly translate = inject(TranslateService);
@@ -107,9 +112,6 @@ export class StalkerPortalImportComponent {
         try {
             const formValue = this.form.getRawValue();
             const originalUrl = formValue.portalUrl ?? '';
-            const transformedUrl = this.transformPortalUrl(originalUrl);
-            const isFullStalkerPortal =
-                this.isFullStalkerPortalUrl(originalUrl);
             const stalkerIdentity = normalizeStalkerPortalIdentity({
                 serialNumber: formValue.serialNumber ?? undefined,
                 deviceId1: formValue.deviceId1 ?? undefined,
@@ -118,55 +120,80 @@ export class StalkerPortalImportComponent {
                 signature2: formValue.signature2 ?? undefined,
             });
 
+            // Probe candidate endpoints and classify the portal by observed
+            // behavior (does it enforce the handshake token?) instead of
+            // guessing from the URL shape — the guess persisted broken
+            // configurations for canonical `…/server/load.php` portals and
+            // rewrote `…/c` to a `portal.php` official Ministra never serves.
+            const discovery = await this.portalDiscovery.discover(
+                originalUrl,
+                formValue.macAddress ?? '',
+                stalkerIdentity
+            );
+
+            let portalUrl: string;
+            let isFullStalkerPortal: boolean;
             let stalkerToken: string | undefined;
             let stalkerAccountInfo: Playlist['stalkerAccountInfo'] | undefined;
 
-            // For full stalker portal URLs, perform handshake and get profile
-            if (isFullStalkerPortal) {
-                try {
-                    const authResult =
-                        await this.stalkerSessionService.authenticate(
-                            transformedUrl,
-                            formValue.macAddress ?? '',
-                            stalkerIdentity
-                        );
+            if (discovery.status === 'resolved') {
+                portalUrl = discovery.portalUrl;
+                isFullStalkerPortal = discovery.isFullStalkerPortal;
+                stalkerToken = discovery.token;
 
-                    stalkerToken = authResult.token;
+                if (discovery.accountInfo) {
+                    stalkerAccountInfo = {
+                        login: discovery.accountInfo.login,
+                        expireDate: discovery.accountInfo.expire_date,
+                        tariffPlanName:
+                            discovery.accountInfo.tariff_plan_name,
+                        status: discovery.accountInfo.status,
+                    };
+                }
 
-                    if (authResult.accountInfo) {
-                        stalkerAccountInfo = {
-                            login: authResult.accountInfo.login,
-                            expireDate: authResult.accountInfo.expire_date,
-                            tariffPlanName:
-                                authResult.accountInfo.tariff_plan_name,
-                            status: authResult.accountInfo.status,
-                        };
-                    }
-
-                    // Show success notification with account info if available
-                    if (stalkerAccountInfo?.expireDate) {
-                        const expireDate = new Date(
-                            stalkerAccountInfo.expireDate * 1000
-                        );
-                        this.snackBar.open(
-                            `Portal validated. Expires: ${expireDate.toLocaleDateString()}`,
-                            undefined,
-                            { duration: 3000 }
-                        );
-                    }
-                } catch (error) {
-                    console.error(
-                        '[StalkerImport] Authentication failed:',
-                        error
+                if (stalkerAccountInfo?.expireDate) {
+                    const expireDate = new Date(
+                        stalkerAccountInfo.expireDate * 1000
                     );
                     this.snackBar.open(
-                        'Failed to authenticate with portal. Please check URL and MAC address.',
+                        `Portal validated. Expires: ${expireDate.toLocaleDateString()}`,
                         undefined,
-                        { duration: 5000 }
+                        { duration: 3000 }
                     );
-                    this.isLoading.set(false);
-                    return;
                 }
+            } else if (discovery.status === 'auth-rejected') {
+                console.error(
+                    '[StalkerImport] Authentication failed:',
+                    discovery.error
+                );
+                this.snackBar.open(
+                    'Failed to authenticate with portal. Please check URL and MAC address.',
+                    undefined,
+                    { duration: 5000 }
+                );
+                return;
+            } else if (isFullStalkerPortalUrl(originalUrl)) {
+                // Unreachable host on a canonical-portal URL shape: the old
+                // flow aborted here too (its mandatory handshake could not
+                // succeed either).
+                this.snackBar.open(
+                    'Failed to authenticate with portal. Please check URL and MAC address.',
+                    undefined,
+                    { duration: 5000 }
+                );
+                return;
+            } else {
+                // Unreachable host on a panel-style URL: import with the
+                // legacy guess exactly like before discovery existed, so a
+                // temporarily offline panel can still be added. The lazy
+                // portal repair re-probes on the first real failure.
+                portalUrl = legacyTransformStalkerPortalUrl(originalUrl);
+                isFullStalkerPortal = false;
+                this.snackBar.open(
+                    'Portal did not respond; added without validation.',
+                    undefined,
+                    { duration: 5000 }
+                );
             }
 
             const {
@@ -180,7 +207,7 @@ export class StalkerPortalImportComponent {
 
             const playlist: Playlist = {
                 ...playlistFormValue,
-                portalUrl: transformedUrl,
+                portalUrl,
                 isFullStalkerPortal,
                 stalkerToken,
                 stalkerAccountInfo,
@@ -192,14 +219,6 @@ export class StalkerPortalImportComponent {
         } finally {
             this.isLoading.set(false);
         }
-    }
-
-    /**
-     * Checks if the URL is a full stalker portal URL that requires handshake authentication
-     * Pattern: example.com/stalker_portal/c or example.com/stalker_portal/...
-     */
-    isFullStalkerPortalUrl(url: string): boolean {
-        return url.includes('/stalker_portal');
     }
 
     private toPlaylistIdentityFields(identity: StalkerPortalIdentity): {
@@ -228,48 +247,4 @@ export class StalkerPortalImportComponent {
         };
     }
 
-    /**
-     * Transforms the portal URL to the correct API endpoint
-     * - Simple URL (example.com/c) -> example.com/portal.php
-     * - Full stalker portal (example.com/stalker_portal/c) -> example.com/stalker_portal/server/load.php
-     */
-    transformPortalUrl(url: string): string {
-        // Remove trailing slashes
-        url = url.replace(/\/+$/, '');
-
-        // Case 1: Simple URL ending with /c -> convert to /portal.php
-        if (url.endsWith('/c')) {
-            // Check if it's a full stalker portal URL
-            if (url.includes('/stalker_portal')) {
-                // example.com/stalker_portal/c -> example.com/stalker_portal/server/load.php
-                return url.replace(
-                    /\/stalker_portal\/c$/,
-                    '/stalker_portal/server/load.php'
-                );
-            }
-            // Simple URL: example.com/c -> example.com/portal.php
-            return url.replace(/\/c$/, '/portal.php');
-        }
-
-        // Case 2: Full stalker portal URL without /c at the end
-        if (
-            url.includes('/stalker_portal') &&
-            !url.includes('/server/load.php')
-        ) {
-            // example.com/stalker_portal -> example.com/stalker_portal/server/load.php
-            if (url.endsWith('/stalker_portal')) {
-                return url + '/server/load.php';
-            }
-            // If it has other path segments after /stalker_portal, append server/load.php
-            if (!url.endsWith('/load.php')) {
-                return url.replace(
-                    /\/stalker_portal(\/.*)?$/,
-                    '/stalker_portal/server/load.php'
-                );
-            }
-        }
-
-        // Otherwise keep the provided url
-        return url;
-    }
 }
