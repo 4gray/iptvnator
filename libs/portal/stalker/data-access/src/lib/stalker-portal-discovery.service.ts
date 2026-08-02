@@ -3,6 +3,7 @@ import { DataService } from '@iptvnator/services';
 import { STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    StalkerPortalCredentials,
     StalkerProfileResponse,
     StalkerSessionService,
 } from './stalker-session.service';
@@ -26,6 +27,13 @@ export interface StalkerPortalEndpointResolution {
     token?: string;
     /** Account block from the classification `get_profile` (full portals only). */
     accountInfo?: StalkerProfileResponse['js']['account_info'];
+    /**
+     * Watchdog cadence the confirming `get_profile` advertised. Persisted at
+     * import because a later start reuses the token and skips the only
+     * response that carries it.
+     */
+    watchdogTimeoutSeconds?: number;
+    timeslotSeconds?: number;
 }
 
 /**
@@ -95,7 +103,8 @@ export class StalkerPortalDiscoveryService {
     async discover(
         rawUrl: string,
         macAddress: string,
-        identity: StalkerPortalIdentity = {}
+        identity: StalkerPortalIdentity = {},
+        options: { credentials?: StalkerPortalCredentials } = {}
     ): Promise<StalkerPortalDiscoveryOutcome> {
         const candidates = buildStalkerEndpointCandidates(rawUrl);
         let authRejection: StalkerPortalDiscoveryRejection | null = null;
@@ -114,7 +123,8 @@ export class StalkerPortalDiscoveryService {
                     const outcome = await this.confirmFullPortal(
                         candidate,
                         macAddress,
-                        identity
+                        identity,
+                        options.credentials
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
@@ -158,7 +168,8 @@ export class StalkerPortalDiscoveryService {
                     const outcome = await this.confirmFullPortal(
                         candidate,
                         macAddress,
-                        identity
+                        identity,
+                        options.credentials
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
@@ -184,7 +195,8 @@ export class StalkerPortalDiscoveryService {
     private async confirmFullPortal(
         candidate: string,
         macAddress: string,
-        identity: StalkerPortalIdentity
+        identity: StalkerPortalIdentity,
+        credentials?: StalkerPortalCredentials
     ): Promise<
         StalkerPortalEndpointResolution | StalkerPortalDiscoveryRejection
     > {
@@ -193,7 +205,8 @@ export class StalkerPortalDiscoveryService {
                 this.stalkerSession.authenticate(
                     candidate,
                     macAddress,
-                    identity
+                    identity,
+                    { credentials }
                 ),
                 AUTH_TIMEOUT_MS
             );
@@ -215,6 +228,8 @@ export class StalkerPortalDiscoveryService {
                 isFullStalkerPortal: true,
                 token: auth.token,
                 accountInfo: auth.accountInfo,
+                watchdogTimeoutSeconds: auth.watchdogTimeoutSeconds,
+                timeslotSeconds: auth.timeslotSeconds,
             };
         } catch (error) {
             return {

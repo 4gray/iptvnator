@@ -25,6 +25,7 @@ describe('StreamResolverService', () => {
     let dataService: { sendIpcEvent: jest.Mock };
     let stalkerSession: {
         getCachedToken: jest.Mock;
+        ensureToken: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
     };
     let epgBridge: Partial<EpgRuntimeBridgeService>;
@@ -44,6 +45,7 @@ describe('StreamResolverService', () => {
         };
         stalkerSession = {
             getCachedToken: jest.fn(() => null),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
             makeAuthenticatedRequest: jest.fn(),
             ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
@@ -816,6 +818,105 @@ describe('StreamResolverService', () => {
         expect(playback.userAgent).toBe(playback.headers?.['User-Agent']);
         expect(playback.referer).toBe('https://stalker.example.com');
         expect(playback.origin).toBe('https://stalker.example.com');
+    });
+
+    it('authenticates a cold session for a direct-URL radio favorite', async () => {
+        // A direct-URL radio favorite skips create_link entirely, so on a
+        // cold session nothing has authenticated and the in-memory cache is
+        // empty — the Bearer-gated stream would 403 in the audio player.
+        // Re-presenting the persisted token costs one idempotent handshake.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+                stalkerToken: 'PERSISTED77',
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.getCachedToken.mockReturnValue(null);
+        stalkerSession.ensureToken.mockResolvedValue({
+            token: 'PERSISTED77',
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::99',
+            name: 'Gated Radio',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '99',
+            radio: 'true',
+            stalkerCmd: 'https://stalker.example.com/radio/99.mp3',
+        } satisfies UnifiedCollectionItem);
+
+        expect(stalkerSession.ensureToken).toHaveBeenCalled();
+        // The fast path must stay a fast path: no create_link round trip.
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(playback.headers?.['Authorization']).toBe('Bearer PERSISTED77');
+    });
+
+    it('still plays when cold-session authentication fails', async () => {
+        // Many portals do not gate the stream itself — a failed handshake
+        // must not block playback, only omit the Bearer header.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.getCachedToken.mockReturnValue(null);
+        stalkerSession.ensureToken.mockRejectedValue(
+            new Error('handshake refused')
+        );
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::99',
+            name: 'Gated Radio',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '99',
+            radio: 'true',
+            stalkerCmd: 'https://stalker.example.com/radio/99.mp3',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe(
+            'https://stalker.example.com/radio/99.mp3'
+        );
+        expect(playback.headers?.['Authorization']).toBeUndefined();
+    });
+
+    it('does not authenticate a simple portal for playback headers', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-2',
+                portalUrl: 'https://simple.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.getCachedToken.mockReturnValue(null);
+
+        await service.resolvePlayback({
+            uid: 'stalker::stalker-2::99',
+            name: 'Simple Radio',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-2',
+            playlistName: 'Stalker',
+            stalkerId: '99',
+            radio: 'true',
+            stalkerCmd: 'https://simple.example.com/radio/99.mp3',
+        } satisfies UnifiedCollectionItem);
+
+        expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
     });
 
     it('keeps Stalker collection playback from a foreign CDN credential-free', async () => {

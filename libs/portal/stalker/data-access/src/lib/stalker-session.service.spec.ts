@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
+import { StalkerPortalError } from './stalker-portal-error';
+import { STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS } from './stalker-watchdog.controller';
 import {
+    stalkerIdentityFingerprint,
     STALKER_SERIAL_NUMBER,
     StalkerProfileResponse,
     StalkerSessionService,
@@ -186,8 +189,10 @@ describe('StalkerSessionService identity-tagged token cache', () => {
         );
 
         const oldAuth = service.ensureToken(playlistA);
-        for (let i = 0; i < 5; i += 1) {
-            await Promise.resolve();
+        // ensureToken reads the persisted session before the handshake, so
+        // wait for the transport call rather than a fixed microtask count.
+        while (pendingResolvers.length === 0) {
+            await new Promise((resolve) => setTimeout(resolve));
         }
 
         const editedIdentity = {
@@ -198,10 +203,10 @@ describe('StalkerSessionService identity-tagged token cache', () => {
 
         // Settle the OLD identity's handshake + profile.
         pendingResolvers[0]({ js: { token: 'TOKEN-OLD', random: 'r' } });
-        for (let i = 0; i < 10; i += 1) {
-            await Promise.resolve();
+        while (pendingResolvers.length < 2) {
+            await new Promise((resolve) => setTimeout(resolve));
         }
-        pendingResolvers[1]?.({ js: {} });
+        pendingResolvers[1]({ js: {} });
         await expect(oldAuth).resolves.toMatchObject({ token: 'TOKEN-OLD' });
 
         // The edited identity re-enters and negotiates its OWN session.
@@ -285,13 +290,19 @@ describe('StalkerSessionService identity-tagged token cache', () => {
         service.setCachedToken('portal-1', 'DEAD', playlistA);
         sendIpcEvent.mockResolvedValue('Authorization failed.');
 
+        // The typed refusal replaced the generic "Authorization failed after
+        // retry": callers need the portal's own reason to show the user.
         await expect(
             service.makeAuthenticatedRequest(
                 playlistA,
                 { action: 'get_events' },
                 false
             )
-        ).rejects.toThrow('Authorization failed after retry');
+        ).rejects.toMatchObject({
+            name: 'StalkerPortalError',
+            kind: 'auth-failed',
+            failureBody: 'Authorization failed.',
+        });
 
         // Leaving the dead token cached would hand it to the next caller.
         expect(service.getCachedToken('portal-1')).toBeNull();
@@ -374,6 +385,10 @@ describe('StalkerSessionService identity payloads', () => {
 
     let service: StalkerSessionService;
     let dataService: { sendIpcEvent: jest.Mock };
+    let playlistsService: {
+        getPlaylistById: jest.Mock;
+        updateStalkerSession: jest.Mock;
+    };
 
     beforeEach(() => {
         Object.defineProperty(globalThis, 'crypto', {
@@ -390,11 +405,16 @@ describe('StalkerSessionService identity payloads', () => {
         dataService = {
             sendIpcEvent: jest.fn().mockResolvedValue({ js: {} }),
         };
+        playlistsService = {
+            getPlaylistById: jest.fn().mockReturnValue(of(undefined)),
+            updateStalkerSession: jest.fn().mockReturnValue(of(null)),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 StalkerSessionService,
                 { provide: DataService, useValue: dataService },
+                { provide: PlaylistsService, useValue: playlistsService },
             ],
         });
 
@@ -484,13 +504,19 @@ describe('StalkerSessionService identity payloads', () => {
             stalkerSignature2: 'SIGNATURE-2',
         } as Playlist);
 
-        expect(authenticate).toHaveBeenCalledWith(portalUrl, macAddress, {
-            serialNumber: 'CUSTOMSN123',
-            deviceId1: 'DEVICE-ID-1',
-            deviceId2: 'DEVICE-ID-2',
-            signature1: 'SIGNATURE-1',
-            signature2: 'SIGNATURE-2',
-        });
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {
+                serialNumber: 'CUSTOMSN123',
+                deviceId1: 'DEVICE-ID-1',
+                deviceId2: 'DEVICE-ID-2',
+                signature1: 'SIGNATURE-1',
+                signature2: 'SIGNATURE-2',
+            },
+            // No cadence stored for this playlist, so the profile must run.
+            expect.objectContaining({ skipProfileWhenReused: false })
+        );
     });
 
     it('treats the legacy default serial number as absent during ensureToken', async () => {
@@ -507,7 +533,12 @@ describe('StalkerSessionService identity payloads', () => {
         } as Playlist);
 
         expect(result.serialNumber).toBeUndefined();
-        expect(authenticate).toHaveBeenCalledWith(portalUrl, macAddress, {});
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {},
+            expect.objectContaining({ skipProfileWhenReused: false })
+        );
     });
 
     it('serializes refreshAccountProfile behind an in-flight ensureToken', async () => {
@@ -536,8 +567,9 @@ describe('StalkerSessionService identity payloads', () => {
         const refresh = service.refreshAccountProfile(playlist);
 
         // Two handshakes must never overlap: on strict portals the second
-        // would invalidate the first one's token.
-        await Promise.resolve();
+        // would invalidate the first one's token. (Macrotask flush: the
+        // persisted-token lookup adds awaits before authenticate fires.)
+        await new Promise((resolve) => setTimeout(resolve));
         expect(authenticate).toHaveBeenCalledTimes(1);
 
         releaseFirst({ token: 'session-token' });
@@ -574,7 +606,7 @@ describe('StalkerSessionService identity payloads', () => {
         const first = service.refreshAccountProfile(playlist);
         const second = service.refreshAccountProfile(playlist);
 
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve));
         expect(authenticate).toHaveBeenCalledTimes(1);
 
         releases[0]({ token: 'session-token' });
@@ -706,6 +738,436 @@ describe('StalkerSessionService identity payloads', () => {
         await pending;
 
         expect(accountInfo).toEqual({ login: 'user-2' });
+    });
+
+    it('re-presents the token persisted on the playlist during ensureToken', async () => {
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({ token: 'STORED-TOKEN' });
+
+        await service.ensureToken({
+            _id: 'playlist-7',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+            stalkerToken: 'STORED-TOKEN',
+            // With the cadence present the playlist is self-sufficient, so no
+            // row read is needed.
+            stalkerWatchdogTimeout: 120,
+        } as Playlist);
+
+        expect(playlistsService.getPlaylistById).not.toHaveBeenCalled();
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {},
+            expect.objectContaining({
+                storedToken: 'STORED-TOKEN',
+                skipProfileWhenReused: true,
+            })
+        );
+    });
+
+    it('falls back to the stored playlist row for the persisted token', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ _id: 'playlist-8', stalkerToken: 'ROW-TOKEN' } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({ token: 'ROW-TOKEN', reusedStoredToken: true });
+
+        await service.ensureToken({
+            _id: 'playlist-8',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+            'playlist-8'
+        );
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {},
+            expect.objectContaining({ storedToken: 'ROW-TOKEN' })
+        );
+        // A reused token was not renegotiated — nothing to write back.
+        expect(playlistsService.updateStalkerSession).not.toHaveBeenCalled();
+    });
+
+    it('writes a newly negotiated token back to the playlist', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ _id: 'playlist-9', stalkerToken: 'OLD-TOKEN' } as Playlist)
+        );
+        jest.spyOn(service, 'authenticate').mockResolvedValue({
+            token: 'NEW-TOKEN',
+            reusedStoredToken: false,
+        });
+
+        await service.ensureToken({
+            _id: 'playlist-9',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(playlistsService.updateStalkerSession).toHaveBeenCalledWith(
+            'playlist-9',
+            expect.objectContaining({ stalkerToken: 'NEW-TOKEN' })
+        );
+    });
+
+    it('applies the persisted watchdog cadence when the token is reused', async () => {
+        // Reuse skips the get_profile that carries the cadence, so without
+        // the persisted values the watchdog would sit on its 120 s default
+        // for the whole session — for a portal that advertised 60 s that is
+        // slower than before this feature existed.
+        const watchdog = (
+            service as unknown as {
+                watchdog: { applyProfileTiming: jest.Mock };
+            }
+        ).watchdog;
+        jest.spyOn(watchdog, 'applyProfileTiming');
+
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'playlist-12',
+                stalkerToken: 'REUSED',
+                stalkerWatchdogTimeout: 60,
+                stalkerTimeslot: 7,
+            } as Playlist)
+        );
+        jest.spyOn(service, 'authenticate').mockResolvedValue({
+            token: 'REUSED',
+            reusedStoredToken: true,
+        });
+
+        await service.ensureToken({
+            _id: 'playlist-12',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(watchdog.applyProfileTiming).toHaveBeenCalledWith(
+            'playlist-12',
+            { watchdogTimeoutSeconds: 60, timeslotSeconds: 7 }
+        );
+    });
+
+    it('profiles a legacy token-only playlist instead of stranding it on the default', async () => {
+        // A playlist imported before the cadence was persisted has a
+        // reusable token and no cadence anywhere. Skipping the profile would
+        // leave it on the 120 s default permanently, because the profile is
+        // the only thing that could ever teach it otherwise.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ _id: 'playlist-16', stalkerToken: 'LEGACY' } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({
+                token: 'LEGACY',
+                reusedStoredToken: false,
+                watchdogTimeoutSeconds: 60,
+                timeslotSeconds: 5,
+            });
+
+        await service.ensureToken({
+            _id: 'playlist-16',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {},
+            expect.objectContaining({
+                storedToken: 'LEGACY',
+                skipProfileWhenReused: false,
+            })
+        );
+        // ...and the learned cadence is persisted, so the next start skips.
+        expect(playlistsService.updateStalkerSession).toHaveBeenCalledWith(
+            'playlist-16',
+            expect.objectContaining({
+                stalkerWatchdogTimeout: 60,
+                stalkerTimeslot: 5,
+            })
+        );
+    });
+
+    it('records the effective cadence when the portal advertises none', async () => {
+        // Otherwise "no cadence stored" would keep meaning "never profiled"
+        // and such a portal would be re-profiled on every single start.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ _id: 'playlist-17', stalkerToken: 'LEGACY' } as Playlist)
+        );
+        jest.spyOn(service, 'authenticate').mockResolvedValue({
+            token: 'LEGACY',
+            reusedStoredToken: false,
+        });
+
+        await service.ensureToken({
+            _id: 'playlist-17',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(playlistsService.updateStalkerSession).toHaveBeenCalledWith(
+            'playlist-17',
+            expect.objectContaining({
+                stalkerWatchdogTimeout:
+                    STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
+                stalkerTimeslot: 0,
+            })
+        );
+    });
+
+    it('refuses a persisted token minted for a different identity', async () => {
+        // The playlist was edited after the token was issued. Re-presenting
+        // it would pair the new identity with the old session — the same bug
+        // class the in-memory cache guards against, just across a restart.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'playlist-identity',
+                stalkerToken: 'OLD-IDENTITY-TOKEN',
+                stalkerSessionIdentity: 'not-the-current-fingerprint',
+                stalkerWatchdogTimeout: 60,
+            } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({ token: 'FRESH', reusedStoredToken: false });
+
+        await service.ensureToken({
+            _id: 'playlist-identity',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {},
+            expect.objectContaining({ storedToken: undefined })
+        );
+    });
+
+    it('reuses a persisted token whose identity still matches', async () => {
+        const playlist = {
+            _id: 'playlist-identity-ok',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                ...playlist,
+                stalkerToken: 'SAME-IDENTITY-TOKEN',
+                stalkerSessionIdentity: stalkerIdentityFingerprint(playlist),
+                stalkerWatchdogTimeout: 60,
+            } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({
+                token: 'SAME-IDENTITY-TOKEN',
+                reusedStoredToken: true,
+            });
+
+        await service.ensureToken(playlist);
+
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {},
+            expect.objectContaining({ storedToken: 'SAME-IDENTITY-TOKEN' })
+        );
+    });
+
+    it('reads the stored row when a token arrives without its cadence', async () => {
+        // A playlist shape that copies the token but not the timing fields
+        // must not silently downgrade the portal to the 120 s default.
+        const watchdog = (
+            service as unknown as {
+                watchdog: { applyProfileTiming: jest.Mock };
+            }
+        ).watchdog;
+        jest.spyOn(watchdog, 'applyProfileTiming');
+
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'playlist-15',
+                stalkerToken: 'REUSED',
+                stalkerWatchdogTimeout: 45,
+                stalkerTimeslot: 3,
+            } as Playlist)
+        );
+        jest.spyOn(service, 'authenticate').mockResolvedValue({
+            token: 'REUSED',
+            reusedStoredToken: true,
+        });
+
+        await service.ensureToken({
+            _id: 'playlist-15',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+            // Token present, cadence absent — the shortcut must not fire.
+            stalkerToken: 'REUSED',
+        } as Playlist);
+
+        expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+            'playlist-15'
+        );
+        expect(watchdog.applyProfileTiming).toHaveBeenCalledWith(
+            'playlist-15',
+            { watchdogTimeoutSeconds: 45, timeslotSeconds: 3 }
+        );
+    });
+
+    it('persists a freshly decoded watchdog cadence with the token', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ _id: 'playlist-13' } as Playlist)
+        );
+        jest.spyOn(service, 'authenticate').mockResolvedValue({
+            token: 'NEW-TOKEN',
+            reusedStoredToken: false,
+            watchdogTimeoutSeconds: 90,
+            timeslotSeconds: 12,
+        });
+
+        await service.ensureToken({
+            _id: 'playlist-13',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(playlistsService.updateStalkerSession).toHaveBeenCalledWith(
+            'playlist-13',
+            expect.objectContaining({
+                stalkerToken: 'NEW-TOKEN',
+                stalkerWatchdogTimeout: 90,
+                stalkerTimeslot: 12,
+                // The identity the session was negotiated for, so a later
+                // start can refuse to reuse it after an identity edit.
+                stalkerSessionIdentity: expect.any(String),
+            })
+        );
+    });
+
+    it('rewrites the session when only the cadence changed', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'playlist-14',
+                stalkerToken: 'SAME',
+                stalkerWatchdogTimeout: 120,
+            } as Playlist)
+        );
+        jest.spyOn(service, 'authenticate').mockResolvedValue({
+            token: 'SAME',
+            reusedStoredToken: false,
+            watchdogTimeoutSeconds: 45,
+        });
+
+        await service.ensureToken({
+            _id: 'playlist-14',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(playlistsService.updateStalkerSession).toHaveBeenCalledWith(
+            'playlist-14',
+            expect.objectContaining({ stalkerWatchdogTimeout: 45 })
+        );
+    });
+
+    it('surfaces the portal failure body when the retry also fails', async () => {
+        const playlist = {
+            _id: 'playlist-10',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        jest.spyOn(service, 'ensureToken').mockResolvedValue({
+            token: 'token-1',
+        });
+        // The transport marker for a blocked account, on both attempts.
+        dataService.sendIpcEvent.mockResolvedValue({
+            stalkerAuthFailure: 'Access denied.',
+        });
+
+        await expect(
+            service.makeAuthenticatedRequest(playlist, {
+                type: 'vod',
+                action: 'get_categories',
+            })
+        ).rejects.toMatchObject({
+            name: 'StalkerPortalError',
+            kind: 'auth-failed',
+            failureBody: 'Access denied.',
+        });
+        // One retry happened before giving up.
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+    });
+
+    it('recognizes the raw PWA plain-text failure body and retries', async () => {
+        const playlist = {
+            _id: 'playlist-11',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        jest.spyOn(service, 'ensureToken')
+            .mockResolvedValueOnce({ token: 'stale' })
+            .mockResolvedValueOnce({ token: 'fresh' });
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce('Unauthorized request.')
+            .mockResolvedValueOnce({ js: { data: [] } });
+
+        await expect(
+            service.makeAuthenticatedRequest(playlist, {
+                type: 'itv',
+                action: 'get_ordered_list',
+            })
+        ).resolves.toEqual({ js: { data: [] } });
+    });
+
+    it('throws StalkerPortalError with the portal text when auth is refused', async () => {
+        // Blocked account: get_profile answers status 1 with msg/block_msg.
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({
+                js: { token: 'token-1', random: 'random-1' },
+            })
+            .mockResolvedValueOnce({
+                js: {
+                    status: 1,
+                    msg: 'device conflict - device_id mismatch',
+                    block_msg: 'Your STB is damaged.<br/> Call the provider.',
+                },
+            });
+
+        await expect(
+            service.authenticate(portalUrl, macAddress)
+        ).rejects.toMatchObject({
+            name: 'StalkerPortalError',
+            kind: 'blocked',
+            portalText:
+                'device conflict - device_id mismatch — Your STB is damaged. Call the provider.',
+        });
+    });
+
+    it('keeps StalkerPortalError recognizable via instanceof', () => {
+        expect(new StalkerPortalError('blocked')).toBeInstanceOf(Error);
     });
 
     it('passes an explicit serial into the initial handshake request', async () => {

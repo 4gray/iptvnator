@@ -235,6 +235,118 @@ blank fields are not generated or forwarded to `get_profile`.
   metadata is independent from M3U playlist EPG metadata and must not depend on
   M3U-specific EPG fields.
 
+## Session Authentication Lifecycle
+
+Full portals authenticate through `StalkerSessionService`
+(`libs/portal/stalker/data-access/src/lib/stalker-session.service.ts`), which
+is a facade over three focused modules:
+
+- `stalker-auth.api.ts` — the raw `handshake` / `get_profile` / `do_auth`
+  requests and the `authenticate()` orchestration.
+- `stalker-watchdog.controller.ts` — the periodic `get_events` keep-alive.
+- `stalker-token-cache.ts` — the in-run token and pending-auth state, tagged
+  with the identity fingerprint each session was negotiated for.
+- `stalker-session-store.ts` — the session persisted on the playlist row.
+- `stalker-response-classification.ts` + `stalker-portal-error.ts` — failure
+  detection and the typed `StalkerPortalError` the UI layers render.
+
+### Handshake and token persistence
+
+The handshake token is **idempotent** (Stalker 4.9.35 `stb.class.php`):
+re-presenting the MAC's current session token returns it unchanged, and tokens
+have no TTL — they are only invalidated when another device runs `get_profile`
+on the same MAC. `ensureToken()` exploits this: when the in-memory cache is
+cold it re-presents the persisted `Playlist.stalkerToken` (from the playlist
+object, falling back to the stored row via `PlaylistsService`, since store
+metas do not carry payload fields). A token that comes back unchanged is an
+already-adopted session, so the `get_profile` round trip is skipped entirely —
+unless the handshake also set `not_valid`, which vetoes the shortcut: adopting
+a token the portal just called dead would be unrecoverable, since the reuse
+path writes no replacement back and every later start would re-present it.
+A renegotiated session is written back best-effort
+(`PlaylistsService.updateStalkerSession`) so the next app start can reuse it.
+The handshake's `not_valid` flag is propagated into the follow-up
+`get_profile` as `not_valid_token`.
+
+Reuse is gated on identity. The fingerprint the session was negotiated for is
+persisted next to the token (`Playlist.stalkerSessionIdentity`), and a token
+whose fingerprint no longer matches the playlist is never re-presented — an
+edited MAC, serial or device id must not inherit the previous session, which
+is the same rule the in-memory cache enforces for the current run.
+
+Because that reuse skips the only response carrying the watchdog cadence, the
+cadence is persisted **with** the token (`Playlist.stalkerWatchdogTimeout` /
+`stalkerTimeslot`, payload fields like `stalkerToken` itself — no schema
+change) and re-applied on the reuse path. The import dialog persists what its
+own `get_profile` advertised, which for a portal whose token never goes stale
+is the only profile the app ever sees.
+
+The skip is therefore conditional on the cadence being **known**: a playlist
+imported before the cadence was persisted has a reusable token and no
+cadence, and skipping would strand it on the 120 s default permanently, since
+the profile is the only thing that could teach it. Such a playlist runs one
+profile, persists what it learns, and skips from then on. What gets persisted
+is the *effective* cadence (the 120 s default when the portal advertises
+none), so stored absence keeps meaning exactly one thing — never profiled —
+rather than sending a portal that advertises nothing back through a profile on
+every start.
+
+### `get_profile` status decoding
+
+`authenticate()` decodes `js.status` the way the stock middleware means it:
+
+- full profile / `status: 0` — OK; `watchdog_timeout` and `timeslot` are read
+  for the watchdog cadence.
+- `status: 1` — blocked (device conflict, malformed MAC, disabled account).
+  `msg`/`block_msg` carry the portal's own explanation; they are
+  markup-stripped, combined, and thrown as `StalkerPortalError('blocked')`.
+- `status: 2` — login/password required. The client runs `do_auth`
+  (`login`, `password`, plus `device_id`/`device_id2` when configured) and
+  retries `get_profile` with `auth_second_step=1`. Only that retry claims the
+  second auth step — the initial request sends `auth_second_step=0`. Missing
+  credentials throw `StalkerPortalError('login-required')`; a `{js: false}`
+  verdict (the operator billing script refused) throws `'login-rejected'`.
+
+Credentials come from the import dialog's username/password fields and are
+persisted on the playlist, so runtime re-authentication can repeat `do_auth`
+after the portal drops the session.
+
+### Plain-text failure bodies
+
+Auth failures are **HTTP 200 + a text/html body**, never a 401/403. The three
+exact bodies (`Authorization failed.` — stale/missing token, optionally with a
+numeric debug suffix; `Access denied.` — blocked account;
+`Unauthorized request.` — missing mac cookie) are classified at the transport
+boundary: the Electron main process
+(`apps/electron-backend/src/app/events/stalker.events.ts`) converts them into
+a structured `{ stalkerAuthFailure }` marker
+(`libs/shared/interfaces/src/lib/stalker-auth-failure.util.ts`) — returned,
+not thrown, because `ipcRenderer.invoke` strips custom properties from
+rejections. The PWA proxy path still delivers the raw string; the renderer
+classifier accepts both shapes plus the legacy `{ js: '<body>' }` envelope.
+`makeAuthenticatedRequest` retries once with fresh authentication and
+otherwise throws `StalkerPortalError('auth-failed')` carrying the body.
+
+### Error surfacing
+
+`StalkerPortalError.portalText` holds the portal's own words. The import
+dialog shows them in its failure snackbar (with kind-specific i18n headlines,
+`HOME.STALKER_PORTAL.*`); the workspace context panel replaces the generic
+"could not load categories" hint with the portal text (or the login-required
+guidance) when category loading failed with a portal refusal
+(`stalkerCategoryErrorDescription` in `workspace-context-panel.component.ts`).
+
+### Watchdog
+
+The portal expects `get_events` every `watchdog_timeout` seconds — **120 by
+default**, echoed in the profile together with a per-user `timeslot` jitter
+that offsets the first periodic ping. `StalkerWatchdogController` starts with
+an immediate `init=1` ping on activation, applies the profile cadence when a
+profile is decoded (clamped to 30–3600 s against garbage), and otherwise uses
+the documented 120 s default. Failing to ping never invalidates the session —
+it only affects the portal's admin-panel "online" reporting — so ping failures
+are logged and never retried or escalated.
+
 ## Request Transport and `cmd` Encoding
 
 A real MAG/STB sends `cmd` unencoded: the portal's client JS concatenates raw

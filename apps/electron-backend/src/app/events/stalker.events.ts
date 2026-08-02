@@ -6,6 +6,8 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
 import {
+    classifyStalkerAuthFailureBody,
+    createStalkerAuthFailureMarker,
     PortalDebugEvent,
     STALKER_REQUEST,
     buildStalkerIdentityRequestContext,
@@ -111,6 +113,18 @@ ipcMain.handle(
                 throw httpError;
             }
 
+            // The portal answers auth failures with HTTP 200 and a plain
+            // text/html body ("Authorization failed.", "Access denied.",
+            // "Unauthorized request."). Classify them here so the renderer
+            // receives a structured marker instead of pattern-matching raw
+            // response text.
+            const authFailureBody = classifyStalkerAuthFailureBody(
+                response.data
+            );
+            const responseData = authFailureBody
+                ? createStalkerAuthFailureMarker(authFailureBody)
+                : response.data;
+
             // Return the response data
             if (
                 params.action === 'create_link' &&
@@ -136,12 +150,12 @@ ipcMain.handle(
                     durationMs: Date.now() - startedAt,
                     status: 'success',
                     request: debugRequest,
-                    response: response.data,
+                    response: responseData,
                 };
                 emitPortalDebugEvent(debugEvent);
             }
 
-            return response.data;
+            return responseData;
         } catch (error) {
             if (payload.requestId) {
                 const debugEvent: PortalDebugEvent = {

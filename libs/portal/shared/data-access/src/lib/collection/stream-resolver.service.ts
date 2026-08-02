@@ -505,7 +505,7 @@ export class StreamResolverService {
      * them to the stream origin; foreign hosts get the credential-free
      * profile from the shared classifier).
      */
-    private buildStalkerPlayback(
+    private async buildStalkerPlayback(
         item: UnifiedCollectionItem,
         playlist: Playlist | undefined,
         resolved: {
@@ -514,7 +514,7 @@ export class StreamResolverService {
             streamUrl: string;
             isLive?: boolean;
         }
-    ): ResolvedPortalPlayback {
+    ): Promise<ResolvedPortalPlayback> {
         // The item may carry portal/mac overrides for playlists that no
         // longer exist; the builder only reads header-relevant fields.
         const headerPlaylist = {
@@ -522,7 +522,10 @@ export class StreamResolverService {
             macAddress: resolved.macAddress,
             portalUrl: resolved.portalUrl,
         } as Playlist;
-        const token = this.stalkerSession.getCachedToken(item.playlistId);
+        const token = await this.resolveStalkerPlaybackToken(
+            item.playlistId,
+            playlist
+        );
         const headers = buildStalkerExternalPlaybackHeaders(
             headerPlaylist,
             token,
@@ -548,6 +551,33 @@ export class StreamResolverService {
                 ? undefined
                 : playlist?.origin || portalOrigin,
         };
+    }
+
+    /**
+     * Resolves the Bearer token a full portal's stream needs.
+     *
+     * A direct-URL radio favorite skips `create_link` entirely, so on a cold
+     * session nothing has authenticated yet and the in-memory cache is empty —
+     * a same-host Bearer-gated stream would then 403 in the built-in audio
+     * player. `ensureToken()` re-presents the persisted token instead, which
+     * is a single idempotent handshake rather than a full re-auth. Failures
+     * stay non-fatal: many portals do not gate the stream itself.
+     */
+    private async resolveStalkerPlaybackToken(
+        playlistId: string,
+        playlist: Playlist | undefined
+    ): Promise<string | null> {
+        const cached = this.stalkerSession.getCachedToken(playlistId);
+        if (cached || !playlist?.isFullStalkerPortal) {
+            return cached;
+        }
+
+        try {
+            const { token } = await this.stalkerSession.ensureToken(playlist);
+            return token;
+        } catch {
+            return null;
+        }
     }
 
     private buildStalkerRadioChannel(

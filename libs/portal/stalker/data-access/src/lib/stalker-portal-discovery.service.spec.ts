@@ -101,7 +101,10 @@ describe('StalkerPortalDiscoveryService', () => {
         expect(authenticate).toHaveBeenCalledWith(
             'http://ministra.example/server/load.php',
             MAC,
-            { serialNumber: 'SN1' }
+            { serialNumber: 'SN1' },
+            // Import credentials ride along for portals that answer
+            // get_profile with status 2 (login/password required).
+            { credentials: undefined }
         );
     });
 
@@ -190,7 +193,8 @@ describe('StalkerPortalDiscoveryService', () => {
         expect(authenticate).toHaveBeenCalledWith(
             'http://gated.example/portal.php',
             MAC,
-            {}
+            {},
+            { credentials: undefined }
         );
     });
 

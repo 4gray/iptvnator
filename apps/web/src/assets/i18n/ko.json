@@ -195,7 +195,13 @@
             "SERVER_URL": "서버 URL",
             "URL_VALIDATION_ERROR": "프로토콜이 포함된 유효한 URL이어야 합니다(예: http://example.com/c 또는 https://example.com/stalker_portal/c).",
             "ADD": "추가하다",
-            "VALIDATING": "포털을 검증하는 중..."
+            "VALIDATING": "포털을 검증하는 중...",
+            "CREDENTIALS_HINT": "포털이 사용자 이름과 비밀번호를 요구하는 경우에만 필요",
+            "AUTH_FAILED": "포털 인증에 실패했습니다. URL과 MAC 주소를 확인하세요.",
+            "LOGIN_REQUIRED": "이 포털에는 사용자 이름과 비밀번호가 필요합니다. 사용자 이름과 비밀번호 필드를 입력한 후 다시 시도하세요.",
+            "LOGIN_REJECTED": "포털이 사용자 이름과 비밀번호를 거부했습니다.",
+            "PORTAL_REFUSED": "포털이 이 기기의 접근을 거부했습니다.",
+            "PORTAL_MESSAGE": "포털에서 보고한 내용: {{message}}"
         },
         "FILTER_BY_NAME": "이름으로 필터",
         "FILTER_AND_SORT": "필터 및 정렬",
@@ -957,6 +963,7 @@
                 "TITLE": "선택된 카테고리가 없습니다",
                 "DESCRIPTION": "콘텐츠를 보려면 카테고리를 선택하세요"
             },
+            "STALKER_LOGIN_REQUIRED": "포털에 사용자 이름과 비밀번호가 필요합니다. 포털을 다시 가져온 후 사용자 이름과 비밀번호 필드를 입력하세요.",
             "PLAYLIST_SETTINGS": "재생목록 설정",
             "HOME": "홈",
             "DELETE": "삭제"

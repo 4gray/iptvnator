@@ -17,7 +17,10 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerStore,
+    asStalkerPortalError,
+} from '@iptvnator/portal/stalker/data-access';
 import {
     PortalCategorySortMode,
     persistPortalCategorySortMode,
@@ -152,6 +155,28 @@ export class WorkspaceContextPanelComponent {
         this.stalkerStore.isCategoryResourceLoading;
     readonly isStalkerCategoryFailed =
         this.stalkerStore.isCategoryResourceFailed;
+    /**
+     * When category loading failed because the portal refused the session,
+     * the portal's own explanation (msg/block_msg or the documented
+     * plain-text failure body) replaces the generic hint; a login-required
+     * refusal gets its own actionable text.
+     */
+    readonly stalkerCategoryErrorDescription = computed(() => {
+        const portalError = asStalkerPortalError(
+            this.isStalkerCategoryFailed()
+        );
+        if (portalError?.portalText) {
+            return portalError.portalText;
+        }
+        if (portalError?.kind === 'login-required') {
+            return this.translate.instant(
+                'PORTALS.ERROR_VIEW.STALKER_LOGIN_REQUIRED'
+            );
+        }
+        return this.translate.instant(
+            'WORKSPACE.CONTEXT.LOAD_CATEGORIES_ERROR_HINT'
+        );
+    });
     // Category count badges are only available for Stalker Live TV, where the
     // full channel list is cached — VOD/series/radio still page lazily, so
     // their per-category totals are unknown.
