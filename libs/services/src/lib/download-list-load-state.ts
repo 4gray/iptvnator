@@ -12,7 +12,6 @@ export class DownloadListLoadState {
 
     begin(): number {
         this.loading.set(true);
-        this.authoritative.set(false);
         return ++this.requestId;
     }
 
@@ -26,6 +25,7 @@ export class DownloadListLoadState {
     }
 
     markFailed(): void {
+        this.authoritative.set(false);
         this.loaded.set(true);
     }
 

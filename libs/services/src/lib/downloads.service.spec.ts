@@ -502,16 +502,19 @@ describe('DownloadsService', () => {
     it('marks a failed request complete while making the preserved list non-authoritative', async () => {
         const existing = createDownload(1);
         const error = new Error('download query failed');
+        const pending = createDeferred<DownloadItem[]>();
         jest.spyOn(console, 'error').mockImplementation(() => undefined);
         testWindow.electron = {
-            downloadsGetList: jest.fn(async () => {
-                throw error;
-            }),
+            downloadsGetList: jest.fn(() => pending.promise),
         };
         const service = createService([existing]);
         service.downloadListLoadState.markSucceeded();
 
-        await service.loadDownloads();
+        const request = service.loadDownloads();
+
+        expect(service.hasAuthoritativeDownloadList()).toBe(true);
+        pending.reject(error);
+        await request;
 
         expect(service.downloads()).toEqual([existing]);
         expect(service.isLoadingDownloads()).toBe(false);

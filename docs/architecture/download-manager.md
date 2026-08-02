@@ -57,12 +57,14 @@ variants, contextual buttons, and theme-aware styling.
   replace or narrow that signal. Overlapping loads are request-ordered so a
   late response cannot replace a newer snapshot. `hasLoadedDownloads` records
   that the latest attempt completed, including an error, while
-  `hasAuthoritativeDownloadList` is true only after the latest request
-  succeeds. Series download actions require both so a failed refresh cannot
-  restart rows missing from a stale or empty renderer snapshot. Before each
-  fresh download or resume the service asks the main process for an authorized
-  folder and calls the corresponding IPC command. The `onDownloadsUpdate`
-  broadcast triggers a new global load.
+  `hasAuthoritativeDownloadList` becomes true after a successful request,
+  remains true while a later refresh is in flight, and clears only if the
+  latest request fails. Series download actions require both loaded and
+  authoritative state so a failed refresh cannot restart rows missing from a
+  stale or empty renderer snapshot. Before each fresh download or resume the
+  service asks the main process for an authorized folder and calls the
+  corresponding IPC command. The `onDownloadsUpdate` broadcast triggers a new
+  global load.
 - **Series season queueing**
   `SeasonDownloadCoordinator` owns synchronous, per-identity pending
   reservations and submits an individual episode or selected-season snapshot

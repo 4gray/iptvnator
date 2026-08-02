@@ -33,13 +33,31 @@ function row(
 }
 
 describe('episode download identity', () => {
-    it('prefers a canonical match over an earlier coordinate fallback', () => {
+    it('returns a canonical row when the same row also owns the coordinates', () => {
+        const canonical = row();
+
+        expect(findEpisodeDownload(identity, [canonical])).toBe(canonical);
+    });
+
+    it('fails closed when canonical and coordinate lookups find different rows', () => {
         const coordinateFallback = row({ xtreamId: 999 });
         const canonical = row();
 
         expect(
             findEpisodeDownload(identity, [coordinateFallback, canonical])
-        ).toBe(canonical);
+        ).toBeUndefined();
+    });
+
+    it('fails closed when an incomplete canonical row conflicts with a coordinate row', () => {
+        const coordinateFallback = row({ id: 2, xtreamId: 999 });
+        const incompleteCanonical = row({ seriesXtreamId: undefined });
+
+        expect(
+            findEpisodeDownload(identity, [
+                coordinateFallback,
+                incompleteCanonical,
+            ])
+        ).toBeUndefined();
     });
 
     it('fails closed when a canonical match has conflicting complete coordinates', () => {
@@ -64,6 +82,13 @@ describe('episode download identity', () => {
         expect(findEpisodeDownload(identity, [coordinateFallback])).toBe(
             coordinateFallback
         );
+    });
+
+    it('fails closed when multiple rows share the fallback coordinates', () => {
+        const first = row({ id: 2, xtreamId: 999 });
+        const second = row({ id: 3, xtreamId: 998 });
+
+        expect(findEpisodeDownload(identity, [first, second])).toBeUndefined();
     });
 
     it('does not fall back across playlists or to incomplete coordinates', () => {

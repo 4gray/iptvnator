@@ -59,13 +59,7 @@ export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
             download.contentType === identity.contentType &&
             download.xtreamId === identity.xtreamId
     );
-    if (canonicalMatch) {
-        return hasConflictingCompleteCoordinates(canonicalMatch, identity)
-            ? undefined
-            : canonicalMatch;
-    }
-
-    return downloads.find(
+    const coordinateMatches = downloads.filter(
         (download) =>
             download.playlistId === identity.playlistId &&
             download.contentType === identity.contentType &&
@@ -76,6 +70,22 @@ export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
             download.episodeNumber !== undefined &&
             download.episodeNumber === identity.episodeNumber
     );
+    if (coordinateMatches.length > 1) {
+        return undefined;
+    }
+    const coordinateMatch = coordinateMatches[0];
+
+    if (canonicalMatch) {
+        if (
+            hasConflictingCompleteCoordinates(canonicalMatch, identity) ||
+            (coordinateMatch && coordinateMatch.id !== canonicalMatch.id)
+        ) {
+            return undefined;
+        }
+        return canonicalMatch;
+    }
+
+    return coordinateMatch;
 }
 
 export function isEpisodeDownloadEligible(

@@ -944,9 +944,10 @@ engine` (restart required) or
   transfer with a FIFO queue. `DOWNLOADS_START` remains the sole start IPC; its
   stable `reason: 'already-in-progress'` result is counted as skipped, and no
   batch IPC or schema migration is introduced. Episode and season download
-  actions require the latest global list request to have succeeded; a failed
-  refresh leaves loading/empty-state resolution intact but disables starts
-  until an authoritative snapshot arrives.
+  actions require an authoritative global list. A successful snapshot remains
+  authoritative while a later background refresh is in flight; a latest
+  refresh failure leaves loading/empty-state resolution intact but disables
+  starts until another snapshot succeeds.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
   for both providers; Stalker playback identifiers only resolve the URL. Exact
   `(playlistId, contentType, xtreamId)` matches are authoritative, while
