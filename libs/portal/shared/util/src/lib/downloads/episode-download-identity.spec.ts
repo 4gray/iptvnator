@@ -35,15 +35,27 @@ function row(
 describe('episode download identity', () => {
     it('prefers a canonical match over an earlier coordinate fallback', () => {
         const coordinateFallback = row({ xtreamId: 999 });
-        const canonical = row({
+        const canonical = row();
+
+        expect(
+            findEpisodeDownload(identity, [coordinateFallback, canonical])
+        ).toBe(canonical);
+    });
+
+    it('fails closed when a canonical match has conflicting complete coordinates', () => {
+        const coordinateFallback = row({ xtreamId: 999 });
+        const conflictingCanonical = row({
             seriesXtreamId: 50,
             seasonNumber: 4,
             episodeNumber: 8,
         });
 
         expect(
-            findEpisodeDownload(identity, [coordinateFallback, canonical])
-        ).toBe(canonical);
+            findEpisodeDownload(identity, [
+                coordinateFallback,
+                conflictingCanonical,
+            ])
+        ).toBeUndefined();
     });
 
     it('falls back to complete matching episode coordinates', () => {

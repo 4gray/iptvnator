@@ -12,6 +12,7 @@ import { SeasonDownloadCoordinator } from './season-download-coordinator.service
 
 interface DownloadsServiceStub {
     readonly downloads: WritableSignal<DownloadItem[]>;
+    readonly hasAuthoritativeDownloadList: WritableSignal<boolean>;
     readonly hasLoadedDownloads: WritableSignal<boolean>;
     readonly isAvailable: WritableSignal<boolean>;
     readonly startDownload: jest.MockedFunction<
@@ -44,6 +45,7 @@ describe('SeasonDownloadCoordinator', () => {
     beforeEach(() => {
         downloadsService = {
             downloads: signal<DownloadItem[]>([]),
+            hasAuthoritativeDownloadList: signal(true),
             hasLoadedDownloads: signal(true),
             isAvailable: signal(true),
             startDownload: jest.fn().mockResolvedValue({ success: true }),
@@ -210,9 +212,17 @@ describe('SeasonDownloadCoordinator', () => {
         }
     });
 
-    it('blocks eligibility and reservation until downloads have loaded', async () => {
-        downloadsService.hasLoadedDownloads.set(false);
+    it('blocks eligibility and reservation without an authoritative download list', async () => {
+        downloadsService.hasAuthoritativeDownloadList.set(false);
         const item = candidate(FIRST_IDENTITY);
+
+        expect(downloadsService.hasLoadedDownloads()).toBe(true);
+        expect(coordinator.isEligible(item)).toBe(false);
+        await expect(coordinator.enqueueOne(item)).resolves.toBe('skipped');
+        expect(item.prepare).not.toHaveBeenCalled();
+
+        downloadsService.hasAuthoritativeDownloadList.set(true);
+        downloadsService.hasLoadedDownloads.set(false);
 
         expect(coordinator.isEligible(item)).toBe(false);
         await expect(coordinator.enqueueOne(item)).resolves.toBe('skipped');

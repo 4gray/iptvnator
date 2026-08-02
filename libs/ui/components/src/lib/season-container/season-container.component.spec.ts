@@ -27,6 +27,7 @@ import { SeasonContainerComponent } from './season-container.component';
 
 interface DownloadsServiceStub {
     readonly isAvailable: WritableSignal<boolean>;
+    readonly hasAuthoritativeDownloadList: WritableSignal<boolean>;
     readonly hasLoadedDownloads: WritableSignal<boolean>;
     readonly downloads: WritableSignal<DownloadItem[]>;
     readonly startDownload: jest.MockedFunction<
@@ -173,6 +174,7 @@ describe('SeasonContainerComponent', () => {
         adapter: SeasonEpisodeDownloadAdapter | null = downloadAdapter
     ) => {
         downloadsServiceStub.isAvailable.set(true);
+        downloadsServiceStub.hasAuthoritativeDownloadList.set(true);
         downloadsServiceStub.hasLoadedDownloads.set(true);
         fixture.componentRef.setInput('downloadAdapter', adapter);
     };
@@ -189,6 +191,7 @@ describe('SeasonContainerComponent', () => {
         localStorage.removeItem('iptvnator_episode_view_mode');
         downloadsServiceStub = {
             isAvailable: signal(false),
+            hasAuthoritativeDownloadList: signal(false),
             hasLoadedDownloads: signal(false),
             downloads: signal<DownloadItem[]>([]),
             startDownload: jest.fn().mockResolvedValue({ success: true }),
@@ -637,7 +640,7 @@ describe('SeasonContainerComponent', () => {
     it('disables the season action until authoritative eligible work exists and while work is in flight', async () => {
         const first = createEpisode();
         enableDownloads();
-        downloadsServiceStub.hasLoadedDownloads.set(false);
+        downloadsServiceStub.hasAuthoritativeDownloadList.set(false);
         setRequiredInputs({ '1': [first] });
         fixture.detectChanges();
 
@@ -646,8 +649,10 @@ describe('SeasonContainerComponent', () => {
                 '[data-test-id="download-season"]'
             ) as HTMLButtonElement;
         expect(seasonButton().disabled).toBe(true);
+        expect(downloadsServiceStub.hasLoadedDownloads()).toBe(true);
+        expect(episodeAction(first.id).disabled).toBe(true);
 
-        downloadsServiceStub.hasLoadedDownloads.set(true);
+        downloadsServiceStub.hasAuthoritativeDownloadList.set(true);
         fixture.componentRef.setInput('isLoading', true);
         fixture.detectChanges();
         expect(seasonButton().disabled).toBe(true);

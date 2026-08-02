@@ -36,6 +36,7 @@ export class SeasonDownloadCoordinator {
     isEligible(candidate: EpisodeDownloadCandidate): boolean {
         return (
             this.downloadsService.isAvailable() &&
+            this.downloadsService.hasAuthoritativeDownloadList() &&
             this.downloadsService.hasLoadedDownloads() &&
             !this.isPending(candidate.identity) &&
             isEpisodeDownloadEligible(this.findDownload(candidate.identity))

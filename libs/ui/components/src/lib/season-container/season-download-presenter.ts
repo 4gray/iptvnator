@@ -118,7 +118,9 @@ export class SeasonDownloadPresenter {
         const adapter = sources.adapter();
         const seasonKey = sources.selectedSeason();
         const downloadsAvailable = this.downloadsService.isAvailable();
-        const downloadsLoaded = this.downloadsService.hasLoadedDownloads();
+        const downloadsReady =
+            this.downloadsService.hasLoadedDownloads() &&
+            this.downloadsService.hasAuthoritativeDownloadList();
         this.downloadsService.downloads();
 
         return sources.selectedEpisodes().map((episode) => {
@@ -138,7 +140,7 @@ export class SeasonDownloadPresenter {
                 eligible: Boolean(
                     candidate &&
                     downloadsAvailable &&
-                    downloadsLoaded &&
+                    downloadsReady &&
                     !pending &&
                     isEpisodeDownloadEligible(download)
                 ),
@@ -147,7 +149,7 @@ export class SeasonDownloadPresenter {
                     candidate,
                     download,
                     pending,
-                    downloadsLoaded
+                    downloadsReady
                 ),
             };
         });
@@ -168,6 +170,7 @@ export class SeasonDownloadPresenter {
             sources.isLoading() ||
             this.batchRunning() ||
             !this.downloadsService.hasLoadedDownloads() ||
+            !this.downloadsService.hasAuthoritativeDownloadList() ||
             !sources.selectedSeason() ||
             this.rows().length === 0 ||
             this.eligibleEpisodeCount() === 0
@@ -278,9 +281,9 @@ export class SeasonDownloadPresenter {
         candidate: EpisodeDownloadCandidate | null,
         download: DownloadItem | undefined,
         pending: boolean,
-        downloadsLoaded: boolean
+        downloadsReady: boolean
     ): EpisodeDownloadPresentation {
-        if (!candidate || !downloadsLoaded) {
+        if (!candidate || !downloadsReady) {
             return EPISODE_DOWNLOAD_STATES.blocked;
         }
         if (

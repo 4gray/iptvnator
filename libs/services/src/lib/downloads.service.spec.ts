@@ -12,6 +12,7 @@ import type {
     ElectronBridgeDownloadStartPayload,
     ElectronBridgeDownloadStartResult,
 } from '@iptvnator/shared/interfaces';
+import { DownloadListLoadState } from './download-list-load-state';
 import { DownloadItem, DownloadsService } from './downloads.service';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
@@ -20,6 +21,7 @@ type TestDownloadsService = {
     downloadFolder: WritableSignal<string>;
     isAvailable: () => boolean;
     isLoadingDownloads: Signal<boolean>;
+    hasAuthoritativeDownloadList: Signal<boolean>;
     hasLoadedDownloads: Signal<boolean>;
     getDownload: DownloadsService['getDownload'];
     loadDownloads: DownloadsService['loadDownloads'];
@@ -30,9 +32,7 @@ type TestDownloadsService = {
     selectFolder: DownloadsService['selectFolder'];
     startDownload: DownloadsService['startDownload'];
     updateMetadata: DownloadsService['updateMetadata'];
-    _isLoadingDownloads: WritableSignal<boolean>;
-    _hasLoadedDownloads: WritableSignal<boolean>;
-    loadDownloadsRequestId: number;
+    downloadListLoadState: DownloadListLoadState;
 };
 
 type DownloadsElectronStub = {
@@ -117,8 +117,7 @@ describe('DownloadsService', () => {
 
     function createService(initialDownloads: DownloadItem[] = []) {
         const downloads = signal(initialDownloads);
-        const isLoadingDownloads = signal(false);
-        const hasLoadedDownloads = signal(false);
+        const downloadListLoadState = new DownloadListLoadState();
         const downloadFolder = signal('');
         const service = Object.create(
             DownloadsService.prototype
@@ -128,11 +127,11 @@ describe('DownloadsService', () => {
             downloads,
             downloadFolder,
             isAvailable: () => true,
-            _isLoadingDownloads: isLoadingDownloads,
-            isLoadingDownloads: isLoadingDownloads.asReadonly(),
-            _hasLoadedDownloads: hasLoadedDownloads,
-            hasLoadedDownloads: hasLoadedDownloads.asReadonly(),
-            loadDownloadsRequestId: 0,
+            downloadListLoadState,
+            isLoadingDownloads: downloadListLoadState.isLoading,
+            hasAuthoritativeDownloadList:
+                downloadListLoadState.hasAuthoritativeList,
+            hasLoadedDownloads: downloadListLoadState.hasLoaded,
         });
 
         return service;
@@ -183,6 +182,7 @@ describe('DownloadsService', () => {
         const request = service.loadDownloads();
 
         expect(service.isLoadingDownloads()).toBe(true);
+        expect(service.hasAuthoritativeDownloadList()).toBe(false);
         expect(service.hasLoadedDownloads()).toBe(false);
         expect(electron.downloadsGetList).toHaveBeenCalledWith();
 
@@ -191,6 +191,7 @@ describe('DownloadsService', () => {
 
         expect(service.downloads()).toEqual([item]);
         expect(service.isLoadingDownloads()).toBe(false);
+        expect(service.hasAuthoritativeDownloadList()).toBe(true);
         expect(service.hasLoadedDownloads()).toBe(true);
     });
 
@@ -498,7 +499,7 @@ describe('DownloadsService', () => {
         );
     });
 
-    it('marks downloads as loaded after a failed request while preserving existing data', async () => {
+    it('marks a failed request complete while making the preserved list non-authoritative', async () => {
         const existing = createDownload(1);
         const error = new Error('download query failed');
         jest.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -508,11 +509,13 @@ describe('DownloadsService', () => {
             }),
         };
         const service = createService([existing]);
+        service.downloadListLoadState.markSucceeded();
 
         await service.loadDownloads();
 
         expect(service.downloads()).toEqual([existing]);
         expect(service.isLoadingDownloads()).toBe(false);
+        expect(service.hasAuthoritativeDownloadList()).toBe(false);
         expect(service.hasLoadedDownloads()).toBe(true);
         expect(console.error).toHaveBeenCalledWith(
             '[DownloadsService] Error loading downloads:',

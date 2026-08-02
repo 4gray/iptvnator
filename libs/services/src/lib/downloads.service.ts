@@ -1,6 +1,7 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import type { ElectronBridgeDownloadStartResult } from '@iptvnator/shared/interfaces';
+import { DownloadListLoadState } from './download-list-load-state';
 import { updateDownloadMetadata } from './downloads-metadata-update';
 import type { DownloadItem, DownloadStartInput } from './downloads.models';
 import { formatDownloadBytes } from './downloads.utils';
@@ -16,19 +17,20 @@ export type {
 export class DownloadsService implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private unsubscribe?: () => void;
-    private loadDownloadsRequestId = 0;
-
-    private readonly _isLoadingDownloads = signal(false);
-    private readonly _hasLoadedDownloads = signal(false);
+    private readonly downloadListLoadState = new DownloadListLoadState();
 
     /** Signal for the list of downloads */
     readonly downloads = signal<DownloadItem[]>([]);
 
     /** Whether the download list is currently being loaded */
-    readonly isLoadingDownloads = this._isLoadingDownloads.asReadonly();
+    readonly isLoadingDownloads = this.downloadListLoadState.isLoading;
 
     /** Whether the first download list request has completed */
-    readonly hasLoadedDownloads = this._hasLoadedDownloads.asReadonly();
+    readonly hasLoadedDownloads = this.downloadListLoadState.hasLoaded;
+
+    /** Whether the latest download list request completed successfully */
+    readonly hasAuthoritativeDownloadList =
+        this.downloadListLoadState.hasAuthoritativeList;
 
     /** Whether the download feature is available (Electron only) */
     readonly isAvailable = computed(() => this.runtime.supportsDownloads);
@@ -91,23 +93,22 @@ export class DownloadsService implements OnDestroy {
     async loadDownloads(): Promise<void> {
         if (!this.isAvailable()) return;
 
-        const requestId = ++this.loadDownloadsRequestId;
-        this._isLoadingDownloads.set(true);
+        const requestId = this.downloadListLoadState.begin();
 
         try {
             const list = await window.electron.downloadsGetList();
-            if (requestId === this.loadDownloadsRequestId) {
+            if (this.downloadListLoadState.isLatest(requestId)) {
                 this.downloads.set(list);
-                this._hasLoadedDownloads.set(true);
+                this.downloadListLoadState.markSucceeded();
             }
         } catch (error) {
             console.error('[DownloadsService] Error loading downloads:', error);
-            if (requestId === this.loadDownloadsRequestId) {
-                this._hasLoadedDownloads.set(true);
+            if (this.downloadListLoadState.isLatest(requestId)) {
+                this.downloadListLoadState.markFailed();
             }
         } finally {
-            if (requestId === this.loadDownloadsRequestId) {
-                this._isLoadingDownloads.set(false);
+            if (this.downloadListLoadState.isLatest(requestId)) {
+                this.downloadListLoadState.finish();
             }
         }
     }

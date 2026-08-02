@@ -26,6 +26,29 @@ export interface EpisodeDownloadRecord {
     readonly filePath?: string;
 }
 
+function hasConflictingCompleteCoordinates(
+    download: EpisodeDownloadRecord,
+    identity: EpisodeDownloadIdentity
+): boolean {
+    const { seriesXtreamId, seasonNumber, episodeNumber } = download;
+    if (
+        seriesXtreamId === undefined ||
+        seasonNumber === undefined ||
+        episodeNumber === undefined
+    ) {
+        return false;
+    }
+
+    return (
+        !Number.isSafeInteger(seriesXtreamId) ||
+        !Number.isSafeInteger(seasonNumber) ||
+        !Number.isSafeInteger(episodeNumber) ||
+        seriesXtreamId !== identity.seriesXtreamId ||
+        seasonNumber !== identity.seasonNumber ||
+        episodeNumber !== identity.episodeNumber
+    );
+}
+
 export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
     identity: EpisodeDownloadIdentity,
     downloads: readonly T[]
@@ -37,7 +60,9 @@ export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
             download.xtreamId === identity.xtreamId
     );
     if (canonicalMatch) {
-        return canonicalMatch;
+        return hasConflictingCompleteCoordinates(canonicalMatch, identity)
+            ? undefined
+            : canonicalMatch;
     }
 
     return downloads.find(

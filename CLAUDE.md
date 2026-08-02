@@ -943,7 +943,10 @@ engine` (restart required) or
   for provider URLs, headers, and metadata; the backend still runs one active
   transfer with a FIFO queue. `DOWNLOADS_START` remains the sole start IPC; its
   stable `reason: 'already-in-progress'` result is counted as skipped, and no
-  batch IPC or schema migration is introduced.
+  batch IPC or schema migration is introduced. Episode and season download
+  actions require the latest global list request to have succeeded; a failed
+  refresh leaves loading/empty-state resolution intact but disables starts
+  until an authoritative snapshot arrives.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
   for both providers; Stalker playback identifiers only resolve the URL. Exact
   `(playlistId, contentType, xtreamId)` matches are authoritative, while
