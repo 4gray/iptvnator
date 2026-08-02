@@ -1168,6 +1168,52 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         ).componentInstance as StubAudioPlayerComponent;
         expect(audioPlayer.url()).toBe('http://portal.example/radio_2.mpg');
     });
+
+    it('clears the radio header override when destroyed while the apply IPC is pending', async () => {
+        // Leaving the radio route mid-apply must not leave the portal
+        // cookie/token installed: ownership is claimed before awaiting the
+        // IPC, so ngOnDestroy can always name the stream to clear.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        let resolveApply: (() => void) | undefined;
+        let signalApplyIssued!: () => void;
+        const applyIssued = new Promise<void>(
+            (resolve) => (signalApplyIssued = resolve)
+        );
+        // Once: only the apply call gets the pending promise — the destroy
+        // clear below also calls the bridge and must not steal the resolver.
+        (
+            window.electron?.setUserAgent as jest.Mock
+        ).mockImplementationOnce(() => {
+            signalApplyIssued();
+            return new Promise<boolean>((resolve) => {
+                resolveApply = () => resolve(true);
+            });
+        });
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: { Cookie: 'mac=00:1A:79:00:00:01' },
+        });
+
+        const playPromise = component.playChannel(radioChannels()[0]);
+        // The header IPC has been issued but is still pending.
+        await applyIssued;
+
+        fixture.destroy();
+        resolveApply?.();
+        await playPromise;
+
+        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'http://portal.example/radio_2.mpg'
+        );
+        expect(component.activePlayback()).toBeNull();
+    });
 });
 
 function buildProgram(channelId: string, title: string): EpgProgram {

@@ -560,8 +560,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.removeScrollListener();
-        // Radio credentials must not outlive this layout; the service no-ops
-        // when a newer playback already owns the override slot.
+        // Invalidate any playback continuation still awaiting its header
+        // IPC, then drop the radio credentials — they must not outlive this
+        // layout. The service no-ops when a newer playback already owns the
+        // override slot.
+        this.playbackRequestId += 1;
         this.streamHeaders.clear(this.radioHeaderScopeUrl);
     }
 
@@ -598,14 +601,21 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 // WebPlayerViewComponent, so the scoped Electron header
                 // override (portal cookie/token for auth-gated streams) must
                 // be configured here BEFORE the audio element gets the URL.
-                await this.streamHeaders.apply(playback);
+                // Ownership is claimed synchronously, before awaiting the
+                // IPC: if this layout is destroyed while the apply is still
+                // in flight, ngOnDestroy must already know which stream's
+                // override to clear — otherwise the credentials would
+                // outlive the route.
+                const headerSync = this.streamHeaders.apply(playback);
+                this.radioHeaderScopeUrl = playback.streamUrl;
+                const stillCurrent = headerSync ? await headerSync : true;
                 if (
+                    !stillCurrent ||
                     requestId !== this.playbackRequestId ||
                     this.selectedChannelId() !== channelId
                 ) {
                     return;
                 }
-                this.radioHeaderScopeUrl = playback.streamUrl;
                 this.activePlayback.set(playback);
                 return;
             }
