@@ -123,6 +123,10 @@ describe('createXtreamSeriesDownloadAdapter', () => {
             episode({ season: 0, episode_num: 0 }),
             '4'
         );
+        const stringSpecials = adapter.createCandidate(
+            episode({ season: '0' as unknown as number }),
+            '4'
+        );
         const fromSeasonKey = adapter.createCandidate(
             episode({ season: Number.NaN }),
             '0'
@@ -134,6 +138,9 @@ describe('createXtreamSeriesDownloadAdapter', () => {
 
         expect(specials?.identity).toEqual(
             expect.objectContaining({ seasonNumber: 0, episodeNumber: 1 })
+        );
+        expect(stringSpecials?.identity).toEqual(
+            expect.objectContaining({ seasonNumber: 0, episodeNumber: 3 })
         );
         expect(fromSeasonKey?.identity).toEqual(
             expect.objectContaining({ seasonNumber: 0, episodeNumber: 3 })
@@ -147,6 +154,20 @@ describe('createXtreamSeriesDownloadAdapter', () => {
             })
         );
     });
+
+    it.each([null, '', '   '] as const)(
+        'uses the season key for a missing runtime season value %p',
+        (season) => {
+            const adapter = createXtreamSeriesDownloadAdapter(OPTIONS);
+
+            expect(
+                adapter.createCandidate(
+                    episode({ season: season as unknown as number }),
+                    '2'
+                )?.identity
+            ).toEqual(expect.objectContaining({ seasonNumber: 2 }));
+        }
+    );
 
     it('preserves raw Xtream path concatenation and the mp4 extension fallback', async () => {
         const adapter = createXtreamSeriesDownloadAdapter({

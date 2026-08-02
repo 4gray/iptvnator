@@ -35,12 +35,13 @@ function downloadSeasonNumber(
     value: unknown,
     fallbackSeasonKey: string | undefined
 ): number | null {
-    const parsed = Number(value);
-    if (Number.isSafeInteger(parsed)) {
-        return parsed >= 0 ? parsed : null;
-    }
-    if (value != null && !(typeof value === 'number' && Number.isNaN(value))) {
-        return null;
+    const isMissing =
+        value == null ||
+        (typeof value === 'string' && value.trim() === '') ||
+        (typeof value === 'number' && Number.isNaN(value));
+    if (!isMissing) {
+        const parsed = Number(value);
+        return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
     }
 
     const normalizedFallback = fallbackSeasonKey?.trim();
