@@ -1,9 +1,14 @@
 import { connect } from 'node:net';
+import express from 'express';
 import { resetAll } from './data-store.js';
 import {
     createXtreamMockApp,
     parseXtreamMockServerEnvironment,
 } from './server.js';
+import {
+    type SlowSeriesDownloadOptions,
+    streamSlowSeriesDownload,
+} from './slow-series-download.js';
 import { startLoopbackServer } from './testing/http-server.fixture.js';
 
 jest.mock('@faker-js/faker', () => {
@@ -224,6 +229,64 @@ describe('Xtream mock server factory', () => {
     });
 });
 
+describe('Slow series download stream', () => {
+    it('completes the configured byte count over a loopback response', async () => {
+        const options = {
+            chunkSize: 1_024,
+            intervalMs: 1,
+            totalBytes: 10 * 1_024 + 7,
+        } satisfies SlowSeriesDownloadOptions;
+        const running = await startLoopbackServer(
+            createSlowSeriesDownloadApp(options)
+        );
+        let closed = false;
+
+        try {
+            const response = await fetch(`${running.origin}/slow-series`);
+            const body = await response.arrayBuffer();
+
+            expect(response.status).toBe(200);
+            expect(response.headers.get('content-type')).toContain('video/mp4');
+            expect(Number(response.headers.get('content-length'))).toBe(
+                options.totalBytes
+            );
+            expect(body.byteLength).toBe(options.totalBytes);
+
+            await within(running.close(), 1_000);
+            closed = true;
+        } finally {
+            if (!closed) await running.close().catch(() => undefined);
+        }
+    });
+
+    it('stops a longer recursive stream after the response body is cancelled', async () => {
+        const options = {
+            chunkSize: 1_024,
+            intervalMs: 25,
+            totalBytes: 64 * 1_024,
+        } satisfies SlowSeriesDownloadOptions;
+        const running = await startLoopbackServer(
+            createSlowSeriesDownloadApp(options)
+        );
+        let closed = false;
+
+        try {
+            const response = await fetch(`${running.origin}/slow-series`);
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('Expected a streaming response body.');
+
+            const firstChunk = await within(reader.read(), 1_000);
+            expect(firstChunk.done).toBe(false);
+            expect(firstChunk.value?.byteLength).toBeGreaterThan(0);
+            await within(reader.cancel(), 1_000);
+            await within(running.close(), 1_000);
+            closed = true;
+        } finally {
+            if (!closed) await running.close().catch(() => undefined);
+        }
+    });
+});
+
 describe('Xtream mock environment parsing', () => {
     it('uses safe defaults and enables control only for the exact flag', () => {
         expect(parseXtreamMockServerEnvironment({})).toEqual({
@@ -302,4 +365,29 @@ async function rawLoopbackGet(
             );
         });
     });
+}
+
+function createSlowSeriesDownloadApp(
+    options: SlowSeriesDownloadOptions
+): express.Express {
+    const app = express();
+    app.get('/slow-series', (request, response) => {
+        streamSlowSeriesDownload(request, response, options);
+    });
+    return app;
+}
+
+async function within<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+            () => reject(new Error(`Operation exceeded ${timeoutMs}ms.`)),
+            timeoutMs
+        );
+    });
+    try {
+        return await Promise.race([promise, timeout]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
 }

@@ -26,9 +26,37 @@ const expectedEpisodeIds = [80_000, 80_001, 80_002, 80_003];
 
 type EpisodeQueueRow = {
     episodeNumber: number | null;
+    seriesXtreamId: number | null;
     status: string;
     xtreamId: number;
 };
+
+const expectedEpisodeQueue: EpisodeQueueRow[] = [
+    {
+        episodeNumber: 1,
+        seriesXtreamId: 30_000,
+        status: 'downloading',
+        xtreamId: expectedEpisodeIds[0],
+    },
+    {
+        episodeNumber: 2,
+        seriesXtreamId: 30_000,
+        status: 'queued',
+        xtreamId: expectedEpisodeIds[1],
+    },
+    {
+        episodeNumber: 3,
+        seriesXtreamId: 30_000,
+        status: 'queued',
+        xtreamId: expectedEpisodeIds[2],
+    },
+    {
+        episodeNumber: 4,
+        seriesXtreamId: 30_000,
+        status: 'queued',
+        xtreamId: expectedEpisodeIds[3],
+    },
+];
 
 type SeriesFixture = Awaited<ReturnType<typeof fetchXtreamSeriesFixture>>;
 
@@ -49,28 +77,18 @@ function readFirstSeriesTitle(fixture: SeriesFixture): string {
     return title;
 }
 
-async function readEpisodeQueue(
-    page: Page,
-    episodeIds: readonly number[]
-): Promise<EpisodeQueueRow[]> {
-    return page.evaluate(
-        async (expectedIds) => {
-            const downloads =
-                (await window.electron?.downloadsGetList?.()) ?? [];
-            return downloads
-                .filter(
-                    (download) =>
-                        download.contentType === 'episode' &&
-                        expectedIds.includes(download.xtreamId)
-                )
-                .map((download) => ({
-                    episodeNumber: download.episodeNumber ?? null,
-                    status: download.status,
-                    xtreamId: download.xtreamId,
-                }));
-        },
-        [...episodeIds]
-    );
+async function readEpisodeQueue(page: Page): Promise<EpisodeQueueRow[]> {
+    return page.evaluate(async () => {
+        const downloads = (await window.electron?.downloadsGetList?.()) ?? [];
+        return downloads
+            .filter((download) => download.contentType === 'episode')
+            .map((download) => ({
+                episodeNumber: download.episodeNumber ?? null,
+                seriesXtreamId: download.seriesXtreamId ?? null,
+                status: download.status,
+                xtreamId: download.xtreamId,
+            }));
+    });
 }
 
 test.describe('Electron Series Download Queue', () => {
@@ -137,22 +155,10 @@ test.describe('Electron Series Download Queue', () => {
             await secondEpisodeAction.click();
 
             await expect
-                .poll(
-                    () => readEpisodeQueue(app.mainWindow, expectedEpisodeIds),
-                    { timeout: 20_000 }
-                )
-                .toEqual([
-                    {
-                        episodeNumber: 1,
-                        status: 'downloading',
-                        xtreamId: expectedEpisodeIds[0],
-                    },
-                    {
-                        episodeNumber: 2,
-                        status: 'queued',
-                        xtreamId: expectedEpisodeIds[1],
-                    },
-                ]);
+                .poll(() => readEpisodeQueue(app.mainWindow), {
+                    timeout: 20_000,
+                })
+                .toEqual(expectedEpisodeQueue.slice(0, 2));
 
             const seasonAction = app.mainWindow.getByTestId('download-season');
             await expect(seasonAction).toBeVisible();
@@ -166,42 +172,17 @@ test.describe('Electron Series Download Queue', () => {
             ).toBeVisible({ timeout: 20_000 });
 
             await expect
-                .poll(
-                    async () =>
-                        (
-                            await readEpisodeQueue(
-                                app.mainWindow,
-                                expectedEpisodeIds
-                            )
-                        ).map((row) => row.xtreamId),
-                    { timeout: 20_000 }
-                )
-                .toEqual(expectedEpisodeIds);
+                .poll(() => readEpisodeQueue(app.mainWindow), {
+                    timeout: 20_000,
+                })
+                .toEqual(expectedEpisodeQueue);
 
-            const queuedSeason = await readEpisodeQueue(
-                app.mainWindow,
-                expectedEpisodeIds
-            );
-            expect(new Set(queuedSeason.map((row) => row.xtreamId)).size).toBe(
-                4
-            );
-            expect(queuedSeason.map((row) => row.status)).toEqual([
-                'downloading',
-                'queued',
-                'queued',
-                'queued',
-            ]);
             await expect(seasonAction).toBeDisabled();
             await expect(seasonAction).toContainText('Download season (0)');
 
             await waitForQueueStabilityInterval();
-            const stableQueue = await readEpisodeQueue(
-                app.mainWindow,
-                expectedEpisodeIds
-            );
-            expect(stableQueue).toHaveLength(4);
-            expect(new Set(stableQueue.map((row) => row.xtreamId)).size).toBe(
-                4
+            expect(await readEpisodeQueue(app.mainWindow)).toEqual(
+                expectedEpisodeQueue
             );
         } finally {
             await closeElectronApp(app);
