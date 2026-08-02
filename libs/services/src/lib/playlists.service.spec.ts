@@ -441,6 +441,41 @@ describe('PlaylistsService', () => {
         ).toBe('1');
     });
 
+    it('carries the Stalker session fields through the SQLite fallback read', async () => {
+        // Without these, every cold Electron session loses the persisted
+        // cadence AND the identity the token was negotiated for — so the
+        // mismatch check cannot run and the watchdog falls back to default.
+        const electron = {
+            dbGetAppPlaylist: jest.fn(async () => ({
+                id: 'stalker-1',
+                stalkerToken: 'TOKEN',
+                stalkerSessionIdentity: 'fingerprint-1',
+                stalkerWatchdogTimeout: 90,
+                stalkerTimeslot: 7,
+            })),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async () => '1'),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbUpsertAppPlaylists: jest.fn(),
+        };
+        testWindow.electron = electron;
+
+        const service = createService();
+        const playlist = await firstValueFrom(
+            service.getPlaylistById('stalker-1')
+        );
+
+        expect(playlist).toEqual(
+            expect.objectContaining({
+                stalkerToken: 'TOKEN',
+                stalkerSessionIdentity: 'fingerprint-1',
+                stalkerWatchdogTimeout: 90,
+                stalkerTimeslot: 7,
+            })
+        );
+    });
+
     it('clears a stale watchdog cadence when the portal stops advertising one', async () => {
         // Reusing the token skips the profile that would correct the cadence,
         // so leaving the old value on the row means the next restart applies

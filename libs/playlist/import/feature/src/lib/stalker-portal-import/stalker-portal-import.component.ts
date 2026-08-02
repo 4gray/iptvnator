@@ -20,14 +20,13 @@ import {
     StalkerPortalDiscoveryService,
     StalkerPortalIdentity,
     normalizeStalkerPortalIdentity,
-    stalkerIdentityFingerprint,
+    stalkerSessionFingerprint,
     type StalkerPortalErrorKind,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     createRandomId,
     isFullStalkerPortalUrl,
     Playlist,
-    PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
 
 @Component({
@@ -251,10 +250,11 @@ export class StalkerPortalImportComponent {
                 // inherit the previous session.
                 ...(stalkerToken
                     ? {
-                          stalkerSessionIdentity: stalkerIdentityFingerprint({
+                          stalkerSessionIdentity: stalkerSessionFingerprint({
+                              portalUrl,
                               macAddress: formValue.macAddress ?? '',
                               ...this.toPlaylistIdentityFields(stalkerIdentity),
-                          } as PlaylistMeta),
+                          } as Playlist),
                       }
                     : {}),
                 stalkerWatchdogTimeout,

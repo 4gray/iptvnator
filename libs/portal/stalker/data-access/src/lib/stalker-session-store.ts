@@ -3,7 +3,37 @@ import type { Playlist } from '@iptvnator/shared/interfaces';
 import type { PlaylistsService } from '@iptvnator/services';
 import type { createLogger } from '@iptvnator/portal/shared/util';
 import { STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS } from './stalker-watchdog.controller';
+import { stalkerIdentityFingerprint } from './stalker-identity.utils';
 import type { StalkerAuthenticationResult } from './stalker-auth.api';
+
+/**
+ * What a persisted session is bound to: the device identity AND the endpoint
+ * it was negotiated against.
+ *
+ * The endpoint half is not optional. Identity alone would let a playlist
+ * repointed at a different host keep the old token — and `ensureToken()`
+ * re-presents persisted tokens in a handshake, so the previous portal's
+ * bearer token would be disclosed to an unrelated server.
+ */
+export function stalkerSessionFingerprint(playlist: Playlist): string {
+    return JSON.stringify([
+        portalOrigin(playlist.portalUrl),
+        stalkerIdentityFingerprint(playlist),
+    ]);
+}
+
+function portalOrigin(portalUrl: string | undefined): string {
+    if (!portalUrl) {
+        return '';
+    }
+    try {
+        return new URL(portalUrl).origin;
+    } catch {
+        // Unparseable: fall back to the raw string so a change is still a
+        // change — never to a constant, which would alias every endpoint.
+        return portalUrl;
+    }
+}
 
 /**
  * Session facts persisted with the playlist between app starts.

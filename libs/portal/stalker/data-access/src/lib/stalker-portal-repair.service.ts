@@ -322,6 +322,11 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             playlist.portalUrl ?? '',
             isFullStalkerPortalPlaylist(playlist),
             stalkerIdentityFingerprint(playlist),
+            // Credentials are part of the discovery outcome now: a probe that
+            // failed on a wrong login must be retried once the login is
+            // corrected, instead of staying declined until the app restarts.
+            playlist.username ?? '',
+            playlist.password ?? '',
         ]);
     }
 

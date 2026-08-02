@@ -27,6 +27,7 @@ import {
 import { isStalkerAuthorizationFailure } from './stalker-response-classification';
 import { StalkerPortalError } from './stalker-portal-error';
 import {
+    stalkerSessionFingerprint,
     StalkerSessionStore,
     type PersistedStalkerSession,
 } from './stalker-session-store';
@@ -295,9 +296,13 @@ export class StalkerSessionService {
         // Use async/await wrapper to properly clean up on both success and failure
         const authPromise = (async () => {
             try {
+                // The PERSISTED session is bound to the endpoint too: a
+                // playlist repointed at another host must not re-present the
+                // previous portal's token to it.
+                const sessionKey = stalkerSessionFingerprint(playlist);
                 const stored = await this.sessionStore.read(
                     playlist,
-                    fingerprint
+                    sessionKey
                 );
                 const result = await this.authenticate(
                     portalUrl,
@@ -324,7 +329,7 @@ export class StalkerSessionService {
                     playlist._id,
                     result,
                     stored,
-                    fingerprint
+                    sessionKey
                 );
                 return {
                     token: result.token,
@@ -434,7 +439,7 @@ export class StalkerSessionService {
                     watchdogTimeoutSeconds: playlist.stalkerWatchdogTimeout,
                     timeslotSeconds: playlist.stalkerTimeslot,
                 },
-                fingerprint
+                stalkerSessionFingerprint(playlist)
             );
             settleSlot({
                 token: result.token,

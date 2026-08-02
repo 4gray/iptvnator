@@ -242,6 +242,13 @@ export class PlaylistsService {
             stalkerSignature2: playlist.stalkerSignature2,
             isFullStalkerPortal: playlist.isFullStalkerPortal,
             stalkerToken: playlist.stalkerToken,
+            // Without these the Electron cold read loses the persisted
+            // cadence AND the identity the token was negotiated for, so the
+            // mismatch check cannot run and the watchdog falls back to the
+            // default.
+            stalkerSessionIdentity: playlist.stalkerSessionIdentity,
+            stalkerWatchdogTimeout: playlist.stalkerWatchdogTimeout,
+            stalkerTimeslot: playlist.stalkerTimeslot,
             stalkerAccountInfo: playlist.stalkerAccountInfo,
         } as Playlist;
     }

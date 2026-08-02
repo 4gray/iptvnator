@@ -4,6 +4,7 @@ export * from './lib/stalker-account-info.service';
 export * from './lib/stalker-content-types';
 export * from './lib/stalker-portal-error';
 export * from './lib/stalker-response-classification';
+export * from './lib/stalker-session-store';
 export * from './lib/stalker-watchdog.controller';
 export * from './lib/stalker-itv-cache.service';
 export * from './lib/stalker-live-playback.utils';

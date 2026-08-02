@@ -4,8 +4,8 @@ import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerPortalError } from './stalker-portal-error';
 import { STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS } from './stalker-watchdog.controller';
+import { stalkerSessionFingerprint } from './stalker-session-store';
 import {
-    stalkerIdentityFingerprint,
     STALKER_SERIAL_NUMBER,
     StalkerProfileResponse,
     StalkerSessionService,
@@ -927,6 +927,41 @@ describe('StalkerSessionService identity payloads', () => {
         );
     });
 
+    it('refuses a persisted token when the playlist was repointed at another host', async () => {
+        // ensureToken re-presents persisted tokens in a handshake, so an
+        // identity-only check would disclose the previous portal's bearer
+        // token to an unrelated server.
+        const original = {
+            _id: 'playlist-moved',
+            portalUrl: 'https://old.example.com/stalker_portal/server/load.php',
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                ...original,
+                stalkerToken: 'OLD-HOST-TOKEN',
+                stalkerSessionIdentity: stalkerSessionFingerprint(original),
+                stalkerWatchdogTimeout: 60,
+            } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({ token: 'FRESH', reusedStoredToken: false });
+
+        await service.ensureToken({
+            ...original,
+            portalUrl: 'https://new.example.com/stalker_portal/server/load.php',
+        } as Playlist);
+
+        expect(authenticate).toHaveBeenCalledWith(
+            'https://new.example.com/stalker_portal/server/load.php',
+            macAddress,
+            {},
+            expect.objectContaining({ storedToken: undefined })
+        );
+    });
+
     it('refuses a persisted token minted for a different identity', async () => {
         // The playlist was edited after the token was issued. Re-presenting
         // it would pair the new identity with the old session — the same bug
@@ -969,7 +1004,7 @@ describe('StalkerSessionService identity payloads', () => {
             of({
                 ...playlist,
                 stalkerToken: 'SAME-IDENTITY-TOKEN',
-                stalkerSessionIdentity: stalkerIdentityFingerprint(playlist),
+                stalkerSessionIdentity: stalkerSessionFingerprint(playlist),
                 stalkerWatchdogTimeout: 60,
             } as Playlist)
         );
