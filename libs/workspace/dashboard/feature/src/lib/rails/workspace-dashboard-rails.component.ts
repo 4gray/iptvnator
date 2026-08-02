@@ -599,7 +599,7 @@ export class WorkspaceDashboardRailsComponent {
     }
 
     private heroTmdbKey(item: GlobalRecentItem): string {
-        return `${item.type}:${item.title}`;
+        return this.heroTmdb.keyFor(item);
     }
 
     private toTrendingCard(item: DashboardTrendingItem): DashboardRailCard {

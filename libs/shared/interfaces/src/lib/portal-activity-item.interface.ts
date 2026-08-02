@@ -22,10 +22,13 @@ export interface PortalActivityItem {
      */
     epg_lookup_key?: string;
     /**
-     * Wide backdrop URL (typically 16:9), persisted when the user first views
-     * the detail page. Absent for stalker and for items that have never had
-     * their detail page opened. Dashboards should fall back to a blurred
-     * `poster_url` when undefined.
+     * Wide backdrop URL (typically 16:9), recorded when the user first views
+     * the detail page — for xtream on the `content` row, for stalker inside
+     * the stored playlist entry (`info.tmdb_backdrop`), since stalker items
+     * never reach the `content` table. Absent for items whose detail page has
+     * never been opened, and for stalker items opened without TMDB
+     * enrichment. Dashboards should fall back to a blurred `poster_url` when
+     * undefined.
      */
     backdrop_url?: string;
     source?: 'xtream' | 'stalker' | 'm3u';

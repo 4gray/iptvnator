@@ -68,6 +68,7 @@ export * from './lib/xtream-vod-stream.interface';
 
 // Stalker interfaces
 export * from './lib/stalker-item.normalizer';
+export * from './lib/stalker-item-tmdb-hints';
 export * from './lib/stalker-identity.utils';
 export * from './lib/stalker-request-identity.util';
 export * from './lib/stalker-request-url.util';

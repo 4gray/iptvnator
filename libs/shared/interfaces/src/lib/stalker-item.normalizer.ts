@@ -46,12 +46,37 @@ export function extractStalkerItemPoster(
     return String(raw['cover'] ?? raw['logo'] ?? raw['poster_url'] ?? '');
 }
 
+/** Portals spell the series marker as `true`, `1`, or `'1'`. */
+export function isStalkerSeriesFlag(value: unknown): boolean {
+    return value === true || value === 1 || value === '1';
+}
+
+/**
+ * Does this item behave like a series? Beyond the explicit flag, an
+ * embedded-VOD ("vclub") item announces its episodes through a non-empty
+ * `series` array while staying in the VOD category.
+ */
+export function isStalkerSeriesItem(item: {
+    is_series?: unknown;
+    series?: unknown;
+}): boolean {
+    return (
+        isStalkerSeriesFlag(item?.is_series) ||
+        (Array.isArray(item?.series) && item.series.length > 0)
+    );
+}
+
 /**
  * Determine the normalised activity type of a Stalker item.
  *
  * - `itv` / `live` / radio → `'live'`
  * - `series` or `is_series` equal to `true`, `1`, or `'1'` → `'series'`
  * - everything else → `'movie'`
+ *
+ * Deliberately blind to the `series` episode array: embedded-VOD items live
+ * in the VOD section and must keep routing there, so they stay `'movie'`
+ * here even though TMDB knows them as shows. Metadata lookups need the other
+ * answer — see {@link isStalkerSeriesItem}.
  */
 export function extractStalkerItemType(
     item: StalkerPortalItem | Record<string, unknown>
@@ -68,12 +93,7 @@ export function extractStalkerItemType(
         return 'live';
     }
 
-    if (
-        categoryId === 'series' ||
-        raw['is_series'] === true ||
-        raw['is_series'] === 1 ||
-        raw['is_series'] === '1'
-    ) {
+    if (categoryId === 'series' || isStalkerSeriesFlag(raw['is_series'])) {
         return 'series';
     }
 

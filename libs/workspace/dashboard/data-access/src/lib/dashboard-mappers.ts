@@ -12,6 +12,7 @@ import {
     extractStalkerItemId,
     extractStalkerItemPoster,
     extractStalkerItemTitle,
+    extractStalkerItemTmdbHints,
     extractStalkerItemType,
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
@@ -83,44 +84,6 @@ export function mapDbRecentlyAddedToItem(
 
 // ────── Stalker playlist → ViewModel ──────
 
-export function buildStalkerRecentItems(
-    playlists: PlaylistMeta[],
-    defaultPlaylistName: string
-): PortalRecentItem[] {
-    return playlists
-        .filter((playlist) => Boolean(playlist.macAddress))
-        .reduce<PortalRecentItem[]>((acc, playlist) => {
-            const recentItems = Array.isArray(
-                (playlist as { recentlyViewed?: unknown[] }).recentlyViewed
-            )
-                ? ((playlist as { recentlyViewed?: unknown[] })
-                      .recentlyViewed ?? [])
-                : [];
-
-            const mapped = recentItems.map((rawItem, index) => {
-                const item = (rawItem ?? {}) as Record<string, unknown>;
-                const id = extractStalkerItemId(item, playlist._id, index);
-
-                return {
-                    id,
-                    title: extractStalkerItemTitle(item),
-                    type: extractStalkerItemType(item),
-                    playlist_id: playlist._id,
-                    playlist_name: playlist.title || defaultPlaylistName,
-                    viewed_at: normalizeStalkerDate(item['added_at']),
-                    category_id: String(item['category_id'] ?? ''),
-                    xtream_id: id,
-                    poster_url: extractStalkerItemPoster(item),
-                    source: 'stalker' as const,
-                    stalker_item: rawItem,
-                } as PortalRecentItem;
-            });
-
-            acc.push(...mapped);
-            return acc;
-        }, []);
-}
-
 export function buildStalkerFavoriteItems(
     playlists: PlaylistMeta[],
     defaultPlaylistName: string
@@ -146,6 +109,9 @@ export function buildStalkerFavoriteItems(
                     category_id: String(raw['category_id'] ?? ''),
                     xtream_id: id,
                     poster_url: extractStalkerItemPoster(raw),
+                    // Same source as the recent-items mapper: Stalker keeps
+                    // the enriched backdrop inside the stored entry.
+                    backdrop_url: extractStalkerItemTmdbHints(raw).backdropUrl,
                     source: 'stalker' as const,
                     stalker_item: item,
                 } as PortalFavoriteItem;
