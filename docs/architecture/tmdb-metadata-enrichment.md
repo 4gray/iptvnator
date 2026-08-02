@@ -423,10 +423,14 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   `extractStalkerItemTmdbHints` (`libs/shared/interfaces`) reads
   `info.name`, `info.o_name`, `info.releasedate` and `info.tmdb_id` off the
   stored entry, mirroring `enrichStalkerSelectionWithTmdb` field for field.
-  The id is only ever sent under the media type it was resolved for: an
-  embedded-VOD series is a `'movie'` activity row but a show on TMDB, so the
-  second attempt flips the media type and **drops the id** —
-  `/movie/<tv id>` resolves to an unrelated film.
+  A `'movie'` verdict gets a second attempt under `'tv'` — `'movie'` is what
+  every row falls back to when nothing says otherwise, and an embedded-VOD
+  series is a `'movie'` activity row but a show on TMDB. That retry **drops
+  the id**, which is only ever valid for the media type it was resolved
+  under: `/movie/<tv id>` resolves to an unrelated film. A `'tv'` verdict
+  gets no retry — it is reached only on positive evidence (series category,
+  `is_series`, or a non-empty episode array), and the gate cannot tell an
+  adaptation sharing its show's name and year from the show itself.
 
   Note the id in a stored Stalker entry is not a provider claim. Stalker
   portals never send one; its only source is a match this app already made

@@ -107,14 +107,19 @@ export class DashboardHeroTmdbService {
      * facts of the detail view's own enrichment, so they lead with those;
      * everything else can only offer the display title.
      *
-     * The second attempt exists because the activity type can be wrong in
-     * either direction — an embedded-VOD ("vclub") series is a `'movie'`
-     * row but a show on TMDB, and a lazily-loaded Ministra item can be
-     * stored before its series marker is known. It repeats the query under
-     * the other media type **minus the id**, so a wrong-typed guess costs
-     * one negatively-cached search rather than another title's metadata.
-     * The confidence gate applies to it unchanged, and with a year in hand
-     * that means exact title plus a compatible release year.
+     * A `'movie'` verdict gets a second attempt under `'tv'`, because
+     * `'movie'` is what every row falls back to when nothing says otherwise
+     * — an embedded-VOD ("vclub") series is a `'movie'` activity row, and a
+     * lazily-loaded Ministra item can be stored before its series marker is
+     * known. The retry drops the id (`/movie/<tv id>` resolves to an
+     * unrelated film), so a wrong default costs one negatively-cached search
+     * rather than another title's metadata.
+     *
+     * `'tv'` gets no such retry. It is only ever reached on positive
+     * evidence — a series category, an `is_series` flag, or a non-empty
+     * episode array — and retrying it as a movie would trade that evidence
+     * for a same-title film: the gate cannot tell an adaptation sharing its
+     * show's name and year from the show itself.
      */
     private buildAttempts(item: DashboardHeroTmdbItem): HeroTmdbAttempt[] {
         if (item.type !== 'movie' && item.type !== 'series') {
@@ -144,14 +149,9 @@ export class DashboardHeroTmdbService {
             year,
         };
 
-        return [
-            primary,
-            {
-                ...primary,
-                mediaType: mediaType === 'movie' ? 'tv' : 'movie',
-                tmdbId: undefined,
-            },
-        ];
+        return mediaType === 'movie'
+            ? [primary, { ...primary, mediaType: 'tv', tmdbId: undefined }]
+            : [primary];
     }
 
     private async loadExtras(

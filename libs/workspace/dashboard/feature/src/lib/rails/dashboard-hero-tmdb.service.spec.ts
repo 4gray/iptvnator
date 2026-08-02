@@ -36,6 +36,22 @@ describe('DashboardHeroTmdbService', () => {
         },
     } as unknown as DashboardHeroTmdbItem;
 
+    /** A plain VOD entry: nothing marks it as a series, so it leads with movie */
+    const plainVodItem = {
+        title: 'The Matrix',
+        type: 'movie',
+        stalker_item: {
+            id: '42',
+            category_id: 'vod',
+            title: 'The Matrix',
+            info: {
+                name: 'The Matrix',
+                releasedate: '1999-03-31',
+                tmdb_id: 603,
+            },
+        },
+    } as unknown as DashboardHeroTmdbItem;
+
     let isEnabled: jest.Mock;
     let enrichMovie: jest.Mock;
     let enrichTv: jest.Mock;
@@ -87,6 +103,20 @@ describe('DashboardHeroTmdbService', () => {
         expect(extras?.genres).toEqual(['Drama', 'Comedy']);
     });
 
+    it('does not retry a series-typed item as a movie', async () => {
+        // 'movie' is the answer every row falls back to, so it earns a
+        // retry; 'tv' is only reached on positive evidence and must not be
+        // traded for a same-titled film — the gate cannot tell an
+        // adaptation sharing its show's name and year from the show itself.
+        enrichTv.mockResolvedValue(null);
+        const service = createService();
+
+        await expect(
+            service.getExtras({ title: 'Fargo', type: 'series' })
+        ).resolves.toBeNull();
+        expect(enrichMovie).not.toHaveBeenCalled();
+    });
+
     it('does not retry as TV when the movie lookup succeeds', async () => {
         enrichMovie.mockResolvedValue({ ...tvDetails, id: 200 });
         const service = createService();
@@ -125,15 +155,26 @@ describe('DashboardHeroTmdbService', () => {
 
         it('never carries the id into the other media type', async () => {
             // /movie/<tv id> resolves to an unrelated film whose details
-            // would then be shown as this item's.
+            // would then be shown as this item's — so the retry drops it.
+            enrichMovie.mockResolvedValue(null);
+            const service = createService();
+
+            await service.getExtras(plainVodItem);
+
+            expect(enrichMovie).toHaveBeenCalledWith(
+                expect.objectContaining({ tmdbId: 603, year: 1999 })
+            );
+            expect(enrichTv).toHaveBeenCalledWith(
+                expect.objectContaining({ tmdbId: undefined, year: 1999 })
+            );
+        });
+
+        it('does not retry a series as a movie', async () => {
             enrichTv.mockResolvedValue(null);
             const service = createService();
 
-            await service.getExtras(stalkerItem);
-
-            expect(enrichMovie).toHaveBeenCalledWith(
-                expect.objectContaining({ tmdbId: undefined, year: 2026 })
-            );
+            await expect(service.getExtras(stalkerItem)).resolves.toBeNull();
+            expect(enrichMovie).not.toHaveBeenCalled();
         });
 
         it('does not search for an entry that has no usable name', async () => {
