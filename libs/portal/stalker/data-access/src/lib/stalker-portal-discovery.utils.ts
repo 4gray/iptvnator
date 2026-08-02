@@ -9,6 +9,8 @@
  * it responds, instead of guessing from the URL shape (#850, #686, #755).
  */
 
+import { isStalkerAuthFailureResponse } from '@iptvnator/shared/interfaces';
+
 /**
  * Candidate API endpoints for a pasted portal URL, in probe order.
  *
@@ -99,108 +101,16 @@ export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
 }
 
 /**
- * The stock Stalker middleware answers auth failures with HTTP 200 and a
- * bare plain-text body — never a 401/403. These are the three exact strings
- * it emits (sometimes with a trailing numeric counter).
+ * Auth-failure detection lives in `@iptvnator/shared/interfaces` so the
+ * Electron main process — where these bodies actually arrive — and the
+ * renderer classify identically. Re-exported here because discovery,
+ * repair and the session service already import it from this module.
  */
-const STALKER_AUTH_FAILURE_PATTERNS = [
-    /authorization\s+failed/i,
-    /access\s+denied/i,
-    /unauthorized\s+request/i,
-];
-
-/**
- * Whether a portal response body is one of the middleware's plain-text auth
- * failures. The length cap keeps an arbitrary HTML error page that merely
- * mentions "access denied" from being mistaken for the middleware's bare
- * phrase.
- */
-export function isStalkerAuthFailureBody(response: unknown): boolean {
-    if (typeof response !== 'string') {
-        return false;
-    }
-
-    const body = response.trim();
-    if (body.length === 0 || body.length > 200) {
-        return false;
-    }
-
-    return STALKER_AUTH_FAILURE_PATTERNS.some((pattern) => pattern.test(body));
-}
-
-/**
- * Whether a portal response is an authorization failure in EITHER wire
- * shape: the middleware's plain-text body, or the JSON envelope some panels
- * answer instead (`{ js: { error: "Authorization failed" } }` /
- * `{ js: { msg: … } }` — the same forms
- * `StalkerSessionService.isAuthorizationError()` recognizes). Classification
- * and the lazy-repair trigger must use this, not the string-only primitive:
- * a JSON-failing panel would otherwise be persisted as token-free and never
- * repaired.
- */
-export function isStalkerAuthFailureResponse(response: unknown): boolean {
-    if (isStalkerAuthFailureBody(response)) {
-        return true;
-    }
-
-    if (
-        response === null ||
-        typeof response !== 'object' ||
-        !('js' in (response as Record<string, unknown>))
-    ) {
-        return false;
-    }
-
-    const js = (response as { js?: unknown }).js;
-    if (js === null || typeof js !== 'object') {
-        return false;
-    }
-
-    const { error, msg } = js as { error?: unknown; msg?: unknown };
-    return [error, msg].some(
-        (value) =>
-            typeof value === 'string' && isStalkerJsonAuthFailurePhrase(value)
-    );
-}
-
-/**
- * Auth-failure phrases accepted inside the STRUCTURED `js.error`/`js.msg`
- * fields. Deliberately wider than the plain-text body patterns (which stay
- * narrow to avoid matching arbitrary HTML pages): these are the same forms
- * `StalkerSessionService.isAuthorizationError()` recognizes — panels answer
- * "Invalid token", "Auth failed" or bare "unauthorized" here.
- */
-const STALKER_JSON_AUTH_FAILURE_PATTERNS = [
-    ...STALKER_AUTH_FAILURE_PATTERNS,
-    /auth\s+failed/i,
-    /invalid\s+token/i,
-    /\bunauthorized\b/i,
-    /authorization/i,
-];
-
-/**
- * Whether an ERROR MESSAGE reports an authorization failure. Uses the wide
- * phrase set (including `Invalid token` / `Auth failed`) because the input
- * is a controlled string produced by our own auth layer — e.g.
- * `Error('Profile error: Invalid token')` — not an arbitrary portal body,
- * where the same breadth would false-positive on HTML pages.
- */
-export function isStalkerAuthFailureMessage(message: unknown): boolean {
-    return (
-        typeof message === 'string' && isStalkerJsonAuthFailurePhrase(message)
-    );
-}
-
-function isStalkerJsonAuthFailurePhrase(value: string): boolean {
-    const phrase = value.trim();
-    if (phrase.length === 0 || phrase.length > 200) {
-        return false;
-    }
-
-    return STALKER_JSON_AUTH_FAILURE_PATTERNS.some((pattern) =>
-        pattern.test(phrase)
-    );
-}
+export {
+    isStalkerAuthFailureBody,
+    isStalkerAuthFailureMessage,
+    isStalkerAuthFailureResponse,
+} from '@iptvnator/shared/interfaces';
 
 export type StalkerProbeClassification = 'data' | 'auth-required' | 'not-a-portal';
 
