@@ -98,8 +98,12 @@ variants, contextual buttons, and theme-aware styling.
   `reason: 'already-downloaded'` without mutation; active matches return
   `reason: 'already-in-progress'`. The recheck has a one-second deadline;
   timeout or probe failure leaves the row untouched and returns a failed
-  submission, allowing the sequential season loop to continue. The coordinator
-  counts both stable duplicate reasons as skipped. There is no batch IPC,
+  submission, allowing the sequential season loop to continue. Completed-file
+  probes used by list refreshes have the same deadline. A timed-out probe is
+  released from the coalescing pool, the snapshot reports the file as missing,
+  and a later refresh performs a fresh check instead of reusing the stalled
+  filesystem operation. The coordinator counts both stable duplicate reasons
+  as skipped. There is no batch IPC,
   parallel transfer, or queue reordering: destination authorization, persisted
   header handling, and the backend's one-active-transfer FIFO semantics remain
   unchanged.

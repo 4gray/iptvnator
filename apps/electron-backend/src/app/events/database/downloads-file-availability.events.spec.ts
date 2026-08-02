@@ -77,6 +77,54 @@ describe('downloads events: file availability', () => {
         await expect(response).resolves.toHaveLength(2);
     });
 
+    it('times out an unresponsive probe and lets the next list refresh recheck the file', async () => {
+        jest.useFakeTimers();
+        try {
+            const row = {
+                filePath: '/downloads/unresponsive/movie.mp4',
+                id: 1,
+                status: 'completed',
+            };
+            const orderBy = jest.fn().mockResolvedValue([row]);
+            mockGetDatabase.mockResolvedValue({
+                select: jest.fn(() => ({
+                    from: jest.fn(() => ({ orderBy })),
+                })),
+            });
+            mockLstat
+                .mockReturnValueOnce(
+                    new Promise(() => {
+                        // Simulate an unresponsive removable/network mount.
+                    })
+                )
+                .mockResolvedValueOnce(regularFile());
+
+            const timedOutRefresh = getHandler('DOWNLOADS_GET_LIST')(null);
+            await jest.advanceTimersByTimeAsync(1_000);
+
+            await expect(timedOutRefresh).resolves.toEqual([
+                {
+                    ...row,
+                    metadataSnapshot: undefined,
+                    fileAvailability: 'missing',
+                },
+            ]);
+
+            await expect(
+                getHandler('DOWNLOADS_GET_LIST')(null)
+            ).resolves.toEqual([
+                {
+                    ...row,
+                    metadataSnapshot: undefined,
+                    fileAvailability: 'available',
+                },
+            ]);
+            expect(mockLstat).toHaveBeenCalledTimes(2);
+        } finally {
+            jest.useRealTimers();
+        }
+    }, 500);
+
     it('starts at most four completed-file probes concurrently', async () => {
         const rows = Array.from({ length: 6 }, (_, index) => ({
             filePath: `/downloads/network/movie-${index}.mp4`,
