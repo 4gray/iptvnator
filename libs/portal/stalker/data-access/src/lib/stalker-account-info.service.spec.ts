@@ -157,6 +157,32 @@ describe('StalkerAccountInfoService', () => {
         expect(snapshot).toMatchObject({ login: 'panel-user' });
     });
 
+    it('re-routes to the profile flow when a repair proves the portal is full', async () => {
+        // Legacy row marked simple: get_main_info goes through
+        // executeStalkerRequest, whose repair flips the mode to full and
+        // retries the same (wrong) action. The dialog must then switch to
+        // handshake + get_profile instead of showing nothing.
+        dataService.sendIpcEvent.mockResolvedValue({ js: null });
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'full-user',
+        });
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(stalkerSession.refreshAccountProfile).toHaveBeenCalledWith(
+            expect.objectContaining({ isFullStalkerPortal: true })
+        );
+        expect(snapshot).toMatchObject({ login: 'full-user' });
+    });
+
     it('rethrows profile failures the repair declines to act on', async () => {
         const boom = new Error('timeout of 15000ms exceeded');
         stalkerSession.refreshAccountProfile.mockRejectedValue(boom);

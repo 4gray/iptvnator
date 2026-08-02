@@ -81,7 +81,26 @@ export class StalkerAccountInfoService {
             return this.fetchViaProfile(effectivePlaylist);
         }
 
-        return this.fetchViaMainInfo(effectivePlaylist);
+        const snapshot = await this.fetchViaMainInfo(effectivePlaylist);
+        if (snapshot) {
+            return snapshot;
+        }
+
+        // `fetchViaMainInfo` runs through executeStalkerRequest, whose lazy
+        // repair retries the SAME action internally. If that repair proved
+        // the portal is actually a full one, `get_main_info` is the wrong
+        // call: canonical installations publish subscription details only
+        // through handshake + get_profile. Re-enter the mode routing —
+        // symmetric with the full→simple re-route in `fetchViaProfile`.
+        const repairedPlaylist = this.portalRepair.applyOverride(playlist);
+        if (
+            isFullStalkerPortalPlaylist(repairedPlaylist) &&
+            !isFullStalkerPortalPlaylist(effectivePlaylist)
+        ) {
+            return this.fetchViaProfile(repairedPlaylist);
+        }
+
+        return snapshot;
     }
 
     private async fetchViaProfile(
