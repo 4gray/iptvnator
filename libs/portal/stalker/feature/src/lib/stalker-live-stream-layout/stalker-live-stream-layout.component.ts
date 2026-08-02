@@ -111,6 +111,7 @@ const FULL_LIST_RENDER_CHUNK = 100;
 export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     private readonly playlistService = inject(PlaylistsService);
+    private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dialog = inject(MatDialog);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -727,7 +728,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         if (
             (event.metaKey || event.ctrlKey) &&
             event.key.toLowerCase() === 'b' &&
-            !isTypingInInput(event)
+            !isTypingInInput(event) &&
+            // Behind the workspace's phone context drawer the route content
+            // is inert; this document-level listener still fires, so it
+            // opts out itself instead of toggling an obscured sidebar.
+            !this.hostElement.nativeElement.closest('[inert]')
         ) {
             event.preventDefault();
             this.toggleSidebar();

@@ -340,15 +340,63 @@ inventing a nearby value: several surfaces cooperate at this width, and a
 component that picks `599px` leaves a band where the shell has already stacked
 but the component has not.
 
-### Rails become rows or stacks
+### Rails become rows, stacks, or drawers
 
 - The workspace shell rail turns into a horizontal top bar. Everything inside
   it has to opt into the row direction — a nested list that keeps
   `flex-direction: column` stacks its links out of the bar and over the header.
   The bar scrolls sideways once a portal contributes its sections, and the
   settings link is `position: sticky` so it never scrolls out of reach.
-- Side rails stack above the content instead of beside it: the shell context
-  panel, the live-layout channel sidebar, and the M3U channel drawer.
+- The shell context panel (categories, filters, settings sections) is an
+  off-canvas drawer: hidden by default so the route content owns the full
+  pane, opened from a toggle in the workspace header, closed by selection,
+  backdrop tap, Escape, or any navigation. State lives in
+  `WorkspaceShellContextDrawerService` (root-provided from
+  `@iptvnator/workspace/shell/util` — see below for why); the
+  panels call `close()` after selections that do not navigate — a
+  NavigationEnd listener alone misses Stalker ITV/radio categories, settings
+  sections, sources filters, and collection filters. The drawer positioning
+  is `position: fixed` on the sidebar host, which also removes it from the
+  shell grid, so the phone `workspace-body` stays single-pane. The drawer is
+  modal for keyboard and screen-reader users: `CdkTrapFocus` captures and
+  contains Tab focus while open, the shell marks the rail, header, content,
+  and playback footer `inert` (a focus trap alone does not stop a screen
+  reader's virtual cursor from activating obscured controls), the panel
+  itself is the initial focus target (`tabindex="-1"` + `cdkFocusInitial`,
+  so capture still works when a category list is loading or empty and
+  renders no focusable rows), and the shell restores focus to the header
+  toggle on close — deferred one tick, because the toggle is inside the
+  inert header and `focus()` on a still-inert element is silently ignored.
+  The service closes the drawer when the viewport leaves the phone
+  breakpoint so the trap and inert state can never hold the in-flow desktop
+  layout. While open, the shell consumes Escape (downstream consumers —
+  the inline player's close handler, the shared controls shortcuts — check
+  `defaultPrevented`, so one keypress cannot close both the drawer and the
+  obscured player) and suppresses workspace-level shortcuts (Ctrl/Cmd+F
+  global search, Ctrl/Cmd+K command palette, Ctrl/Cmd+R global recent, the
+  `?` shortcuts dialog — dialogs must not stack a second focus trap on the
+  modal drawer, and navigation must not act behind it), and document-level
+  shortcuts owned by routed content (shared controls, Embedded MPV legacy
+  dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle,
+  the M3U player's digit-key channel switching and sidebar toggle) opt out
+  on their own by checking for an `inert` ancestor, since `inert` does not
+  silence document-level listeners. Any NEW document-level key listener on
+  routed content must apply the same `closest('[inert]')` guard. The service is root-provided
+  from `@iptvnator/workspace/shell/util` so consumers outside the shell's
+  element injector (AppComponent's Ctrl/Cmd+R handler) can observe it
+  without pulling the lazy shell chunk into the eager bundle. The shell
+  also registers the open drawer with
+  `EmbeddedMpvOverlayVisibilityService.acquireExternalModalSurface()`:
+  the native-view video surface is composited outside DOM stacking and
+  would paint straight over the drawer regardless of z-index. The drawer carries its own phone-only close
+  button: touch screen-reader users have no hardware Escape and cannot
+  reach the inert header toggle or the aria-hidden backdrop, so the
+  trapped surface itself must offer dismissal even when its list is
+  loading or empty.
+  The toggle's label is variant-aware — categories, filters, or settings
+  sections — because a fixed label would misdescribe two of the three.
+- Other side rails stack above the content instead of beside it: the
+  live-layout channel sidebar and the M3U channel drawer.
 
 ### Resizable rails need `!important`
 

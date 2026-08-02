@@ -3,6 +3,7 @@ import { ComponentPortal } from '@angular/cdk/portal';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import {
     Component,
+    ElementRef,
     HostListener,
     Injector,
     OnDestroy,
@@ -143,6 +144,7 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
 })
 export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly activatedRoute = inject(ActivatedRoute);
+    private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dataService = inject(DataService);
     private readonly overlay = inject(Overlay);
     private readonly playlistsService = inject(PlaylistsService);
@@ -885,6 +887,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     @HostListener('document:keydown', ['$event'])
     handleKeyPress(event: KeyboardEvent): void {
         if (isTypingInInput(event)) {
+            return;
+        }
+        // Behind the workspace's phone context drawer the route content is
+        // inert; this document-level listener still fires, so it opts out
+        // itself instead of switching channels or toggling the sidebar
+        // behind the modal surface.
+        if (this.hostElement.nativeElement.closest('[inert]')) {
             return;
         }
         if (

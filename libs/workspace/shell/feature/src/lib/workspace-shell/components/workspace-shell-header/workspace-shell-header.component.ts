@@ -31,6 +31,11 @@ import { WorkspaceHeaderBulkAction } from '../../services/helpers/workspace-shel
 export class WorkspaceShellHeaderComponent {
     private readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
+    // read: ElementRef because mat-icon-button is a component, so a bare
+    // template-ref query would resolve to the MatIconButton instance.
+    private readonly contextDrawerToggle = viewChild('contextDrawerToggle', {
+        read: ElementRef<HTMLButtonElement>,
+    });
 
     readonly isMac =
         typeof navigator !== 'undefined' &&
@@ -66,6 +71,27 @@ export class WorkspaceShellHeaderComponent {
      * isSettingsRoute computed.
      */
     readonly isSettingsRoute = input(false);
+    /**
+     * Phone-width (≤640px) drawer toggle for the context panel. The button
+     * itself is hidden by CSS above the phone breakpoint, so these inputs
+     * only matter on small viewports: `showContextDrawerToggle` reflects
+     * whether the current route has panel content to show, and
+     * `isContextDrawerOpen` feeds aria-expanded.
+     */
+    readonly showContextDrawerToggle = input(false);
+    readonly isContextDrawerOpen = input(false);
+    /**
+     * Variant-aware labels: the drawer holds categories on portal routes,
+     * type filters on sources/collection routes, and section navigation on
+     * the settings route — a fixed "Categories & filters" label would
+     * misdescribe two of the three.
+     */
+    readonly contextDrawerToggleAriaKey = input(
+        'WORKSPACE.SHELL.CONTEXT_DRAWER_CATEGORIES_TOGGLE'
+    );
+    readonly contextDrawerTooltipKey = input(
+        'WORKSPACE.SHELL.CONTEXT_DRAWER_CATEGORIES_TOOLTIP'
+    );
 
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
@@ -78,6 +104,7 @@ export class WorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
+    readonly contextDrawerToggleRequested = output<void>();
 
     focusSearchInput(options: { select?: boolean } = {}): void {
         const inputElement = this.searchInput()?.nativeElement;
@@ -140,5 +167,26 @@ export class WorkspaceShellHeaderComponent {
 
     onDownloadsRequested(): void {
         this.downloadsRequested.emit();
+    }
+
+    onContextDrawerToggleRequested(): void {
+        this.contextDrawerToggleRequested.emit();
+    }
+
+    /**
+     * Returns focus to the drawer toggle after the drawer closes. Reports
+     * whether the toggle actually received focus — after a navigation to a
+     * route without a context panel the toggle is gone (and above the phone
+     * breakpoint it is display: none, where focus() silently does nothing),
+     * and the caller then needs a fallback target.
+     */
+    focusContextDrawerToggle(): boolean {
+        const toggle = this.contextDrawerToggle()?.nativeElement;
+        if (!toggle) {
+            return false;
+        }
+
+        toggle.focus();
+        return document.activeElement === toggle;
     }
 }

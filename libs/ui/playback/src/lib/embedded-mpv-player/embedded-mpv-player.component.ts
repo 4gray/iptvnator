@@ -402,6 +402,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             isAvailable: () =>
                 this.legacyInteractions.isAvailable() &&
                 !this.overlayVisibility.overlayActive(),
+            hostElement: () => this.playerRoot()?.nativeElement ?? null,
             arrowKeysBlocked: () => this.menus.dockPanelOpen(),
             onEscape: () => this.legacyInteractions.closePopovers(),
             togglePaused: () => void this.togglePaused(),

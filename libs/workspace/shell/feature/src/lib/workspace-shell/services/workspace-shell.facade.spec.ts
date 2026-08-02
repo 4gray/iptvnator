@@ -25,6 +25,7 @@ import {
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
+    WorkspaceShellContextDrawerService,
     WorkspaceStartupPreferencesService,
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
@@ -112,6 +113,7 @@ describe('WorkspaceShellFacade', () => {
         record: jest.Mock;
         prune: jest.Mock;
     };
+    let contextDrawer: { isOpen: jest.Mock };
     let playerCommands: {
         ensureEmbeddedMpvSupportLoaded: jest.Mock;
     };
@@ -225,6 +227,7 @@ describe('WorkspaceShellFacade', () => {
         playerCommands = {
             ensureEmbeddedMpvSupportLoaded: jest.fn(),
         };
+        contextDrawer = { isOpen: jest.fn(() => false) };
 
         const selectSignal = jest.fn().mockReturnValue(playlistsSignal);
 
@@ -237,6 +240,10 @@ describe('WorkspaceShellFacade', () => {
                 WorkspaceShellHeaderService,
                 WorkspaceShellXtreamImportService,
                 WorkspaceShellCommandPaletteService,
+                {
+                    provide: WorkspaceShellContextDrawerService,
+                    useValue: contextDrawer,
+                },
                 {
                     provide: Router,
                     useValue: router,
@@ -913,6 +920,31 @@ describe('WorkspaceShellFacade', () => {
         ).toBe(false);
 
         unregister();
+    });
+
+    it('opens the command palette on Ctrl/Cmd+K only while the context drawer is closed', async () => {
+        const dialog = TestBed.inject(MatDialog) as unknown as {
+            open: jest.Mock;
+        };
+        dialog.open.mockReturnValue({
+            afterClosed: () => of(undefined),
+        });
+
+        // While the phone drawer is modal, Ctrl/Cmd+K must not stack a
+        // second focus-trapped surface on top of it.
+        contextDrawer.isOpen.mockReturnValue(true);
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'k', metaKey: true })
+        );
+        await Promise.resolve();
+        expect(dialog.open).not.toHaveBeenCalled();
+
+        contextDrawer.isOpen.mockReturnValue(false);
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'k', metaKey: true })
+        );
+        await Promise.resolve();
+        expect(dialog.open).toHaveBeenCalledTimes(1);
     });
 
     it('records the executed command id after the palette closes with a selection', () => {

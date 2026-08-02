@@ -1,8 +1,13 @@
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { Component, Directive, input, output, signal } from '@angular/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { of, Subject } from 'rxjs';
+import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import {
+    WorkspaceShellContextDrawerService,
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
@@ -54,6 +59,10 @@ class MockWorkspaceShellHeaderComponent {
     readonly isDownloadsView = input(false);
     readonly activeDownloadsCount = input(0);
     readonly isSettingsRoute = input(false);
+    readonly showContextDrawerToggle = input(false);
+    readonly isContextDrawerOpen = input(false);
+    readonly contextDrawerToggleAriaKey = input('');
+    readonly contextDrawerTooltipKey = input('');
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
@@ -66,9 +75,11 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerBulkActionRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
+    readonly contextDrawerToggleRequested = output<void>();
 
     focusSearchInput = jest.fn();
     containsSearchInput = jest.fn(() => false);
+    focusContextDrawerToggle = jest.fn(() => true);
 }
 
 @Component({
@@ -151,6 +162,11 @@ class MockWorkspaceShellFacade {
     readonly activeDownloadsCount = signal(3);
     readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly showContextPanel = signal(true);
+    readonly hasContextPanelContent = signal(true);
+    readonly contextDrawerLabelKeys = signal({
+        aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',
+        tooltip: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
+    });
     readonly contextPanel = signal<WorkspaceShellContextPanel>('settings');
     readonly currentContext = signal<WorkspacePortalContext | null>(null);
     readonly showExternalPlaybackBar = signal(true);
@@ -202,12 +218,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -225,6 +258,14 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -259,12 +300,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -282,6 +340,14 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -311,12 +377,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -334,6 +417,14 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -359,12 +450,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
+                        CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -382,6 +490,14 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
+                        WorkspaceShellContextDrawerService,
                     ],
                 },
             })
@@ -405,6 +521,177 @@ describe('WorkspaceShellComponent', () => {
         expect(event.defaultPrevented).toBe(true);
         expect(facade.openGlobalSearch).toHaveBeenCalledWith('');
         expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
+        jest.useRealTimers();
+    });
+
+    it('opens and closes the context drawer via the toggle, backdrop and Escape', async () => {
+        jest.useFakeTimers();
+        const facade = new MockWorkspaceShellFacade();
+
+        await TestBed.configureTestingModule({
+            imports: [WorkspaceShellComponent],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
+        })
+            .overrideComponent(WorkspaceShellComponent, {
+                set: {
+                    imports: [
+                        CdkTrapFocus,
+                        RouterOutlet,
+                        TranslatePipe,
+                        MockExternalPlaybackDockComponent,
+                        MockPlaylistDropOverlayComponent,
+                        MockPlaylistDropZoneDirective,
+                        MockWorkspaceShellContextSidebarComponent,
+                        MockWorkspaceShellHeaderComponent,
+                        MockWorkspaceShellImportOverlayComponent,
+                        MockWorkspaceShellRailComponent,
+                    ],
+                    providers: [
+                        {
+                            provide: WorkspaceShellFacade,
+                            useValue: facade,
+                        },
+                        {
+                            provide: WorkspaceKeyboardShortcutsService,
+                            useClass: MockWorkspaceKeyboardShortcutsService,
+                        },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
+                        WorkspaceShellContextDrawerService,
+                    ],
+                },
+            })
+            .compileComponents();
+
+        const fixture = TestBed.createComponent(WorkspaceShellComponent);
+        fixture.detectChanges();
+        const sidebar = () =>
+            fixture.nativeElement.querySelector(
+                'app-workspace-shell-context-sidebar'
+            ) as HTMLElement;
+        const backdrop = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-drawer-backdrop"]'
+            ) as HTMLElement | null;
+
+        // Closed by default: no backdrop, no drawer-open class.
+        expect(backdrop()).toBeNull();
+        expect(sidebar().classList.contains('drawer-open')).toBe(false);
+
+        const header = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellHeaderComponent)
+        ).componentInstance as MockWorkspaceShellHeaderComponent;
+        expect(header.showContextDrawerToggle()).toBe(true);
+
+        header.contextDrawerToggleRequested.emit();
+        fixture.detectChanges();
+        expect(sidebar().classList.contains('drawer-open')).toBe(true);
+        expect(header.isContextDrawerOpen()).toBe(true);
+        // Assistive technology must hear a named modal surface open —
+        // dialog semantics exist only while the drawer is open.
+        expect(sidebar().getAttribute('role')).toBe('dialog');
+        expect(sidebar().getAttribute('aria-modal')).toBe('true');
+        expect(sidebar().getAttribute('aria-label')).toBe(
+            'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP'
+        );
+        // The open drawer is modal: everything behind the backdrop leaves
+        // the focus order and the accessibility tree via `inert`.
+        expect(
+            fixture.nativeElement
+                .querySelector('.workspace-content')
+                .hasAttribute('inert')
+        ).toBe(true);
+        expect(
+            fixture.nativeElement
+                .querySelector('app-workspace-shell-header')
+                .hasAttribute('inert')
+        ).toBe(true);
+        expect(
+            fixture.nativeElement
+                .querySelector('app-workspace-shell-rail')
+                .hasAttribute('inert')
+        ).toBe(true);
+
+        backdrop()?.click();
+        fixture.detectChanges();
+        expect(backdrop()).toBeNull();
+        expect(sidebar().classList.contains('drawer-open')).toBe(false);
+        // Closed again: back to a plain landmark, no dialog semantics.
+        expect(sidebar().getAttribute('role')).toBeNull();
+        expect(sidebar().getAttribute('aria-modal')).toBeNull();
+        expect(
+            fixture.nativeElement
+                .querySelector('.workspace-content')
+                .hasAttribute('inert')
+        ).toBe(false);
+        // Closing must hand focus back to the toggle: the closed drawer is
+        // visibility: hidden, so focus left inside it would drop to <body>.
+        // The restore is deferred past the render that un-inerts the header.
+        jest.runOnlyPendingTimers();
+        expect(header.focusContextDrawerToggle).toHaveBeenCalled();
+
+        header.contextDrawerToggleRequested.emit();
+        fixture.detectChanges();
+        expect(sidebar().classList.contains('drawer-open')).toBe(true);
+
+        const escapeWhileOpen = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(escapeWhileOpen);
+        fixture.detectChanges();
+        expect(sidebar().classList.contains('drawer-open')).toBe(false);
+        // Consumed, so downstream Escape handlers (inline player close,
+        // controls shortcuts) skip it — one keypress must not close both
+        // the drawer and the obscured playback surface.
+        expect(escapeWhileOpen.defaultPrevented).toBe(true);
+
+        // With the drawer closed the shell must leave Escape alone.
+        const escapeWhileClosed = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(escapeWhileClosed);
+        expect(escapeWhileClosed.defaultPrevented).toBe(false);
+
+        // Ctrl/Cmd+F must not navigate to global search while the drawer is
+        // modal — it would act on the obscured, inert background.
+        header.contextDrawerToggleRequested.emit();
+        fixture.detectChanges();
+        document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'f',
+                metaKey: true,
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        jest.runOnlyPendingTimers();
+        expect(facade.openGlobalSearch).not.toHaveBeenCalled();
+
+        jest.runOnlyPendingTimers();
         jest.useRealTimers();
     });
 });

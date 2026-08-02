@@ -9,19 +9,20 @@ import {
 /**
  * Mobile Layout Smoke Tests
  *
- * PR #1326 made the workspace usable on phone-sized screens (issue #1100)
- * with SCSS-only changes and no automated coverage. These tests pin the
- * invariants that regressed before:
+ * PR #1326 made the workspace usable on phone-sized screens (issue #1100);
+ * the follow-up drawer PR turned the phone context panel into an off-canvas
+ * drawer. These tests pin the invariants that regressed before:
  *
  *   1. No horizontal overflow — document.documentElement.scrollWidth stays
  *      within the viewport on dashboard, Xtream VOD/live, and settings.
  *   2. The workspace rail links render inside the 52px top bar instead of
  *      stacking downwards over the header.
- *   3. On a portal route the context panel and the content stack: the
- *      content keeps roughly the full viewport width instead of the ~50px
- *      a persisted desktop panel width used to leave it.
+ *   3. On a portal route the context panel is an off-canvas drawer: hidden
+ *      by default so the content keeps the full viewport width, opened from
+ *      the header toggle (winning over the persisted desktop inline width),
+ *      and closed again by picking a category or tapping the backdrop.
  *   4. The settings section list scrolls instead of painting over the
- *      Back footer.
+ *      Back footer — now inside the open drawer.
  *   5. On a 640x360 landscape phone the live route keeps the channel
  *      sidebar at least 72px tall and the player container inside the
  *      viewport.
@@ -106,18 +107,24 @@ test.describe('portrait phone 375x812', () => {
         await expectRailLinksInsideTopBar(page);
     });
 
-    test('@mobile settings section list stays clear of the Back footer', async ({
+    test('@mobile settings drawer opens from the header toggle and keeps the section list clear of the Back footer', async ({
         page,
     }) => {
         await page.goto('/workspace/settings');
 
+        // The phone context panel is an off-canvas drawer: hidden until the
+        // header toggle opens it, so the settings content owns the pane.
         const panel = page.locator('.context-panel--settings');
+        await expect(panel).toBeHidden();
+
+        await page.locator('[data-test-id="context-drawer-toggle"]').click();
         await expect(panel).toBeVisible();
 
-        // The panel stacks above the content at full width even though
-        // ResizableDirective writes its persisted desktop width inline.
+        // Narrower than the viewport so the backdrop stays tappable, and
+        // wider than the persisted desktop inline width would leave it.
         const panelBox = await boxOf(panel);
-        expect(panelBox.width).toBeGreaterThanOrEqual(PHONE.width - 2);
+        expect(panelBox.width).toBeGreaterThanOrEqual(300);
+        expect(panelBox.width).toBeLessThanOrEqual(PHONE.width - 20);
 
         const footer = panel.locator('.settings-panel-footer');
         await expect(footer.locator('.settings-back-button')).toBeVisible();
@@ -130,6 +137,12 @@ test.describe('portrait phone 375x812', () => {
         expect(listBox.y + listBox.height).toBeLessThanOrEqual(
             footerBox.y + 1
         );
+
+        // Tapping the backdrop (right of the drawer) closes it.
+        await page
+            .locator('[data-test-id="context-drawer-backdrop"]')
+            .click({ position: { x: PHONE.width - 10, y: 400 } });
+        await expect(panel).toBeHidden();
 
         await expectNoHorizontalOverflow(page, PHONE.width);
     });
@@ -149,31 +162,38 @@ test.describe('xtream portal routes on a phone', () => {
         await addXtreamPortal(page, 'Mobile Layout Portal');
     });
 
-    test('@mobile @xtream vod route stacks the context panel above full-width content', async ({
+    test('@mobile @xtream vod route keeps the context panel in a drawer behind the header toggle', async ({
         page,
     }) => {
         await page.setViewportSize(PHONE);
 
+        // Hidden by default — the content owns the full pane. This is the
+        // successor to the #1326 stacked layout, which left the content
+        // only the leftover under a 30vh panel.
         const panel = page.locator('.context-panel');
-        await expect(panel).toBeVisible();
-
-        // The persisted desktop width is written as an inline style; the
-        // phone rule must win with `width: 100% !important`, otherwise the
-        // panel keeps ~300px of a 375px screen.
-        await expect
-            .poll(async () => (await panel.boundingBox())?.width ?? 0)
-            .toBeGreaterThanOrEqual(PHONE.width - 2);
+        await expect(panel).toBeHidden();
 
         const content = page.locator('main.workspace-content');
         const contentWidth = await content.evaluate((el) => el.clientWidth);
         expect(contentWidth).toBeGreaterThanOrEqual(PHONE.width - 20);
 
-        // Stacked, not side by side: the content starts below the panel.
-        const panelBox = await boxOf(panel);
-        const contentBox = await boxOf(content);
-        expect(contentBox.y).toBeGreaterThanOrEqual(
-            panelBox.y + panelBox.height - 1
-        );
+        // The header toggle slides the drawer in. The persisted desktop
+        // width is written as an inline style; the drawer rule must win
+        // with `width: 100% !important` of its ~320px surface, otherwise
+        // the panel keeps its desktop width fraction.
+        await page.locator('[data-test-id="context-drawer-toggle"]').click();
+        await expect(panel).toBeVisible();
+        await expect
+            .poll(async () => (await panel.boundingBox())?.width ?? 0)
+            .toBeGreaterThanOrEqual(300);
+
+        // Picking a category both filters the route and closes the drawer.
+        const firstCategory = page
+            .locator('.context-panel .category-item')
+            .first();
+        await expect(firstCategory).toBeVisible();
+        await firstCategory.click();
+        await expect(panel).toBeHidden();
 
         await expectNoHorizontalOverflow(page, PHONE.width);
         await expectRailLinksInsideTopBar(page);

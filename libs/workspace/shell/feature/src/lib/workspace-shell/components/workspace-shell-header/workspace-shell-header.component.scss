@@ -20,6 +20,13 @@
     app-region: no-drag;
 }
 
+// Above the phone breakpoint the context panel is always visible beside the
+// content, so its drawer toggle would open nothing — it exists only at ≤640px.
+.context-drawer-toggle {
+    display: none;
+    app-region: no-drag;
+}
+
 .search-field {
     flex: 1;
     min-width: 160px;
@@ -323,6 +330,11 @@
     .workspace-header {
         padding-inline: 8px;
         gap: 8px;
+    }
+
+    .context-drawer-toggle {
+        display: inline-flex;
+        flex-shrink: 0;
     }
 
     .playlist-switcher {

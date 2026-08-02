@@ -8,7 +8,10 @@ import {
     EpgRuntimeBridgeService,
     EpgService,
 } from '@iptvnator/epg/data-access';
-import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
+import {
+    WorkspaceShellContextDrawerService,
+    WORKSPACE_SHELL_ACTIONS,
+} from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -114,6 +117,12 @@ describe('AppComponent', () => {
                 MockProvider(Router, {
                     navigateByUrl: jest.fn(),
                 }),
+                {
+                    // Root-provided in production; stubbed because the spec's
+                    // Router mock has no `events` stream for the real service.
+                    provide: WorkspaceShellContextDrawerService,
+                    useValue: { isOpen: () => false },
+                },
                 MockProvider(MatSnackBar, {
                     open: jest.fn(),
                 }),

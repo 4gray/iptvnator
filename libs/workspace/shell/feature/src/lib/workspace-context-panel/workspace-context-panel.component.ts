@@ -28,6 +28,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -69,6 +70,13 @@ export class WorkspaceContextPanelComponent {
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
+    // Root-provided; optional keeps standalone unit tests light. Only relevant
+    // when the panel renders as the phone drawer. Some selections here (e.g.
+    // Stalker ITV/radio) update the store without navigating, so the drawer's
+    // NavigationEnd auto-close never fires for them.
+    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
+        optional: true,
+    });
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
@@ -370,6 +378,7 @@ export class WorkspaceContextPanelComponent {
             return;
         }
         const categoryId = numericCategoryId;
+        this.contextDrawer?.close();
 
         if (section === 'live') {
             this.xtreamStore.setSelectedCategory(categoryId);
@@ -410,6 +419,7 @@ export class WorkspaceContextPanelComponent {
         const section = this.section();
         const categoryId = String(item.category_id ?? '*');
 
+        this.contextDrawer?.close();
         this.stalkerStore.setSelectedCategory(categoryId);
         this.stalkerStore.setPage(0);
         this.stalkerStore.clearSelectedItem();
