@@ -1524,19 +1524,18 @@ async function expectXtreamRootCatalogSearch(
     );
 }
 
+// By accessible name, not class plus visible text: the Xtream movie detail's
+// favorite control is an icon-only button whose label lives in aria-label,
+// while series and Stalker details still use the labeled variant.
 async function addCurrentDetailToFavorites(page: Page): Promise<void> {
     const addButton = page
-        .locator('button.favorite-btn')
-        .filter({ hasText: /Add to favorites/i })
+        .getByRole('button', { name: /add to favorites/i })
         .first();
 
     await expect(addButton).toBeVisible({ timeout: 20000 });
     await addButton.click();
     await expect(
-        page
-            .locator('button.favorite-btn.favorite-btn--active')
-            .filter({ hasText: /Remove from favorites/i })
-            .first()
+        page.getByRole('button', { name: /remove from favorites/i }).first()
     ).toBeVisible({ timeout: 20000 });
 }
 

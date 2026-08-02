@@ -13,12 +13,14 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    DialogService,
     PortalDetailShellComponent,
     VodSourcesChipComponent,
 } from '@iptvnator/ui/components';
@@ -110,6 +112,7 @@ function resolveVodIdentity(item: XtreamVodDetails): number | null {
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
         MatIcon,
+        MatTooltip,
         NgTemplateOutlet,
         PortalDetailShellComponent,
         SafePipe,
@@ -127,6 +130,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly downloadsService = inject(DownloadsService);
+    private readonly dialogService = inject(DialogService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly playback = inject(VodDetailsPlaybackService);
@@ -305,10 +309,29 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     );
     readonly isDownloading = this.downloads.isDownloading;
     readonly isPausedDownload = this.downloads.isPausedDownload;
+    readonly downloadPercent = this.downloads.downloadPercent;
     readonly isOfflinePrimary = computed(
         () =>
             this.isDownloaded() && this.externalPrimaryButtonState() === 'idle'
     );
+
+    /** 2πr of the r=15.5 progress-ring circle in its 36×36 viewBox. */
+    readonly downloadRingCircumference = 2 * Math.PI * 15.5;
+
+    /**
+     * Dash offset that leaves the arc at the real percent — or a fixed
+     * quarter arc when the total size is unknown and the ring spins instead.
+     */
+    readonly downloadRingOffset = computed(() => {
+        const percent = this.downloadPercent();
+        return percent === null
+            ? this.downloadRingCircumference * 0.75
+            : this.downloadRingCircumference * (1 - percent / 100);
+    });
+
+    /** Drives the heart's brief scale pulse when favoriting toggles. */
+    readonly favoritePulse = signal(false);
+    private favoritePulseTimer: ReturnType<typeof setTimeout> | null = null;
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
@@ -461,6 +484,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        if (this.favoritePulseTimer) {
+            clearTimeout(this.favoritePulseTimer);
+        }
         this.xtreamStore.cancelDetailsRequest();
         this.playback.closeInlinePlayer();
         this.xtreamStore.setSelectedItem(null);
@@ -580,6 +606,15 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             'movie',
             this.selectedVodInfo()?.backdrop_path?.[0]
         );
+
+        this.favoritePulse.set(true);
+        if (this.favoritePulseTimer) {
+            clearTimeout(this.favoritePulseTimer);
+        }
+        this.favoritePulseTimer = setTimeout(
+            () => this.favoritePulse.set(false),
+            220
+        );
     }
 
     getBackdropUrl(info: XtreamVodInfo): string | undefined {
@@ -645,6 +680,26 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
 
     resumePausedDownload(): Promise<void> {
         return this.downloads.resumePaused();
+    }
+
+    /**
+     * A running download is destroyed by one click, so the icon button asks
+     * first — there is no label left to warn what the click does.
+     */
+    promptCancelDownload(): void {
+        this.dialogService.openConfirmDialog({
+            title: this.translateService.instant(
+                'DOWNLOADS.CANCEL_CONFIRM_TITLE'
+            ),
+            message: this.translateService.instant(
+                'DOWNLOADS.CANCEL_CONFIRM_MESSAGE'
+            ),
+            onConfirm: () => void this.downloads.cancelActive(),
+        });
+    }
+
+    revealDownloadedFile(): Promise<void> {
+        return this.downloads.revealDownloaded();
     }
 
     downloadVod(vodItem: XtreamVodDetails | null): Promise<void> {

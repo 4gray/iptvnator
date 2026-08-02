@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Filtrar por lista",
             "NO_MATCHES": "Ninguna lista coincide con ese filtro",
             "COPIES": "{{count}} copias en esta lista",
-            "MORE_SOURCES": "+{{count}} más en la lista de fuentes"
+            "MORE_SOURCES": "+{{count}} más en la lista de fuentes",
+            "FILTER_ALL": "Todas",
+            "FILTER_AVAILABLE": "Disponibles",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Todos los idiomas",
+            "SAME_AS_ABOVE": "igual que la anterior",
+            "SHOWING_OF_TOTAL": "{{visible}} de {{total}}"
         }
     },
     "INFORMATION": "Información",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Pausar",
         "RESUME": "Reanudar",
         "CANCEL": "Cancelar",
+        "DOWNLOADED_REVEAL": "Descargado — mostrar en carpeta",
+        "DOWNLOADING_PERCENT": "Descargando… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "Cancelar descarga",
+        "CANCEL_CONFIRM_MESSAGE": "¿Detener esta descarga? El archivo descargado parcialmente se descartará.",
         "RETRY": "Reintentar",
         "REMOVE": "Eliminar",
         "PLAY": "Reproducir",

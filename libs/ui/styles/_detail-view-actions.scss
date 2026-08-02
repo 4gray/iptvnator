@@ -107,6 +107,131 @@
     }
 }
 
+// Icon-only secondary actions (Favorites, Download) from the sources-popup
+// handoff: square ghosts at the primary CTA's height, so the label-less pair
+// reads as satellites of Play instead of competing with it. The translucent
+// surface keeps the border — over bright hero art these buttons otherwise
+// lose their edges.
+@mixin icon-action-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    min-height: 64px;
+    padding: 0;
+    // Theme-aware ghost surface: over a bright light-theme hero a white-alpha
+    // fill and border simply vanish, which is exactly the lost-edges failure
+    // the border exists to prevent. The tag vars already flip per theme.
+    background: var(--tag-bg, rgba(255, 255, 255, 0.08));
+    color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+    border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.12));
+    border-radius: 16px;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+
+    &:hover {
+        background: var(--tag-border, rgba(255, 255, 255, 0.14));
+        border-color: var(--text-muted, rgba(255, 255, 255, 0.5));
+        color: var(--text-primary, #fff);
+    }
+
+    mat-icon {
+        font-size: 26px;
+        width: 26px;
+        height: 26px;
+    }
+}
+
+@mixin icon-action-button-states {
+    // Favorited: same ghost surface — only the glyph fills and turns red.
+    &--favorite.is-active {
+        color: #ff5b6e;
+
+        &:hover {
+            color: #ff7b8b;
+        }
+    }
+
+    &--favorite.is-pulsing mat-icon {
+        animation: icon-action-pulse 180ms ease;
+    }
+
+    // Downloaded: green check; the click now opens the file's location.
+    &--done {
+        color: #4ade80;
+
+        &:hover {
+            color: #6ee7a0;
+        }
+    }
+}
+
+// The download button's circular progress: track + value arc, spinning when
+// the total size — and so the percent — is unknown.
+@mixin download-progress-ring {
+    .download-ring {
+        width: 30px;
+        height: 30px;
+        transform: rotate(-90deg);
+
+        &--indeterminate {
+            animation: download-ring-spin 0.9s linear infinite;
+        }
+    }
+
+    .download-ring__track {
+        fill: none;
+        stroke: var(--tag-border, rgba(255, 255, 255, 0.12));
+        stroke-width: 3;
+    }
+
+    .download-ring__value {
+        fill: none;
+        stroke: var(--accent-color, #4f8eff);
+        stroke-width: 3;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.3s ease;
+    }
+
+    .icon-action-btn__center {
+        position: absolute;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+    }
+}
+
+@mixin icon-action-keyframes {
+    @keyframes icon-action-pulse {
+        50% {
+            transform: scale(1.15);
+        }
+    }
+
+    @keyframes download-ring-spin {
+        to {
+            transform: rotate(270deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .icon-action-btn mat-icon {
+            animation: none !important;
+        }
+
+        .download-ring--indeterminate {
+            animation-duration: 3.6s;
+        }
+    }
+}
+
 @mixin mobile-action-buttons {
     .play-btn,
     .favorite-btn,

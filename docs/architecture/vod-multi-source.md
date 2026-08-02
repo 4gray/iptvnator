@@ -123,11 +123,90 @@ the toggle off while it was on — and did nothing when flipped — would be wor
 than not offering it.
 
 The two numbers around it are deliberately different, because their sentences
-are: the chip says "Sources N" and counts alternative **streams**, while the
+are: the details-page chip says "Sources N" and counts every copy across all
+playlists — the total the popover lists, route copy included — while the
 caption says "also found in N other playlists" and counts distinct
-**playlists** (`alternativePlaylistCount`). The popover groups a portal's three
-copies of a film under that one portal, so counting rows there would contradict
-the list the caption invites the user to open.
+**playlists** (`alternativePlaylistCount`). The popover groups a portal's
+three copies of a film under that one portal, so a badge counting playlists
+would contradict the "All (N)" chip inside, and a caption counting streams
+would contradict the grouped list it invites the user to open. (The in-player
+chip still passes the alternatives count: its sentence is "N other places to
+go", not "N copies exist".)
+
+### The popover: anchoring and fit
+
+The chip opens the popover **above** itself, right edges aligned, through a
+CDK connected overlay with flexible dimensions. That combination is the whole
+fit contract:
+
+- The overlay's bounding box caps the panel to the space between the chip and
+  the viewport edge (16px margin), and inside the panel only the source LIST
+  scrolls — header, search, filter chips and the auto-failover footer are
+  `flex: none`, so they stay visible however short the panel gets.
+- The overlay's `minHeight` (280px) exists for the FLIP decision, not for
+  sizing: when less than that remains above the chip, CDK skips the position
+  and the panel opens below instead, tail mirrored. As an inline pane style
+  that minimum would also stretch a two-source panel to 280px, so the pane
+  classes neutralize it visually (`.vod-sources-pop--*`).
+- The position strategy re-applies itself on window resize, so the cap and
+  the flip both hold at any window proportion without component code.
+
+### The popover: filters
+
+The chip row composes with the host search (AND): **All (N)** resets the chip
+filters and states the total copy count, **Available** keeps only sources
+whose probe verified them, **HD+** keeps sources whose quality tag reads
+1080p or better, and the language select is built from the `EN|`-style
+prefixes actually present in the raw titles. Two of these encode a decision
+worth writing down:
+
+- "Available" is strict: only `probe.status === 'ok'` passes. An unchecked
+  source must never pass a filter with that name — and because checks are
+  lazy, activating the filter while NO source anywhere has a verdict runs
+  check-all itself rather than filtering against nothing.
+- "HD+" reads the quality tag whether stated (`api`) or guessed (`parsed`).
+  This is a deliberate, narrow exception to "guesses never drive decisions":
+  the filter is a browse aid the user operates while looking at the `~`
+  markers, not an automatic choice — and hiding a copy whose own title says
+  1080p would make the filter look broken. Ranking and failover still go
+  through `factualOnly()` and cannot see guesses.
+
+When search or filters reduce the list, a muted "X of N" counter appears, and
+groups with no matching copy disappear entirely.
+
+### The popover: copy rows
+
+Expanding "N copies in this playlist" lists EVERY copy of the group —
+including the one the parent row already shows — as compact
+`app-vod-source-copy-row`s indented under the parent's text column. The
+playlist's name and monogram are not repeated: the primary text is the
+provider's own raw stream title (mono), with the parsed `EN|`/`RU|` language
+prefix promoted to a chip before it. The tag row shows only values that
+DIFFER from the parent's copy (identical container/codec are omitted), so
+what distinguishes a copy is the only thing on the line; the copy identical
+to the parent shows a muted "same as above" note instead. The fuzzy-match
+warning and the probe verdict are per-copy claims and always render. Each
+copy row keeps its own check and play actions — play switches playback to
+that exact stream and moves the active badge.
+
+### Checks: bounded, remembered
+
+"Check all" (and the Available filter's implicit one) fires one task per
+unchecked source, and each task costs a live `get_vod_info` against a foreign
+portal plus a HEAD at the stream. The host therefore runs at most **4**
+checks concurrently (`createCheckQueue` in the vod-details folder); a row
+flips to "checking" the moment it is asked for — which is also what dedupes a
+second click while it waits for a slot.
+
+Settled verdicts (`ok`/`fail`, never `unknown`) are remembered for 10 minutes
+in the root-provided `VodSourceProbeCacheService`, keyed by source id — i.e.
+per movie **and** per source. The per-movie controller dies with its detail
+page, so without this every navigation away and back would re-contact every
+foreign portal on the next check-all; with it, a rediscovery seeds untouched
+rows from the cache and shows "available · 0.3s" again without a request. The
+cache is in-memory only: a probe verdict is a claim about the present, and
+persisting it across app launches would let a stale "available" outlive the
+stream it described.
 
 ## Identity
 

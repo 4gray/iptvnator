@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "فلتر بقائمة التشغيل",
             "NO_MATCHES": "ما كاينش قوائم تشغيل مطابقة لهاد الفلتر",
             "COPIES": "{{count}} ديال النسخ ف هاد قائمة التشغيل",
-            "MORE_SOURCES": "+{{count}} أخرى ف لائحة المصادر"
+            "MORE_SOURCES": "+{{count}} أخرى ف لائحة المصادر",
+            "FILTER_ALL": "الكل",
+            "FILTER_AVAILABLE": "متوفر",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "كل اللغات",
+            "SAME_AS_ABOVE": "بحال اللي الفوق",
+            "SHOWING_OF_TOTAL": "{{visible}} من {{total}}"
         }
     },
     "INFORMATION": "معلومات",
@@ -1071,6 +1077,10 @@
         "PAUSE": "وقّف مؤقتاً",
         "RESUME": "كمّل",
         "CANCEL": "إلغاء",
+        "DOWNLOADED_REVEAL": "تحمّل — وري في المجلد",
+        "DOWNLOADING_PERCENT": "جاري التحميل… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "إلغاء التحميل",
+        "CANCEL_CONFIRM_MESSAGE": "بغيتي توقف هاد التحميل؟ الملف اللي تحمّل شي جزء منه غادي يتمسح.",
         "RETRY": "حاول مرة أخرى",
         "REMOVE": "حيد",
         "PLAY": "شغل",

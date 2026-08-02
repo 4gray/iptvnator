@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Oynatma listesine göre filtrele",
             "NO_MATCHES": "Bu filtreyle eşleşen oynatma listesi yok",
             "COPIES": "Bu oynatma listesinde {{count}} kopya",
-            "MORE_SOURCES": "Kaynak listesinde +{{count}} daha"
+            "MORE_SOURCES": "Kaynak listesinde +{{count}} daha",
+            "FILTER_ALL": "Tümü",
+            "FILTER_AVAILABLE": "Kullanılabilir",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Tüm diller",
+            "SAME_AS_ABOVE": "üsttekiyle aynı",
+            "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         }
     },
     "INFORMATION": "Bilgi",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Duraklat",
         "RESUME": "Devam et",
         "CANCEL": "İptal",
+        "DOWNLOADED_REVEAL": "İndirildi — klasörde göster",
+        "DOWNLOADING_PERCENT": "İndiriliyor… %{{percent}}",
+        "CANCEL_CONFIRM_TITLE": "İndirmeyi iptal et",
+        "CANCEL_CONFIRM_MESSAGE": "Bu indirme durdurulsun mu? Kısmen indirilen dosya silinecek.",
         "RETRY": "Tekrar Dene",
         "REMOVE": "Kaldır",
         "PLAY": "Oynat",

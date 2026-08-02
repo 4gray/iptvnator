@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Φιλτράρισμα κατά λίστα αναπαραγωγής",
             "NO_MATCHES": "Δεν βρέθηκαν αντίστοιχες λίστες αναπαραγωγής",
             "COPIES": "{{count}} αντίγραφα σε αυτήν τη λίστα",
-            "MORE_SOURCES": "+{{count}} ακόμη στη λίστα πηγών"
+            "MORE_SOURCES": "+{{count}} ακόμη στη λίστα πηγών",
+            "FILTER_ALL": "Όλα",
+            "FILTER_AVAILABLE": "Διαθέσιμα",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Όλες οι γλώσσες",
+            "SAME_AS_ABOVE": "ίδιο με το παραπάνω",
+            "SHOWING_OF_TOTAL": "{{visible}} από {{total}}"
         }
     },
     "INFORMATION": "Πληροφορίες",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Παύση",
         "RESUME": "Συνέχιση",
         "CANCEL": "Ακύρωση",
+        "DOWNLOADED_REVEAL": "Λήφθηκε — εμφάνιση στον φάκελο",
+        "DOWNLOADING_PERCENT": "Λήψη… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "Ακύρωση λήψης",
+        "CANCEL_CONFIRM_MESSAGE": "Διακοπή αυτής της λήψης; Το μερικώς ληφθέν αρχείο θα διαγραφεί.",
         "RETRY": "Επανάληψη",
         "REMOVE": "Αφαίρεση",
         "PLAY": "Αναπαραγωγή",

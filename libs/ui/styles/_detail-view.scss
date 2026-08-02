@@ -512,6 +512,14 @@
         @include detail-actions.download-button-state;
     }
 
+    .icon-action-btn {
+        @include detail-actions.icon-action-button;
+        @include detail-actions.icon-action-button-states;
+        @include detail-actions.download-progress-ring;
+    }
+
+    @include detail-actions.icon-action-keyframes;
+
     // ============================================================================
     // Content Sections - Below the hero fold
     // ============================================================================

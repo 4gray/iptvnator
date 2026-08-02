@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Szűrés lejátszási lista alapján",
             "NO_MATCHES": "Nincs a szűrőnek megfelelő lejátszási lista",
             "COPIES": "{{count}} másolat ebben a listában",
-            "MORE_SOURCES": "+{{count}} további a forráslistában"
+            "MORE_SOURCES": "+{{count}} további a forráslistában",
+            "FILTER_ALL": "Összes",
+            "FILTER_AVAILABLE": "Elérhető",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Minden nyelv",
+            "SAME_AS_ABOVE": "ugyanaz, mint fent",
+            "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         }
     },
     "INFORMATION": "Információk",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Pause",
         "RESUME": "Resume",
         "CANCEL": "Mégse",
+        "DOWNLOADED_REVEAL": "Letöltve — megjelenítés a mappában",
+        "DOWNLOADING_PERCENT": "Letöltés… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "Letöltés megszakítása",
+        "CANCEL_CONFIRM_MESSAGE": "Leállítja ezt a letöltést? A részben letöltött fájl törlődik.",
         "RETRY": "Újrapróbálkozás",
         "REMOVE": "Eltávolítás",
         "PLAY": "Lejátszás",

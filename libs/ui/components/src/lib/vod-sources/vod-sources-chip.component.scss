@@ -29,6 +29,19 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 }
 
+// Pressed while the popover is open, so the button and the panel read as one
+// control. Doubled class beats the host surface rule the hero applies.
+.sources-chip.sources-chip--open {
+    background: color-mix(in srgb, var(--app-selection-color) 16%, transparent);
+    border-color: var(--app-selection-color);
+    color: var(--app-selection-color);
+
+    .sources-chip__icon,
+    .sources-chip__caret {
+        color: inherit;
+    }
+}
+
 .sources-chip__icon {
     font-size: 18px;
     width: 18px;
@@ -66,13 +79,56 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 // The popover surface. Width lives here, on an element we fully own, instead
 // of being fought out with Material's 280px menu cap.
 .sources-chip__panel {
-    display: block;
-    width: 620px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    // The overlay's flexible bounding box is the height authority; the panel
+    // takes what it grants and the menu's list scrolls inside it.
+    max-height: 100%;
+    min-height: 0;
+    width: 660px;
     max-width: calc(100vw - 32px);
-    box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
+    box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.45),
+        0 4px 18px rgba(0, 0, 0, 0.3);
     border-radius: 14px;
     // Opaque here as well as on the inner surface: a CDK overlay floats over
     // arbitrary page content, so a missing background is not a cosmetic bug —
     // it makes the whole panel unreadable.
     background: var(--app-widget-bg, #161a22);
+}
+
+// The pane carries these classes (per-position `panelClass`), so they must
+// escape this component's scoping. The overlay's `minHeight` exists for the
+// FLIP calculation — as an inline style on the pane it would also stretch a
+// short panel, so it is neutralized visually.
+::ng-deep .vod-sources-pop--above,
+::ng-deep .vod-sources-pop--below {
+    min-height: 0 !important;
+}
+
+// Pointer tail: an 11px rotated square on the edge facing the chip, wearing
+// the panel's own surface and border so it reads as part of it.
+::ng-deep .vod-sources-pop--above .sources-chip__panel::after,
+::ng-deep .vod-sources-pop--below .sources-chip__panel::after {
+    content: '';
+    position: absolute;
+    right: 60px;
+    width: 11px;
+    height: 11px;
+    background: var(--app-widget-bg, #161a22);
+    transform: rotate(45deg);
+    pointer-events: none;
+}
+
+::ng-deep .vod-sources-pop--above .sources-chip__panel::after {
+    bottom: -6px;
+    border-right: 1px solid var(--app-widget-border, rgba(255, 255, 255, 0.1));
+    border-bottom: 1px solid var(--app-widget-border, rgba(255, 255, 255, 0.1));
+}
+
+::ng-deep .vod-sources-pop--below .sources-chip__panel::after {
+    top: -6px;
+    border-left: 1px solid var(--app-widget-border, rgba(255, 255, 255, 0.1));
+    border-top: 1px solid var(--app-widget-border, rgba(255, 255, 255, 0.1));
 }

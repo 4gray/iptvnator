@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Фильтровать по плейлисту",
             "NO_MATCHES": "Ни один плейлист не соответствует фильтру",
             "COPIES": "Копий в этом плейлисте: {{count}}",
-            "MORE_SOURCES": "+{{count}} в списке источников"
+            "MORE_SOURCES": "+{{count}} в списке источников",
+            "FILTER_ALL": "Все",
+            "FILTER_AVAILABLE": "Доступные",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Все языки",
+            "SAME_AS_ABOVE": "как строкой выше",
+            "SHOWING_OF_TOTAL": "{{visible}} из {{total}}"
         }
     },
     "INFORMATION": "Инфо",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Пауза",
         "RESUME": "Возобновить",
         "CANCEL": "Отмена",
+        "DOWNLOADED_REVEAL": "Скачано — показать в папке",
+        "DOWNLOADING_PERCENT": "Скачивается… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "Отменить скачивание",
+        "CANCEL_CONFIRM_MESSAGE": "Остановить это скачивание? Частично скачанный файл будет удалён.",
         "RETRY": "Повторить",
         "REMOVE": "Удалить",
         "PLAY": "Воспроизвести",

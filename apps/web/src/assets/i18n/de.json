@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Nach Playlist filtern",
             "NO_MATCHES": "Keine Playlists entsprechen dem Filter",
             "COPIES": "{{count}} Kopien in dieser Playlist",
-            "MORE_SOURCES": "+{{count}} weitere unter „Quellen“"
+            "MORE_SOURCES": "+{{count}} weitere unter „Quellen“",
+            "FILTER_ALL": "Alle",
+            "FILTER_AVAILABLE": "Verfügbar",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Alle Sprachen",
+            "SAME_AS_ABOVE": "wie oben",
+            "SHOWING_OF_TOTAL": "{{visible}} von {{total}}"
         }
     },
     "INFORMATION": "Information",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Pausieren",
         "RESUME": "Fortsetzen",
         "CANCEL": "Abbrechen",
+        "DOWNLOADED_REVEAL": "Heruntergeladen — im Ordner anzeigen",
+        "DOWNLOADING_PERCENT": "Wird heruntergeladen… {{percent}} %",
+        "CANCEL_CONFIRM_TITLE": "Download abbrechen",
+        "CANCEL_CONFIRM_MESSAGE": "Diesen Download beenden? Die teilweise heruntergeladene Datei wird verworfen.",
         "RETRY": "Wiederholen",
         "REMOVE": "Entfernen",
         "PLAY": "Abspielen",

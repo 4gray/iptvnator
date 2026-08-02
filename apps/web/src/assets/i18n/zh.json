@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "按播放列表筛选",
             "NO_MATCHES": "未找到匹配的播放列表",
             "COPIES": "此播放列表中有 {{count}} 个版本",
-            "MORE_SOURCES": "其余 {{count}} 个在播放源列表中"
+            "MORE_SOURCES": "其余 {{count}} 个在播放源列表中",
+            "FILTER_ALL": "全部",
+            "FILTER_AVAILABLE": "可用",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "所有语言",
+            "SAME_AS_ABOVE": "与上行相同",
+            "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         }
     },
     "INFORMATION": "信息",
@@ -1071,6 +1077,10 @@
         "PAUSE": "暂停",
         "RESUME": "继续",
         "CANCEL": "取消",
+        "DOWNLOADED_REVEAL": "已下载 — 在文件夹中显示",
+        "DOWNLOADING_PERCENT": "下载中… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "取消下载",
+        "CANCEL_CONFIRM_MESSAGE": "停止此下载？已下载的部分文件将被删除。",
         "RETRY": "重试",
         "REMOVE": "移除",
         "PLAY": "播放",

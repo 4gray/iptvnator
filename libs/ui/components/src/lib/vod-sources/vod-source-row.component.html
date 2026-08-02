@@ -19,36 +19,7 @@
         </div>
 
         <div class="source-row__tags">
-            @for (tag of tags(); track tag.id) {
-                <span
-                    class="source-tag"
-                    [class.source-tag--ok]="tag.tone === 'ok'"
-                    [class.source-tag--warn]="tag.tone === 'warn'"
-                    [class.source-tag--bad]="tag.tone === 'bad'"
-                >
-                    @if (tag.spinner) {
-                        <span
-                            class="source-tag__spinner"
-                            aria-hidden="true"
-                        ></span>
-                    } @else if (tag.icon) {
-                        <mat-icon class="source-tag__icon">{{
-                            tag.icon
-                        }}</mat-icon>
-                    }
-                    @if (tag.prefix) {
-                        <span class="source-tag__prefix">{{ tag.prefix }}</span>
-                    }
-                    @if (tag.labelKey) {
-                        <span>{{ tag.labelKey | translate }}</span>
-                    } @else {
-                        <span>{{ tag.text }}</span>
-                    }
-                    @if (tag.suffix) {
-                        <span class="source-tag__suffix">{{ tag.suffix }}</span>
-                    }
-                </span>
-            }
+            <app-vod-source-tag-list [tags]="tags()" />
             @if (showCheckChip()) {
                 <button
                     type="button"

@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "プレイリストでフィルター",
             "NO_MATCHES": "このフィルターに一致するプレイリストはありません",
             "COPIES": "このプレイリスト内に{{count}}件",
-            "MORE_SOURCES": "他 {{count}} 件はソース一覧から"
+            "MORE_SOURCES": "他 {{count}} 件はソース一覧から",
+            "FILTER_ALL": "すべて",
+            "FILTER_AVAILABLE": "利用可能",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "すべての言語",
+            "SAME_AS_ABOVE": "上と同じ",
+            "SHOWING_OF_TOTAL": "{{total}}件中{{visible}}件"
         }
     },
     "INFORMATION": "情報",
@@ -1071,6 +1077,10 @@
         "PAUSE": "一時停止",
         "RESUME": "再開",
         "CANCEL": "キャンセル",
+        "DOWNLOADED_REVEAL": "ダウンロード済み — フォルダで表示",
+        "DOWNLOADING_PERCENT": "ダウンロード中… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "ダウンロードをキャンセル",
+        "CANCEL_CONFIRM_MESSAGE": "このダウンロードを中止しますか？部分的にダウンロードされたファイルは破棄されます。",
         "RETRY": "再試行",
         "REMOVE": "削除",
         "PLAY": "再生",

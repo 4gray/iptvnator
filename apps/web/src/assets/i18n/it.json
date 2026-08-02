@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Filtra per playlist",
             "NO_MATCHES": "Nessuna playlist corrisponde al filtro",
             "COPIES": "{{count}} copie in questa playlist",
-            "MORE_SOURCES": "+{{count}} nell'elenco sorgenti"
+            "MORE_SOURCES": "+{{count}} nell'elenco sorgenti",
+            "FILTER_ALL": "Tutte",
+            "FILTER_AVAILABLE": "Disponibili",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Tutte le lingue",
+            "SAME_AS_ABOVE": "uguale alla riga sopra",
+            "SHOWING_OF_TOTAL": "{{visible}} di {{total}}"
         }
     },
     "INFORMATION": "Informazioni",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Pausa",
         "RESUME": "Riprendi",
         "CANCEL": "Annulla",
+        "DOWNLOADED_REVEAL": "Scaricato — mostra nella cartella",
+        "DOWNLOADING_PERCENT": "Download in corso… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "Annulla download",
+        "CANCEL_CONFIRM_MESSAGE": "Interrompere questo download? Il file scaricato parzialmente verrà eliminato.",
         "RETRY": "Riprova",
         "REMOVE": "Rimuovi",
         "PLAY": "Riproduci",

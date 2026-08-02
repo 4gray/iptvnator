@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Фільтраваць па плэйлісце",
             "NO_MATCHES": "Ніводны плэйліст не адпавядае гэтаму фільтру",
             "COPIES": "{{count}} копій у гэтым плэйлісце",
-            "MORE_SOURCES": "+{{count}} у спісе крыніц"
+            "MORE_SOURCES": "+{{count}} у спісе крыніц",
+            "FILTER_ALL": "Усе",
+            "FILTER_AVAILABLE": "Даступныя",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Усе мовы",
+            "SAME_AS_ABOVE": "як радком вышэй",
+            "SHOWING_OF_TOTAL": "{{visible}} з {{total}}"
         }
     },
     "INFORMATION": "Інфармацыя",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Паўза",
         "RESUME": "Узнавіць",
         "CANCEL": "Скасаваць",
+        "DOWNLOADED_REVEAL": "Спампавана — паказаць у папцы",
+        "DOWNLOADING_PERCENT": "Спампоўваецца… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "Скасаваць спампоўванне",
+        "CANCEL_CONFIRM_MESSAGE": "Спыніць гэтае спампоўванне? Часткова спампаваны файл будзе выдалены.",
         "RETRY": "Паўтарыць",
         "REMOVE": "Выдаліць",
         "PLAY": "Прайграць",

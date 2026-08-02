@@ -1,0 +1,157 @@
+@use 'source-tag' as tag;
+
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+:host {
+    display: block;
+}
+
+@include tag.source-tag-theme-vars;
+
+.copy-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 9px;
+    box-sizing: border-box;
+    transition:
+        background 0.15s ease,
+        outline-color 0.15s ease;
+
+    &:hover {
+        background: var(--app-card-hover-bg);
+    }
+
+    &--active,
+    &--active:hover {
+        background: var(--app-selection-surface);
+        outline: 1px solid var(--app-selection-color);
+        outline-offset: -1px;
+    }
+}
+
+.copy-row__main {
+    flex: 1;
+    min-width: 0;
+}
+
+.copy-row__title-line {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+// The parsed language prefix, promoted to a chip so it can be scanned down a
+// column of copies instead of read out of every title.
+.copy-row__lang {
+    flex: none;
+    font-family: $font-mono;
+    font-weight: 600;
+    font-size: 10px;
+    line-height: 1.5;
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--vod-source-lang-fg);
+    background: var(--vod-source-lang-bg);
+}
+
+// The provider's own raw title — monospace, since it is data, not copy.
+.copy-row__title {
+    font-family: $font-mono;
+    font-weight: 500;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--app-on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.copy-row__badge {
+    flex: none;
+    font-family: $font-mono;
+    font-weight: 600;
+    font-size: 9px;
+    line-height: 1.3;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--app-selection-color);
+    background: color-mix(in srgb, var(--app-selection-color) 12%, transparent);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.copy-row__tags {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+.copy-row__same {
+    font-family: $font-mono;
+    font-weight: 500;
+    font-size: 10px;
+    color: var(--app-eyebrow-color);
+}
+
+.copy-row__actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.copy-row__action {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--app-widget-border);
+    background: transparent;
+    color: var(--app-eyebrow-color);
+    cursor: pointer;
+    transition:
+        color 0.15s ease,
+        background 0.15s ease,
+        border-color 0.15s ease;
+
+    mat-icon {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+        line-height: 15px;
+    }
+
+    &:hover {
+        color: var(--app-on-surface);
+        background: var(--app-card-hover-bg);
+    }
+
+    &--play {
+        border-color: transparent;
+        background: var(--app-selection-color);
+        color: var(--mat-sys-on-primary, #fff);
+
+        &:hover {
+            background: color-mix(
+                in srgb,
+                var(--app-selection-color) 86%,
+                var(--app-on-surface)
+            );
+            color: var(--mat-sys-on-primary, #fff);
+        }
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 2px;
+    }
+}

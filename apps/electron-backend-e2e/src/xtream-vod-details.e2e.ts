@@ -93,11 +93,16 @@ test.describe('Xtream VOD Details', () => {
                 .locator('button.play-btn')
                 .first();
             await expect(playButton).toBeVisible();
+            // Both secondaries are icon-only on the movie detail now.
             await expect(
-                app.mainWindow.locator('button.favorite-btn').first()
+                app.mainWindow
+                    .locator('[data-testid="vod-favorite-toggle"]')
+                    .first()
             ).toBeVisible();
             await expect(
-                app.mainWindow.locator('button.download-btn').first()
+                app.mainWindow
+                    .locator('[data-testid="vod-download-start"]')
+                    .first()
             ).toBeVisible();
 
             const movieResponsePromise = app.mainWindow.waitForResponse(
