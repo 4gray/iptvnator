@@ -3,6 +3,7 @@ import {
     classifyStalkerProbeResponse,
     getStalkerRequestErrorStatus,
     isStalkerAuthFailureBody,
+    isStalkerAuthFailureMessage,
     isStalkerAuthFailureResponse,
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
@@ -254,6 +255,35 @@ describe('isStalkerAuthFailureResponse', () => {
             })
         ).toBe(false);
         expect(isStalkerAuthFailureResponse(undefined)).toBe(false);
+    });
+});
+
+describe('isStalkerAuthFailureMessage', () => {
+    it('matches the wide phrase set our own auth layer produces', () => {
+        expect(
+            isStalkerAuthFailureMessage('Profile error: Invalid token')
+        ).toBe(true);
+        expect(isStalkerAuthFailureMessage('Profile error: Auth failed')).toBe(
+            true
+        );
+        expect(
+            isStalkerAuthFailureMessage('Profile error: Access denied.')
+        ).toBe(true);
+    });
+
+    it('stays narrower than a free-form body check for unrelated text', () => {
+        expect(isStalkerAuthFailureMessage('nothing_to_play')).toBe(false);
+        expect(isStalkerAuthFailureMessage('timeout of 15000ms exceeded')).toBe(
+            false
+        );
+        expect(isStalkerAuthFailureMessage(undefined)).toBe(false);
+    });
+
+    it('is wider than the plain-text BODY matcher on purpose', () => {
+        // A portal BODY saying "Invalid token" is not one of the three
+        // middleware phrases; a controlled Error message is.
+        expect(isStalkerAuthFailureBody('Invalid token')).toBe(false);
+        expect(isStalkerAuthFailureMessage('Invalid token')).toBe(true);
     });
 });
 

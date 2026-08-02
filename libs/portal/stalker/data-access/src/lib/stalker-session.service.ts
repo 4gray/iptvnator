@@ -9,7 +9,10 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { isStalkerAuthFailureResponse } from './stalker-portal-discovery.utils';
+import {
+    isStalkerAuthFailureMessage,
+    isStalkerAuthFailureResponse,
+} from './stalker-portal-discovery.utils';
 import {
     getStalkerPortalIdentityFromPlaylist,
     LEGACY_DEFAULT_STALKER_SERIAL,
@@ -780,7 +783,7 @@ export class StalkerSessionService {
         // otherwise keep an expired token and every later request fails.
         if (
             isStalkerAuthFailureResponse(responseOrError) ||
-            isStalkerAuthFailureResponse(response?.['message'])
+            isStalkerAuthFailureMessage(response?.['message'])
         ) {
             return true;
         }

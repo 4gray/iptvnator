@@ -9,6 +9,7 @@ import { createLogger } from '@iptvnator/portal/shared/util';
 import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
 import {
     getStalkerRequestErrorStatus,
+    isStalkerAuthFailureMessage,
     isStalkerAuthFailureResponse,
 } from './stalker-portal-discovery.utils';
 import {
@@ -219,12 +220,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             const message = String(
                 (failure as { message?: unknown }).message ?? ''
             );
-            // The SAME failure set the session service and discovery use —
-            // authentication wraps structured denials as
-            // `Error('Profile error: Access denied.')`, and a narrower
+            // The SAME failure set the session service uses for error
+            // messages — authentication wraps structured denials as
+            // `Error('Profile error: Access denied.')` or
+            // `Error('Profile error: Invalid token')`, and a narrower
             // pattern here would let those bypass the repair entirely.
             return (
-                isStalkerAuthFailureResponse(message) ||
+                isStalkerAuthFailureMessage(message) ||
                 /handshake failed/i.test(message)
             );
         }

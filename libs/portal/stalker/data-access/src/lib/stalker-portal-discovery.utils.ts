@@ -178,6 +178,19 @@ const STALKER_JSON_AUTH_FAILURE_PATTERNS = [
     /authorization/i,
 ];
 
+/**
+ * Whether an ERROR MESSAGE reports an authorization failure. Uses the wide
+ * phrase set (including `Invalid token` / `Auth failed`) because the input
+ * is a controlled string produced by our own auth layer — e.g.
+ * `Error('Profile error: Invalid token')` — not an arbitrary portal body,
+ * where the same breadth would false-positive on HTML pages.
+ */
+export function isStalkerAuthFailureMessage(message: unknown): boolean {
+    return (
+        typeof message === 'string' && isStalkerJsonAuthFailurePhrase(message)
+    );
+}
+
 function isStalkerJsonAuthFailurePhrase(value: string): boolean {
     const phrase = value.trim();
     if (phrase.length === 0 || phrase.length > 200) {

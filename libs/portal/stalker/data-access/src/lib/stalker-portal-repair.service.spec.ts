@@ -153,6 +153,8 @@ describe('StalkerPortalRepairService', () => {
         it.each([
             'Profile error: Access denied.',
             'Profile error: Unauthorized request.',
+            'Profile error: Invalid token',
+            'Profile error: Auth failed',
         ])('triggers on the wrapped profile denial %j', (message) => {
             // Authentication wraps structured denials; the trigger uses the
             // same failure set as discovery and the session service, so
