@@ -104,10 +104,32 @@ describe('StalkerPortalRepairService', () => {
         it('triggers on HTTP 404 — the persisted endpoint does not exist', () => {
             expect(
                 service.shouldAttemptRepair(MISCLASSIFIED, {
-                    message: 'HTTP Error: Not Found',
+                    message: 'HTTP Error 404: Not Found',
                     status: 404,
                 })
             ).toBe(true);
+        });
+
+        it('triggers on HTTP 401/403 — discovery classifies those endpoints as auth-required', () => {
+            expect(
+                service.shouldAttemptRepair(MISCLASSIFIED, {
+                    message: 'HTTP Error 401: Unauthorized',
+                    status: 401,
+                })
+            ).toBe(true);
+            expect(
+                service.shouldAttemptRepair(MISCLASSIFIED, {
+                    message: 'HTTP Error 403: Forbidden',
+                    status: 403,
+                })
+            ).toBe(true);
+            // Endpoint-specific server errors are still not repair triggers.
+            expect(
+                service.shouldAttemptRepair(MISCLASSIFIED, {
+                    message: 'HTTP Error 500: Internal Server Error',
+                    status: 500,
+                })
+            ).toBe(false);
         });
 
         it('triggers on terminal session auth errors', () => {

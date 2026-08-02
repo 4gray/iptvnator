@@ -173,10 +173,11 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     /**
      * Whether a failure justifies probing at all. Only the failure shapes a
      * wrong endpoint/mode actually produces qualify: the middleware's
-     * plain-text auth bodies (misclassified canonical portal answering a
-     * token-less request), HTTP 404 (persisted endpoint does not exist on
-     * this server), and the session service's terminal auth/handshake
-     * errors. Timeouts and other network failures never trigger a probe —
+     * plain-text/JSON auth failures (misclassified canonical portal
+     * answering a token-less request), HTTP 404 (persisted endpoint does
+     * not exist), HTTP 401/403 (endpoint behind an HTTP auth gate), and
+     * the session service's terminal auth/handshake errors. Timeouts and
+     * other network failures never trigger a probe —
      * a portal that is temporarily down must not be reclassified.
      */
     shouldAttemptRepair(playlist: PlaylistMeta, failure: unknown): boolean {
@@ -188,7 +189,12 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return true;
         }
 
-        if (getStalkerRequestErrorStatus(failure) === 404) {
+        const status = getStalkerRequestErrorStatus(failure);
+        if (status === 404 || status === 401 || status === 403) {
+            // 404: the persisted endpoint does not exist on this server.
+            // 401/403: a token-free-classified playlist hit an HTTP auth
+            // gate — discovery classifies these endpoints as auth-required,
+            // so the repair must be allowed to reach it.
             return true;
         }
 
