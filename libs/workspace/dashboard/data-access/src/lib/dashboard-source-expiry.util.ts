@@ -1,6 +1,14 @@
 /** Warn this many days before a portal subscription lapses. */
 export const SOURCE_EXPIRY_WARNING_DAYS = 7;
 
+/**
+ * How often badge consumers should re-evaluate {@link resolveSourceExpiryBadge}
+ * against the wall clock. The badge state only moves at day granularity, but a
+ * dashboard left open must still cross day-countdown and expiration
+ * boundaries without a remount; a minute tick is imperceptibly cheap.
+ */
+export const SOURCE_EXPIRY_TICK_MS = 60_000;
+
 const SECONDS_PER_DAY = 86_400;
 
 /**

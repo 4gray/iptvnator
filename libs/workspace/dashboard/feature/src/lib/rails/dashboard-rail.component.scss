@@ -376,8 +376,9 @@
 }
 
 // Subscription-expiry chip on portal source cards. Mirrors the episode
-// chip's geometry; colors follow the switcher's status palette (amber =
-// expiring soon, red = already expired).
+// chip's geometry; the theme-aware token pairs (m3-theme.scss) keep the
+// small bold text at >= 4.5:1 contrast in both themes (amber = expiring
+// soon, error tone = already expired).
 .rail__card-expiry {
     flex: 0 0 auto;
     font-size: 0.66rem;
@@ -385,16 +386,22 @@
     line-height: 1;
     padding: 2px 6px;
     border-radius: 4px;
-    background: color-mix(in srgb, #ff9800 16%, transparent);
-    color: #e68a00;
+    background: var(
+        --app-expiry-warn-surface,
+        color-mix(in srgb, #d97706 16%, transparent)
+    );
+    color: var(--app-expiry-warn-text, #8a5300);
     letter-spacing: 0.02em;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
 
 .rail__card-expiry--expired {
-    background: color-mix(in srgb, #f44336 14%, transparent);
-    color: #f44336;
+    background: var(
+        --app-expiry-expired-surface,
+        color-mix(in srgb, #f44336 14%, transparent)
+    );
+    color: var(--app-expiry-expired-text, #b3261e);
 }
 
 .rail__card-subtitle {

@@ -48,6 +48,7 @@ import {
     DashboardTrendingService,
     GlobalRecentItem,
     resolveSourceExpiryBadge,
+    SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
 import type { DashboardHeroTmdbExtras } from './dashboard-hero-tmdb.service';
 import { DashboardHeroTmdbService } from './dashboard-hero-tmdb.service';
@@ -342,6 +343,14 @@ export class WorkspaceDashboardRailsComponent {
             .map((item) => this.toTrendingCard(item));
     });
 
+    // Minute heartbeat for the expiry badges: resolveSourceExpiryBadge reads
+    // the wall clock, so without a reactive tick a dashboard left open would
+    // never cross a day-countdown or expiration boundary.
+    private readonly sourceExpiryTick = toSignal(
+        interval(SOURCE_EXPIRY_TICK_MS).pipe(startWith(0)),
+        { initialValue: 0 }
+    );
+
     readonly sourceCards = computed<DashboardRailCard[]>(() =>
         this.data.recentPlaylists().map((playlist) => ({
             id: playlist._id,
@@ -417,7 +426,12 @@ export class WorkspaceDashboardRailsComponent {
         // Subscription-expiry badges for the source cards. Xtream rides the
         // shared PortalStatusService cache; Stalker reads the import-time
         // snapshot (memoized per playlist), so this stays cheap on re-entry.
+        // Gated on the sources rail being enabled — with the rail hidden no
+        // badge can render, so the status checks would be pure waste.
         effect(() => {
+            if (!this.dashboardRails().recentSources) {
+                return;
+            }
             const playlists = this.data.recentPlaylists();
             untracked(() => void this.sourceExpiry.refresh(playlists));
         });
@@ -612,6 +626,9 @@ export class WorkspaceDashboardRailsComponent {
     private buildSourceExpiryBadge(
         playlistId: string
     ): DashboardRailCard['expiryBadge'] {
+        // Reactive read: ties the wall-clock evaluation below to the minute
+        // tick (this method only runs inside the sourceCards computed).
+        this.sourceExpiryTick();
         const badge = resolveSourceExpiryBadge(
             this.sourceExpiry.facts().get(playlistId),
             Date.now()
