@@ -336,7 +336,18 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         const outcome = await this.discovery.discover(
             playlist.portalUrl ?? '',
             playlist.macAddress ?? '',
-            getStalkerPortalIdentityFromPlaylist(playlist)
+            getStalkerPortalIdentityFromPlaylist(playlist),
+            {
+                // A login/password portal answers `get_profile` with status 2
+                // during confirmation. Without the stored credentials the
+                // probe reports `login-required` and such a source could
+                // never be repaired, even though the playlist holds a
+                // working login.
+                credentials: {
+                    username: playlist.username,
+                    password: playlist.password,
+                },
+            }
         );
 
         if (outcome.status !== 'resolved') {

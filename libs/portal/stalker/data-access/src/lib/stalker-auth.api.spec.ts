@@ -318,6 +318,25 @@ describe('StalkerAuthApi', () => {
         expect(sendIpcEvent).not.toHaveBeenCalled();
     });
 
+    it('rechecks the abort after the async prehash, not just before the call', async () => {
+        // getProfile awaits generatePrehash(); an abort landing during that
+        // await would otherwise still let the adopting request go out.
+        const abandon = new AbortController();
+        const digest = globalThis.crypto.subtle.digest as jest.Mock;
+        digest.mockImplementation(async () => {
+            abandon.abort();
+            return new Uint8Array(20).fill(1).buffer;
+        });
+
+        await expect(
+            api.getProfile(portalUrl, macAddress, 'TOKEN-1', {}, 'r1', {
+                signal: abandon.signal,
+            })
+        ).rejects.toMatchObject({ name: 'StalkerAuthAbortedError' });
+
+        expect(sendIpcEvent).not.toHaveBeenCalled();
+    });
+
     it('stops the status-2 login flow when abandoned mid-way', async () => {
         const abandon = new AbortController();
         sendIpcEvent

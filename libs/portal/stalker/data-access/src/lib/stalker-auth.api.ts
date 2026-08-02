@@ -190,7 +190,8 @@ export class StalkerAuthApi {
         portalUrl: string,
         macAddress: string,
         identity: StalkerPortalIdentity = {},
-        storedToken?: string
+        storedToken?: string,
+        signal?: AbortSignal
     ): Promise<StalkerHandshakeOutcome> {
         const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
         const prehash = await generatePrehash(macAddress);
@@ -206,6 +207,10 @@ export class StalkerAuthApi {
         };
 
         try {
+            // Re-checked here rather than only at the call site: the prehash
+            // above is async, so an abort can land while it is being
+            // computed and the request would still go out.
+            assertNotAborted(signal);
             const response =
                 await this.dataService.sendIpcEvent<StalkerHandshakeResponse>(
                     STALKER_REQUEST,
@@ -248,7 +253,11 @@ export class StalkerAuthApi {
         token: string,
         identity: StalkerPortalIdentity,
         handshakeRandom: string,
-        options: { authSecondStep?: boolean; notValidToken?: boolean } = {}
+        options: {
+            authSecondStep?: boolean;
+            notValidToken?: boolean;
+            signal?: AbortSignal;
+        } = {}
     ): Promise<StalkerProfileResponse> {
         const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
 
@@ -296,6 +305,10 @@ export class StalkerAuthApi {
         };
 
         try {
+            // The last possible moment before the call that adopts the MAC's
+            // token portal-side — the prehash above is async, so the caller's
+            // pre-check can be stale by now.
+            assertNotAborted(options.signal);
             const response =
                 await this.dataService.sendIpcEvent<StalkerProfileResponse>(
                     STALKER_REQUEST,
@@ -327,7 +340,8 @@ export class StalkerAuthApi {
         macAddress: string,
         token: string,
         credentials: StalkerPortalCredentials,
-        identity: StalkerPortalIdentity = {}
+        identity: StalkerPortalIdentity = {},
+        signal?: AbortSignal
     ): Promise<boolean> {
         const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
         const params: Record<string, string> = {
@@ -345,6 +359,7 @@ export class StalkerAuthApi {
         };
 
         try {
+            assertNotAborted(signal);
             const response =
                 await this.dataService.sendIpcEvent<StalkerAuthConfirmationResponse>(
                     STALKER_REQUEST,
@@ -387,7 +402,8 @@ export class StalkerAuthApi {
             portalUrl,
             macAddress,
             normalizedIdentity,
-            options.storedToken
+            options.storedToken,
+            options.signal
         );
 
         // An unchanged stored token is already an adopted session — the
@@ -414,7 +430,11 @@ export class StalkerAuthApi {
             handshake.token,
             normalizedIdentity,
             handshake.random,
-            { authSecondStep: false, notValidToken: handshake.notValid }
+            {
+                authSecondStep: false,
+                notValidToken: handshake.notValid,
+                signal: options.signal,
+            }
         );
 
         // The envelope the login flow actually settled on: after a status-2
@@ -472,7 +492,8 @@ export class StalkerAuthApi {
                 macAddress,
                 handshake.token,
                 { username, password },
-                identity
+                identity,
+                options.signal
             );
             if (!accepted) {
                 throw new StalkerPortalError('login-rejected');
@@ -485,7 +506,11 @@ export class StalkerAuthApi {
                 handshake.token,
                 identity,
                 handshake.random,
-                { authSecondStep: true, notValidToken: handshake.notValid }
+                {
+                    authSecondStep: true,
+                    notValidToken: handshake.notValid,
+                    signal: options.signal,
+                }
             );
             settled = retried;
             js = retried?.js;

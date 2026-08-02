@@ -282,6 +282,26 @@ describe('StalkerPortalRepairService', () => {
             expect(writtenRow).toBeNull();
         });
 
+        it("forwards the playlist's stored credentials to discovery", async () => {
+            // A login/password portal answers status 2 during confirmation;
+            // without the credentials the probe reports `login-required` and
+            // the source could never be repaired.
+            discover.mockResolvedValue({ status: 'unreachable' });
+
+            await service.repairPortal({
+                ...MISCLASSIFIED,
+                username: 'user',
+                password: 'secret',
+            });
+
+            expect(discover).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.any(Object),
+                { credentials: { username: 'user', password: 'secret' } }
+            );
+        });
+
         it('probes at most once per playlist per session', async () => {
             discover.mockResolvedValue({ status: 'unreachable' });
 
