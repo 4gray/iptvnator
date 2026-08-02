@@ -612,6 +612,28 @@ describe('SeasonContainerComponent', () => {
         );
     });
 
+    it('gives the grid and list view radios localized accessible names', () => {
+        TestBed.inject(TranslateService).setTranslation(
+            'en',
+            {
+                PORTALS: {
+                    GRID_VIEW: 'Grid view',
+                    LIST_VIEW: 'List view',
+                },
+            },
+            true
+        );
+        setRequiredInputs({ '1': [createEpisode()] });
+        fixture.detectChanges();
+
+        const viewModeRadios = Array.from(
+            fixture.nativeElement.querySelectorAll('button[role="radio"]')
+        ) as HTMLButtonElement[];
+        expect(
+            viewModeRadios.map((radio) => radio.getAttribute('aria-label'))
+        ).toEqual(['Grid view', 'List view']);
+    });
+
     it('disables the season action until authoritative eligible work exists and while work is in flight', async () => {
         const first = createEpisode();
         enableDownloads();
