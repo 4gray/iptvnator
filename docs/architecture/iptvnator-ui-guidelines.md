@@ -371,14 +371,21 @@ but the component has not.
   layout. While open, the shell consumes Escape (downstream consumers —
   the inline player's close handler, the shared controls shortcuts — check
   `defaultPrevented`, so one keypress cannot close both the drawer and the
-  obscured player) and suppresses its own workspace-level shortcuts
-  (Ctrl/Cmd+F global search, Ctrl/Cmd+K command palette, the `?` shortcuts
-  dialog — dialogs must not stack a second focus trap on the modal
-  drawer), and document-level shortcuts owned by routed content (shared
-  controls, Embedded MPV legacy dock, radio audio player, the live
-  layouts' Ctrl/Cmd+B sidebar toggle) opt out on their own by checking for
-  an `inert` ancestor, since `inert` does not silence document-level
-  listeners. The drawer carries its own phone-only close
+  obscured player) and suppresses workspace-level shortcuts (Ctrl/Cmd+F
+  global search, Ctrl/Cmd+K command palette, Ctrl/Cmd+R global recent, the
+  `?` shortcuts dialog — dialogs must not stack a second focus trap on the
+  modal drawer, and navigation must not act behind it), and document-level
+  shortcuts owned by routed content (shared controls, Embedded MPV legacy
+  dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle)
+  opt out on their own by checking for an `inert` ancestor, since `inert`
+  does not silence document-level listeners. The service is root-provided
+  from `@iptvnator/workspace/shell/util` so consumers outside the shell's
+  element injector (AppComponent's Ctrl/Cmd+R handler) can observe it
+  without pulling the lazy shell chunk into the eager bundle. The shell
+  also registers the open drawer with
+  `EmbeddedMpvOverlayVisibilityService.acquireExternalModalSurface()`:
+  the native-view video surface is composited outside DOM stacking and
+  would paint straight over the drawer regardless of z-index. The drawer carries its own phone-only close
   button: touch screen-reader users have no hardware Escape and cannot
   reach the inert header toggle or the aria-hidden backdrop, so the
   trapped surface itself must offer dismissal even when its list is

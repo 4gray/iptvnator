@@ -7,11 +7,11 @@ import {
     isTypingInInput,
 } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import { WorkspaceShellContextDrawerService } from '../workspace-shell/services/workspace-shell-context-drawer.service';
 import {
     WorkspaceKeyboardShortcutsDialogComponent,
     WorkspaceKeyboardShortcutsDialogData,
 } from './workspace-keyboard-shortcuts-dialog.component';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 @Injectable()
 export class WorkspaceKeyboardShortcutsService {

@@ -2,8 +2,10 @@ import { Location } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
-import { SettingsContextService } from '@iptvnator/workspace/shell/util';
-import { WorkspaceShellContextDrawerService } from '../workspace-shell/services/workspace-shell-context-drawer.service';
+import {
+    WorkspaceShellContextDrawerService,
+ SettingsContextService
+} from '@iptvnator/workspace/shell/util';
 
 @Component({
     selector: 'app-workspace-settings-context-panel',

@@ -19,11 +19,11 @@ import {
 } from './helpers/workspace-shell-command-builders';
 import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
-import { WorkspaceShellContextDrawerService } from './workspace-shell-context-drawer.service';
 import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 export type { WorkspaceHeaderBulkAction } from './helpers/workspace-shell-constants';
 

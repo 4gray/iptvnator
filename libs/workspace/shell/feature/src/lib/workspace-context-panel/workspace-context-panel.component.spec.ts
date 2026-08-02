@@ -7,6 +7,7 @@ import { of } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { WORKSPACE_CATEGORY_SORT_STORAGE_KEY } from '@iptvnator/portal/shared/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 import {
     XtreamContentLoadState,
     XtreamStore,
@@ -170,6 +171,12 @@ describe('WorkspaceContextPanelComponent', () => {
                 {
                     provide: MatDialog,
                     useValue: dialog,
+                },
+                {
+                    // Root-provided in production; stubbed because the spec's
+                    // Router mock has no `events` stream for the real service.
+                    provide: WorkspaceShellContextDrawerService,
+                    useValue: { close: jest.fn(), isOpen: () => false },
                 },
             ],
         }).compileComponents();

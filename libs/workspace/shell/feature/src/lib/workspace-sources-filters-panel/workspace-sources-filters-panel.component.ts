@@ -13,7 +13,7 @@ import {
     selectAllPlaylistsMeta,
 } from '@iptvnator/m3u-state';
 import { TranslatePipe } from '@ngx-translate/core';
-import { WorkspaceShellContextDrawerService } from '../workspace-shell/services/workspace-shell-context-drawer.service';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 type PlaylistFilterId = 'all' | 'm3u' | 'xtream' | 'stalker';
 

@@ -1,14 +1,15 @@
 import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { Component, Directive, input, output, signal } from '@angular/core';
+import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import {
+    WorkspaceShellContextDrawerService,
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
 import { WorkspaceShellComponent } from './workspace-shell.component';
-import { WorkspaceShellContextDrawerService } from './services/workspace-shell-context-drawer.service';
 import {
     WorkspaceHeaderBulkAction,
     WorkspaceShellFacade,
@@ -239,6 +240,13 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
                         WorkspaceShellContextDrawerService,
                     ],
                 },
@@ -298,6 +306,13 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
                         WorkspaceShellContextDrawerService,
                     ],
                 },
@@ -352,6 +367,13 @@ describe('WorkspaceShellComponent', () => {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
                         },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
+                        },
                         WorkspaceShellContextDrawerService,
                     ],
                 },
@@ -401,6 +423,13 @@ describe('WorkspaceShellComponent', () => {
                         {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
+                        },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
                         },
                         WorkspaceShellContextDrawerService,
                     ],
@@ -458,6 +487,13 @@ describe('WorkspaceShellComponent', () => {
                         {
                             provide: WorkspaceKeyboardShortcutsService,
                             useClass: MockWorkspaceKeyboardShortcutsService,
+                        },
+                        {
+                            provide: EmbeddedMpvOverlayVisibilityService,
+                            useValue: {
+                                acquireExternalModalSurface: () => () =>
+                                    undefined,
+                            },
                         },
                         WorkspaceShellContextDrawerService,
                     ],

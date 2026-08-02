@@ -10,13 +10,16 @@ import { filter } from 'rxjs';
  * the drawer styles only apply inside the phone media query, so the service
  * can stay viewport-agnostic.
  *
- * Provided by WorkspaceShellComponent so the state dies with the shell. The
- * context panels inject it optionally: closing after a selection is a
- * drawer-only concern, and several selections (Stalker ITV/radio categories,
- * settings sections, sources filters, collection filters) update stores
- * without navigating, so a NavigationEnd listener alone cannot cover them.
+ * Root-provided from the shell's util lib so consumers outside the shell's
+ * element injector — AppComponent's global Ctrl/Cmd+R shortcut, the Embedded
+ * MPV overlay-visibility gate — can also observe the modal state without
+ * pulling the lazy shell feature chunk into the eager bundle. The context
+ * panels inject it optionally: closing after a selection is a drawer-only
+ * concern, and several selections (Stalker ITV/radio categories, settings
+ * sections, sources filters, collection filters) update stores without
+ * navigating, so a NavigationEnd listener alone cannot cover them.
  */
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class WorkspaceShellContextDrawerService {
     private readonly router = inject(Router);
     private readonly destroyRef = inject(DestroyRef);

@@ -8,8 +8,8 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
-import { WorkspaceShellContextDrawerService } from '../../services/workspace-shell-context-drawer.service';
 import { WorkspaceShellContextSidebarComponent } from './workspace-shell-context-sidebar.component';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 @Directive({
     selector: '[appResizable]',

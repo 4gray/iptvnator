@@ -13,10 +13,10 @@ import {
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
 import {
+    WorkspaceShellContextDrawerService,
     WorkspacePortalContext,
     WorkspaceShellContextPanel,
 } from '@iptvnator/workspace/shell/util';
-import { WorkspaceShellContextDrawerService } from '../../services/workspace-shell-context-drawer.service';
 import { WorkspaceCollectionContextPanelComponent } from '../../../workspace-context-panel/workspace-collection-context-panel.component';
 import { WorkspaceContextPanelComponent } from '../../../workspace-context-panel/workspace-context-panel.component';
 import { WorkspaceSettingsContextPanelComponent } from '../../../workspace-context-panel/workspace-settings-context-panel.component';
