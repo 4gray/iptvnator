@@ -1214,6 +1214,35 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         );
         expect(component.activePlayback()).toBeNull();
     });
+
+    it('releases the radio override when the next selection never mounts a player', async () => {
+        // Switching from a playing radio to a channel whose resolution fails
+        // (or plays externally) mounts no player surface — the selection
+        // itself must release the previously installed credentials.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: { Cookie: 'mac=00:1A:79:00:00:01' },
+        });
+        await component.playChannel(radioChannels()[0]);
+        await fixture.whenStable();
+
+        stalkerStore.selectedContentType.set('itv');
+        resolveItvPlayback.mockRejectedValueOnce(new Error('portal down'));
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+
+        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'http://portal.example/radio_2.mpg'
+        );
+    });
 });
 
 function buildProgram(channelId: string, title: string): EpgProgram {

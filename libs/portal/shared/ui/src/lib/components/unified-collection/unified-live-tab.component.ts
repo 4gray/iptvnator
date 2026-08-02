@@ -591,6 +591,12 @@ export class UnifiedLiveTabComponent {
         this.activeDetail.set(null);
         this.activeTimeshift.set(null);
         this.isSelecting.set(true);
+        // A previously owned radio override must not survive into a
+        // selection that never mounts a player surface of its own — external
+        // video playback and failed resolutions would otherwise keep the old
+        // radio credentials installed for that origin.
+        this.streamHeaders.clear(this.radioHeaderScopeUrl);
+        this.radioHeaderScopeUrl = null;
 
         try {
             const detail =

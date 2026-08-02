@@ -582,6 +582,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         const channelId = normalizeStalkerEntityId(item.id);
         this.stalkerStore.setSelectedItem(item);
         this.ensureChannelWithinRenderWindow(channelId);
+        // A previously owned radio override must not survive into a
+        // selection that never mounts a player surface of its own — external
+        // video playback and failed resolutions would otherwise keep the old
+        // radio credentials installed for that origin.
+        this.streamHeaders.clear(this.radioHeaderScopeUrl);
+        this.radioHeaderScopeUrl = null;
 
         try {
             const isRadioMode = this.isRadioMode();
