@@ -72,7 +72,10 @@ describe('StalkerPortalRepairService', () => {
                 },
                 {
                     provide: PlaylistsService,
-                    useValue: { transformPlaylistMeta },
+                    useValue: {
+                        transformPlaylistMeta,
+                        getPlaylistById: jest.fn(() => of(persistedRow)),
+                    },
                 },
                 {
                     provide: StalkerSessionService,
@@ -517,6 +520,29 @@ describe('StalkerPortalRepairService', () => {
             persistedRow = editedIdentity as Playlist;
             await service.repairPortal(editedIdentity);
             expect(discover).toHaveBeenCalledTimes(1);
+        });
+
+        it('re-probes a DISCARDED configuration once the row is restored to it', async () => {
+            // A's probe was discarded because the row moved to B mid-probe;
+            // after the user restores the row to A, A's next failure must
+            // probe again instead of staying dead for the session.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            persistedRow = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/portal.php',
+            } as Playlist;
+            expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
+            expect(discover).toHaveBeenCalledTimes(1);
+
+            // Row restored to A → the discarded marker yields to a new probe.
+            persistedRow = MISCLASSIFIED as Playlist;
+            const repaired = await service.repairPortal(MISCLASSIFIED);
+            expect(discover).toHaveBeenCalledTimes(2);
+            expect(repaired).toMatchObject({ isFullStalkerPortal: true });
         });
 
         it('re-arms the EDITED configuration after a mid-probe edit discarded a repair', async () => {

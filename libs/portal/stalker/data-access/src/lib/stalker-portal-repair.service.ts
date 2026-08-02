@@ -21,6 +21,14 @@ import {
     toStalkerSessionPlaylist,
 } from './stores/utils/stalker-request.utils';
 
+/**
+ * What a probe of one source configuration concluded this session:
+ * an override to (re)install, 'no-change' (probed; the stored configuration
+ * is what probing proves, or nothing answered), or 'discarded' (the row
+ * moved on mid-probe, so the outcome never applied to any persisted state).
+ */
+type StalkerProbeRecord = StalkerPortalModeOverride | 'no-change' | 'discarded';
+
 interface StalkerPortalModeOverride {
     /** The failing configuration this repair replaced. */
     sourcePortalUrl?: string;
@@ -84,7 +92,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      */
     private readonly probeHistory = new Map<
         string,
-        Map<string, StalkerPortalModeOverride | null>
+        Map<string, StalkerProbeRecord>
     >();
     private readonly pendingRepairs = new Map<
         string,
@@ -236,15 +244,30 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
         const fingerprint = this.repairSourceFingerprint(playlist);
         const history = this.probeHistory.get(playlistId) ?? new Map();
-        if (history.has(fingerprint)) {
-            const remembered = history.get(fingerprint) ?? null;
-            if (remembered && !this.overrides.has(playlistId)) {
+        const record = history.get(fingerprint) as
+            | StalkerProbeRecord
+            | undefined;
+        if (record === 'discarded') {
+            // The probe for this configuration was discarded because the
+            // row had moved on mid-probe. If the row has since been
+            // RESTORED to it, the outcome was never recorded — probe again.
+            // A stale snapshot (row still elsewhere) stays declined, gated
+            // by one cheap row read instead of a discovery run.
+            if (!(await this.rowCurrentlyMatches(playlist))) {
+                return this.reapplyIfChanged(playlist);
+            }
+            history.delete(fingerprint);
+        } else if (record !== undefined) {
+            if (
+                record !== 'no-change' &&
+                !this.overrides.has(playlistId)
+            ) {
                 // The user restored a configuration whose override was
                 // dropped by an intermediate edit: reinstall the remembered
                 // outcome — probing again is unnecessary, and doing nothing
                 // would leave the restored configuration broken until
                 // restart.
-                this.overrides.set(playlistId, remembered);
+                this.overrides.set(playlistId, record);
                 // Same synchronization as a fresh repair: if the
                 // intermediate configuration stopped the active watchdog,
                 // the restored full-portal session needs its keepalive back.
@@ -255,9 +278,9 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return this.reapplyIfChanged(playlist);
         }
 
-        // Reserved BEFORE the probe (null = probed, nothing to reinstall);
-        // a successful repair overwrites it with the produced override.
-        history.set(fingerprint, null);
+        // Reserved BEFORE the probe; the run overwrites it with the
+        // produced override or the 'discarded' marker.
+        history.set(fingerprint, 'no-change');
         this.probeHistory.set(playlistId, history);
         const run = this.runRepair(playlist);
         this.pendingRepairs.set(playlistId, run);
@@ -352,6 +375,12 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             this.logger.info(
                 'Portal configuration changed while probing; discarding repair'
             );
+            // Marked explicitly: a later failure of this configuration may
+            // probe again once the row is RESTORED to it — unlike a probe
+            // whose outcome genuinely applied ('no-change'/override).
+            this.probeHistory
+                .get(playlist._id)
+                ?.set(this.repairSourceFingerprint(playlist), 'discarded');
             return null;
         }
 
@@ -394,6 +423,31 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         );
 
         return this.applyOverride(playlist);
+    }
+
+    /**
+     * Cheap gate for retrying a DISCARDED configuration: reads the current
+     * row and reports whether it now carries the caller's configuration.
+     * Only avoids pointless discovery runs — the authoritative check stays
+     * the atomic transform.
+     */
+    private async rowCurrentlyMatches(
+        playlist: PlaylistMeta
+    ): Promise<boolean> {
+        try {
+            const row = await firstValueFrom(
+                this.injector
+                    .get(PlaylistsService)
+                    .getPlaylistById(playlist._id)
+            );
+            return (
+                !!row &&
+                this.repairSourceFingerprint(row) ===
+                    this.repairSourceFingerprint(playlist)
+            );
+        } catch {
+            return false;
+        }
     }
 
     /**
