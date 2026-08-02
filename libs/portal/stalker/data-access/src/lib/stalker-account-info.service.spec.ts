@@ -298,4 +298,12 @@ describe('parseStalkerDate', () => {
         expect(parseStalkerDate('0000-00-00')).toBeUndefined();
         expect(parseStalkerDate('not a date')).toBeUndefined();
     });
+
+    it('rejects negative unlimited-expiry sentinels instead of parsing them as dates', () => {
+        // V8 reads Date.parse('-1') as January 1, 2001 — an unlimited
+        // account must not render as expired.
+        expect(parseStalkerDate('-1')).toBeUndefined();
+        expect(parseStalkerDate(-1)).toBeUndefined();
+        expect(parseStalkerDate('0')).toBeUndefined();
+    });
 });

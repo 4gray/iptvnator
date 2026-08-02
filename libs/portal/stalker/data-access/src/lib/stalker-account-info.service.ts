@@ -218,7 +218,9 @@ export function parseStalkerDate(
         return undefined;
     }
 
-    if (typeof value === 'number' || /^\d+$/.test(String(value).trim())) {
+    // Signed numerics included: portals encode "unlimited" as "-1"/"0",
+    // and Date.parse('-1') would otherwise read as January 1, 2001.
+    if (typeof value === 'number' || /^-?\d+$/.test(String(value).trim())) {
         const numeric = Number(value);
         if (!Number.isFinite(numeric) || numeric <= 0) {
             return undefined;
