@@ -88,9 +88,30 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
             );
             expect(result).toEqual([dbCategory]);
             expect(onPhaseChange.mock.calls).toEqual([
+                ['loading-cached'],
                 ['loading-categories'],
                 ['saving-categories'],
             ]);
+        });
+
+        it('reports the loading-cached phase when categories come from the DB', async () => {
+            harness.dbService.getXtreamImportStatus.mockResolvedValue(
+                'completed'
+            );
+            harness.dbService.getXtreamCategories.mockResolvedValue([
+                dbCategory,
+            ]);
+            const onPhaseChange = jest.fn();
+
+            await harness.dataSource.getCategories(
+                playlistId,
+                credentials,
+                'live',
+                { onPhaseChange }
+            );
+
+            expect(onPhaseChange.mock.calls).toEqual([['loading-cached']]);
+            expect(harness.apiService.getCategories).not.toHaveBeenCalled();
         });
 
         it('refetches from the API when cached rows exist but the import never completed', async () => {
@@ -214,6 +235,28 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
             );
 
             expect(result).toEqual([dbContentItem]);
+            expect(harness.apiService.getStreams).not.toHaveBeenCalled();
+        });
+
+        it('reports the loading-cached phase when content comes from the DB', async () => {
+            harness.dbService.getXtreamImportStatus.mockResolvedValue(
+                'completed'
+            );
+            harness.dbService.getXtreamContent.mockResolvedValue([
+                dbContentItem,
+            ]);
+            const onPhaseChange = jest.fn();
+
+            await harness.dataSource.getContent(
+                playlistId,
+                credentials,
+                'live',
+                undefined,
+                undefined,
+                { onPhaseChange }
+            );
+
+            expect(onPhaseChange.mock.calls).toEqual([['loading-cached']]);
             expect(harness.apiService.getStreams).not.toHaveBeenCalled();
         });
 
