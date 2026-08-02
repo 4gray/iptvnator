@@ -31,7 +31,7 @@ export function validateNxVersionSync({ packageJson, lockfile }) {
         const section = packageJson[sectionName] ?? {};
         for (const [packageName, specifier] of Object.entries(section)) {
             if (
-                packageName.startsWith('@nx/') &&
+                (packageName === 'nx' || packageName.startsWith('@nx/')) &&
                 specifier !== expectedVersion
             ) {
                 diagnostics.push(
