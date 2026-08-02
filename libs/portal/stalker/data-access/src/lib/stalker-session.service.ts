@@ -32,10 +32,7 @@ import {
     type PersistedStalkerSession,
 } from './stalker-session-store';
 import { StalkerTokenCache } from './stalker-token-cache';
-import {
-    STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
-    StalkerWatchdogController,
-} from './stalker-watchdog.controller';
+import { StalkerWatchdogController } from './stalker-watchdog.controller';
 
 export {
     getStalkerPortalIdentityFromPlaylist,
@@ -162,6 +159,47 @@ export class StalkerSessionService {
         }
 
         this.setActiveWatchdogPlaylist(playlist);
+    }
+
+    /**
+     * Adopts a session another layer already negotiated — today the endpoint
+     * discovery run behind a lazy repair, whose classification handshake and
+     * `get_profile` produced both a token and the portal's cadence.
+     *
+     * Caching the token alone (as the repair used to) leaves the retry
+     * satisfied and no authentication path ever applies the profile outcome,
+     * so a freshly repaired playlist would keep pinging on the default
+     * cadence until the token failed or the app restarted.
+     *
+     * `identitySource` must describe the REPAIRED configuration: the session
+     * belongs to the endpoint it was negotiated against.
+     */
+    adoptDiscoveredSession(
+        playlistId: string,
+        identitySource: Playlist,
+        session: {
+            token: string;
+            watchdogTimeoutSeconds?: number;
+            timeslotSeconds?: number;
+        }
+    ): void {
+        this.setCachedToken(playlistId, session.token, identitySource);
+        this.applySessionOutcome(
+            playlistId,
+            {
+                token: session.token,
+                reusedStoredToken: false,
+                watchdogTimeoutSeconds: session.watchdogTimeoutSeconds,
+                timeslotSeconds: session.timeslotSeconds,
+            },
+            {
+                token: identitySource.stalkerToken,
+                identityFingerprint: identitySource.stalkerSessionIdentity,
+                watchdogTimeoutSeconds: identitySource.stalkerWatchdogTimeout,
+                timeslotSeconds: identitySource.stalkerTimeslot,
+            },
+            stalkerSessionFingerprint(identitySource)
+        );
     }
 
     /**
@@ -331,7 +369,7 @@ export class StalkerSessionService {
                     }
                 );
                 this.setCachedToken(playlist._id, result.token, playlist);
-                this.applyProfileOutcome(
+                this.applySessionOutcome(
                     playlist._id,
                     result,
                     stored,
@@ -439,7 +477,7 @@ export class StalkerSessionService {
             // This path always ran a real get_profile, so the decoded cadence
             // is authoritative; the previous values are only the write-back
             // comparison baseline.
-            this.applyProfileOutcome(
+            this.applySessionOutcome(
                 playlist._id,
                 result,
                 {
@@ -465,33 +503,20 @@ export class StalkerSessionService {
         }
     }
 
-    /**
-     * Propagates a successful authentication into session-side state.
-     *
-     * Reusing a stored token skips the `get_profile` that carries the
-     * watchdog cadence, so the persisted cadence is applied instead —
-     * otherwise a portal advertising a non-default `watchdog_timeout` would
-     * sit on the 120 s fallback for the whole session.
-     */
-    private applyProfileOutcome(
+    /** Delegates the watchdog + write-back half of an authentication. */
+    private applySessionOutcome(
         playlistId: string,
         result: StalkerAuthenticationResult,
         stored: PersistedStalkerSession,
         fingerprint: string
     ): void {
-        if (result.reusedStoredToken) {
-            this.watchdog.applyProfileTiming(playlistId, {
-                watchdogTimeoutSeconds: stored.watchdogTimeoutSeconds,
-                timeslotSeconds: stored.timeslotSeconds,
-            });
-            return;
-        }
-
-        this.watchdog.applyProfileTiming(playlistId, {
-            watchdogTimeoutSeconds: result.watchdogTimeoutSeconds,
-            timeslotSeconds: result.timeslotSeconds,
-        });
-        this.sessionStore.write(playlistId, result, stored, fingerprint);
+        this.sessionStore.applyAuthenticationOutcome(
+            playlistId,
+            result,
+            stored,
+            fingerprint,
+            this.watchdog
+        );
     }
 
     /**

@@ -83,9 +83,9 @@ Two portal modes exist, persisted per playlist as
   the wider phrase set (`Invalid token`, `Auth failed`, bare `unauthorized`),
   since a panel fills those in deliberately. While a full portal is the
   active playlist, `StalkerSessionService` keeps a **watchdog** running —
-  periodic authenticated `watchdog/get_events` pings (currently every 25 s;
-  the protocol default expects 120 s, tracked for a later PR) whose failures
-  are non-fatal.
+  periodic authenticated `watchdog/get_events` pings at the cadence the
+  portal advertises (`watchdog_timeout`, default 120 s — see "Watchdog"
+  below) whose failures are non-fatal.
 - **Simple portal** (reseller-style `portal.php` panels): no auth lifecycle
   at all — requests carry only the `mac=` cookie.
 

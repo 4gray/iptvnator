@@ -158,6 +158,45 @@ export class StalkerSessionStore {
     }
 
     /**
+     * Propagates a successful authentication into session-side state: the
+     * watchdog cadence, and the write-back.
+     *
+     * Reusing a stored token skips the `get_profile` that carries the
+     * cadence, so the persisted cadence is applied instead — otherwise a
+     * portal advertising a non-default `watchdog_timeout` would sit on the
+     * 120 s fallback for the whole session.
+     */
+    applyAuthenticationOutcome(
+        playlistId: string,
+        result: StalkerAuthenticationResult,
+        stored: PersistedStalkerSession,
+        fingerprint: string,
+        watchdog: {
+            applyProfileTiming: (
+                playlistId: string,
+                timing: {
+                    watchdogTimeoutSeconds?: number;
+                    timeslotSeconds?: number;
+                }
+            ) => void;
+        }
+    ): void {
+        if (result.reusedStoredToken) {
+            watchdog.applyProfileTiming(playlistId, {
+                watchdogTimeoutSeconds: stored.watchdogTimeoutSeconds,
+                timeslotSeconds: stored.timeslotSeconds,
+            });
+            return;
+        }
+
+        watchdog.applyProfileTiming(playlistId, {
+            watchdogTimeoutSeconds: result.watchdogTimeoutSeconds,
+            timeslotSeconds: result.timeslotSeconds,
+        });
+        this.write(playlistId, result, stored, fingerprint);
+    }
+
+    /**
      * Writes a renegotiated session back, best effort.
      *
      * The EFFECTIVE cadence is stored, not the raw one: a portal that

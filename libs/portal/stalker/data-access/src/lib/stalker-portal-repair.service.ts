@@ -432,14 +432,22 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             ?.set(this.repairSourceFingerprint(playlist), override);
 
         if (outcome.isFullStalkerPortal && outcome.token) {
-            // The classification handshake already authenticated; reuse its
-            // token so the retry does not immediately handshake again. The
-            // playlist itself is the identity source — a repair never
-            // changes WHO the session belongs to, only WHERE it talks.
-            this.stalkerSession.setCachedToken(
+            // The classification handshake already authenticated; adopt the
+            // whole session so the retry does not handshake again AND the
+            // cadence that profile advertised is applied — caching the token
+            // alone would satisfy the retry and leave the repaired playlist
+            // pinging on the default until restart. The identity source is
+            // the REPAIRED configuration: a repair never changes WHO the
+            // session belongs to, only WHERE it talks, and the session is
+            // bound to that endpoint.
+            this.stalkerSession.adoptDiscoveredSession(
                 playlist._id,
-                outcome.token,
-                playlist
+                toStalkerSessionPlaylist(this.applyOverride(playlist)),
+                {
+                    token: outcome.token,
+                    watchdogTimeoutSeconds: outcome.watchdogTimeoutSeconds,
+                    timeslotSeconds: outcome.timeslotSeconds,
+                }
             );
         } else if (!outcome.isFullStalkerPortal) {
             this.stalkerSession.clearCachedToken(playlist._id);
