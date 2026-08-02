@@ -943,10 +943,11 @@ engine` (restart required) or
   responsible for provider URLs, headers, and metadata; the backend still runs
   one active transfer with a FIFO queue. `DOWNLOADS_START` remains the sole
   start IPC. A reserved completed-missing match triggers one authoritative
-  preflight refresh before provider preparation. A request superseded by a
-  download-update refresh waits for the winning request to settle, so a
-  restored Stalker file can become a stable skip without a portal request. The
-  IPC's stable
+  preflight refresh before provider preparation. Download-list loads are
+  serialized as one active IPC plus one coalesced trailing refresh; a preflight
+  assigned to that trailing refresh cannot be starved by later progress
+  broadcasts. A restored Stalker file can therefore become a stable skip
+  without a portal request. The IPC's stable
   `reason: 'already-in-progress'` and `reason: 'already-downloaded'`
   results are counted as skipped, and no batch IPC is introduced. The latter
   comes from an asynchronous main-process filesystem recheck before a
@@ -970,8 +971,9 @@ engine` (restart required) or
   successful snapshot remains authoritative while a later background refresh
   is in flight; a latest refresh failure leaves
   loading/empty-state resolution intact but disables starts until another
-  snapshot succeeds. Superseded download-list callers do not resolve on their
-  discarded responses; they join the next request that settles as latest.
+  snapshot succeeds. Overlapping download-list callers join one serialized
+  trailing refresh, so responses commit in request order and frequent progress
+  events cannot perpetually postpone a waiting series action.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
   for both providers; Stalker playback identifiers only resolve the URL. Exact
   `(playlistId, contentType, xtreamId)` matches are authoritative, while

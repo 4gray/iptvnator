@@ -88,28 +88,25 @@ export class DownloadsService implements OnDestroy {
     }
 
     /**
-     * Load downloads from the backend. A superseded caller waits until its
-     * request or a newer one settles as the current snapshot.
+     * Load downloads from the backend. Overlapping callers coalesce behind one
+     * serialized trailing refresh.
      */
     async loadDownloads(): Promise<void> {
         if (!this.isAvailable()) return;
 
-        const requestId = this.downloadListLoadState.begin();
-
-        try {
-            const list = await window.electron.downloadsGetList();
-            if (this.downloadListLoadState.isLatest(requestId)) {
+        return this.downloadListLoadState.run(async () => {
+            try {
+                const list = await window.electron.downloadsGetList();
                 this.downloads.set(list);
                 this.downloadListLoadState.markSucceeded();
-            }
-        } catch (error) {
-            console.error('[DownloadsService] Error loading downloads:', error);
-            if (this.downloadListLoadState.isLatest(requestId)) {
+            } catch (error) {
+                console.error(
+                    '[DownloadsService] Error loading downloads:',
+                    error
+                );
                 this.downloadListLoadState.markFailed();
             }
-        } finally {
-            await this.downloadListLoadState.finishOrJoinLatest(requestId);
-        }
+        });
     }
 
     /**

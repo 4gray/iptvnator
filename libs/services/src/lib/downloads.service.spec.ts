@@ -526,8 +526,8 @@ describe('DownloadsService', () => {
         );
     });
 
-    it('keeps only the latest overlapping download list request result', async () => {
-        const staleItem = createDownload(1, 'playlist-old');
+    it('serializes overlapping requests and finishes with the trailing snapshot', async () => {
+        const initialItem = createDownload(1, 'playlist-initial');
         const latestItem = createDownload(2, 'playlist-new');
         const first = createDeferred<DownloadItem[]>();
         const second = createDeferred<DownloadItem[]>();
@@ -544,16 +544,18 @@ describe('DownloadsService', () => {
         const secondRequest = service.loadDownloads();
 
         expect(service.isLoadingDownloads()).toBe(true);
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(1);
+
+        first.resolve([initialItem]);
+        await firstRequest;
+
+        expect(service.downloads()).toEqual([initialItem]);
+        expect(service.isLoadingDownloads()).toBe(true);
+        expect(service.hasLoadedDownloads()).toBe(true);
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(2);
 
         second.resolve([latestItem]);
         await secondRequest;
-
-        expect(service.downloads()).toEqual([latestItem]);
-        expect(service.isLoadingDownloads()).toBe(false);
-        expect(service.hasLoadedDownloads()).toBe(true);
-
-        first.resolve([staleItem]);
-        await firstRequest;
 
         expect(service.downloads()).toEqual([latestItem]);
         expect(service.isLoadingDownloads()).toBe(false);
@@ -561,38 +563,51 @@ describe('DownloadsService', () => {
         expect(electron.downloadsGetList).toHaveBeenNthCalledWith(2);
     });
 
-    it('keeps a superseded load pending until a newer request commits its snapshot', async () => {
-        const staleItem = createDownload(1, 'playlist-old');
-        const latestItem = createDownload(2, 'playlist-new');
+    it('coalesces update storms without starving a queued refresh caller', async () => {
+        const initialItem = createDownload(1, 'playlist-initial');
+        const preflightItem = createDownload(2, 'playlist-preflight');
+        const broadcastItem = createDownload(3, 'playlist-broadcast');
         const first = createDeferred<DownloadItem[]>();
         const second = createDeferred<DownloadItem[]>();
+        const third = createDeferred<DownloadItem[]>();
         const electron = {
             downloadsGetList: jest
                 .fn()
                 .mockReturnValueOnce(first.promise)
-                .mockReturnValueOnce(second.promise),
+                .mockReturnValueOnce(second.promise)
+                .mockReturnValueOnce(third.promise),
         };
         testWindow.electron = electron;
         const service = createService();
-        let supersededLoadSettled = false;
+        let preflightSettled = false;
 
-        const firstRequest = service.loadDownloads().finally(() => {
-            supersededLoadSettled = true;
+        const firstRequest = service.loadDownloads();
+        const preflightRequest = service.loadDownloads().finally(() => {
+            preflightSettled = true;
         });
-        const secondRequest = service.loadDownloads();
 
-        first.resolve([staleItem]);
-        await first.promise;
-        await Promise.resolve();
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(1);
 
-        expect(supersededLoadSettled).toBe(false);
-        expect(service.downloads()).toEqual([]);
+        first.resolve([initialItem]);
+        await firstRequest;
 
-        second.resolve([latestItem]);
-        await Promise.all([firstRequest, secondRequest]);
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(2);
+        expect(preflightSettled).toBe(false);
 
-        expect(service.downloads()).toEqual([latestItem]);
-        expect(supersededLoadSettled).toBe(true);
+        const broadcastRequest = service.loadDownloads();
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(2);
+
+        second.resolve([preflightItem]);
+        await preflightRequest;
+
+        expect(preflightSettled).toBe(true);
+        expect(service.downloads()).toEqual([preflightItem]);
+        expect(electron.downloadsGetList).toHaveBeenCalledTimes(3);
+
+        third.resolve([broadcastItem]);
+        await broadcastRequest;
+
+        expect(service.downloads()).toEqual([broadcastItem]);
     });
 
     it('reports paused content and resumes it by content identity', async () => {

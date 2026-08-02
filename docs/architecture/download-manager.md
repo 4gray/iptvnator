@@ -54,11 +54,12 @@ variants, contextual buttons, and theme-aware styling.
   `DownloadsService.downloads` is the renderer's authoritative **global** list.
   `loadDownloads()` therefore always invokes the Electron list IPC without its
   legacy optional playlist scope. Route scope, category, and search must never
-  replace or narrow that signal. Overlapping loads are request-ordered so a
-  late response cannot replace a newer snapshot. A load promise whose response
-  is superseded remains pending until that request or a newer one settles as
-  latest; callers therefore observe either a committed successor snapshot or
-  its authoritative failure instead of proceeding after a discarded response.
+  replace or narrow that signal. Loads are serialized: at most one list IPC is
+  active, and callers arriving during it coalesce behind one trailing refresh.
+  Each response therefore commits in request order. A caller assigned to the
+  trailing refresh resolves after that refresh settles even when later
+  broadcasts queue the following refresh, preventing both stale continuation
+  and starvation during frequent progress updates.
   `hasLoadedDownloads` records that the latest attempt completed, including an
   error, while
   `hasAuthoritativeDownloadList` becomes true after a successful request,
@@ -80,10 +81,11 @@ variants, contextual buttons, and theme-aware styling.
   provider URL, request header, and metadata preparation; the coordinator owns
   only provider-neutral orchestration. When a reserved candidate matches a
   completed-missing row, the coordinator performs one authoritative preflight
-  refresh before any provider preparation. If a download-update broadcast
-  supersedes that request, the preflight waits for the winning refresh to
-  settle. Restored files therefore become stable skips without requiring a
-  Stalker URL/network request. Both providers
+  refresh before any provider preparation. If another list request is active,
+  the preflight joins the single trailing refresh; later download-update
+  broadcasts cannot delay that assigned refresh. Restored files therefore
+  become stable skips without requiring a Stalker URL/network request. Both
+  providers
   use normalized `episode.id` as the canonical
   episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
   in URL resolution.
