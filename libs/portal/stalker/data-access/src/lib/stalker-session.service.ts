@@ -607,6 +607,22 @@ export class StalkerSessionService {
     }
 
     /**
+     * Clears the cached token only while it is still the one that just
+     * failed. A request dispatched with the previous token can see its
+     * authorization failure arrive after a profile refresh has already
+     * cached a fresh token — deleting blindly would kill that fresh token
+     * and trigger a cascade of competing handshakes on strict portals.
+     */
+    private retireFailedToken(
+        playlistId: string,
+        failedToken: string | null
+    ): void {
+        if (failedToken && this.getCachedToken(playlistId) === failedToken) {
+            this.clearCachedToken(playlistId);
+        }
+    }
+
+    /**
      * Checks if a response or error indicates an authorization failure
      */
     private isAuthorizationError(responseOrError: unknown): boolean {
@@ -667,8 +683,8 @@ export class StalkerSessionService {
             // Check for authorization failure in response
             if (this.isAuthorizationError(response)) {
                 if (retryOnAuthFailure && playlist.isFullStalkerPortal) {
-                    // Clear cached token to force re-authentication
-                    this.clearCachedToken(playlist._id);
+                    // Retire the failed token so the retry re-authenticates
+                    this.retireFailedToken(playlist._id, token);
                     // Retry once with fresh authentication
                     return this.makeAuthenticatedRequest<T>(
                         playlist,
@@ -688,8 +704,8 @@ export class StalkerSessionService {
                 retryOnAuthFailure &&
                 playlist.isFullStalkerPortal
             ) {
-                // Clear cached token and retry with new handshake
-                this.clearCachedToken(playlist._id);
+                // Retire the failed token and retry with new handshake
+                this.retireFailedToken(playlist._id, token);
                 return this.makeAuthenticatedRequest<T>(
                     playlist,
                     params,

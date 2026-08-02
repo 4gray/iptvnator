@@ -283,6 +283,65 @@ describe('StalkerSessionService identity payloads', () => {
         expect(service.getCachedToken(playlist._id)).toBe('fresh-token');
     });
 
+    it('keeps a freshly refreshed token when a stale request fails auth late', async () => {
+        const playlist = {
+            _id: 'playlist-5',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        // The request went out with the previous token; meanwhile a
+        // profile refresh has already cached a fresh one.
+        jest.spyOn(service, 'ensureToken')
+            .mockResolvedValueOnce({ token: 'stale-token' })
+            .mockResolvedValueOnce({ token: 'fresh-token' });
+        service.setCachedToken(playlist._id, 'fresh-token');
+
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ js: 'Authorization failed. 75' })
+            .mockResolvedValueOnce({ js: { data: [] } });
+
+        await service.makeAuthenticatedRequest(playlist, {
+            type: 'itv',
+            action: 'get_ordered_list',
+        });
+
+        // The late failure of the stale token must not delete the fresh
+        // one — the retry reuses it instead of forcing a new handshake.
+        expect(service.getCachedToken(playlist._id)).toBe('fresh-token');
+        expect(dataService.sendIpcEvent).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.objectContaining({ token: 'fresh-token' })
+        );
+    });
+
+    it('still retires the cached token when it is the one that failed', async () => {
+        const playlist = {
+            _id: 'playlist-6',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        jest.spyOn(service, 'ensureToken')
+            .mockResolvedValueOnce({ token: 'dead-token' })
+            .mockResolvedValueOnce({ token: 'new-token' });
+        service.setCachedToken(playlist._id, 'dead-token');
+
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ js: 'Authorization failed. 75' })
+            .mockResolvedValueOnce({ js: { data: [] } });
+
+        await service.makeAuthenticatedRequest(playlist, {
+            type: 'itv',
+            action: 'get_ordered_list',
+        });
+
+        // Existing behavior preserved: the failed token itself is gone.
+        expect(service.getCachedToken(playlist._id)).toBeNull();
+    });
+
     it('refreshes the account profile even when a pending authentication fails', async () => {
         const playlist = {
             _id: 'playlist-2',
