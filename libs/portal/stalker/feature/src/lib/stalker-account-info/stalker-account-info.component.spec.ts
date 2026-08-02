@@ -198,6 +198,49 @@ describe('StalkerAccountInfoComponent', () => {
         );
     });
 
+    it('labels a restored full portal by URL when the flag is absent', async () => {
+        await TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [
+                StalkerAccountInfoComponent,
+                NoopAnimationsModule,
+                TranslateModule.forRoot(),
+            ],
+            providers: [
+                {
+                    provide: MAT_DIALOG_DATA,
+                    useValue: {
+                        playlist: {
+                            ...playlist,
+                            portalUrl:
+                                'http://portal.example/stalker_portal/c/',
+                            isFullStalkerPortal: undefined,
+                        },
+                    },
+                },
+                {
+                    provide: StalkerAccountInfoService,
+                    useValue: accountInfoService,
+                },
+                { provide: PlaylistsService, useValue: playlistsService },
+            ],
+        }).compileComponents();
+
+        const restored = TestBed.createComponent(StalkerAccountInfoComponent);
+        restored.detectChanges();
+        await restored.whenStable();
+
+        // Presentation must agree with the fetch path, which resolves the
+        // portal type from the URL when the flag is missing.
+        expect(restored.componentInstance.isFullPortal).toBe(true);
+        expect(restored.nativeElement.textContent).toContain(
+            'STALKER.ACCOUNT_INFO.PORTAL_TYPE_FULL'
+        );
+        expect(restored.nativeElement.textContent).not.toContain(
+            'STALKER.ACCOUNT_INFO.PORTAL_TYPE_LEGACY'
+        );
+    });
+
     it('renders no status pill for unknown status values', async () => {
         accountInfoService.fetchAccountInfo.mockResolvedValue({
             ...freshSnapshot,

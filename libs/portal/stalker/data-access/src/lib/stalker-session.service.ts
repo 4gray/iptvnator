@@ -542,41 +542,68 @@ export class StalkerSessionService {
         const macAddress = playlist.macAddress;
         const identity = getStalkerPortalIdentityFromPlaylist(playlist);
 
-        const inFlight = this.pendingAuth.get(playlist._id);
-        if (inFlight) {
+        // Claim the per-playlist slot. Re-check after every await: one
+        // settled promise releases every waiter at once, so a single
+        // pre-check would let them all start competing handshakes.
+        for (
+            let inFlight = this.pendingAuth.get(playlist._id);
+            inFlight;
+            inFlight = this.pendingAuth.get(playlist._id)
+        ) {
             this.logger.debug('Waiting for pending authentication...');
             // A failed pending auth must not abort the refresh; this call
             // performs its own handshake either way.
             await inFlight.catch(() => undefined);
         }
 
-        let accountInfo: StalkerProfileResponse['js']['account_info'];
-        const authPromise = (async () => {
+        // Publish the slot before the first await so no other waiter can
+        // observe it as free while this handshake is starting.
+        // No-op defaults: the executor runs synchronously and overwrites
+        // both, but the compiler cannot prove that (TS2454).
+        let settleSlot: (value: {
+            token: string;
+            serialNumber?: string;
+        }) => void = () => undefined;
+        let failSlot: (reason: unknown) => void = () => undefined;
+        const slot = new Promise<{ token: string; serialNumber?: string }>(
+            (resolve, reject) => {
+                settleSlot = resolve;
+                failSlot = reject;
+            }
+        );
+        // Waiters attach their own handlers; this one only keeps a
+        // rejected slot from surfacing as an unhandled rejection.
+        void slot.catch(() => undefined);
+        this.pendingAuth.set(playlist._id, slot);
+
+        // ensureToken() reads tokenCache before pendingAuth, so leaving the
+        // old token there would hand a token this handshake is about to
+        // invalidate to catalog and watchdog requests. Retiring it first
+        // makes them queue on the slot instead.
+        this.clearCachedToken(playlist._id);
+
+        try {
             const result = await this.authenticate(
                 portalUrl,
                 macAddress,
                 identity
             );
-            accountInfo = result.accountInfo;
             this.setCachedToken(playlist._id, result.token);
-            return {
+            settleSlot({
                 token: result.token,
                 serialNumber: identity.serialNumber,
-            };
-        })();
-
-        this.pendingAuth.set(playlist._id, authPromise);
-        try {
-            await authPromise;
+            });
+            return result.accountInfo;
+        } catch (error) {
+            failSlot(error);
+            throw error;
         } finally {
             // Only retire our own entry: a caller that started a later
             // authentication owns the map slot from then on.
-            if (this.pendingAuth.get(playlist._id) === authPromise) {
+            if (this.pendingAuth.get(playlist._id) === slot) {
                 this.pendingAuth.delete(playlist._id);
             }
         }
-
-        return accountInfo;
     }
 
     /**

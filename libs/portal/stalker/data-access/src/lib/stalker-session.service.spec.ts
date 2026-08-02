@@ -206,6 +206,83 @@ describe('StalkerSessionService identity payloads', () => {
         expect(service.getCachedToken(playlist._id)).toBe('profile-token');
     });
 
+    it('lets only one of several queued refreshes authenticate at a time', async () => {
+        const playlist = {
+            _id: 'playlist-3',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        const releases: Array<(value: { token: string }) => void> = [];
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        releases.push(resolve);
+                    })
+            );
+
+        // Both refreshes queue behind the same in-flight ensureToken, so
+        // one settled promise releases both waiters at once.
+        const pending = service.ensureToken(playlist);
+        const first = service.refreshAccountProfile(playlist);
+        const second = service.refreshAccountProfile(playlist);
+
+        await Promise.resolve();
+        expect(authenticate).toHaveBeenCalledTimes(1);
+
+        releases[0]({ token: 'session-token' });
+        await pending;
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // The released waiters must not both start a handshake.
+        expect(authenticate).toHaveBeenCalledTimes(2);
+
+        releases[1]({ token: 'first-refresh-token' });
+        await first;
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(authenticate).toHaveBeenCalledTimes(3);
+        releases[2]({ token: 'second-refresh-token' });
+        await second;
+
+        expect(service.getCachedToken(playlist._id)).toBe(
+            'second-refresh-token'
+        );
+    });
+
+    it('retires the cached token before the refresh handshake starts', async () => {
+        const playlist = {
+            _id: 'playlist-4',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        service.setCachedToken(playlist._id, 'stale-token');
+
+        let release: (value: { token: string }) => void = () => undefined;
+        jest.spyOn(service, 'authenticate').mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    release = resolve;
+                })
+        );
+
+        const refresh = service.refreshAccountProfile(playlist);
+        await Promise.resolve();
+
+        // ensureToken() reads the cache before pendingAuth, so a token the
+        // handshake is invalidating must not stay readable meanwhile.
+        expect(service.getCachedToken(playlist._id)).toBeNull();
+
+        release({ token: 'fresh-token' });
+        await refresh;
+        expect(service.getCachedToken(playlist._id)).toBe('fresh-token');
+    });
+
     it('refreshes the account profile even when a pending authentication fails', async () => {
         const playlist = {
             _id: 'playlist-2',

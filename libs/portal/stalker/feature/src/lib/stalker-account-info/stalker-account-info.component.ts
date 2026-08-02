@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import {
+    isFullStalkerPortalPlaylist,
     normalizeStoredStalkerAccountInfo,
     StalkerAccountInfoService,
     StalkerAccountSnapshot,
@@ -59,6 +60,12 @@ export class StalkerAccountInfoComponent {
     private readonly logger = createLogger('StalkerAccountInfo');
 
     readonly playlist: PlaylistMeta = this.data.playlist;
+    /**
+     * Presentation must use the same resolution as the fetch path: a
+     * playlist restored from an older backup carries no explicit flag,
+     * and the raw field would label a real Ministra portal as legacy.
+     */
+    readonly isFullPortal = isFullStalkerPortalPlaylist(this.playlist);
     readonly loadState = signal<AccountLoadState>('loading');
     readonly snapshot = signal<StalkerAccountSnapshot | null>(null);
     readonly snapshotSource = signal<SnapshotSource | null>(null);

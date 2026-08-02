@@ -3,7 +3,7 @@
         <div class="account-dialog__eyebrow">
             <span class="account-dialog__eyebrow-mark"></span>
             Stalker
-            @if (playlist.isFullStalkerPortal) {
+            @if (isFullPortal) {
                 <span class="account-dialog__eyebrow-divider"></span>
                 {{ 'STALKER.ACCOUNT_INFO.PORTAL_TYPE_FULL' | translate }}
             }
@@ -174,7 +174,7 @@
                         {{ 'STALKER.ACCOUNT_INFO.PORTAL_INFO' | translate }}
                     </p>
                     <h3>
-                        @if (playlist.isFullStalkerPortal) {
+                        @if (isFullPortal) {
                             {{
                                 'STALKER.ACCOUNT_INFO.PORTAL_TYPE_FULL'
                                     | translate
