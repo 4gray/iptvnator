@@ -12,7 +12,7 @@ const metadataSnapshot: DownloadMetadataSnapshot = {
 async function setupStartMetadataRequest(
     existing: Record<string, unknown> | undefined,
     coordinateRows: Record<string, unknown>[] = [],
-    completedFileAvailable = false
+    completedFileAvailability: 'available' | 'missing' | 'unknown' = 'missing'
 ) {
     jest.resetModules();
     const schema = await import('../../database/schema');
@@ -41,10 +41,15 @@ async function setupStartMetadataRequest(
         update: jest.fn(() => ({ set })),
     };
     const enqueueDownload = jest.fn();
-    const getDownloadFileAvailabilityAsync = jest.fn(async () =>
-        completedFileAvailable ? 'available' : 'missing'
+    const getDownloadFileAvailabilityAsync = jest.fn(
+        async () => completedFileAvailability
     );
-    const isAvailableDownloadFile = jest.fn(() => completedFileAvailable);
+    const getDownloadFileAvailabilityWithTimeoutAsync = jest.fn(
+        async () => completedFileAvailability
+    );
+    const isAvailableDownloadFile = jest.fn(
+        () => completedFileAvailability === 'available'
+    );
     const authorizer = {
         requireAuthorized: jest.fn(async (directory: string) => directory),
     } as unknown as DownloadDirectoryAuthorizer;
@@ -60,6 +65,7 @@ async function setupStartMetadataRequest(
     }));
     jest.doMock('./download-file-availability', () => ({
         getDownloadFileAvailabilityAsync,
+        getDownloadFileAvailabilityWithTimeoutAsync,
         isAvailableDownloadFile,
     }));
 
@@ -70,6 +76,7 @@ async function setupStartMetadataRequest(
         downloadLimit,
         enqueueDownload,
         getDownloadFileAvailabilityAsync,
+        getDownloadFileAvailabilityWithTimeoutAsync,
         insertValues,
         isAvailableDownloadFile,
         set,
@@ -450,7 +457,7 @@ describe('download request identity resolution', () => {
         const request = await setupStartMetadataRequest(
             completedRow,
             [completedRow],
-            true
+            'available'
         );
 
         await expect(
@@ -468,10 +475,39 @@ describe('download request identity resolution', () => {
         expect(request.db.insert).not.toHaveBeenCalled();
         expect(request.db.update).not.toHaveBeenCalled();
         expect(request.enqueueDownload).not.toHaveBeenCalled();
-        expect(request.getDownloadFileAvailabilityAsync).toHaveBeenCalledWith(
-            completedRow
-        );
+        expect(
+            request.getDownloadFileAvailabilityWithTimeoutAsync
+        ).toHaveBeenCalledWith(completedRow);
+        expect(request.getDownloadFileAvailabilityAsync).not.toHaveBeenCalled();
         expect(request.isAvailableDownloadFile).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when a completed-file recheck times out', async () => {
+        const completedRow = createStartDownloadRow({
+            filePath: '/downloads/unresponsive/episode.mp4',
+            status: 'completed',
+            xtreamId: 700,
+        });
+        const request = await setupStartMetadataRequest(
+            completedRow,
+            [completedRow],
+            'unknown'
+        );
+
+        await expect(
+            request.startDownloadRequest(
+                episodeStartPayload(),
+                request.authorizer
+            )
+        ).resolves.toEqual({
+            error: 'Could not verify the completed download file',
+            id: completedRow.id,
+            success: false,
+        });
+
+        expect(request.db.insert).not.toHaveBeenCalled();
+        expect(request.db.update).not.toHaveBeenCalled();
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
     });
 
     it.each(['queued', 'downloading', 'paused'] as const)(

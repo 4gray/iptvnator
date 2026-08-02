@@ -96,10 +96,13 @@ variants, contextual buttons, and theme-aware styling.
   such a completed row, `DOWNLOADS_START` asynchronously rechecks its retained
   path in the main process. A restored file returns stable
   `reason: 'already-downloaded'` without mutation; active matches return
-  `reason: 'already-in-progress'`. The
-  coordinator counts both as skipped. There is no batch IPC, parallel transfer,
-  or queue reordering: destination authorization, persisted header handling,
-  and the backend's one-active-transfer FIFO semantics remain unchanged.
+  `reason: 'already-in-progress'`. The recheck has a one-second deadline;
+  timeout or probe failure leaves the row untouched and returns a failed
+  submission, allowing the sequential season loop to continue. The coordinator
+  counts both stable duplicate reasons as skipped. There is no batch IPC,
+  parallel transfer, or queue reordering: destination authorization, persisted
+  header handling, and the backend's one-active-transfer FIFO semantics remain
+  unchanged.
 - **Pure manager model**
   (`download-manager.viewmodel.ts` and `download-library.viewmodel.ts`)
   derives the current route scope, search/category filtering, queue partitions,

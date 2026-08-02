@@ -946,10 +946,12 @@ engine` (restart required) or
   results are counted as skipped, and no batch IPC is introduced. The latter
   comes from an asynchronous main-process filesystem recheck before a
   completed-missing row can be reset, so a file restored after the renderer
-  snapshot is not orphaned or downloaded again. Episode and season download
-  actions require an authoritative global list. A successful snapshot remains
-  authoritative while a later background refresh is in flight; a latest
-  refresh failure leaves
+  snapshot is not orphaned or downloaded again. The recheck has a one-second
+  deadline; timeout or probe failure leaves the row untouched and reports a
+  failed submission so the season loop can continue. Episode and season
+  download actions require an authoritative global list. A successful snapshot
+  remains authoritative while a later background refresh is in flight; a
+  latest refresh failure leaves
   loading/empty-state resolution intact but disables starts until another
   snapshot succeeds.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`

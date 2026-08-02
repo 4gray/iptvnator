@@ -21,11 +21,13 @@ type DownloadAsyncLstat = (
     filePath: string
 ) => Promise<Pick<Stats, 'isFile' | 'isSymbolicLink'>>;
 
-type DownloadFileAvailabilityProbe = (
-    filePath: string
-) => Promise<boolean>;
+type DownloadFileAvailabilityProbe = (filePath: string) => Promise<boolean>;
 
 const DEFAULT_MAX_CONCURRENT_FILE_PROBES = 4;
+const DEFAULT_RESTORED_FILE_PROBE_TIMEOUT_MS = 1_000;
+
+export type BoundedDownloadFileAvailability =
+    ElectronDownloadFileAvailability | 'unknown';
 
 function createDownloadFileAvailabilityProbe(
     asyncLstat: DownloadAsyncLstat = lstat,
@@ -129,6 +131,47 @@ export async function getDownloadFileAvailabilityAsync(
     }
 
     return (await probe(download.filePath)) ? 'available' : 'missing';
+}
+
+export async function getDownloadFileAvailabilityWithTimeoutAsync(
+    download: DownloadFileRow,
+    timeoutMs = DEFAULT_RESTORED_FILE_PROBE_TIMEOUT_MS,
+    probe: DownloadFileAvailabilityProbe = probeDownloadFileAvailability
+): Promise<BoundedDownloadFileAvailability> {
+    if (download.status !== 'completed') {
+        return 'not-applicable';
+    }
+
+    if (!download.filePath) {
+        return 'missing';
+    }
+
+    const boundedTimeoutMs =
+        Number.isFinite(timeoutMs) && timeoutMs >= 0
+            ? timeoutMs
+            : DEFAULT_RESTORED_FILE_PROBE_TIMEOUT_MS;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<'unknown'>((resolve) => {
+        timeout = setTimeout(() => resolve('unknown'), boundedTimeoutMs);
+    });
+
+    try {
+        const available = await Promise.race([
+            probe(download.filePath),
+            timedOut,
+        ]);
+        return available === 'unknown'
+            ? available
+            : available
+              ? 'available'
+              : 'missing';
+    } catch {
+        return 'unknown';
+    } finally {
+        if (timeout !== undefined) {
+            clearTimeout(timeout);
+        }
+    }
 }
 
 export function decorateDownloadItem<T extends DownloadFileRow>(
