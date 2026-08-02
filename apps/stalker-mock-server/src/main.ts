@@ -2,6 +2,7 @@ import http from 'http';
 import { join } from 'node:path';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import { buildStalkerIdentityRequestContext } from '@iptvnator/shared/interfaces';
 import portalRouter, { createPortalRouter } from './app/routes/portal.route.js';
 import dispatchPortalAction from './app/routes/dispatch.js';
 import {
@@ -118,14 +119,11 @@ function isFullPortalUrlShape(url: string): boolean {
 app.get('/stalker', (req: Request, res: Response) => {
     const {
         macAddress,
+        token,
+        serialNumber,
         url: portalUrl,
         ...rest
     } = req.query as Record<string, unknown>;
-    // `token` deliberately stays in `rest`: the real backend proxy forwards
-    // every param except `targetId` to the portal *and* sets the Authorization
-    // header, and `handshake` reads the presented token from the query. Strip
-    // it here and the idempotent-handshake path becomes untestable.
-    const token = rest['token'];
 
     // A repeated query key arrives as an array, so every value used below must
     // be narrowed to a string before it reaches a string API.
@@ -133,11 +131,35 @@ app.get('/stalker', (req: Request, res: Response) => {
         typeof value === 'string' ? value : undefined;
 
     const mac = asString(macAddress) ?? '00:1a:79:00:00:01';
-
-    // The real backend proxy turns the token query param into a Bearer header
-    // before calling the portal; mirror that so token handling is exercised.
-    const headers: Record<string, string> = { cookie: `mac=${mac}` };
     const bearer = asString(token);
+
+    // Mirror of the real backend proxy: `macAddress`, `token` and
+    // `serialNumber` are control params turned into the portal-facing
+    // Cookie / Authorization / SN headers and STRIPPED from the query the
+    // portal sees — with one protocol exception, `handshake`, which presents
+    // its candidate token as a query param (that keeps the
+    // idempotent-handshake path testable). The shared identity builder is the
+    // same code the real proxy and the Electron transport run, so this mirror
+    // cannot drift from them.
+    const query: Record<string, unknown> = { ...rest };
+    if (query['action'] === 'handshake' && bearer) {
+        query['token'] = bearer;
+    }
+    const identity = buildStalkerIdentityRequestContext({
+        macAddress: mac,
+        params: query as Record<string, string | number>,
+        ...(bearer ? { token: bearer } : {}),
+        ...(asString(serialNumber)
+            ? { serialNumber: asString(serialNumber) }
+            : {}),
+    });
+    // The real proxy appends this while building the portal URL; mirror it so
+    // `query_keys_received` diagnostics match what a real portal would log.
+    if (!identity.requestParams['JsHttpRequest']) {
+        identity.requestParams['JsHttpRequest'] = '1-xml';
+    }
+
+    const headers: Record<string, string> = { cookie: identity.cookieString };
     if (bearer) {
         headers['authorization'] = `Bearer ${bearer}`;
     }
@@ -145,7 +167,7 @@ app.get('/stalker', (req: Request, res: Response) => {
     // Build a lightweight synthetic request. We need a fresh object with mutable
     // `query` and a Cookie header containing the MAC for the handler helpers.
     const syntheticReq = {
-        query: rest,
+        query: identity.requestParams,
         headers,
         params: {},
     } as unknown as Request;

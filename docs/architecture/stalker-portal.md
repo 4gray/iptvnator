@@ -160,17 +160,42 @@ on both transports with the shared `encodeStalkerCmdValue()`
   decode back to the original byte server-side, so the portal-visible value is
   unaffected.
 
-Consumers of the encoder:
+Both transports assemble the portal request from the same two shared builders
+in `@iptvnator/shared/interfaces`, so their wire format cannot drift apart:
 
-- Electron: `buildStalkerRequestUrl()`
-  (`apps/electron-backend/src/app/events/stalker-request-url.ts`) assembles the
-  portal query for `STALKER_REQUEST`; `cmd` uses the reference encoding, every
-  other param stays fully `encodeURIComponent`-encoded, and `JsHttpRequest=1-xml`
-  is appended when missing.
-- PWA: the web-backend `/stalker` proxy appends `cmd` to the portal URL with
-  the same encoder instead of letting axios' serializer turn slashes into
-  `%2F`. The renderer→proxy leg uses `URLSearchParams`, which Express decodes
-  losslessly, so the stored `cmd` string reaches the proxy intact.
+- `buildStalkerRequestUrl()`
+  (`libs/shared/interfaces/src/lib/stalker-request-url.util.ts`) builds the
+  full portal URL: `cmd` uses the reference encoding, every other param stays
+  fully `encodeURIComponent`-encoded, `JsHttpRequest=1-xml` is appended when
+  missing, and any query carried by the portal URL itself is dropped.
+- `buildStalkerIdentityRequestContext()`
+  (`libs/shared/interfaces/src/lib/stalker-request-identity.util.ts`) builds
+  the STB identity: the `mac`/`stb_lang`/`timezone` cookie (plus a
+  serial-derived `__cfduid`), the MAG `User-Agent`/`X-User-Agent` pair
+  (`STALKER_MAG_USER_AGENT`), `Accept`/`Accept-Language`/`Connection`, the
+  `SN` header and `Authorization: Bearer` when present, and the serial
+  parameter rule: `sn` travels only on `get_profile` (injected there, stripped
+  everywhere else, mirrored into the `metrics` JSON).
+
+Consumers:
+
+- Electron: the `STALKER_REQUEST` handler
+  (`apps/electron-backend/src/app/events/stalker.events.ts`) feeds both
+  builders directly.
+- PWA: the renderer (`PwaService.forwardStalkerRequest`) sends `macAddress`,
+  `token`, and `serialNumber` as **control params** on the renderer→proxy leg
+  (`URLSearchParams`, which Express decodes losslessly). The web-backend
+  `/stalker` proxy consumes them into the identity headers via the same shared
+  builders and **never forwards them in the portal's query string** — portal
+  credentials must not land in portal or intermediary access logs. The one
+  protocol exception is `handshake`, whose candidate token is genuine query
+  content (the portal reads it for the idempotent-handshake path) and is
+  re-injected there.
+- Mock: the stalker-mock-server's `/stalker` route
+  (`apps/stalker-mock-server/src/main.ts`) mirrors the proxy with the same
+  shared identity builder, so PWA E2E runs exercise the real contract
+  (including `query_keys_received` diagnostics matching what a real portal
+  would log).
 
 The mock portal's `create_link` response carries mock-only `cmd_received` and
 `query_keys_received` diagnostics so E2E can pin this contract

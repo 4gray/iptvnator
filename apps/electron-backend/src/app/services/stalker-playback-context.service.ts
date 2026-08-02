@@ -1,11 +1,10 @@
 import {
+    STALKER_MAG_USER_AGENT,
     buildStalkerSerialCfduid,
     isStalkerStreamCredentialSafe,
     normalizeStalkerSerialNumber,
 } from '@iptvnator/shared/interfaces';
 
-const STALKER_MAG_USER_AGENT =
-    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
 const STALKER_STREAM_USER_AGENT = 'KSPlayer';
 const STALKER_STREAM_RANGE_HEADER = 'bytes=0-';
 

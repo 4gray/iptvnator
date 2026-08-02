@@ -1,5 +1,6 @@
 import {
     PlaylistMeta,
+    STALKER_MAG_USER_AGENT,
     isStalkerStreamCredentialSafe,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -7,8 +8,7 @@ import {
     normalizeStalkerSerialNumber,
 } from './stalker-identity.utils';
 
-export const STALKER_MAG_USER_AGENT =
-    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
+export { STALKER_MAG_USER_AGENT };
 export const STALKER_STREAM_USER_AGENT = 'KSPlayer';
 
 export function getStalkerPortalOrigin(

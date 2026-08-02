@@ -1,4 +1,4 @@
-import { buildStalkerRequestUrl } from './stalker-request-url';
+import { buildStalkerRequestUrl } from './stalker-request-url.util';
 
 const PORTAL = 'http://portal.example/stalker_portal/server/load.php';
 
