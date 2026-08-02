@@ -14,6 +14,7 @@ export interface EpisodeDownloadIdentity {
 }
 
 export interface EpisodeDownloadRecord {
+    readonly id: number;
     readonly playlistId: string;
     readonly contentType: ElectronBridgePlaybackContentType;
     readonly xtreamId: number;
@@ -22,11 +23,12 @@ export interface EpisodeDownloadRecord {
     readonly episodeNumber?: number;
     readonly status: ElectronBridgeDownloadStatus;
     readonly fileAvailability?: ElectronDownloadFileAvailability;
+    readonly filePath?: string;
 }
 
 export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
-    downloads: readonly T[],
-    identity: EpisodeDownloadIdentity
+    identity: EpisodeDownloadIdentity,
+    downloads: readonly T[]
 ): T | undefined {
     const canonicalMatch = downloads.find(
         (download) =>

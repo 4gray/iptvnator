@@ -19,6 +19,7 @@ function row(
     overrides: Partial<EpisodeDownloadRecord> = {}
 ): EpisodeDownloadRecord {
     return {
+        id: 1,
         playlistId: identity.playlistId,
         contentType: identity.contentType,
         xtreamId: identity.xtreamId,
@@ -26,6 +27,7 @@ function row(
         seasonNumber: identity.seasonNumber,
         episodeNumber: identity.episodeNumber,
         status: 'queued',
+        filePath: '/downloads/episode-3.mp4',
         ...overrides,
     };
 }
@@ -40,14 +42,14 @@ describe('episode download identity', () => {
         });
 
         expect(
-            findEpisodeDownload([coordinateFallback, canonical], identity)
+            findEpisodeDownload(identity, [coordinateFallback, canonical])
         ).toBe(canonical);
     });
 
     it('falls back to complete matching episode coordinates', () => {
         const coordinateFallback = row({ xtreamId: 999 });
 
-        expect(findEpisodeDownload([coordinateFallback], identity)).toBe(
+        expect(findEpisodeDownload(identity, [coordinateFallback])).toBe(
             coordinateFallback
         );
     });
@@ -61,7 +63,7 @@ describe('episode download identity', () => {
             row({ contentType: 'vod', xtreamId: 995 }),
         ];
 
-        expect(findEpisodeDownload(candidates, identity)).toBeUndefined();
+        expect(findEpisodeDownload(identity, candidates)).toBeUndefined();
     });
 
     it('allows an episode with no existing download', () => {
