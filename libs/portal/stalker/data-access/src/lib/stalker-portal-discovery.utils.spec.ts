@@ -193,6 +193,18 @@ describe('isStalkerAuthFailureResponse', () => {
         ).toBe(true);
     });
 
+    it('recognizes the wider structured-field phrases the session service accepts', () => {
+        expect(
+            isStalkerAuthFailureResponse({ js: { error: 'Invalid token' } })
+        ).toBe(true);
+        expect(
+            isStalkerAuthFailureResponse({ js: { error: 'Auth failed' } })
+        ).toBe(true);
+        expect(
+            isStalkerAuthFailureResponse({ js: { msg: 'unauthorized' } })
+        ).toBe(true);
+    });
+
     it('does not flag ordinary data or unrelated js errors', () => {
         expect(isStalkerAuthFailureResponse({ js: { data: [] } })).toBe(false);
         expect(

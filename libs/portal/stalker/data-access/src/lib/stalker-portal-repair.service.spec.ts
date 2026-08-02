@@ -341,6 +341,41 @@ describe('StalkerPortalRepairService', () => {
             expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
 
+        it('re-arms the EDITED configuration after a mid-probe edit discarded a repair', async () => {
+            const edited = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/portal.php',
+            } as PlaylistMeta;
+
+            // Probe of the OLD config lands after the user edit → discarded.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            persistedRow = edited as Playlist;
+            expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
+            expect(discover).toHaveBeenCalledTimes(1);
+
+            // A stale snapshot of the already-probed config must NOT loop
+            // the probe…
+            expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
+            expect(discover).toHaveBeenCalledTimes(1);
+
+            // …but the EDITED configuration failing later must be allowed
+            // to repair without an application restart.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://edited.example/server/load.php',
+                isFullStalkerPortal: true,
+            });
+            const repaired = await service.repairPortal(edited);
+            expect(discover).toHaveBeenCalledTimes(2);
+            expect(repaired?.portalUrl).toBe(
+                'http://edited.example/server/load.php'
+            );
+        });
+
         it('discards an in-flight repair when the playlist was deleted during the probe', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',

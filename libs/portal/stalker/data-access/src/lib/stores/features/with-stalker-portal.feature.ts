@@ -8,6 +8,7 @@ import {
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { toStalkerSessionPlaylist } from '../utils';
 
@@ -47,15 +48,24 @@ export function withStalkerPortal() {
             (
                 store,
                 stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService),
                 runtime = inject(RuntimeCapabilitiesService)
             ) => ({
                 async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
+                    // A lazy repair may have corrected this playlist's
+                    // endpoint/mode while the NgRx meta stayed stale; route
+                    // re-activation must not hand the stale snapshot back to
+                    // the watchdog (it would stop or repoint the repaired
+                    // keepalive) or into the store state.
+                    const effectivePlaylist = playlist
+                        ? portalRepair.applyOverride(playlist)
+                        : playlist;
                     stalkerSession.setActiveWatchdogPlaylist(
-                        playlist
-                            ? toStalkerSessionPlaylist(playlist)
+                        effectivePlaylist
+                            ? toStalkerSessionPlaylist(effectivePlaylist)
                             : undefined
                     );
-                    patchState(store, { currentPlaylist: playlist });
+                    patchState(store, { currentPlaylist: effectivePlaylist });
 
                     // Ensure Stalker playlist exists in SQLite for playback positions
                     // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)

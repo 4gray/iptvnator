@@ -62,7 +62,15 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     private readonly logger = createLogger('StalkerPortalRepair');
 
     private readonly overrides = new Map<string, StalkerPortalModeOverride>();
-    private readonly attempted = new Set<string>();
+    /**
+     * Source-configuration fingerprint already probed this session, per
+     * playlist. Keyed by CONFIG, not just id: a stale snapshot of an
+     * already-probed configuration must not re-probe (loop guard), while a
+     * configuration the user edited afterwards — including one whose
+     * mid-probe edit discarded a repair — must be allowed to probe when IT
+     * fails.
+     */
+    private readonly attemptedSources = new Map<string, string>();
     private readonly pendingRepairs = new Map<
         string,
         Promise<PlaylistMeta | null>
@@ -106,7 +114,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         }
 
         this.overrides.delete(playlist._id);
-        this.attempted.delete(playlist._id);
+        this.attemptedSources.delete(playlist._id);
         return playlist;
     }
 
@@ -159,11 +167,17 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return this.reapplyIfChanged(playlist);
         }
 
-        if (this.attempted.has(playlistId)) {
+        if (
+            this.attemptedSources.get(playlistId) ===
+            this.repairSourceFingerprint(playlist)
+        ) {
             return this.reapplyIfChanged(playlist);
         }
 
-        this.attempted.add(playlistId);
+        this.attemptedSources.set(
+            playlistId,
+            this.repairSourceFingerprint(playlist)
+        );
         const run = this.runRepair(playlist);
         this.pendingRepairs.set(playlistId, run);
         try {
@@ -171,6 +185,26 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         } finally {
             this.pendingRepairs.delete(playlistId);
         }
+    }
+
+    /**
+     * Everything a probe's outcome depends on: endpoint, mode, MAC and the
+     * full Stalker identity — the same field set `rowStillMatchesSource`
+     * verifies before committing.
+     */
+    private repairSourceFingerprint(playlist: PlaylistMeta): string {
+        const normalize = (value: unknown): string =>
+            typeof value === 'string' ? value.trim() : '';
+        return [
+            playlist.portalUrl ?? '',
+            String(isFullStalkerPortalPlaylist(playlist)),
+            normalize(playlist.macAddress),
+            normalize(playlist.stalkerSerialNumber),
+            normalize(playlist.stalkerDeviceId1),
+            normalize(playlist.stalkerDeviceId2),
+            normalize(playlist.stalkerSignature1),
+            normalize(playlist.stalkerSignature2),
+        ].join('|');
     }
 
     private reapplyIfChanged(playlist: PlaylistMeta): PlaylistMeta | null {

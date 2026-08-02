@@ -138,7 +138,34 @@ export function isStalkerAuthFailureResponse(response: unknown): boolean {
 
     const { error, msg } = js as { error?: unknown; msg?: unknown };
     return [error, msg].some(
-        (value) => typeof value === 'string' && isStalkerAuthFailureBody(value)
+        (value) =>
+            typeof value === 'string' && isStalkerJsonAuthFailurePhrase(value)
+    );
+}
+
+/**
+ * Auth-failure phrases accepted inside the STRUCTURED `js.error`/`js.msg`
+ * fields. Deliberately wider than the plain-text body patterns (which stay
+ * narrow to avoid matching arbitrary HTML pages): these are the same forms
+ * `StalkerSessionService.isAuthorizationError()` recognizes — panels answer
+ * "Invalid token", "Auth failed" or bare "unauthorized" here.
+ */
+const STALKER_JSON_AUTH_FAILURE_PATTERNS = [
+    ...STALKER_AUTH_FAILURE_PATTERNS,
+    /auth\s+failed/i,
+    /invalid\s+token/i,
+    /\bunauthorized\b/i,
+    /authorization/i,
+];
+
+function isStalkerJsonAuthFailurePhrase(value: string): boolean {
+    const phrase = value.trim();
+    if (phrase.length === 0 || phrase.length > 200) {
+        return false;
+    }
+
+    return STALKER_JSON_AUTH_FAILURE_PATTERNS.some((pattern) =>
+        pattern.test(phrase)
     );
 }
 
