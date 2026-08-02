@@ -602,6 +602,8 @@
         "NO_SEARCH_RESULTS": "Δεν βρέθηκαν κανάλια",
         "NO_CHANNELS_FOUND": "Δεν βρέθηκαν κανάλια",
         "NO_GROUPS_FOUND": "Δεν βρέθηκαν ομάδες",
+        "CATCHUP_AVAILABLE": "Διαθέσιμο Catchup",
+        "CATCHUP_AVAILABLE_DAYS": "Διαθέσιμο Catchup — {{days}} ημέρες",
         "TRY_DIFFERENT_SEARCH": "Δοκιμάστε διαφορετικό όρο αναζήτησης",
         "DETAILS_DIALOG": {
             "TITLE": "Λεπτομέρειες καναλιού",

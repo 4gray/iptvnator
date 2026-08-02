@@ -28,7 +28,22 @@
             }
         </div>
         <div class="channel-details">
-            <div class="channel-name">{{ displayName() }}</div>
+            <div class="channel-name-row">
+                <div class="channel-name">{{ displayName() }}</div>
+                @if (catchupAvailable()) {
+                    <mat-icon
+                        class="catchup-badge"
+                        data-test-id="catchup-badge"
+                        [matTooltip]="
+                            (catchupDays() > 0
+                                ? 'CHANNELS.CATCHUP_AVAILABLE_DAYS'
+                                : 'CHANNELS.CATCHUP_AVAILABLE'
+                            ) | translate: { days: catchupDays() }
+                        "
+                        >history</mat-icon
+                    >
+                }
+            </div>
             @if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">

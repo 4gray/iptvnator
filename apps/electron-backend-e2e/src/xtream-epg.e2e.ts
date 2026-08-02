@@ -63,6 +63,12 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
             ).first();
             await expect(channelRow).toBeVisible({ timeout: 20000 });
 
+            // Provider-declared catch-up (tv_archive=1 in the fixture) is
+            // surfaced as a badge on the sidebar row (#1128).
+            await expect(
+                channelRow.getByTestId('catchup-badge')
+            ).toBeVisible();
+
             // Sidebar channel list shows the per-channel "now" programme line.
             await expect
                 .poll(async () =>

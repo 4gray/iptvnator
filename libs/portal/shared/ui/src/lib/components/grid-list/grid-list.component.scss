@@ -107,6 +107,29 @@ mat-card:hover {
 }
 
 // ─── Rating badge ─────────────────────────────────────────────────────────────
+.catchup-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 24px;
+    height: 24px;
+    // Solid dark pill like .rating — no expensive backdrop-filter
+    background: rgba(0, 0, 0, 0.85);
+    color: rgba(255, 255, 255, 0.88);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+    mat-icon {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+        line-height: 15px;
+    }
+}
+
 .rating {
     position: absolute;
     top: 6px;

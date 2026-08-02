@@ -57,6 +57,10 @@ export class ChannelListItemComponent {
     readonly selected = input(false);
     readonly showEpg = input(true);
     readonly isRadio = input(false);
+    /** Shows the provider catch-up (archive) badge next to the channel name */
+    readonly catchupAvailable = input(false);
+    /** Archive window in days for the badge tooltip; 0 hides the day count */
+    readonly catchupDays = input(0);
     readonly epgProgram = input<EpgProgram | null | undefined>();
     /** Progress percentage pre-computed by parent for performance */
     readonly progressPercentage = input(0);

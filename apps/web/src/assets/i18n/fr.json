@@ -602,6 +602,8 @@
         "NO_SEARCH_RESULTS": "Aucune chaîne trouvée",
         "NO_CHANNELS_FOUND": "Aucune chaîne trouvée",
         "NO_GROUPS_FOUND": "Aucun groupe trouvé",
+        "CATCHUP_AVAILABLE": "Catchup disponible",
+        "CATCHUP_AVAILABLE_DAYS": "Catchup disponible — {{days}} jours",
         "TRY_DIFFERENT_SEARCH": "Essayez un autre terme de recherche",
         "DETAILS_DIALOG": {
             "TITLE": "Détails de la chaîne",
