@@ -638,6 +638,32 @@ describe('SeasonContainerComponent', () => {
         expect(downloadsServiceStub.startDownload).not.toHaveBeenCalled();
     });
 
+    it('keeps a failed canonical legacy row with null coordinates downloadable', () => {
+        const episode = createEpisode();
+        const legacy = {
+            ...createDownload(episode, { status: 'failed' }),
+            seriesXtreamId: null,
+            seasonNumber: null,
+            episodeNumber: null,
+        } as unknown as DownloadItem;
+        downloadsServiceStub.downloads.set([legacy]);
+        enableDownloads();
+        setRequiredInputs({ '1': [episode] });
+
+        fixture.detectChanges();
+
+        const action = episodeAction(episode.id);
+        const seasonButton = fixture.nativeElement.querySelector(
+            '[data-test-id="download-season"]'
+        ) as HTMLButtonElement;
+        expect(action.disabled).toBe(false);
+        expect(action.querySelector('mat-icon')?.textContent).toContain(
+            'download'
+        );
+        expect(seasonButton.disabled).toBe(false);
+        expect(seasonButton.textContent).toContain('Download season (1)');
+    });
+
     it('gives the grid and list view radios localized accessible names', () => {
         TestBed.inject(TranslateService).setTranslation(
             'en',

@@ -42,6 +42,22 @@ describe('episode download identity', () => {
         });
     });
 
+    it.each([
+        ['series id', { seriesXtreamId: null }],
+        ['season number', { seasonNumber: null }],
+        ['episode number', { episodeNumber: null }],
+    ])(
+        'treats a null legacy %s as an incomplete canonical row',
+        (_label, override) => {
+            const canonical = row(override);
+
+            expect(resolveEpisodeDownload(identity, [canonical])).toEqual({
+                kind: 'match',
+                download: canonical,
+            });
+        }
+    );
+
     it('fails closed when canonical and coordinate lookups find different rows', () => {
         const coordinateFallback = row({ xtreamId: 999 });
         const canonical = row();

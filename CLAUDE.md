@@ -955,9 +955,11 @@ engine` (restart required) or
   fallback that migrates reusable rows to the canonical id. Renderer lookup
   preserves ambiguity or conflicting ownership as a distinct ineligible state,
   so neither the episode action nor the season count treats it as a row-less
-  download. Pending and active rows plus completed available/unknown rows are
-  skipped; failed, canceled, completed-missing, and unambiguous row-less
-  episodes remain eligible.
+  download. SQLite `null` and optional `undefined` coordinates both mean an
+  incomplete canonical legacy row, matching the backend resolver. Pending and
+  active rows plus completed available/unknown rows are skipped; failed,
+  canceled, completed-missing, and unambiguous row-less episodes remain
+  eligible.
 - Ready movie and grouped-series cards open a focused local detail. Movies play
   the finalized local file; series list only locally available episode rows and
   every episode action targets its own downloaded file. Focused routes disable

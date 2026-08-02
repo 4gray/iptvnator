@@ -82,12 +82,14 @@ variants, contextual buttons, and theme-aware styling.
   coordinates are a legacy episode-compatibility fallback; ambiguous or
   conflicting matches resolve to an explicit renderer conflict state rather
   than masquerading as a missing row. Both the episode action and season count
-  fail closed for that state, while restarting an eligible legacy row migrates
-  it to the canonical id. Renderer-pending, queued, downloading, and paused
-  episodes are skipped, as are completed rows whose file is available or whose
-  availability is still unknown. Failed, canceled, completed-missing, and
-  unambiguous row-less episodes are eligible; a completed-missing row is
-  restarted as a fresh download. `DOWNLOADS_START` remains the only start IPC
+  fail closed for that state. SQLite `null` and optional `undefined` coordinates
+  both mean that a canonical legacy row is incomplete, matching the backend
+  resolver, while restarting an eligible legacy row migrates it to the
+  canonical id. Renderer-pending, queued, downloading, and paused episodes are
+  skipped, as are completed rows whose file is available or whose availability
+  is still unknown. Failed, canceled, completed-missing, and unambiguous
+  row-less episodes are eligible; a completed-missing row is restarted as a
+  fresh download. `DOWNLOADS_START` remains the only start IPC
   and may return the stable `reason: 'already-in-progress'` for an active match,
   which the coordinator counts as skipped. There is no batch IPC, schema
   migration, parallel transfer, or queue reordering: destination authorization,

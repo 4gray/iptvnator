@@ -18,9 +18,9 @@ export interface EpisodeDownloadRecord {
     readonly playlistId: string;
     readonly contentType: ElectronBridgePlaybackContentType;
     readonly xtreamId: number;
-    readonly seriesXtreamId?: number;
-    readonly seasonNumber?: number;
-    readonly episodeNumber?: number;
+    readonly seriesXtreamId?: number | null;
+    readonly seasonNumber?: number | null;
+    readonly episodeNumber?: number | null;
     readonly status: ElectronBridgeDownloadStatus;
     readonly fileAvailability?: ElectronDownloadFileAvailability;
     readonly filePath?: string;
@@ -37,8 +37,11 @@ function hasConflictingCompleteCoordinates(
 ): boolean {
     const { seriesXtreamId, seasonNumber, episodeNumber } = download;
     if (
+        seriesXtreamId === null ||
         seriesXtreamId === undefined ||
+        seasonNumber === null ||
         seasonNumber === undefined ||
+        episodeNumber === null ||
         episodeNumber === undefined
     ) {
         return false;
