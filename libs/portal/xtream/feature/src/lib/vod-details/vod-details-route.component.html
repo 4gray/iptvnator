@@ -109,6 +109,29 @@
                     >
                         <mat-icon>check_circle</mat-icon>
                     </button>
+                    <!-- The primary button plays the local file once a movie
+                         is downloaded, and the sources popover only exists
+                         when another playlist also carries the film. Without
+                         this, a downloaded movie in a single-playlist library
+                         offers no way to stream the provider's copy at all. -->
+                    @if (externalPrimaryButtonState() === 'idle') {
+                        <button
+                            type="button"
+                            class="icon-action-btn"
+                            (click)="playFromProviderSource(playableItem)"
+                            [matTooltip]="
+                                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+                                    | translate
+                            "
+                            [attr.aria-label]="
+                                'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE'
+                                    | translate
+                            "
+                            data-testid="vod-play-provider"
+                        >
+                            <mat-icon>play_arrow</mat-icon>
+                        </button>
+                    }
                 } @else if (isDownloading()) {
                     <!-- Covers downloading, queued and paused: the ring holds
                          the real percent, spins when the size is unknown, and

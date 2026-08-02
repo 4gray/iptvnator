@@ -411,6 +411,25 @@ export class VodMultiSourceHostService {
         this.controller.setProbe(sourceId, { status: 'probing' });
         this.publish();
 
+        // Bound to the session that ASKED for the check, not to whatever is
+        // current when a slot frees up. "Check all" can leave a dozen tasks
+        // waiting, and the user is free to open another movie meanwhile —
+        // those tasks are then about a film that is no longer on screen, so
+        // they are dropped before spending a resolve on a foreign portal.
+        // Both the controller and the session are read when a slot frees up,
+        // NOT captured here — and that is deliberate.
+        //
+        // Capturing them would look safer and is worse: `sessionToken` also
+        // moves when the movie identity is momentarily null, and that path
+        // does NOT replace the controller (only a different film does). A
+        // task dropped on a stale captured token would therefore abandon a
+        // row it had already marked `probing` in the controller still on
+        // screen, leaving it spinning for good.
+        //
+        // Read late, a queued task simply asks the CURRENT controller for the
+        // source: gone when the user moved to another film, so `probeSource`
+        // returns before it spends a request, and present when they came back
+        // to the same one, where finishing the check is exactly right.
         return this.checkQueue(() =>
             probeSource(sourceId, {
                 controller: this.controller,

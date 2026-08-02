@@ -624,6 +624,36 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         expect(openResolvedPlayback).not.toHaveBeenCalled();
     });
 
+    it('still offers provider playback for a downloaded movie with no alternatives', async () => {
+        // The primary button plays the local file once downloaded, and the
+        // sources chip only appears when another playlist carries the film —
+        // so without this control a single-playlist library loses every way
+        // to stream the provider's copy.
+        selectedItem.set(sparseItem());
+        downloadsAvailable.set(true);
+        isDownloaded.mockReturnValue(true);
+        const playPinned = jest
+            .spyOn(fixture.componentInstance.multiSource, 'playPinnedSource')
+            .mockResolvedValue('played');
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(fixture.componentInstance.multiSource.hasAlternatives()).toBe(
+            false
+        );
+        const providerButton = host.querySelector<HTMLButtonElement>(
+            '[data-testid="vod-play-provider"]'
+        );
+        expect(providerButton).not.toBeNull();
+
+        providerButton?.click();
+        await fixture.whenStable();
+
+        expect(playPinned).toHaveBeenCalled();
+        expect(playDownload).not.toHaveBeenCalled();
+    });
+
     it('reveals the finished file from the downloaded state button', async () => {
         selectedItem.set(sparseItem());
         downloadsAvailable.set(true);

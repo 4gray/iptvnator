@@ -405,6 +405,35 @@ describe('VodMultiSourceHostService', () => {
         await Promise.all(pending);
     });
 
+    it('drops queued checks once the user opens another movie', async () => {
+        const alts = [2, 3, 4, 5, 6, 7].map(alternative);
+        await loadMovie(alts);
+
+        const gates = new Map<string, ReturnType<typeof createDeferred>>();
+        resolver.resolve.mockImplementation((candidate) => {
+            const gate = createDeferred<null>();
+            gates.set((candidate as VodSourceCandidate).id, gate);
+            return gate.promise;
+        });
+
+        const pending = alts.map((alt) => service.check(alt.id));
+        await new Promise((resolve) => setTimeout(resolve));
+        // Four in flight, two still waiting for a slot.
+        expect(resolver.resolve).toHaveBeenCalledTimes(4);
+
+        // The user navigates away while those two are still queued. They are
+        // about a film that is no longer on screen, so they must not spend a
+        // resolve against a foreign portal when a slot frees up.
+        await loadMovie([], MOVIE_B);
+
+        for (const [, gate] of gates) {
+            gate.resolve(null);
+        }
+        await Promise.all(pending);
+
+        expect(resolver.resolve).toHaveBeenCalledTimes(4);
+    });
+
     it('remembers verdicts across sessions instead of re-checking', async () => {
         probes.probe.mockResolvedValue({
             ...PROBE_OK,
