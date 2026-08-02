@@ -221,8 +221,12 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
         const pending = this.pendingRepairs.get(playlistId);
         if (pending) {
+            // Wait the in-flight probe out, then RE-ENTER: the caller may
+            // carry a different (edited) configuration whose fingerprint
+            // was never attempted — it must get its own probe instead of
+            // inheriting whatever the old repair concluded.
             await pending;
-            return this.reapplyIfChanged(playlist);
+            return this.repairPortal(playlist);
         }
 
         const fingerprint = this.repairSourceFingerprint(playlist);

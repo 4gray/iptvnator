@@ -274,6 +274,43 @@ describe('StalkerPortalRepairService', () => {
             expect(discover).toHaveBeenCalledTimes(1);
         });
 
+        it('re-enters for an edited configuration after awaiting a pending probe', async () => {
+            // A's probe is in flight when a request from the EDITED config B
+            // fails: after A settles (and is discarded by the row guard), B
+            // must get its own probe instead of inheriting A's outcome.
+            const edited = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/portal.php',
+            } as PlaylistMeta;
+            persistedRow = edited as Playlist;
+
+            let resolveFirstDiscovery!: (value: unknown) => void;
+            discover.mockReturnValueOnce(
+                new Promise((resolve) => (resolveFirstDiscovery = resolve))
+            );
+            discover.mockResolvedValueOnce({
+                status: 'resolved',
+                portalUrl: 'http://edited.example/server/load.php',
+                isFullStalkerPortal: true,
+            });
+
+            const oldRepair = service.repairPortal(MISCLASSIFIED);
+            const editedRepair = service.repairPortal(edited);
+
+            resolveFirstDiscovery({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+
+            expect(await oldRepair).toBeNull();
+            const repaired = await editedRepair;
+            expect(discover).toHaveBeenCalledTimes(2);
+            expect(repaired?.portalUrl).toBe(
+                'http://edited.example/server/load.php'
+            );
+        });
+
         it('shares one in-flight probe between concurrent failing requests', async () => {
             let resolveDiscovery!: (value: unknown) => void;
             discover.mockReturnValue(
