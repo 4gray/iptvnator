@@ -171,8 +171,13 @@ deliberately stricter than the general scope:
   also cover, and never to third-party hosts an HLS manifest may point at
 - they live only in the in-memory override: never in the session cookie jar,
   never on disk, so they cannot outlive the app process
-- they are dropped whenever the scoped override is replaced (channel change)
-  or cleared (playback end, `WebPlayerViewComponent` destroy)
+- they are dropped whenever the scoped override is replaced (channel or
+  source change) or released — player close/destroy, a radio host's close, or
+  a new selection that mounts no player surface. The media `ended` event
+  deliberately does **not** clear the override: the mounted player still owns
+  the session (replay, or a seek into an unbuffered range, must keep working
+  against a gated stream), and the credentials only ever travel to the exact
+  origin that issued them; every dismount path above releases them
 
 The header-injection design was chosen over `session.cookies.set()`
 deliberately: jar cookies only attach to credentialed requests, which would
