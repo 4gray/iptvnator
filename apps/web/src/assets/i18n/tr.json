@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}·B{{episode}}",
             "NOT_YET_SYNCED": "Henüz eşitlenmedi",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}} gün içinde sona erer",
+            "SOURCE_EXPIRED": "Süresi doldu"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

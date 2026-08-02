@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "Σ{{season}}·Ε{{episode}}",
             "NOT_YET_SYNCED": "Δεν έχει συγχρονιστεί ακόμα",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "Λήγει σε {{days}} ημ.",
+            "SOURCE_EXPIRED": "Έληξε"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

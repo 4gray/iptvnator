@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "م{{season}}·ح{{episode}}",
             "NOT_YET_SYNCED": "لم تتم المزامنة بعد",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "ينتهي خلال {{days}} يوم",
+            "SOURCE_EXPIRED": "منتهي"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

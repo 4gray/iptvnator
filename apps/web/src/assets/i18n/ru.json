@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
             "NOT_YET_SYNCED": "Еще не синхронизировано",
             "RECENTLY_WATCHED_LIVE_TV": "Недавно просмотренное прямое ТВ",
-            "FAVORITE_MOVIES_AND_SERIES": "Избранные фильмы и сериалы"
+            "FAVORITE_MOVIES_AND_SERIES": "Избранные фильмы и сериалы",
+            "SOURCE_EXPIRES_IN_DAYS": "Истекает через {{days}} дн.",
+            "SOURCE_EXPIRED": "Истёк"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
