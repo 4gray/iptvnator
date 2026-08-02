@@ -20,6 +20,12 @@ import {
     type SeasonDownloadResult,
 } from './season-download.models';
 
+interface EpisodeDownloadPreflight {
+    readonly ready: EpisodeDownloadCandidate[];
+    readonly skipped: EpisodeDownloadCandidate[];
+    readonly failed: EpisodeDownloadCandidate[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class SeasonDownloadCoordinator {
     private readonly downloadsService = inject(DownloadsService);
@@ -56,6 +62,14 @@ export class SeasonDownloadCoordinator {
             return EPISODE_DOWNLOAD_SUBMISSIONS.Skipped;
         }
 
+        const preflight = await this.preflightCompletedMissing([candidate]);
+        if (preflight.ready.length === 0) {
+            this.release(candidate.identity);
+            return preflight.skipped.length > 0
+                ? EPISODE_DOWNLOAD_SUBMISSIONS.Skipped
+                : EPISODE_DOWNLOAD_SUBMISSIONS.Failed;
+        }
+
         const submission = await this.submit(candidate);
         if (submission === EPISODE_DOWNLOAD_SUBMISSIONS.Failed) {
             this.release(candidate.identity);
@@ -84,8 +98,17 @@ export class SeasonDownloadCoordinator {
             reserved.push(candidate);
         }
 
+        const preflight = await this.preflightCompletedMissing(reserved);
+        result.skipped += preflight.skipped.length;
+        result.failed += preflight.failed.length;
+        this.releaseAll(
+            [...preflight.skipped, ...preflight.failed].map(
+                ({ identity }) => identity
+            )
+        );
+
         const refreshPending: EpisodeDownloadIdentity[] = [];
-        for (const candidate of reserved) {
+        for (const candidate of preflight.ready) {
             const submission = await this.submit(candidate);
             result[submission] += 1;
             if (submission !== EPISODE_DOWNLOAD_SUBMISSIONS.Failed) {
@@ -104,6 +127,52 @@ export class SeasonDownloadCoordinator {
         }
 
         return result;
+    }
+
+    private async preflightCompletedMissing(
+        candidates: readonly EpisodeDownloadCandidate[]
+    ): Promise<EpisodeDownloadPreflight> {
+        if (
+            !candidates.some(({ identity }) =>
+                this.isCompletedMissing(identity)
+            )
+        ) {
+            return { ready: [...candidates], skipped: [], failed: [] };
+        }
+
+        try {
+            await this.downloadsService.loadDownloads();
+        } catch {
+            this.logger.warn('Completed episode file recheck failed');
+            return { ready: [], skipped: [], failed: [...candidates] };
+        }
+
+        if (
+            !this.downloadsService.isAvailable() ||
+            !this.downloadsService.hasAuthoritativeDownloadList() ||
+            !this.downloadsService.hasLoadedDownloads()
+        ) {
+            return { ready: [], skipped: [], failed: [...candidates] };
+        }
+
+        const ready: EpisodeDownloadCandidate[] = [];
+        const skipped: EpisodeDownloadCandidate[] = [];
+        for (const candidate of candidates) {
+            const resolution = this.resolveDownload(candidate.identity);
+            (isEpisodeDownloadEligible(resolution) ? ready : skipped).push(
+                candidate
+            );
+        }
+        return { ready, skipped, failed: [] };
+    }
+
+    private isCompletedMissing(identity: EpisodeDownloadIdentity): boolean {
+        const resolution = this.resolveDownload(identity);
+        return (
+            resolution.kind === 'match' &&
+            resolution.download.status === 'completed' &&
+            resolution.download.fileAvailability === 'missing'
+        );
     }
 
     private reserve(candidate: EpisodeDownloadCandidate): boolean {

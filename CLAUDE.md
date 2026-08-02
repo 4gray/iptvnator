@@ -942,8 +942,10 @@ engine` (restart required) or
   reports added, skipped, and failed counts. Xtream and Stalker adapters remain
   responsible for provider URLs, headers, and metadata; the backend still runs
   one active transfer with a FIFO queue. `DOWNLOADS_START` remains the sole
-  start IPC; its
-  stable `reason: 'already-in-progress'` and `reason: 'already-downloaded'`
+  start IPC. A reserved completed-missing match triggers one authoritative
+  preflight refresh before provider preparation, so a restored Stalker file can
+  become a stable skip without a portal request. The IPC's stable
+  `reason: 'already-in-progress'` and `reason: 'already-downloaded'`
   results are counted as skipped, and no batch IPC is introduced. The latter
   comes from an asynchronous main-process filesystem recheck before a
   completed-missing row can be reset, so a file restored after the renderer
@@ -954,9 +956,11 @@ engine` (restart required) or
   and report a timeout as missing for that snapshot. The underlying filesystem
   operation remains coalesced and charged against the four-probe cap until it
   settles, so later callers have independent bounded waits without duplicating
-  stalled native work. Episode and season download actions require an
-  authoritative global list. A successful snapshot remains authoritative while
-  a later background refresh is in flight; a latest refresh failure leaves
+  stalled native work. Only `ENOENT` and `ENOTDIR` prove absence; permission,
+  I/O, and other filesystem errors remain unknown and cannot clear a completed
+  row. Episode and season download actions require an authoritative global
+  list. A successful snapshot remains authoritative while a later background
+  refresh is in flight; a latest refresh failure leaves
   loading/empty-state resolution intact but disables starts until another
   snapshot succeeds.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`

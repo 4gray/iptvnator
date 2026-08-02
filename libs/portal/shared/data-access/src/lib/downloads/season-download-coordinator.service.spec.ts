@@ -311,6 +311,73 @@ describe('SeasonDownloadCoordinator', () => {
         expect(available.prepare).not.toHaveBeenCalled();
     });
 
+    it('refreshes a completed-missing episode before provider preparation', async () => {
+        const restored = candidate(FIRST_IDENTITY, () =>
+            Promise.reject(new Error('portal unavailable'))
+        );
+        downloadsService.downloads.set([
+            download(restored.identity, {
+                status: 'completed',
+                fileAvailability: 'missing',
+            }),
+        ]);
+        downloadsService.loadDownloads.mockImplementation(async () => {
+            downloadsService.downloads.set([
+                download(restored.identity, {
+                    status: 'completed',
+                    fileAvailability: 'available',
+                }),
+            ]);
+        });
+
+        await expect(coordinator.enqueueOne(restored)).resolves.toBe('skipped');
+
+        expect(downloadsService.loadDownloads).toHaveBeenCalledTimes(1);
+        expect(restored.prepare).not.toHaveBeenCalled();
+        expect(downloadsService.startDownload).not.toHaveBeenCalled();
+        expect(coordinator.isPending(restored.identity)).toBe(false);
+    });
+
+    it('refreshes completed-missing season candidates once before provider preparation', async () => {
+        const first = candidate(FIRST_IDENTITY, () =>
+            Promise.reject(new Error('portal unavailable'))
+        );
+        const second = candidate(identity(102, 2), () =>
+            Promise.reject(new Error('portal unavailable'))
+        );
+        downloadsService.downloads.set([
+            download(first.identity, {
+                status: 'completed',
+                fileAvailability: 'missing',
+            }),
+            download(second.identity, {
+                status: 'completed',
+                fileAvailability: 'missing',
+            }),
+        ]);
+        downloadsService.loadDownloads.mockImplementation(async () => {
+            downloadsService.downloads.set([
+                download(first.identity, {
+                    status: 'completed',
+                    fileAvailability: 'available',
+                }),
+                download(second.identity, {
+                    status: 'completed',
+                    fileAvailability: 'available',
+                }),
+            ]);
+        });
+
+        await expect(
+            coordinator.enqueueSeason([first, second])
+        ).resolves.toEqual({ added: 0, skipped: 2, failed: 0 });
+
+        expect(downloadsService.loadDownloads).toHaveBeenCalledTimes(1);
+        expect(first.prepare).not.toHaveBeenCalled();
+        expect(second.prepare).not.toHaveBeenCalled();
+        expect(downloadsService.startDownload).not.toHaveBeenCalled();
+    });
+
     it('skips an episode when multiple managed rows claim its coordinates', async () => {
         const item = candidate(FIRST_IDENTITY);
         downloadsService.downloads.set([

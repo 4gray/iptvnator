@@ -1,4 +1,5 @@
 import {
+    createDownloadFileAvailabilityProbe,
     decorateDownloadItem,
     getDownloadFileAvailability,
     getDownloadFileAvailabilityWithTimeoutAsync,
@@ -17,6 +18,32 @@ function lstatResult(options: {
 }
 
 describe('download file availability', () => {
+    it.each([
+        ['EACCES', 'unknown'],
+        ['EIO', 'unknown'],
+        ['ENOENT', 'missing'],
+        ['ENOTDIR', 'missing'],
+    ] as const)(
+        'classifies an %s filesystem probe without risking a completed row',
+        async (code, expected) => {
+            const error = Object.assign(new Error(code), { code });
+            const probe = createDownloadFileAvailabilityProbe(async () => {
+                throw error;
+            });
+
+            await expect(
+                getDownloadFileAvailabilityWithTimeoutAsync(
+                    {
+                        filePath: '/downloads/episode.mp4',
+                        status: 'completed',
+                    },
+                    25,
+                    probe
+                )
+            ).resolves.toBe(expected);
+        }
+    );
+
     it('bounds a restored-file probe and returns unknown on timeout', async () => {
         jest.useFakeTimers();
         try {

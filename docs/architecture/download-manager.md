@@ -74,8 +74,11 @@ variants, contextual buttons, and theme-aware styling.
   the pending-to-queued/downloaded handoff, and the coordinator returns
   `added`, `skipped`, and `failed` counts. Xtream and Stalker adapters own
   provider URL, request header, and metadata preparation; the coordinator owns
-  only provider-neutral orchestration. Both providers use normalized
-  `episode.id` as the canonical
+  only provider-neutral orchestration. When a reserved candidate matches a
+  completed-missing row, the coordinator performs one authoritative preflight
+  refresh before any provider preparation. Restored files therefore become
+  stable skips without requiring a Stalker URL/network request. Both providers
+  use normalized `episode.id` as the canonical
   episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
   in URL resolution.
   The exact `(playlistId, contentType, xtreamId)` identity is authoritative.
@@ -104,8 +107,11 @@ variants, contextual buttons, and theme-aware styling.
   and report a timeout as missing for that snapshot. The underlying filesystem
   operation remains coalesced and charged against the four-probe cap until it
   actually settles, so later callers get independent bounded waits without
-  duplicating stalled native work. The coordinator counts both stable duplicate
-  reasons as skipped. There is no batch IPC,
+  duplicating stalled native work. Only `ENOENT` and `ENOTDIR` are authoritative
+  absence; permission, I/O, and other probe errors remain unknown, so
+  `DOWNLOADS_START` leaves the completed row and file path untouched. The
+  coordinator counts both stable duplicate reasons as skipped. There is no
+  batch IPC,
   parallel transfer, or queue reordering: destination authorization, persisted
   header handling, and the backend's one-active-transfer FIFO semantics remain
   unchanged.

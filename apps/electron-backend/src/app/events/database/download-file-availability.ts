@@ -23,7 +23,9 @@ type DownloadAsyncLstat = (
 
 type DownloadFileAvailabilityProbeResult = boolean | 'unknown';
 
-type DownloadFileAvailabilityProbe = (filePath: string) => Promise<boolean>;
+type DownloadFileAvailabilityProbe = (
+    filePath: string
+) => Promise<DownloadFileAvailabilityProbeResult>;
 
 const DEFAULT_MAX_CONCURRENT_FILE_PROBES = 4;
 const DEFAULT_FILE_PROBE_TIMEOUT_MS = 1_000;
@@ -31,7 +33,15 @@ const DEFAULT_FILE_PROBE_TIMEOUT_MS = 1_000;
 export type BoundedDownloadFileAvailability =
     ElectronDownloadFileAvailability | 'unknown';
 
-function createDownloadFileAvailabilityProbe(
+function isMissingFileSystemError(error: unknown): boolean {
+    if (!error || typeof error !== 'object' || !('code' in error)) {
+        return false;
+    }
+    const code = (error as { code?: unknown }).code;
+    return code === 'ENOENT' || code === 'ENOTDIR';
+}
+
+export function createDownloadFileAvailabilityProbe(
     asyncLstat: DownloadAsyncLstat = lstat,
     maxConcurrent = DEFAULT_MAX_CONCURRENT_FILE_PROBES
 ): DownloadFileAvailabilityProbe {
@@ -41,7 +51,10 @@ function createDownloadFileAvailabilityProbe(
     // deadlines never evict this raw operation, so a stalled lstat remains
     // charged to the concurrency cap instead of being duplicated by refreshes.
     // Completed results are discarded so later filesystem changes stay visible.
-    const inFlight = new Map<string, Promise<boolean>>();
+    const inFlight = new Map<
+        string,
+        Promise<DownloadFileAvailabilityProbeResult>
+    >();
     let active = 0;
 
     const acquire = (): Promise<void> => {
@@ -61,13 +74,15 @@ function createDownloadFileAvailabilityProbe(
         }
     };
 
-    const inspect = async (filePath: string): Promise<boolean> => {
+    const inspect = async (
+        filePath: string
+    ): Promise<DownloadFileAvailabilityProbeResult> => {
         await acquire();
         try {
             const stats = await asyncLstat(filePath);
             return stats.isFile() && !stats.isSymbolicLink();
-        } catch {
-            return false;
+        } catch (error) {
+            return isMissingFileSystemError(error) ? false : 'unknown';
         } finally {
             release();
         }
