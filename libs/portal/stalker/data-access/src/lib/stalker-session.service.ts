@@ -112,11 +112,17 @@ export class StalkerSessionService {
         | ((playlist: Playlist) => Playlist)
         | null = null;
 
-    // Pending authentication promises to prevent race conditions
-    // When multiple requests need a token simultaneously, they all wait for the same auth
+    // Pending authentication promises to prevent race conditions.
+    // When multiple requests need a token simultaneously, they all wait for
+    // the same auth — but ONLY when they act as the same identity: a result
+    // negotiated for a pre-edit identity must not be adopted by requests
+    // carrying the edited one.
     private pendingAuth = new Map<
         string,
-        Promise<{ token: string; serialNumber?: string }>
+        {
+            promise: Promise<{ token: string; serialNumber?: string }>;
+            identityFingerprint: string;
+        }
     >();
     private watchdogIntervals = new Map<
         string,
@@ -594,10 +600,26 @@ export class StalkerSessionService {
 
         // Check if there's already a pending authentication for this playlist
         // This prevents race conditions when multiple resources request a token simultaneously
-        const pendingPromise = this.pendingAuth.get(playlist._id);
-        if (pendingPromise) {
-            this.logger.debug('Waiting for pending authentication...');
-            return pendingPromise;
+        const pendingEntry = this.pendingAuth.get(playlist._id);
+        if (pendingEntry) {
+            if (
+                pendingEntry.identityFingerprint ===
+                stalkerIdentityFingerprint(playlist)
+            ) {
+                this.logger.debug('Waiting for pending authentication...');
+                return pendingEntry.promise;
+            }
+
+            // An authentication for a DIFFERENT (pre-edit) identity is in
+            // flight. Its result must not be adopted, but starting a
+            // competing handshake would strand it with a dead token on
+            // strict portals — wait for it to settle, then re-enter and
+            // authenticate as the current identity.
+            this.logger.debug(
+                'Waiting out an authentication for a different identity...'
+            );
+            await pendingEntry.promise.catch(() => undefined);
+            return this.ensureToken(playlist);
         }
 
         // No cached token - need to do full authentication (handshake + get_profile)
@@ -627,7 +649,10 @@ export class StalkerSessionService {
         })();
 
         // Store the pending promise so other concurrent requests can wait on it
-        this.pendingAuth.set(playlist._id, authPromise);
+        this.pendingAuth.set(playlist._id, {
+            promise: authPromise,
+            identityFingerprint: stalkerIdentityFingerprint(playlist),
+        });
 
         return authPromise;
     }
@@ -665,7 +690,7 @@ export class StalkerSessionService {
             this.logger.debug('Waiting for pending authentication...');
             // A failed pending auth must not abort the refresh; this call
             // performs its own handshake either way.
-            await inFlight.catch(() => undefined);
+            await inFlight.promise.catch(() => undefined);
         }
 
         // Publish the slot before the first await so no other waiter can
@@ -686,7 +711,11 @@ export class StalkerSessionService {
         // Waiters attach their own handlers; this one only keeps a
         // rejected slot from surfacing as an unhandled rejection.
         void slot.catch(() => undefined);
-        this.pendingAuth.set(playlist._id, slot);
+        const slotEntry = {
+            promise: slot,
+            identityFingerprint: stalkerIdentityFingerprint(playlist),
+        };
+        this.pendingAuth.set(playlist._id, slotEntry);
 
         // ensureToken() reads tokenCache before pendingAuth, so leaving the
         // old token there would hand a token this handshake is about to
@@ -712,7 +741,7 @@ export class StalkerSessionService {
         } finally {
             // Only retire our own entry: a caller that started a later
             // authentication owns the map slot from then on.
-            if (this.pendingAuth.get(playlist._id) === slot) {
+            if (this.pendingAuth.get(playlist._id) === slotEntry) {
                 this.pendingAuth.delete(playlist._id);
             }
         }

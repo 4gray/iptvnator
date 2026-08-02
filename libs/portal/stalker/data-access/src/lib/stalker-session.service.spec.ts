@@ -174,6 +174,51 @@ describe('StalkerSessionService identity-tagged token cache', () => {
         expect(sendIpcEvent).toHaveBeenCalled();
     });
 
+    it('does not hand an in-flight authentication result to an edited identity', async () => {
+        // Deferred transport: the first auth (old identity) is still in
+        // flight when the edited identity asks for a token.
+        const pendingResolvers: Array<(value: unknown) => void> = [];
+        sendIpcEvent.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    pendingResolvers.push(resolve);
+                })
+        );
+
+        const oldAuth = service.ensureToken(playlistA);
+        for (let i = 0; i < 5; i += 1) {
+            await Promise.resolve();
+        }
+
+        const editedIdentity = {
+            ...playlistA,
+            macAddress: '00:1A:79:00:55:55',
+        } as Playlist;
+        const editedAuth = service.ensureToken(editedIdentity);
+
+        // Settle the OLD identity's handshake + profile.
+        pendingResolvers[0]({ js: { token: 'TOKEN-OLD', random: 'r' } });
+        for (let i = 0; i < 10; i += 1) {
+            await Promise.resolve();
+        }
+        pendingResolvers[1]?.({ js: {} });
+        await expect(oldAuth).resolves.toMatchObject({ token: 'TOKEN-OLD' });
+
+        // The edited identity re-enters and negotiates its OWN session.
+        for (let i = 0; i < 10; i += 1) {
+            await Promise.resolve();
+        }
+        pendingResolvers[2]?.({ js: { token: 'TOKEN-NEW', random: 'r' } });
+        for (let i = 0; i < 10; i += 1) {
+            await Promise.resolve();
+        }
+        pendingResolvers[3]?.({ js: {} });
+
+        await expect(editedAuth).resolves.toMatchObject({
+            token: 'TOKEN-NEW',
+        });
+    });
+
     it('retires a failed token even on the no-retry path (watchdog pings)', async () => {
         service.setCachedToken('portal-1', 'DEAD', playlistA);
         sendIpcEvent.mockResolvedValue('Authorization failed.');
