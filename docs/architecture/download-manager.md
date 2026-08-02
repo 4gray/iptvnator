@@ -55,8 +55,12 @@ variants, contextual buttons, and theme-aware styling.
   `loadDownloads()` therefore always invokes the Electron list IPC without its
   legacy optional playlist scope. Route scope, category, and search must never
   replace or narrow that signal. Overlapping loads are request-ordered so a
-  late response cannot replace a newer snapshot. `hasLoadedDownloads` records
-  that the latest attempt completed, including an error, while
+  late response cannot replace a newer snapshot. A load promise whose response
+  is superseded remains pending until that request or a newer one settles as
+  latest; callers therefore observe either a committed successor snapshot or
+  its authoritative failure instead of proceeding after a discarded response.
+  `hasLoadedDownloads` records that the latest attempt completed, including an
+  error, while
   `hasAuthoritativeDownloadList` becomes true after a successful request,
   remains true while a later refresh is in flight, and clears only if the
   latest request fails. Series download actions require both loaded and
@@ -76,8 +80,10 @@ variants, contextual buttons, and theme-aware styling.
   provider URL, request header, and metadata preparation; the coordinator owns
   only provider-neutral orchestration. When a reserved candidate matches a
   completed-missing row, the coordinator performs one authoritative preflight
-  refresh before any provider preparation. Restored files therefore become
-  stable skips without requiring a Stalker URL/network request. Both providers
+  refresh before any provider preparation. If a download-update broadcast
+  supersedes that request, the preflight waits for the winning refresh to
+  settle. Restored files therefore become stable skips without requiring a
+  Stalker URL/network request. Both providers
   use normalized `episode.id` as the canonical
   episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
   in URL resolution.

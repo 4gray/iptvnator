@@ -561,6 +561,40 @@ describe('DownloadsService', () => {
         expect(electron.downloadsGetList).toHaveBeenNthCalledWith(2);
     });
 
+    it('keeps a superseded load pending until a newer request commits its snapshot', async () => {
+        const staleItem = createDownload(1, 'playlist-old');
+        const latestItem = createDownload(2, 'playlist-new');
+        const first = createDeferred<DownloadItem[]>();
+        const second = createDeferred<DownloadItem[]>();
+        const electron = {
+            downloadsGetList: jest
+                .fn()
+                .mockReturnValueOnce(first.promise)
+                .mockReturnValueOnce(second.promise),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+        let supersededLoadSettled = false;
+
+        const firstRequest = service.loadDownloads().finally(() => {
+            supersededLoadSettled = true;
+        });
+        const secondRequest = service.loadDownloads();
+
+        first.resolve([staleItem]);
+        await first.promise;
+        await Promise.resolve();
+
+        expect(supersededLoadSettled).toBe(false);
+        expect(service.downloads()).toEqual([]);
+
+        second.resolve([latestItem]);
+        await Promise.all([firstRequest, secondRequest]);
+
+        expect(service.downloads()).toEqual([latestItem]);
+        expect(supersededLoadSettled).toBe(true);
+    });
+
     it('reports paused content and resumes it by content identity', async () => {
         const pausedItem = {
             ...createDownload(7),

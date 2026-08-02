@@ -88,7 +88,8 @@ export class DownloadsService implements OnDestroy {
     }
 
     /**
-     * Load downloads from the backend
+     * Load downloads from the backend. A superseded caller waits until its
+     * request or a newer one settles as the current snapshot.
      */
     async loadDownloads(): Promise<void> {
         if (!this.isAvailable()) return;
@@ -107,9 +108,7 @@ export class DownloadsService implements OnDestroy {
                 this.downloadListLoadState.markFailed();
             }
         } finally {
-            if (this.downloadListLoadState.isLatest(requestId)) {
-                this.downloadListLoadState.finish();
-            }
+            await this.downloadListLoadState.finishOrJoinLatest(requestId);
         }
     }
 

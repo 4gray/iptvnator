@@ -2,6 +2,8 @@ import { signal } from '@angular/core';
 
 export class DownloadListLoadState {
     private requestId = 0;
+    private settledRequestId = 0;
+    private readonly settlementWaiters = new Map<number, () => void>();
     private readonly loading = signal(false);
     private readonly loaded = signal(false);
     private readonly authoritative = signal(false);
@@ -29,7 +31,29 @@ export class DownloadListLoadState {
         this.loaded.set(true);
     }
 
-    finish(): void {
+    async finishOrJoinLatest(requestId: number): Promise<void> {
+        if (!this.isLatest(requestId)) {
+            await this.waitForSettlementAtOrAfter(requestId);
+            return;
+        }
+
         this.loading.set(false);
+        this.settledRequestId = requestId;
+        for (const [minimumRequestId, resolve] of this.settlementWaiters) {
+            if (minimumRequestId <= requestId) {
+                this.settlementWaiters.delete(minimumRequestId);
+                resolve();
+            }
+        }
+    }
+
+    private waitForSettlementAtOrAfter(requestId: number): Promise<void> {
+        if (this.settledRequestId >= requestId) {
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+            this.settlementWaiters.set(requestId, resolve);
+        });
     }
 }
