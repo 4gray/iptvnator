@@ -915,6 +915,21 @@ engine` (restart required) or
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed
   files move to Needs attention instead of remaining in Ready to watch.
+- Series details route individual and selected-season episode downloads through
+  the provider-neutral `SeasonDownloadCoordinator`. It reserves per-episode
+  pending identities synchronously, submits season candidates sequentially and
+  best-effort through the existing `DOWNLOADS_START` path, performs one final
+  authoritative refresh after accepted submissions, and reports added,
+  skipped, and failed counts. Xtream and Stalker adapters remain responsible
+  for provider URLs, headers, and metadata; the backend still runs one active
+  transfer with a FIFO queue.
+- Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
+  for both providers; Stalker playback identifiers only resolve the URL. Exact
+  `(playlistId, contentType, xtreamId)` matches are authoritative, while
+  complete playlist/series/season/episode coordinates are a fail-closed legacy
+  fallback that migrates reusable rows to the canonical id. Pending and active
+  rows plus completed available/unknown rows are skipped; failed, canceled,
+  completed-missing, and row-less episodes remain eligible.
 - Ready movie and grouped-series cards open a focused local detail. Movies play
   the finalized local file; series list only locally available episode rows and
   every episode action targets its own downloaded file. Focused routes disable

@@ -56,6 +56,32 @@ variants, contextual buttons, and theme-aware styling.
   resume the service asks the main process for an authorized folder and calls
   the corresponding IPC command. The `onDownloadsUpdate` broadcast triggers a
   new global load.
+- **Series season queueing**
+  `SeasonDownloadCoordinator` owns synchronous, per-identity pending
+  reservations and submits an individual episode or selected-season snapshot
+  through `DownloadsService.startDownload()`. Season batches are sequential
+  and best-effort: one candidate failing does not stop later candidates. After
+  accepted submissions, one authoritative list refresh closes the pending-to-
+  queued handoff, and the coordinator returns `added`, `skipped`, and `failed`
+  counts. Xtream and Stalker adapters own provider URL, request header, and
+  metadata preparation; the coordinator owns only provider-neutral
+  orchestration. Both providers use normalized `episode.id` as the canonical
+  episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
+  in URL resolution.
+  The exact `(playlistId, contentType, xtreamId)` identity is authoritative.
+  Complete `(playlistId, seriesXtreamId, seasonNumber, episodeNumber)`
+  coordinates are a legacy episode-compatibility fallback; ambiguous or
+  conflicting matches fail closed, while restarting an eligible legacy row
+  migrates it to the canonical id. Renderer-pending, queued, downloading, and
+  paused episodes are skipped, as are completed rows whose file is available
+  or whose availability is still unknown. Failed, canceled, completed-missing,
+  and row-less episodes are eligible; a completed-missing row is restarted as
+  a fresh download. `DOWNLOADS_START` remains the only start IPC and may return
+  the stable `reason: 'already-in-progress'` for an active match, which the
+  coordinator counts as skipped. There is no batch IPC, schema migration,
+  parallel transfer, or queue reordering: destination authorization, persisted
+  header handling, and the backend's one-active-transfer FIFO semantics remain
+  unchanged.
 - **Pure manager model**
   (`download-manager.viewmodel.ts` and `download-library.viewmodel.ts`)
   derives the current route scope, search/category filtering, queue partitions,
