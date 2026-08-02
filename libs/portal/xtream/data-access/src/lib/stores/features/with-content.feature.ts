@@ -672,6 +672,19 @@ export function withContent() {
                 return request;
             };
 
+            const publishImportPhase = (phase: string): void => {
+                patchState(store, (state) => ({
+                    // 'loading-cached' is a read-only presentation phase. It
+                    // must not mark a real import as started: the error path
+                    // gates cache cleanup on isImporting, so flagging a warm
+                    // DB read would let a cancellation wipe the healthy
+                    // cached catalog and force a full provider redownload.
+                    isImporting:
+                        state.isImporting || phase !== 'loading-cached',
+                    importPhase: phase,
+                }));
+            };
+
             const trackImportEvent = (event: DbOperationEvent): void => {
                 const operationId = event.operationId;
 
@@ -1059,11 +1072,7 @@ export function withContent() {
                                 'live',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: (phase) =>
-                                        patchState(store, {
-                                            isImporting: true,
-                                            importPhase: phase,
-                                        }),
+                                    onPhaseChange: publishImportPhase,
                                 }
                             ),
                             dataSource.getCategories(
@@ -1072,11 +1081,7 @@ export function withContent() {
                                 'vod',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: (phase) =>
-                                        patchState(store, {
-                                            isImporting: true,
-                                            importPhase: phase,
-                                        }),
+                                    onPhaseChange: publishImportPhase,
                                 }
                             ),
                             dataSource.getCategories(
@@ -1085,11 +1090,7 @@ export function withContent() {
                                 'series',
                                 {
                                     sessionId: options?.sessionId,
-                                    onPhaseChange: (phase) =>
-                                        patchState(store, {
-                                            isImporting: true,
-                                            importPhase: phase,
-                                        }),
+                                    onPhaseChange: publishImportPhase,
                                 }
                             ),
                         ]);
@@ -1172,11 +1173,7 @@ export function withContent() {
                                 operationId: liveOperationId,
                                 sessionId: options?.sessionId,
                                 onEvent: trackImportEvent,
-                                onPhaseChange: (phase) =>
-                                    patchState(store, {
-                                        isImporting: true,
-                                        importPhase: phase,
-                                    }),
+                                onPhaseChange: publishImportPhase,
                             }
                         )) as XtreamLiveStream[];
                         throwIfImportCancelled(options?.importSessionId);
@@ -1213,11 +1210,7 @@ export function withContent() {
                                 operationId: vodOperationId,
                                 sessionId: options?.sessionId,
                                 onEvent: trackImportEvent,
-                                onPhaseChange: (phase) =>
-                                    patchState(store, {
-                                        isImporting: true,
-                                        importPhase: phase,
-                                    }),
+                                onPhaseChange: publishImportPhase,
                             }
                         )) as XtreamVodStream[];
                         throwIfImportCancelled(options?.importSessionId);
@@ -1255,11 +1248,7 @@ export function withContent() {
                                 operationId: seriesOperationId,
                                 sessionId: options?.sessionId,
                                 onEvent: trackImportEvent,
-                                onPhaseChange: (phase) =>
-                                    patchState(store, {
-                                        isImporting: true,
-                                        importPhase: phase,
-                                    }),
+                                onPhaseChange: publishImportPhase,
                             }
                         )) as XtreamSerieItem[];
                         throwIfImportCancelled(options?.importSessionId);
