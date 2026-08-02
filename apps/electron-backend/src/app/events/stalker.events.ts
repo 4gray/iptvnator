@@ -180,14 +180,14 @@ ipcMain.handle(
                 httpError.status = error.response.status;
                 throw httpError;
             } else if (axios.isAxiosError(error)) {
-                const errorResponse = {
-                    type: 'ERROR',
-                    message:
-                        error.message ||
-                        'Failed to fetch data from Stalker portal',
-                    status: 500,
-                };
-                throw errorResponse;
+                // A real Error, not a plain object: Electron serializes
+                // handler rejections via toString(), so a plain object
+                // reaches the renderer as "[object Object]" and its
+                // timeout-vs-connection classification is lost — discovery
+                // would stop probing as if the whole host were unreachable.
+                throw new Error(
+                    error.message || 'Failed to fetch data from Stalker portal'
+                );
             } else if (
                 error &&
                 typeof error === 'object' &&

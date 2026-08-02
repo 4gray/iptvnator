@@ -33,6 +33,32 @@ describe('stalker-player-request.utils', () => {
         };
     });
 
+    it('resolves relative replies against arbitrary discovered installations', async () => {
+        // Discovery can persist a nested endpoint (/cp/server/load.php);
+        // the base must come from the endpoint's API suffix, not from a
+        // fixed stalker_portal|c|portal segment allowlist.
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: '/media/video_5.mpg' },
+        });
+
+        const streamUrl = await fetchStalkerPlaybackLink(
+            {
+                dataService: dataService as never,
+                stalkerSession: stalkerSession as StalkerSessionService,
+            },
+            {
+                playlist: {
+                    ...PLAYLIST,
+                    portalUrl: 'http://demo.example/cp/server/load.php',
+                } as PlaylistMeta,
+                selectedContentType: 'vod',
+                cmd: '/media/source.mpg',
+            }
+        );
+
+        expect(streamUrl).toBe('http://demo.example/cp/media/video_5.mpg');
+    });
+
     it('resolves relative create_link replies against the repaired endpoint', async () => {
         // A lazy repair can move the endpoint while the caller still holds
         // the activation-time playlist snapshot; the relative `js.cmd` must

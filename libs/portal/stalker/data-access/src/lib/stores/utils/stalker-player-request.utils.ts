@@ -72,17 +72,28 @@ export function resolveStalkerPlaybackUrl(
 
     try {
         const portalUrlObj = new URL(portalUrl);
-        const pathParts = portalUrlObj.pathname.split('/');
+        // The installation base is the endpoint path MINUS the API suffix
+        // discovery appended (`/portal.php`, `/server/load.php`) — endpoint
+        // discovery can persist arbitrary nested installations
+        // (`/cp/server/load.php`), so a fixed segment allowlist would
+        // resolve `/media/...` against the wrong root. The legacy marker
+        // segments stay as the fallback for URLs that carry neither suffix.
+        const endpointPath = portalUrlObj.pathname;
         let basePath = '';
-
-        for (let index = 0; index < pathParts.length; index += 1) {
-            if (
-                pathParts[index] === 'stalker_portal' ||
-                pathParts[index] === 'c' ||
-                pathParts[index] === 'portal'
-            ) {
-                basePath = '/' + pathParts.slice(1, index + 1).join('/');
-                break;
+        const apiSuffix = /\/(?:portal\.php|server\/load\.php|[^/]*\.php)$/i;
+        if (apiSuffix.test(endpointPath)) {
+            basePath = endpointPath.replace(apiSuffix, '');
+        } else {
+            const pathParts = endpointPath.split('/');
+            for (let index = 0; index < pathParts.length; index += 1) {
+                if (
+                    pathParts[index] === 'stalker_portal' ||
+                    pathParts[index] === 'c' ||
+                    pathParts[index] === 'portal'
+                ) {
+                    basePath = '/' + pathParts.slice(1, index + 1).join('/');
+                    break;
+                }
             }
         }
 

@@ -87,6 +87,29 @@ export class StalkerAccountInfoService {
     private async fetchViaProfile(
         playlist: PlaylistMeta
     ): Promise<StalkerAccountSnapshot | null> {
+        try {
+            return await this.requestProfileSnapshot(playlist);
+        } catch (error) {
+            // The profile path does not go through executeStalkerRequest,
+            // so wire the same lazy repair here: opening the account dialog
+            // on a playlist with a stale endpoint must be able to fix it
+            // instead of waiting for an unrelated catalog request.
+            if (!this.portalRepair.shouldAttemptRepair(playlist, error)) {
+                throw error;
+            }
+
+            const repaired = await this.portalRepair.repairPortal(playlist);
+            if (!repaired) {
+                throw error;
+            }
+
+            return this.requestProfileSnapshot(repaired);
+        }
+    }
+
+    private async requestProfileSnapshot(
+        playlist: PlaylistMeta
+    ): Promise<StalkerAccountSnapshot | null> {
         // Goes through the session service rather than calling
         // authenticate() directly: it serializes with any in-flight
         // ensureToken() and republishes the resulting token, so the

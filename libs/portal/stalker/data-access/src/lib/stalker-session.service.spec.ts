@@ -219,6 +219,25 @@ describe('StalkerSessionService identity-tagged token cache', () => {
         });
     });
 
+    it('treats IPC-wrapped HTTP 401/403 as an authorization failure', async () => {
+        // The custom `status` property does not survive ipcRenderer, so an
+        // expired-token 403 arrives as message text only.
+        service.setCachedToken('portal-1', 'EXPIRED', playlistA);
+        sendIpcEvent.mockRejectedValueOnce(
+            new Error(
+                "Error invoking remote method 'STALKER_REQUEST': HTTP Error 403: Forbidden"
+            )
+        );
+        sendIpcEvent.mockResolvedValue({ js: { token: 'FRESH', random: 'r' } });
+
+        await service
+            .makeAuthenticatedRequest(playlistA, { action: 'get_genres' })
+            .catch(() => undefined);
+
+        // The dead token was retired rather than kept for the next caller.
+        expect(service.getCachedToken('portal-1')).not.toBe('EXPIRED');
+    });
+
     it('retires a failed token even on the no-retry path (watchdog pings)', async () => {
         service.setCachedToken('portal-1', 'DEAD', playlistA);
         sendIpcEvent.mockResolvedValue('Authorization failed.');

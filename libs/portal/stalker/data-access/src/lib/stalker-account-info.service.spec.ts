@@ -6,6 +6,7 @@ import {
     parseStalkerDate,
     StalkerAccountInfoService,
 } from './stalker-account-info.service';
+import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
 
 describe('StalkerAccountInfoService', () => {
@@ -14,6 +15,11 @@ describe('StalkerAccountInfoService', () => {
     let stalkerSession: {
         refreshAccountProfile: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
+    };
+    let portalRepair: {
+        applyOverride: jest.Mock;
+        shouldAttemptRepair: jest.Mock;
+        repairPortal: jest.Mock;
     };
 
     const portalPlaylist = {
@@ -39,11 +45,20 @@ describe('StalkerAccountInfoService', () => {
             refreshAccountProfile: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
         };
+        portalRepair = {
+            applyOverride: jest.fn((playlist) => playlist),
+            shouldAttemptRepair: jest.fn().mockReturnValue(false),
+            repairPortal: jest.fn().mockResolvedValue(null),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 { provide: DataService, useValue: dataService },
                 { provide: StalkerSessionService, useValue: stalkerSession },
+                {
+                    provide: StalkerPortalRepairService,
+                    useValue: portalRepair,
+                },
             ],
         });
 
@@ -84,6 +99,44 @@ describe('StalkerAccountInfoService', () => {
             mac: undefined,
             phone: undefined,
         });
+    });
+
+    it('repairs the portal and retries when the profile request hits a repair trigger', async () => {
+        // The full-portal profile path bypasses executeStalkerRequest, so
+        // opening the dialog on a playlist with a stale endpoint must be
+        // able to repair it instead of just failing.
+        const notFound = new Error('HTTP Error 404: Not Found');
+        stalkerSession.refreshAccountProfile
+            .mockRejectedValueOnce(notFound)
+            .mockResolvedValueOnce({ login: 'user-1' });
+        const repaired = {
+            ...fullPortalPlaylist,
+            portalUrl: 'http://portal.example/stalker_portal/server/load.php',
+        } as PlaylistMeta;
+        portalRepair.shouldAttemptRepair.mockReturnValue(true);
+        portalRepair.repairPortal.mockResolvedValue(repaired);
+
+        const snapshot = await service.fetchAccountInfo(fullPortalPlaylist);
+
+        expect(portalRepair.repairPortal).toHaveBeenCalledWith(
+            fullPortalPlaylist
+        );
+        expect(
+            stalkerSession.refreshAccountProfile
+        ).toHaveBeenLastCalledWith(
+            expect.objectContaining({ portalUrl: repaired.portalUrl })
+        );
+        expect(snapshot).toMatchObject({ login: 'user-1' });
+    });
+
+    it('rethrows profile failures the repair declines to act on', async () => {
+        const boom = new Error('timeout of 15000ms exceeded');
+        stalkerSession.refreshAccountProfile.mockRejectedValue(boom);
+
+        await expect(
+            service.fetchAccountInfo(fullPortalPlaylist)
+        ).rejects.toBe(boom);
+        expect(portalRepair.repairPortal).not.toHaveBeenCalled();
     });
 
     it('returns null when the full-portal profile has no account block', async () => {

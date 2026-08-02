@@ -771,6 +771,16 @@ export class StalkerSessionService {
 
         const response = responseOrError as Record<string, unknown>;
 
+        // HTTP auth codes surviving the IPC boundary only as message text
+        // (`HTTP Error 401: …`): the custom `status` property is stripped by
+        // ipcRenderer, so the numeric code must be read from the message.
+        if (
+            typeof response?.['message'] === 'string' &&
+            /HTTP Error 40[13]\b/.test(response['message'])
+        ) {
+            return true;
+        }
+
         // Convert response to string for pattern matching
         const responseStr = JSON.stringify(responseOrError).toLowerCase();
 
