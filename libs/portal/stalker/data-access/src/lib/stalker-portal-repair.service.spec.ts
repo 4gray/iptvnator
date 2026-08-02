@@ -493,6 +493,32 @@ describe('StalkerPortalRepairService', () => {
             );
         });
 
+        it('does not resurrect a remembered override while the row holds another config', async () => {
+            // Repair A→B, then the user edits the row to an unrelated C. A
+            // stale A request failing afterwards must NOT reinstall B (it
+            // would retry against B and repoint the watchdog away from C).
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://b.example/server/load.php',
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(MISCLASSIFIED);
+
+            const otherConfig = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://c.example/portal.php',
+            } as PlaylistMeta;
+            // The edit drops the active override…
+            expect(service.applyOverride(otherConfig)).toBe(otherConfig);
+            persistedRow = otherConfig as Playlist;
+            refreshActiveWatchdogPlaylist.mockClear();
+
+            // …and a stale A request does not bring it back.
+            expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
+            expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
+            expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
+        });
+
         it('drops the override and the cached token when only the identity was edited', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',

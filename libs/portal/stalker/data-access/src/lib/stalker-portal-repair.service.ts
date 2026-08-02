@@ -260,7 +260,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         } else if (record !== undefined) {
             if (
                 record !== 'no-change' &&
-                !this.overrides.has(playlistId)
+                !this.overrides.has(playlistId) &&
+                // Reinstall ONLY when the persisted row actually carries
+                // this configuration again. A stale request for A while the
+                // row now holds an unrelated C must not resurrect A's
+                // override — that would retry against B and repoint the
+                // watchdog away from C.
+                (await this.rowCurrentlyMatches(playlist))
             ) {
                 // The user restored a configuration whose override was
                 // dropped by an intermediate edit: reinstall the remembered

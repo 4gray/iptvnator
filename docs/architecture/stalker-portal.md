@@ -691,14 +691,19 @@ counter, MAC/phone, and portal details.
 Data flow (two sources, cached-first):
 
 - Cached: `Playlist.stalkerAccountInfo`, captured from `get_profile` at
-  import time for full `/stalker_portal/` installations. The dialog loads it
-  by playlist id (the meta row does not carry it) and renders instantly with
-  a "Saved data" badge.
+  import time for portals discovery classified as FULL (endpoint discovery
+  decides this by behavior, so a token-enforcing `portal.php` panel is a
+  full portal too). The dialog loads it by playlist id (the meta row does
+  not carry it) and renders instantly with a "Saved data" badge.
 - Fresh: `StalkerAccountInfoService`
   (`libs/portal/stalker/data-access/src/lib/stalker-account-info.service.ts`).
-  Full portals re-run handshake + `get_profile`; `portal.php` panels are
-  queried with `account_info/get_main_info`, whose field set varies between
-  panels and is mapped best-effort (absent fields render nothing). A failed
+  Routing follows the observed MODE, never the endpoint shape: full-mode
+  portals re-run handshake + `get_profile`, simple-mode panels are queried
+  with `account_info/get_main_info`, whose field set varies between panels
+  and is mapped best-effort (absent fields render nothing). Both directions
+  re-route after a lazy repair changes the mode mid-request, so a portal
+  repaired from simple to full switches to the profile flow and vice
+  versa. A failed
   refresh keeps the cached snapshot and flags it. The two no-data outcomes
   differ: a portal that answers but publishes no account facts (and no
   cached snapshot exists) renders the ready-state "No account details"
