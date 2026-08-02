@@ -126,9 +126,13 @@ may probe when it fails, while every already-probed one stays latched for
 the session — and persists only a configuration discovery has proven to
 answer, and only when it differs from the failing one. A repaired configuration is applied immediately via an
 in-session override inside `executeStalkerRequest()` (stale store snapshots
-keep working) and persisted through a minimal
-`PlaylistsService.updatePlaylistMeta` patch (`portalUrl` +
-`isFullStalkerPortal` only, so user state can never be clobbered). Portals
+keep working) and persisted through `PlaylistsService.transformPlaylistMeta`
+— the verification and the patch run in ONE slot of the per-playlist write
+queue, so a user edit that is queued but not yet committed wins over the
+repair instead of being overwritten; the transform patches the freshly read
+row (`portalUrl` + `isFullStalkerPortal` only, so user state can never be
+clobbered) and returns null to abort. Deletion runs through the same queue,
+so a repair can never resurrect a playlist deleted mid-probe. Portals
 that work are never probed, let alone rewritten. E2E coverage:
 `apps/electron-backend-e2e/src/stalker-portal-discovery.e2e.ts` against the
 mock's tolerant `/portal.php`, strict `/server/load.php`, and

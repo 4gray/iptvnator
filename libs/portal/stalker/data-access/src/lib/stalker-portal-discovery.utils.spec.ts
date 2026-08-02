@@ -265,6 +265,21 @@ describe('classifyStalkerProbeResponse', () => {
         ).toBe('auth-required');
     });
 
+    it('requires a real get_genres data shape, not a bare js key', () => {
+        // A 200 error envelope must not end discovery on a broken
+        // candidate — the healthy sibling would never be probed.
+        expect(
+            classifyStalkerProbeResponse({ js: { error: 'Unknown action' } })
+        ).toBe('not-a-portal');
+        expect(classifyStalkerProbeResponse({ js: false })).toBe(
+            'not-a-portal'
+        );
+        expect(classifyStalkerProbeResponse({ js: null })).toBe(
+            'not-a-portal'
+        );
+        expect(classifyStalkerProbeResponse({ js: {} })).toBe('not-a-portal');
+    });
+
     it('classifies anything else as not-a-portal', () => {
         expect(classifyStalkerProbeResponse('<html>welcome</html>')).toBe(
             'not-a-portal'

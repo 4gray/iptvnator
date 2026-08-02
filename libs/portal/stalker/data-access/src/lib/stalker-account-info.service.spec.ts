@@ -129,6 +129,34 @@ describe('StalkerAccountInfoService', () => {
         expect(snapshot).toMatchObject({ login: 'user-1' });
     });
 
+    it('re-routes to get_main_info when the repair proves the portal is simple', async () => {
+        // The playlist was wrongly marked full; discovery proves it is a
+        // token-free panel, so retrying the handshake profile would fail
+        // identically — the retry must use the simple-portal path.
+        stalkerSession.refreshAccountProfile.mockRejectedValue(
+            new Error('HTTP Error 404: Not Found')
+        );
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { login: 'panel-user' },
+        });
+        portalRepair.shouldAttemptRepair.mockReturnValue(true);
+        portalRepair.repairPortal.mockResolvedValue({
+            ...fullPortalPlaylist,
+            portalUrl: 'http://portal.example/portal.php',
+            isFullStalkerPortal: false,
+        } as PlaylistMeta);
+
+        const snapshot = await service.fetchAccountInfo(fullPortalPlaylist);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            STALKER_REQUEST,
+            expect.objectContaining({
+                params: expect.objectContaining({ action: 'get_main_info' }),
+            })
+        );
+        expect(snapshot).toMatchObject({ login: 'panel-user' });
+    });
+
     it('rethrows profile failures the repair declines to act on', async () => {
         const boom = new Error('timeout of 15000ms exceeded');
         stalkerSession.refreshAccountProfile.mockRejectedValue(boom);

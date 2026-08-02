@@ -197,12 +197,22 @@ export function classifyStalkerProbeResponse(
         return 'auth-required';
     }
 
-    if (
-        response !== null &&
-        typeof response === 'object' &&
-        'js' in (response as Record<string, unknown>)
-    ) {
-        return 'data';
+    if (response !== null && typeof response === 'object') {
+        const js = (response as { js?: unknown }).js;
+        // The probe asks for `itv/get_genres`, whose success shape is a
+        // list (or a `{data: [...]}` envelope). A bare `js` key is NOT
+        // enough: panels answer HTTP 200 with `{js: {error: "Unknown
+        // action"}}` or `{js: false}`, and accepting those would end
+        // discovery on a broken candidate and persist an empty catalog.
+        if (Array.isArray(js)) {
+            return 'data';
+        }
+        if (js !== null && typeof js === 'object') {
+            const { data, error } = js as { data?: unknown; error?: unknown };
+            if (Array.isArray(data) && error === undefined) {
+                return 'data';
+            }
+        }
     }
 
     return 'not-a-portal';

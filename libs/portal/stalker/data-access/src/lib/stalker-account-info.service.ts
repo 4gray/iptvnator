@@ -103,7 +103,12 @@ export class StalkerAccountInfoService {
                 throw error;
             }
 
-            return this.requestProfileSnapshot(repaired);
+            // Re-enter the MODE routing: a repair can prove the portal is a
+            // token-free panel, and retrying the handshake-based profile
+            // against it would fail exactly the same way.
+            return isFullStalkerPortalPlaylist(repaired)
+                ? this.requestProfileSnapshot(repaired)
+                : this.fetchViaMainInfo(repaired);
         }
     }
 
