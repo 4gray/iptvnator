@@ -147,13 +147,17 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                     class="catchup-badge"
                                     data-test-id="grid-catchup-badge"
                                     [matTooltip]="
-                                        (catchupDays(i) > 0
-                                            ? 'CHANNELS.CATCHUP_AVAILABLE_DAYS'
-                                            : 'CHANNELS.CATCHUP_AVAILABLE'
-                                        ) | translate: { days: catchupDays(i) }
+                                        catchupLabelKey(i)
+                                            | translate: { days: catchupDays(i) }
                                     "
                                 >
                                     <mat-icon>history</mat-icon>
+                                    <!-- mat-icon is aria-hidden; expose the
+                                         status as text for AT users -->
+                                    <span class="visually-hidden">{{
+                                        catchupLabelKey(i)
+                                            | translate: { days: catchupDays(i) }
+                                    }}</span>
                                 </div>
                             }
                             @if (i.isWatched) {
@@ -274,6 +278,11 @@ export class GridListComponent {
     /** Catch-up badge is live-grid only; VOD/series rows never carry it. */
     protected showCatchupBadge(item: GridListItem): boolean {
         return this.isLiveGrid() && isXtreamCatchupAvailable(item);
+    }
+    protected catchupLabelKey(item: GridListItem): string {
+        return getXtreamCatchupDays(item) > 0
+            ? 'CHANNELS.CATCHUP_AVAILABLE_DAYS'
+            : 'CHANNELS.CATCHUP_AVAILABLE';
     }
     protected readonly channelTitle = (item: GridListItem): string => {
         const raw = item.title ?? item.o_name ?? item.name ?? '';

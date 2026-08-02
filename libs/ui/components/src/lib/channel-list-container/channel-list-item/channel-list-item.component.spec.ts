@@ -117,6 +117,13 @@ describe('ChannelListItemComponent', () => {
         );
         expect(badge).not.toBeNull();
         expect(badge.textContent).toContain('history');
+
+        // The icon is aria-hidden — the status must also exist as
+        // visually-hidden text for assistive technology.
+        const srText = fixture.nativeElement.querySelector(
+            '.channel-name-row .visually-hidden'
+        );
+        expect(srText?.textContent).toContain('CATCHUP_AVAILABLE');
     });
 
     it('shows the generic fallback icon when no logo is available', () => {

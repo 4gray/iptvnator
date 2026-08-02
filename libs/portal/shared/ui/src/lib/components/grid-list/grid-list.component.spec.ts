@@ -192,6 +192,13 @@ describe('GridListComponent', () => {
         );
         expect(badge).not.toBeNull();
         expect(badge.nativeElement.textContent).toContain('history');
+
+        // The icon is aria-hidden — the status must also exist as
+        // visually-hidden text for assistive technology.
+        const srText = badge.query(By.css('.visually-hidden'));
+        expect(srText.nativeElement.textContent).toContain(
+            'CATCHUP_AVAILABLE'
+        );
     });
 
     it('hides the catch-up badge for live cards without a playable archive', () => {

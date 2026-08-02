@@ -35,13 +35,15 @@
                         class="catchup-badge"
                         data-test-id="catchup-badge"
                         [matTooltip]="
-                            (catchupDays() > 0
-                                ? 'CHANNELS.CATCHUP_AVAILABLE_DAYS'
-                                : 'CHANNELS.CATCHUP_AVAILABLE'
-                            ) | translate: { days: catchupDays() }
+                            catchupLabelKey()
+                                | translate: { days: catchupDays() }
                         "
                         >history</mat-icon
                     >
+                    <!-- mat-icon is aria-hidden; expose the status as text -->
+                    <span class="visually-hidden">{{
+                        catchupLabelKey() | translate: { days: catchupDays() }
+                    }}</span>
                 }
             </div>
             @if (showEpg()) {

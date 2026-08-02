@@ -61,6 +61,11 @@ export class ChannelListItemComponent {
     readonly catchupAvailable = input(false);
     /** Archive window in days for the badge tooltip; 0 hides the day count */
     readonly catchupDays = input(0);
+    readonly catchupLabelKey = computed(() =>
+        this.catchupDays() > 0
+            ? 'CHANNELS.CATCHUP_AVAILABLE_DAYS'
+            : 'CHANNELS.CATCHUP_AVAILABLE'
+    );
     readonly epgProgram = input<EpgProgram | null | undefined>();
     /** Progress percentage pre-computed by parent for performance */
     readonly progressPercentage = input(0);
