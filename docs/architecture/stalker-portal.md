@@ -540,8 +540,11 @@ Data flow (two sources, cached-first):
   Full portals re-run handshake + `get_profile`; `portal.php` panels are
   queried with `account_info/get_main_info`, whose field set varies between
   panels and is mapped best-effort (absent fields render nothing). A failed
-  refresh keeps the cached snapshot and flags it; with no data at all the
-  dialog shows an error state with retry.
+  refresh keeps the cached snapshot and flags it. The two no-data outcomes
+  differ: a portal that answers but publishes no account facts (and no
+  cached snapshot exists) renders the ready-state "No account details"
+  panel, while only an unreachable portal without a cached snapshot enters
+  the error state with retry.
 
 Entry points are shared with Xtream and gated on the shared predicates in
 `libs/shared/interfaces/src/lib/portal-account-playlist.utils.ts`
