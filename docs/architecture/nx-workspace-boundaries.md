@@ -188,6 +188,14 @@ An unquoted `**` can expand to a shallow subset on POSIX while still returning
 success. After editing such a target, compare ESLint's linted-file count with
 the `find` count.
 
+Repository tooling in `tools/` has the mirror-image trap: Node's `execSync`
+runs through `cmd.exe` on Windows, where single quotes are literal characters
+rather than quoting, so a POSIX-quoted pattern reaches the program intact and
+matches nothing. Spawn without a shell — `execFileSync('git', ['ls-files',
+'*.scss'])` — and let the program expand its own patterns. Both traps report
+success while covering nothing, so a check that scans an empty file set must
+fail rather than pass.
+
 ## CI Enforcement
 
 The CI lint job runs affected projects on pull requests and all projects on

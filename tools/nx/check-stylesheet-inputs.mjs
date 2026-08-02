@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -106,6 +107,19 @@ export function validateStylesheetInputs({ imports, graph }) {
     return diagnostics;
 }
 
+/**
+ * A check that scanned nothing must never report success. The workspace always
+ * contains stylesheets, so an empty listing means the scan broke — the failure
+ * mode a shell-quoted pathspec produced on Windows, where `git` received the
+ * quote characters literally, matched no files and still exited 0.
+ */
+export function validateScanCoverage(files) {
+    if (files.length > 0) return [];
+    return [
+        'No stylesheets were scanned. The workspace always contains SCSS, so an empty listing means the file scan failed rather than that the policy passed.',
+    ];
+}
+
 function ownerOf(projectRoots, absoluteFile) {
     let owner = null;
     for (const [name, root] of projectRoots) {
@@ -161,10 +175,11 @@ const isMain =
 if (isMain) {
     const rootDir = process.cwd();
     const { createProjectGraphAsync } = await import('@nx/devkit');
-    const { execSync } = await import('node:child_process');
 
     const graph = await createProjectGraphAsync({ exitOnError: true });
-    const files = execSync("git ls-files '*.scss'", {
+    // No shell: `cmd.exe` treats single quotes as literal characters, so a
+    // POSIX-quoted pathspec reaches git intact on Windows and matches nothing.
+    const files = execFileSync('git', ['ls-files', '*.scss'], {
         cwd: rootDir,
         encoding: 'utf8',
         maxBuffer: 32 * 1024 * 1024,
@@ -174,7 +189,10 @@ if (isMain) {
         .filter(Boolean);
 
     const imports = await collectStylesheetImports({ rootDir, files, graph });
-    const diagnostics = validateStylesheetInputs({ imports, graph });
+    const diagnostics = [
+        ...validateScanCoverage(files),
+        ...validateStylesheetInputs({ imports, graph }),
+    ];
 
     if (diagnostics.length > 0) {
         console.error('Stylesheet Nx input policy failed:');

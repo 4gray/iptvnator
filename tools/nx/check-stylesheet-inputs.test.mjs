@@ -6,6 +6,7 @@ import {
     extractRelativeImports,
     resolveStylesheet,
     stripScssComments,
+    validateScanCoverage,
     validateStylesheetInputs,
 } from './check-stylesheet-inputs.mjs';
 
@@ -110,6 +111,20 @@ test('flags a stylesheet whose own directory belongs to no Nx project', () => {
     assert.equal(diagnostics.length, 1);
     assert.match(diagnostics[0], /belongs to no Nx project/);
     assert.match(diagnostics[0], /project\.json/);
+});
+
+test('fails instead of passing when the scan finds no stylesheets', () => {
+    const diagnostics = validateScanCoverage([]);
+
+    assert.equal(diagnostics.length, 1);
+    assert.match(diagnostics[0], /No stylesheets were scanned/);
+});
+
+test('reports no scan-coverage problem once stylesheets are found', () => {
+    assert.deepEqual(
+        validateScanCoverage(['libs/ui/styles/_detail-view.scss']),
+        []
+    );
 });
 
 test('ignores relative @use examples written inside comments', () => {
