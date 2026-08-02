@@ -190,6 +190,7 @@ describe('SeasonContainerComponent', () => {
     };
 
     beforeEach(async () => {
+        localStorage.removeItem('iptvnator_episode_view_mode');
         downloadsServiceStub = {
             isAvailable: signal(false),
             hasLoadedDownloads: signal(false),
@@ -237,6 +238,10 @@ describe('SeasonContainerComponent', () => {
         component.seasonSelected.subscribe((seasonKey) =>
             emittedSeasons.push(seasonKey)
         );
+    });
+
+    afterEach(() => {
+        localStorage.removeItem('iptvnator_episode_view_mode');
     });
 
     it('renders the series-level placeholder when no seasons are available', () => {
@@ -296,7 +301,9 @@ describe('SeasonContainerComponent', () => {
             fixture.nativeElement.querySelectorAll('.episode-card').length
         ).toBe(1);
         expect(
-            fixture.nativeElement.querySelectorAll('.download-btn').length
+            fixture.nativeElement.querySelectorAll(
+                '[data-test-id^="episode-download-"]'
+            ).length
         ).toBe(0);
     });
 
@@ -648,6 +655,44 @@ describe('SeasonContainerComponent', () => {
         await fixture.whenStable();
     });
 
+    it('announces the season queue action as busy until submission refresh settles', async () => {
+        const start = deferred<{ success: boolean }>();
+        const refresh = deferred<void>();
+        downloadsServiceStub.startDownload.mockReturnValue(start.promise);
+        downloadsServiceStub.loadDownloads.mockReturnValue(refresh.promise);
+        enableDownloads();
+        setRequiredInputs({ '1': [createEpisode()] });
+        fixture.detectChanges();
+
+        const seasonButton = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="download-season"]'
+            ) as HTMLButtonElement;
+        seasonButton().click();
+        fixture.detectChanges();
+
+        expect(seasonButton().textContent).toContain('Adding to queue');
+        expect(seasonButton().getAttribute('aria-label')).toBe(
+            'Adding to queue'
+        );
+        expect(seasonButton().getAttribute('aria-busy')).toBe('true');
+
+        start.resolve({ success: true });
+        await Promise.resolve();
+        await Promise.resolve();
+        fixture.detectChanges();
+        expect(seasonButton().getAttribute('aria-busy')).toBe('true');
+
+        refresh.resolve(undefined);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(seasonButton().hasAttribute('aria-busy')).toBe(false);
+        expect(seasonButton().textContent).toContain('Download season (1)');
+        expect(seasonButton().getAttribute('aria-label')).toBe(
+            'Download 1 eligible episodes'
+        );
+    });
+
     it('hides all download presentation on web, in provider-only mode, or without an adapter', () => {
         const first = createEpisode();
         setRequiredInputs({ '1': [first] });
@@ -663,7 +708,11 @@ describe('SeasonContainerComponent', () => {
         downloadsServiceStub.hasLoadedDownloads.set(true);
         fixture.componentRef.setInput('downloadsEnabled', false);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('.download-btn')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id^="episode-download-"]'
+            )
+        ).toBeNull();
         expect(
             fixture.nativeElement.querySelector(
                 '[data-test-id="download-season"]'
@@ -678,7 +727,11 @@ describe('SeasonContainerComponent', () => {
                 '[data-test-id="download-season"]'
             )
         ).toBeNull();
-        expect(fixture.nativeElement.querySelector('.download-btn')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id^="episode-download-"]'
+            )
+        ).toBeNull();
     });
 
     it.each(['grid', 'list'] as const)(
@@ -737,7 +790,7 @@ describe('SeasonContainerComponent', () => {
                 [102, true, 'Adding Queued to queue', 'downloading'],
                 [103, true, 'Adding Active to queue', 'downloading'],
                 [104, false, 'Resume Paused', 'play_arrow'],
-                [105, false, 'Play local', 'folder_open'],
+                [105, false, 'Play local: Local', 'folder_open'],
                 [106, true, 'Download Unknown', 'block'],
                 [107, true, 'Download N/A', 'block'],
                 [108, false, 'Download Failed', 'download'],
@@ -759,6 +812,42 @@ describe('SeasonContainerComponent', () => {
             await fixture.whenStable();
         }
     );
+
+    it('reuses the selected-season row model across rendering, resume, and local play', async () => {
+        const paused = createEpisode();
+        const local = createEpisode({
+            id: '102',
+            episode_num: 2,
+            title: 'Local',
+        });
+        downloadsServiceStub.downloads.set([
+            createDownload(paused, { id: 71, status: 'paused' }),
+            createDownload(local, {
+                id: 72,
+                status: 'completed',
+                fileAvailability: 'available',
+                filePath: '/authorized/downloads/local.mp4',
+            }),
+        ]);
+        const candidateSpy = jest.spyOn(downloadAdapter, 'createCandidate');
+        const coordinator = TestBed.inject(SeasonDownloadCoordinator);
+        const findDownloadSpy = jest.spyOn(coordinator, 'findDownload');
+        enableDownloads();
+        setRequiredInputs({ '1': [paused, local] });
+
+        fixture.detectChanges();
+        fixture.detectChanges();
+        expect(candidateSpy).toHaveBeenCalledTimes(2);
+        expect(findDownloadSpy).toHaveBeenCalledTimes(2);
+
+        episodeAction(101).click();
+        episodeAction(102).click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(candidateSpy).toHaveBeenCalledTimes(2);
+        expect(findDownloadSpy).toHaveBeenCalledTimes(2);
+    });
 
     it('resumes by managed row id and plays the coordinate-matched local file', async () => {
         const paused = createEpisode();

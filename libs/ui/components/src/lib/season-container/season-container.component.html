@@ -6,23 +6,31 @@
             </h3>
         </div>
         @if (
-            downloadPresentationVisible() ||
+            downloadPresenter.presentationVisible() ||
             (hasSeasons() && !showSeasonEmptyState())
         ) {
             <div class="section-header__actions">
-                @if (downloadPresentationVisible()) {
+                @if (downloadPresenter.presentationVisible()) {
                     <button
                         mat-stroked-button
                         class="season-download-button"
                         data-test-id="download-season"
-                        [disabled]="seasonDownloadDisabled()"
+                        [disabled]="downloadPresenter.seasonDisabled()"
                         [attr.aria-label]="
-                            'DOWNLOADS.DOWNLOAD_SEASON_ARIA'
-                                | translate: { count: eligibleEpisodeCount() }
+                            downloadPresenter.batchRunning()
+                                ? ('DOWNLOADS.ADDING_TO_QUEUE' | translate)
+                                : ('DOWNLOADS.DOWNLOAD_SEASON_ARIA'
+                                  | translate
+                                      : {
+                                            count: downloadPresenter.eligibleEpisodeCount(),
+                                        })
                         "
-                        (click)="downloadSelectedSeason()"
+                        [attr.aria-busy]="
+                            downloadPresenter.batchRunning() ? 'true' : null
+                        "
+                        (click)="downloadPresenter.enqueueSeason()"
                     >
-                        @if (batchRunning()) {
+                        @if (downloadPresenter.batchRunning()) {
                             <mat-spinner
                                 diameter="18"
                                 aria-hidden="true"
@@ -33,7 +41,9 @@
                             {{
                                 'DOWNLOADS.DOWNLOAD_SEASON'
                                     | translate
-                                        : { count: eligibleEpisodeCount() }
+                                        : {
+                                              count: downloadPresenter.eligibleEpisodeCount(),
+                                          }
                             }}
                         }
                     </button>
@@ -190,9 +200,13 @@
                                     }}</mat-icon>
                                 </button>
                                 <div class="episode-card__actions">
-                                    @if (downloadPresentationVisible()) {
+                                    @if (
+                                        downloadPresenter.presentationVisible()
+                                    ) {
+                                        @let downloadRow =
+                                            downloadPresenter.rowFor(episode);
                                         @let downloadState =
-                                            episodeDownloadState(episode);
+                                            downloadRow.presentation;
                                         <button
                                             mat-icon-button
                                             class="download-btn"
@@ -211,24 +225,33 @@
                                                 'episode-download-' + episode.id
                                             "
                                             [attr.aria-label]="
-                                                downloadState.ariaKey
-                                                    | translate
-                                                        : {
-                                                              title: episode.title,
-                                                          }
+                                                downloadState.action === 'play'
+                                                    ? ('DOWNLOADS.PLAY_LOCAL'
+                                                          | translate) +
+                                                      ': ' +
+                                                      episode.title
+                                                    : (downloadState.ariaKey
+                                                      | translate
+                                                          : {
+                                                                title: episode.title,
+                                                            })
                                             "
                                             [matTooltip]="
-                                                downloadState.ariaKey
-                                                    | translate
-                                                        : {
-                                                              title: episode.title,
-                                                          }
+                                                downloadState.action === 'play'
+                                                    ? ('DOWNLOADS.PLAY_LOCAL'
+                                                          | translate) +
+                                                      ': ' +
+                                                      episode.title
+                                                    : (downloadState.ariaKey
+                                                      | translate
+                                                          : {
+                                                                title: episode.title,
+                                                            })
                                             "
                                             (click)="
-                                                runEpisodeDownloadAction(
+                                                downloadPresenter.runEpisodeAction(
                                                     $event,
-                                                    episode,
-                                                    downloadState
+                                                    episode
                                                 )
                                             "
                                         >
@@ -426,9 +449,11 @@
                                         }}</mat-icon>
                                     }
                                 </button>
-                                @if (downloadPresentationVisible()) {
+                                @if (downloadPresenter.presentationVisible()) {
+                                    @let downloadRow =
+                                        downloadPresenter.rowFor(episode);
                                     @let downloadState =
-                                        episodeDownloadState(episode);
+                                        downloadRow.presentation;
                                     <button
                                         mat-icon-button
                                         class="action-btn"
@@ -440,24 +465,33 @@
                                             'episode-download-' + episode.id
                                         "
                                         [attr.aria-label]="
-                                            downloadState.ariaKey
-                                                | translate
-                                                    : {
-                                                          title: episode.title,
-                                                      }
+                                            downloadState.action === 'play'
+                                                ? ('DOWNLOADS.PLAY_LOCAL'
+                                                      | translate) +
+                                                  ': ' +
+                                                  episode.title
+                                                : (downloadState.ariaKey
+                                                  | translate
+                                                      : {
+                                                            title: episode.title,
+                                                        })
                                         "
                                         [matTooltip]="
-                                            downloadState.ariaKey
-                                                | translate
-                                                    : {
-                                                          title: episode.title,
-                                                      }
+                                            downloadState.action === 'play'
+                                                ? ('DOWNLOADS.PLAY_LOCAL'
+                                                      | translate) +
+                                                  ': ' +
+                                                  episode.title
+                                                : (downloadState.ariaKey
+                                                  | translate
+                                                      : {
+                                                            title: episode.title,
+                                                        })
                                         "
                                         (click)="
-                                            runEpisodeDownloadAction(
+                                            downloadPresenter.runEpisodeAction(
                                                 $event,
-                                                episode,
-                                                downloadState
+                                                episode
                                             )
                                         "
                                     >

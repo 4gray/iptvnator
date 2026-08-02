@@ -16,15 +16,9 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import {
-    EPISODE_DOWNLOAD_SUBMISSIONS,
-    SeasonDownloadCoordinator,
-    type EpisodeDownloadCandidate,
-    type SeasonEpisodeDownloadAdapter,
-} from '@iptvnator/portal/shared/data-access';
+import { TranslateModule } from '@ngx-translate/core';
+import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     createLogger,
     getPortalPlaybackProgressPercent,
@@ -36,7 +30,6 @@ import {
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
-import { DownloadsService, type DownloadItem } from '@iptvnator/services';
 import { ProgressCapsuleComponent } from '../progress-capsule/progress-capsule.component';
 import {
     EPISODE_INFO_PLAY,
@@ -47,64 +40,11 @@ import {
     formatEpisodePositionText,
     parseDuration,
 } from './episode-progress.util';
+import { SeasonDownloadPresenter } from './season-download-presenter';
 import { SeasonTabsComponent } from './season-tabs.component';
 
 type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
-
-const EPISODE_DOWNLOAD_ACTIONS = {
-    Blocked: 'blocked',
-    Download: 'download',
-    Pending: 'pending',
-    Play: 'play',
-    Resume: 'resume',
-} as const;
-
-type EpisodeDownloadAction =
-    (typeof EPISODE_DOWNLOAD_ACTIONS)[keyof typeof EPISODE_DOWNLOAD_ACTIONS];
-
-interface EpisodeDownloadState {
-    readonly action: EpisodeDownloadAction;
-    readonly ariaKey: string;
-    readonly disabled: boolean;
-    readonly icon: string;
-}
-
-const EPISODE_DOWNLOAD_STATES: Record<
-    EpisodeDownloadAction,
-    EpisodeDownloadState
-> = {
-    blocked: {
-        action: EPISODE_DOWNLOAD_ACTIONS.Blocked,
-        ariaKey: 'DOWNLOADS.EPISODE_DOWNLOAD_ARIA',
-        disabled: true,
-        icon: 'block',
-    },
-    download: {
-        action: EPISODE_DOWNLOAD_ACTIONS.Download,
-        ariaKey: 'DOWNLOADS.EPISODE_DOWNLOAD_ARIA',
-        disabled: false,
-        icon: 'download',
-    },
-    pending: {
-        action: EPISODE_DOWNLOAD_ACTIONS.Pending,
-        ariaKey: 'DOWNLOADS.EPISODE_DOWNLOAD_PENDING_ARIA',
-        disabled: true,
-        icon: 'downloading',
-    },
-    play: {
-        action: EPISODE_DOWNLOAD_ACTIONS.Play,
-        ariaKey: 'DOWNLOADS.PLAY_LOCAL',
-        disabled: false,
-        icon: 'folder_open',
-    },
-    resume: {
-        action: EPISODE_DOWNLOAD_ACTIONS.Resume,
-        ariaKey: 'DOWNLOADS.ARIA.RESUME',
-        disabled: false,
-        icon: 'play_arrow',
-    },
-};
 
 export interface SeasonContainerPlaybackToggleRequest {
     contentXtreamId: number;
@@ -116,6 +56,7 @@ export interface SeasonContainerPlaybackToggleRequest {
     templateUrl: './season-container.component.html',
     styleUrls: ['./season-container.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [SeasonDownloadPresenter],
     imports: [
         MatButtonModule,
         MatButtonToggleModule,
@@ -128,14 +69,11 @@ export interface SeasonContainerPlaybackToggleRequest {
     ],
 })
 export class SeasonContainerComponent implements OnInit {
-    private readonly downloadsService = inject(DownloadsService);
-    private readonly downloadCoordinator = inject(SeasonDownloadCoordinator);
     private readonly dialog = inject(MatDialog);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-    private readonly snackBar = inject(MatSnackBar);
-    private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('SeasonContainer');
     private lastEmittedSeason: string | undefined;
+    readonly downloadPresenter = inject(SeasonDownloadPresenter);
 
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
     readonly seriesId = input.required<number>();
@@ -160,46 +98,6 @@ export class SeasonContainerComponent implements OnInit {
         output<SeasonContainerPlaybackToggleRequest>();
     readonly seasonSelected = output<string>();
     readonly viewMode = signal<EpisodeViewMode>('grid');
-    readonly batchRunning = signal(false);
-
-    readonly downloadPresentationVisible = computed(
-        () =>
-            this.downloadsService.isAvailable() &&
-            this.downloadsEnabled() &&
-            this.downloadAdapter() !== null
-    );
-
-    readonly eligibleEpisodeCount = computed(() => {
-        const adapter = this.downloadAdapter();
-        const seasonKey = this.selectedSeason();
-        if (
-            !adapter ||
-            !seasonKey ||
-            !this.downloadsService.hasLoadedDownloads()
-        ) {
-            return 0;
-        }
-
-        return this.selectedSeasonEpisodes().reduce((count, episode) => {
-            const candidate = adapter.createCandidate(episode, seasonKey);
-            return (
-                count +
-                (candidate && this.downloadCoordinator.isEligible(candidate)
-                    ? 1
-                    : 0)
-            );
-        }, 0);
-    });
-
-    readonly seasonDownloadDisabled = computed(
-        () =>
-            this.isLoading() ||
-            this.batchRunning() ||
-            !this.downloadsService.hasLoadedDownloads() ||
-            !this.selectedSeason() ||
-            this.selectedSeasonEpisodes().length === 0 ||
-            this.eligibleEpisodeCount() === 0
-    );
 
     readonly sortedSeasonKeys = computed(() =>
         Object.keys(this.seasons()).sort((a, b) => Number(a) - Number(b))
@@ -238,6 +136,11 @@ export class SeasonContainerComponent implements OnInit {
      */
     readonly selectedSeason = signal<string | undefined>(undefined);
 
+    readonly selectedSeasonEpisodes = computed(() => {
+        const selected = this.selectedSeason();
+        return selected ? (this.seasons()[selected] ?? []) : [];
+    });
+
     private readonly autoSelectKey = computed(
         () =>
             `${this.sortedSeasonKeys().join('|')}::${
@@ -272,6 +175,14 @@ export class SeasonContainerComponent implements OnInit {
     });
 
     constructor() {
+        this.downloadPresenter.connect({
+            adapter: this.downloadAdapter,
+            downloadsEnabled: this.downloadsEnabled,
+            isLoading: this.isLoading,
+            selectedEpisodes: this.selectedSeasonEpisodes,
+            selectedSeason: this.selectedSeason,
+        });
+
         effect(() => {
             const key = this.autoSelectKey();
             if (key === this.lastAutoSelectKey) {
@@ -320,11 +231,6 @@ export class SeasonContainerComponent implements OnInit {
             Boolean(selected) &&
             (this.seasons()[selected as string]?.length ?? 0) === 0
         );
-    }
-
-    selectedSeasonEpisodes(): XtreamSerieEpisode[] {
-        const selected = this.selectedSeason();
-        return selected ? (this.seasons()[selected] ?? []) : [];
     }
 
     selectSeason(seasonKey: string) {
@@ -449,152 +355,6 @@ export class SeasonContainerComponent implements OnInit {
 
     getEpisodeContentId(episode: XtreamSerieEpisode): number {
         return Number(episode.id);
-    }
-
-    candidateFor(episode: XtreamSerieEpisode): EpisodeDownloadCandidate | null {
-        return (
-            this.downloadAdapter()?.createCandidate(
-                episode,
-                this.selectedSeason()
-            ) ?? null
-        );
-    }
-
-    downloadFor(episode: XtreamSerieEpisode): DownloadItem | undefined {
-        const candidate = this.candidateFor(episode);
-        return candidate
-            ? this.downloadCoordinator.findDownload(candidate.identity)
-            : undefined;
-    }
-
-    episodeDownloadState(episode: XtreamSerieEpisode): EpisodeDownloadState {
-        const candidate = this.candidateFor(episode);
-        if (!candidate || !this.downloadsService.hasLoadedDownloads()) {
-            return this.downloadState(EPISODE_DOWNLOAD_ACTIONS.Blocked);
-        }
-        if (this.downloadCoordinator.isPending(candidate.identity)) {
-            return this.downloadState(EPISODE_DOWNLOAD_ACTIONS.Pending);
-        }
-
-        const download = this.downloadCoordinator.findDownload(
-            candidate.identity
-        );
-        if (
-            download?.status === 'queued' ||
-            download?.status === 'downloading'
-        ) {
-            return this.downloadState(EPISODE_DOWNLOAD_ACTIONS.Pending);
-        }
-        if (download?.status === 'paused') {
-            return this.downloadState(EPISODE_DOWNLOAD_ACTIONS.Resume);
-        }
-        if (download?.status === 'completed') {
-            if (
-                download.fileAvailability === 'available' &&
-                download.filePath
-            ) {
-                return this.downloadState(EPISODE_DOWNLOAD_ACTIONS.Play);
-            }
-            return this.downloadState(
-                download.fileAvailability === 'missing'
-                    ? EPISODE_DOWNLOAD_ACTIONS.Download
-                    : EPISODE_DOWNLOAD_ACTIONS.Blocked
-            );
-        }
-
-        return this.downloadState(EPISODE_DOWNLOAD_ACTIONS.Download);
-    }
-
-    runEpisodeDownloadAction(
-        event: Event,
-        episode: XtreamSerieEpisode,
-        state: EpisodeDownloadState
-    ): void {
-        event.stopPropagation();
-        if (state.disabled) {
-            return;
-        }
-        if (state.action === EPISODE_DOWNLOAD_ACTIONS.Resume) {
-            void this.resumeEpisodeDownload(episode);
-        } else if (state.action === EPISODE_DOWNLOAD_ACTIONS.Play) {
-            void this.playFromLocal(episode);
-        } else if (state.action === EPISODE_DOWNLOAD_ACTIONS.Download) {
-            void this.downloadEpisode(episode);
-        }
-    }
-
-    async downloadEpisode(episode: XtreamSerieEpisode): Promise<void> {
-        if (!this.downloadPresentationVisible()) {
-            return;
-        }
-        const candidate = this.candidateFor(episode);
-        if (!candidate) {
-            return;
-        }
-
-        const result = await this.downloadCoordinator.enqueueOne(candidate);
-        if (result === EPISODE_DOWNLOAD_SUBMISSIONS.Failed) {
-            this.snackBar.open(
-                this.translate.instant('DOWNLOADS.EPISODE_DOWNLOAD_FAILED'),
-                undefined,
-                { duration: 5000 }
-            );
-        }
-    }
-
-    async downloadSelectedSeason(): Promise<void> {
-        const adapter = this.downloadAdapter();
-        const seasonKey = this.selectedSeason();
-        if (
-            this.batchRunning() ||
-            this.seasonDownloadDisabled() ||
-            !this.downloadPresentationVisible() ||
-            !adapter ||
-            !seasonKey
-        ) {
-            return;
-        }
-
-        const episodes = [...this.selectedSeasonEpisodes()];
-        const candidates = episodes.map((episode) =>
-            adapter.createCandidate(episode, seasonKey)
-        );
-        this.batchRunning.set(true);
-        try {
-            const result =
-                await this.downloadCoordinator.enqueueSeason(candidates);
-            const key =
-                result.failed > 0
-                    ? 'DOWNLOADS.SEASON_QUEUE_RESULT_WITH_FAILURES'
-                    : 'DOWNLOADS.SEASON_QUEUE_RESULT';
-            this.snackBar.open(this.translate.instant(key, result), undefined, {
-                duration: 5000,
-            });
-        } finally {
-            this.batchRunning.set(false);
-        }
-    }
-
-    async resumeEpisodeDownload(episode: XtreamSerieEpisode): Promise<void> {
-        const download = this.downloadFor(episode);
-        if (download?.status === 'paused') {
-            await this.downloadsService.resumeDownload(download.id);
-        }
-    }
-
-    async playFromLocal(episode: XtreamSerieEpisode): Promise<void> {
-        const download = this.downloadFor(episode);
-        if (
-            download?.status === 'completed' &&
-            download.fileAvailability === 'available' &&
-            download.filePath
-        ) {
-            await this.downloadsService.playDownload(download.filePath);
-        }
-    }
-
-    private downloadState(action: EpisodeDownloadAction): EpisodeDownloadState {
-        return EPISODE_DOWNLOAD_STATES[action];
     }
 
     private getEpisodePosition(
