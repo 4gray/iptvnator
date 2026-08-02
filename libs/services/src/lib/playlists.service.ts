@@ -22,6 +22,7 @@ import {
     Channel,
     DbStores,
     extractStalkerItemId,
+    isFullStalkerPortalUrl,
     isM3uRecentlyViewedItem,
     M3uFavoriteChannel,
     M3uRecentlyViewedItem,
@@ -254,13 +255,10 @@ export class PlaylistsService {
         }
 
         const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
-        const isFullPortal =
-            portalUrl.includes('/stalker_portal') ||
-            portalUrl.includes('/server/load.php');
 
         return {
             ...playlist,
-            isFullStalkerPortal: isFullPortal,
+            isFullStalkerPortal: isFullStalkerPortalUrl(portalUrl),
         };
     }
 
@@ -475,17 +473,27 @@ export class PlaylistsService {
     }
 
     deletePlaylist(playlistId: string): Observable<{ success: boolean }> {
-        const delete$: Observable<unknown> = this.isElectronStorageAvailable
-            ? this.runOnSqlite(async () => {
-                  const electron = this.electronApi;
-                  if (!electron) {
-                      return undefined;
-                  }
+        // Deletion goes through the SAME per-playlist queue as every write:
+        // a queued mutation (e.g. the Stalker portal repair's conditional
+        // transform) landing after an unserialized delete would upsert the
+        // row back and resurrect the playlist.
+        const delete$: Observable<unknown> = this.serializePlaylistWrite(
+            playlistId,
+            async () => {
+                if (this.isElectronStorageAvailable) {
+                    await this.ensureElectronPlaylistMigrations();
+                    const electron = this.electronApi;
+                    if (electron) {
+                        await electron.dbDeletePlaylist(playlistId);
+                    }
+                    return undefined;
+                }
 
-                  await electron.dbDeletePlaylist(playlistId);
-                  return undefined;
-              })
-            : this.dbService.delete(DbStores.Playlists, playlistId);
+                return firstValueFrom(
+                    this.dbService.delete(DbStores.Playlists, playlistId)
+                );
+            }
+        );
 
         return delete$.pipe(
             switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
@@ -763,6 +771,41 @@ export class PlaylistsService {
                 ...playlist,
                 favorites: transform(currentFavorites),
             };
+
+            await this.persistPlaylistMutation(nextPlaylist);
+            return nextPlaylist;
+        });
+    }
+
+    /**
+     * Applies an atomic, conditional meta mutation: the transform runs on
+     * the freshly read row INSIDE the per-playlist write queue and may
+     * return null to abort without writing. Callers use this when the
+     * decision to write depends on the row's CURRENT state — e.g. the lazy
+     * Stalker portal repair verifying the row still carries the
+     * configuration it probed; a plain read-check-then-update pair would
+     * race a user edit already queued but not yet committed.
+     */
+    transformPlaylistMeta(
+        playlistId: string,
+        transform: (current: Playlist) => Playlist | null
+    ): Observable<Playlist | null> {
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
+        }
+
+        return this.serializePlaylistWrite(playlistId, async () => {
+            const playlist = await firstValueFrom(
+                this.getPlaylistById(playlistId)
+            );
+            if (!playlist) {
+                return null;
+            }
+
+            const nextPlaylist = transform(playlist);
+            if (nextPlaylist === null) {
+                return null;
+            }
 
             await this.persistPlaylistMutation(nextPlaylist);
             return nextPlaylist;

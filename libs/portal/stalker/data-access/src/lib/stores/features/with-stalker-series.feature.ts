@@ -16,6 +16,7 @@ import {
     StalkerVodSeriesSeason,
 } from '../../models';
 import { StalkerContentTypes } from '../../stalker-content-types';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { isStalkerSeriesFlag } from '../../stalker-vod.utils';
 import { StalkerSeriesFeatureStoreContract } from '../stalker-store.contracts';
@@ -82,13 +83,15 @@ export function withStalkerSeries() {
             (
                 store,
                 dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
+                stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerSeriesStoreContext;
                 const requestDeps = {
                     dataService,
                     stalkerSession,
+                    portalRepair,
                 };
 
                 return {
@@ -223,13 +226,15 @@ export function withStalkerSeries() {
             (
                 store,
                 dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
+                stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService)
             ) => {
                 const storeContext = store as typeof store &
                     Pick<StalkerSeriesStoreContext, 'currentPlaylist'>;
                 const requestDeps = {
                     dataService,
                     stalkerSession,
+                    portalRepair,
                 };
 
                 return {

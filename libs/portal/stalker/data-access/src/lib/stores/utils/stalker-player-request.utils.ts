@@ -7,7 +7,10 @@ import {
 import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerContentType } from '../stalker-store.contracts';
-import { executeStalkerRequest } from './stalker-request.utils';
+import {
+    executeStalkerRequest,
+    type StalkerPortalRepairApi,
+} from './stalker-request.utils';
 
 export interface StalkerPlayerResponse {
     js?: {
@@ -23,6 +26,7 @@ export interface StalkerPlayerResponse {
 export interface StalkerPlayerRequestDeps {
     dataService: DataService;
     stalkerSession: StalkerSessionService;
+    portalRepair?: StalkerPortalRepairApi;
 }
 
 export interface StalkerPlayableItemLike extends StalkerPortalItem {
@@ -68,17 +72,28 @@ export function resolveStalkerPlaybackUrl(
 
     try {
         const portalUrlObj = new URL(portalUrl);
-        const pathParts = portalUrlObj.pathname.split('/');
+        // The installation base is the endpoint path MINUS the API suffix
+        // discovery appended (`/portal.php`, `/server/load.php`) — endpoint
+        // discovery can persist arbitrary nested installations
+        // (`/cp/server/load.php`), so a fixed segment allowlist would
+        // resolve `/media/...` against the wrong root. The legacy marker
+        // segments stay as the fallback for URLs that carry neither suffix.
+        const endpointPath = portalUrlObj.pathname;
         let basePath = '';
-
-        for (let index = 0; index < pathParts.length; index += 1) {
-            if (
-                pathParts[index] === 'stalker_portal' ||
-                pathParts[index] === 'c' ||
-                pathParts[index] === 'portal'
-            ) {
-                basePath = '/' + pathParts.slice(1, index + 1).join('/');
-                break;
+        const apiSuffix = /\/(?:portal\.php|server\/load\.php|[^/]*\.php)$/i;
+        if (apiSuffix.test(endpointPath)) {
+            basePath = endpointPath.replace(apiSuffix, '');
+        } else {
+            const pathParts = endpointPath.split('/');
+            for (let index = 0; index < pathParts.length; index += 1) {
+                if (
+                    pathParts[index] === 'stalker_portal' ||
+                    pathParts[index] === 'c' ||
+                    pathParts[index] === 'portal'
+                ) {
+                    basePath = '/' + pathParts.slice(1, index + 1).join('/');
+                    break;
+                }
             }
         }
 
@@ -146,8 +161,16 @@ export async function fetchStalkerPlaybackLink(
         throw new Error(response.js.error);
     }
 
+    // Applied AFTER the request on purpose: a lazy repair may have moved
+    // the endpoint during this very call, and a relative `js.cmd`
+    // (`/media/...`) must resolve against the endpoint that actually
+    // answered — not the activation-time snapshot in options.playlist.
+    const effectivePlaylist = deps.portalRepair
+        ? deps.portalRepair.applyOverride(options.playlist)
+        : options.playlist;
+
     const streamUrl = resolveStalkerPlaybackUrl(
-        options.playlist.portalUrl ?? '',
+        effectivePlaylist.portalUrl ?? '',
         options.cmd,
         response.js?.cmd ?? ''
     );

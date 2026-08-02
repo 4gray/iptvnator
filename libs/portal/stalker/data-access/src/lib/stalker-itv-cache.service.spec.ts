@@ -52,7 +52,9 @@ function pageOf(items: unknown[], totalItems: number, pageSize = 14) {
 
 const UNSUPPORTED_ACTION = { js: { error: 'Unknown action: get_all_channels' } };
 
-async function flushMicrotasks(times = 5): Promise<void> {
+// Depth 10: executeStalkerRequest routes through an extra async hop for
+// the portal-repair pipeline, so page transitions settle a tick later.
+async function flushMicrotasks(times = 10): Promise<void> {
     for (let index = 0; index < times; index += 1) {
         await Promise.resolve();
     }

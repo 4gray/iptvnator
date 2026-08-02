@@ -7,6 +7,7 @@ import {
     StalkerItvLoadProgress,
     loadFullItvChannelList,
 } from './stalker-itv-channel-loader';
+import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
 import { StalkerRequestDeps } from './stores/utils';
 
@@ -35,6 +36,7 @@ export class StalkerItvCacheService {
     private readonly requestDeps: StalkerRequestDeps = {
         dataService: inject(DataService),
         stalkerSession: inject(StalkerSessionService),
+        portalRepair: inject(StalkerPortalRepairService),
     };
 
     /** Portal keys whose full channel list is loaded. */

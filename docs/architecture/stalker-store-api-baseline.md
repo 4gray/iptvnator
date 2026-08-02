@@ -59,7 +59,16 @@ These are currently reachable on the store object and used internally by compute
 - `getContentResource` (resource)
 - `serialSeasonsResource` (resource)
 - `vodSeriesSeasonsResource` (resource)
-- `makeStalkerRequest(...)`
+
+Removed:
+
+- `makeStalkerRequest(...)` — deleted with the endpoint-discovery work. It
+  was production-dead (no caller outside its own spec) and carried a fourth
+  private copy of the portal-mode branch. Every Stalker request goes through
+  `executeStalkerRequest()` (`stores/utils/stalker-request.utils.ts`), which
+  owns mode routing plus the lazy portal repair; no facade alias is provided
+  because reinstating one would reintroduce the drift the shared predicate
+  exists to prevent.
 
 During refactor:
 

@@ -16,6 +16,7 @@ import {
     StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerEpgFeatureStoreContract } from '../stalker-store.contracts';
 import { executeStalkerRequest } from '../utils';
@@ -101,6 +102,7 @@ export function withStalkerEpg() {
                 store,
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService),
                 runtime = inject(RuntimeCapabilitiesService),
                 epgBridge = inject(EpgRuntimeBridgeService)
             ) => {
@@ -109,6 +111,7 @@ export function withStalkerEpg() {
                 const requestDeps = {
                     dataService,
                     stalkerSession,
+                    portalRepair,
                 };
                 const supportsEpg = (): boolean => runtime.supportsEpg;
 
