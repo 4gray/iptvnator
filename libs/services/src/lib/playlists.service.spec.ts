@@ -1290,6 +1290,9 @@ describe('PlaylistsService', () => {
                         store.current = target;
                     }
                 }),
+                dbDeletePlaylist: jest.fn(async () => {
+                    store.current = undefined as unknown as Playlist;
+                }),
             };
             return { store, electron };
         }
@@ -1477,6 +1480,37 @@ describe('PlaylistsService', () => {
                 expect.objectContaining({ stream_id: 3 }),
             ]);
             expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(1);
+        });
+
+        it('serializes deletion behind queued writes so nothing resurrects the row', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-delete-race')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+
+            // A conditional transform (the repair's write path) is queued
+            // when the user deletes the playlist: the delete must run AFTER
+            // the queued write, leaving the row deleted — not upserted back.
+            await Promise.all([
+                firstValueFrom(
+                    service.transformPlaylistMeta(
+                        'portal-delete-race',
+                        (current) => ({
+                            ...current,
+                            portalUrl: 'http://x/portal.php',
+                        })
+                    )
+                ),
+                firstValueFrom(service.deletePlaylist('portal-delete-race')),
+            ]);
+
+            expect(store.current).toBeUndefined();
+            const upsertOrder =
+                electron.dbUpsertAppPlaylist.mock.invocationCallOrder[0];
+            const deleteOrder =
+                electron.dbDeletePlaylist.mock.invocationCallOrder[0];
+            expect(deleteOrder).toBeGreaterThan(upsertOrder);
         });
 
         it('transformPlaylistMeta aborts without writing when the transform returns null', async () => {

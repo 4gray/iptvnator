@@ -473,17 +473,27 @@ export class PlaylistsService {
     }
 
     deletePlaylist(playlistId: string): Observable<{ success: boolean }> {
-        const delete$: Observable<unknown> = this.isElectronStorageAvailable
-            ? this.runOnSqlite(async () => {
-                  const electron = this.electronApi;
-                  if (!electron) {
-                      return undefined;
-                  }
+        // Deletion goes through the SAME per-playlist queue as every write:
+        // a queued mutation (e.g. the Stalker portal repair's conditional
+        // transform) landing after an unserialized delete would upsert the
+        // row back and resurrect the playlist.
+        const delete$: Observable<unknown> = this.serializePlaylistWrite(
+            playlistId,
+            async () => {
+                if (this.isElectronStorageAvailable) {
+                    await this.ensureElectronPlaylistMigrations();
+                    const electron = this.electronApi;
+                    if (electron) {
+                        await electron.dbDeletePlaylist(playlistId);
+                    }
+                    return undefined;
+                }
 
-                  await electron.dbDeletePlaylist(playlistId);
-                  return undefined;
-              })
-            : this.dbService.delete(DbStores.Playlists, playlistId);
+                return firstValueFrom(
+                    this.dbService.delete(DbStores.Playlists, playlistId)
+                );
+            }
+        );
 
         return delete$.pipe(
             switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
