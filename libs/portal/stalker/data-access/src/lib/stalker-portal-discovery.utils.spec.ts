@@ -149,6 +149,32 @@ describe('normalizeStalkerPortalInputUrl', () => {
         expect(normalizeStalkerPortalInputUrl('not-a-url')).toBeNull();
         expect(normalizeStalkerPortalInputUrl('   ')).toBeNull();
     });
+
+    it('preserves the accepted URL authority instead of rebuilding from origin', () => {
+        // Basic-auth credentials must not be silently dropped…
+        expect(
+            normalizeStalkerPortalInputUrl(
+                'https://user:pass@host.example/c?key=value'
+            )
+        ).toBe('https://user:pass@host.example/c');
+        // …and file: URLs (origin "null") must stay parseable rather than
+        // becoming "null/tmp/c" and throwing in the candidate builder.
+        expect(normalizeStalkerPortalInputUrl('file:///tmp/c')).toBe(
+            'file:///tmp/c'
+        );
+        expect(buildStalkerEndpointCandidates('file:///tmp/c')).toEqual([
+            'file:///tmp/portal.php',
+            'file:///tmp/server/load.php',
+            'file:///tmp/stalker_portal/server/load.php',
+        ]);
+        expect(
+            buildStalkerEndpointCandidates('https://user:pass@host.example/c')
+        ).toEqual([
+            'https://user:pass@host.example/portal.php',
+            'https://user:pass@host.example/server/load.php',
+            'https://user:pass@host.example/stalker_portal/server/load.php',
+        ]);
+    });
 });
 
 describe('isStalkerAuthFailureBody', () => {

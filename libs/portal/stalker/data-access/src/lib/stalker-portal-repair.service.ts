@@ -50,7 +50,9 @@ interface StalkerPortalModeOverride {
  * - it runs only after a request ACTUALLY failed with a repair trigger
  *   (the middleware's plain-text auth bodies, or HTTP 404 — a portal that
  *   works is never probed, let alone rewritten);
- * - it probes at most once per playlist per session;
+ * - it probes at most once per SOURCE CONFIGURATION (endpoint, mode, MAC,
+ *   identity) per playlist per session — an edited configuration may probe
+ *   when it fails, an already-probed one stays latched;
  * - it persists only a configuration that discovery PROVED to answer, and
  *   only when that configuration differs from the failing one.
  *

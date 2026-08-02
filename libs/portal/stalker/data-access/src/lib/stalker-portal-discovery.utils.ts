@@ -32,8 +32,15 @@ export function normalizeStalkerPortalInputUrl(rawUrl: string): string | null {
     }
 
     try {
+        // Mutate the parsed URL instead of rebuilding from `origin`:
+        // origin-reconstruction destroys authority information the import
+        // validator accepts — file: URLs have origin "null" and basic-auth
+        // credentials (user:pass@host) would be silently dropped.
         const parsed = new URL(trimmed);
-        return `${parsed.origin}${parsed.pathname.replace(/\/+$/, '')}`;
+        parsed.search = '';
+        parsed.hash = '';
+        parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+        return parsed.href;
     } catch {
         return null;
     }
@@ -49,12 +56,18 @@ export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
     }
 
     const parsed = new URL(normalized);
-    const origin = parsed.origin;
     const path = parsed.pathname.replace(/\/+$/, '');
+    // Candidates swap only the PATH: scheme, credentials, host and port of
+    // the accepted URL are preserved verbatim.
+    const candidateFrom = (candidatePath: string): string => {
+        const candidate = new URL(parsed.href);
+        candidate.pathname = candidatePath;
+        return candidate.href;
+    };
 
     const candidates: string[] = [];
     if (/\.php$/i.test(path)) {
-        candidates.push(`${origin}${path}`);
+        candidates.push(candidateFrom(path));
     }
 
     const base = path
@@ -66,13 +79,13 @@ export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
         // derived from the directory, not appended to the file.
         .replace(/\/[^/]*\.php$/i, '');
 
-    candidates.push(`${origin}${base}/portal.php`);
-    candidates.push(`${origin}${base}/server/load.php`);
+    candidates.push(candidateFrom(`${base}/portal.php`));
+    candidates.push(candidateFrom(`${base}/server/load.php`));
     // `<base>/server/load.php` already IS the canonical form when the base
     // ends in /stalker_portal — nesting it again would probe a path no
     // server has.
     if (!/\/stalker_portal(\/|$)/i.test(base)) {
-        candidates.push(`${origin}${base}/stalker_portal/server/load.php`);
+        candidates.push(candidateFrom(`${base}/stalker_portal/server/load.php`));
     }
 
     return [...new Set(candidates)];

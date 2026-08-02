@@ -120,9 +120,11 @@ two apart, so there is deliberately **no eager one-shot migration**. Instead
 `StalkerPortalRepairService` re-probes a portal only after a request
 actually failed with a shape that a wrong endpoint/mode produces (the
 plain-text auth bodies, HTTP 404, terminal handshake errors — never
-timeouts), at most once per playlist per session, and persists only a
-configuration discovery has proven to answer, and only when it differs from
-the failing one. A repaired configuration is applied immediately via an
+timeouts), at most once per SOURCE CONFIGURATION (endpoint + mode + MAC +
+identity fingerprint) per playlist per session — an edited configuration
+may probe when it fails, while every already-probed one stays latched for
+the session — and persists only a configuration discovery has proven to
+answer, and only when it differs from the failing one. A repaired configuration is applied immediately via an
 in-session override inside `executeStalkerRequest()` (stale store snapshots
 keep working) and persisted through a minimal
 `PlaylistsService.updatePlaylistMeta` patch (`portalUrl` +
