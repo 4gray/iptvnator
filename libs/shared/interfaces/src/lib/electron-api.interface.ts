@@ -138,6 +138,13 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
 export type ElectronBridgeDownloadStatus =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES];
 
+export const ELECTRON_BRIDGE_DOWNLOAD_START_REASONS = {
+    AlreadyInProgress: 'already-in-progress',
+} as const;
+
+export type ElectronBridgeDownloadStartReason =
+    (typeof ELECTRON_BRIDGE_DOWNLOAD_START_REASONS)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_START_REASONS];
+
 export type ElectronDownloadFileAvailability =
     'available' | 'missing' | 'not-applicable';
 
@@ -532,6 +539,7 @@ export interface ElectronBridgeDownloadStartPayload {
 
 export interface ElectronBridgeDownloadStartResult extends ElectronBridgeErrorResult {
     id?: number;
+    reason?: ElectronBridgeDownloadStartReason;
 }
 
 export interface ElectronBridgeDownloadRedownloadResult extends ElectronBridgeErrorResult {

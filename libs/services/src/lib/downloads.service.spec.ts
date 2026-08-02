@@ -10,6 +10,7 @@ import {
 import type {
     DownloadMetadataSnapshot,
     ElectronBridgeDownloadStartPayload,
+    ElectronBridgeDownloadStartResult,
 } from '@iptvnator/shared/interfaces';
 import { DownloadItem, DownloadsService } from './downloads.service';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
@@ -37,7 +38,7 @@ type TestDownloadsService = {
 type DownloadsElectronStub = {
     downloadsGetDefaultFolder?: jest.Mock<Promise<string>, []>;
     downloadsStart?: jest.Mock<
-        Promise<{ success: boolean; id?: number; error?: string }>,
+        Promise<ElectronBridgeDownloadStartResult>,
         [ElectronBridgeDownloadStartPayload]
     >;
     downloadsUpdateMetadata?: jest.Mock<
@@ -243,6 +244,38 @@ describe('DownloadsService', () => {
         expect(electron.downloadsStart.mock.calls[0][0].metadataSnapshot).toBe(
             metadataSnapshot
         );
+    });
+
+    it('returns an already-in-progress start result unchanged', async () => {
+        const bridgeResult: ElectronBridgeDownloadStartResult = {
+            success: false,
+            reason: 'already-in-progress',
+        };
+        const electron = {
+            downloadsGetDefaultFolder: jest.fn(async () => '/downloads'),
+            downloadsGetList: jest.fn(async () => []),
+            downloadsStart: jest
+                .fn<
+                    Promise<ElectronBridgeDownloadStartResult>,
+                    [ElectronBridgeDownloadStartPayload]
+                >()
+                .mockResolvedValue(bridgeResult),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(
+            service.startDownload({
+                playlistId: 'playlist-1',
+                xtreamId: 7,
+                contentType: 'episode',
+                seriesXtreamId: 3,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                title: 'Episode 2',
+                url: 'https://example.com/episode-2.mp4',
+            })
+        ).resolves.toBe(bridgeResult);
     });
 
     it('stores a selected download folder returned by the main process', async () => {

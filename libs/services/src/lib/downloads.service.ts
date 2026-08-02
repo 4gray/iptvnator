@@ -1,11 +1,16 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import type { ElectronBridgeDownloadStartResult } from '@iptvnator/shared/interfaces';
 import { updateDownloadMetadata } from './downloads-metadata-update';
 import type { DownloadItem, DownloadStartInput } from './downloads.models';
 import { formatDownloadBytes } from './downloads.utils';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
-export type { DownloadItem, DownloadStatus } from './downloads.models';
+export type {
+    DownloadItem,
+    DownloadStartInput,
+    DownloadStatus,
+} from './downloads.models';
 
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
@@ -135,7 +140,7 @@ export class DownloadsService implements OnDestroy {
      */
     async startDownload(
         data: DownloadStartInput
-    ): Promise<{ success: boolean; id?: number; error?: string }> {
+    ): Promise<ElectronBridgeDownloadStartResult> {
         if (!this.isAvailable()) {
             return { success: false, error: 'Downloads not available' };
         }
