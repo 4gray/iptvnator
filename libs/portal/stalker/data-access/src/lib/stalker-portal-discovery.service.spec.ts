@@ -252,6 +252,27 @@ describe('StalkerPortalDiscoveryService', () => {
         expect(sendIpcEvent).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps probing past a candidate timeout — one handler can hang while siblings work', async () => {
+        mockProbes({
+            'http://slow.example/portal.php': {
+                reject: new Error(
+                    "Error invoking remote method 'STALKER_REQUEST': timeout of 15000ms exceeded"
+                ),
+            },
+            'http://slow.example/server/load.php': {
+                resolve: { js: [] },
+            },
+        });
+
+        const outcome = await service.discover('http://slow.example/c', MAC);
+
+        expect(outcome).toEqual({
+            status: 'resolved',
+            portalUrl: 'http://slow.example/server/load.php',
+            isFullStalkerPortal: false,
+        });
+    });
+
     it('keeps probing past an endpoint-specific 5xx — the host answered', async () => {
         // One broken handler (a dead portal.php returning 500) must not
         // hide a healthy sibling endpoint on the same host.

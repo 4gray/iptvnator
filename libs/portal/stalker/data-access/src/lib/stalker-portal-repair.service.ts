@@ -22,9 +22,27 @@ interface StalkerPortalModeOverride {
     /** The failing configuration this repair replaced. */
     sourcePortalUrl?: string;
     sourceIsFullStalkerPortal: boolean;
+    /** MAC + Stalker identity the repair probe authenticated as. */
+    identityFingerprint: string;
     /** The proven-working configuration. */
     portalUrl: string;
     isFullStalkerPortal: boolean;
+}
+
+/** Blank and absent identity values are equivalent. */
+function normalizeIdentityValue(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function identityFingerprintOf(playlist: PlaylistMeta): string {
+    return [
+        normalizeIdentityValue(playlist.macAddress),
+        normalizeIdentityValue(playlist.stalkerSerialNumber),
+        normalizeIdentityValue(playlist.stalkerDeviceId1),
+        normalizeIdentityValue(playlist.stalkerDeviceId2),
+        normalizeIdentityValue(playlist.stalkerSignature1),
+        normalizeIdentityValue(playlist.stalkerSignature2),
+    ].join('|');
 }
 
 /**
@@ -94,6 +112,17 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         }
 
         if (
+            identityFingerprintOf(playlist) !== override.identityFingerprint
+        ) {
+            // The MAC or Stalker identity was edited after the repair. The
+            // override AND the token the repair authenticated for the
+            // PREVIOUS identity must go — otherwise requests and watchdog
+            // pings would pair the edited identity with a foreign session.
+            this.dropOverride(playlist._id);
+            return playlist;
+        }
+
+        if (
             playlist.portalUrl === override.portalUrl &&
             playlist.isFullStalkerPortal === override.isFullStalkerPortal
         ) {
@@ -113,9 +142,22 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             };
         }
 
-        this.overrides.delete(playlist._id);
-        this.attemptedSources.delete(playlist._id);
+        // The portal URL or mode was edited to something else entirely —
+        // same story: the edited configuration is used verbatim and the
+        // repair session state is retired.
+        this.dropOverride(playlist._id);
         return playlist;
+    }
+
+    /**
+     * Retires every session artifact a repair installed for a playlist:
+     * the override, the once-per-config probe latch, and the cached token
+     * (authenticated for the pre-edit identity/endpoint).
+     */
+    private dropOverride(playlistId: string): void {
+        this.overrides.delete(playlistId);
+        this.attemptedSources.delete(playlistId);
+        this.stalkerSession.clearCachedToken(playlistId);
     }
 
     /**
@@ -193,17 +235,10 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      * verifies before committing.
      */
     private repairSourceFingerprint(playlist: PlaylistMeta): string {
-        const normalize = (value: unknown): string =>
-            typeof value === 'string' ? value.trim() : '';
         return [
             playlist.portalUrl ?? '',
             String(isFullStalkerPortalPlaylist(playlist)),
-            normalize(playlist.macAddress),
-            normalize(playlist.stalkerSerialNumber),
-            normalize(playlist.stalkerDeviceId1),
-            normalize(playlist.stalkerDeviceId2),
-            normalize(playlist.stalkerSignature1),
-            normalize(playlist.stalkerSignature2),
+            identityFingerprintOf(playlist),
         ].join('|');
     }
 
@@ -253,6 +288,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         this.overrides.set(playlist._id, {
             sourcePortalUrl: playlist.portalUrl,
             sourceIsFullStalkerPortal: storedMode,
+            identityFingerprint: identityFingerprintOf(playlist),
             portalUrl: outcome.portalUrl,
             isFullStalkerPortal: outcome.isFullStalkerPortal,
         });
@@ -310,20 +346,8 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             // identity edited during the multi-second probe must discard the
             // repair too, or its token/watchdog would belong to the old
             // account. Blank and absent identity values are equivalent.
-            const normalize = (value: unknown): string =>
-                typeof value === 'string' ? value.trim() : '';
             return (
-                normalize(row.macAddress) === normalize(playlist.macAddress) &&
-                normalize(row.stalkerSerialNumber) ===
-                    normalize(playlist.stalkerSerialNumber) &&
-                normalize(row.stalkerDeviceId1) ===
-                    normalize(playlist.stalkerDeviceId1) &&
-                normalize(row.stalkerDeviceId2) ===
-                    normalize(playlist.stalkerDeviceId2) &&
-                normalize(row.stalkerSignature1) ===
-                    normalize(playlist.stalkerSignature1) &&
-                normalize(row.stalkerSignature2) ===
-                    normalize(playlist.stalkerSignature2)
+                identityFingerprintOf(row) === identityFingerprintOf(playlist)
             );
         } catch (error) {
             this.logger.warn(

@@ -11,6 +11,7 @@ import {
     buildStalkerEndpointCandidates,
     classifyStalkerProbeResponse,
     getStalkerRequestErrorStatus,
+    isStalkerProbeTimeout,
 } from './stalker-portal-discovery.utils';
 
 /** A candidate endpoint answered and its auth behavior was observed. */
@@ -127,8 +128,17 @@ export class StalkerPortalDiscoveryService {
                     // sibling candidate works — keep probing either way.
                     continue;
                 }
-                // No HTTP status at all: network-level failure. Every
-                // candidate lives on the same host, so further probing
+                if (isStalkerProbeTimeout(error)) {
+                    // A timeout can also be one hanging handler with healthy
+                    // siblings; each further candidate stays bounded by its
+                    // own probe budget.
+                    this.logger.warn(
+                        'Stalker portal probe timed out; trying the next candidate'
+                    );
+                    continue;
+                }
+                // Connection-level failure (refused, unresolvable host):
+                // every candidate lives on the same host, so further probing
                 // cannot succeed either.
                 this.logger.warn(
                     'Stalker portal probe failed at network level; stopping discovery'

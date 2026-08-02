@@ -231,6 +231,22 @@ export function getStalkerRequestErrorStatus(
 }
 
 /**
+ * Whether a status-less probe failure is a TIMEOUT (renderer probe budget,
+ * axios request timeout, ETIMEDOUT). A timeout can be one hanging handler
+ * while sibling endpoints answer fine, so discovery continues past it;
+ * connection-level failures (ECONNREFUSED, ENOTFOUND, …) still stop the
+ * loop — they prove the HOST is unreachable for every candidate.
+ */
+export function isStalkerProbeTimeout(error: unknown): boolean {
+    if (error === null || typeof error !== 'object' || !('message' in error)) {
+        return false;
+    }
+
+    const message = String((error as { message?: unknown }).message ?? '');
+    return /timed out|timeout of \d+\s*ms|ETIMEDOUT/i.test(message);
+}
+
+/**
  * The pre-discovery URL rewrite (`…/c` → `portal.php`, `…/stalker_portal/c`
  * → `…/stalker_portal/server/load.php`). Kept ONLY as the fallback for
  * imports where no candidate could be probed (host unreachable); discovery

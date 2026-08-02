@@ -341,6 +341,35 @@ describe('StalkerPortalRepairService', () => {
             expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
 
+        it('drops the override and the cached token when only the identity was edited', async () => {
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(MISCLASSIFIED);
+            expect(service.applyOverride(MISCLASSIFIED)).toMatchObject({
+                isFullStalkerPortal: true,
+            });
+            clearCachedToken.mockClear();
+
+            // Same URL and mode, different MAC: the repair token belongs to
+            // the previous identity and must be retired with the override.
+            const editedIdentity = {
+                ...MISCLASSIFIED,
+                macAddress: '00:1A:79:00:88:88',
+            } as PlaylistMeta;
+
+            expect(service.applyOverride(editedIdentity)).toBe(editedIdentity);
+            expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
+            // The latch is re-armed for the edited identity.
+            discover.mockClear();
+            discover.mockResolvedValue({ status: 'unreachable' });
+            persistedRow = editedIdentity as Playlist;
+            await service.repairPortal(editedIdentity);
+            expect(discover).toHaveBeenCalledTimes(1);
+        });
+
         it('re-arms the EDITED configuration after a mid-probe edit discarded a repair', async () => {
             const edited = {
                 ...MISCLASSIFIED,
