@@ -238,14 +238,23 @@ export function parseStalkerDate(
     // UTC and moves the days-left boundary. Build it in local time instead.
     const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
     if (dateOnly) {
-        const [, year, month, day] = dateOnly;
-        const local = new Date(
-            Number(year),
-            Number(month) - 1,
-            Number(day)
-        ).getTime();
-        return Number.isFinite(local) && local > 0
-            ? Math.round(local / 1000)
+        const year = Number(dateOnly[1]);
+        const month = Number(dateOnly[2]);
+        const day = Number(dateOnly[3]);
+        const local = new Date(year, month - 1, day);
+        // Round-trip check: the multi-argument constructor normalizes
+        // out-of-range components ('2026-00-00' → Nov 30, 2025), which
+        // would fabricate an expiry from a placeholder.
+        if (
+            local.getFullYear() !== year ||
+            local.getMonth() !== month - 1 ||
+            local.getDate() !== day
+        ) {
+            return undefined;
+        }
+        const timestamp = local.getTime();
+        return Number.isFinite(timestamp) && timestamp > 0
+            ? Math.round(timestamp / 1000)
             : undefined;
     }
 

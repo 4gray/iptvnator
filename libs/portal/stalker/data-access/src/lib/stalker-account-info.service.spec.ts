@@ -299,6 +299,14 @@ describe('parseStalkerDate', () => {
         expect(parseStalkerDate('not a date')).toBeUndefined();
     });
 
+    it('rejects out-of-range calendar components instead of normalizing them', () => {
+        // new Date(2026, -1, 0) silently becomes Nov 30, 2025 — a
+        // placeholder must not fabricate an expiry.
+        expect(parseStalkerDate('2026-00-00')).toBeUndefined();
+        expect(parseStalkerDate('2026-02-30')).toBeUndefined();
+        expect(parseStalkerDate('2026-13-01')).toBeUndefined();
+    });
+
     it('rejects negative unlimited-expiry sentinels instead of parsing them as dates', () => {
         // V8 reads Date.parse('-1') as January 1, 2001 — an unlimited
         // account must not render as expired.
