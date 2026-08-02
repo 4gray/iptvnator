@@ -112,7 +112,11 @@ export class StalkerSessionService {
         token: string,
         identitySource: PlaylistMeta
     ): void {
-        this.tokens.set(playlistId, token, identitySource);
+        this.tokens.set(
+            playlistId,
+            token,
+            stalkerSessionFingerprint(identitySource)
+        );
     }
 
     /**
@@ -256,7 +260,10 @@ export class StalkerSessionService {
         }
 
         const identity = getStalkerPortalIdentityFromPlaylist(playlist);
-        const fingerprint = stalkerIdentityFingerprint(playlist);
+        // One key for both caches: endpoint + identity + credentials. An
+        // identity-only in-run key would hand the cached bearer token to a
+        // freshly edited endpoint before the persisted check ever ran.
+        const fingerprint = stalkerSessionFingerprint(playlist);
 
         // Only the session negotiated for THIS identity may be reused.
         const cachedToken = this.tokens.takeFor(playlist._id, fingerprint);
@@ -299,10 +306,9 @@ export class StalkerSessionService {
                 // The PERSISTED session is bound to the endpoint too: a
                 // playlist repointed at another host must not re-present the
                 // previous portal's token to it.
-                const sessionKey = stalkerSessionFingerprint(playlist);
                 const stored = await this.sessionStore.read(
                     playlist,
-                    sessionKey
+                    fingerprint
                 );
                 const result = await this.authenticate(
                     portalUrl,
@@ -329,7 +335,7 @@ export class StalkerSessionService {
                     playlist._id,
                     result,
                     stored,
-                    sessionKey
+                    fingerprint
                 );
                 return {
                     token: result.token,
@@ -371,7 +377,10 @@ export class StalkerSessionService {
         const portalUrl = playlist.portalUrl;
         const macAddress = playlist.macAddress;
         const identity = getStalkerPortalIdentityFromPlaylist(playlist);
-        const fingerprint = stalkerIdentityFingerprint(playlist);
+        // One key for both caches: endpoint + identity + credentials. An
+        // identity-only in-run key would hand the cached bearer token to a
+        // freshly edited endpoint before the persisted check ever ran.
+        const fingerprint = stalkerSessionFingerprint(playlist);
 
         // Claim the per-playlist slot. Re-check after every await: one
         // settled promise releases every waiter at once, so a single
@@ -439,7 +448,7 @@ export class StalkerSessionService {
                     watchdogTimeoutSeconds: playlist.stalkerWatchdogTimeout,
                     timeslotSeconds: playlist.stalkerTimeslot,
                 },
-                stalkerSessionFingerprint(playlist)
+                fingerprint
             );
             settleSlot({
                 token: result.token,

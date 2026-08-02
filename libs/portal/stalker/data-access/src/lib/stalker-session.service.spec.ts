@@ -751,6 +751,10 @@ describe('StalkerSessionService identity payloads', () => {
             macAddress,
             isFullStalkerPortal: true,
             stalkerToken: 'STORED-TOKEN',
+            stalkerSessionIdentity: stalkerSessionFingerprint({
+                portalUrl,
+                macAddress,
+            } as Playlist),
             // With the cadence present the playlist is self-sufficient, so no
             // row read is needed.
             stalkerWatchdogTimeout: 120,
@@ -770,7 +774,15 @@ describe('StalkerSessionService identity payloads', () => {
 
     it('falls back to the stored playlist row for the persisted token', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
-            of({ _id: 'playlist-8', stalkerToken: 'ROW-TOKEN' } as Playlist)
+            of({
+                _id: 'playlist-8',
+                stalkerToken: 'ROW-TOKEN',
+                stalkerSessionIdentity: stalkerSessionFingerprint({
+                    portalUrl,
+                    macAddress,
+                } as Playlist),
+                stalkerWatchdogTimeout: 120,
+            } as Playlist)
         );
         const authenticate = jest
             .spyOn(service, 'authenticate')
@@ -856,11 +868,13 @@ describe('StalkerSessionService identity payloads', () => {
         );
     });
 
-    it('profiles a legacy token-only playlist instead of stranding it on the default', async () => {
-        // A playlist imported before the cadence was persisted has a
-        // reusable token and no cadence anywhere. Skipping the profile would
-        // leave it on the 120 s default permanently, because the profile is
-        // the only thing that could ever teach it otherwise.
+    it('profiles a legacy token-only playlist and refuses its unverified token', async () => {
+        // A playlist written before this change has a token but no recorded
+        // fingerprint, so nothing proves which endpoint/identity it belongs
+        // to — re-presenting it after an edit is the disclosure the
+        // fingerprint exists to prevent. It owes a full profile anyway (no
+        // cadence), so refusing the token costs nothing and the write-back
+        // then records the fingerprint.
         playlistsService.getPlaylistById.mockReturnValue(
             of({ _id: 'playlist-16', stalkerToken: 'LEGACY' } as Playlist)
         );
@@ -885,7 +899,7 @@ describe('StalkerSessionService identity payloads', () => {
             macAddress,
             {},
             expect.objectContaining({
-                storedToken: 'LEGACY',
+                storedToken: undefined,
                 skipProfileWhenReused: false,
             })
         );
@@ -923,6 +937,50 @@ describe('StalkerSessionService identity payloads', () => {
                 stalkerWatchdogTimeout:
                     STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
                 stalkerTimeslot: 0,
+            })
+        );
+    });
+
+    it('refuses a cached and persisted session after the login changed', async () => {
+        // For a status-2 portal the login decides WHICH account the token
+        // represents, so serving the old session would keep the user on the
+        // previous account indefinitely.
+        const before = {
+            _id: 'playlist-login-change',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+            username: 'old-user',
+            password: 'old-pass',
+        } as Playlist;
+        service.setCachedToken(before._id, 'OLD-ACCOUNT-TOKEN', before);
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                ...before,
+                stalkerToken: 'OLD-ACCOUNT-TOKEN',
+                stalkerSessionIdentity: stalkerSessionFingerprint(before),
+                stalkerWatchdogTimeout: 60,
+            } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({ token: 'NEW', reusedStoredToken: false });
+
+        const result = await service.ensureToken({
+            ...before,
+            username: 'new-user',
+            password: 'new-pass',
+        } as Playlist);
+
+        // Neither the in-run cache nor the persisted token is reused.
+        expect(result.token).toBe('NEW');
+        expect(authenticate).toHaveBeenCalledWith(
+            portalUrl,
+            macAddress,
+            {},
+            expect.objectContaining({
+                storedToken: undefined,
+                credentials: { username: 'new-user', password: 'new-pass' },
             })
         );
     });

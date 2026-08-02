@@ -8,6 +8,7 @@ import {
     Channel,
     EpgItem,
     EpgProgram,
+    isFullStalkerPortalPlaylist,
     Playlist,
     isStalkerStreamCredentialSafe,
     ResolvedPortalPlayback,
@@ -568,7 +569,11 @@ export class StreamResolverService {
         playlist: Playlist | undefined
     ): Promise<string | null> {
         const cached = this.stalkerSession.getCachedToken(playlistId);
-        if (cached || !playlist?.isFullStalkerPortal) {
+        // The shared mode contract, not the raw flag: a legacy row with an
+        // absent flag but a canonical URL IS a full portal, and reading the
+        // property directly would skip authentication for it — a restored
+        // older backup opens a direct-URL radio favorite with no Bearer.
+        if (cached || !playlist || !isFullStalkerPortalPlaylist(playlist)) {
             return cached;
         }
 

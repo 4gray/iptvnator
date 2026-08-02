@@ -7,18 +7,41 @@ import { stalkerIdentityFingerprint } from './stalker-identity.utils';
 import type { StalkerAuthenticationResult } from './stalker-auth.api';
 
 /**
- * What a persisted session is bound to: the device identity AND the endpoint
- * it was negotiated against.
+ * Everything a Stalker session is bound to: the endpoint it was negotiated
+ * against, the device identity, and the account credentials.
  *
- * The endpoint half is not optional. Identity alone would let a playlist
- * repointed at a different host keep the old token — and `ensureToken()`
- * re-presents persisted tokens in a handshake, so the previous portal's
- * bearer token would be disclosed to an unrelated server.
+ * All three halves matter, and each was a real defect when missing:
+ *
+ * - **Endpoint** — `ensureToken()` re-presents tokens in a handshake, so a
+ *   playlist repointed at another host would disclose the previous portal's
+ *   bearer token to an unrelated server.
+ * - **Identity** — an edited MAC/serial must not inherit the old session.
+ * - **Credentials** — for a status-2 portal the login decides which account
+ *   the token represents, so changing it must not keep serving the previous
+ *   account's session.
+ *
+ * Used for BOTH the in-run cache and the persisted session: an edit applies
+ * without waiting for a restart.
  */
-export function stalkerSessionFingerprint(playlist: Playlist): string {
+export function stalkerSessionFingerprint(
+    playlist: Pick<
+        Playlist,
+        | 'portalUrl'
+        | 'macAddress'
+        | 'username'
+        | 'password'
+        | 'stalkerSerialNumber'
+        | 'stalkerDeviceId1'
+        | 'stalkerDeviceId2'
+        | 'stalkerSignature1'
+        | 'stalkerSignature2'
+    >
+): string {
     return JSON.stringify([
         portalOrigin(playlist.portalUrl),
-        stalkerIdentityFingerprint(playlist),
+        stalkerIdentityFingerprint(playlist as Playlist),
+        playlist.username ?? '',
+        playlist.password ?? '',
     ]);
 }
 
@@ -99,12 +122,13 @@ export class StalkerSessionStore {
                 ? fromPlaylist
                 : await this.readFromRow(playlist, fromPlaylist);
 
-        if (
-            stored.token &&
-            stored.identityFingerprint !== undefined &&
-            stored.identityFingerprint !== fingerprint
-        ) {
-            // Minted for a different identity — negotiate a fresh session.
+        // A token with NO recorded fingerprint is unverified, not trusted:
+        // playlists written before the fingerprint existed carry one, and
+        // re-presenting it after an endpoint or identity edit is exactly the
+        // disclosure the fingerprint prevents. Such a row has no cadence
+        // either, so it already owes a full profile — refusing the token
+        // costs it nothing, and the write-back then records the fingerprint.
+        if (stored.token && stored.identityFingerprint !== fingerprint) {
             return { ...stored, token: undefined };
         }
 

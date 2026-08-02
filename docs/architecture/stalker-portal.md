@@ -268,11 +268,17 @@ A renegotiated session is written back best-effort
 The handshake's `not_valid` flag is propagated into the follow-up
 `get_profile` as `not_valid_token`.
 
-Reuse is gated on identity. The fingerprint the session was negotiated for is
-persisted next to the token (`Playlist.stalkerSessionIdentity`), and a token
-whose fingerprint no longer matches the playlist is never re-presented — an
-edited MAC, serial or device id must not inherit the previous session, which
-is the same rule the in-memory cache enforces for the current run.
+Reuse is gated on a session fingerprint (`stalkerSessionFingerprint`) covering
+the **portal origin, the device identity and the account credentials**, stored
+next to the token as `Playlist.stalkerSessionIdentity` and used for the
+in-run cache as well, so an edit applies without a restart. All three halves
+are load-bearing: `ensureToken()` re-presents tokens in a handshake, so an
+endpoint edit would otherwise disclose the previous portal's bearer token to
+another host; an identity edit must not inherit the old session; and for a
+status-2 portal the login decides which account the token represents. A token
+with no recorded fingerprint (written before this existed) counts as
+unverified and is never re-presented — such a row owes a full profile anyway,
+and the write-back then records the fingerprint.
 
 Because that reuse skips the only response carrying the watchdog cadence, the
 cadence is persisted **with** the token (`Playlist.stalkerWatchdogTimeout` /

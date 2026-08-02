@@ -1,6 +1,3 @@
-import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { stalkerIdentityFingerprint } from './stalker-identity.utils';
-
 export interface StalkerPendingAuth {
     promise: Promise<{ token: string; serialNumber?: string }>;
     identityFingerprint: string;
@@ -10,9 +7,10 @@ export interface StalkerPendingAuth {
  * In-memory session state for the current app run, keyed by playlist ID and
  * tagged with the identity fingerprint the session was negotiated for.
  *
- * The tagging is the point: a playlist whose MAC, serial or device ids were
+ * The tagging is the point: a playlist whose endpoint, identity or login was
  * edited must never inherit the previous session — neither the cached token
- * nor an authentication that is still in flight for the old identity.
+ * nor an authentication still in flight for the old one. The key comes from
+ * `stalkerSessionFingerprint`, so an edit applies without a restart.
  */
 export class StalkerTokenCache {
     private readonly tokens = new Map<
@@ -29,14 +27,10 @@ export class StalkerTokenCache {
         return this.tokens.get(playlistId)?.token || null;
     }
 
-    set(
-        playlistId: string,
-        token: string,
-        identitySource: PlaylistMeta
-    ): void {
+    set(playlistId: string, token: string, sessionFingerprint: string): void {
         this.tokens.set(playlistId, {
             token,
-            identityFingerprint: stalkerIdentityFingerprint(identitySource),
+            identityFingerprint: sessionFingerprint,
         });
     }
 
