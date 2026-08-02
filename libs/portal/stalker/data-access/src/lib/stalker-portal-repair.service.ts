@@ -211,11 +211,22 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return true;
         }
 
-        if (failure !== null && typeof failure === 'object' && 'message' in failure) {
+        if (
+            failure !== null &&
+            typeof failure === 'object' &&
+            'message' in failure
+        ) {
             const message = String(
                 (failure as { message?: unknown }).message ?? ''
             );
-            return /authorization failed|handshake failed/i.test(message);
+            // The SAME failure set the session service and discovery use —
+            // authentication wraps structured denials as
+            // `Error('Profile error: Access denied.')`, and a narrower
+            // pattern here would let those bypass the repair entirely.
+            return (
+                isStalkerAuthFailureResponse(message) ||
+                /handshake failed/i.test(message)
+            );
         }
 
         return false;

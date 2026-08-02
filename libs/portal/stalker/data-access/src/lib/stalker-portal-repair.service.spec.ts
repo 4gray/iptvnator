@@ -150,6 +150,18 @@ describe('StalkerPortalRepairService', () => {
             ).toBe(true);
         });
 
+        it.each([
+            'Profile error: Access denied.',
+            'Profile error: Unauthorized request.',
+        ])('triggers on the wrapped profile denial %j', (message) => {
+            // Authentication wraps structured denials; the trigger uses the
+            // same failure set as discovery and the session service, so
+            // these cannot bypass the repair.
+            expect(
+                service.shouldAttemptRepair(MISCLASSIFIED, new Error(message))
+            ).toBe(true);
+        });
+
         it('never triggers on timeouts or other network failures', () => {
             expect(
                 service.shouldAttemptRepair(MISCLASSIFIED, {
