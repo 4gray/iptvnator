@@ -18,27 +18,39 @@
  * `portal.php` → `server/load.php` → `stalker_portal/server/load.php`, so
  * reseller panels resolve exactly as they did before discovery existed.
  */
-export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
+/**
+ * Reduces a pasted portal URL to `origin + pathname` (no query, no
+ * fragment, no trailing slashes). Suffix logic anywhere in discovery must
+ * run on this form: string-suffix matching on the raw URL would bolt
+ * endpoint rewrites onto the query instead of the path. Returns null for
+ * input the URL parser rejects.
+ */
+export function normalizeStalkerPortalInputUrl(rawUrl: string): string | null {
     const trimmed = rawUrl.trim();
     if (!trimmed) {
-        return [];
+        return null;
     }
 
-    // Suffix logic must run on the parsed PATH: a pasted URL can carry a
-    // query or fragment (`…/c?key=value`), and string-suffix matching on the
-    // whole URL would bolt `/portal.php` onto the query instead of the path.
+    try {
+        const parsed = new URL(trimmed);
+        return `${parsed.origin}${parsed.pathname.replace(/\/+$/, '')}`;
+    } catch {
+        return null;
+    }
+}
+
+export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
     // Queries and fragments are dropped from every candidate — the Stalker
     // API endpoints take their parameters per request, and a stored query
     // would collide with the transport's own query building.
-    let origin: string;
-    let path: string;
-    try {
-        const parsed = new URL(trimmed);
-        origin = parsed.origin;
-        path = parsed.pathname.replace(/\/+$/, '');
-    } catch {
+    const normalized = normalizeStalkerPortalInputUrl(rawUrl);
+    if (normalized === null) {
         return [];
     }
+
+    const parsed = new URL(normalized);
+    const origin = parsed.origin;
+    const path = parsed.pathname.replace(/\/+$/, '');
 
     const candidates: string[] = [];
     if (/\.php$/i.test(path)) {

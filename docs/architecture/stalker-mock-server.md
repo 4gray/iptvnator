@@ -39,19 +39,22 @@ Stalker portals use MAC address as the primary credential. The mock server follo
 
 No files or databases are written. All state (generated content + favorites + portal sessions) lives in process memory and resets on server restart. This is intentional — tests should not share state across runs.
 
-### Two Endpoints With Different Strictness
+### Endpoints With Different Strictness
 
-The app decides how to talk to a portal from the shape of its URL: a URL
-containing `/stalker_portal` is imported as a **full portal** (handshake,
-`Authorization: Bearer`, watchdog), anything else as a **simple portal** with no
-authentication at all. The mock therefore serves the same action set at two
-paths:
+The app classifies a portal by observed behavior, not by URL shape: endpoint
+discovery (see `docs/architecture/stalker-portal.md`, "Portal Mode and
+Endpoint Discovery") probes candidates at import and on lazy repair, treating
+a token-less content request that returns data as a token-free panel and the
+middleware's plain-text auth failure as a token-enforcing full portal. The
+mock serves the same action set at several paths so every classification
+branch is exercisable:
 
 | Path | Router | Behaviour |
 |---|---|---|
 | `/portal.php` | `createPortalRouter(false)` | Tolerant: ignores the token and the MAC format, like most reseller panels |
 | `/stalker_portal/server/load.php` | `createPortalRouter(true)` | Strict: enforces both, like the real middleware |
-| `/server/load.php` | `createPortalRouter(true)` | Strict: the second URL shape `isFullStalkerPortal` recognizes |
+| `/server/load.php` | `createPortalRouter(true)` | Strict: the bare canonical Ministra shape, enforced identically |
+| `/ministra/server/load.php` | `createPortalRouter(true)` | Strict; the `/ministra/*` prefix has **no portal.php** (404s like genuine Ministra), so `/ministra/c` proves the probe's 404 fallthrough |
 
 The `/stalker` proxy route applies the same rule through
 `isFullPortalUrlShape()` — every URL the client would authenticate against is

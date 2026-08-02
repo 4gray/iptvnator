@@ -169,6 +169,53 @@ describe('StalkerPortalDiscoveryService', () => {
         });
     });
 
+    it('treats an HTTP 401/403 probe answer as auth-required, not endpoint-absent', async () => {
+        // Non-standard middlewares answer 401 where the stock server sends
+        // HTTP 200 + plain text; skipping the candidate would abort imports
+        // for portals that previously authenticated directly.
+        mockProbes({
+            'http://gated.example/portal.php': {
+                reject: { message: 'HTTP Error 401: Unauthorized', status: 401 },
+            },
+        });
+        authenticate.mockResolvedValue({ token: 'TOKEN4' });
+
+        const outcome = await service.discover('http://gated.example/c', MAC);
+
+        expect(outcome).toMatchObject({
+            status: 'resolved',
+            portalUrl: 'http://gated.example/portal.php',
+            isFullStalkerPortal: true,
+        });
+        expect(authenticate).toHaveBeenCalledWith(
+            'http://gated.example/portal.php',
+            MAC,
+            {}
+        );
+    });
+
+    it('records a 401 candidate as auth-rejected when the handshake is refused', async () => {
+        mockProbes({
+            'http://gated.example/portal.php': {
+                reject: { message: 'HTTP Error 403: Forbidden', status: 403 },
+            },
+            'http://gated.example/server/load.php': {
+                reject: { message: 'HTTP Error 404: Not Found', status: 404 },
+            },
+            'http://gated.example/stalker_portal/server/load.php': {
+                reject: { message: 'HTTP Error 404: Not Found', status: 404 },
+            },
+        });
+        authenticate.mockRejectedValue(new Error('Handshake failed: No token received'));
+
+        const outcome = await service.discover('http://gated.example/c', MAC);
+
+        expect(outcome).toMatchObject({
+            status: 'auth-rejected',
+            portalUrl: 'http://gated.example/portal.php',
+        });
+    });
+
     it('reports unreachable when every candidate 404s', async () => {
         mockProbes({
             'http://empty.example/portal.php': {

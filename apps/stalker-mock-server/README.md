@@ -27,30 +27,26 @@ Then in IPTVnator, add a new Stalker portal:
 
 - **Portal URL**: `http://localhost:3210/portal.php` (tolerant panel-style endpoint)
   or `http://localhost:3210/stalker_portal/server/load.php` (canonical Ministra
-  endpoint — see [Two endpoints](#two-endpoints-tolerant-vs-strict) below)
+  endpoint — see [Endpoints](#endpoints-tolerant-strict-and-the-ministra-host) below)
 - **MAC Address**: one of the predefined scenarios below (or any MAC for auto-generated data)
 
-## Two endpoints: tolerant vs strict
+## Endpoints: tolerant, strict, and the /ministra host
 
-The same actions are served at two paths with deliberately different strictness,
-because the app treats them differently: a URL containing `/stalker_portal` is
-imported as a **full portal** (handshake + token + watchdog), anything else as a
-**simple portal** (no authentication at all).
+The same actions are served at several paths with deliberately different
+strictness. Since endpoint discovery landed, the app no longer guesses the
+portal mode from the URL shape: at import it probes `portal.php` →
+`server/load.php` → `stalker_portal/server/load.php` and classifies each
+endpoint by observed behavior (token-less `get_genres` answering data ⇒
+token-free panel; the plain-text auth failure ⇒ full portal, confirmed by a
+real handshake + `get_profile`). The mock's split makes every branch of that
+classification exercisable:
 
 | Path | Behaviour |
 |---|---|
-| `/portal.php` | Tolerant. Ignores the Bearer token and the MAC format, like most reseller panels in the wild. |
-| `/stalker_portal/server/load.php` | Strict. Enforces the token and the MAC format exactly like the real middleware. |
-| `/server/load.php` | Strict. The second full-portal URL shape the app recognizes; enforced identically. |
-
-> **Known app inconsistency:** `StalkerSessionService.isFullStalkerPortal`
-> classifies `/server/load.php` as a full portal, but the import dialog's
-> `isFullStalkerPortalUrl` checks only for `/stalker_portal`, so importing a bare
-> `…/server/load.php` URL persists `isFullStalkerPortal: false` and the app skips
-> the handshake. The mock is deliberately faithful to a **real** portal here
-> (that path enforces auth), which makes it the right fixture to drive the
-> upcoming fix that unifies those two predicates. Until then, import full
-> portals through a `/stalker_portal/...` URL.
+| `/portal.php` | Tolerant. Ignores the Bearer token and the MAC format, like most reseller panels in the wild — discovery classifies it as a token-free simple portal. |
+| `/stalker_portal/server/load.php` | Strict. Enforces the token and the MAC format exactly like the real middleware — discovery classifies it as a full portal. |
+| `/server/load.php` | Strict, enforced identically. Importing this bare canonical URL now authenticates (the historical import/runtime predicate divergence that skipped the handshake here is fixed). |
+| `/ministra/server/load.php` | Strict. The `/ministra/*` prefix simulates a **genuine Ministra host**: `/ministra/portal.php` 404s like a real installation (portal.php is a reseller alias official Stalker never ships), so `http://localhost:3210/ministra/c` exercises the probe's 404 fallthrough end to end. |
 
 The strict endpoint reproduces the parts of Stalker 4.9.35 that a client can
 actually get wrong:

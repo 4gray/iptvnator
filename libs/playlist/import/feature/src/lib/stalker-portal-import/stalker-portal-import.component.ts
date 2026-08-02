@@ -14,6 +14,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     legacyTransformStalkerPortalUrl,
+    normalizeStalkerPortalInputUrl,
     StalkerPortalDiscoveryService,
     StalkerPortalIdentity,
     normalizeStalkerPortalIdentity,
@@ -187,7 +188,11 @@ export class StalkerPortalImportComponent {
                 // legacy guess exactly like before discovery existed, so a
                 // temporarily offline panel can still be added. The lazy
                 // portal repair re-probes on the first real failure.
-                portalUrl = legacyTransformStalkerPortalUrl(originalUrl);
+                // Normalized first: the legacy suffix rewrites run on the
+                // path, so a query/fragment must not hide a trailing `/c`.
+                portalUrl = legacyTransformStalkerPortalUrl(
+                    normalizeStalkerPortalInputUrl(originalUrl) ?? originalUrl
+                );
                 isFullStalkerPortal = false;
                 this.snackBar.open(
                     'Portal did not respond; added without validation.',

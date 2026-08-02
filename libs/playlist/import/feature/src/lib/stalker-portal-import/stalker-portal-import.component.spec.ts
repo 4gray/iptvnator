@@ -130,4 +130,29 @@ describe('StalkerPortalImportComponent identity handling', () => {
         expect(playlist.signature1).toBeUndefined();
         expect(playlist.signature2).toBeUndefined();
     });
+
+    it('normalizes a query-carrying /c URL in the unreachable-host fallback', async () => {
+        // Offline panel: discovery finds nothing, the legacy guess imports
+        // anyway — but the suffix rewrite must run on the PATH, or
+        // `/c?key=value` would persist the browser page instead of
+        // portal.php (and a 200 HTML answer is not a repair trigger later).
+        portalDiscovery.discover.mockResolvedValue({ status: 'unreachable' });
+        component.form.patchValue({
+            _id: 'playlist-2',
+            title: 'Offline Panel',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://panel.example.com/c?key=value',
+            importDate: '2026-05-15T00:00:00.000Z',
+        });
+
+        await component.addPlaylist();
+
+        const playlist = store.dispatch.mock.calls[0][0].playlist;
+        expect(playlist).toEqual(
+            expect.objectContaining({
+                portalUrl: 'https://panel.example.com/portal.php',
+                isFullStalkerPortal: false,
+            })
+        );
+    });
 });

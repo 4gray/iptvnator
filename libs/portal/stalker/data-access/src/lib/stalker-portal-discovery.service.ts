@@ -104,6 +104,22 @@ export class StalkerPortalDiscoveryService {
                 probeResponse = await this.probeContent(candidate, macAddress);
             } catch (error) {
                 const status = getStalkerRequestErrorStatus(error);
+                if (status === 401 || status === 403) {
+                    // The endpoint exists but sits behind an HTTP auth gate —
+                    // non-standard middlewares answer 401/403 where the stock
+                    // server answers 200 + plain text. Attempt the real
+                    // handshake instead of skipping a valid candidate.
+                    const outcome = await this.confirmFullPortal(
+                        candidate,
+                        macAddress,
+                        identity
+                    );
+                    if (outcome.status === 'resolved') {
+                        return outcome;
+                    }
+                    authRejection = authRejection ?? outcome;
+                    continue;
+                }
                 if (status !== undefined && status >= 400 && status < 500) {
                     // Endpoint absent but the host answered — keep probing.
                     continue;
@@ -124,33 +140,19 @@ export class StalkerPortalDiscoveryService {
                         isFullStalkerPortal: false,
                     };
                 case 'auth-required': {
-                    try {
-                        const auth = await withTimeout(
-                            this.stalkerSession.authenticate(
-                                candidate,
-                                macAddress,
-                                identity
-                            ),
-                            AUTH_TIMEOUT_MS
-                        );
-                        return {
-                            status: 'resolved',
-                            portalUrl: candidate,
-                            isFullStalkerPortal: true,
-                            token: auth.token,
-                            accountInfo: auth.accountInfo,
-                        };
-                    } catch (error) {
-                        // The endpoint is real but refused our credentials;
-                        // remember the first such endpoint in case no later
-                        // candidate resolves.
-                        authRejection = authRejection ?? {
-                            status: 'auth-rejected',
-                            portalUrl: candidate,
-                            error,
-                        };
-                        continue;
+                    const outcome = await this.confirmFullPortal(
+                        candidate,
+                        macAddress,
+                        identity
+                    );
+                    if (outcome.status === 'resolved') {
+                        return outcome;
                     }
+                    // The endpoint is real but refused our credentials;
+                    // remember the first such endpoint in case no later
+                    // candidate resolves.
+                    authRejection = authRejection ?? outcome;
+                    continue;
                 }
                 case 'not-a-portal':
                     continue;
@@ -158,6 +160,42 @@ export class StalkerPortalDiscoveryService {
         }
 
         return authRejection ?? { status: 'unreachable' };
+    }
+
+    /**
+     * Confirms a token-enforcing endpoint by running the real handshake +
+     * `get_profile` flow against it.
+     */
+    private async confirmFullPortal(
+        candidate: string,
+        macAddress: string,
+        identity: StalkerPortalIdentity
+    ): Promise<
+        StalkerPortalEndpointResolution | StalkerPortalDiscoveryRejection
+    > {
+        try {
+            const auth = await withTimeout(
+                this.stalkerSession.authenticate(
+                    candidate,
+                    macAddress,
+                    identity
+                ),
+                AUTH_TIMEOUT_MS
+            );
+            return {
+                status: 'resolved',
+                portalUrl: candidate,
+                isFullStalkerPortal: true,
+                token: auth.token,
+                accountInfo: auth.accountInfo,
+            };
+        } catch (error) {
+            return {
+                status: 'auth-rejected',
+                portalUrl: candidate,
+                error,
+            };
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ import {
     getStalkerRequestErrorStatus,
     isStalkerAuthFailureBody,
     legacyTransformStalkerPortalUrl,
+    normalizeStalkerPortalInputUrl,
 } from './stalker-portal-discovery.utils';
 
 describe('buildStalkerEndpointCandidates', () => {
@@ -105,6 +106,34 @@ describe('buildStalkerEndpointCandidates', () => {
     it('returns no candidates for empty or unparseable URLs', () => {
         expect(buildStalkerEndpointCandidates('   ')).toEqual([]);
         expect(buildStalkerEndpointCandidates('not-a-url')).toEqual([]);
+    });
+});
+
+describe('normalizeStalkerPortalInputUrl', () => {
+    it('reduces a URL to origin + pathname', () => {
+        expect(
+            normalizeStalkerPortalInputUrl('http://host.example/c?key=value#f')
+        ).toBe('http://host.example/c');
+        expect(
+            normalizeStalkerPortalInputUrl('  http://host.example:8080/c/  ')
+        ).toBe('http://host.example:8080/c');
+    });
+
+    it('feeds the legacy fallback transform a rewritable path', () => {
+        // The offline-import fallback runs the legacy /c → portal.php
+        // rewrite on this form; unnormalized input would keep the /c page.
+        expect(
+            legacyTransformStalkerPortalUrl(
+                normalizeStalkerPortalInputUrl(
+                    'http://host.example/c?key=value'
+                ) ?? ''
+            )
+        ).toBe('http://host.example/portal.php');
+    });
+
+    it('returns null for unparseable input', () => {
+        expect(normalizeStalkerPortalInputUrl('not-a-url')).toBeNull();
+        expect(normalizeStalkerPortalInputUrl('   ')).toBeNull();
     });
 });
 
