@@ -150,6 +150,9 @@ jobs:
             - name: Validate Nx dependency version policy
               run: pnpm run deps:nx:validate
 
+            - name: Validate stylesheet Nx inputs
+              run: pnpm run styles:inputs:validate
+
             - name: Typecheck web and Electron entry points
               run: pnpm run typecheck:ci
 

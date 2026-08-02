@@ -76,6 +76,13 @@ pnpm nx show projects
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
 - Keep `nx` and every official `@nx/*` package on the same exact version; run
   `pnpm run deps:nx:validate` after dependency updates.
+- A directory holding files consumed by other projects must be an Nx project.
+  Nx builds its graph from TypeScript imports only, so a relative SCSS `@use`
+  across project roots creates no edge and the imported file lands in no task
+  hash — edits then return a cache hit instead of rebuilding. Shared partials
+  live in `libs/ui/styles` (project `ui-styles`), and each consumer declares
+  `"implicitDependencies": ["ui-styles"]`. Run `pnpm run styles:inputs:validate`
+  after adding a cross-project stylesheet import.
 - Update Nx with `pnpm nx migrate nx@<target> --skipInstall`, regenerate the
   lockfile, run generated migrations when present, and validate before opening
   a PR. Major updates are always manual. Replace incomplete Dependabot security

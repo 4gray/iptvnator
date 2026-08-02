@@ -116,6 +116,49 @@ For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency
 paths to `dist/` during `@nx/js:tsc` builds.
 
+## Shared Stylesheets and Cache Inputs
+
+Nx derives the project graph from TypeScript imports. A relative Sass `@use`
+that crosses a project root creates **no** graph edge, so without an explicit
+declaration the imported partial belongs to no task's input set. The build then
+reports a cache hit for a stylesheet edit and serves the previous CSS — a
+silent wrong build rather than a failure.
+
+Two rules keep that from happening:
+
+1. A directory whose files are consumed by another project is itself an Nx
+   project. Shared partials live in `libs/ui/styles`, project `ui-styles`,
+   tagged `scope:shared`, `domain:shared-ui`, `type:ui`. It declares no targets;
+   it exists so its files are hashed.
+2. Every consumer declares the dependency Nx cannot infer:
+
+    ```json
+    "implicitDependencies": ["ui-styles"]
+    ```
+
+`@nx/enforce-module-boundaries` does not read stylesheets, so tag directions are
+not enforced here — keep consumers at `type:feature` or `type:ui`, both of which
+may depend on `type:ui`.
+
+Importing a partial that the consuming **application** owns is a different case
+and needs no declaration: `apps/web/src/nav-list.scss` is already inside
+`web:build`'s own inputs, and declaring a lib → app edge would make the graph
+cyclic. Prefer moving genuinely shared partials into `ui-styles`.
+
+`pnpm run styles:inputs:validate` enforces both rules. It resolves every
+relative `@use`/`@forward`/`@import` in the workspace against Nx's own project
+graph and fails when an imported stylesheet sits outside the input closure of a
+build that compiles it, naming the project to declare. Comment-only example
+paths are ignored, so the documentation blocks inside the shared partials do not
+register as broken imports. CI runs it in the `unit-and-typecheck` job.
+
+Verify a suspected caching gap directly — add a comment to a partial, run the
+consuming build, and confirm the task runs instead of reporting a cache hit:
+
+```bash
+pnpm nx build web --verbose
+```
+
 ## TypeScript File Size
 
 `tools/eslint/max-lines-config.mjs` is the single source of truth:

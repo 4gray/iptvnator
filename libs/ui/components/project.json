@@ -5,6 +5,7 @@
     "prefix": "lib",
     "projectType": "library",
     "tags": ["scope:shared", "domain:shared-ui", "type:ui"],
+    "implicitDependencies": ["ui-styles"],
     "targets": {
         "test": {
             "executor": "nx:run-commands",
