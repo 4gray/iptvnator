@@ -284,4 +284,87 @@ describe('withStalkerPlayer', () => {
             })
         );
     });
+
+    it('attaches the portal header set to VOD playback on the portal host', async () => {
+        const session = TestBed.inject(StalkerSessionService) as unknown as {
+            getCachedToken: jest.Mock;
+        };
+        session.getCachedToken.mockReturnValue('TOKEN99');
+        // Same host as the portal, different port — the #1158-class stream
+        // shape that is gated on the portal cookie.
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ js: { data: [{ id: 77 }] } })
+            .mockResolvedValueOnce({
+                js: { cmd: 'ffmpeg http://demo.example:8080/video_77.mpg' },
+            });
+
+        const playback = await store.resolveVodPlayback(
+            undefined,
+            'Movie Title',
+            'thumb.jpg'
+        );
+
+        expect(session.getCachedToken).toHaveBeenCalledWith(PLAYLIST._id);
+        expect(playback.headers?.['Cookie']).toContain(
+            'mac=00:1A:79:00:00:01'
+        );
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN99');
+        expect(playback.headers?.['X-User-Agent']).toBeDefined();
+        expect(playback.userAgent).toBe(playback.headers?.['User-Agent']);
+        expect(playback.referer).toBe('http://demo.example');
+        expect(playback.origin).toBe('http://demo.example');
+    });
+
+    it('keeps VOD playback from a foreign CDN credential-free', async () => {
+        const session = TestBed.inject(StalkerSessionService) as unknown as {
+            getCachedToken: jest.Mock;
+        };
+        session.getCachedToken.mockReturnValue('TOKEN99');
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ js: { data: [{ id: 77 }] } })
+            .mockResolvedValueOnce({
+                js: { cmd: 'ffmpeg http://cdn.example/video_77.mpg' },
+            });
+
+        const playback = await store.resolveVodPlayback(
+            undefined,
+            'Movie Title',
+            'thumb.jpg'
+        );
+
+        expect(playback.headers?.['Cookie']).toBeUndefined();
+        expect(playback.headers?.['Authorization']).toBeUndefined();
+        expect(playback.headers?.['User-Agent']).toBe('KSPlayer');
+        expect(playback.referer).toBeUndefined();
+        expect(playback.origin).toBeUndefined();
+    });
+
+    it('attaches the portal header set to radio playback resolved from the portal', async () => {
+        const session = TestBed.inject(StalkerSessionService) as unknown as {
+            getCachedToken: jest.Mock;
+        };
+        session.getCachedToken.mockReturnValue('TOKEN99');
+        store.setSelectedContentType('radio');
+        const radioItem = {
+            id: 'radio-2',
+            cmd: '/media/radio_2.mpg',
+            name: 'Portal FM',
+            o_name: 'Portal FM',
+            logo: 'portal-fm.png',
+            category_id: '4001',
+        };
+        store.setSelectedItem(radioItem);
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            js: { cmd: 'ffmpeg http://demo.example/radio_2.mpg' },
+        });
+
+        const playback = await store.resolveRadioPlayback(radioItem);
+
+        expect(playback.headers?.['Cookie']).toContain(
+            'mac=00:1A:79:00:00:01'
+        );
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN99');
+        expect(playback.referer).toBe('http://demo.example');
+        expect(playback.origin).toBe('http://demo.example');
+    });
 });

@@ -18,6 +18,9 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    buildStalkerExternalPlaybackHeaders,
+    getStalkerPortalOrigin,
+    isCrossOriginStalkerStream,
     normalizeStalkerPlaybackCommand,
     resolveStalkerPlaybackUrl,
     StalkerSessionService,
@@ -331,14 +334,11 @@ export class StreamResolverService {
             item.stalkerCmd ?? ''
         );
         if (item.radio === 'true' && this.isHttpUrl(normalizedCmd)) {
-            return {
+            return this.buildStalkerPlayback(item, playlist, {
+                macAddress,
+                portalUrl,
                 streamUrl: normalizedCmd,
-                title: item.name,
-                thumbnail: item.logo ?? null,
-                userAgent: playlist?.userAgent,
-                referer: playlist?.referrer,
-                origin: playlist?.origin,
-            };
+            });
         }
 
         const contentType = item.radio === 'true' ? 'radio' : 'itv';
@@ -367,7 +367,9 @@ export class StreamResolverService {
 
         const rawCmd = response?.js?.cmd ?? '';
 
-        return {
+        return this.buildStalkerPlayback(item, playlist, {
+            macAddress,
+            portalUrl,
             // Shared normalizer from the Stalker store: strips the solution
             // prefix and resolves relative `/media/...` or `?...` responses
             // against the portal base instead of returning them verbatim.
@@ -376,9 +378,60 @@ export class StreamResolverService {
                 item.stalkerCmd ?? '',
                 rawCmd
             ),
+            isLive: item.radio === 'true' ? undefined : true,
+        });
+    }
+
+    /**
+     * The collection routes must hand players the SAME portal header set the
+     * Stalker live layout builds — an auth-gated stream opened from Favorites
+     * or Recently Viewed 403s without the mac cookie/Bearer token exactly
+     * like one opened from the portal itself (the header owner then scopes
+     * them to the stream origin; foreign hosts get the credential-free
+     * profile from the shared classifier).
+     */
+    private buildStalkerPlayback(
+        item: UnifiedCollectionItem,
+        playlist: Playlist | undefined,
+        resolved: {
+            macAddress: string;
+            portalUrl: string;
+            streamUrl: string;
+            isLive?: boolean;
+        }
+    ): ResolvedPortalPlayback {
+        // The item may carry portal/mac overrides for playlists that no
+        // longer exist; the builder only reads header-relevant fields.
+        const headerPlaylist = {
+            ...(playlist ?? {}),
+            macAddress: resolved.macAddress,
+            portalUrl: resolved.portalUrl,
+        } as Playlist;
+        const token = this.stalkerSession.getCachedToken(item.playlistId);
+        const headers = buildStalkerExternalPlaybackHeaders(
+            headerPlaylist,
+            token,
+            resolved.streamUrl
+        );
+        const crossOriginStream = isCrossOriginStalkerStream(
+            headerPlaylist,
+            resolved.streamUrl
+        );
+        const portalOrigin = getStalkerPortalOrigin(headerPlaylist);
+
+        return {
+            streamUrl: resolved.streamUrl,
             title: item.name,
             thumbnail: item.logo ?? null,
-            isLive: item.radio === 'true' ? undefined : true,
+            isLive: resolved.isLive,
+            headers,
+            userAgent: headers['User-Agent'] || playlist?.userAgent,
+            referer: crossOriginStream
+                ? undefined
+                : playlist?.referrer || portalOrigin,
+            origin: crossOriginStream
+                ? undefined
+                : playlist?.origin || portalOrigin,
         };
     }
 

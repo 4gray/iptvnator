@@ -1,5 +1,6 @@
 import {
     Component,
+    OnDestroy,
     Signal,
     ViewEncapsulation,
     computed,
@@ -47,6 +48,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { ElectronStreamHeadersService } from './electron-stream-headers.service';
 import {
     getDiagnosticCodecHint,
     getDiagnosticDescriptionKey,
@@ -89,7 +91,7 @@ function resolveWebPlayerSharedControls(): boolean {
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent {
+export class WebPlayerViewComponent implements OnDestroy {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
@@ -221,15 +223,58 @@ export class WebPlayerViewComponent {
     });
     readonly recordingFolder = computed(() => this.settings()?.recordingFolder ?? '');
 
+    /** Stream URL the currently configured Electron header override belongs to. */
+    private headerScopeStreamUrl: string | null = null;
+    private readonly streamHeaders = inject(ElectronStreamHeadersService);
+
     constructor() {
         effect(() => {
             // Track player changes so stale browser diagnostics are cleared on switch.
             this.selectedPlayer();
 
             const playback = this.resolvedPlayback();
+            const isLive = this.resolvedIsLive();
             this.playbackDiagnostic.set(null);
+            this.applyPlayback(playback, isLive);
+        });
+    }
+
+    ngOnDestroy(): void {
+        // Portal credentials must not outlive the playback session that
+        // needed them: dropping the scoped override here keeps only the
+        // playlist-level (unscoped) User-Agent/Referer defaults active. The
+        // service no-ops if a newer consumer already owns the override slot.
+        this.streamHeaders.clear(this.headerScopeStreamUrl);
+    }
+
+    /**
+     * Configures the scoped Electron request headers BEFORE the stream source
+     * is handed to a player, so the very first media request already carries
+     * them — an auth-gated portal stream answers 403 without its
+     * Cookie/Authorization, and several engines treat that first failure as
+     * fatal. In the PWA there is no header bridge and the source applies
+     * synchronously, exactly as before.
+     */
+    private applyPlayback(
+        playback: ResolvedPortalPlayback,
+        isLive: boolean
+    ): void {
+        const headerSync = this.streamHeaders.apply(playback);
+        this.headerScopeStreamUrl = playback.streamUrl;
+        const handOff = (): void => {
             this.setChannel(playback);
-            this.setVjsOptions(playback.streamUrl, this.resolvedIsLive());
+            this.setVjsOptions(playback.streamUrl, isLive);
+        };
+
+        if (!headerSync) {
+            handOff();
+            return;
+        }
+
+        void headerSync.then((stillCurrent) => {
+            if (stillCurrent) {
+                handOff();
+            }
         });
     }
 

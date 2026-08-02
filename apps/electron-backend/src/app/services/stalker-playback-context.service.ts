@@ -1,5 +1,6 @@
 import {
     buildStalkerSerialCfduid,
+    isStalkerStreamCredentialSafe,
     normalizeStalkerSerialNumber,
 } from '@iptvnator/shared/interfaces';
 
@@ -34,14 +35,20 @@ function normalizeStreamUrl(streamUrl: string): string {
     }
 }
 
-function getOrigin(streamUrl: string): string {
+function unwrapStreamUrl(streamUrl: string): string {
     const normalized = String(streamUrl ?? '').trim();
     if (!normalized) return '';
     const spaceIndex = normalized.indexOf(' ');
-    const maybeWrapped =
-        spaceIndex > 0 ? normalized.slice(spaceIndex + 1).trim() : normalized;
+    return spaceIndex > 0
+        ? normalized.slice(spaceIndex + 1).trim()
+        : normalized;
+}
+
+function getOrigin(streamUrl: string): string {
+    const unwrapped = unwrapStreamUrl(streamUrl);
+    if (!unwrapped) return '';
     try {
-        return new URL(maybeWrapped).origin;
+        return new URL(unwrapped).origin;
     } catch {
         return '';
     }
@@ -91,10 +98,17 @@ export function rememberStalkerPlaybackContext(input: {
         portalOrigin = undefined;
     }
 
+    // Classified by the shared predicate so this fallback context can never
+    // disagree with the renderer's header builder: same host (port change or
+    // scheme upgrade included) keeps the portal profile, a foreign host or
+    // an https→http downgrade gets the credential-free direct profile.
     const crossOriginStream =
         Boolean(streamOrigin) &&
         Boolean(portalOrigin) &&
-        streamOrigin !== portalOrigin;
+        !isStalkerStreamCredentialSafe(
+            input.portalUrl,
+            unwrapStreamUrl(input.streamUrl)
+        );
 
     const headers: Record<string, string> = crossOriginStream
         ? {

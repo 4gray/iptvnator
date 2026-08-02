@@ -124,7 +124,7 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(component.playChannel).toHaveBeenCalledWith(TEST_CHANNEL);
     });
 
-    it('passes channel headers and stream URL to Electron header overrides', () => {
+    it('does not configure Electron header overrides itself — WebPlayerViewComponent owns them', () => {
         jest.spyOn(
             component.videoPlayer.nativeElement,
             'load'
@@ -145,39 +145,9 @@ describe('HtmlVideoPlayerComponent', () => {
             url: 'https://stream.example/video.mp4',
         });
 
-        expect(electronApi.setUserAgent).toHaveBeenCalledWith(
-            'ChannelAgent/1.0',
-            'https://portal.example/referrer',
-            'https://stream.example/video.mp4'
-        );
-    });
-
-    it('clears Electron header overrides for channels without custom headers', () => {
-        jest.spyOn(
-            component.videoPlayer.nativeElement,
-            'load'
-        ).mockImplementation(() => undefined);
-        jest.spyOn(
-            component.videoPlayer.nativeElement,
-            'play'
-        ).mockResolvedValue(undefined);
-
-        component.playChannel({
-            ...TEST_CHANNEL,
-            http: {
-                'user-agent': '',
-                origin: '',
-                referrer: '',
-            },
-            radio: 'false',
-            url: 'https://stream.example/video.mp4',
-        });
-
-        expect(electronApi.setUserAgent).toHaveBeenCalledWith(
-            '',
-            '',
-            'https://stream.example/video.mp4'
-        );
+        // A second three-header call from here would overwrite the richer
+        // scoped override (incl. Cookie/Authorization) the host configured.
+        expect(electronApi.setUserAgent).not.toHaveBeenCalled();
     });
 
     it('replaces and reloads native video sources when switching episodes', () => {

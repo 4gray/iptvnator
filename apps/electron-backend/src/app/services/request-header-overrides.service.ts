@@ -1,6 +1,19 @@
 import { session } from 'electron';
 
+export type StreamCredentialHeaders = {
+    authorization?: string | null;
+    cookie?: string | null;
+};
+
 type HeaderOverride = {
+    authorization?: string;
+    cookie?: string;
+    /**
+     * Origin the credentials belong to — always the stream URL's own origin.
+     * Cookie/Authorization are attached only on an exact match, never on the
+     * broader `scopeOrigins` set that User-Agent/Referer/Origin use.
+     */
+    credentialOrigin?: string;
     origin?: string;
     referer?: string;
     scopeOrigins?: Set<string>;
@@ -29,8 +42,19 @@ let activeScopedHeaderOverride: HeaderOverride | null = null;
 let listenerRegistered = false;
 
 function normalizeHeaderValue(value?: string | null): string | undefined {
-    const trimmed = value?.trim();
-    return trimmed ? trimmed : undefined;
+    if (typeof value !== 'string') {
+        return undefined;
+    }
+
+    const trimmed = value.trim();
+    // A control character in a header value is never legitimate and could
+    // otherwise smuggle extra headers into the raw request.
+    // eslint-disable-next-line no-control-regex
+    if (!trimmed || /[\u0000-\u001f\u007f]/.test(trimmed)) {
+        return undefined;
+    }
+
+    return trimmed;
 }
 
 function getOrigin(value?: string | null): string | undefined {
@@ -116,6 +140,8 @@ function handleBeforeSendHeaders(
         return;
     }
 
+    const requestOrigin = getOrigin(details.url);
+
     for (const override of overrides) {
         if (override.userAgent) {
             setRequestHeader(requestHeaders, 'User-Agent', override.userAgent);
@@ -127,6 +153,25 @@ function handleBeforeSendHeaders(
 
         if (override.origin) {
             setRequestHeader(requestHeaders, 'Origin', override.origin);
+        }
+
+        // Portal credentials are attached only to requests going to the
+        // stream's own origin — never to a referer-origin sibling and never
+        // to third-party hosts a manifest may point at.
+        const credentialsApply =
+            Boolean(override.credentialOrigin) &&
+            requestOrigin === override.credentialOrigin;
+
+        if (credentialsApply && override.cookie) {
+            setRequestHeader(requestHeaders, 'Cookie', override.cookie);
+        }
+
+        if (credentialsApply && override.authorization) {
+            setRequestHeader(
+                requestHeaders,
+                'Authorization',
+                override.authorization
+            );
         }
     }
 
@@ -148,13 +193,33 @@ function ensureHeaderOverrideListener(): void {
 export function configureRequestHeaderOverride(
     userAgent?: string | null,
     referer?: string | null,
-    scopeUrl?: string | null
+    scopeUrl?: string | null,
+    credentials?: StreamCredentialHeaders | null
 ): void {
     const normalizedUserAgent = normalizeHeaderValue(userAgent);
     const normalizedReferer = normalizeHeaderValue(referer);
     const isScopedOverride = scopeUrl !== undefined && scopeUrl !== null;
+    const scopeOrigin = getOrigin(scopeUrl);
+    // Credentials are portal secrets: they require a scoped override whose
+    // stream URL yields a concrete origin to pin them to. Anything else is
+    // dropped rather than applied broadly (fail closed). They live only in
+    // this in-memory override — never in the session cookie jar and never on
+    // disk — so they cannot outlive the app process.
+    const normalizedCookie =
+        isScopedOverride && scopeOrigin
+            ? normalizeHeaderValue(credentials?.cookie)
+            : undefined;
+    const normalizedAuthorization =
+        isScopedOverride && scopeOrigin
+            ? normalizeHeaderValue(credentials?.authorization)
+            : undefined;
 
-    if (!normalizedUserAgent && !normalizedReferer) {
+    if (
+        !normalizedUserAgent &&
+        !normalizedReferer &&
+        !normalizedCookie &&
+        !normalizedAuthorization
+    ) {
         if (isScopedOverride) {
             clearScopedRequestHeaderOverride();
         } else {
@@ -164,7 +229,6 @@ export function configureRequestHeaderOverride(
     }
 
     const refererOrigin = getOrigin(normalizedReferer);
-    const scopeOrigin = getOrigin(scopeUrl);
     const override: HeaderOverride = {
         origin: refererOrigin,
         referer: normalizedReferer,
@@ -177,6 +241,11 @@ export function configureRequestHeaderOverride(
                 Boolean(origin)
             )
         );
+        if (normalizedCookie || normalizedAuthorization) {
+            override.credentialOrigin = scopeOrigin;
+            override.cookie = normalizedCookie;
+            override.authorization = normalizedAuthorization;
+        }
         activeScopedHeaderOverride = override;
     } else {
         activeHeaderOverride = override;

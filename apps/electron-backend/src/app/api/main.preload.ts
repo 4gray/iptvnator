@@ -450,8 +450,19 @@ const electronApi: ElectronBridgeApi = {
     setUserAgent: (
         userAgent?: string | null,
         referer?: string | null,
-        scopeUrl?: string | null
-    ) => ipcRenderer.invoke('set-user-agent', userAgent, referer, scopeUrl),
+        scopeUrl?: string | null,
+        credentials?: {
+            authorization?: string | null;
+            cookie?: string | null;
+        } | null
+    ) =>
+        ipcRenderer.invoke(
+            'set-user-agent',
+            userAgent,
+            referer,
+            scopeUrl,
+            credentials
+        ),
     openInMpv: (
         url: string,
         title: string,

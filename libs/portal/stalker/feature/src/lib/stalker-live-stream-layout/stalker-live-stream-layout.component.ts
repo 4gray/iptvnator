@@ -51,6 +51,7 @@ import {
 } from '@iptvnator/ui/epg';
 import {
     AudioPlayerComponent,
+    ElectronStreamHeadersService,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
@@ -117,6 +118,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly streamHeaders = inject(ElectronStreamHeadersService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly liveSidebarStateService = inject(
@@ -361,6 +363,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private unsubscribeRemoteCommand?: () => void;
     private epgLoadRequestId = 0;
     private playbackRequestId = 0;
+    /** Stream URL of the radio playback whose header override this layout configured. */
+    private radioHeaderScopeUrl: string | null = null;
     private playbackResolution: {
         channelId: string;
         promise: Promise<ResolvedPortalPlayback>;
@@ -557,6 +561,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.removeScrollListener();
+        // Invalidate any playback continuation still awaiting its header
+        // IPC, then drop the radio credentials — they must not outlive this
+        // layout. The service no-ops when a newer playback already owns the
+        // override slot.
+        this.playbackRequestId += 1;
+        this.streamHeaders.clear(this.radioHeaderScopeUrl);
     }
 
     isSelectedChannel(item: StalkerItvChannel): boolean {
@@ -573,6 +583,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         const channelId = normalizeStalkerEntityId(item.id);
         this.stalkerStore.setSelectedItem(item);
         this.ensureChannelWithinRenderWindow(channelId);
+        // A previously owned radio override must not survive into a
+        // selection that never mounts a player surface of its own — external
+        // video playback and failed resolutions would otherwise keep the old
+        // radio credentials installed for that origin.
+        this.streamHeaders.clear(this.radioHeaderScopeUrl);
+        this.radioHeaderScopeUrl = null;
 
         try {
             const isRadioMode = this.isRadioMode();
@@ -588,6 +604,25 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             }
 
             if (isRadioMode) {
+                // The radio branch renders the dedicated audio player, not
+                // WebPlayerViewComponent, so the scoped Electron header
+                // override (portal cookie/token for auth-gated streams) must
+                // be configured here BEFORE the audio element gets the URL.
+                // Ownership is claimed synchronously, before awaiting the
+                // IPC: if this layout is destroyed while the apply is still
+                // in flight, ngOnDestroy must already know which stream's
+                // override to clear — otherwise the credentials would
+                // outlive the route.
+                const headerSync = this.streamHeaders.apply(playback);
+                this.radioHeaderScopeUrl = playback.streamUrl;
+                const stillCurrent = headerSync ? await headerSync : true;
+                if (
+                    !stillCurrent ||
+                    requestId !== this.playbackRequestId ||
+                    this.selectedChannelId() !== channelId
+                ) {
+                    return;
+                }
                 this.activePlayback.set(playback);
                 return;
             }
