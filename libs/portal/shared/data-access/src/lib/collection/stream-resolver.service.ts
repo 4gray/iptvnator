@@ -568,15 +568,19 @@ export class StreamResolverService {
         playlistId: string,
         playlist: Playlist | undefined
     ): Promise<string | null> {
-        const cached = this.stalkerSession.getCachedToken(playlistId);
         // The shared mode contract, not the raw flag: a legacy row with an
         // absent flag but a canonical URL IS a full portal, and reading the
         // property directly would skip authentication for it — a restored
         // older backup opens a direct-URL radio favorite with no Bearer.
-        if (cached || !playlist || !isFullStalkerPortalPlaylist(playlist)) {
-            return cached;
+        if (!playlist || !isFullStalkerPortalPlaylist(playlist)) {
+            return null;
         }
 
+        // Always through ensureToken, never the raw cache accessor: that one
+        // skips the endpoint/identity/credential check, so after an edit this
+        // playback path would put the previous account's token into the
+        // stream headers. ensureToken returns the cached token when it is
+        // still valid for this playlist, so a warm session costs nothing.
         try {
             const { token } = await this.stalkerSession.ensureToken(playlist);
             return token;

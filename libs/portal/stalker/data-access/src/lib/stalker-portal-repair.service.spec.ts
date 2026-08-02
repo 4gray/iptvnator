@@ -286,6 +286,33 @@ describe('StalkerPortalRepairService', () => {
             expect(writtenRow).toBeNull();
         });
 
+        it('discards a repair whose credentials changed while probing', async () => {
+            // Discovery can run for tens of seconds; a login saved meanwhile
+            // means the outcome was negotiated for an account the row no
+            // longer belongs to, so committing it would adopt the wrong
+            // session.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://panel.example/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'WRONG-ACCOUNT',
+            });
+            // The row the transform sees carries the NEW login.
+            persistedRow = {
+                ...MISCLASSIFIED,
+                username: 'edited-mid-probe',
+            } as Playlist;
+
+            expect(
+                await service.repairPortal({
+                    ...MISCLASSIFIED,
+                    username: 'original',
+                })
+            ).toBeNull();
+            expect(writtenRow).toBeNull();
+            expect(adoptDiscoveredSession).not.toHaveBeenCalled();
+        });
+
         it('adopts the cadence the repair confirmation discovered', async () => {
             // Caching the token alone satisfies the retry, so NO
             // authentication path would ever apply the profile outcome — the

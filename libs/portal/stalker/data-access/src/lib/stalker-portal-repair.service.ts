@@ -507,7 +507,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             row.portalUrl === playlist.portalUrl &&
             isFullStalkerPortalPlaylist(row) === sourceMode &&
             stalkerIdentityFingerprint(row) ===
-                stalkerIdentityFingerprint(playlist)
+                stalkerIdentityFingerprint(playlist) &&
+            // Credentials too, matching repairSourceFingerprint(): discovery
+            // can run for tens of seconds, and a login saved meanwhile means
+            // the outcome was negotiated for an account the row no longer
+            // belongs to — committing it would adopt the wrong session.
+            (row.username ?? '') === (playlist.username ?? '') &&
+            (row.password ?? '') === (playlist.password ?? '')
         );
     }
 

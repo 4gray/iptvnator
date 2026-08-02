@@ -794,7 +794,10 @@ describe('StreamResolverService', () => {
                 isFullStalkerPortal: true,
             } satisfies Partial<Playlist>)
         );
-        stalkerSession.getCachedToken.mockReturnValue('TOKEN77');
+        // Playback goes through ensureToken, never the raw cache accessor:
+        // that one skips the endpoint/identity/credential check, so an
+        // edited playlist would put the old account's token in the headers.
+        stalkerSession.ensureToken.mockResolvedValue({ token: 'TOKEN77' });
         stalkerSession.makeAuthenticatedRequest.mockResolvedValue({
             js: { cmd: 'ffmpeg https://stalker.example.com:8080/live/88.ts' },
         });
@@ -810,7 +813,7 @@ describe('StreamResolverService', () => {
             stalkerCmd: 'ffrt3 http://stalker.example.com/media/88.mpg',
         } satisfies UnifiedCollectionItem);
 
-        expect(stalkerSession.getCachedToken).toHaveBeenCalledWith('stalker-1');
+        expect(stalkerSession.ensureToken).toHaveBeenCalled();
         expect(playback.headers?.['Cookie']).toContain(
             'mac=00:11:22:33:44:55'
         );
