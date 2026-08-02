@@ -37,7 +37,7 @@ Use it when changing existing views or introducing new list-based UI in the work
 - Shared EPG list styles:
   `libs/ui/epg/src/lib/epg-list-view/epg-list-view.component.scss`
 - Shared list selection style:
-  `apps/web/src/nav-list.scss`
+  `libs/ui/styles/_nav-list.scss`
 - Theme tokens:
   `apps/web/src/m3-theme.scss`
 - Settings surfaces:

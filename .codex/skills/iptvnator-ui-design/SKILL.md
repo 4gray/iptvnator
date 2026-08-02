@@ -9,7 +9,7 @@ description: Use when changing user-visible Angular UI in IPTVnator, especially 
 
 - Policy: `docs/architecture/iptvnator-ui-guidelines.md`
 - Theme and navigation: `apps/web/src/m3-theme.scss`,
-  `apps/web/src/nav-list.scss`
+  `libs/ui/styles/_nav-list.scss`
 - Channel row: `libs/ui/components/src/lib/channel-list-container/channel-list-item/`
 - Shared EPG timeline/list: `libs/ui/epg/src/lib/epg-timeline/`,
   `libs/ui/epg/src/lib/epg-list-view/`

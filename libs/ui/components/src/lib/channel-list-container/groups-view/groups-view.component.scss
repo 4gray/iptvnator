@@ -1,7 +1,7 @@
 @use '@angular/material' as mat;
 @use '../../../../../styles/portal-sidebar';
 @use '../../../../../styles/panel-header' as panel;
-@use '../../../../../../../apps/web/src/nav-list.scss';
+@use '../../../../../styles/nav-list';
 
 :host {
     display: flex;
