@@ -322,6 +322,25 @@ describe('StalkerPortalRepairService', () => {
             expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
         });
 
+        it('discards an in-flight repair when the MAC or identity changed during the probe', async () => {
+            // The probe authenticated AS an identity — a token and watchdog
+            // for the old MAC must not be installed onto the edited account.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            persistedRow = {
+                ...MISCLASSIFIED,
+                macAddress: '00:1A:79:00:99:99',
+            } as Playlist;
+
+            expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
+            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(setCachedToken).not.toHaveBeenCalled();
+            expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
+        });
+
         it('discards an in-flight repair when the playlist was deleted during the probe', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',

@@ -235,13 +235,14 @@ describe('StalkerPortalDiscoveryService', () => {
     });
 
     it('stops probing after a network-level failure — all candidates share the host', async () => {
+        // Post-IPC, a network failure carries no resolvable HTTP status:
+        // ipcRenderer strips the object shape and the message has no
+        // "HTTP Error NNN" marker.
         mockProbes({
             'http://down.example/portal.php': {
-                reject: {
-                    type: 'ERROR',
-                    message: 'connect ECONNREFUSED',
-                    status: 500,
-                },
+                reject: new Error(
+                    "Error invoking remote method 'STALKER_REQUEST': connect ECONNREFUSED"
+                ),
             },
         });
 
@@ -249,6 +250,31 @@ describe('StalkerPortalDiscoveryService', () => {
 
         expect(outcome).toEqual({ status: 'unreachable' });
         expect(sendIpcEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps probing past an endpoint-specific 5xx — the host answered', async () => {
+        // One broken handler (a dead portal.php returning 500) must not
+        // hide a healthy sibling endpoint on the same host.
+        mockProbes({
+            'http://flaky.example/portal.php': {
+                reject: {
+                    message: 'HTTP Error 500: Internal Server Error',
+                    status: 500,
+                },
+            },
+            'http://flaky.example/server/load.php': {
+                resolve: 'Authorization failed.',
+            },
+        });
+        authenticate.mockResolvedValue({ token: 'TOKEN5' });
+
+        const outcome = await service.discover('http://flaky.example/c', MAC);
+
+        expect(outcome).toMatchObject({
+            status: 'resolved',
+            portalUrl: 'http://flaky.example/server/load.php',
+            isFullStalkerPortal: true,
+        });
     });
 
     it('skips endpoints that answer with something that is not a portal', async () => {

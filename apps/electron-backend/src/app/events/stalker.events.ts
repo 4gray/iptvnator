@@ -168,14 +168,24 @@ ipcMain.handle(
             );
 
             // Format error response
-            if (axios.isAxiosError(error)) {
+            if (axios.isAxiosError(error) && error.response) {
+                // A real HTTP response (5xx lands here via validateStatus).
+                // Same parseable message shape as the 4xx branch: only the
+                // message crosses ipcRenderer.invoke, and the renderer's
+                // endpoint discovery must tell "this endpoint answered 5xx —
+                // try the next candidate" from a host-level failure.
+                const httpError = new Error(
+                    `HTTP Error ${error.response.status}: ${error.response.statusText ?? ''}`
+                ) as Error & { status: number };
+                httpError.status = error.response.status;
+                throw httpError;
+            } else if (axios.isAxiosError(error)) {
                 const errorResponse = {
                     type: 'ERROR',
                     message:
-                        error.response?.data?.message ||
                         error.message ||
                         'Failed to fetch data from Stalker portal',
-                    status: error.response?.status || 500,
+                    status: 500,
                 };
                 throw errorResponse;
             } else if (

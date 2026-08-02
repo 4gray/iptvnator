@@ -264,10 +264,32 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
                     .get(PlaylistsService)
                     .getPlaylistById(playlist._id)
             );
+            if (
+                !row ||
+                row.portalUrl !== playlist.portalUrl ||
+                isFullStalkerPortalPlaylist(row) !== sourceMode
+            ) {
+                return false;
+            }
+
+            // The probe also authenticated AS an identity: a MAC or device
+            // identity edited during the multi-second probe must discard the
+            // repair too, or its token/watchdog would belong to the old
+            // account. Blank and absent identity values are equivalent.
+            const normalize = (value: unknown): string =>
+                typeof value === 'string' ? value.trim() : '';
             return (
-                !!row &&
-                row.portalUrl === playlist.portalUrl &&
-                isFullStalkerPortalPlaylist(row) === sourceMode
+                normalize(row.macAddress) === normalize(playlist.macAddress) &&
+                normalize(row.stalkerSerialNumber) ===
+                    normalize(playlist.stalkerSerialNumber) &&
+                normalize(row.stalkerDeviceId1) ===
+                    normalize(playlist.stalkerDeviceId1) &&
+                normalize(row.stalkerDeviceId2) ===
+                    normalize(playlist.stalkerDeviceId2) &&
+                normalize(row.stalkerSignature1) ===
+                    normalize(playlist.stalkerSignature1) &&
+                normalize(row.stalkerSignature2) ===
+                    normalize(playlist.stalkerSignature2)
             );
         } catch (error) {
             this.logger.warn(

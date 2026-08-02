@@ -60,7 +60,11 @@ export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
     const base = path
         .replace(/\/portal\.php$/i, '')
         .replace(/\/server\/load\.php$/i, '')
-        .replace(/\/c$/i, '');
+        .replace(/\/c$/i, '')
+        // A nonstandard pasted endpoint (…/cp/api.php) keeps its first-shot
+        // candidate above, but the standard fallbacks must be its SIBLINGS —
+        // derived from the directory, not appended to the file.
+        .replace(/\/[^/]*\.php$/i, '');
 
     candidates.push(`${origin}${base}/portal.php`);
     candidates.push(`${origin}${base}/server/load.php`);

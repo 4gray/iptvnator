@@ -61,6 +61,19 @@ describe('buildStalkerEndpointCandidates', () => {
         ]);
     });
 
+    it('derives standard fallbacks from a nonstandard endpoint\'s directory', () => {
+        // The pasted endpoint keeps the first shot, but recovery candidates
+        // must be its SIBLINGS — not paths appended to the file itself.
+        expect(
+            buildStalkerEndpointCandidates('http://portal.example/cp/api.php')
+        ).toEqual([
+            'http://portal.example/cp/api.php',
+            'http://portal.example/cp/portal.php',
+            'http://portal.example/cp/server/load.php',
+            'http://portal.example/cp/stalker_portal/server/load.php',
+        ]);
+    });
+
     it('never nests stalker_portal twice for a /stalker_portal/c URL', () => {
         expect(
             buildStalkerEndpointCandidates(

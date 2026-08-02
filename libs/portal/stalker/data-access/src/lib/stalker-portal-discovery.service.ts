@@ -120,12 +120,16 @@ export class StalkerPortalDiscoveryService {
                     authRejection = authRejection ?? outcome;
                     continue;
                 }
-                if (status !== undefined && status >= 400 && status < 500) {
-                    // Endpoint absent but the host answered — keep probing.
+                if (status !== undefined) {
+                    // Any resolvable HTTP status proves the HOST answered:
+                    // 4xx means this endpoint is absent, and a 5xx here can
+                    // be one broken handler (a dead /portal.php) while a
+                    // sibling candidate works — keep probing either way.
                     continue;
                 }
-                // Network-level failure: every candidate lives on the same
-                // host, so further probing cannot succeed either.
+                // No HTTP status at all: network-level failure. Every
+                // candidate lives on the same host, so further probing
+                // cannot succeed either.
                 this.logger.warn(
                     'Stalker portal probe failed at network level; stopping discovery'
                 );
