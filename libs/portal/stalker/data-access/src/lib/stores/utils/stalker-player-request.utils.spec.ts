@@ -33,6 +33,47 @@ describe('stalker-player-request.utils', () => {
         };
     });
 
+    it('resolves relative create_link replies against the repaired endpoint', async () => {
+        // A lazy repair can move the endpoint while the caller still holds
+        // the activation-time playlist snapshot; the relative `js.cmd` must
+        // resolve against the endpoint that actually answered.
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'ffmpeg /media/video_9.mpg' },
+        });
+        // Old row: root portal.php (base path ''). Repaired endpoint lives
+        // under /stalker_portal — the resolver keeps that segment as the
+        // base for root-relative replies, so the two resolve differently.
+        const stalePlaylist = {
+            ...PLAYLIST,
+            portalUrl: 'http://demo.example/portal.php',
+        } as PlaylistMeta;
+        const repaired = {
+            ...stalePlaylist,
+            portalUrl: 'http://demo.example/stalker_portal/server/load.php',
+        } as PlaylistMeta;
+
+        const streamUrl = await fetchStalkerPlaybackLink(
+            {
+                dataService: dataService as never,
+                stalkerSession: stalkerSession as StalkerSessionService,
+                portalRepair: {
+                    applyOverride: jest.fn().mockReturnValue(repaired),
+                    shouldAttemptRepair: jest.fn().mockReturnValue(false),
+                    repairPortal: jest.fn().mockResolvedValue(null),
+                },
+            },
+            {
+                playlist: stalePlaylist,
+                selectedContentType: 'vod',
+                cmd: '/media/source.mpg',
+            }
+        );
+
+        expect(streamUrl).toBe(
+            'http://demo.example/stalker_portal/media/video_9.mpg'
+        );
+    });
+
     it('builds create_link requests and normalizes relative portal URLs', async () => {
         dataService.sendIpcEvent.mockResolvedValue({
             js: { cmd: '/media/video_77.mpg' },

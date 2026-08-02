@@ -527,6 +527,29 @@ export class PwaService extends DataService {
 
             // Parse and return the JSON response
             const responseBody = await response.json();
+
+            // The proxy converts upstream provider failures (404 on an
+            // absent endpoint, 5xx) into an HTTP 200 `{ message, status }`
+            // body WITHOUT a `payload` key. Surface those as errors carrying
+            // the status so endpoint discovery and the lazy portal repair
+            // can classify them — unwrapping `payload` here silently
+            // returned `undefined`, making a dead endpoint look like an
+            // empty answer and unreachable to the repair.
+            if (
+                responseBody &&
+                typeof responseBody === 'object' &&
+                !('payload' in responseBody) &&
+                typeof responseBody.status === 'number'
+            ) {
+                const proxyError = new Error(
+                    `HTTP Error ${responseBody.status}: ${
+                        responseBody.message ?? ''
+                    }`
+                ) as Error & { status: number };
+                proxyError.status = responseBody.status;
+                throw proxyError;
+            }
+
             logPortalDebugEvent(
                 createPortalDebugSuccessEvent(context, responseBody)
             );

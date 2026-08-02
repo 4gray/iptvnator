@@ -23,6 +23,75 @@ type GetProfileWithIdentity = (
     handshakeRandom: string
 ) => Promise<StalkerProfileResponse>;
 
+describe('StalkerSessionService.refreshActiveWatchdogPlaylist', () => {
+    const basePlaylist = {
+        _id: 'portal-1',
+        title: 'Portal',
+        portalUrl: 'https://portal.example.com/server/load.php',
+        macAddress: '00:1A:79:AA:BB:CC',
+        isFullStalkerPortal: false,
+        lastUsage: '',
+    } as unknown as Playlist;
+
+    let service: StalkerSessionService;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            providers: [
+                StalkerSessionService,
+                {
+                    provide: DataService,
+                    useValue: {
+                        sendIpcEvent: jest.fn().mockResolvedValue({ js: {} }),
+                    },
+                },
+            ],
+        });
+        service = TestBed.inject(StalkerSessionService);
+    });
+
+    it('re-applies the repaired configuration to the ACTIVE watchdog playlist', () => {
+        service.setActiveWatchdogPlaylist(basePlaylist);
+        const apply = jest.spyOn(service, 'setActiveWatchdogPlaylist');
+
+        const repaired = {
+            ...basePlaylist,
+            isFullStalkerPortal: true,
+        } as Playlist;
+        service.refreshActiveWatchdogPlaylist(repaired);
+
+        // Delegation is the contract: setActiveWatchdogPlaylist owns the
+        // start/stop/repoint logic, refresh only feeds it the fresh row.
+        expect(apply).toHaveBeenCalledWith(repaired);
+        service.setActiveWatchdogPlaylist(null);
+    });
+
+    it('ignores playlists that do not own the watchdog', () => {
+        service.setActiveWatchdogPlaylist(basePlaylist);
+        const apply = jest.spyOn(service, 'setActiveWatchdogPlaylist');
+
+        service.refreshActiveWatchdogPlaylist({
+            ...basePlaylist,
+            _id: 'other-portal',
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(apply).not.toHaveBeenCalled();
+        service.setActiveWatchdogPlaylist(null);
+    });
+
+    it('is a no-op when no watchdog playlist is active at all', () => {
+        const apply = jest.spyOn(service, 'setActiveWatchdogPlaylist');
+
+        service.refreshActiveWatchdogPlaylist({
+            ...basePlaylist,
+            isFullStalkerPortal: true,
+        } as Playlist);
+
+        expect(apply).not.toHaveBeenCalled();
+    });
+});
+
 describe('StalkerSessionService identity payloads', () => {
     const portalUrl =
         'https://portal.example.com/stalker_portal/server/load.php';

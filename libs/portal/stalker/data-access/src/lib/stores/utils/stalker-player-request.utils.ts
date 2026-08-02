@@ -7,7 +7,10 @@ import {
 import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerContentType } from '../stalker-store.contracts';
-import { executeStalkerRequest } from './stalker-request.utils';
+import {
+    executeStalkerRequest,
+    type StalkerPortalRepairApi,
+} from './stalker-request.utils';
 
 export interface StalkerPlayerResponse {
     js?: {
@@ -23,6 +26,7 @@ export interface StalkerPlayerResponse {
 export interface StalkerPlayerRequestDeps {
     dataService: DataService;
     stalkerSession: StalkerSessionService;
+    portalRepair?: StalkerPortalRepairApi;
 }
 
 export interface StalkerPlayableItemLike extends StalkerPortalItem {
@@ -146,8 +150,16 @@ export async function fetchStalkerPlaybackLink(
         throw new Error(response.js.error);
     }
 
+    // Applied AFTER the request on purpose: a lazy repair may have moved
+    // the endpoint during this very call, and a relative `js.cmd`
+    // (`/media/...`) must resolve against the endpoint that actually
+    // answered — not the activation-time snapshot in options.playlist.
+    const effectivePlaylist = deps.portalRepair
+        ? deps.portalRepair.applyOverride(options.playlist)
+        : options.playlist;
+
     const streamUrl = resolveStalkerPlaybackUrl(
-        options.playlist.portalUrl ?? '',
+        effectivePlaylist.portalUrl ?? '',
         options.cmd,
         response.js?.cmd ?? ''
     );

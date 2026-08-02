@@ -174,6 +174,22 @@ export class StalkerSessionService {
         this.startWatchdog(playlist);
     }
 
+    /**
+     * Re-evaluates the watchdog for a playlist whose portal configuration
+     * was just repaired. Only reacts when the playlist IS the active
+     * watchdog target: a simple→full repair starts the required keepalive,
+     * full→simple stops it, and an endpoint change repoints the pings —
+     * without waiting for the next route activation (the activation-time
+     * snapshot in `watchdogPlaylists` would otherwise stay stale).
+     */
+    refreshActiveWatchdogPlaylist(playlist: Playlist): void {
+        if (this.activeWatchdogPlaylistId !== playlist._id) {
+            return;
+        }
+
+        this.setActiveWatchdogPlaylist(playlist);
+    }
+
     private startWatchdog(playlist: Playlist): void {
         const playlistId = playlist._id;
         this.watchdogPlaylists.set(playlistId, playlist);

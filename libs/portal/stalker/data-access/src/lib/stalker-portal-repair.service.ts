@@ -13,7 +13,10 @@ import {
 } from './stalker-portal-discovery.utils';
 import { getStalkerPortalIdentityFromPlaylist } from './stalker-identity.utils';
 import { StalkerSessionService } from './stalker-session.service';
-import { type StalkerPortalRepairApi } from './stores/utils/stalker-request.utils';
+import {
+    type StalkerPortalRepairApi,
+    toStalkerSessionPlaylist,
+} from './stores/utils/stalker-request.utils';
 
 interface StalkerPortalModeOverride {
     portalUrl: string;
@@ -184,6 +187,14 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         } else if (!outcome.isFullStalkerPortal) {
             this.stalkerSession.clearCachedToken(playlist._id);
         }
+
+        // If this playlist currently owns the watchdog, re-sync it with the
+        // repaired configuration: a simple→full repair must START the
+        // keepalive and an endpoint change must repoint it — the session
+        // service otherwise keeps the activation-time snapshot forever.
+        this.stalkerSession.refreshActiveWatchdogPlaylist(
+            toStalkerSessionPlaylist(this.applyOverride(playlist))
+        );
 
         this.logger.info(
             `Repaired portal mode: isFullStalkerPortal=${outcome.isFullStalkerPortal}`

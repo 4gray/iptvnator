@@ -29,12 +29,14 @@ describe('StalkerPortalRepairService', () => {
     let updatePlaylistMeta: jest.Mock;
     let setCachedToken: jest.Mock;
     let clearCachedToken: jest.Mock;
+    let refreshActiveWatchdogPlaylist: jest.Mock;
 
     beforeEach(() => {
         discover = jest.fn();
         updatePlaylistMeta = jest.fn().mockReturnValue(of({}));
         setCachedToken = jest.fn();
         clearCachedToken = jest.fn();
+        refreshActiveWatchdogPlaylist = jest.fn();
 
         TestBed.configureTestingModule({
             providers: [
@@ -45,7 +47,11 @@ describe('StalkerPortalRepairService', () => {
                 { provide: PlaylistsService, useValue: { updatePlaylistMeta } },
                 {
                     provide: StalkerSessionService,
-                    useValue: { setCachedToken, clearCachedToken },
+                    useValue: {
+                        setCachedToken,
+                        clearCachedToken,
+                        refreshActiveWatchdogPlaylist,
+                    },
                 },
             ],
         });
@@ -138,6 +144,14 @@ describe('StalkerPortalRepairService', () => {
             });
             // The classification handshake already produced a token.
             expect(setCachedToken).toHaveBeenCalledWith('portal-1', 'TOKEN1');
+            // A repaired ACTIVE playlist must re-sync the watchdog now: a
+            // simple→full flip has to start the keepalive mid-session.
+            expect(refreshActiveWatchdogPlaylist).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    _id: 'portal-1',
+                    isFullStalkerPortal: true,
+                })
+            );
         });
 
         it('repairs a dead portal.php endpoint to the canonical one', async () => {
@@ -174,6 +188,7 @@ describe('StalkerPortalRepairService', () => {
             expect(repaired).toBeNull();
             expect(updatePlaylistMeta).not.toHaveBeenCalled();
             expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
+            expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
 
         it('changes nothing when the probe finds no working configuration', async () => {
