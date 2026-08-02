@@ -17,6 +17,7 @@ import {
     PORTAL_PLAYER,
     SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
+import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
@@ -37,8 +38,7 @@ class StubSeasonContainerComponent {
     readonly playlistId = input('');
     readonly seriesTitle = input<string | undefined>(undefined);
     readonly playbackPositions = input<unknown>(null);
-    readonly xtreamDownloadContext = input<unknown>(null);
-    readonly downloadMetadataContext = input<unknown>(null);
+    readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
     readonly downloadsEnabled = input(true);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
@@ -356,22 +356,52 @@ describe('SerialDetailsComponent', () => {
             ],
         });
         expect(seasonContainer?.downloadsEnabled()).toBe(true);
-        expect(seasonContainer?.downloadMetadataContext()).toEqual(
-            expect.objectContaining({
+        const adapter = seasonContainer?.downloadAdapter();
+        const candidate = adapter?.createCandidate(
+            (
+                seasonContainer?.seasons() as Record<
+                    string,
+                    Array<Record<string, unknown>>
+                >
+            )['1'][0] as never,
+            '1'
+        );
+        expect(candidate?.identity).toEqual({
+            playlistId: 'xtream-1',
+            contentType: 'episode',
+            xtreamId: 1001,
+            seriesXtreamId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
+        });
+        await expect(candidate?.prepare()).resolves.toEqual({
+            playlistId: 'xtream-1',
+            xtreamId: 1001,
+            contentType: 'episode',
+            title: 'Series One - S01E01 - Episode 1',
+            url: 'http://xtream.example/series/user/pass/1001.mp4',
+            posterUrl: undefined,
+            seriesXtreamId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
+            metadataSnapshot: {
+                version: 1,
                 language: 'en',
+                mediaKind: 'series',
                 title: 'Series One',
                 plot: 'Series plot',
                 genres: ['Drama'],
-                providerCategoryId: '3',
                 tmdbId: 901,
-                cast: expect.arrayContaining([
-                    expect.objectContaining({
-                        name: 'Sienna Wave',
-                        role: 'Mara',
-                    }),
-                ]),
-            })
-        );
+                providerCategoryId: '3',
+                cast: [{ name: 'Sienna Wave', role: 'Mara' }],
+                episode: {
+                    seasonNumber: 1,
+                    episodeNumber: 1,
+                    title: 'Episode 1',
+                },
+                enrichedAt: expect.any(String),
+            },
+        });
     });
 
     it('keeps every provider episode but disables download presentation in provider-only mode', async () => {
