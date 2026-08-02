@@ -70,11 +70,12 @@ variants, contextual buttons, and theme-aware styling.
   reservations and submits an individual episode or selected-season snapshot
   through `DownloadsService.startDownload()`. Season batches are sequential
   and best-effort: one candidate failing does not stop later candidates. After
-  accepted submissions, one authoritative list refresh closes the pending-to-
-  queued handoff, and the coordinator returns `added`, `skipped`, and `failed`
-  counts. Xtream and Stalker adapters own provider URL, request header, and
-  metadata preparation; the coordinator owns only provider-neutral
-  orchestration. Both providers use normalized `episode.id` as the canonical
+  added or stable duplicate submissions, one authoritative list refresh closes
+  the pending-to-queued/downloaded handoff, and the coordinator returns
+  `added`, `skipped`, and `failed` counts. Xtream and Stalker adapters own
+  provider URL, request header, and metadata preparation; the coordinator owns
+  only provider-neutral orchestration. Both providers use normalized
+  `episode.id` as the canonical
   episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
   in URL resolution.
   The exact `(playlistId, contentType, xtreamId)` identity is authoritative.

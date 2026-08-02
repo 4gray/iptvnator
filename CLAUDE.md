@@ -938,10 +938,11 @@ engine` (restart required) or
   the provider-neutral `SeasonDownloadCoordinator`. It reserves per-episode
   pending identities synchronously, submits season candidates sequentially and
   best-effort through the existing `DOWNLOADS_START` path, performs one final
-  authoritative refresh after accepted submissions, and reports added,
-  skipped, and failed counts. Xtream and Stalker adapters remain responsible
-  for provider URLs, headers, and metadata; the backend still runs one active
-  transfer with a FIFO queue. `DOWNLOADS_START` remains the sole start IPC; its
+  authoritative refresh after added or stable duplicate submissions, and
+  reports added, skipped, and failed counts. Xtream and Stalker adapters remain
+  responsible for provider URLs, headers, and metadata; the backend still runs
+  one active transfer with a FIFO queue. `DOWNLOADS_START` remains the sole
+  start IPC; its
   stable `reason: 'already-in-progress'` and `reason: 'already-downloaded'`
   results are counted as skipped, and no batch IPC is introduced. The latter
   comes from an asynchronous main-process filesystem recheck before a

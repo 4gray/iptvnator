@@ -57,7 +57,7 @@ export class SeasonDownloadCoordinator {
         }
 
         const submission = await this.submit(candidate);
-        if (submission !== EPISODE_DOWNLOAD_SUBMISSIONS.Added) {
+        if (submission === EPISODE_DOWNLOAD_SUBMISSIONS.Failed) {
             this.release(candidate.identity);
             return submission;
         }
@@ -84,22 +84,22 @@ export class SeasonDownloadCoordinator {
             reserved.push(candidate);
         }
 
-        const accepted: EpisodeDownloadIdentity[] = [];
+        const refreshPending: EpisodeDownloadIdentity[] = [];
         for (const candidate of reserved) {
             const submission = await this.submit(candidate);
             result[submission] += 1;
-            if (submission === EPISODE_DOWNLOAD_SUBMISSIONS.Added) {
-                accepted.push(candidate.identity);
+            if (submission !== EPISODE_DOWNLOAD_SUBMISSIONS.Failed) {
+                refreshPending.push(candidate.identity);
             } else {
                 this.release(candidate.identity);
             }
         }
 
-        if (accepted.length > 0) {
+        if (refreshPending.length > 0) {
             try {
                 await this.downloadsService.loadDownloads();
             } finally {
-                this.releaseAll(accepted);
+                this.releaseAll(refreshPending);
             }
         }
 

@@ -183,7 +183,44 @@ describe('SeasonDownloadCoordinator', () => {
 
         expect(restored.prepare).toHaveBeenCalledTimes(1);
         expect(downloadsService.startDownload).toHaveBeenCalledTimes(1);
-        expect(downloadsService.loadDownloads).not.toHaveBeenCalled();
+        expect(downloadsService.loadDownloads).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes once after a season contains only submitted stable skips', async () => {
+        const first = candidate(FIRST_IDENTITY);
+        const second = candidate(identity(102, 2));
+        const refresh = deferred<void>();
+        const refreshStarted = deferred<void>();
+        downloadsService.startDownload
+            .mockResolvedValueOnce({
+                success: false,
+                reason: 'already-downloaded' as never,
+            })
+            .mockResolvedValueOnce({
+                success: false,
+                reason: 'already-in-progress',
+            });
+        downloadsService.loadDownloads.mockImplementation(() => {
+            refreshStarted.resolve(undefined);
+            return refresh.promise;
+        });
+
+        const submission = coordinator.enqueueSeason([first, second]);
+        await refreshStarted.promise;
+
+        expect(downloadsService.startDownload).toHaveBeenCalledTimes(2);
+        expect(downloadsService.loadDownloads).toHaveBeenCalledTimes(1);
+        expect(coordinator.isPending(first.identity)).toBe(true);
+        expect(coordinator.isPending(second.identity)).toBe(true);
+
+        refresh.resolve(undefined);
+        await expect(submission).resolves.toEqual({
+            added: 0,
+            skipped: 2,
+            failed: 0,
+        });
+        expect(coordinator.isPending(first.identity)).toBe(false);
+        expect(coordinator.isPending(second.identity)).toBe(false);
     });
 
     it('continues after preparation rejects and refreshes once after successes', async () => {
