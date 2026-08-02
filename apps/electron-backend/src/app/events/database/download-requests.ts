@@ -10,8 +10,8 @@ import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
-import { removePartialDownloadFile } from './download-file-path';
 import { getDownloadFileAvailabilityWithTimeoutAsync } from './download-file-availability';
+import { removePartialDownloadFileWithTimeoutAsync } from './download-partial-cleanup';
 import { resolveExistingDownloadIdentity } from './download-request-identity';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
 import {
@@ -175,17 +175,19 @@ export async function startDownloadRequest(
             };
         }
 
-        if (item.status === 'failed' && item.filePath) {
-            // A failed row can still reference a retained .part; delete it
+        if (
+            ['completed', 'failed', 'canceled'].includes(item.status) &&
+            item.filePath
+        ) {
+            // A terminal row can still reference a retained .part; delete it
             // before the restart clears filePath, or the file is orphaned.
-            // A locked .part must keep its database owner, so fail the
-            // restart instead of proceeding without the cleanup.
-            try {
-                removePartialDownloadFile(item.filePath);
-            } catch (error) {
+            // An unavailable or slow .part must keep its database owner.
+            const cleanup = await removePartialDownloadFileWithTimeoutAsync(
+                item.filePath
+            );
+            if (cleanup === 'unknown') {
                 console.error(
-                    '[Downloads] Failed to delete retained partial before re-download:',
-                    error
+                    '[Downloads] Could not verify retained partial cleanup'
                 );
                 return {
                     error: 'Could not delete the previous partial file',

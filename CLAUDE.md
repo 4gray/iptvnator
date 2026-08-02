@@ -958,9 +958,13 @@ engine` (restart required) or
   settles, so later callers have independent bounded waits without duplicating
   stalled native work. Only `ENOENT` and `ENOTDIR` prove absence; permission,
   I/O, and other filesystem errors remain unknown and cannot clear a completed
-  row. Episode and season download actions require an authoritative global
-  list. A successful snapshot remains authoritative while a later background
-  refresh is in flight; a latest refresh failure leaves
+  row. Before a completed-missing, failed, or canceled row clears its retained
+  path, the start IPC asynchronously removes any `.part` through a separate
+  one-second, same-path-coalesced, four-operation cap. Timeout or non-absence
+  errors keep the row's ownership intact; `ENOENT` and `ENOTDIR` safely proceed.
+  Episode and season download actions require an authoritative global list. A
+  successful snapshot remains authoritative while a later background refresh
+  is in flight; a latest refresh failure leaves
   loading/empty-state resolution intact but disables starts until another
   snapshot succeeds.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`

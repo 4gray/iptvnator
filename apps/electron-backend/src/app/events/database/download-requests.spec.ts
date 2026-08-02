@@ -887,82 +887,91 @@ describe('download requests resume', () => {
         });
     });
 
-    it('deletes the retained partial before re-downloading a failed row from scratch', async () => {
-        jest.resetModules();
+    it.each(['failed', 'canceled'] as const)(
+        'deletes the retained partial asynchronously before re-downloading a %s row from scratch',
+        async (status) => {
+            jest.resetModules();
 
-        const failedRow = {
-            contentType: 'vod',
-            filePath: '/downloads/movie.mp4',
-            id: 42,
-            playlistId: 'playlist-1',
-            status: 'failed',
-            title: 'Movie',
-            url: 'https://example.test/movie.mp4',
-            xtreamId: 7,
-        };
-        const limit = jest
-            .fn()
-            .mockResolvedValueOnce([{ id: 'playlist-1' }])
-            .mockResolvedValueOnce([failedRow]);
-        const set = jest.fn<{ where: jest.Mock }, [Record<string, unknown>]>(
-            () => ({
+            const terminalRow = {
+                contentType: 'vod',
+                filePath: '/downloads/movie.mp4',
+                id: 42,
+                playlistId: 'playlist-1',
+                status,
+                title: 'Movie',
+                url: 'https://example.test/movie.mp4',
+                xtreamId: 7,
+            };
+            const limit = jest
+                .fn()
+                .mockResolvedValueOnce([{ id: 'playlist-1' }])
+                .mockResolvedValueOnce([terminalRow]);
+            const set = jest.fn<
+                { where: jest.Mock },
+                [Record<string, unknown>]
+            >(() => ({
                 where: jest.fn().mockResolvedValue(undefined),
-            })
-        );
-        const db = {
-            select: jest.fn(() => ({
-                from: jest.fn(() => ({
-                    where: jest.fn(() => ({ limit })),
+            }));
+            const db = {
+                select: jest.fn(() => ({
+                    from: jest.fn(() => ({
+                        where: jest.fn(() => ({ limit })),
+                    })),
                 })),
-            })),
-            update: jest.fn(() => ({ set })),
-        };
-        const enqueueDownload = jest.fn();
-        const removePartialDownloadFile = jest.fn();
-        const authorizer = {
-            requireAuthorized: jest.fn(async (directory: string) => directory),
-        } as unknown as DownloadDirectoryAuthorizer;
+                update: jest.fn(() => ({ set })),
+            };
+            const enqueueDownload = jest.fn();
+            const removePartialDownloadFileWithTimeoutAsync = jest.fn(
+                async () => 'removed' as const
+            );
+            const authorizer = {
+                requireAuthorized: jest.fn(
+                    async (directory: string) => directory
+                ),
+            } as unknown as DownloadDirectoryAuthorizer;
 
-        jest.doMock('../../database/connection', () => ({
-            getDatabase: jest.fn().mockResolvedValue(db),
-        }));
-        jest.doMock('../url-safety', () => ({
-            assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
-        }));
-        jest.doMock('./download-file-path', () => ({
-            removePartialDownloadFile,
-        }));
-        jest.doMock('./download-runtime', () => ({
-            enqueueDownload,
-        }));
+            jest.doMock('../../database/connection', () => ({
+                getDatabase: jest.fn().mockResolvedValue(db),
+            }));
+            jest.doMock('../url-safety', () => ({
+                assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
+            }));
+            jest.doMock('./download-partial-cleanup', () => ({
+                removePartialDownloadFileWithTimeoutAsync,
+            }));
+            jest.doMock('./download-runtime', () => ({
+                enqueueDownload,
+            }));
 
-        const { startDownloadRequest } = await import('./download-requests');
+            const { startDownloadRequest } =
+                await import('./download-requests');
 
-        await expect(
-            startDownloadRequest(
-                {
-                    contentType: 'vod',
-                    downloadFolder: '/downloads',
-                    playlistId: 'playlist-1',
-                    title: 'Movie',
-                    url: 'https://example.test/movie.mp4',
-                    xtreamId: 7,
-                },
-                authorizer
-            )
-        ).resolves.toEqual({ id: 42, success: true });
+            await expect(
+                startDownloadRequest(
+                    {
+                        contentType: 'vod',
+                        downloadFolder: '/downloads',
+                        playlistId: 'playlist-1',
+                        title: 'Movie',
+                        url: 'https://example.test/movie.mp4',
+                        xtreamId: 7,
+                    },
+                    authorizer
+                )
+            ).resolves.toEqual({ id: 42, success: true });
 
-        expect(removePartialDownloadFile).toHaveBeenCalledWith(
-            '/downloads/movie.mp4'
-        );
-        expect(set).toHaveBeenCalledWith(
-            expect.objectContaining({
-                filePath: null,
-                resumeValidator: null,
-                status: 'queued',
-            })
-        );
-    });
+            expect(
+                removePartialDownloadFileWithTimeoutAsync
+            ).toHaveBeenCalledWith('/downloads/movie.mp4');
+            expect(set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filePath: null,
+                    resumeValidator: null,
+                    status: 'queued',
+                })
+            );
+        }
+    );
 
     it('fails the re-download when the retained partial cannot be deleted', async () => {
         jest.resetModules();
@@ -993,9 +1002,9 @@ describe('download requests resume', () => {
             update: jest.fn(() => ({ set })),
         };
         const enqueueDownload = jest.fn();
-        const removePartialDownloadFile = jest.fn(() => {
-            throw new Error('EPERM: locked');
-        });
+        const removePartialDownloadFileWithTimeoutAsync = jest.fn(
+            async () => 'unknown' as const
+        );
         const authorizer = {
             requireAuthorized: jest.fn(async (directory: string) => directory),
         } as unknown as DownloadDirectoryAuthorizer;
@@ -1006,8 +1015,8 @@ describe('download requests resume', () => {
         jest.doMock('../url-safety', () => ({
             assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
         }));
-        jest.doMock('./download-file-path', () => ({
-            removePartialDownloadFile,
+        jest.doMock('./download-partial-cleanup', () => ({
+            removePartialDownloadFileWithTimeoutAsync,
         }));
         jest.doMock('./download-runtime', () => ({
             enqueueDownload,
