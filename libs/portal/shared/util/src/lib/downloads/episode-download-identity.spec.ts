@@ -1,7 +1,7 @@
 import {
     createEpisodeDownloadIdentityKey,
-    findEpisodeDownload,
     isEpisodeDownloadEligible,
+    resolveEpisodeDownload,
     type EpisodeDownloadIdentity,
     type EpisodeDownloadRecord,
 } from './episode-download-identity';
@@ -36,7 +36,10 @@ describe('episode download identity', () => {
     it('returns a canonical row when the same row also owns the coordinates', () => {
         const canonical = row();
 
-        expect(findEpisodeDownload(identity, [canonical])).toBe(canonical);
+        expect(resolveEpisodeDownload(identity, [canonical])).toEqual({
+            kind: 'match',
+            download: canonical,
+        });
     });
 
     it('fails closed when canonical and coordinate lookups find different rows', () => {
@@ -44,8 +47,8 @@ describe('episode download identity', () => {
         const canonical = row();
 
         expect(
-            findEpisodeDownload(identity, [coordinateFallback, canonical])
-        ).toBeUndefined();
+            resolveEpisodeDownload(identity, [coordinateFallback, canonical])
+        ).toEqual({ kind: 'conflict' });
     });
 
     it('fails closed when an incomplete canonical row conflicts with a coordinate row', () => {
@@ -53,11 +56,11 @@ describe('episode download identity', () => {
         const incompleteCanonical = row({ seriesXtreamId: undefined });
 
         expect(
-            findEpisodeDownload(identity, [
+            resolveEpisodeDownload(identity, [
                 coordinateFallback,
                 incompleteCanonical,
             ])
-        ).toBeUndefined();
+        ).toEqual({ kind: 'conflict' });
     });
 
     it('fails closed when a canonical match has conflicting complete coordinates', () => {
@@ -69,26 +72,30 @@ describe('episode download identity', () => {
         });
 
         expect(
-            findEpisodeDownload(identity, [
+            resolveEpisodeDownload(identity, [
                 coordinateFallback,
                 conflictingCanonical,
             ])
-        ).toBeUndefined();
+        ).toEqual({ kind: 'conflict' });
     });
 
     it('falls back to complete matching episode coordinates', () => {
         const coordinateFallback = row({ xtreamId: 999 });
 
-        expect(findEpisodeDownload(identity, [coordinateFallback])).toBe(
-            coordinateFallback
-        );
+        expect(resolveEpisodeDownload(identity, [coordinateFallback])).toEqual({
+            kind: 'match',
+            download: coordinateFallback,
+        });
     });
 
     it('fails closed when multiple rows share the fallback coordinates', () => {
         const first = row({ id: 2, xtreamId: 999 });
         const second = row({ id: 3, xtreamId: 998 });
 
-        expect(findEpisodeDownload(identity, [first, second])).toBeUndefined();
+        const resolution = resolveEpisodeDownload(identity, [first, second]);
+
+        expect(resolution).toEqual({ kind: 'conflict' });
+        expect(isEpisodeDownloadEligible(resolution)).toBe(false);
     });
 
     it('does not fall back across playlists or to incomplete coordinates', () => {
@@ -100,11 +107,15 @@ describe('episode download identity', () => {
             row({ contentType: 'vod', xtreamId: 995 }),
         ];
 
-        expect(findEpisodeDownload(identity, candidates)).toBeUndefined();
+        expect(resolveEpisodeDownload(identity, candidates)).toEqual({
+            kind: 'missing',
+        });
     });
 
     it('allows an episode with no existing download', () => {
-        expect(isEpisodeDownloadEligible(undefined)).toBe(true);
+        expect(
+            isEpisodeDownloadEligible(resolveEpisodeDownload(identity, []))
+        ).toBe(true);
     });
 
     it.each([
@@ -121,7 +132,10 @@ describe('episode download identity', () => {
         'returns %s with availability %s as eligible=%s',
         (status, fileAvailability, expected) => {
             expect(
-                isEpisodeDownloadEligible(row({ status, fileAvailability }))
+                isEpisodeDownloadEligible({
+                    kind: 'match',
+                    download: row({ status, fileAvailability }),
+                })
             ).toBe(expected);
         }
     );

@@ -952,9 +952,12 @@ engine` (restart required) or
   for both providers; Stalker playback identifiers only resolve the URL. Exact
   `(playlistId, contentType, xtreamId)` matches are authoritative, while
   complete playlist/series/season/episode coordinates are a fail-closed legacy
-  fallback that migrates reusable rows to the canonical id. Pending and active
-  rows plus completed available/unknown rows are skipped; failed, canceled,
-  completed-missing, and row-less episodes remain eligible.
+  fallback that migrates reusable rows to the canonical id. Renderer lookup
+  preserves ambiguity or conflicting ownership as a distinct ineligible state,
+  so neither the episode action nor the season count treats it as a row-less
+  download. Pending and active rows plus completed available/unknown rows are
+  skipped; failed, canceled, completed-missing, and unambiguous row-less
+  episodes remain eligible.
 - Ready movie and grouped-series cards open a focused local detail. Movies play
   the finalized local file; series list only locally available episode rows and
   every episode action targets its own downloaded file. Focused routes disable

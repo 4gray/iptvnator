@@ -26,6 +26,11 @@ export interface EpisodeDownloadRecord {
     readonly filePath?: string;
 }
 
+export type EpisodeDownloadResolution<T extends EpisodeDownloadRecord> =
+    | { readonly kind: 'match'; readonly download: T }
+    | { readonly kind: 'missing' }
+    | { readonly kind: 'conflict' };
+
 function hasConflictingCompleteCoordinates(
     download: EpisodeDownloadRecord,
     identity: EpisodeDownloadIdentity
@@ -49,10 +54,10 @@ function hasConflictingCompleteCoordinates(
     );
 }
 
-export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
+export function resolveEpisodeDownload<T extends EpisodeDownloadRecord>(
     identity: EpisodeDownloadIdentity,
     downloads: readonly T[]
-): T | undefined {
+): EpisodeDownloadResolution<T> {
     const canonicalMatch = downloads.find(
         (download) =>
             download.playlistId === identity.playlistId &&
@@ -71,7 +76,7 @@ export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
             download.episodeNumber === identity.episodeNumber
     );
     if (coordinateMatches.length > 1) {
-        return undefined;
+        return { kind: 'conflict' };
     }
     const coordinateMatch = coordinateMatches[0];
 
@@ -80,20 +85,26 @@ export function findEpisodeDownload<T extends EpisodeDownloadRecord>(
             hasConflictingCompleteCoordinates(canonicalMatch, identity) ||
             (coordinateMatch && coordinateMatch.id !== canonicalMatch.id)
         ) {
-            return undefined;
+            return { kind: 'conflict' };
         }
-        return canonicalMatch;
+        return { kind: 'match', download: canonicalMatch };
     }
 
-    return coordinateMatch;
+    return coordinateMatch
+        ? { kind: 'match', download: coordinateMatch }
+        : { kind: 'missing' };
 }
 
 export function isEpisodeDownloadEligible(
-    download: EpisodeDownloadRecord | undefined
+    resolution: EpisodeDownloadResolution<EpisodeDownloadRecord>
 ): boolean {
-    if (!download) {
+    if (resolution.kind === 'missing') {
         return true;
     }
+    if (resolution.kind === 'conflict') {
+        return false;
+    }
+    const { download } = resolution;
     if (download.status === 'completed') {
         return download.fileAvailability === 'missing';
     }

@@ -8,9 +8,10 @@ import { ELECTRON_BRIDGE_DOWNLOAD_START_REASONS } from '@iptvnator/shared/interf
 import {
     createEpisodeDownloadIdentityKey,
     createLogger,
-    findEpisodeDownload,
     isEpisodeDownloadEligible,
+    resolveEpisodeDownload,
     type EpisodeDownloadIdentity,
+    type EpisodeDownloadResolution,
 } from '@iptvnator/portal/shared/util';
 import {
     EPISODE_DOWNLOAD_SUBMISSIONS,
@@ -29,8 +30,13 @@ export class SeasonDownloadCoordinator {
         return this.pending().has(createEpisodeDownloadIdentityKey(identity));
     }
 
-    findDownload(identity: EpisodeDownloadIdentity): DownloadItem | undefined {
-        return findEpisodeDownload(identity, this.downloadsService.downloads());
+    resolveDownload(
+        identity: EpisodeDownloadIdentity
+    ): EpisodeDownloadResolution<DownloadItem> {
+        return resolveEpisodeDownload(
+            identity,
+            this.downloadsService.downloads()
+        );
     }
 
     isEligible(candidate: EpisodeDownloadCandidate): boolean {
@@ -39,7 +45,7 @@ export class SeasonDownloadCoordinator {
             this.downloadsService.hasAuthoritativeDownloadList() &&
             this.downloadsService.hasLoadedDownloads() &&
             !this.isPending(candidate.identity) &&
-            isEpisodeDownloadEligible(this.findDownload(candidate.identity))
+            isEpisodeDownloadEligible(this.resolveDownload(candidate.identity))
         );
     }
 

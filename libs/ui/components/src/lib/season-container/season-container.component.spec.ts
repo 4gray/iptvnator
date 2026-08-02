@@ -615,6 +615,29 @@ describe('SeasonContainerComponent', () => {
         );
     });
 
+    it('blocks episode and season actions when managed rows claim an ambiguous identity', () => {
+        const episode = createEpisode();
+        downloadsServiceStub.downloads.set([
+            createDownload(episode, { id: 71, xtreamId: 9001 }),
+            createDownload(episode, { id: 72, xtreamId: 9002 }),
+        ]);
+        enableDownloads();
+        setRequiredInputs({ '1': [episode] });
+
+        fixture.detectChanges();
+
+        const action = episodeAction(episode.id);
+        const seasonButton = fixture.nativeElement.querySelector(
+            '[data-test-id="download-season"]'
+        ) as HTMLButtonElement;
+        expect(action.disabled).toBe(true);
+        expect(action.querySelector('mat-icon')?.textContent).toContain(
+            'block'
+        );
+        expect(seasonButton.disabled).toBe(true);
+        expect(downloadsServiceStub.startDownload).not.toHaveBeenCalled();
+    });
+
     it('gives the grid and list view radios localized accessible names', () => {
         TestBed.inject(TranslateService).setTranslation(
             'en',
@@ -872,14 +895,14 @@ describe('SeasonContainerComponent', () => {
         ]);
         const candidateSpy = jest.spyOn(downloadAdapter, 'createCandidate');
         const coordinator = TestBed.inject(SeasonDownloadCoordinator);
-        const findDownloadSpy = jest.spyOn(coordinator, 'findDownload');
+        const resolveDownloadSpy = jest.spyOn(coordinator, 'resolveDownload');
         enableDownloads();
         setRequiredInputs({ '1': [paused, local] });
 
         fixture.detectChanges();
         fixture.detectChanges();
         expect(candidateSpy).toHaveBeenCalledTimes(2);
-        expect(findDownloadSpy).toHaveBeenCalledTimes(2);
+        expect(resolveDownloadSpy).toHaveBeenCalledTimes(2);
 
         episodeAction(101).click();
         episodeAction(102).click();
@@ -887,7 +910,7 @@ describe('SeasonContainerComponent', () => {
         fixture.detectChanges();
 
         expect(candidateSpy).toHaveBeenCalledTimes(2);
-        expect(findDownloadSpy).toHaveBeenCalledTimes(2);
+        expect(resolveDownloadSpy).toHaveBeenCalledTimes(2);
     });
 
     it('resumes by managed row id and plays the coordinate-matched local file', async () => {

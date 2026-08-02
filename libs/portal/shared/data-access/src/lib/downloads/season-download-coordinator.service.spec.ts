@@ -248,15 +248,33 @@ describe('SeasonDownloadCoordinator', () => {
             }),
         ]);
 
-        expect(coordinator.findDownload(missing.identity)?.fileAvailability).toBe(
-            'missing'
-        );
+        expect(coordinator.resolveDownload(missing.identity)).toMatchObject({
+            kind: 'match',
+            download: { fileAvailability: 'missing' },
+        });
         expect(coordinator.isEligible(missing)).toBe(true);
         expect(coordinator.isEligible(available)).toBe(false);
         await expect(coordinator.enqueueOne(available)).resolves.toBe(
             'skipped'
         );
         expect(available.prepare).not.toHaveBeenCalled();
+    });
+
+    it('skips an episode when multiple managed rows claim its coordinates', async () => {
+        const item = candidate(FIRST_IDENTITY);
+        downloadsService.downloads.set([
+            download(item.identity, { id: 71, xtreamId: 9001 }),
+            download(item.identity, { id: 72, xtreamId: 9002 }),
+        ]);
+
+        expect(coordinator.isEligible(item)).toBe(false);
+        await expect(coordinator.enqueueSeason([item])).resolves.toEqual({
+            added: 0,
+            skipped: 1,
+            failed: 0,
+        });
+        expect(item.prepare).not.toHaveBeenCalled();
+        expect(downloadsService.startDownload).not.toHaveBeenCalled();
     });
 
     it('prepares a duplicate identity only once within one batch', async () => {

@@ -131,9 +131,12 @@ export class SeasonDownloadPresenter {
             const pending = candidate
                 ? this.coordinator.isPending(candidate.identity)
                 : false;
-            const download = candidate
-                ? this.coordinator.findDownload(candidate.identity)
-                : undefined;
+            const resolution = candidate
+                ? this.coordinator.resolveDownload(candidate.identity)
+                : { kind: 'missing' as const };
+            const download =
+                resolution.kind === 'match' ? resolution.download : undefined;
+            const identityConflict = resolution.kind === 'conflict';
             return {
                 candidate,
                 download,
@@ -142,14 +145,15 @@ export class SeasonDownloadPresenter {
                     downloadsAvailable &&
                     downloadsReady &&
                     !pending &&
-                    isEpisodeDownloadEligible(download)
+                    isEpisodeDownloadEligible(resolution)
                 ),
                 episode,
                 presentation: this.createPresentation(
                     candidate,
                     download,
                     pending,
-                    downloadsReady
+                    downloadsReady,
+                    identityConflict
                 ),
             };
         });
@@ -281,9 +285,10 @@ export class SeasonDownloadPresenter {
         candidate: EpisodeDownloadCandidate | null,
         download: DownloadItem | undefined,
         pending: boolean,
-        downloadsReady: boolean
+        downloadsReady: boolean,
+        identityConflict: boolean
     ): EpisodeDownloadPresentation {
-        if (!candidate || !downloadsReady) {
+        if (!candidate || !downloadsReady || identityConflict) {
             return EPISODE_DOWNLOAD_STATES.blocked;
         }
         if (
