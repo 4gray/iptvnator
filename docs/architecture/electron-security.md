@@ -137,12 +137,13 @@ owner of the scoped override slot: it extracts the full header set from the
 resolved playback (including the Stalker mac cookie and Bearer token), and
 its `clear()` releases the slot only while the caller's stream still owns it,
 so a consumer being destroyed cannot wipe an override a newer consumer just
-configured. Two surfaces apply it: `WebPlayerViewComponent` for every
+configured. Three surfaces apply it: `WebPlayerViewComponent` for every
 built-in video player (configuring the override **before** handing the
-source over, clearing on destroy), and the Stalker live layout for the
-dedicated radio audio player, which never mounts a `WebPlayerViewComponent`.
-Individual player components must not call the bridge themselves — a
-narrower call would overwrite the credentialed override.
+source over, clearing on destroy), and — for the dedicated radio audio
+player, which never mounts a `WebPlayerViewComponent` — the Stalker live
+layout and the unified collection tab (global/portal Favorites and Recently
+Viewed). Individual player components must not call the bridge themselves —
+a narrower call would overwrite the credentialed override.
 
 Rules:
 

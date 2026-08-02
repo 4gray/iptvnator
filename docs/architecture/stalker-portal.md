@@ -189,6 +189,10 @@ Every playback kind — ITV, VOD, series episodes, and radio — resolves its
 stream and attaches the same portal header set through
 `buildStalkerExternalPlaybackHeaders()`
 (`libs/portal/stalker/data-access/src/lib/stalker-live-playback.utils.ts`).
+The collection routes (Favorites/Recently Viewed) share the contract:
+`StreamResolverService.resolveStalker()` builds the identical profile for the
+streams it resolves, so a channel opened from a collection carries the same
+credentials as one opened from the portal.
 The resolved `ResolvedPortalPlayback.headers` feed both the external players
 (MPV/VLC/Embedded MPV via the launch IPC) and the built-in players via the
 scoped Electron request-header override (`ElectronStreamHeadersService`,
