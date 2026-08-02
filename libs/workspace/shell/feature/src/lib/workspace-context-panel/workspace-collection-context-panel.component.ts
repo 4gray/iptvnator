@@ -53,7 +53,7 @@ import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/u
 })
 export class WorkspaceCollectionContextPanelComponent {
     readonly ctx = inject(PortalCollectionContextService);
-    // Optional: only provided inside the workspace shell; closes the phone
+    // Root-provided; optional keeps standalone unit tests light. Closes the phone
     // drawer after a selection, which never navigates on this panel.
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
         optional: true,

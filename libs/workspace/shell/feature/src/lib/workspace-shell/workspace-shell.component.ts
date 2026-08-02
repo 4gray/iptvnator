@@ -9,6 +9,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback';
 import {
@@ -34,6 +35,7 @@ import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/u
     imports: [
         CdkTrapFocus,
         ExternalPlaybackDockComponent,
+        TranslatePipe,
         PlaylistDropOverlayComponent,
         PlaylistDropZoneDirective,
         RouterOutlet,

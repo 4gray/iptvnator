@@ -44,7 +44,7 @@ import {
 export class WorkspaceSettingsContextPanelComponent {
     readonly ctx = inject(SettingsContextService);
     private readonly location = inject(Location);
-    // Optional: only provided inside the workspace shell; section clicks
+    // Root-provided; optional keeps standalone unit tests light. Section clicks
     // scroll the settings page without navigating, so the phone drawer's
     // NavigationEnd auto-close never fires for them.
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {

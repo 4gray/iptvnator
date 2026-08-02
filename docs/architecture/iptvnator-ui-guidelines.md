@@ -351,7 +351,8 @@ but the component has not.
   off-canvas drawer: hidden by default so the route content owns the full
   pane, opened from a toggle in the workspace header, closed by selection,
   backdrop tap, Escape, or any navigation. State lives in
-  `WorkspaceShellContextDrawerService` (provided by the shell component); the
+  `WorkspaceShellContextDrawerService` (root-provided from
+  `@iptvnator/workspace/shell/util` — see below for why); the
   panels call `close()` after selections that do not navigate — a
   NavigationEnd listener alone misses Stalker ITV/radio categories, settings
   sections, sources filters, and collection filters. The drawer positioning

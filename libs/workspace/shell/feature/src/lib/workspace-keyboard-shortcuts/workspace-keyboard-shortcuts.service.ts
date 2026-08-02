@@ -18,8 +18,7 @@ export class WorkspaceKeyboardShortcutsService {
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    // Optional: provided by the workspace shell component alongside this
-    // service. The help key must not open a dialog over the modal phone
+    // Root-provided; optional keeps standalone unit tests light. The help key must not open a dialog over the modal phone
     // context drawer.
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
         optional: true,

@@ -70,7 +70,7 @@ export class WorkspaceContextPanelComponent {
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
-    // Optional: only provided inside the workspace shell, and only relevant
+    // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the panel renders as the phone drawer. Some selections here (e.g.
     // Stalker ITV/radio) update the store without navigating, so the drawer's
     // NavigationEnd auto-close never fires for them.

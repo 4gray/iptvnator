@@ -35,7 +35,7 @@ const ALL_FILTERS = ['m3u', 'xtream', 'stalker'];
 })
 export class WorkspaceSourcesFiltersPanelComponent {
     private readonly store = inject(Store);
-    // Optional: only provided inside the workspace shell; picking a type
+    // Root-provided; optional keeps standalone unit tests light. Picking a type
     // filter is a single-select choice that never navigates, so the phone
     // drawer closes here to reveal the filtered list.
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {

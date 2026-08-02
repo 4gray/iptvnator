@@ -1,5 +1,7 @@
 import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { Component, Directive, input, output, signal } from '@angular/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { of, Subject } from 'rxjs';
 import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
@@ -216,13 +218,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
                         CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -282,13 +300,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
                         CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -343,13 +377,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
                         CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -400,13 +450,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
                         CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -464,13 +530,29 @@ describe('WorkspaceShellComponent', () => {
 
         await TestBed.configureTestingModule({
             imports: [WorkspaceShellComponent],
-            providers: [provideRouter([])],
+            providers: [
+                provideRouter([]),
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
         })
             .overrideComponent(WorkspaceShellComponent, {
                 set: {
                     imports: [
                         CdkTrapFocus,
                         RouterOutlet,
+                        TranslatePipe,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -525,6 +607,13 @@ describe('WorkspaceShellComponent', () => {
         fixture.detectChanges();
         expect(sidebar().classList.contains('drawer-open')).toBe(true);
         expect(header.isContextDrawerOpen()).toBe(true);
+        // Assistive technology must hear a named modal surface open —
+        // dialog semantics exist only while the drawer is open.
+        expect(sidebar().getAttribute('role')).toBe('dialog');
+        expect(sidebar().getAttribute('aria-modal')).toBe('true');
+        expect(sidebar().getAttribute('aria-label')).toBe(
+            'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP'
+        );
         // The open drawer is modal: everything behind the backdrop leaves
         // the focus order and the accessibility tree via `inert`.
         expect(
@@ -547,6 +636,9 @@ describe('WorkspaceShellComponent', () => {
         fixture.detectChanges();
         expect(backdrop()).toBeNull();
         expect(sidebar().classList.contains('drawer-open')).toBe(false);
+        // Closed again: back to a plain landmark, no dialog semantics.
+        expect(sidebar().getAttribute('role')).toBeNull();
+        expect(sidebar().getAttribute('aria-modal')).toBeNull();
         expect(
             fixture.nativeElement
                 .querySelector('.workspace-content')

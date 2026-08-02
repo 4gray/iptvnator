@@ -47,7 +47,7 @@ export class WorkspaceShellContextSidebarComponent {
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
-    // Optional: only provided inside the workspace shell, and only relevant
+    // Root-provided; optional keeps standalone unit tests light. Only relevant
     // when the sidebar renders as the phone drawer — the close button that
     // calls this is CSS-hidden above the phone breakpoint.
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {

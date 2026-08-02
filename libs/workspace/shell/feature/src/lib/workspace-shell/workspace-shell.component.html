@@ -84,10 +84,20 @@
                  desktop isOpen stays false, and the service closes the
                  drawer when the viewport leaves the phone breakpoint, so
                  the in-flow desktop sidebar can never hold the trap. -->
+            <!-- Dialog semantics only while open: assistive technology must
+                 hear that a named modal surface opened; the desktop sidebar
+                 is an always-visible complementary landmark, not a dialog. -->
             <app-workspace-shell-context-sidebar
                 [class.drawer-open]="contextDrawer.isOpen()"
                 [cdkTrapFocus]="contextDrawer.isOpen()"
                 [cdkTrapFocusAutoCapture]="contextDrawer.isOpen()"
+                [attr.role]="contextDrawer.isOpen() ? 'dialog' : null"
+                [attr.aria-modal]="contextDrawer.isOpen() ? 'true' : null"
+                [attr.aria-label]="
+                    contextDrawer.isOpen()
+                        ? (facade.contextDrawerLabelKeys().tooltip | translate)
+                        : null
+                "
                 [variant]="facade.contextPanel()"
                 [context]="facade.currentContext()"
                 [section]="facade.currentSection()"

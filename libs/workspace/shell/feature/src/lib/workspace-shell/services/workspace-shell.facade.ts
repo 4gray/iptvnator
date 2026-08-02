@@ -49,8 +49,7 @@ export class WorkspaceShellFacade {
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
     );
-    // Optional: provided by the workspace shell component alongside this
-    // facade. While the phone context drawer is modal, opening the command
+    // Root-provided; optional keeps standalone unit tests light. While the phone context drawer is modal, opening the command
     // palette over it would stack two competing focus-trapped surfaces.
     private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
         optional: true,
