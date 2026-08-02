@@ -27,6 +27,29 @@ Do not invent a `test`, `build`, or `e2e` target because a similarly named
 project has one. Run affected lint/test/build targets that exist and the closest
 available E2E target for the changed behavior.
 
+## Nx Dependency Updates
+
+Keep `nx` and every official `@nx/*` package on the same exact version. Run
+`pnpm run deps:nx:validate` after any manifest or lockfile update; CI runs the
+same policy check and rejects both direct specifier drift and multiple resolved
+Nx versions.
+
+Dependabot groups routine minor and patch Nx updates when possible. A security
+update may still contain only the vulnerable package, so replace an incomplete
+Dependabot PR with a coordinated maintainer update instead of editing the bot
+branch:
+
+```bash
+pnpm nx migrate nx@<target> --skipInstall
+pnpm install --no-frozen-lockfile
+pnpm nx migrate --run-migrations
+pnpm run deps:nx:validate
+```
+
+Omit `pnpm nx migrate --run-migrations` when the first command reports that no
+migrations exist. Major Nx updates always use this manual workflow and the
+resulting PR runs the full CI pipeline.
+
 ## Placement Decision
 
 - `apps/` owns runtime applications, development servers, E2E applications,

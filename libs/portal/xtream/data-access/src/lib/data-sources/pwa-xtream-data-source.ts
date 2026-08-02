@@ -296,7 +296,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         type: CategoryType,
         options?: XtreamOperationOptions
     ): Promise<XtreamCategory[]> {
-        void options;
         const cacheKey = `${playlistId}-${type}-categories`;
 
         // Check in-memory cache first
@@ -306,6 +305,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         // Fetch from API
+        options?.onPhaseChange?.('loading-categories');
         const categories = await this.apiService.getCategories(
             credentials,
             type
@@ -381,7 +381,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         | XtreamSerieItem[]
         | XtreamContentItem[]
     > {
-        void options;
         const cacheKey = `${playlistId}-${type}-content`;
 
         // Check in-memory cache first
@@ -394,6 +393,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         // Fetch from API
+        options?.onPhaseChange?.(
+            type === 'live'
+                ? 'loading-live'
+                : type === 'movie'
+                  ? 'loading-movies'
+                  : 'loading-series'
+        );
         const content = this.normalizeContentItems(
             await this.apiService.getStreams(credentials, type),
             type

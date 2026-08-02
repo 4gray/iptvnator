@@ -74,6 +74,12 @@ pnpm nx show projects
 - Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json`.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
+- Keep `nx` and every official `@nx/*` package on the same exact version; run
+  `pnpm run deps:nx:validate` after dependency updates.
+- Update Nx with `pnpm nx migrate nx@<target> --skipInstall`, regenerate the
+  lockfile, run generated migrations when present, and validate before opening
+  a PR. Major updates are always manual. Replace incomplete Dependabot security
+  PRs with a coordinated update instead of editing the bot branch.
 - Repository-specific skills live under `.codex/skills/`.
 - Frontmatter descriptions are trigger-only and begin with `Use when`; keep
   each skill at or below 500 words.
@@ -1021,6 +1027,7 @@ engine` (restart required) or
 - Both portal types expose an account-info dialog through the same entry points: header playlist switcher (bottom section for the active playlist + per-row ⋮ menu), dashboard source card ⋮ menu, and the command palette. Gates use the shared predicates in `libs/shared/interfaces/src/lib/portal-account-playlist.utils.ts`; `WorkspaceShellHeaderService.openAccountInfoFor()` picks the dialog by playlist type.
 - Xtream: `AccountInfoComponent` (`libs/portal/xtream/feature/src/lib/account-info/`), queries `get_account_info` live.
 - Stalker: `StalkerAccountInfoComponent` (`libs/portal/stalker/feature/src/lib/stalker-account-info/`), cached-first — renders the import-time `stalkerAccountInfo` snapshot instantly, then `StalkerAccountInfoService` refreshes (full portals: handshake+`get_profile`; `portal.php`: best-effort `account_info/get_main_info`, nested `js.account_info` envelope or flat fields). Details: `docs/architecture/stalker-portal.md` ("Account Info Dialog").
+- Dashboard source cards carry a passive subscription-expiry chip (amber within 7 days, error-toned once expired); account details remain behind ⋮ → Account info. `DashboardSourceExpiryService` (`libs/workspace/dashboard/data-access/`) gathers the facts: Xtream from `PortalStatusService.checkPortalStatusDetails()` (the switcher's cached status check, now carrying `exp_date`), Stalker from the persisted `stalkerAccountInfo` snapshot — it lives in the playlist payload, not on meta rows, so each Stalker source costs one memoized full-playlist read.
 
 **Favorites and Recently Viewed**:
 

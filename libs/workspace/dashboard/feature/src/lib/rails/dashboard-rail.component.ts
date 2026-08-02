@@ -66,6 +66,13 @@ export interface DashboardRailCard {
      * user can see which episode they were on without opening the show.
      */
     episodeBadge?: string | null;
+
+    /**
+     * Subscription-expiry warning for portal source cards: a quiet amber
+     * chip when the account expires soon, an error-toned one once it has.
+     * The chip is passive — account details stay behind ⋮ → Account info.
+     */
+    expiryBadge?: { kind: 'expiring' | 'expired'; label: string } | null;
 }
 
 /**

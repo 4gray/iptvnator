@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}・E{{episode}}",
             "NOT_YET_SYNCED": "未同期",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "あと{{days}}日で期限切れ",
+            "SOURCE_EXPIRED": "期限切れ"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1296,7 +1298,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "ローカルライブラリ",
             "XTREAM_IMPORT_DETAIL_REMOTE": "プロバイダーからの応答を待っています。",
             "XTREAM_IMPORT_DETAIL_LOCAL": "次回のためにプレイリスト切り替えを高速化する準備をしています。",
+            "XTREAM_IMPORT_DETAIL_CACHED": "ローカルキャッシュを読み込み中 — プロバイダーからはデータをダウンロードしていません。",
             "XTREAM_IMPORT_PREPARING": "ローカルライブラリを準備中...",
+            "XTREAM_IMPORT_LOADING_CACHED": "このデバイスに保存されたカタログを読み込み中...",
             "XTREAM_IMPORT_LOADING": "ソースからプレイリストデータを取得中...",
             "XTREAM_IMPORT_SAVING": "プレイリストデータをローカルに保存中...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "ローカルライブラリからお気に入りを復元中...",

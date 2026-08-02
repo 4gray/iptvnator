@@ -53,6 +53,37 @@ describe('PwaXtreamDataSource', () => {
         localStorage.clear();
     });
 
+    it('reports remote loading phases for API fetches but stays silent on cache hits', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'News' },
+        ]);
+        const onPhaseChange = jest.fn();
+
+        await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie',
+            undefined,
+            undefined,
+            { onPhaseChange }
+        );
+
+        expect(onPhaseChange.mock.calls).toEqual([['loading-movies']]);
+
+        onPhaseChange.mockClear();
+        await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie',
+            undefined,
+            undefined,
+            { onPhaseChange }
+        );
+
+        expect(onPhaseChange).not.toHaveBeenCalled();
+        expect(apiService.getStreams).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps Xtream passwords out of localStorage playlist metadata', async () => {
         await dataSource.createPlaylist({
             id: 'playlist-1',

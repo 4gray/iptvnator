@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Pas encore synchronisé",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "Expire dans {{days}} j",
+            "SOURCE_EXPIRED": "Expiré"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1296,7 +1298,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Bibliothèque locale",
             "XTREAM_IMPORT_DETAIL_REMOTE": "En attente de la réponse du fournisseur.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Préparation d'une bascule plus rapide entre listes de lecture pour la prochaine visite.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Lecture depuis la bibliothèque locale — aucune donnée n'est téléchargée depuis le fournisseur.",
             "XTREAM_IMPORT_PREPARING": "Préparation de la bibliothèque locale…",
+            "XTREAM_IMPORT_LOADING_CACHED": "Chargement du catalogue sauvegardé de cet appareil…",
             "XTREAM_IMPORT_LOADING": "Récupération des données de la liste depuis la source…",
             "XTREAM_IMPORT_SAVING": "Enregistrement des données de la liste localement…",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Restauration des favoris depuis la bibliothèque locale…",

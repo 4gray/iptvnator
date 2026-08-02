@@ -102,6 +102,17 @@ export function resolveXtreamPortalStatus(
     return 'active';
 }
 
+/**
+ * Reads the account expiration from an Xtream `get_account_info`-style
+ * response as unix seconds. Returns null when the portal doesn't report one
+ * (unlimited accounts answer with empty/zero/absent `exp_date`).
+ */
+export function resolveXtreamPortalExpiration(
+    response: XtreamPortalStatusResponseLike | null | undefined
+): number | null {
+    return parseXtreamExpiration(response?.user_info?.exp_date);
+}
+
 function normalizeAuthValue(
     value: boolean | number | string | null | undefined
 ): boolean | null {

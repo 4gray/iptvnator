@@ -461,6 +461,8 @@ export class WorkspaceContextPanelComponent {
 
     private getXtreamImportPhaseLabelKey(phase: string | null): string {
         switch (phase) {
+            case 'loading-cached':
+                return 'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING_CACHED';
             case 'preparing-content':
                 return 'WORKSPACE.SHELL.XTREAM_IMPORT_PREPARING';
             case 'loading-categories':

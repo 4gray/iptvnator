@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "م{{season}}·ح{{episode}}",
             "NOT_YET_SYNCED": "مازال ما تزامنش",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "كتسالي ف {{days}} يوم",
+            "SOURCE_EXPIRED": "سالات"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1296,7 +1298,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "المكتبة المحلية",
             "XTREAM_IMPORT_DETAIL_REMOTE": "كنتسناو رد المزود.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "كنوجدو تبديل أسرع لقوائم التشغيل للزيارة الجاية.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "جاري قراءة المكتبة المحلية — ما شي بيانات كتتنزلو من المزود.",
             "XTREAM_IMPORT_PREPARING": "جاري تحضير المكتبة المحلية...",
+            "XTREAM_IMPORT_LOADING_CACHED": "جاري تشريج الفهرس المحفوظ من الجهاز ديالك...",
             "XTREAM_IMPORT_LOADING": "جاري جلب بيانات قائمة التشغيل من المصدر...",
             "XTREAM_IMPORT_SAVING": "جاري حفظ بيانات قائمة التشغيل محلياً...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "جاري استرجاع المفضلة من المكتبة المحلية...",

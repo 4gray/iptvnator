@@ -1,5 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
 import {
     DashboardRailCard,
@@ -68,5 +70,68 @@ describe('DashboardRailComponent', () => {
         expect(component.cardTitle(card({ contentType: 'live' }))).toBe(
             'US | CNN'
         );
+    });
+
+    describe('expiry badge rendering', () => {
+        beforeEach(() => {
+            // jsdom has no ResizeObserver; the component observes its track
+            // element after view init.
+            (
+                globalThis as unknown as { ResizeObserver: unknown }
+            ).ResizeObserver = class {
+                observe = jest.fn();
+                unobserve = jest.fn();
+                disconnect = jest.fn();
+            };
+        });
+
+        const renderCards = async (items: DashboardRailCard[]) => {
+            await TestBed.configureTestingModule({
+                imports: [DashboardRailComponent, TranslateModule.forRoot()],
+                providers: [
+                    provideRouter([]),
+                    {
+                        provide: SettingsStore,
+                        useValue: { stripCountryPrefix: signal(false) },
+                    },
+                ],
+            }).compileComponents();
+
+            const fixture = TestBed.createComponent(DashboardRailComponent);
+            fixture.componentRef.setInput('label', 'Sources');
+            fixture.componentRef.setInput('items', items);
+            fixture.detectChanges();
+            return fixture.nativeElement as HTMLElement;
+        };
+
+        it('renders the chip only for cards with a badge and tones expired ones', async () => {
+            const element = await renderCards([
+                card({
+                    id: 'expiring',
+                    subtitle: 'Xtream',
+                    expiryBadge: {
+                        kind: 'expiring',
+                        label: 'Expires in 3 d',
+                    },
+                }),
+                card({
+                    id: 'expired',
+                    subtitle: 'Stalker',
+                    expiryBadge: { kind: 'expired', label: 'Expired' },
+                }),
+                card({ id: 'plain', subtitle: 'M3U' }),
+            ]);
+
+            const chips = element.querySelectorAll('.rail__card-expiry');
+            expect(chips).toHaveLength(2);
+            expect(chips[0].textContent?.trim()).toBe('Expires in 3 d');
+            expect(
+                chips[0].classList.contains('rail__card-expiry--expired')
+            ).toBe(false);
+            expect(chips[1].textContent?.trim()).toBe('Expired');
+            expect(
+                chips[1].classList.contains('rail__card-expiry--expired')
+            ).toBe(true);
+        });
     });
 });

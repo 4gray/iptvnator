@@ -112,6 +112,14 @@ html {
     --app-provider-stalker: #10b981;
     --app-provider-m3u: #d97706;
 
+    // Subscription-expiry chips (dashboard source cards). Text/surface pairs
+    // are picked per theme to keep >= 4.5:1 small-text contrast against the
+    // composited chip background.
+    --app-expiry-warn-text: #8a5300;
+    --app-expiry-warn-surface: color-mix(in srgb, #d97706 16%, transparent);
+    --app-expiry-expired-text: #b3261e;
+    --app-expiry-expired-surface: color-mix(in srgb, #f44336 14%, transparent);
+
     // Hero
     --app-accent-gradient: linear-gradient(
         135deg,
@@ -187,6 +195,17 @@ html {
         --app-provider-xtream: #78adff;
         --app-provider-stalker: #34d399;
         --app-provider-m3u: #fbbf24;
+
+        // Subscription-expiry chips — brighter text for the dark surfaces;
+        // expired matches the --app-live-color accent family.
+        --app-expiry-warn-text: #fbbf24;
+        --app-expiry-warn-surface: color-mix(in srgb, #fbbf24 16%, transparent);
+        --app-expiry-expired-text: #ff8f8f;
+        --app-expiry-expired-surface: color-mix(
+            in srgb,
+            #ff8f8f 16%,
+            transparent
+        );
 
         // Hero section
         --app-accent-gradient: linear-gradient(

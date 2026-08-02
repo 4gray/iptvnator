@@ -1,8 +1,10 @@
-import { encodeStalkerCmdValue } from '@iptvnator/shared/interfaces';
+import { encodeStalkerCmdValue } from './stalker-cmd-encoding.util';
 
 /**
  * Builds the full Stalker portal request URL from an already-validated portal
- * URL and the prepared request params.
+ * URL and the prepared request params. Shared by the Electron main process
+ * and the web-backend `/stalker` proxy so both transports emit the exact same
+ * wire format.
  *
  * The query string is assembled manually because the two parameter classes
  * need different encodings:

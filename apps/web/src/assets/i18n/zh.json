@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "尚未同步",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}} 天后到期",
+            "SOURCE_EXPIRED": "已过期"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1296,7 +1298,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "本地库",
             "XTREAM_IMPORT_DETAIL_REMOTE": "正在等待提供商响应。",
             "XTREAM_IMPORT_DETAIL_LOCAL": "正在为下次访问准备更快的播放列表切换。",
+            "XTREAM_IMPORT_DETAIL_CACHED": "正在读取本地库——不从提供商下载数据。",
             "XTREAM_IMPORT_PREPARING": "正在准备本地库…",
+            "XTREAM_IMPORT_LOADING_CACHED": "正在从此设备加载已保存的目录...",
             "XTREAM_IMPORT_LOADING": "正在从源获取播放列表数据…",
             "XTREAM_IMPORT_SAVING": "正在本地保存播放列表数据…",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "正在从本地库恢复收藏…",

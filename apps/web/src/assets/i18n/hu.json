@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "É{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Még nincs szinkronizálva",
             "RECENTLY_WATCHED_LIVE_TV": "Legutóbb nézett élő csatornák",
-            "FAVORITE_MOVIES_AND_SERIES": "Kedvenc filmek és sorozatok"
+            "FAVORITE_MOVIES_AND_SERIES": "Kedvenc filmek és sorozatok",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}} nap múlva lejár",
+            "SOURCE_EXPIRED": "Lejárt"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1296,7 +1298,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Helyi médiatár",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Várakozás a szolgáltató válaszára.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "A lejátszási listák gyorsabb későbbi megnyitásának előkészítése.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "A helyi könyvtár beolvasása — a szolgáltatótól nem töltődnek le adatok.",
             "XTREAM_IMPORT_PREPARING": "Helyi médiatár előkészítése…",
+            "XTREAM_IMPORT_LOADING_CACHED": "Az eszközön mentett katalógus betöltése…",
             "XTREAM_IMPORT_LOADING": "Lejátszási lista adatainak lekérése a forrásból…",
             "XTREAM_IMPORT_SAVING": "Lejátszási lista adatainak helyi mentése…",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Kedvencek visszaállítása a helyi médiatárból…",

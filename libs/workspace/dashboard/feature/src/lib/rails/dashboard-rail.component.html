@@ -204,6 +204,20 @@
                                             card.subtitle
                                         }}</span>
                                     }
+                                    @if (card.expiryBadge; as expiry) {
+                                        <span
+                                            class="rail__card-expiry"
+                                            [class.rail__card-expiry--expired]="
+                                                expiry.kind === 'expired'
+                                            "
+                                            [attr.data-test-id]="
+                                                testId()
+                                                    ? testId() + '-card-expiry'
+                                                    : null
+                                            "
+                                            >{{ expiry.label }}</span
+                                        >
+                                    }
                                 </span>
                             </div>
                         </a>

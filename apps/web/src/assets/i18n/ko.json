@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "시즌{{season}} {{episode}}화",
             "NOT_YET_SYNCED": "아직 동기화되지 않음",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}}일 후 만료",
+            "SOURCE_EXPIRED": "만료됨"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1296,7 +1298,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "로컬 라이브러리",
             "XTREAM_IMPORT_DETAIL_REMOTE": "공급자 응답을 기다리는 중입니다.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "다음 방문 시 더 빠른 재생목록 전환을 위해 준비하는 중입니다.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "로컬 카탈로그를 읽는 중 — 공급자에서 데이터를 내려받지 않습니다.",
             "XTREAM_IMPORT_PREPARING": "로컬 라이브러리를 준비하는 중...",
+            "XTREAM_IMPORT_LOADING_CACHED": "이 기기에서 저장된 카탈로그를 불러오는 중...",
             "XTREAM_IMPORT_LOADING": "소스에서 재생목록 데이터를 가져오는 중...",
             "XTREAM_IMPORT_SAVING": "재생목록 데이터를 로컬에 저장하는 중...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "로컬 라이브러리에서 즐겨찾기를 복원하는 중...",
