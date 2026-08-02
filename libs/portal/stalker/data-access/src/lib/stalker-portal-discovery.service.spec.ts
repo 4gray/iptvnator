@@ -104,7 +104,9 @@ describe('StalkerPortalDiscoveryService', () => {
             { serialNumber: 'SN1' },
             // Import credentials ride along for portals that answer
             // get_profile with status 2 (login/password required).
-            { credentials: undefined }
+            // A per-attempt abort signal: a timed-out authentication must
+            // not send its get_profile behind the next candidate's back.
+            { credentials: undefined, signal: expect.any(AbortSignal) }
         );
     });
 
@@ -194,7 +196,9 @@ describe('StalkerPortalDiscoveryService', () => {
             'http://gated.example/portal.php',
             MAC,
             {},
-            { credentials: undefined }
+            // A per-attempt abort signal: a timed-out authentication must
+            // not send its get_profile behind the next candidate's back.
+            { credentials: undefined, signal: expect.any(AbortSignal) }
         );
     });
 
@@ -346,5 +350,49 @@ describe('StalkerPortalDiscoveryService', () => {
             portalUrl: 'http://mixed.example/server/load.php',
             isFullStalkerPortal: false,
         });
+    });
+
+    it('aborts a timed-out authentication before advancing to the next candidate', async () => {
+        jest.useFakeTimers();
+        try {
+            mockProbes({
+                'http://slow.example/portal.php': {
+                    resolve: 'Authorization failed.',
+                },
+            });
+
+            let captured: AbortSignal | undefined;
+            authenticate.mockImplementation(
+                (_url, _mac, _identity, options) => {
+                    captured = options?.signal;
+                    // Hangs past the auth budget, like the real symptom.
+                    return new Promise(() => undefined);
+                }
+            );
+
+            const discovery = service.discover(
+                'http://slow.example/c',
+                MAC
+            );
+            // Let the probe resolve so the auth attempt actually starts.
+            await Promise.resolve();
+            await Promise.resolve();
+            await Promise.resolve();
+
+            jest.advanceTimersByTime(45_000);
+            await Promise.resolve();
+
+            // The abandoned attempt is cancelled, so its get_profile never
+            // goes out to adopt the MAC's token behind a later candidate.
+            expect(captured?.aborted).toBe(true);
+            // Outcome shape is unchanged: a timed-out confirmation is still
+            // reported as a refusal of that endpoint.
+            await expect(discovery).resolves.toMatchObject({
+                status: 'auth-rejected',
+                portalUrl: 'http://slow.example/portal.php',
+            });
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });

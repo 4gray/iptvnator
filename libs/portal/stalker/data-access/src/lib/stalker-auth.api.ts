@@ -65,6 +65,18 @@ export interface StalkerAuthenticateOptions {
      * unchanged — an unchanged token is already an adopted session.
      */
     skipProfileWhenReused?: boolean;
+    /**
+     * Abandons the flow between portal calls.
+     *
+     * This is what a timed-out discovery attempt needs: `get_profile` is the
+     * call that adopts a token for the MAC portal-side, so an abandoned
+     * attempt reaching it AFTER another candidate authenticated would
+     * invalidate that healthy candidate's token. Checking the signal before
+     * each call stops the request from being sent, which is the only thing
+     * that prevents it — a request already on the wire is processed by the
+     * server whether or not the client tears the socket down.
+     */
+    signal?: AbortSignal;
 }
 
 export interface StalkerAuthenticationResult {
@@ -133,6 +145,20 @@ function toFiniteNumber(value: unknown): number | undefined {
         return Number.isFinite(parsed) ? parsed : undefined;
     }
     return undefined;
+}
+
+/** Raised when a caller abandoned the flow between portal calls. */
+export class StalkerAuthAbortedError extends Error {
+    constructor() {
+        super('Stalker authentication was aborted');
+        this.name = 'StalkerAuthAbortedError';
+    }
+}
+
+function assertNotAborted(signal: AbortSignal | undefined): void {
+    if (signal?.aborted) {
+        throw new StalkerAuthAbortedError();
+    }
 }
 
 /**
@@ -356,6 +382,7 @@ export class StalkerAuthApi {
     ): Promise<StalkerAuthenticationResult> {
         const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
 
+        assertNotAborted(options.signal);
         const handshake = await this.performHandshake(
             portalUrl,
             macAddress,
@@ -378,6 +405,9 @@ export class StalkerAuthApi {
             return { token: handshake.token, reusedStoredToken: true };
         }
 
+        // The abandoned-attempt guard that matters: this is the call that
+        // adopts the token for the MAC portal-side.
+        assertNotAborted(options.signal);
         const profile = await this.getProfile(
             portalUrl,
             macAddress,
@@ -436,6 +466,7 @@ export class StalkerAuthApi {
                 throw new StalkerPortalError('login-required');
             }
 
+            assertNotAborted(options.signal);
             const accepted = await this.doAuth(
                 portalUrl,
                 macAddress,
@@ -447,6 +478,7 @@ export class StalkerAuthApi {
                 throw new StalkerPortalError('login-rejected');
             }
 
+            assertNotAborted(options.signal);
             const retried = await this.getProfile(
                 portalUrl,
                 macAddress,

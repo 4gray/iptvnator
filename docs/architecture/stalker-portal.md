@@ -336,6 +336,25 @@ dialog shows them in its failure snackbar (with kind-specific i18n headlines,
 guidance) when category loading failed with a portal refusal
 (`stalkerCategoryErrorDescription` in `workspace-context-panel.component.ts`).
 
+### Abandoning an authentication
+
+`authenticate()` takes an optional `AbortSignal` and checks it before every
+portal call. Endpoint discovery gives each confirmation attempt its own
+controller and aborts it when the attempt exceeds its budget, before moving to
+the next candidate.
+
+This matters because `get_profile` — not the handshake — is what adopts a
+token for the MAC portal-side. Without the check, a timed-out attempt could
+still send its `get_profile` after a later candidate had authenticated,
+invalidating that healthy candidate's token and making discovery report a
+working portal as refused.
+
+Cancellation is deliberately cooperative rather than a socket-level abort
+threaded to axios: once a request is on the wire the server processes it
+regardless of what the client does, so tearing the socket down would not
+prevent the adoption. Only not sending the request does, which is exactly what
+the between-calls check guarantees.
+
 ### Watchdog
 
 The portal expects `get_events` every `watchdog_timeout` seconds — **120 by

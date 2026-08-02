@@ -62,12 +62,20 @@ const PROBE_TIMEOUT_MS = 20_000;
 /** authenticate() is two sequential requests; give it a matching budget. */
 const AUTH_TIMEOUT_MS = 45_000;
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+function withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    onTimeout?: () => void
+): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(
-            () => reject(new Error('Stalker portal probe timed out')),
-            timeoutMs
-        );
+        const timer = setTimeout(() => {
+            // Abandon the underlying operation BEFORE advancing: the timer
+            // only rejects this wrapper, and a late `get_profile` would adopt
+            // the MAC's token portal-side, invalidating whatever the next
+            // candidate just negotiated.
+            onTimeout?.();
+            reject(new Error('Stalker portal probe timed out'));
+        }, timeoutMs);
         promise.then(
             (value) => {
                 clearTimeout(timer);
@@ -200,15 +208,20 @@ export class StalkerPortalDiscoveryService {
     ): Promise<
         StalkerPortalEndpointResolution | StalkerPortalDiscoveryRejection
     > {
+        // Cooperative cancellation: `authenticate()` checks this before each
+        // portal call, so a timed-out attempt never sends the `get_profile`
+        // that would adopt the MAC's token behind the next candidate's back.
+        const abandon = new AbortController();
         try {
             const auth = await withTimeout(
                 this.stalkerSession.authenticate(
                     candidate,
                     macAddress,
                     identity,
-                    { credentials }
+                    { credentials, signal: abandon.signal }
                 ),
-                AUTH_TIMEOUT_MS
+                AUTH_TIMEOUT_MS,
+                () => abandon.abort()
             );
             // A handshake can hand out a token whose `get_profile` still
             // answers a structured denial (`{js:{error:'Invalid token'}}`);

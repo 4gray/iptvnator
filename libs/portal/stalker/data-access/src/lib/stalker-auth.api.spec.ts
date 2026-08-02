@@ -284,6 +284,59 @@ describe('StalkerAuthApi', () => {
         ).rejects.toMatchObject({ kind: 'blocked' });
     });
 
+    it('never sends get_profile once the caller abandoned the attempt', async () => {
+        // The harm this prevents: `get_profile` is what adopts a token for
+        // the MAC portal-side, so an abandoned discovery attempt reaching it
+        // after another candidate authenticated would invalidate that
+        // healthy candidate's token.
+        const abandon = new AbortController();
+        sendIpcEvent.mockImplementationOnce(async () => {
+            abandon.abort();
+            return { js: { token: 'TOKEN-1', random: 'r1' } };
+        });
+
+        await expect(
+            api.authenticate(portalUrl, macAddress, {}, {
+                signal: abandon.signal,
+            })
+        ).rejects.toMatchObject({ name: 'StalkerAuthAbortedError' });
+
+        expect(callsByAction('handshake')).toHaveLength(1);
+        expect(callsByAction('get_profile')).toHaveLength(0);
+    });
+
+    it('does not even handshake when already abandoned', async () => {
+        const abandon = new AbortController();
+        abandon.abort();
+
+        await expect(
+            api.authenticate(portalUrl, macAddress, {}, {
+                signal: abandon.signal,
+            })
+        ).rejects.toMatchObject({ name: 'StalkerAuthAbortedError' });
+
+        expect(sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('stops the status-2 login flow when abandoned mid-way', async () => {
+        const abandon = new AbortController();
+        sendIpcEvent
+            .mockResolvedValueOnce({ js: { token: 'TOKEN-1', random: 'r1' } })
+            .mockImplementationOnce(async () => {
+                abandon.abort();
+                return { js: { status: 2 } };
+            });
+
+        await expect(
+            api.authenticate(portalUrl, macAddress, {}, {
+                credentials: { username: 'user', password: 'secret' },
+                signal: abandon.signal,
+            })
+        ).rejects.toMatchObject({ name: 'StalkerAuthAbortedError' });
+
+        expect(callsByAction('do_auth')).toHaveLength(0);
+    });
+
     it('classifies a transport auth-failure marker during get_profile', async () => {
         sendIpcEvent
             .mockResolvedValueOnce({
