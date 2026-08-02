@@ -258,6 +258,40 @@ describe('StalkerPortalRepairService', () => {
             expect(await service.repairPortal(alreadyApplied)).toBeNull();
         });
 
+        it('drops the override and re-arms probing when the user edits portal metadata', async () => {
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(MISCLASSIFIED);
+            expect(service.applyOverride(MISCLASSIFIED)).toMatchObject({
+                isFullStalkerPortal: true,
+            });
+
+            // The user pointed the playlist somewhere else through the
+            // playlist dialog: the ID-keyed override must not keep rewriting
+            // requests to the old repaired endpoint.
+            const edited = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://other.example/portal.php',
+            } as PlaylistMeta;
+            expect(service.applyOverride(edited)).toBe(edited);
+
+            // …and the once-per-session latch re-arms so the EDITED
+            // configuration may probe if it fails too.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://other.example/server/load.php',
+                isFullStalkerPortal: true,
+            });
+            const repairedAgain = await service.repairPortal(edited);
+            expect(discover).toHaveBeenCalledTimes(2);
+            expect(repairedAgain?.portalUrl).toBe(
+                'http://other.example/server/load.php'
+            );
+        });
+
         it('keeps the session-only override when persisting fails', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',

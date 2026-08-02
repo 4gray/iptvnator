@@ -81,8 +81,30 @@ describe('buildStalkerEndpointCandidates', () => {
         ]);
     });
 
-    it('returns no candidates for an empty URL', () => {
+    it('derives candidates from the pathname when the URL carries a query or fragment', () => {
+        // Suffix matching on the raw string would keep `/c` and append the
+        // endpoints inside the query — every probe would still hit /c.
+        expect(
+            buildStalkerEndpointCandidates('http://portal.example/c?key=value')
+        ).toEqual([
+            'http://portal.example/portal.php',
+            'http://portal.example/server/load.php',
+            'http://portal.example/stalker_portal/server/load.php',
+        ]);
+        expect(
+            buildStalkerEndpointCandidates(
+                'http://portal.example:8080/portal.php?sn=1#frag'
+            )
+        ).toEqual([
+            'http://portal.example:8080/portal.php',
+            'http://portal.example:8080/server/load.php',
+            'http://portal.example:8080/stalker_portal/server/load.php',
+        ]);
+    });
+
+    it('returns no candidates for empty or unparseable URLs', () => {
         expect(buildStalkerEndpointCandidates('   ')).toEqual([]);
+        expect(buildStalkerEndpointCandidates('not-a-url')).toEqual([]);
     });
 });
 

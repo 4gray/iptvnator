@@ -19,28 +19,44 @@
  * reseller panels resolve exactly as they did before discovery existed.
  */
 export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
-    const trimmed = rawUrl.trim().replace(/\/+$/, '');
+    const trimmed = rawUrl.trim();
     if (!trimmed) {
         return [];
     }
 
-    const candidates: string[] = [];
-    if (/\.php$/i.test(trimmed)) {
-        candidates.push(trimmed);
+    // Suffix logic must run on the parsed PATH: a pasted URL can carry a
+    // query or fragment (`…/c?key=value`), and string-suffix matching on the
+    // whole URL would bolt `/portal.php` onto the query instead of the path.
+    // Queries and fragments are dropped from every candidate — the Stalker
+    // API endpoints take their parameters per request, and a stored query
+    // would collide with the transport's own query building.
+    let origin: string;
+    let path: string;
+    try {
+        const parsed = new URL(trimmed);
+        origin = parsed.origin;
+        path = parsed.pathname.replace(/\/+$/, '');
+    } catch {
+        return [];
     }
 
-    const base = trimmed
+    const candidates: string[] = [];
+    if (/\.php$/i.test(path)) {
+        candidates.push(`${origin}${path}`);
+    }
+
+    const base = path
         .replace(/\/portal\.php$/i, '')
         .replace(/\/server\/load\.php$/i, '')
         .replace(/\/c$/i, '');
 
-    candidates.push(`${base}/portal.php`);
-    candidates.push(`${base}/server/load.php`);
+    candidates.push(`${origin}${base}/portal.php`);
+    candidates.push(`${origin}${base}/server/load.php`);
     // `<base>/server/load.php` already IS the canonical form when the base
     // ends in /stalker_portal — nesting it again would probe a path no
     // server has.
     if (!/\/stalker_portal(\/|$)/i.test(base)) {
-        candidates.push(`${base}/stalker_portal/server/load.php`);
+        candidates.push(`${origin}${base}/stalker_portal/server/load.php`);
     }
 
     return [...new Set(candidates)];

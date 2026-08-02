@@ -19,6 +19,10 @@ import {
 } from './stores/utils/stalker-request.utils';
 
 interface StalkerPortalModeOverride {
+    /** The failing configuration this repair replaced. */
+    sourcePortalUrl?: string;
+    sourceIsFullStalkerPortal: boolean;
+    /** The proven-working configuration. */
     portalUrl: string;
     isFullStalkerPortal: boolean;
 }
@@ -67,18 +71,43 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     /**
      * Returns the playlist with a completed repair applied, or the playlist
      * unchanged (same reference) when there is nothing to apply.
+     *
+     * The override is tied to the SOURCE configuration it repaired: it only
+     * rewrites objects still carrying that failing configuration (stale
+     * store snapshots). A playlist carrying anything else means the user
+     * edited the portal metadata through the playlist dialog — the override
+     * and the once-per-session probe latch are dropped so the edited
+     * configuration is used verbatim and may repair again if IT fails.
      */
     applyOverride<T extends PlaylistMeta>(playlist: T): T {
         const override = this.overrides.get(playlist._id);
-        if (
-            !override ||
-            (playlist.portalUrl === override.portalUrl &&
-                playlist.isFullStalkerPortal === override.isFullStalkerPortal)
-        ) {
+        if (!override) {
             return playlist;
         }
 
-        return { ...playlist, ...override };
+        if (
+            playlist.portalUrl === override.portalUrl &&
+            playlist.isFullStalkerPortal === override.isFullStalkerPortal
+        ) {
+            // Already carrying the repaired values (e.g. a freshly read row).
+            return playlist;
+        }
+
+        if (
+            playlist.portalUrl === override.sourcePortalUrl &&
+            isFullStalkerPortalPlaylist(playlist) ===
+                override.sourceIsFullStalkerPortal
+        ) {
+            return {
+                ...playlist,
+                portalUrl: override.portalUrl,
+                isFullStalkerPortal: override.isFullStalkerPortal,
+            };
+        }
+
+        this.overrides.delete(playlist._id);
+        this.attempted.delete(playlist._id);
+        return playlist;
     }
 
     /**
@@ -176,6 +205,8 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         }
 
         this.overrides.set(playlist._id, {
+            sourcePortalUrl: playlist.portalUrl,
+            sourceIsFullStalkerPortal: storedMode,
             portalUrl: outcome.portalUrl,
             isFullStalkerPortal: outcome.isFullStalkerPortal,
         });
