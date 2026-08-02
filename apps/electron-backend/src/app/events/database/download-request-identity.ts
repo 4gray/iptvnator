@@ -11,20 +11,20 @@ export const DOWNLOAD_IDENTITY_KIND = {
 } as const;
 
 interface DownloadIdentityNone {
-    kind: typeof DOWNLOAD_IDENTITY_KIND.NONE;
+    readonly kind: typeof DOWNLOAD_IDENTITY_KIND.NONE;
 }
 
 interface DownloadIdentityConflict {
-    kind: typeof DOWNLOAD_IDENTITY_KIND.CONFLICT;
+    readonly kind: typeof DOWNLOAD_IDENTITY_KIND.CONFLICT;
 }
 
 interface DownloadIdentityMatch {
-    item: DownloadRow;
-    kind: typeof DOWNLOAD_IDENTITY_KIND.MATCH;
-    migrateCanonicalId: boolean;
+    readonly item: DownloadRow;
+    readonly kind: typeof DOWNLOAD_IDENTITY_KIND.MATCH;
+    readonly migrateCanonicalId: boolean;
 }
 
-export type DownloadIdentityResolution =
+export type ExistingDownloadIdentityResolution =
     | DownloadIdentityNone
     | DownloadIdentityConflict
     | DownloadIdentityMatch;
@@ -38,7 +38,7 @@ export interface DownloadIdentityRequest {
     xtreamId: number;
 }
 
-function isSafeInteger(value: number | undefined): value is number {
+function isSafeInteger(value: number | null | undefined): value is number {
     return Number.isSafeInteger(value);
 }
 
@@ -51,25 +51,32 @@ function rowHasConflictingCoordinates(
         >
     >
 ): boolean {
+    const { episodeNumber, seasonNumber, seriesXtreamId } = row;
     if (
-        !isSafeInteger(row.seriesXtreamId ?? undefined) ||
-        !isSafeInteger(row.seasonNumber ?? undefined) ||
-        !isSafeInteger(row.episodeNumber ?? undefined)
+        seriesXtreamId === null ||
+        seriesXtreamId === undefined ||
+        seasonNumber === null ||
+        seasonNumber === undefined ||
+        episodeNumber === null ||
+        episodeNumber === undefined
     ) {
         return false;
     }
 
     return (
-        row.seriesXtreamId !== request.seriesXtreamId ||
-        row.seasonNumber !== request.seasonNumber ||
-        row.episodeNumber !== request.episodeNumber
+        !isSafeInteger(seriesXtreamId) ||
+        !isSafeInteger(seasonNumber) ||
+        !isSafeInteger(episodeNumber) ||
+        seriesXtreamId !== request.seriesXtreamId ||
+        seasonNumber !== request.seasonNumber ||
+        episodeNumber !== request.episodeNumber
     );
 }
 
 export async function resolveExistingDownloadIdentity(
     db: DownloadsDatabase,
     request: DownloadIdentityRequest
-): Promise<DownloadIdentityResolution> {
+): Promise<ExistingDownloadIdentityResolution> {
     const canonicalRows = await db
         .select()
         .from(schema.downloads)

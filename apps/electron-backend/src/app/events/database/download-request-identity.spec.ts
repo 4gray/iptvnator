@@ -1,6 +1,9 @@
 import * as schema from '../../database/schema';
 import type { DownloadsDatabase } from './download-task';
-import { resolveExistingDownloadIdentity } from './download-request-identity';
+import {
+    type ExistingDownloadIdentityResolution,
+    resolveExistingDownloadIdentity,
+} from './download-request-identity';
 
 type DownloadRow = typeof schema.downloads.$inferSelect;
 
@@ -66,9 +69,10 @@ describe('resolveExistingDownloadIdentity', () => {
         const row = createDownloadRow();
         const harness = createQueryHarness([row], []);
 
-        await expect(
-            resolveExistingDownloadIdentity(harness.db, episodeRequest)
-        ).resolves.toEqual({
+        const resolution: ExistingDownloadIdentityResolution =
+            await resolveExistingDownloadIdentity(harness.db, episodeRequest);
+
+        expect(resolution).toEqual({
             item: row,
             kind: 'match',
             migrateCanonicalId: false,
@@ -111,6 +115,24 @@ describe('resolveExistingDownloadIdentity', () => {
             resolveExistingDownloadIdentity(harness.db, episodeRequest)
         ).resolves.toEqual({ kind: 'conflict' });
     });
+
+    it.each([
+        ['series id', { seriesXtreamId: Number.MAX_SAFE_INTEGER + 1 }],
+        ['season number', { seasonNumber: 2.5 }],
+        ['episode number', { episodeNumber: Number.NaN }],
+    ])(
+        'fails closed when the canonical row has a present but unsafe %s',
+        async (_label, override) => {
+            const harness = createQueryHarness(
+                [createDownloadRow(override)],
+                []
+            );
+
+            await expect(
+                resolveExistingDownloadIdentity(harness.db, episodeRequest)
+            ).resolves.toEqual({ kind: 'conflict' });
+        }
+    );
 
     it('fails closed when multiple rows share the legacy coordinates', async () => {
         const harness = createQueryHarness([], [
