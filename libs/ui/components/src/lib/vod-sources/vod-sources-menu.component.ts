@@ -18,21 +18,30 @@ import {
     VodSourceDescriptor,
     VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
-import { VodSourceRowComponent } from './vod-source-row.component';
+import { VodSourceCopyRowComponent } from './vod-source-copy-row.component';
 import {
-    groupVodSources,
-    variantLabel,
-    type VodSourceGroup,
-} from './vod-source-groups.util';
+    collectLanguagePrefixes,
+    EMPTY_VOD_SOURCE_FILTERS,
+    hasActiveVodSourceFilters,
+    noChecksRunYet,
+    sourceMatchesFilters,
+    type VodSourceFilterState,
+} from './vod-source-filtering.util';
+import { VodSourceRowComponent } from './vod-source-row.component';
+import { groupVodSources } from './vod-source-groups.util';
 
-/** Below this many sources, a filter box costs more than it saves. */
+/** Below this many sources, a search box costs more than it saves. */
 const FILTER_FROM = 8;
 
 /**
- * Body of the "sources" popover: header, the source rows, and the auto-failover
- * footer. Rendered inside the chip's anchored menu on the details page and
- * reused as-is by the in-player popover and the playback error screen, so it
+ * Body of the "sources" popover: header, search + filter chips, the source
+ * rows, and the auto-failover footer. Rendered inside the chip's anchored
+ * menu on the details page and reused as-is by the in-player popover, so it
  * owns no anchoring of its own.
+ *
+ * Laid out as a flex column whose only scrollable region is the source list —
+ * the host caps the popover's height to the space beside its anchor, and the
+ * header, search, chips and footer must stay visible while the list scrolls.
  */
 @Component({
     selector: 'app-vod-sources-menu',
@@ -44,6 +53,7 @@ const FILTER_FROM = 8;
         MatIcon,
         MatSlideToggle,
         TranslatePipe,
+        VodSourceCopyRowComponent,
         VodSourceRowComponent,
     ],
 })
@@ -76,8 +86,11 @@ export class VodSourcesMenuComponent {
     readonly checkRequested = output<string>();
     readonly autoFailoverToggled = output<boolean>();
 
-    /** Filter text; only reachable once the list is long enough to need it. */
+    /** Search text; only reachable once the list is long enough to need it. */
     readonly filter = signal('');
+
+    /** The chip filters — compose with each other and the search (AND). */
+    readonly filters = signal<VodSourceFilterState>(EMPTY_VOD_SOURCE_FILTERS);
 
     /**
      * Progressive disclosure: a search box for four sources is chrome nobody
@@ -85,7 +98,19 @@ export class VodSourcesMenuComponent {
      */
     readonly showFilter = computed(() => this.sources().length > FILTER_FROM);
 
-    readonly visibleSources = computed(() => {
+    readonly totalCount = computed(() => this.sources().length);
+
+    /** Options for the language select — only prefixes actually present. */
+    readonly languages = computed(() =>
+        collectLanguagePrefixes(this.sources())
+    );
+
+    readonly filtersActive = computed(() =>
+        hasActiveVodSourceFilters(this.filters())
+    );
+
+    /** Sources surviving the search box; what "check all" acts on. */
+    private readonly searchedSources = computed(() => {
         const query = this.filter().trim().toLowerCase();
         const sources = this.sources();
         if (!query || !this.showFilter()) {
@@ -98,6 +123,21 @@ export class VodSourcesMenuComponent {
                 .includes(query)
         );
     });
+
+    /** Sources surviving search AND chip filters — what the list shows. */
+    readonly visibleSources = computed(() => {
+        const filters = this.filters();
+        return this.searchedSources().filter((source) =>
+            sourceMatchesFilters(source, filters)
+        );
+    });
+
+    readonly visibleCount = computed(() => this.visibleSources().length);
+
+    /** "X of N", shown only once something actually reduced the list. */
+    readonly showReducedCount = computed(
+        () => this.visibleCount() !== this.totalCount()
+    );
 
     /**
      * Sources collapsed per playlist. One playlist often lists the same film
@@ -121,15 +161,10 @@ export class VodSourcesMenuComponent {
         });
     }
 
-    /** Distinguishes copies within a group — usually the provider's own title. */
-    variantLabelFor(group: VodSourceGroup, index: number): string {
-        return variantLabel(group.sources[index], group.sources);
-    }
-
     /** Anything still worth probing — drives the "check all" affordance. */
     readonly uncheckedCount = computed(
         () =>
-            this.visibleSources().filter(
+            this.searchedSources().filter(
                 (source) =>
                     source.probe.status === 'idle' ||
                     source.probe.status === 'unknown'
@@ -142,16 +177,47 @@ export class VodSourcesMenuComponent {
             : 'PORTALS.MULTI_SOURCE.MATCHED_BY_TITLE'
     );
 
+    clearFilters(): void {
+        this.filters.set(EMPTY_VOD_SOURCE_FILTERS);
+    }
+
+    /**
+     * Checks are lazy, so "show me what is available" would filter against
+     * nothing the first time. Turning the filter on with no verdicts anywhere
+     * therefore runs check-all itself — the question implies it.
+     */
+    toggleAvailableFilter(): void {
+        const next = !this.filters().availableOnly;
+        this.filters.update((filters) => ({ ...filters, availableOnly: next }));
+        if (next && noChecksRunYet(this.sources())) {
+            this.checkAllVisible();
+        }
+    }
+
+    toggleHdFilter(): void {
+        this.filters.update((filters) => ({
+            ...filters,
+            hdOnly: !filters.hdOnly,
+        }));
+    }
+
+    setLanguageFilter(language: string | null): void {
+        this.filters.update((filters) => ({ ...filters, language }));
+    }
+
     onAutoFailoverChange(event: MatSlideToggleChange): void {
         this.autoFailoverToggled.emit(event.checked);
     }
 
     /**
      * Checking eleven sources one row at a time is busywork the app can do
-     * itself; the probe service already dedupes and caches.
+     * itself; the host caps how many probes actually run at once.
+     *
+     * Based on the SEARCHED list, not the chip-filtered one: the "Available"
+     * chip calls this precisely when its own filter would hide everything.
      */
     checkAllVisible(): void {
-        for (const source of this.visibleSources()) {
+        for (const source of this.searchedSources()) {
             if (
                 source.probe.status === 'idle' ||
                 source.probe.status === 'unknown'

@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "Filter op afspeellijst",
             "NO_MATCHES": "Geen afspeellijsten komen overeen met dit filter",
             "COPIES": "{{count}} kopieën in deze afspeellijst",
-            "MORE_SOURCES": "+{{count}} meer in de bronnenlijst"
+            "MORE_SOURCES": "+{{count}} meer in de bronnenlijst",
+            "FILTER_ALL": "Alle",
+            "FILTER_AVAILABLE": "Beschikbaar",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "Alle talen",
+            "SAME_AS_ABOVE": "zelfde als hierboven",
+            "SHOWING_OF_TOTAL": "{{visible}} van {{total}}"
         }
     },
     "INFORMATION": "Informatie",
@@ -1071,6 +1077,10 @@
         "PAUSE": "Pauzeren",
         "RESUME": "Hervatten",
         "CANCEL": "Annuleren",
+        "DOWNLOADED_REVEAL": "Gedownload — toon in map",
+        "DOWNLOADING_PERCENT": "Downloaden… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "Download annuleren",
+        "CANCEL_CONFIRM_MESSAGE": "Deze download stoppen? Het gedeeltelijk gedownloade bestand wordt verwijderd.",
         "RETRY": "Opnieuw proberen",
         "REMOVE": "Verwijderen",
         "PLAY": "Afspelen",

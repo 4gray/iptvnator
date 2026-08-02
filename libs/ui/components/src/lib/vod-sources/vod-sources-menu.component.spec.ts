@@ -31,6 +31,16 @@ class FakeTranslateLoader implements TranslateLoader {
                     PROBE_FAIL: 'unavailable',
                     PROBE_CHECKING: 'checking',
                     OPEN_SOURCES: 'Show alternative sources',
+                    CHECK_ALL: 'check all',
+                    FILTER_PLACEHOLDER: 'Filter by playlist',
+                    NO_MATCHES: 'No playlists match that filter',
+                    COPIES: '{{count}} copies in this playlist',
+                    FILTER_ALL: 'All',
+                    FILTER_AVAILABLE: 'Available',
+                    FILTER_HD: 'HD+',
+                    ALL_LANGUAGES: 'All languages',
+                    SAME_AS_ABOVE: 'same as above',
+                    SHOWING_OF_TOTAL: '{{visible}} of {{total}}',
                 },
             },
         });
@@ -278,6 +288,241 @@ describe('VodSourcesMenuComponent', () => {
         fixture.detectChanges();
 
         expect(badge()).toBe('Playing');
+    });
+
+    describe('filter chips', () => {
+        function chipByText(text: string) {
+            return fixture.debugElement
+                .queryAll(By.css('.filter-chip'))
+                .find((chip) =>
+                    (chip.nativeElement.textContent ?? '').includes(text)
+                );
+        }
+
+        function rowNames(): string[] {
+            return fixture.debugElement
+                .queryAll(By.css('.source-row__name'))
+                .map((el) => (el.nativeElement.textContent ?? '').trim());
+        }
+
+        it('HD+ keeps only groups with a copy at 1080p or better', () => {
+            render([
+                createSource({
+                    id: 'a:xtream:1',
+                    playlistId: 'a',
+                    playlistName: 'HD Portal',
+                    quality: { value: '1080p', provenance: 'api' },
+                }),
+                createSource({
+                    id: 'b:xtream:2',
+                    playlistId: 'b',
+                    playlistName: 'SD Portal',
+                    quality: { value: '720p', provenance: 'api' },
+                }),
+            ]);
+
+            chipByText('HD+')?.nativeElement.click();
+            fixture.detectChanges();
+
+            expect(rowNames()).toEqual(['HD Portal']);
+            expect(fixture.nativeElement.textContent).toContain('1 of 2');
+        });
+
+        it('activating Available with no verdicts anywhere runs check-all', () => {
+            const checked: string[] = [];
+            fixture.componentInstance.checkRequested.subscribe((id: string) =>
+                checked.push(id)
+            );
+            render([
+                createSource({ id: 'a:xtream:1', playlistId: 'a' }),
+                createSource({
+                    id: 'b:xtream:2',
+                    playlistId: 'b',
+                    probe: { status: 'unknown' },
+                }),
+            ]);
+
+            chipByText('Available')?.nativeElement.click();
+            fixture.detectChanges();
+
+            expect(checked).toEqual(['a:xtream:1', 'b:xtream:2']);
+        });
+
+        it('does not re-run check-all once any verdict exists', () => {
+            const checked: string[] = [];
+            fixture.componentInstance.checkRequested.subscribe((id: string) =>
+                checked.push(id)
+            );
+            render([
+                createSource({
+                    id: 'a:xtream:1',
+                    playlistId: 'a',
+                    probe: { status: 'ok', latencyMs: 90 },
+                }),
+                createSource({ id: 'b:xtream:2', playlistId: 'b' }),
+            ]);
+
+            chipByText('Available')?.nativeElement.click();
+            fixture.detectChanges();
+
+            expect(checked).toEqual([]);
+            // Only the verified source survives the filter.
+            expect(
+                fixture.debugElement.queryAll(By.css('app-vod-source-row'))
+                    .length
+            ).toBe(1);
+        });
+
+        it('builds the language select from parsed title prefixes and filters by it', () => {
+            render([
+                createSource({
+                    id: 'a:xtream:1',
+                    playlistId: 'a',
+                    playlistName: 'English Portal',
+                    rawTitle: 'EN| Dune (2021)',
+                }),
+                createSource({
+                    id: 'b:xtream:2',
+                    playlistId: 'b',
+                    playlistName: 'Russian Portal',
+                    rawTitle: 'RU| Дюна (2021)',
+                }),
+            ]);
+
+            const select = fixture.debugElement.query(
+                By.css('.sources-menu__lang')
+            );
+            const options = select.nativeElement
+                .textContent as string;
+            expect(options).toContain('EN');
+            expect(options).toContain('RU');
+
+            fixture.componentInstance.setLanguageFilter('RU');
+            fixture.detectChanges();
+
+            expect(rowNames()).toEqual(['Russian Portal']);
+        });
+
+        it('the All chip resets every filter and restores the full list', () => {
+            render([
+                createSource({
+                    id: 'a:xtream:1',
+                    playlistId: 'a',
+                    quality: { value: '1080p', provenance: 'api' },
+                }),
+                createSource({ id: 'b:xtream:2', playlistId: 'b' }),
+            ]);
+
+            chipByText('HD+')?.nativeElement.click();
+            fixture.detectChanges();
+            expect(
+                fixture.debugElement.queryAll(By.css('app-vod-source-row'))
+                    .length
+            ).toBe(1);
+
+            chipByText('All')?.nativeElement.click();
+            fixture.detectChanges();
+            expect(
+                fixture.debugElement.queryAll(By.css('app-vod-source-row'))
+                    .length
+            ).toBe(2);
+            expect(fixture.nativeElement.textContent).not.toContain('of 2');
+        });
+    });
+
+    describe('copies expansion', () => {
+        function expandFirstGroup(): void {
+            fixture.debugElement
+                .query(By.css('.sources-menu__variants-toggle'))
+                .nativeElement.click();
+            fixture.detectChanges();
+        }
+
+        const primaryCopy = createSource({
+            id: 'a:xtream:1',
+            playlistId: 'a',
+            playlistName: 'Shark Portal',
+            rawTitle: 'EN| Night of the Living Dead (1968)',
+            quality: { value: '720p', provenance: 'api' },
+            container: { value: 'mp4', provenance: 'api' },
+            isActive: true,
+        });
+        const hdCopy = createSource({
+            id: 'a:xtream:2',
+            playlistId: 'a',
+            playlistName: 'Shark Portal',
+            rawTitle: 'RU| Ночь живых мертвецов (1968)',
+            quality: { value: '1080p', provenance: 'api' },
+            container: { value: 'mp4', provenance: 'api' },
+        });
+
+        it('lists every copy with a language chip and the raw stream title', () => {
+            render([primaryCopy, hdCopy]);
+            expandFirstGroup();
+
+            const copies = fixture.debugElement.queryAll(
+                By.css('app-vod-source-copy-row')
+            );
+            expect(copies.length).toBe(2);
+
+            const langs = fixture.debugElement
+                .queryAll(By.css('.copy-row__lang'))
+                .map((el) => el.nativeElement.textContent.trim());
+            expect(langs).toEqual(['EN', 'RU']);
+
+            const titles = fixture.debugElement
+                .queryAll(By.css('.copy-row__title'))
+                .map((el) => el.nativeElement.textContent.trim());
+            expect(titles).toEqual([
+                'EN| Night of the Living Dead (1968)',
+                'RU| Ночь живых мертвецов (1968)',
+            ]);
+            // The playlist names itself once, on the parent row.
+            const nameCount = fixture.debugElement.queryAll(
+                By.css('.source-row__name')
+            ).length;
+            expect(nameCount).toBe(1);
+        });
+
+        it('shows only tags that differ from the parent copy', () => {
+            render([primaryCopy, hdCopy]);
+            expandFirstGroup();
+
+            const copyTags = fixture.debugElement
+                .queryAll(By.css('app-vod-source-copy-row .source-tag'))
+                .map((el) => (el.nativeElement.textContent ?? '').trim());
+            // The HD copy differs in quality only; the shared container and
+            // the identical primary copy contribute no tags at all.
+            expect(copyTags).toEqual(['1080p']);
+        });
+
+        it('marks the parent-identical copy with "same as above" instead of tags', () => {
+            render([primaryCopy, hdCopy]);
+            expandFirstGroup();
+
+            const sameNotes = fixture.debugElement.queryAll(
+                By.css('.copy-row__same')
+            );
+            expect(sameNotes.length).toBe(1);
+            expect(sameNotes[0].nativeElement.textContent).toContain(
+                'same as above'
+            );
+        });
+
+        it('plays the exact copy that was clicked', () => {
+            const played: string[] = [];
+            fixture.componentInstance.playRequested.subscribe((id: string) =>
+                played.push(id)
+            );
+            render([primaryCopy, hdCopy]);
+            expandFirstGroup();
+
+            fixture.debugElement
+                .queryAll(By.css('.copy-row__action--play'))[1]
+                .nativeElement.click();
+
+            expect(played).toEqual(['a:xtream:2']);
+        });
     });
 
     it('shows the match kind in the header, or the resume label when given', () => {

@@ -62,39 +62,58 @@ export class VodSourcesChipComponent {
     );
 
     /**
-     * Below the chip by default, flipping above when the action row sits near
-     * the bottom of the window. `viewportMargin` keeps it off the edges.
+     * Above the chip, right edges aligned — the action row sits low in the
+     * hero, so up is where the space is. Flexible dimensions cap the panel to
+     * the space on that side (`viewportMargin` keeps it off the edges), the
+     * list inside is the only part that scrolls, and when less than
+     * `MIN_PANEL_HEIGHT` remains above, the position is skipped and the panel
+     * flips below the chip instead. The strategy re-applies itself on window
+     * resize, so the fit holds at any proportion.
+     *
+     * Each position stamps its `panelClass` on the pane so the pointer tail
+     * can mirror when the panel flips.
      */
     readonly overlayPositions: ConnectedPosition[] = [
         {
-            originX: 'start',
-            originY: 'bottom',
-            overlayX: 'start',
-            overlayY: 'top',
-            offsetY: 8,
-        },
-        {
-            originX: 'start',
+            originX: 'end',
             originY: 'top',
-            overlayX: 'start',
+            overlayX: 'end',
             overlayY: 'bottom',
-            offsetY: -8,
+            offsetY: -12,
+            panelClass: 'vod-sources-pop--above',
         },
         {
             originX: 'end',
             originY: 'bottom',
             overlayX: 'end',
             overlayY: 'top',
-            offsetY: 8,
+            offsetY: 12,
+            panelClass: 'vod-sources-pop--below',
         },
         {
-            originX: 'end',
+            originX: 'start',
             originY: 'top',
-            overlayX: 'end',
+            overlayX: 'start',
             overlayY: 'bottom',
-            offsetY: -8,
+            offsetY: -12,
+            panelClass: 'vod-sources-pop--above',
+        },
+        {
+            originX: 'start',
+            originY: 'bottom',
+            overlayX: 'start',
+            overlayY: 'top',
+            offsetY: 12,
+            panelClass: 'vod-sources-pop--below',
         },
     ];
+
+    /**
+     * Below this, a position is not worth squeezing into: header, search,
+     * chips and footer alone need ~220px, and a list holding fewer than two
+     * rows helps nobody. The overlay tries the other side instead.
+     */
+    readonly minPanelHeight = 280;
 
     toggle(): void {
         this.isOpen.update((open) => !open);

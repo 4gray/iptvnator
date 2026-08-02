@@ -3,6 +3,7 @@ import type {
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import type { StreamProbeService } from '@iptvnator/services';
+import type { VodSourceProbeResult } from '@iptvnator/shared/interfaces';
 
 /**
  * The on-demand availability check for a single row.
@@ -19,6 +20,12 @@ export interface ProbeSourceDeps {
     session: number;
     isCurrent: (session: number) => boolean;
     publish: () => void;
+    /**
+     * Remembers settled verdicts across controller lifetimes, so reopening
+     * the movie does not re-contact every foreign portal. Written even when
+     * the session moved on — the verdict is about the source, not the page.
+     */
+    cacheResult?: (sourceId: string, result: VodSourceProbeResult) => void;
 }
 
 export async function probeSource(
@@ -59,6 +66,7 @@ export async function probeSource(
             origin: resolved.playback.origin,
         }
     );
+    deps.cacheResult?.(sourceId, result);
     if (!isCurrent(session)) {
         return;
     }

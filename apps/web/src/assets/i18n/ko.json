@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "재생목록으로 필터",
             "NO_MATCHES": "이 필터에 해당하는 재생목록이 없습니다",
             "COPIES": "이 재생목록에 소스 {{count}}개",
-            "MORE_SOURCES": "소스 목록에 {{count}}개 더 있음"
+            "MORE_SOURCES": "소스 목록에 {{count}}개 더 있음",
+            "FILTER_ALL": "전체",
+            "FILTER_AVAILABLE": "사용 가능",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "모든 언어",
+            "SAME_AS_ABOVE": "위와 동일",
+            "SHOWING_OF_TOTAL": "{{total}}개 중 {{visible}}개"
         }
     },
     "INFORMATION": "정보",
@@ -1071,6 +1077,10 @@
         "PAUSE": "일시정지",
         "RESUME": "재개",
         "CANCEL": "취소",
+        "DOWNLOADED_REVEAL": "다운로드 완료 — 폴더에서 보기",
+        "DOWNLOADING_PERCENT": "다운로드 중… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "다운로드 취소",
+        "CANCEL_CONFIRM_MESSAGE": "이 다운로드를 중단하시겠습니까? 일부만 다운로드된 파일은 삭제됩니다.",
         "RETRY": "다시 시도",
         "REMOVE": "제거",
         "PLAY": "재생",

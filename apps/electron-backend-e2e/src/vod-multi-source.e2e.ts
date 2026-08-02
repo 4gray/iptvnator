@@ -65,8 +65,9 @@ test.describe('VOD multi-source', () => {
             // Discovery is lazy, so the chip appears after the detail view.
             const chip = app.mainWindow.locator('app-vod-sources-chip button');
             await expect(chip).toBeVisible({ timeout: 20000 });
-            // Exactly one alternative: the same film in the other playlist.
-            await expect(chip).toContainText('1');
+            // The badge counts every copy across all playlists — the route's
+            // own plus the same film in the other portal.
+            await expect(chip).toContainText('2');
 
             await chip.click();
 

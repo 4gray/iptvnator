@@ -10,6 +10,7 @@ import {
     applyApiMetadata,
     VodMultiSourceController,
     VodSourceDiscoveryService,
+    VodSourceProbeCacheService,
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import {
@@ -31,6 +32,7 @@ import {
 } from './vod-multi-source-session';
 import type { VodMultiSourceSwitchNotice } from './vod-multi-source-notice';
 import { createVodSourceCounts } from './vod-multi-source-counts';
+import { createCheckQueue } from './vod-multi-source-check-queue';
 import { currentSourceRow } from './vod-multi-source-current-row';
 import { probeSource } from './vod-multi-source-probe';
 import {
@@ -78,7 +80,15 @@ export class VodMultiSourceHostService {
     private readonly resolver = inject(VodSourceResolverService);
     private readonly pins = inject(VodSourcePinService);
     private readonly probes = inject(StreamProbeService);
+    private readonly probeCache = inject(VodSourceProbeCacheService);
     private readonly settingsStore = inject(SettingsStore);
+
+    /**
+     * At most this many availability checks in flight at once. Each check is
+     * a live `get_vod_info` plus a HEAD against a foreign portal, and "check
+     * all" would otherwise burst one connection per playlist the movie is in.
+     */
+    private readonly checkQueue = createCheckQueue(4);
 
     private controller = new VodMultiSourceController();
     private bindings: VodMultiSourceBindings | null = null;
@@ -270,6 +280,37 @@ export class VodMultiSourceHostService {
             routeSource,
             publish: () => this.publish(),
         });
+
+        if (token === this.discoveryToken) {
+            this.seedCachedProbes();
+        }
+    }
+
+    /**
+     * Overlay remembered verdicts onto freshly discovered rows.
+     *
+     * The controller starts every row at `idle`, but a check made minutes ago
+     * — on this page or before navigating away — is still a usable answer.
+     * Only untouched rows are seeded: a verdict the session already holds is
+     * at least as fresh as the cache's.
+     */
+    private seedCachedProbes(): void {
+        let seeded = false;
+        for (const source of this.controller.sources()) {
+            if (source.probe.status !== 'idle') {
+                continue;
+            }
+
+            const cached = this.probeCache.get(source.id);
+            if (cached) {
+                this.controller.setProbe(source.id, cached);
+                seeded = true;
+            }
+        }
+
+        if (seeded) {
+            this.publish();
+        }
     }
 
     /** The pinned source, when it is not the one the route already plays. */
@@ -349,16 +390,38 @@ export class VodMultiSourceHostService {
         this.publish();
     }
 
-    /** User-triggered availability check for one row. */
+    /**
+     * User-triggered availability check for one row.
+     *
+     * Gated through the check queue so "check all" cannot burst a connection
+     * per playlist; a row already probing (or queued — its status flips to
+     * `probing` before the queue admits it) is not enqueued twice.
+     */
     check(sourceId: string): Promise<void> {
-        return probeSource(sourceId, {
-            controller: this.controller,
-            resolver: this.resolver,
-            probes: this.probes,
-            isCurrent: (session) => session === this.sessionToken,
-            session: this.sessionToken,
-            publish: () => this.publish(),
-        });
+        const current = this._sources().find(
+            (source) => source.id === sourceId
+        );
+        if (!current || current.probe.status === 'probing') {
+            return Promise.resolve();
+        }
+
+        // Marked before queueing, not inside the task: the row must show
+        // "checking" the moment the user asks, even while it waits for a slot
+        // — and the guard above reads this same status to dedupe.
+        this.controller.setProbe(sourceId, { status: 'probing' });
+        this.publish();
+
+        return this.checkQueue(() =>
+            probeSource(sourceId, {
+                controller: this.controller,
+                resolver: this.resolver,
+                probes: this.probes,
+                isCurrent: (session) => session === this.sessionToken,
+                session: this.sessionToken,
+                publish: () => this.publish(),
+                cacheResult: (id, result) => this.probeCache.store(id, result),
+            })
+        );
     }
 
     /**

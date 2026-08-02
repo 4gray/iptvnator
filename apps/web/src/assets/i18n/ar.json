@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "التصفية حسب قائمة التشغيل",
             "NO_MATCHES": "لا توجد قوائم تشغيل تطابق هذا الفلتر",
             "COPIES": "{{count}} نسخ في قائمة التشغيل هذه",
-            "MORE_SOURCES": "+{{count}} أخرى في قائمة المصادر"
+            "MORE_SOURCES": "+{{count}} أخرى في قائمة المصادر",
+            "FILTER_ALL": "الكل",
+            "FILTER_AVAILABLE": "متاح",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "كل اللغات",
+            "SAME_AS_ABOVE": "كما في الأعلى",
+            "SHOWING_OF_TOTAL": "{{visible}} من {{total}}"
         }
     },
     "INFORMATION": "معلومات",
@@ -1071,6 +1077,10 @@
         "PAUSE": "إيقاف مؤقت",
         "RESUME": "استئناف",
         "CANCEL": "إلغاء",
+        "DOWNLOADED_REVEAL": "تم التنزيل — عرض في المجلد",
+        "DOWNLOADING_PERCENT": "جارٍ التنزيل… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "إلغاء التنزيل",
+        "CANCEL_CONFIRM_MESSAGE": "هل تريد إيقاف هذا التنزيل؟ سيتم حذف الملف الذي تم تنزيله جزئيًا.",
         "RETRY": "إعادة المحاولة",
         "REMOVE": "إزالة",
         "PLAY": "تشغيل",

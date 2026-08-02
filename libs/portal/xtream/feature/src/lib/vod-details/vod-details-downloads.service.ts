@@ -101,6 +101,54 @@ export class VodDetailsDownloadsService {
             : false;
     });
 
+    /** The manager's row for this movie, whatever state it is in. */
+    private readonly activeDownload = computed(() => {
+        const context = this.context();
+        return context
+            ? this.downloadsService.getDownloadByContent(
+                  context.vodId,
+                  context.playlistId,
+                  'vod'
+              )
+            : undefined;
+    });
+
+    /**
+     * Real progress percent, or `null` while the total size is unknown — the
+     * button then spins its ring indeterminately instead of faking a number.
+     */
+    readonly downloadPercent = computed(() => {
+        const item = this.activeDownload();
+        return item && item.totalBytes
+            ? this.downloadsService.getProgressPercent(item)
+            : null;
+    });
+
+    /** Cancel whatever download is running or queued for this movie. */
+    async cancelActive(): Promise<void> {
+        const item = this.activeDownload();
+        if (item) {
+            await this.downloadsService.cancelDownload(item.id);
+        }
+    }
+
+    /** Open the finished file's location in the system file manager. */
+    async revealDownloaded(): Promise<void> {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId) {
+            return;
+        }
+
+        const filePath = this.downloadsService.getDownloadedFilePath(
+            this.routeContentId(),
+            playlistId,
+            'vod'
+        );
+        if (filePath) {
+            await this.downloadsService.revealFile(filePath);
+        }
+    }
+
     async resumePaused(): Promise<void> {
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         if (!playlistId) {

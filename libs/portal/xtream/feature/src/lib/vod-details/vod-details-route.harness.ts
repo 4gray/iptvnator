@@ -217,6 +217,12 @@ export async function configureVodDetailsRouteTestBed(
                     resumeDownloadByContent: stubs.resumeDownloadByContent,
                     startDownload: stubs.startDownload,
                     getDownloadedFilePath: stubs.getDownloadedFilePath,
+                    getDownloadByContent: jest.fn(),
+                    getProgressPercent: jest.fn().mockReturnValue(0),
+                    cancelDownload: jest.fn().mockResolvedValue({
+                        success: true,
+                    }),
+                    revealFile: jest.fn().mockResolvedValue({ success: true }),
                     playDownload: stubs.playDownload,
                 },
             },

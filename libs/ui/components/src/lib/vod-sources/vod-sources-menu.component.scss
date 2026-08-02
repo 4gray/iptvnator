@@ -1,13 +1,23 @@
 $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 
+// The popover is height-capped by its overlay to the space beside the anchor,
+// so everything from the host down must let the list — and only the list —
+// give way and scroll. Header, toolbar, chips and footer stay visible.
 :host {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
 }
 
 // Self-sufficient surface: the popover body is also dropped straight into the
 // playback error screen, where there is no menu panel to supply a background.
 .sources-menu {
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
     padding: 8px;
     border-radius: 14px;
     background: var(--app-widget-bg, #161a22);
@@ -16,6 +26,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 }
 
 .sources-menu__header {
+    flex: none;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -49,13 +60,23 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     display: flex;
     flex-direction: column;
     gap: 2px;
-    // Compact rows mean this now shows ~9 sources instead of ~3. Viewport-aware
-    // so a short window still gets a usable list rather than a clipped one.
+    // The one scrollable region. The overlay's bounding box caps the panel;
+    // the viewport fallback keeps a detached host (error screen) usable.
+    flex: 1 1 auto;
+    min-height: 80px;
     max-height: min(56vh, 460px);
     overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+// Inside the height-capped overlay the bounding box is the limit; the local
+// viewport cap above would otherwise stop the list from using granted space.
+:host-context(.cdk-overlay-pane) .sources-menu__list {
+    max-height: none;
 }
 
 .sources-menu__footer {
+    flex: none;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -154,6 +175,7 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
 // Controls live on their own line, below the heading, so nothing in the header
 // can be mistaken for a column label.
 .sources-menu__toolbar {
+    flex: none;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -170,6 +192,98 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     flex: none;
     margin-left: auto;
 }
+
+// ── Filter chips ────────────────────────────────────────────────────────────
+
+.sources-menu__chips {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px 11px;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 999px;
+    background: none;
+    color: var(--app-eyebrow-color);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        color 0.15s ease,
+        background 0.15s ease,
+        border-color 0.15s ease;
+
+    &:hover {
+        color: var(--app-on-surface);
+    }
+
+    &--on {
+        background: color-mix(
+            in srgb,
+            var(--app-selection-color) 16%,
+            transparent
+        );
+        border-color: var(--app-selection-color);
+        color: var(--app-selection-color);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 2px;
+    }
+}
+
+.filter-chip__count {
+    font-family: $font-mono;
+    font-weight: 700;
+    font-size: 9.5px;
+    opacity: 0.7;
+}
+
+.filter-chip__icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+    line-height: 13px;
+}
+
+.sources-menu__reduced {
+    margin-left: 6px;
+    font-family: $font-mono;
+    font-size: 10px;
+    color: var(--app-eyebrow-color);
+    white-space: nowrap;
+}
+
+.sources-menu__lang {
+    margin-left: auto;
+    max-width: 40%;
+    padding: 5px 9px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 999px;
+    background: var(--app-card-hover-bg);
+    color: var(--app-eyebrow-color);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    outline: 0;
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 2px;
+    }
+}
+
+// ── Copies expansion ────────────────────────────────────────────────────────
 
 .sources-menu__variants-toggle {
     display: inline-flex;
@@ -200,21 +314,9 @@ $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     }
 }
 
-.sources-menu__variants {
-    // A left rail is the cheapest way to show these belong to the row above
-    // without nesting another card inside the panel.
-    margin: 0 0 4px 20px;
-    padding-left: 12px;
-    border-left: 1px solid var(--app-widget-border, rgba(255, 255, 255, 0.08));
-}
-
-.sources-menu__variant-label {
-    display: block;
-    padding: 2px 10px 0;
-    color: var(--app-eyebrow-color);
-    font-size: 10.5px;
-    font-family: $font-mono;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.sources-menu__copies {
+    // Indented to sit under the parent's text column: the playlist already
+    // named itself on the row above, so its copies hang off that name.
+    margin: 0 0 4px;
+    padding-left: 47px;
 }

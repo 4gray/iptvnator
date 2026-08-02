@@ -1,0 +1,95 @@
+// Shared look of the metadata/status tags on multi-source rows. A mixin
+// rather than a global class: the row and the copy-row are separate components
+// under emulated encapsulation, and each needs the rules inside its own scope.
+@mixin source-tag-base {
+    $font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+    .source-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-sizing: border-box;
+        font-family: $font-mono;
+        font-weight: 500;
+        font-size: 10.5px;
+        line-height: 1.5;
+        border-radius: 4px;
+        padding: 2px 6px;
+        border: 1px solid transparent;
+        color: var(--app-eyebrow-color);
+        background: var(--app-card-hover-bg);
+        white-space: nowrap;
+
+        &--ok {
+            color: var(--vod-source-ok-fg);
+            background: var(--vod-source-ok-bg);
+        }
+
+        &--warn {
+            color: var(--vod-source-warn-fg);
+            background: var(--vod-source-warn-bg);
+        }
+
+        &--bad {
+            color: var(--vod-source-bad-fg);
+            background: var(--vod-source-bad-bg);
+        }
+    }
+
+    .source-tag__icon {
+        font-size: 12px;
+        width: 12px;
+        height: 12px;
+        line-height: 12px;
+    }
+
+    .source-tag__spinner {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1.5px solid color-mix(in srgb, currentColor 30%, transparent);
+        border-top-color: currentColor;
+        animation: vod-source-spin 0.7s linear infinite;
+    }
+
+    @keyframes vod-source-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .source-tag__spinner {
+            animation-duration: 2.4s;
+        }
+    }
+}
+
+// Feature-specific status colours. Light theme is the default (no .dark-theme
+// class on body); the dark overrides follow, mirroring the pattern in
+// libs/ui/styles/_detail-view.scss. The handoff's dark values are far too
+// light on a white surface, so light theme uses darker equivalents that clear
+// ~4.5:1 against the tinted tag background.
+@mixin source-tag-theme-vars {
+    :host {
+        --vod-source-ok-fg: #15803d;
+        --vod-source-ok-bg: rgba(21, 128, 61, 0.1);
+        --vod-source-warn-fg: #b45309;
+        --vod-source-warn-bg: rgba(180, 83, 9, 0.1);
+        --vod-source-bad-fg: #b91c1c;
+        --vod-source-bad-bg: rgba(185, 28, 28, 0.1);
+        --vod-source-lang-fg: #6d4fc4;
+        --vod-source-lang-bg: rgba(109, 79, 196, 0.1);
+    }
+
+    :host-context(.dark-theme) {
+        --vod-source-ok-fg: #4ade80;
+        --vod-source-ok-bg: rgba(74, 222, 128, 0.1);
+        --vod-source-warn-fg: #ffcf99;
+        --vod-source-warn-bg: rgba(255, 207, 153, 0.1);
+        --vod-source-bad-fg: #ff9aa6;
+        --vod-source-bad-bg: rgba(255, 91, 110, 0.1);
+        --vod-source-lang-fg: #b599ff;
+        --vod-source-lang-bg: rgba(181, 153, 255, 0.1);
+    }
+}

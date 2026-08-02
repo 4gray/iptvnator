@@ -1040,7 +1040,13 @@
             "FILTER_PLACEHOLDER": "依播放清單篩選",
             "NO_MATCHES": "沒有符合篩選條件的播放清單",
             "COPIES": "此播放清單中的 {{count}} 個版本",
-            "MORE_SOURCES": "播放來源清單中另有 {{count}} 個"
+            "MORE_SOURCES": "播放來源清單中另有 {{count}} 個",
+            "FILTER_ALL": "全部",
+            "FILTER_AVAILABLE": "可用",
+            "FILTER_HD": "HD+",
+            "ALL_LANGUAGES": "所有語言",
+            "SAME_AS_ABOVE": "與上行相同",
+            "SHOWING_OF_TOTAL": "{{visible}} / {{total}}"
         }
     },
     "INFORMATION": "資訊",
@@ -1071,6 +1077,10 @@
         "PAUSE": "暫停",
         "RESUME": "繼續",
         "CANCEL": "取消",
+        "DOWNLOADED_REVEAL": "已下載 — 在資料夾中顯示",
+        "DOWNLOADING_PERCENT": "下載中… {{percent}}%",
+        "CANCEL_CONFIRM_TITLE": "取消下載",
+        "CANCEL_CONFIRM_MESSAGE": "停止此下載？已下載的部分檔案將被刪除。",
         "RETRY": "重試",
         "REMOVE": "移除",
         "PLAY": "播放",

@@ -25,8 +25,10 @@ import {
     API_LANG_RUS,
     CURRENT_A_ID,
     MOVIE_A,
+    MOVIE_B,
     PARSED_DUB,
     PROBE_OK,
+    alternative,
     createDeferred,
     resolveWith,
     type AudioFacts,
@@ -354,5 +356,76 @@ describe('VodMultiSourceHostService', () => {
             expect.objectContaining({ userAgent: undefined })
         );
         expect(rowFor(ALT_TWO.id)?.probe).toEqual(PROBE_OK);
+    });
+
+    it('marks a row checking immediately and refuses to enqueue it twice', async () => {
+        await loadMovie([ALT_TWO]);
+        const gate = createDeferred<null>();
+        resolver.resolve.mockReturnValue(gate.promise);
+
+        const first = service.check(ALT_TWO.id);
+        expect(rowFor(ALT_TWO.id)?.probe.status).toBe('probing');
+
+        // A second click on the same spinner must not queue a second probe.
+        const second = service.check(ALT_TWO.id);
+        gate.resolve(null);
+        await Promise.all([first, second]);
+
+        expect(resolver.resolve).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs at most four checks at once; the rest wait their turn', async () => {
+        const alts = [2, 3, 4, 5, 6].map(alternative);
+        await loadMovie(alts);
+
+        const gates = new Map<string, ReturnType<typeof createDeferred>>();
+        resolver.resolve.mockImplementation((candidate) => {
+            const gate = createDeferred<null>();
+            gates.set((candidate as VodSourceCandidate).id, gate);
+            return gate.promise;
+        });
+
+        const pending = alts.map((alt) => service.check(alt.id));
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // Every row spins from the moment it was asked for...
+        for (const alt of alts) {
+            expect(rowFor(alt.id)?.probe.status).toBe('probing');
+        }
+        // ...but only four have actually started resolving.
+        expect(resolver.resolve).toHaveBeenCalledTimes(4);
+
+        gates.get(alts[0].id)?.resolve(null);
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(resolver.resolve).toHaveBeenCalledTimes(5);
+
+        for (const [, gate] of gates) {
+            gate.resolve(null);
+        }
+        await Promise.all(pending);
+    });
+
+    it('remembers verdicts across sessions instead of re-checking', async () => {
+        probes.probe.mockResolvedValue({
+            ...PROBE_OK,
+            probedAt: new Date().toISOString(),
+        });
+        await loadMovie([ALT_TWO]);
+        await service.check(ALT_TWO.id);
+        expect(rowFor(ALT_TWO.id)?.probe.status).toBe('ok');
+
+        // Another film resets the controller and its probe states entirely.
+        await loadMovie([], MOVIE_B);
+        expect(rowFor(ALT_TWO.id)).toBeUndefined();
+
+        // Returning to the movie finds the verdict remembered: the row shows
+        // "available" again without a single new request.
+        resolver.resolve.mockClear();
+        probes.probe.mockClear();
+        await loadMovie([ALT_TWO], MOVIE_A);
+
+        expect(rowFor(ALT_TWO.id)?.probe.status).toBe('ok');
+        expect(resolver.resolve).not.toHaveBeenCalled();
+        expect(probes.probe).not.toHaveBeenCalled();
     });
 });
