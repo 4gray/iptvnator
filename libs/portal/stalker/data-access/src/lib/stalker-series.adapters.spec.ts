@@ -82,6 +82,31 @@ describe('stalker-series.adapters', () => {
         expect(firstEpisode.id).not.toBe(mapped['1'][1].id);
     });
 
+    it('preserves the Specials season zero through VOD episode mapping', () => {
+        const mapped = mapVodSeriesEpisodes(
+            [
+                {
+                    id: 'specials',
+                    video_id: 'v1',
+                    name: 'Specials',
+                    season_number: '0',
+                    episodes: [
+                        {
+                            id: 'special-1',
+                            series_number: 1,
+                            name: 'Special episode',
+                        },
+                    ],
+                    isLoading: false,
+                    isExpanded: false,
+                },
+            ],
+            { parentSeriesId: 100 }
+        );
+
+        expect(mapped['0'][0].season).toBe(0);
+    });
+
     it('generates deterministic VOD-series episode IDs for the same parent and provider episode', () => {
         const seasons = [
             {
