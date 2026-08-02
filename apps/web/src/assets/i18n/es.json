@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Ir a la sección de series",
                 "SWITCH_PLAYER_LABEL": "Cambiar reproductor a {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Establecer {{name}} como reproductor de vídeo activo",
-                "SWITCH_PLAYER_FEEDBACK": "Reproductor establecido a {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Reproductor establecido a {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Mostrar los datos de la cuenta del portal Stalker"
             },
             "XTREAM_REFRESH_TITLE": "Actualizando lista de reproducción",
             "XTREAM_REFRESH_COLLECTING_DATA": "Conservando los datos de tu biblioteca...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Cargando",
+    "RETRY": "Reintentar",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Información de la cuenta",
+            "ACCOUNT": "Cuenta",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Usuario",
+            "STATUS": "Estado",
+            "ACTIVE": "Activa",
+            "INACTIVE": "Inactiva",
+            "TARIFF_PLAN": "Plan de tarifa",
+            "EXPIRES": "Caduca",
+            "DAYS_LEFT": "Días restantes",
+            "EXPIRED": "Caducada",
+            "MAC_ADDRESS": "Dirección MAC",
+            "PHONE": "Teléfono",
+            "PORTAL_URL": "URL del portal",
+            "PORTAL_TYPE_FULL": "Portal Ministra",
+            "PORTAL_TYPE_LEGACY": "Portal clásico (portal.php)",
+            "CACHED_BADGE": "Datos guardados",
+            "REFRESH_FAILED": "No se pudo conectar con el portal — se muestran los datos guardados al añadirlo.",
+            "NO_ACCOUNT_DATA_TITLE": "Sin datos de la cuenta",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Este portal no publica información de la cuenta para este dispositivo."
         }
     }
 }

@@ -135,6 +135,7 @@ describe('WorkspaceShellFacade', () => {
         openGlobalSearch: jest.Mock;
         openGlobalRecent: jest.Mock;
         openAccountInfo: jest.Mock;
+        openStalkerAccountInfo: jest.Mock;
     };
     let storeDispatch: jest.Mock;
     let activePlaylistSignal: ReturnType<
@@ -209,6 +210,7 @@ describe('WorkspaceShellFacade', () => {
             openGlobalSearch: jest.fn(),
             openGlobalRecent: jest.fn(),
             openAccountInfo: jest.fn(),
+            openStalkerAccountInfo: jest.fn(),
         };
         startupPreferences = {
             getFirstAvailableWorkspacePath: jest.fn((showDashboard: boolean) =>
@@ -890,6 +892,100 @@ describe('WorkspaceShellFacade', () => {
         ).toBe('view');
         expect(commands.some((command) => command.id === 'account-info')).toBe(
             false
+        );
+    });
+
+    it('opens the Xtream account dialog with credentials and session counts for the active playlist', () => {
+        activePlaylistSignal.set({
+            _id: 'pl-xtream',
+            title: 'Xtream One',
+            count: 42,
+            importDate: '2026-04-22T10:00:00.000Z',
+            autoRefresh: false,
+            serverUrl: 'https://provider.example.test',
+            username: 'demo',
+            password: 'secret',
+        } as PlaylistSignalMeta);
+
+        facade.openAccountInfo();
+
+        expect(workspaceActions.openAccountInfo).toHaveBeenCalledWith({
+            vodStreamsCount: 1,
+            liveStreamsCount: 1,
+            seriesCount: 1,
+            playlist: expect.objectContaining({
+                id: 'pl-xtream',
+                serverUrl: 'https://provider.example.test',
+                username: 'demo',
+                password: 'secret',
+            }),
+        });
+        expect(workspaceActions.openStalkerAccountInfo).not.toHaveBeenCalled();
+    });
+
+    it('opens the Stalker account dialog for an active stalker playlist', () => {
+        const stalkerPlaylist = {
+            _id: 'pl-stalker',
+            title: 'Stalker Portal',
+            count: 0,
+            importDate: '2026-04-22T10:00:00.000Z',
+            autoRefresh: false,
+            macAddress: '00:1A:79:00:00:01',
+            portalUrl: 'http://portal.example/portal.php',
+        } as PlaylistSignalMeta;
+        activePlaylistSignal.set(stalkerPlaylist);
+
+        expect(facade.canOpenAccountInfo()).toBe(true);
+
+        facade.openAccountInfo();
+
+        expect(workspaceActions.openStalkerAccountInfo).toHaveBeenCalledWith({
+            playlist: stalkerPlaylist,
+        });
+        expect(workspaceActions.openAccountInfo).not.toHaveBeenCalled();
+    });
+
+    it('opens the account dialog for a non-active playlist without session counts', () => {
+        activePlaylistSignal.set(null);
+        const otherXtream = {
+            _id: 'pl-other',
+            title: 'Other Xtream',
+            count: 5,
+            importDate: '2026-04-22T10:00:00.000Z',
+            autoRefresh: false,
+            serverUrl: 'https://other.example.test',
+            username: 'user2',
+            password: 'pass2',
+        } as PlaylistSignalMeta;
+
+        facade.openAccountInfoFor(otherXtream);
+
+        expect(workspaceActions.openAccountInfo).toHaveBeenCalledWith({
+            playlist: expect.objectContaining({ id: 'pl-other' }),
+        });
+    });
+
+    it('offers the account-info command with a Stalker description on stalker routes', () => {
+        activePlaylistSignal.set({
+            _id: 'pl-stalker',
+            title: 'Stalker Portal',
+            count: 0,
+            importDate: '2026-04-22T10:00:00.000Z',
+            autoRefresh: false,
+            macAddress: '00:1A:79:00:00:01',
+            portalUrl: 'http://portal.example/portal.php',
+        } as PlaylistSignalMeta);
+        facade.currentUrl.set('/workspace/stalker/pl-stalker/itv');
+
+        const accountCommand = facade
+            .commandPaletteCommands()
+            .find((command) => command.id === 'account-info');
+
+        expect(accountCommand).toBeDefined();
+        // TranslateModule.forRoot() has no catalog, so the resolved
+        // description is the raw key — which is exactly what we assert.
+        expect(accountCommand?.description).toBe(
+            'WORKSPACE.SHELL.COMMANDS.ACCOUNT_INFO_DESCRIPTION_STALKER'
         );
     });
 

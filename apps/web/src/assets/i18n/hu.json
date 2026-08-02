@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Ugrás a sorozatokhoz",
                 "SWITCH_PLAYER_LABEL": "Lejátszóváltás: {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}} beállítása aktív videólejátszóként",
-                "SWITCH_PLAYER_FEEDBACK": "Aktív lejátszó: {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Aktív lejátszó: {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "A Stalker portál fiókadatainak megjelenítése"
             },
             "XTREAM_REFRESH_TITLE": "Lejátszási lista frissítése",
             "XTREAM_REFRESH_COLLECTING_DATA": "A médiatár adatainak megőrzése…",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Adjon hozzá egy lejátszási listát; megtekintési előzményei ezután itt jelennek meg.",
             "NO_ITEMS_TITLE": "Még nincs megtekintési előzmény",
             "NO_ITEMS_BODY": "Indítson el valamilyen tartalmat a médiatárból; ezután itt is megjelenik."
+        }
+    },
+    "LOADING": "Betöltés",
+    "RETRY": "Újra",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Fiókadatok",
+            "ACCOUNT": "Fiók",
+            "PORTAL_INFO": "Portál",
+            "LOGIN": "Felhasználónév",
+            "STATUS": "Állapot",
+            "ACTIVE": "Aktív",
+            "INACTIVE": "Inaktív",
+            "TARIFF_PLAN": "Díjcsomag",
+            "EXPIRES": "Lejárat",
+            "DAYS_LEFT": "Hátralévő napok",
+            "EXPIRED": "Lejárt",
+            "MAC_ADDRESS": "MAC-cím",
+            "PHONE": "Telefon",
+            "PORTAL_URL": "Portál URL",
+            "PORTAL_TYPE_FULL": "Ministra portál",
+            "PORTAL_TYPE_LEGACY": "Klasszikus portál (portal.php)",
+            "CACHED_BADGE": "Mentett adatok",
+            "REFRESH_FAILED": "A portál nem érhető el — a portál hozzáadásakor mentett adatok láthatók.",
+            "NO_ACCOUNT_DATA_TITLE": "Nincsenek fiókadatok",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Ez a portál nem tesz közzé fiókadatokat ehhez az eszközhöz."
         }
     }
 }

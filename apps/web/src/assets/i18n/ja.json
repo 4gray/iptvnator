@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "シリーズセクションに移動",
                 "SWITCH_PLAYER_LABEL": "プレーヤーを{{name}}に切り替え",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}}をアクティブなビデオプレーヤーに設定",
-                "SWITCH_PLAYER_FEEDBACK": "プレーヤーを{{name}}に設定しました"
+                "SWITCH_PLAYER_FEEDBACK": "プレーヤーを{{name}}に設定しました",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Stalkerポータルのアカウント情報を表示"
             },
             "XTREAM_REFRESH_TITLE": "プレイリストを更新中",
             "XTREAM_REFRESH_COLLECTING_DATA": "ライブラリデータを保持しています...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "読み込み中",
+    "RETRY": "再試行",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "アカウント情報",
+            "ACCOUNT": "アカウント",
+            "PORTAL_INFO": "ポータル",
+            "LOGIN": "ログイン",
+            "STATUS": "ステータス",
+            "ACTIVE": "有効",
+            "INACTIVE": "無効",
+            "TARIFF_PLAN": "料金プラン",
+            "EXPIRES": "有効期限",
+            "DAYS_LEFT": "残り日数",
+            "EXPIRED": "期限切れ",
+            "MAC_ADDRESS": "MACアドレス",
+            "PHONE": "電話番号",
+            "PORTAL_URL": "ポータルURL",
+            "PORTAL_TYPE_FULL": "Ministraポータル",
+            "PORTAL_TYPE_LEGACY": "レガシーポータル（portal.php）",
+            "CACHED_BADGE": "保存済みデータ",
+            "REFRESH_FAILED": "ポータルに接続できません — ポータル追加時に保存されたデータを表示しています。",
+            "NO_ACCOUNT_DATA_TITLE": "アカウント情報なし",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "このポータルは、このデバイスのアカウント情報を公開していません。"
         }
     }
 }

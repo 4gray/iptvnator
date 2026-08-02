@@ -208,6 +208,7 @@ class MockWorkspaceShellFacade {
     runHeaderBulkAction = jest.fn();
     openPlaylistInfo = jest.fn();
     openAccountInfo = jest.fn();
+    openAccountInfoFor = jest.fn();
     closeActiveExternalSession = jest.fn();
     cancelXtreamImport = jest.fn();
 }

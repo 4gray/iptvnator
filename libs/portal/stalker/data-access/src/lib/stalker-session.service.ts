@@ -521,6 +521,108 @@ export class StalkerSessionService {
     }
 
     /**
+     * Re-runs handshake + get_profile to read the portal's current account
+     * block, sharing `ensureToken()`'s per-playlist serialization.
+     *
+     * A handshake invalidates the previous token on strict portals, so two
+     * overlapping ones leave whichever finishes first holding a dead token.
+     * Waiting for any in-flight authentication (and registering this one so
+     * later callers wait for it) keeps handshakes sequential; the resulting
+     * token replaces the cached one, so catalog and playback requests keep
+     * working afterwards.
+     */
+    async refreshAccountProfile(
+        playlist: Playlist
+    ): Promise<StalkerProfileResponse['js']['account_info']> {
+        if (!playlist.portalUrl || !playlist.macAddress) {
+            throw new Error('Portal URL and MAC address are required');
+        }
+
+        const portalUrl = playlist.portalUrl;
+        const macAddress = playlist.macAddress;
+        const identity = getStalkerPortalIdentityFromPlaylist(playlist);
+
+        // Claim the per-playlist slot. Re-check after every await: one
+        // settled promise releases every waiter at once, so a single
+        // pre-check would let them all start competing handshakes.
+        for (
+            let inFlight = this.pendingAuth.get(playlist._id);
+            inFlight;
+            inFlight = this.pendingAuth.get(playlist._id)
+        ) {
+            this.logger.debug('Waiting for pending authentication...');
+            // A failed pending auth must not abort the refresh; this call
+            // performs its own handshake either way.
+            await inFlight.catch(() => undefined);
+        }
+
+        // Publish the slot before the first await so no other waiter can
+        // observe it as free while this handshake is starting.
+        // No-op defaults: the executor runs synchronously and overwrites
+        // both, but the compiler cannot prove that (TS2454).
+        let settleSlot: (value: {
+            token: string;
+            serialNumber?: string;
+        }) => void = () => undefined;
+        let failSlot: (reason: unknown) => void = () => undefined;
+        const slot = new Promise<{ token: string; serialNumber?: string }>(
+            (resolve, reject) => {
+                settleSlot = resolve;
+                failSlot = reject;
+            }
+        );
+        // Waiters attach their own handlers; this one only keeps a
+        // rejected slot from surfacing as an unhandled rejection.
+        void slot.catch(() => undefined);
+        this.pendingAuth.set(playlist._id, slot);
+
+        // ensureToken() reads tokenCache before pendingAuth, so leaving the
+        // old token there would hand a token this handshake is about to
+        // invalidate to catalog and watchdog requests. Retiring it first
+        // makes them queue on the slot instead.
+        this.clearCachedToken(playlist._id);
+
+        try {
+            const result = await this.authenticate(
+                portalUrl,
+                macAddress,
+                identity
+            );
+            this.setCachedToken(playlist._id, result.token);
+            settleSlot({
+                token: result.token,
+                serialNumber: identity.serialNumber,
+            });
+            return result.accountInfo;
+        } catch (error) {
+            failSlot(error);
+            throw error;
+        } finally {
+            // Only retire our own entry: a caller that started a later
+            // authentication owns the map slot from then on.
+            if (this.pendingAuth.get(playlist._id) === slot) {
+                this.pendingAuth.delete(playlist._id);
+            }
+        }
+    }
+
+    /**
+     * Clears the cached token only while it is still the one that just
+     * failed. A request dispatched with the previous token can see its
+     * authorization failure arrive after a profile refresh has already
+     * cached a fresh token — deleting blindly would kill that fresh token
+     * and trigger a cascade of competing handshakes on strict portals.
+     */
+    private retireFailedToken(
+        playlistId: string,
+        failedToken: string | null
+    ): void {
+        if (failedToken && this.getCachedToken(playlistId) === failedToken) {
+            this.clearCachedToken(playlistId);
+        }
+    }
+
+    /**
      * Checks if a response or error indicates an authorization failure
      */
     private isAuthorizationError(responseOrError: unknown): boolean {
@@ -581,8 +683,8 @@ export class StalkerSessionService {
             // Check for authorization failure in response
             if (this.isAuthorizationError(response)) {
                 if (retryOnAuthFailure && playlist.isFullStalkerPortal) {
-                    // Clear cached token to force re-authentication
-                    this.clearCachedToken(playlist._id);
+                    // Retire the failed token so the retry re-authenticates
+                    this.retireFailedToken(playlist._id, token);
                     // Retry once with fresh authentication
                     return this.makeAuthenticatedRequest<T>(
                         playlist,
@@ -602,8 +704,8 @@ export class StalkerSessionService {
                 retryOnAuthFailure &&
                 playlist.isFullStalkerPortal
             ) {
-                // Clear cached token and retry with new handshake
-                this.clearCachedToken(playlist._id);
+                // Retire the failed token and retry with new handshake
+                this.retireFailedToken(playlist._id, token);
                 return this.makeAuthenticatedRequest<T>(
                     playlist,
                     params,

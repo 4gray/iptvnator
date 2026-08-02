@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Jump to series section",
                 "SWITCH_PLAYER_LABEL": "Switch player to {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Set {{name}} as the active video player",
-                "SWITCH_PLAYER_FEEDBACK": "Player set to {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Player set to {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Show Stalker portal account details"
             },
             "XTREAM_REFRESH_TITLE": "Refreshing playlist",
             "XTREAM_REFRESH_COLLECTING_DATA": "Preserving your library data...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Loading",
+    "RETRY": "Retry",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Account Information",
+            "ACCOUNT": "Account",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Login",
+            "STATUS": "Status",
+            "ACTIVE": "Active",
+            "INACTIVE": "Inactive",
+            "TARIFF_PLAN": "Tariff plan",
+            "EXPIRES": "Expires",
+            "DAYS_LEFT": "Days left",
+            "EXPIRED": "Expired",
+            "MAC_ADDRESS": "MAC address",
+            "PHONE": "Phone",
+            "PORTAL_URL": "Portal URL",
+            "PORTAL_TYPE_FULL": "Ministra portal",
+            "PORTAL_TYPE_LEGACY": "Legacy portal (portal.php)",
+            "CACHED_BADGE": "Saved data",
+            "REFRESH_FAILED": "The portal could not be reached — showing the data saved when the portal was added.",
+            "NO_ACCOUNT_DATA_TITLE": "No account details",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "This portal does not publish account information for this device."
         }
     }
 }

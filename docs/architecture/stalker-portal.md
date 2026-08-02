@@ -521,6 +521,41 @@ Import rule:
 - a fresh handshake must happen after import for full-portal sessions; imported
   backups never trust a serialized token
 
+## Account Info Dialog
+
+`StalkerAccountInfoComponent`
+(`libs/portal/stalker/feature/src/lib/stalker-account-info/`) mirrors the
+Xtream account-info dialog's visual language and shows subscription facts
+for a portal: status, login, tariff plan, expiry date with a days-left
+counter, MAC/phone, and portal details.
+
+Data flow (two sources, cached-first):
+
+- Cached: `Playlist.stalkerAccountInfo`, captured from `get_profile` at
+  import time for full `/stalker_portal/` installations. The dialog loads it
+  by playlist id (the meta row does not carry it) and renders instantly with
+  a "Saved data" badge.
+- Fresh: `StalkerAccountInfoService`
+  (`libs/portal/stalker/data-access/src/lib/stalker-account-info.service.ts`).
+  Full portals re-run handshake + `get_profile`; `portal.php` panels are
+  queried with `account_info/get_main_info`, whose field set varies between
+  panels and is mapped best-effort (absent fields render nothing). A failed
+  refresh keeps the cached snapshot and flags it. The two no-data outcomes
+  differ: a portal that answers but publishes no account facts (and no
+  cached snapshot exists) renders the ready-state "No account details"
+  panel, while only an unreachable portal without a cached snapshot enters
+  the error state with retry.
+
+Entry points are shared with Xtream and gated on the shared predicates in
+`libs/shared/interfaces/src/lib/portal-account-playlist.utils.ts`
+(`isXtreamAccountPlaylist` / `isStalkerAccountPlaylist`): the header playlist
+switcher (bottom section for the active playlist and the per-row ⋮ menu),
+the dashboard source card ⋮ menu, and the command palette. The
+`WorkspaceShellHeaderService.openAccountInfoFor()` branch picks the dialog
+by playlist type; `WORKSPACE_SHELL_ACTIONS.openStalkerAccountInfo()` lazy
+loads the component. The stalker-mock-server implements `get_main_info` for
+dev/E2E.
+
 ## Remote Control Integration
 
 Stalker live remote control is implemented in:

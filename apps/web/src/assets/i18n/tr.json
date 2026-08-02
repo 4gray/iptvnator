@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Diziler bölümüne atla",
                 "SWITCH_PLAYER_LABEL": "Oynatıcıyı {{name}} olarak değiştir",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}} oynatıcısını etkin video oynatıcı olarak ayarla",
-                "SWITCH_PLAYER_FEEDBACK": "Oynatıcı {{name}} olarak ayarlandı"
+                "SWITCH_PLAYER_FEEDBACK": "Oynatıcı {{name}} olarak ayarlandı",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Stalker portalı hesap bilgilerini göster"
             },
             "XTREAM_REFRESH_TITLE": "Oynatma listesi yenileniyor",
             "XTREAM_REFRESH_COLLECTING_DATA": "Kitaplık verileriniz korunuyor...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Yükleniyor",
+    "RETRY": "Yeniden dene",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Hesap Bilgileri",
+            "ACCOUNT": "Hesap",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Kullanıcı adı",
+            "STATUS": "Durum",
+            "ACTIVE": "Etkin",
+            "INACTIVE": "Devre dışı",
+            "TARIFF_PLAN": "Tarife planı",
+            "EXPIRES": "Bitiş tarihi",
+            "DAYS_LEFT": "Kalan gün",
+            "EXPIRED": "Süresi doldu",
+            "MAC_ADDRESS": "MAC adresi",
+            "PHONE": "Telefon",
+            "PORTAL_URL": "Portal URL’si",
+            "PORTAL_TYPE_FULL": "Ministra portalı",
+            "PORTAL_TYPE_LEGACY": "Klasik portal (portal.php)",
+            "CACHED_BADGE": "Kayıtlı veriler",
+            "REFRESH_FAILED": "Portala ulaşılamadı — portal eklenirken kaydedilen veriler gösteriliyor.",
+            "NO_ACCOUNT_DATA_TITLE": "Hesap verisi yok",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Bu portal, bu cihaz için hesap bilgisi yayınlamıyor."
         }
     }
 }

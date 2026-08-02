@@ -1,0 +1,21 @@
+@use '../../../../../../ui/styles/account-dialog';
+
+:host {
+    display: block;
+    color: var(--app-body-color, var(--mat-sys-on-surface));
+    --account-dialog-accent: var(
+        --app-provider-stalker,
+        var(--mat-sys-primary)
+    );
+}
+
+// Stalker shows three hero stats (days left / tariff / MAC), not four.
+.account-dialog__hero-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+    .account-dialog__hero-stats {
+        grid-template-columns: 1fr;
+    }
+}

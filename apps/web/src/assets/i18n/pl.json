@@ -1346,7 +1346,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Przejdź do sekcji seriali",
                 "SWITCH_PLAYER_LABEL": "Przełącz odtwarzacz na {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Ustaw {{name}} jako aktywny odtwarzacz wideo",
-                "SWITCH_PLAYER_FEEDBACK": "Odtwarzacz ustawiony na {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Odtwarzacz ustawiony na {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Pokaż dane konta portalu Stalker"
             },
             "XTREAM_REFRESH_TITLE": "Odświeżanie listy odtwarzania",
             "XTREAM_REFRESH_COLLECTING_DATA": "Zachowywanie danych biblioteki...",
@@ -1455,6 +1456,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Ładowanie",
+    "RETRY": "Ponów",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Informacje o koncie",
+            "ACCOUNT": "Konto",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Login",
+            "STATUS": "Status",
+            "ACTIVE": "Aktywne",
+            "INACTIVE": "Nieaktywne",
+            "TARIFF_PLAN": "Plan taryfowy",
+            "EXPIRES": "Wygasa",
+            "DAYS_LEFT": "Pozostało dni",
+            "EXPIRED": "Wygasło",
+            "MAC_ADDRESS": "Adres MAC",
+            "PHONE": "Telefon",
+            "PORTAL_URL": "Adres URL portalu",
+            "PORTAL_TYPE_FULL": "Portal Ministra",
+            "PORTAL_TYPE_LEGACY": "Klasyczny portal (portal.php)",
+            "CACHED_BADGE": "Zapisane dane",
+            "REFRESH_FAILED": "Portal jest niedostępny — wyświetlane są dane zapisane podczas dodawania portalu.",
+            "NO_ACCOUNT_DATA_TITLE": "Brak danych konta",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Ten portal nie udostępnia informacji o koncie dla tego urządzenia."
         }
     }
 }
