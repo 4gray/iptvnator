@@ -32,14 +32,17 @@ export function stalkerIdentityFingerprint(
         | 'stalkerSignature2'
     >
 ): string {
-    return [
+    // JSON-encoded, not delimiter-joined: identity values are unrestricted
+    // strings, and an unescaped separator would let distinct tuples alias
+    // each other and bypass the identity invalidation.
+    return JSON.stringify([
         normalizeStalkerIdentityValue(playlist.macAddress) ?? '',
         normalizeStalkerIdentityValue(playlist.stalkerSerialNumber) ?? '',
         normalizeStalkerIdentityValue(playlist.stalkerDeviceId1) ?? '',
         normalizeStalkerIdentityValue(playlist.stalkerDeviceId2) ?? '',
         normalizeStalkerIdentityValue(playlist.stalkerSignature1) ?? '',
         normalizeStalkerIdentityValue(playlist.stalkerSignature2) ?? '',
-    ].join('|');
+    ]);
 }
 
 export function getStalkerPortalIdentityFromPlaylist(

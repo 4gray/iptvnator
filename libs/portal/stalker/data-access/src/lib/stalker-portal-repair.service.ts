@@ -240,11 +240,13 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
      * verifies before committing.
      */
     private repairSourceFingerprint(playlist: PlaylistMeta): string {
-        return [
+        // JSON-encoded for the same reason as the identity fingerprint:
+        // unrestricted values must not alias across field boundaries.
+        return JSON.stringify([
             playlist.portalUrl ?? '',
-            String(isFullStalkerPortalPlaylist(playlist)),
+            isFullStalkerPortalPlaylist(playlist),
             stalkerIdentityFingerprint(playlist),
-        ].join('|');
+        ]);
     }
 
     private reapplyIfChanged(playlist: PlaylistMeta): PlaylistMeta | null {

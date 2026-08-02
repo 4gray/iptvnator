@@ -366,6 +366,36 @@ describe('StalkerPortalRepairService', () => {
             expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
 
+        it('never aliases distinct identities across field boundaries', async () => {
+            // Delimiter-style fingerprints would treat serial "a|b" +
+            // empty device as equal to serial "a" + device "b" and skip
+            // the identity invalidation entirely.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            const pipedIdentity = {
+                ...MISCLASSIFIED,
+                stalkerSerialNumber: 'a|b',
+            } as PlaylistMeta;
+            persistedRow = pipedIdentity as Playlist;
+            await service.repairPortal(pipedIdentity);
+            clearCachedToken.mockClear();
+
+            const shiftedIdentity = {
+                ...MISCLASSIFIED,
+                stalkerSerialNumber: 'a',
+                stalkerDeviceId1: 'b',
+            } as PlaylistMeta;
+
+            // A DIFFERENT identity must invalidate, not inherit.
+            expect(service.applyOverride(shiftedIdentity)).toBe(
+                shiftedIdentity
+            );
+            expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
+        });
+
         it('drops the override and the cached token when only the identity was edited', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',
