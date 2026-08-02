@@ -74,6 +74,21 @@ describe('buildStalkerEndpointCandidates', () => {
         ]);
     });
 
+    it('keeps a real installation directory named c', () => {
+        // `/tenant/c/portal.php` means the installation lives in `/tenant/c`
+        // — the `/c` landing-page rewrite must not strip it, or the
+        // siblings would be probed one level too high.
+        expect(
+            buildStalkerEndpointCandidates(
+                'http://portal.example/tenant/c/portal.php'
+            )
+        ).toEqual([
+            'http://portal.example/tenant/c/portal.php',
+            'http://portal.example/tenant/c/server/load.php',
+            'http://portal.example/tenant/c/stalker_portal/server/load.php',
+        ]);
+    });
+
     it('never nests stalker_portal twice for a /stalker_portal/c URL', () => {
         expect(
             buildStalkerEndpointCandidates(

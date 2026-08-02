@@ -70,14 +70,21 @@ export function buildStalkerEndpointCandidates(rawUrl: string): string[] {
         candidates.push(candidateFrom(path));
     }
 
-    const base = path
-        .replace(/\/portal\.php$/i, '')
-        .replace(/\/server\/load\.php$/i, '')
-        .replace(/\/c$/i, '')
-        // A nonstandard pasted endpoint (…/cp/api.php) keeps its first-shot
-        // candidate above, but the standard fallbacks must be its SIBLINGS —
-        // derived from the directory, not appended to the file.
-        .replace(/\/[^/]*\.php$/i, '');
+    const base = /\.php$/i.test(path)
+        ? // An endpoint file was pasted: strip only the FILE part. The `/c`
+          // landing-page rewrite must not run here — a real installation
+          // directory named `c` (`/tenant/c/portal.php`) would otherwise be
+          // stripped too and the siblings probed one level too high.
+          path
+              .replace(/\/portal\.php$/i, '')
+              .replace(/\/server\/load\.php$/i, '')
+              // A nonstandard pasted endpoint (…/cp/api.php) keeps its
+              // first-shot candidate above, but the standard fallbacks must
+              // be its SIBLINGS — the directory, not the file.
+              .replace(/\/[^/]*\.php$/i, '')
+        : // The `/c` landing page users copy from the browser is not part
+          // of the API path.
+          path.replace(/\/c$/i, '');
 
     candidates.push(candidateFrom(`${base}/portal.php`));
     candidates.push(candidateFrom(`${base}/server/load.php`));
