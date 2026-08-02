@@ -11,10 +11,9 @@ import { handleHandshake } from './handshake.handler';
 /**
  * Handler-level coverage for the authentication actions.
  *
- * The e2e suite drives the app against this server, but the login-required
- * flow cannot be reached from the client yet (its `do_auth` path is dormant
- * and sends empty credentials), so the scenario is pinned down here rather
- * than only asserted in prose.
+ * The e2e suite drives the app through this flow end to end; these handler
+ * tests pin the SERVER half of the contract independently, so a client-side
+ * regression and a mock-side one cannot mask each other.
  *
  * Handlers are called directly instead of through the dispatcher: the
  * dispatcher pulls in every content handler and therefore the faker-based
@@ -82,8 +81,8 @@ describe('stalker mock authentication handlers', () => {
         })['token'] as string;
         expect(token).toMatch(/^[0-9A-F]{32}$/);
 
-        // The app sends auth_second_step=1 on its very first profile request,
-        // so that parameter alone must not satisfy the scenario.
+        // A client could mislabel its first profile as the second auth step;
+        // that parameter alone must not satisfy the scenario.
         expect(
             invoke(
                 handleGetProfile,

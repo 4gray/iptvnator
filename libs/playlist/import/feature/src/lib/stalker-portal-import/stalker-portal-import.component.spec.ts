@@ -3,9 +3,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import {
+    stalkerSessionFingerprint,
     StalkerPortalDiscoveryService,
     StalkerPortalError,
 } from '@iptvnator/portal/stalker/data-access';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerPortalImportComponent } from './stalker-portal-import.component';
 
 describe('StalkerPortalImportComponent identity handling', () => {
@@ -191,6 +193,41 @@ describe('StalkerPortalImportComponent identity handling', () => {
         // Without this a later start would re-present the token under an
         // edited identity.
         expect(playlist.stalkerSessionIdentity).toEqual(expect.any(String));
+    });
+
+    it('records credentials in the imported session fingerprint', async () => {
+        // Otherwise the first runtime ensureToken() computes a fingerprint
+        // WITH the credentials, mismatches the imported one, and discards the
+        // session the import just established — silently defeating reuse for
+        // exactly the login portals this flow exists for.
+        portalDiscovery.discover.mockResolvedValue({
+            status: 'resolved',
+            portalUrl: 'https://portal.example.com/stalker_portal/server/load.php',
+            isFullStalkerPortal: true,
+            token: 'token-1',
+        });
+        component.form.patchValue({
+            _id: 'playlist-login-fp',
+            title: 'Login Portal',
+            macAddress: '00:1A:79:00:00:08',
+            portalUrl: 'https://portal.example.com/stalker_portal/c',
+            username: 'user',
+            password: 'secret',
+            importDate: '2026-05-15T00:00:00.000Z',
+        });
+
+        await component.addPlaylist();
+
+        const playlist = store.dispatch.mock.calls[0][0].playlist;
+        expect(playlist.stalkerSessionIdentity).toBe(
+            stalkerSessionFingerprint({
+                portalUrl:
+                    'https://portal.example.com/stalker_portal/server/load.php',
+                macAddress: '00:1A:79:00:00:08',
+                username: 'user',
+                password: 'secret',
+            } as Playlist)
+        );
     });
 
     it('records the effective cadence when the portal advertises none', async () => {

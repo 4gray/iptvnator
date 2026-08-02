@@ -245,14 +245,19 @@ export class StalkerPortalImportComponent {
                 portalUrl,
                 isFullStalkerPortal,
                 stalkerToken,
-                // The identity this token was negotiated for. Reuse is
-                // refused when it no longer matches, so an edited MAC cannot
-                // inherit the previous session.
+                // What this token was negotiated for: endpoint, identity AND
+                // credentials. Reuse is refused when any of them no longer
+                // matches — and the credentials must be included here, or the
+                // first runtime `ensureToken()` would compute a fingerprint
+                // WITH them, mismatch this one, and throw away the session
+                // the import just established.
                 ...(stalkerToken
                     ? {
                           stalkerSessionIdentity: stalkerSessionFingerprint({
                               portalUrl,
                               macAddress: formValue.macAddress ?? '',
+                              username: formValue.username ?? '',
+                              password: formValue.password ?? '',
                               ...this.toPlaylistIdentityFields(stalkerIdentity),
                           } as Playlist),
                       }
