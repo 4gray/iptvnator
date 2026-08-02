@@ -188,6 +188,55 @@ describe('PortalStatusService', () => {
         );
     });
 
+    it('returns expiry details from the same round-trip and serves repeats from the cache', async () => {
+        const expiresAtSeconds = Math.floor(Date.now() / 1000) + 3 * 86_400;
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: {
+                user_info: {
+                    auth: 1,
+                    status: 'Active',
+                    exp_date: String(expiresAtSeconds),
+                },
+            },
+        });
+
+        const details = await service.checkPortalStatusDetails(
+            'http://example.com',
+            'user',
+            'pass'
+        );
+
+        expect(details).toEqual({ status: 'active', expiresAtSeconds });
+
+        const cached = await service.checkPortalStatusDetails(
+            'http://example.com',
+            'user',
+            'pass'
+        );
+        expect(cached).toEqual(details);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a null expiry for unlimited accounts', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: {
+                user_info: {
+                    auth: 1,
+                    status: 'Active',
+                    exp_date: '0',
+                },
+            },
+        });
+
+        await expect(
+            service.checkPortalStatusDetails(
+                'http://example.com',
+                'user',
+                'pass'
+            )
+        ).resolves.toEqual({ status: 'active', expiresAtSeconds: null });
+    });
+
     it('treats lowercase active status and exp_date 0 as active', async () => {
         dataService.sendIpcEvent.mockResolvedValue({
             payload: {

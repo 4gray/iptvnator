@@ -1,6 +1,7 @@
 import {
     extractXtreamCredentialsFromUrl,
     normalizeXtreamServerUrl,
+    resolveXtreamPortalExpiration,
     resolveXtreamPortalStatus,
 } from './xtream-portal.utils';
 
@@ -102,6 +103,41 @@ describe('xtream portal utilities', () => {
                     now
                 )
             ).toBe('expired');
+        });
+    });
+
+    describe('resolveXtreamPortalExpiration', () => {
+        it('parses numeric-string exp_date into unix seconds', () => {
+            expect(
+                resolveXtreamPortalExpiration({
+                    user_info: { exp_date: '1790000000' },
+                })
+            ).toBe(1_790_000_000);
+        });
+
+        it('treats unlimited and absent expirations as null', () => {
+            expect(
+                resolveXtreamPortalExpiration({
+                    user_info: { exp_date: '0' },
+                })
+            ).toBeNull();
+            expect(
+                resolveXtreamPortalExpiration({
+                    user_info: { exp_date: '' },
+                })
+            ).toBeNull();
+            expect(
+                resolveXtreamPortalExpiration({ user_info: {} })
+            ).toBeNull();
+            expect(resolveXtreamPortalExpiration(null)).toBeNull();
+        });
+
+        it('rejects non-numeric exp_date values', () => {
+            expect(
+                resolveXtreamPortalExpiration({
+                    user_info: { exp_date: 'never' },
+                })
+            ).toBeNull();
         });
     });
 });

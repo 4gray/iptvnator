@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
             "NOT_YET_SYNCED": "Яшчэ не сінхранізавана",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "Скончыцца праз {{days}} дз.",
+            "SOURCE_EXPIRED": "Скончыўся"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

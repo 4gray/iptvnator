@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "É{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Még nincs szinkronizálva",
             "RECENTLY_WATCHED_LIVE_TV": "Legutóbb nézett élő csatornák",
-            "FAVORITE_MOVIES_AND_SERIES": "Kedvenc filmek és sorozatok"
+            "FAVORITE_MOVIES_AND_SERIES": "Kedvenc filmek és sorozatok",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}} nap múlva lejár",
+            "SOURCE_EXPIRED": "Lejárt"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

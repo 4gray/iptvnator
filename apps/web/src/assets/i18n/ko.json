@@ -1213,7 +1213,9 @@
             "SEASON_EPISODE_BADGE": "시즌{{season}} {{episode}}화",
             "NOT_YET_SYNCED": "아직 동기화되지 않음",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}}일 후 만료",
+            "SOURCE_EXPIRED": "만료됨"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
