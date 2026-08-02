@@ -111,11 +111,13 @@ variants, contextual buttons, and theme-aware styling.
   absence; permission, I/O, and other probe errors remain unknown, so
   `DOWNLOADS_START` leaves the completed row and file path untouched. Before a
   completed-missing, failed, or canceled row clears its path, the same start IPC
-  asynchronously removes any retained `.part`. This cleanup also has a
-  one-second per-caller deadline, coalesces same-path work, and allows at most
-  four underlying unlinks; timeout, permission, and I/O failures keep the row's
-  ownership intact, while `ENOENT` and `ENOTDIR` safely proceed. The coordinator
-  counts both stable duplicate reasons as skipped. There is no batch IPC,
+  asynchronously removes any retained `.part`. Cleanup coalesces same-path work
+  and allows at most four underlying unlinks. A one-second admission deadline
+  rejects queued work before it can mutate the filesystem; once an unlink
+  starts, the request awaits its authoritative result so no late side effect can
+  race a retry. Permission and I/O failures keep the row's ownership intact,
+  while `ENOENT` and `ENOTDIR` safely proceed. The coordinator counts both stable
+  duplicate reasons as skipped. There is no batch IPC,
   parallel transfer, or queue reordering: destination authorization, persisted
   header handling, and the backend's one-active-transfer FIFO semantics remain
   unchanged.

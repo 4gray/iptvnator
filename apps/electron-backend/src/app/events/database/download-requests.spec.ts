@@ -921,7 +921,7 @@ describe('download requests resume', () => {
                 update: jest.fn(() => ({ set })),
             };
             const enqueueDownload = jest.fn();
-            const removePartialDownloadFileWithTimeoutAsync = jest.fn(
+            const removePartialDownloadFileAsync = jest.fn(
                 async () => 'removed' as const
             );
             const authorizer = {
@@ -937,7 +937,7 @@ describe('download requests resume', () => {
                 assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
             }));
             jest.doMock('./download-partial-cleanup', () => ({
-                removePartialDownloadFileWithTimeoutAsync,
+                removePartialDownloadFileAsync,
             }));
             jest.doMock('./download-runtime', () => ({
                 enqueueDownload,
@@ -960,9 +960,9 @@ describe('download requests resume', () => {
                 )
             ).resolves.toEqual({ id: 42, success: true });
 
-            expect(
-                removePartialDownloadFileWithTimeoutAsync
-            ).toHaveBeenCalledWith('/downloads/movie.mp4');
+            expect(removePartialDownloadFileAsync).toHaveBeenCalledWith(
+                '/downloads/movie.mp4'
+            );
             expect(set).toHaveBeenCalledWith(
                 expect.objectContaining({
                     filePath: null,
@@ -1002,7 +1002,7 @@ describe('download requests resume', () => {
             update: jest.fn(() => ({ set })),
         };
         const enqueueDownload = jest.fn();
-        const removePartialDownloadFileWithTimeoutAsync = jest.fn(
+        const removePartialDownloadFileAsync = jest.fn(
             async () => 'unknown' as const
         );
         const authorizer = {
@@ -1016,7 +1016,7 @@ describe('download requests resume', () => {
             assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
         }));
         jest.doMock('./download-partial-cleanup', () => ({
-            removePartialDownloadFileWithTimeoutAsync,
+            removePartialDownloadFileAsync,
         }));
         jest.doMock('./download-runtime', () => ({
             enqueueDownload,

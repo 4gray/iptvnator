@@ -11,7 +11,7 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { getDownloadFileAvailabilityWithTimeoutAsync } from './download-file-availability';
-import { removePartialDownloadFileWithTimeoutAsync } from './download-partial-cleanup';
+import { removePartialDownloadFileAsync } from './download-partial-cleanup';
 import { resolveExistingDownloadIdentity } from './download-request-identity';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
 import {
@@ -182,9 +182,7 @@ export async function startDownloadRequest(
             // A terminal row can still reference a retained .part; delete it
             // before the restart clears filePath, or the file is orphaned.
             // An unavailable or slow .part must keep its database owner.
-            const cleanup = await removePartialDownloadFileWithTimeoutAsync(
-                item.filePath
-            );
+            const cleanup = await removePartialDownloadFileAsync(item.filePath);
             if (cleanup === 'unknown') {
                 console.error(
                     '[Downloads] Could not verify retained partial cleanup'

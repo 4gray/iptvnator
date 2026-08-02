@@ -6,7 +6,8 @@ export type DownloadPartialCleanupResult = 'removed' | 'missing' | 'unknown';
 export type DownloadAsyncUnlink = (filePath: string) => Promise<void>;
 
 export type DownloadPartialCleanup = (
-    filePath: string
+    filePath: string,
+    admissionTimeoutMs?: number
 ) => Promise<DownloadPartialCleanupResult>;
 
 const DEFAULT_MAX_CONCURRENT_PARTIAL_CLEANUPS = 4;
@@ -26,15 +27,39 @@ export function createPartialDownloadCleanup(
 ): DownloadPartialCleanup {
     const concurrency = Math.max(1, Math.floor(maxConcurrent));
     const pending: Array<() => void> = [];
+    // Only admission can time out. Once unlink starts, every coalesced caller
+    // awaits its authoritative result so no late deletion can race a retry.
     const inFlight = new Map<string, Promise<DownloadPartialCleanupResult>>();
     let active = 0;
 
-    const acquire = (): Promise<void> => {
+    const acquire = (timeoutMs: number): Promise<boolean> => {
         if (active < concurrency) {
             active += 1;
-            return Promise.resolve();
+            return Promise.resolve(true);
         }
-        return new Promise((resolve) => pending.push(resolve));
+        return new Promise((resolve) => {
+            let settled = false;
+            const start = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                clearTimeout(timeout);
+                resolve(true);
+            };
+            const timeout = setTimeout(() => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                const index = pending.indexOf(start);
+                if (index >= 0) {
+                    pending.splice(index, 1);
+                }
+                resolve(false);
+            }, timeoutMs);
+            pending.push(start);
+        });
     };
 
     const release = (): void => {
@@ -47,9 +72,12 @@ export function createPartialDownloadCleanup(
     };
 
     const remove = async (
-        filePath: string
+        filePath: string,
+        admissionTimeoutMs: number
     ): Promise<DownloadPartialCleanupResult> => {
-        await acquire();
+        if (!(await acquire(admissionTimeoutMs))) {
+            return 'unknown';
+        }
         try {
             await asyncUnlink(getPartialDownloadPath(filePath));
             return 'removed';
@@ -60,13 +88,16 @@ export function createPartialDownloadCleanup(
         }
     };
 
-    return (filePath: string) => {
+    return (
+        filePath: string,
+        admissionTimeoutMs = DEFAULT_PARTIAL_CLEANUP_TIMEOUT_MS
+    ) => {
         const existing = inFlight.get(filePath);
         if (existing) {
             return existing;
         }
 
-        const cleanup = remove(filePath);
+        const cleanup = remove(filePath, admissionTimeoutMs);
         inFlight.set(filePath, cleanup);
         const clear = () => {
             if (inFlight.get(filePath) === cleanup) {
@@ -80,31 +111,23 @@ export function createPartialDownloadCleanup(
 
 const cleanupPartialDownloadFile = createPartialDownloadCleanup();
 
-export async function removePartialDownloadFileWithTimeoutAsync(
+export async function removePartialDownloadFileAsync(
     filePath: string | null | undefined,
-    timeoutMs = DEFAULT_PARTIAL_CLEANUP_TIMEOUT_MS,
+    admissionTimeoutMs = DEFAULT_PARTIAL_CLEANUP_TIMEOUT_MS,
     cleanup: DownloadPartialCleanup = cleanupPartialDownloadFile
 ): Promise<DownloadPartialCleanupResult> {
     if (!filePath) {
         return 'missing';
     }
 
-    const boundedTimeoutMs =
-        Number.isFinite(timeoutMs) && timeoutMs >= 0
-            ? timeoutMs
+    const boundedAdmissionTimeoutMs =
+        Number.isFinite(admissionTimeoutMs) && admissionTimeoutMs >= 0
+            ? admissionTimeoutMs
             : DEFAULT_PARTIAL_CLEANUP_TIMEOUT_MS;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const timedOut = new Promise<'unknown'>((resolve) => {
-        timeout = setTimeout(() => resolve('unknown'), boundedTimeoutMs);
-    });
 
     try {
-        return await Promise.race([cleanup(filePath), timedOut]);
+        return await cleanup(filePath, boundedAdmissionTimeoutMs);
     } catch {
         return 'unknown';
-    } finally {
-        if (timeout !== undefined) {
-            clearTimeout(timeout);
-        }
     }
 }
