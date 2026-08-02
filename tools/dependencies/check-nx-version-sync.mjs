@@ -26,6 +26,7 @@ export function validateNxVersionSync({ packageJson, lockfile }) {
         'dependencies',
         'devDependencies',
         'optionalDependencies',
+        'peerDependencies',
     ]) {
         const section = packageJson[sectionName] ?? {};
         for (const [packageName, specifier] of Object.entries(section)) {

@@ -85,6 +85,31 @@ test('rejects a direct official Nx package mismatch', async (t) => {
     );
 });
 
+test('rejects a direct official Nx peer dependency mismatch', async (t) => {
+    const rootDir = await createFixture(t, {
+        packageJson: {
+            devDependencies: {
+                nx: '22.7.2',
+            },
+            peerDependencies: {
+                '@nx/angular': '22.7.1',
+            },
+        },
+        packages: {
+            '@nx/angular@22.7.2': {},
+            'nx@22.7.2': {},
+        },
+    });
+
+    const result = runValidator(rootDir);
+
+    assert.equal(result.status, 1);
+    assert.match(
+        result.stderr,
+        /peerDependencies\["@nx\/angular"\] must match nx@22\.7\.2, found "22\.7\.1"/
+    );
+});
+
 test('rejects a non-exact root Nx version', async (t) => {
     const rootDir = await createFixture(t, {
         packageJson: {
