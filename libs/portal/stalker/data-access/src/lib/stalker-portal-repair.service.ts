@@ -70,14 +70,15 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
     private readonly overrides = new Map<string, StalkerPortalModeOverride>();
     /**
-     * Source-configuration fingerprint already probed this session, per
-     * playlist. Keyed by CONFIG, not just id: a stale snapshot of an
-     * already-probed configuration must not re-probe (loop guard), while a
-     * configuration the user edited afterwards — including one whose
-     * mid-probe edit discarded a repair — must be allowed to probe when IT
-     * fails.
+     * EVERY source-configuration fingerprint already probed this session,
+     * per playlist. Keyed by CONFIG, not just id: a stale snapshot of an
+     * already-probed configuration must not re-probe (loop guard) — and the
+     * full history matters, because alternating edits (A→B→A) would
+     * otherwise evict A's fingerprint and let its stale snapshots run the
+     * expensive discovery again. A configuration never probed — including
+     * one whose mid-probe edit discarded a repair — probes when IT fails.
      */
-    private readonly attemptedSources = new Map<string, string>();
+    private readonly attemptedSources = new Map<string, Set<string>>();
     private readonly pendingRepairs = new Map<
         string,
         Promise<PlaylistMeta | null>
@@ -155,13 +156,15 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
     }
 
     /**
-     * Retires every session artifact a repair installed for a playlist:
-     * the override, the once-per-config probe latch, and the cached token
-     * (authenticated for the pre-edit identity/endpoint).
+     * Retires the session artifacts a repair installed for a playlist: the
+     * override and the cached token (authenticated for the pre-edit
+     * identity/endpoint). The probe HISTORY deliberately survives — the
+     * per-config latch already lets a never-probed configuration through,
+     * and forgetting probed ones would let alternating edits (A→B→A) loop
+     * discovery through stale snapshots.
      */
     private dropOverride(playlistId: string): void {
         this.overrides.delete(playlistId);
-        this.attemptedSources.delete(playlistId);
         this.stalkerSession.clearCachedToken(playlistId);
     }
 
@@ -214,17 +217,14 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return this.reapplyIfChanged(playlist);
         }
 
-        if (
-            this.attemptedSources.get(playlistId) ===
-            this.repairSourceFingerprint(playlist)
-        ) {
+        const fingerprint = this.repairSourceFingerprint(playlist);
+        const attempted = this.attemptedSources.get(playlistId) ?? new Set();
+        if (attempted.has(fingerprint)) {
             return this.reapplyIfChanged(playlist);
         }
 
-        this.attemptedSources.set(
-            playlistId,
-            this.repairSourceFingerprint(playlist)
-        );
+        attempted.add(fingerprint);
+        this.attemptedSources.set(playlistId, attempted);
         const run = this.runRepair(playlist);
         this.pendingRepairs.set(playlistId, run);
         try {
@@ -280,10 +280,39 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
         // TOCTOU guard: the probe can run for tens of seconds, and the user
         // may have edited the portal metadata (or deleted the playlist)
-        // meanwhile. Commit the repair ONLY if the persisted row still
-        // carries the configuration that failed — otherwise the edited row
-        // must win and the repair result for the old URL is discarded.
-        if (!(await this.rowStillMatchesSource(playlist, storedMode))) {
+        // meanwhile. The verification and the patch run ATOMICALLY inside
+        // the per-playlist write queue — a plain read-check-then-update
+        // pair would still race an edit that is queued but not committed.
+        // The transform patches the FRESH row, so nothing stale can clobber
+        // user state; returning null aborts without writing.
+        let verifiedAgainstRow = false;
+        try {
+            await firstValueFrom(
+                this.injector
+                    .get(PlaylistsService)
+                    .transformPlaylistMeta(playlist._id, (row) => {
+                        if (!this.rowMatchesSource(row, playlist, storedMode)) {
+                            return null;
+                        }
+                        verifiedAgainstRow = true;
+                        return {
+                            ...row,
+                            portalUrl: outcome.portalUrl,
+                            isFullStalkerPortal: outcome.isFullStalkerPortal,
+                        };
+                    })
+            );
+        } catch (error) {
+            // A failed WRITE after successful verification keeps the
+            // session-only override below; a failed READ means the premise
+            // could not be verified and the repair is discarded.
+            this.logger.warn(
+                'Persisting repaired portal mode failed',
+                error
+            );
+        }
+
+        if (!verifiedAgainstRow) {
             this.logger.info(
                 'Portal configuration changed while probing; discarding repair'
             );
@@ -324,74 +353,25 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             `Repaired portal mode: isFullStalkerPortal=${outcome.isFullStalkerPortal}`
         );
 
-        await this.persistRepair(playlist._id, outcome.portalUrl, outcome.isFullStalkerPortal);
-
         return this.applyOverride(playlist);
     }
 
     /**
-     * Re-reads the persisted row and reports whether it still carries the
-     * configuration the repair was computed for. A missing row (playlist
-     * deleted mid-probe) or an unreadable store counts as NOT matching —
-     * never write when the premise cannot be verified.
+     * Whether the persisted row still carries the configuration the repair
+     * was computed for — endpoint, mode, and the identity the probe
+     * authenticated as. Runs synchronously INSIDE the atomic transform.
      */
-    private async rowStillMatchesSource(
+    private rowMatchesSource(
+        row: PlaylistMeta,
         playlist: PlaylistMeta,
         sourceMode: boolean
-    ): Promise<boolean> {
-        try {
-            const row = await firstValueFrom(
-                this.injector
-                    .get(PlaylistsService)
-                    .getPlaylistById(playlist._id)
-            );
-            if (
-                !row ||
-                row.portalUrl !== playlist.portalUrl ||
-                isFullStalkerPortalPlaylist(row) !== sourceMode
-            ) {
-                return false;
-            }
-
-            // The probe also authenticated AS an identity: a MAC or device
-            // identity edited during the multi-second probe must discard the
-            // repair too, or its token/watchdog would belong to the old
-            // account. Blank and absent identity values are equivalent.
-            return (
-                stalkerIdentityFingerprint(row) === stalkerIdentityFingerprint(playlist)
-            );
-        } catch (error) {
-            this.logger.warn(
-                'Could not verify the stored portal row; discarding repair',
-                error
-            );
-            return false;
-        }
+    ): boolean {
+        return (
+            row.portalUrl === playlist.portalUrl &&
+            isFullStalkerPortalPlaylist(row) === sourceMode &&
+            stalkerIdentityFingerprint(row) ===
+                stalkerIdentityFingerprint(playlist)
+        );
     }
 
-    private async persistRepair(
-        playlistId: string,
-        portalUrl: string,
-        isFullStalkerPortal: boolean
-    ): Promise<void> {
-        try {
-            // Minimal patch on purpose: updatePlaylistMeta merges only the
-            // defined fields into a freshly read row, so a stale in-memory
-            // meta object can never clobber favorites or other user state.
-            await firstValueFrom(
-                this.injector.get(PlaylistsService).updatePlaylistMeta({
-                    _id: playlistId,
-                    portalUrl,
-                    isFullStalkerPortal,
-                } as PlaylistMeta)
-            );
-        } catch (error) {
-            // The in-session override still applies; persistence gets
-            // another chance the next time the stored row fails.
-            this.logger.warn(
-                'Persisting repaired portal mode failed; keeping session-only override',
-                error
-            );
-        }
-    }
 }

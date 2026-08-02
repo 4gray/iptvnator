@@ -173,7 +173,11 @@ export class StalkerPortalImportComponent {
                     { duration: 5000 }
                 );
                 return;
-            } else if (isFullStalkerPortalUrl(originalUrl)) {
+            } else if (
+                isFullStalkerPortalUrl(
+                    normalizeStalkerPortalInputUrl(originalUrl) ?? originalUrl
+                )
+            ) {
                 // Unreachable host on a canonical-portal URL shape: the old
                 // flow aborted here too (its mandatory handshake could not
                 // succeed either).

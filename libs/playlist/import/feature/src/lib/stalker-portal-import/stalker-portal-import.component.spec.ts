@@ -131,6 +131,29 @@ describe('StalkerPortalImportComponent identity handling', () => {
         expect(playlist.signature2).toBeUndefined();
     });
 
+    it('classifies the offline fallback on the normalized URL, not the raw query', async () => {
+        // A query merely MENTIONING /server/load.php must not make a
+        // panel-style /c URL look canonical and abort the offline import.
+        portalDiscovery.discover.mockResolvedValue({ status: 'unreachable' });
+        component.form.patchValue({
+            _id: 'playlist-3',
+            title: 'Query Panel',
+            macAddress: '00:1A:79:AA:BB:CC',
+            portalUrl: 'https://panel.example.com/c?redirect=/server/load.php',
+            importDate: '2026-05-15T00:00:00.000Z',
+        });
+
+        await component.addPlaylist();
+
+        const playlist = store.dispatch.mock.calls[0][0].playlist;
+        expect(playlist).toEqual(
+            expect.objectContaining({
+                portalUrl: 'https://panel.example.com/portal.php',
+                isFullStalkerPortal: false,
+            })
+        );
+    });
+
     it('normalizes a query-carrying /c URL in the unreachable-host fallback', async () => {
         // Offline panel: discovery finds nothing, the legacy guess imports
         // anyway — but the suffix rewrite must run on the PATH, or

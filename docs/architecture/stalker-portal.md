@@ -103,8 +103,15 @@ proven endpoint and mode. When no candidate answers at all, panel-style URLs
 fall back to the pre-discovery behavior (legacy `…/c` → `portal.php` rewrite,
 simple mode, import succeeds with a warning) so temporarily offline panels
 can still be added; canonical-shaped URLs abort like the old mandatory
-handshake did. A 4xx answer moves to the next candidate; a network-level
-failure aborts discovery (all candidates share the host).
+handshake did (both classifications run on the normalized
+`origin + pathname` form). Probe failure sequencing: ANY resolvable HTTP
+status moves to the next candidate — 4xx means the endpoint is absent, a
+5xx can be one broken handler beside a healthy sibling — and 401/403
+specifically classify as auth-required (the handshake is attempted, for
+middlewares that answer HTTP auth codes instead of the stock 200 +
+plain-text body). Status-less TIMEOUTS also continue (a single handler can
+hang); only connection-level failures (refused, unresolvable host) abort
+discovery, since every candidate shares the host.
 
 **Lazy repair (existing playlists).** The flag is frozen in the DB, so
 records persisted by the old guess stay broken without repair — but a large

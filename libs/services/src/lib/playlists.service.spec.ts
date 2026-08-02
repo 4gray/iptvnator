@@ -1479,6 +1479,56 @@ describe('PlaylistsService', () => {
             expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(1);
         });
 
+        it('transformPlaylistMeta aborts without writing when the transform returns null', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-meta-abort')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+            const writesBefore = electron.dbUpsertAppPlaylist.mock.calls.length;
+
+            const result = await firstValueFrom(
+                service.transformPlaylistMeta('portal-meta-abort', () => null)
+            );
+
+            expect(result).toBeNull();
+            expect(electron.dbUpsertAppPlaylist.mock.calls.length).toBe(
+                writesBefore
+            );
+        });
+
+        it('transformPlaylistMeta persists the transformed row and serializes with queued edits', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-meta-write')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+
+            // A queued edit commits first; the conditional transform then
+            // sees ITS result — the property the Stalker portal repair
+            // relies on to never overwrite a user edit racing the probe.
+            await Promise.all([
+                firstValueFrom(
+                    service.updatePlaylistMeta({
+                        _id: 'portal-meta-write',
+                        title: 'Edited Title',
+                    } as never)
+                ),
+                firstValueFrom(
+                    service.transformPlaylistMeta(
+                        'portal-meta-write',
+                        (current) =>
+                            current.title === 'Edited Title'
+                                ? { ...current, portalUrl: 'http://x/portal.php' }
+                                : null
+                    )
+                ),
+            ]);
+
+            expect(store.current.title).toBe('Edited Title');
+            expect(store.current.portalUrl).toBe('http://x/portal.php');
+        });
+
         it('applies overlapping favorites transforms atomically', async () => {
             const { store, electron } = createStatefulElectronStore(
                 createBasePlaylist('portal-transform-race')

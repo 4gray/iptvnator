@@ -767,6 +767,41 @@ export class PlaylistsService {
         });
     }
 
+    /**
+     * Applies an atomic, conditional meta mutation: the transform runs on
+     * the freshly read row INSIDE the per-playlist write queue and may
+     * return null to abort without writing. Callers use this when the
+     * decision to write depends on the row's CURRENT state — e.g. the lazy
+     * Stalker portal repair verifying the row still carries the
+     * configuration it probed; a plain read-check-then-update pair would
+     * race a user edit already queued but not yet committed.
+     */
+    transformPlaylistMeta(
+        playlistId: string,
+        transform: (current: Playlist) => Playlist | null
+    ): Observable<Playlist | null> {
+        if (!playlistId) {
+            throw new Error('Playlist ID is required');
+        }
+
+        return this.serializePlaylistWrite(playlistId, async () => {
+            const playlist = await firstValueFrom(
+                this.getPlaylistById(playlistId)
+            );
+            if (!playlist) {
+                return null;
+            }
+
+            const nextPlaylist = transform(playlist);
+            if (nextPlaylist === null) {
+                return null;
+            }
+
+            await this.persistPlaylistMutation(nextPlaylist);
+            return nextPlaylist;
+        });
+    }
+
     updateManyPlaylists(playlists: Playlist[]) {
         if (playlists.length === 0) {
             return of([]);

@@ -27,19 +27,39 @@ const MISCLASSIFIED = {
 describe('StalkerPortalRepairService', () => {
     let service: StalkerPortalRepairService;
     let discover: jest.Mock;
-    let updatePlaylistMeta: jest.Mock;
-    let getPlaylistById: jest.Mock;
+    let transformPlaylistMeta: jest.Mock;
     /** What the persisted row looks like when the repair re-verifies it. */
     let persistedRow: Playlist | undefined;
+    /** The row the atomic transform actually wrote, if any. */
+    let writtenRow: Playlist | null;
+    /** When set, the atomic write fails AFTER the transform verified. */
+    let persistError: Error | null;
     let setCachedToken: jest.Mock;
     let clearCachedToken: jest.Mock;
     let refreshActiveWatchdogPlaylist: jest.Mock;
 
     beforeEach(() => {
         discover = jest.fn();
-        updatePlaylistMeta = jest.fn().mockReturnValue(of({}));
         persistedRow = MISCLASSIFIED as Playlist;
-        getPlaylistById = jest.fn().mockImplementation(() => of(persistedRow));
+        writtenRow = null;
+        persistError = null;
+        // Mirrors PlaylistsService.transformPlaylistMeta semantics: the
+        // transform runs on the current row inside the write queue; null
+        // aborts, otherwise the returned row is persisted.
+        transformPlaylistMeta = jest.fn((_id, transform) => {
+            if (!persistedRow) {
+                return of(null);
+            }
+            const next = transform(persistedRow) as Playlist | null;
+            if (next === null) {
+                return of(null);
+            }
+            if (persistError) {
+                return throwError(() => persistError);
+            }
+            writtenRow = next;
+            return of(next);
+        });
         setCachedToken = jest.fn();
         clearCachedToken = jest.fn();
         refreshActiveWatchdogPlaylist = jest.fn();
@@ -52,7 +72,7 @@ describe('StalkerPortalRepairService', () => {
                 },
                 {
                     provide: PlaylistsService,
-                    useValue: { updatePlaylistMeta, getPlaylistById },
+                    useValue: { transformPlaylistMeta },
                 },
                 {
                     provide: StalkerSessionService,
@@ -144,9 +164,9 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://ministra.example/server/load.php',
                 isFullStalkerPortal: true,
             });
-            // Minimal patch: only the identity plus the two repaired fields,
-            // so a stale in-memory meta can never clobber user state.
-            expect(updatePlaylistMeta).toHaveBeenCalledWith({
+            // The atomic transform patched the FRESH row (verified inside
+            // the write queue), so user state can never be clobbered.
+            expect(writtenRow).toMatchObject({
                 _id: 'portal-1',
                 portalUrl: 'http://ministra.example/server/load.php',
                 isFullStalkerPortal: true,
@@ -201,7 +221,7 @@ describe('StalkerPortalRepairService', () => {
             const repaired = await service.repairPortal(MISCLASSIFIED);
 
             expect(repaired).toBeNull();
-            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(writtenRow).toBeNull();
             expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
             expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
@@ -210,7 +230,7 @@ describe('StalkerPortalRepairService', () => {
             discover.mockResolvedValue({ status: 'unreachable' });
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(writtenRow).toBeNull();
         });
 
         it('changes nothing when the probe is rejected by the portal', async () => {
@@ -220,7 +240,7 @@ describe('StalkerPortalRepairService', () => {
             });
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(writtenRow).toBeNull();
         });
 
         it('probes at most once per playlist per session', async () => {
@@ -322,7 +342,7 @@ describe('StalkerPortalRepairService', () => {
             } as Playlist;
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(writtenRow).toBeNull();
             expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
             expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
         });
@@ -341,7 +361,7 @@ describe('StalkerPortalRepairService', () => {
             } as Playlist;
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(writtenRow).toBeNull();
             expect(setCachedToken).not.toHaveBeenCalled();
             expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
@@ -419,7 +439,7 @@ describe('StalkerPortalRepairService', () => {
             persistedRow = undefined;
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
-            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(writtenRow).toBeNull();
         });
 
         it('keeps the session-only override when persisting fails', async () => {
@@ -428,9 +448,8 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: MISCLASSIFIED.portalUrl,
                 isFullStalkerPortal: true,
             });
-            updatePlaylistMeta.mockReturnValue(
-                throwError(() => new Error('db locked'))
-            );
+            // The transform verified the row, but the WRITE failed.
+            persistError = new Error('db locked');
 
             const repaired = await service.repairPortal(MISCLASSIFIED);
 
