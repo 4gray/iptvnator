@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
+import type { Playlist } from '@iptvnator/shared/interfaces';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
@@ -27,6 +28,9 @@ describe('StalkerPortalRepairService', () => {
     let service: StalkerPortalRepairService;
     let discover: jest.Mock;
     let updatePlaylistMeta: jest.Mock;
+    let getPlaylistById: jest.Mock;
+    /** What the persisted row looks like when the repair re-verifies it. */
+    let persistedRow: Playlist | undefined;
     let setCachedToken: jest.Mock;
     let clearCachedToken: jest.Mock;
     let refreshActiveWatchdogPlaylist: jest.Mock;
@@ -34,6 +38,8 @@ describe('StalkerPortalRepairService', () => {
     beforeEach(() => {
         discover = jest.fn();
         updatePlaylistMeta = jest.fn().mockReturnValue(of({}));
+        persistedRow = MISCLASSIFIED as Playlist;
+        getPlaylistById = jest.fn().mockImplementation(() => of(persistedRow));
         setCachedToken = jest.fn();
         clearCachedToken = jest.fn();
         refreshActiveWatchdogPlaylist = jest.fn();
@@ -44,7 +50,10 @@ describe('StalkerPortalRepairService', () => {
                     provide: StalkerPortalDiscoveryService,
                     useValue: { discover },
                 },
-                { provide: PlaylistsService, useValue: { updatePlaylistMeta } },
+                {
+                    provide: PlaylistsService,
+                    useValue: { updatePlaylistMeta, getPlaylistById },
+                },
                 {
                     provide: StalkerSessionService,
                     useValue: {
@@ -159,6 +168,7 @@ describe('StalkerPortalRepairService', () => {
                 ...MISCLASSIFIED,
                 portalUrl: 'http://ministra.example/portal.php',
             } as PlaylistMeta;
+            persistedRow = wrongEndpoint as Playlist;
             discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: 'http://ministra.example/server/load.php',
@@ -285,11 +295,43 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://other.example/server/load.php',
                 isFullStalkerPortal: true,
             });
+            persistedRow = edited as Playlist;
             const repairedAgain = await service.repairPortal(edited);
             expect(discover).toHaveBeenCalledTimes(2);
             expect(repairedAgain?.portalUrl).toBe(
                 'http://other.example/server/load.php'
             );
+        });
+
+        it('discards an in-flight repair when the row was edited during the probe', async () => {
+            // The probe can run for tens of seconds; a user who saves a new
+            // portal URL meanwhile must win over the repair of the old one.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            persistedRow = {
+                ...MISCLASSIFIED,
+                portalUrl: 'http://edited.example/portal.php',
+            } as Playlist;
+
+            expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
+            expect(updatePlaylistMeta).not.toHaveBeenCalled();
+            expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
+            expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
+        });
+
+        it('discards an in-flight repair when the playlist was deleted during the probe', async () => {
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            persistedRow = undefined;
+
+            expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
+            expect(updatePlaylistMeta).not.toHaveBeenCalled();
         });
 
         it('keeps the session-only override when persisting fails', async () => {
@@ -316,6 +358,7 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://panel.example/server/load.php',
                 isFullStalkerPortal: true,
             } as PlaylistMeta;
+            persistedRow = wronglyFull as Playlist;
             discover.mockResolvedValue({
                 status: 'resolved',
                 portalUrl: 'http://panel.example/portal.php',

@@ -3,6 +3,7 @@ import {
     classifyStalkerProbeResponse,
     getStalkerRequestErrorStatus,
     isStalkerAuthFailureBody,
+    isStalkerAuthFailureResponse,
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
 } from './stalker-portal-discovery.utils';
@@ -164,6 +165,32 @@ describe('isStalkerAuthFailureBody', () => {
     });
 });
 
+describe('isStalkerAuthFailureResponse', () => {
+    it('recognizes both the plain-text body and the JSON envelope forms', () => {
+        expect(isStalkerAuthFailureResponse('Authorization failed.')).toBe(
+            true
+        );
+        expect(
+            isStalkerAuthFailureResponse({
+                js: { error: 'Authorization failed' },
+            })
+        ).toBe(true);
+        expect(
+            isStalkerAuthFailureResponse({ js: { msg: 'Access denied.' } })
+        ).toBe(true);
+    });
+
+    it('does not flag ordinary data or unrelated js errors', () => {
+        expect(isStalkerAuthFailureResponse({ js: { data: [] } })).toBe(false);
+        expect(
+            isStalkerAuthFailureResponse({
+                js: { error: 'Unknown action: get_genres' },
+            })
+        ).toBe(false);
+        expect(isStalkerAuthFailureResponse(undefined)).toBe(false);
+    });
+});
+
 describe('classifyStalkerProbeResponse', () => {
     it('classifies a js envelope as data', () => {
         expect(classifyStalkerProbeResponse({ js: [] })).toBe('data');
@@ -174,6 +201,17 @@ describe('classifyStalkerProbeResponse', () => {
         expect(classifyStalkerProbeResponse('Authorization failed.')).toBe(
             'auth-required'
         );
+    });
+
+    it('classifies the JSON-envelope auth failure as auth-required, not data', () => {
+        // Some panels answer HTTP 200 + {js:{error:"Authorization failed"}}
+        // instead of the plain-text body; treating it as data would persist
+        // the portal as token-free with no repair trigger ever firing.
+        expect(
+            classifyStalkerProbeResponse({
+                js: { error: 'Authorization failed' },
+            })
+        ).toBe('auth-required');
     });
 
     it('classifies anything else as not-a-portal', () => {

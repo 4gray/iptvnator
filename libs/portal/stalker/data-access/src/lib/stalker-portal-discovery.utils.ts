@@ -104,6 +104,40 @@ export function isStalkerAuthFailureBody(response: unknown): boolean {
     return STALKER_AUTH_FAILURE_PATTERNS.some((pattern) => pattern.test(body));
 }
 
+/**
+ * Whether a portal response is an authorization failure in EITHER wire
+ * shape: the middleware's plain-text body, or the JSON envelope some panels
+ * answer instead (`{ js: { error: "Authorization failed" } }` /
+ * `{ js: { msg: … } }` — the same forms
+ * `StalkerSessionService.isAuthorizationError()` recognizes). Classification
+ * and the lazy-repair trigger must use this, not the string-only primitive:
+ * a JSON-failing panel would otherwise be persisted as token-free and never
+ * repaired.
+ */
+export function isStalkerAuthFailureResponse(response: unknown): boolean {
+    if (isStalkerAuthFailureBody(response)) {
+        return true;
+    }
+
+    if (
+        response === null ||
+        typeof response !== 'object' ||
+        !('js' in (response as Record<string, unknown>))
+    ) {
+        return false;
+    }
+
+    const js = (response as { js?: unknown }).js;
+    if (js === null || typeof js !== 'object') {
+        return false;
+    }
+
+    const { error, msg } = js as { error?: unknown; msg?: unknown };
+    return [error, msg].some(
+        (value) => typeof value === 'string' && isStalkerAuthFailureBody(value)
+    );
+}
+
 export type StalkerProbeClassification = 'data' | 'auth-required' | 'not-a-portal';
 
 /**
@@ -115,7 +149,7 @@ export type StalkerProbeClassification = 'data' | 'auth-required' | 'not-a-porta
 export function classifyStalkerProbeResponse(
     response: unknown
 ): StalkerProbeClassification {
-    if (isStalkerAuthFailureBody(response)) {
+    if (isStalkerAuthFailureResponse(response)) {
         return 'auth-required';
     }
 

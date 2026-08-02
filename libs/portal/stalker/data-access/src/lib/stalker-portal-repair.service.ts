@@ -9,7 +9,7 @@ import { createLogger } from '@iptvnator/portal/shared/util';
 import { StalkerPortalDiscoveryService } from './stalker-portal-discovery.service';
 import {
     getStalkerRequestErrorStatus,
-    isStalkerAuthFailureBody,
+    isStalkerAuthFailureResponse,
 } from './stalker-portal-discovery.utils';
 import { getStalkerPortalIdentityFromPlaylist } from './stalker-identity.utils';
 import { StalkerSessionService } from './stalker-session.service';
@@ -124,7 +124,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return false;
         }
 
-        if (isStalkerAuthFailureBody(failure)) {
+        if (isStalkerAuthFailureResponse(failure)) {
             return true;
         }
 
@@ -204,6 +204,18 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return null;
         }
 
+        // TOCTOU guard: the probe can run for tens of seconds, and the user
+        // may have edited the portal metadata (or deleted the playlist)
+        // meanwhile. Commit the repair ONLY if the persisted row still
+        // carries the configuration that failed — otherwise the edited row
+        // must win and the repair result for the old URL is discarded.
+        if (!(await this.rowStillMatchesSource(playlist, storedMode))) {
+            this.logger.info(
+                'Portal configuration changed while probing; discarding repair'
+            );
+            return null;
+        }
+
         this.overrides.set(playlist._id, {
             sourcePortalUrl: playlist.portalUrl,
             sourceIsFullStalkerPortal: storedMode,
@@ -234,6 +246,36 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         await this.persistRepair(playlist._id, outcome.portalUrl, outcome.isFullStalkerPortal);
 
         return this.applyOverride(playlist);
+    }
+
+    /**
+     * Re-reads the persisted row and reports whether it still carries the
+     * configuration the repair was computed for. A missing row (playlist
+     * deleted mid-probe) or an unreadable store counts as NOT matching —
+     * never write when the premise cannot be verified.
+     */
+    private async rowStillMatchesSource(
+        playlist: PlaylistMeta,
+        sourceMode: boolean
+    ): Promise<boolean> {
+        try {
+            const row = await firstValueFrom(
+                this.injector
+                    .get(PlaylistsService)
+                    .getPlaylistById(playlist._id)
+            );
+            return (
+                !!row &&
+                row.portalUrl === playlist.portalUrl &&
+                isFullStalkerPortalPlaylist(row) === sourceMode
+            );
+        } catch (error) {
+            this.logger.warn(
+                'Could not verify the stored portal row; discarding repair',
+                error
+            );
+            return false;
+        }
     }
 
     private async persistRepair(
