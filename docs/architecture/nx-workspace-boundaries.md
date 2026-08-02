@@ -141,9 +141,11 @@ not enforced here — keep consumers at `type:feature` or `type:ui`, both of whi
 may depend on `type:ui`.
 
 Importing a partial that the consuming **application** owns is a different case
-and needs no declaration: `apps/web/src/nav-list.scss` is already inside
-`web:build`'s own inputs, and declaring a lib → app edge would make the graph
-cyclic. Prefer moving genuinely shared partials into `ui-styles`.
+and needs no declaration, because that partial already sits inside the app's own
+build inputs. It is still the wrong direction, and it is the one case the two
+rules above cannot repair: a lib → app edge would make the graph cyclic, since
+the app already depends on those libraries. Move the partial into `ui-styles`
+instead. No library stylesheet imports from `apps/` today — keep it that way.
 
 `pnpm run styles:inputs:validate` enforces both rules. It resolves every
 relative `@use`/`@forward`/`@import` in the workspace against Nx's own project
