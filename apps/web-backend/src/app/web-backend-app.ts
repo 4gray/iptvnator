@@ -7,7 +7,10 @@ import zlib from 'node:zlib';
 import axios from 'axios';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
-import { normalizeXtreamServerUrl } from '@iptvnator/shared/interfaces';
+import {
+    encodeStalkerCmdValue,
+    normalizeXtreamServerUrl,
+} from '@iptvnator/shared/interfaces';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 
 export interface WebBackendHttpGetOptions {
@@ -225,10 +228,35 @@ export function createWebBackendApp(
         }
 
         try {
+            // `cmd` must reach the portal in the reference wire format (raw
+            // slashes, pre-encoded sequences untouched) — axios' default
+            // serializer would fully percent-encode it, diverging from what a
+            // real STB (and the Electron transport) sends. Append it to the
+            // URL with the shared encoder and let axios serialize the rest.
+            // The fragment is dropped first: a registered URL carrying `#...`
+            // would otherwise swallow the appended cmd, and a trailing bare
+            // `?` must not become `??cmd=`.
+            const { cmd, ...proxyParams } = getProxyParams(req, ['targetId']);
+            const portalUrl = new URL(url.href);
+            portalUrl.hash = '';
+            const registeredQuery = portalUrl.search.replace(/^\?/, '');
+            portalUrl.search = '';
+            const query = [
+                registeredQuery,
+                cmd ? `cmd=${encodeStalkerCmdValue(cmd)}` : '',
+            ]
+                .filter(Boolean)
+                .join('&');
+            // cmd is appended strictly behind the literal `?`, so it can only
+            // ever form query content — never host or path.
+            const requestUrl = query
+                ? `${portalUrl.href}?${query}`
+                : portalUrl.href;
+
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
-            const response = await httpClient.get(url.href, {
-                params: getProxyParams(req, ['targetId']),
+            const response = await httpClient.get(requestUrl, {
+                params: proxyParams,
                 headers: {
                     ...(macAddress ? { Cookie: `mac=${macAddress}` } : {}),
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),

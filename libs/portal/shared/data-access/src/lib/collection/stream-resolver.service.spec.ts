@@ -696,4 +696,66 @@ describe('StreamResolverService', () => {
             })
         );
     });
+
+    it('resolves relative Stalker create_link responses against the portal base', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        // Portals frequently answer create_link with a solution-prefixed
+        // relative path; the shared normalizer must resolve it instead of
+        // handing the bare path to the player (the old weak normalizer did).
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'ffmpeg /media/file_123.mpg' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::88',
+            name: 'Relative Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '88',
+            stalkerCmd: 'ffrt3 http://stalker.example.com/media/999.mpg',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe(
+            'https://stalker.example.com/stalker_portal/media/file_123.mpg'
+        );
+    });
+
+    it('appends query-only Stalker create_link responses to the original cmd URL', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: '?token=xyz' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::89',
+            name: 'Token Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '89',
+            stalkerCmd: 'auto http://cdn.example.com/live/89.m3u8',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe(
+            'http://cdn.example.com/live/89.m3u8?token=xyz'
+        );
+    });
 });

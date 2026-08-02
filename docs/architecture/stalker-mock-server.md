@@ -208,12 +208,20 @@ marker and an `ffrt4://radio/...` command.
     "cmd": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
     "streamer_id": "1",
     "load": "",
-    "error": ""
+    "error": "",
+    "cmd_received": "ffrt4://ch/live/1001/index.m3u8",
+    "query_keys_received": ["JsHttpRequest", "action", "cmd", "type"]
   }
 }
 ```
 
 The stream URL is selected from a pool of 4 real public HLS test streams. The choice is deterministic based on the `cmd` field's character sum, so the same item always returns the same stream.
+
+`cmd_received` and `query_keys_received` are mock-only diagnostics (a real
+portal does not send them): they echo the request's `cmd` after Express' single
+query decode — the same view a PHP portal gets from `$_GET` — plus the sorted
+set of query keys. E2E uses them to pin the client's `cmd` wire contract: no
+double-encoding, and no query-parameter injection through `cmd`.
 
 ### `get_short_epg`
 

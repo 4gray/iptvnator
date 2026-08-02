@@ -138,6 +138,51 @@ blank fields are not generated or forwarded to `get_profile`.
   metadata is independent from M3U playlist EPG metadata and must not depend on
   M3U-specific EPG fields.
 
+## Request Transport and `cmd` Encoding
+
+A real MAG/STB sends `cmd` unencoded: the portal's client JS concatenates raw
+`key=value` pairs, the browser URL layer escapes only what a URL cannot carry,
+and PHP's `$_GET` applies exactly one form-urldecode. The portal therefore sees
+the stored `cmd` decoded **once** — a pre-encoded `%3A` arrives as `:` and a
+literal `+` arrives as a space. IPTVnator reproduces that reference wire format
+on both transports with the shared `encodeStalkerCmdValue()`
+(`libs/shared/interfaces/src/lib/stalker-cmd-encoding.util.ts`):
+
+- `%` passes through untouched, so a `cmd` that already contains percent
+  sequences is never double-encoded (the pre-0.23 `encodeURIComponent`
+  transport delivered `%253A` and strict panels no longer matched the string).
+- Characters the WHATWG URL serializer keeps raw in a query stay raw
+  (`/ : ? = + , @ $ [ ]` …), so the emitted bytes survive the axios/`new URL`
+  transport unchanged.
+- Everything else is percent-encoded. This keeps the injection protection from
+  the 0.22 hardening: `&`, `#` (and `;` for PHP setups with a `;` argument
+  separator) inside `cmd` cannot append or truncate query parameters — they
+  decode back to the original byte server-side, so the portal-visible value is
+  unaffected.
+
+Consumers of the encoder:
+
+- Electron: `buildStalkerRequestUrl()`
+  (`apps/electron-backend/src/app/events/stalker-request-url.ts`) assembles the
+  portal query for `STALKER_REQUEST`; `cmd` uses the reference encoding, every
+  other param stays fully `encodeURIComponent`-encoded, and `JsHttpRequest=1-xml`
+  is appended when missing.
+- PWA: the web-backend `/stalker` proxy appends `cmd` to the portal URL with
+  the same encoder instead of letting axios' serializer turn slashes into
+  `%2F`. The renderer→proxy leg uses `URLSearchParams`, which Express decodes
+  losslessly, so the stored `cmd` string reaches the proxy intact.
+
+The mock portal's `create_link` response carries mock-only `cmd_received` and
+`query_keys_received` diagnostics so E2E can pin this contract
+(`apps/electron-backend-e2e/src/providers.e2e.ts`).
+
+Response-side `cmd` normalization is also shared: both the Stalker store and
+the cross-portal collection resolver (`StreamResolverService`) use
+`normalizeStalkerPlaybackCommand()` / `resolveStalkerPlaybackUrl()` from
+`libs/portal/stalker/data-access`, which strip the `<solution> ` prefix and
+resolve relative (`/media/...`) or query-only (`?token=...`) `create_link`
+replies against the portal base URL.
+
 ## Live TV and Radio
 
 The Stalker live route and radio route intentionally share

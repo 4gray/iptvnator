@@ -17,7 +17,11 @@ import {
     XtreamApiService,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
+import {
+    normalizeStalkerPlaybackCommand,
+    resolveStalkerPlaybackUrl,
+    StalkerSessionService,
+} from '@iptvnator/portal/stalker/data-access';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 
 type PlaylistWithChannels = Playlist & {
@@ -323,7 +327,9 @@ export class StreamResolverService {
         const portalUrl =
             item.stalkerPortalUrl ?? playlist?.portalUrl ?? playlist?.url ?? '';
         const macAddress = item.stalkerMacAddress ?? playlist?.macAddress ?? '';
-        const normalizedCmd = this.normalizeStalkerCmd(item.stalkerCmd ?? '');
+        const normalizedCmd = normalizeStalkerPlaybackCommand(
+            item.stalkerCmd ?? ''
+        );
         if (item.radio === 'true' && this.isHttpUrl(normalizedCmd)) {
             return {
                 streamUrl: normalizedCmd,
@@ -362,7 +368,14 @@ export class StreamResolverService {
         const rawCmd = response?.js?.cmd ?? '';
 
         return {
-            streamUrl: this.normalizeStalkerCmd(rawCmd),
+            // Shared normalizer from the Stalker store: strips the solution
+            // prefix and resolves relative `/media/...` or `?...` responses
+            // against the portal base instead of returning them verbatim.
+            streamUrl: resolveStalkerPlaybackUrl(
+                portalUrl,
+                item.stalkerCmd ?? '',
+                rawCmd
+            ),
             title: item.name,
             thumbnail: item.logo ?? null,
             isLive: item.radio === 'true' ? undefined : true,
@@ -1081,26 +1094,6 @@ export class StreamResolverService {
                 Math.floor(new Date(program.stop).getTime() / 1000)
             ),
         }));
-    }
-
-    private normalizeStalkerCmd(value: string): string {
-        const trimmed = String(value ?? '').trim();
-        if (!trimmed) {
-            return '';
-        }
-
-        const splitAt = trimmed.indexOf(' ');
-        if (splitAt > 0) {
-            const candidate = trimmed.slice(splitAt + 1).trim();
-            if (
-                candidate.startsWith('http://') ||
-                candidate.startsWith('https://')
-            ) {
-                return candidate;
-            }
-        }
-
-        return trimmed;
     }
 
     private isHttpUrl(value: string): boolean {

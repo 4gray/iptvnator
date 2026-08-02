@@ -390,6 +390,94 @@ https://stream.example/live.m3u8`);
         );
     });
 
+    it('forwards Stalker cmd in the reference wire format instead of axios encoding', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ js: { cmd: 'http://cdn/stream.m3u8' } });
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php'
+                );
+                // The PWA renderer sends fully URLSearchParams-encoded values;
+                // Express decodes them back to the stored cmd string.
+                const query = new URLSearchParams({
+                    targetId,
+                    macAddress: '00:1A:79:00:00:01',
+                    action: 'create_link',
+                    type: 'itv',
+                    cmd: 'ffrt3 http://host/ch/123?token=a%3Ab c&x=1',
+                });
+                const response = await fetch(
+                    `${baseUrl}/stalker?${query.toString()}`
+                );
+                await response.json();
+
+                // Slashes stay raw and pre-encoded sequences pass through
+                // untouched (no %25 double-encoding); '&' inside cmd cannot
+                // append query parameters. cmd is no longer in axios params.
+                expect(httpClient.requests).toEqual([
+                    {
+                        headers: {
+                            Cookie: 'mac=00:1A:79:00:00:01',
+                        },
+                        params: {
+                            action: 'create_link',
+                            macAddress: '00:1A:79:00:00:01',
+                            type: 'itv',
+                        },
+                        url:
+                            'http://stalker.example/portal.php' +
+                            '?cmd=ffrt3%20http://host/ch/123?token=a%3Ab%20c%26x=1',
+                    },
+                ]);
+            }
+        );
+    });
+
+    it('keeps cmd in the query when the registered portal URL carries a fragment or bare ?', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ js: { cmd: 'http://cdn/a.m3u8' } });
+        httpClient.queueResponse({ js: { cmd: 'http://cdn/b.m3u8' } });
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                // A fragment on the registered URL must not swallow the
+                // appended cmd (fragments are never sent to the portal).
+                const fragmentTarget = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php#legacy'
+                );
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${fragmentTarget}&action=create_link&cmd=${encodeURIComponent('/media/1.mpg')}`
+                );
+
+                // A trailing bare '?' must not produce '??cmd='.
+                const bareQueryTarget = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/load.php?'
+                );
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${bareQueryTarget}&action=create_link&cmd=${encodeURIComponent('/media/2.mpg')}`
+                );
+
+                expect(httpClient.requests.map((request) => request.url)).toEqual([
+                    'http://stalker.example/portal.php?cmd=/media/1.mpg',
+                    'http://stalker.example/load.php?cmd=/media/2.mpg',
+                ]);
+            }
+        );
+    });
+
     it('normalizes provider errors for portal proxy calls', async () => {
         const httpClient = new StubHttpClient();
         httpClient.queueFailure(403, 'Forbidden');

@@ -28,6 +28,13 @@ export function handleCreateLink(req: Request, res: Response): void {
             streamer_id: '1',
             load: '',
             error: '',
+            // Mock-only diagnostics (absent from real portal responses): what
+            // this request actually delivered after Express' single query
+            // decode — the same view a PHP portal gets from $_GET. E2E uses
+            // them to pin the cmd wire contract (no double-encoding, no
+            // query-parameter injection through cmd).
+            cmd_received: cmd,
+            query_keys_received: Object.keys(req.query).sort(),
         },
     });
 }
