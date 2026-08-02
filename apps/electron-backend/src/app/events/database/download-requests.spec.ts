@@ -11,7 +11,8 @@ const metadataSnapshot: DownloadMetadataSnapshot = {
 
 async function setupStartMetadataRequest(
     existing: Record<string, unknown> | undefined,
-    coordinateRows: Record<string, unknown>[] = []
+    coordinateRows: Record<string, unknown>[] = [],
+    completedFileAvailable = false
 ) {
     jest.resetModules();
     const schema = await import('../../database/schema');
@@ -53,6 +54,9 @@ async function setupStartMetadataRequest(
     jest.doMock('./download-runtime', () => ({
         enqueueDownload,
     }));
+    jest.doMock('./download-file-availability', () => ({
+        isAvailableDownloadFile: jest.fn(() => completedFileAvailable),
+    }));
 
     const { startDownloadRequest } = await import('./download-requests');
     return {
@@ -66,14 +70,13 @@ async function setupStartMetadataRequest(
     };
 }
 
-function createStartDownloadRow(
-    overrides: Partial<Download> = {}
-): Download {
+function createStartDownloadRow(overrides: Partial<Download> = {}): Download {
     return {
         bytesDownloaded: 0,
         contentType: 'episode',
         createdAt: '2026-08-02 10:00:00',
         episodeNumber: 3,
+        episodeIdentityScope: null,
         errorMessage: null,
         fileName: 'episode.mp4',
         filePath: null,
@@ -431,6 +434,35 @@ describe('download request metadata snapshots', () => {
 });
 
 describe('download request identity resolution', () => {
+    it('skips a completed download whose file became available after the list snapshot', async () => {
+        const completedRow = createStartDownloadRow({
+            filePath: '/downloads/restored-episode.mp4',
+            status: 'completed',
+            xtreamId: 700,
+        });
+        const request = await setupStartMetadataRequest(
+            completedRow,
+            [completedRow],
+            true
+        );
+
+        await expect(
+            request.startDownloadRequest(
+                episodeStartPayload(),
+                request.authorizer
+            )
+        ).resolves.toEqual({
+            error: 'Download already completed',
+            id: completedRow.id,
+            reason: 'already-downloaded',
+            success: false,
+        });
+
+        expect(request.db.insert).not.toHaveBeenCalled();
+        expect(request.db.update).not.toHaveBeenCalled();
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
+    });
+
     it.each(['queued', 'downloading', 'paused'] as const)(
         'returns the stable duplicate result for an active legacy-coordinate %s row',
         async (status) => {

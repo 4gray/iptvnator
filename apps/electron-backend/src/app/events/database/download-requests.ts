@@ -1,7 +1,9 @@
 import type {
     DownloadMetadataSnapshot,
+    ElectronBridgeEpisodeIdentityScope,
     ElectronBridgeDownloadStartResult,
 } from '@iptvnator/shared/interfaces';
+import { ELECTRON_BRIDGE_DOWNLOAD_START_REASONS } from '@iptvnator/shared/interfaces';
 import { and, eq, sql } from 'drizzle-orm';
 import { basename, dirname, extname } from 'node:path';
 import { getDatabase } from '../../database/connection';
@@ -9,6 +11,7 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { removePartialDownloadFile } from './download-file-path';
+import { isAvailableDownloadFile } from './download-file-availability';
 import { resolveExistingDownloadIdentity } from './download-request-identity';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
 import {
@@ -32,6 +35,7 @@ export interface StartDownloadRequest {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
     playlistName?: string;
     playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
     serverUrl?: string;
@@ -143,6 +147,18 @@ export async function startDownloadRequest(
                 data.url
             );
         }
+        if (
+            item.contentType === 'episode' &&
+            item.status === 'completed' &&
+            isAvailableDownloadFile(item.filePath)
+        ) {
+            return {
+                error: 'Download already completed',
+                id: item.id,
+                reason: ELECTRON_BRIDGE_DOWNLOAD_START_REASONS.AlreadyDownloaded,
+                success: false,
+            };
+        }
         if (!['completed', 'failed', 'canceled'].includes(item.status)) {
             return {
                 error: 'Download already in progress',
@@ -191,6 +207,9 @@ export async function startDownloadRequest(
                 ...(identity.migrateCanonicalId
                     ? { xtreamId: data.xtreamId }
                     : {}),
+                ...(data.episodeIdentityScope === undefined
+                    ? {}
+                    : { episodeIdentityScope: data.episodeIdentityScope }),
             })
             .where(eq(schema.downloads.id, item.id));
         enqueueDownload({
@@ -231,6 +250,7 @@ export async function startDownloadRequest(
     const result = await db.insert(schema.downloads).values({
         contentType: data.contentType,
         episodeNumber: data.episodeNumber,
+        episodeIdentityScope: data.episodeIdentityScope,
         fileName,
         metadataSnapshot: encodedMetadataSnapshot,
         playlistId: data.playlistId,

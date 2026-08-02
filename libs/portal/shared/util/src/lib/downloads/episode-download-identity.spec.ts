@@ -33,6 +33,48 @@ function row(
 }
 
 describe('episode download identity', () => {
+    it('does not match coordinates owned by another explicit identity scope', () => {
+        const scopedIdentity = {
+            ...identity,
+            episodeIdentityScope: 'stalker-regular-series',
+        } as EpisodeDownloadIdentity;
+        const otherMode = row({
+            xtreamId: 999,
+            episodeIdentityScope: 'stalker-lazy-vod',
+        } as Partial<EpisodeDownloadRecord>);
+
+        expect(resolveEpisodeDownload(scopedIdentity, [otherMode])).toEqual({
+            kind: 'missing',
+        });
+    });
+
+    it('fails closed for unscoped coordinate ownership when the identity is scoped', () => {
+        const scopedIdentity = {
+            ...identity,
+            episodeIdentityScope: 'stalker-regular-series',
+        } as EpisodeDownloadIdentity;
+        const legacyRow = row({ xtreamId: 999 });
+
+        expect(resolveEpisodeDownload(scopedIdentity, [legacyRow])).toEqual({
+            kind: 'conflict',
+        });
+    });
+
+    it('fails closed for an incomplete canonical row owned by another explicit scope', () => {
+        const scopedIdentity = {
+            ...identity,
+            episodeIdentityScope: 'stalker-regular-series',
+        } as EpisodeDownloadIdentity;
+        const otherMode = row({
+            episodeIdentityScope: 'stalker-lazy-vod',
+            seriesXtreamId: null,
+        } as Partial<EpisodeDownloadRecord>);
+
+        expect(resolveEpisodeDownload(scopedIdentity, [otherMode])).toEqual({
+            kind: 'conflict',
+        });
+    });
+
     it('returns a canonical row when the same row also owns the coordinates', () => {
         const canonical = row();
 
@@ -170,6 +212,20 @@ describe('episode download identity', () => {
             createEpisodeDownloadIdentityKey({
                 ...identity,
                 episodeNumber: identity.episodeNumber + 1,
+            })
+        );
+    });
+
+    it('creates different keys for different episode identity scopes', () => {
+        expect(
+            createEpisodeDownloadIdentityKey({
+                ...identity,
+                episodeIdentityScope: 'stalker-regular-series',
+            })
+        ).not.toBe(
+            createEpisodeDownloadIdentityKey({
+                ...identity,
+                episodeIdentityScope: 'stalker-lazy-vod',
             })
         );
     });

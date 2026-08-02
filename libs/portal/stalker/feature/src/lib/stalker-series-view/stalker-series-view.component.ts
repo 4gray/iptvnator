@@ -81,7 +81,10 @@ import {
     saveStalkerSeriesPosition,
     StalkerSeriesPositionPartialSaveError,
 } from './stalker-series-position-compatibility';
-import { createStalkerSeriesDownloadAdapter } from './stalker-series-download.adapter';
+import {
+    createStalkerSeriesDownloadAdapter,
+    STALKER_SERIES_DOWNLOAD_MODES,
+} from './stalker-series-download.adapter';
 
 interface SeriesPositionContext {
     readonly generation: number;
@@ -542,6 +545,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 this.translateService.defaultLang ||
                 'en',
             seriesId: this.toSeriesId(item?.id ?? 0),
+            seriesMode: this.isVodSeries()
+                ? STALKER_SERIES_DOWNLOAD_MODES.LazyVod
+                : this.vodWithSeries()
+                  ? STALKER_SERIES_DOWNLOAD_MODES.EmbeddedVod
+                  : STALKER_SERIES_DOWNLOAD_MODES.RegularSeries,
             resolveUrl: (command, episodeNumber) =>
                 this.stalkerStore.fetchLinkToPlay(
                     playlist?.portalUrl ?? '',

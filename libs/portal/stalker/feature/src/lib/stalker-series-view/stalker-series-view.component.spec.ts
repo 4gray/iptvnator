@@ -371,10 +371,7 @@ describe('StalkerSeriesViewComponent', () => {
             '2'
         );
 
-        if (!candidate) {
-            throw new Error('expected a bound Stalker download adapter');
-        }
-        const request = await candidate.prepare();
+        const request = await candidate?.prepare();
 
         expect(fetchLinkToPlay).toHaveBeenCalledWith(
             'https://stalker.example.test',
@@ -384,6 +381,7 @@ describe('StalkerSeriesViewComponent', () => {
         );
         expect(request).toEqual(
             expect.objectContaining({
+                episodeIdentityScope: 'stalker-lazy-vod',
                 playlistId: 'stalker-1',
                 seriesXtreamId: 50001,
                 xtreamId: 61001,
@@ -430,6 +428,7 @@ describe('StalkerSeriesViewComponent', () => {
         );
         expect(updatedRequest).toEqual(
             expect.objectContaining({
+                episodeIdentityScope: 'stalker-regular-series',
                 playlistId: 'stalker-2',
                 seriesXtreamId: 40002,
                 xtreamId: 62001,

@@ -20,6 +20,8 @@ export interface DownloadItem {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?:
+        ElectronBridgeDownloadStartPayload['episodeIdentityScope'] | null;
     title: string;
     url: string;
     fileName?: string;

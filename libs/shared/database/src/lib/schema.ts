@@ -323,6 +323,7 @@ export const downloads = sqliteTable(
         seriesXtreamId: integer('series_xtream_id'),
         seasonNumber: integer('season_number'),
         episodeNumber: integer('episode_number'),
+        episodeIdentityScope: text('episode_identity_scope'),
         // Download metadata
         title: text('title').notNull(),
         url: text('url').notNull(),

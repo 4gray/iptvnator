@@ -129,7 +129,9 @@ export class SeasonDownloadCoordinator {
             }
             if (
                 result.reason ===
-                ELECTRON_BRIDGE_DOWNLOAD_START_REASONS.AlreadyInProgress
+                    ELECTRON_BRIDGE_DOWNLOAD_START_REASONS.AlreadyInProgress ||
+                result.reason ===
+                    ELECTRON_BRIDGE_DOWNLOAD_START_REASONS.AlreadyDownloaded
             ) {
                 return EPISODE_DOWNLOAD_SUBMISSIONS.Skipped;
             }

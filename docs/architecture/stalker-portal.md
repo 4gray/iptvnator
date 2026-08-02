@@ -528,6 +528,12 @@ records. Both accept the same closed set: boolean `true`, numeric `1`, or string
 
 Series inline playback behavior is shared across all three modes:
 
+- Episode downloads preserve those three origins separately through the
+  persisted `episode_identity_scope`. Coordinate compatibility may reuse only
+  a row with the same proven scope. A pre-scope coordinate row is ambiguous and
+  blocks the action rather than binding regular, embedded, or lazy VOD content
+  to another mode; an exact canonical episode id still wins.
+
 - `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and derives the currently playing episode from `inlinePlayback.contentInfo.contentXtreamId`.
 - The inline player header shows the current episode metadata below the title, for example `S01E03 - Episode title`.
 - Embedded players receive previous/next episode state for the current season only.

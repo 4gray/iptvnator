@@ -139,11 +139,21 @@ export type ElectronBridgeDownloadStatus =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_STATUSES];
 
 export const ELECTRON_BRIDGE_DOWNLOAD_START_REASONS = {
+    AlreadyDownloaded: 'already-downloaded',
     AlreadyInProgress: 'already-in-progress',
 } as const;
 
 export type ElectronBridgeDownloadStartReason =
     (typeof ELECTRON_BRIDGE_DOWNLOAD_START_REASONS)[keyof typeof ELECTRON_BRIDGE_DOWNLOAD_START_REASONS];
+
+export const ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES = {
+    StalkerEmbeddedVod: 'stalker-embedded-vod',
+    StalkerLazyVod: 'stalker-lazy-vod',
+    StalkerRegularSeries: 'stalker-regular-series',
+} as const;
+
+export type ElectronBridgeEpisodeIdentityScope =
+    (typeof ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES)[keyof typeof ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES];
 
 export type ElectronDownloadFileAvailability =
     'available' | 'missing' | 'not-applicable';
@@ -541,6 +551,7 @@ export interface ElectronBridgeDownloadStartPayload {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
     playlistName?: string;
     playlistType?: ElectronBridgePlaylistType;
     serverUrl?: string;
@@ -565,6 +576,7 @@ export interface ElectronDownloadItem {
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;
+    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope | null;
     title: string;
     url: string;
     fileName?: string;

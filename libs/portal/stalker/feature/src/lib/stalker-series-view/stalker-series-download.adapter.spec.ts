@@ -69,11 +69,34 @@ function options(
         item: ITEM,
         language: 'en',
         seriesId: 50001,
+        seriesMode: 'regular-series' as const,
         resolveUrl,
     };
 }
 
 describe('createStalkerSeriesDownloadAdapter', () => {
+    it.each([
+        ['regular-series', 'stalker-regular-series'],
+        ['embedded-vod', 'stalker-embedded-vod'],
+        ['lazy-vod', 'stalker-lazy-vod'],
+    ] as const)(
+        'scopes %s coordinates independently',
+        (seriesMode, expectedScope) => {
+            const adapter = createStalkerSeriesDownloadAdapter({
+                ...options(),
+                seriesMode,
+            });
+            const candidate = adapter.createCandidate(episode(), '2');
+
+            expect(
+                (
+                    candidate?.identity as
+                        { episodeIdentityScope?: string } | undefined
+                )?.episodeIdentityScope
+            ).toBe(expectedScope);
+        }
+    );
+
     it('keeps regular-series candidate identity distinct when playback ownership collides', async () => {
         const resolveUrl = jest
             .fn()
@@ -147,6 +170,7 @@ describe('createStalkerSeriesDownloadAdapter', () => {
             seriesXtreamId: 50001,
             seasonNumber: 2,
             episodeNumber: 3,
+            episodeIdentityScope: 'stalker-regular-series',
         });
         if (!candidate) {
             throw new Error('expected a valid Stalker episode candidate');
@@ -161,6 +185,7 @@ describe('createStalkerSeriesDownloadAdapter', () => {
             seriesXtreamId: 50001,
             seasonNumber: 2,
             episodeNumber: 3,
+            episodeIdentityScope: 'stalker-regular-series',
             title: 'Signal House - S02E03 - The Call',
             url: 'https://cdn.example.test/episode.mpg',
             posterUrl: EPISODE_POSTER_URL,

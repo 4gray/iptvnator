@@ -22,6 +22,7 @@ function createDownloadRow(overrides: Partial<DownloadRow> = {}): DownloadRow {
         contentType: 'episode',
         createdAt: '2026-08-02 10:00:00',
         episodeNumber: 3,
+        episodeIdentityScope: null,
         errorMessage: null,
         fileName: 'episode.mp4',
         filePath: null,
@@ -65,6 +66,50 @@ function createQueryHarness(
 }
 
 describe('resolveExistingDownloadIdentity', () => {
+    it('ignores a coordinate row owned by another explicit episode identity scope', async () => {
+        const otherModeRow = createDownloadRow({
+            xtreamId: 77,
+            episodeIdentityScope: 'stalker-lazy-vod',
+        });
+        const harness = createQueryHarness([], [otherModeRow]);
+        const scopedRequest = {
+            ...episodeRequest,
+            episodeIdentityScope: 'stalker-regular-series' as const,
+        };
+
+        await expect(
+            resolveExistingDownloadIdentity(harness.db, scopedRequest)
+        ).resolves.toEqual({ kind: 'none' });
+    });
+
+    it('fails closed for an unscoped coordinate row when the request has an explicit scope', async () => {
+        const legacyRow = createDownloadRow({ xtreamId: 77 });
+        const harness = createQueryHarness([], [legacyRow]);
+        const scopedRequest = {
+            ...episodeRequest,
+            episodeIdentityScope: 'stalker-regular-series' as const,
+        };
+
+        await expect(
+            resolveExistingDownloadIdentity(harness.db, scopedRequest)
+        ).resolves.toEqual({ kind: 'conflict' });
+    });
+
+    it('fails closed for an incomplete canonical row owned by another explicit scope', async () => {
+        const canonicalRow = createDownloadRow({
+            episodeIdentityScope: 'stalker-lazy-vod',
+            seriesXtreamId: null,
+        });
+        const harness = createQueryHarness([canonicalRow], []);
+
+        await expect(
+            resolveExistingDownloadIdentity(harness.db, {
+                ...episodeRequest,
+                episodeIdentityScope: 'stalker-regular-series',
+            })
+        ).resolves.toEqual({ kind: 'conflict' });
+    });
+
     it('returns a canonical match without migration', async () => {
         const row = createDownloadRow();
         const harness = createQueryHarness([row], []);
@@ -135,10 +180,13 @@ describe('resolveExistingDownloadIdentity', () => {
     );
 
     it('fails closed when multiple rows share the legacy coordinates', async () => {
-        const harness = createQueryHarness([], [
-            createDownloadRow({ id: 42, xtreamId: 77 }),
-            createDownloadRow({ id: 43, xtreamId: 78 }),
-        ]);
+        const harness = createQueryHarness(
+            [],
+            [
+                createDownloadRow({ id: 42, xtreamId: 77 }),
+                createDownloadRow({ id: 43, xtreamId: 78 }),
+            ]
+        );
 
         await expect(
             resolveExistingDownloadIdentity(harness.db, episodeRequest)

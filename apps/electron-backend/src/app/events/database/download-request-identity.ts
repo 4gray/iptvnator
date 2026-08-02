@@ -1,4 +1,5 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, or } from 'drizzle-orm';
+import type { ElectronBridgeEpisodeIdentityScope } from '@iptvnator/shared/interfaces';
 import * as schema from '../../database/schema';
 import type { DownloadsDatabase } from './download-task';
 
@@ -25,13 +26,12 @@ interface DownloadIdentityMatch {
 }
 
 export type ExistingDownloadIdentityResolution =
-    | DownloadIdentityNone
-    | DownloadIdentityConflict
-    | DownloadIdentityMatch;
+    DownloadIdentityNone | DownloadIdentityConflict | DownloadIdentityMatch;
 
 export interface DownloadIdentityRequest {
     contentType: DownloadRow['contentType'];
     episodeNumber?: number;
+    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
     playlistId: string;
     seasonNumber?: number;
     seriesXtreamId?: number;
@@ -49,9 +49,17 @@ function rowHasConflictingCoordinates(
             DownloadIdentityRequest,
             'episodeNumber' | 'seasonNumber' | 'seriesXtreamId'
         >
-    >
+    > &
+        Pick<DownloadIdentityRequest, 'episodeIdentityScope'>
 ): boolean {
     const { episodeNumber, seasonNumber, seriesXtreamId } = row;
+    if (
+        request.episodeIdentityScope !== undefined &&
+        row.episodeIdentityScope !== null &&
+        row.episodeIdentityScope !== request.episodeIdentityScope
+    ) {
+        return true;
+    }
     if (
         seriesXtreamId === null ||
         seriesXtreamId === undefined ||
@@ -92,6 +100,7 @@ export async function resolveExistingDownloadIdentity(
     const seriesXtreamId = request.seriesXtreamId;
     const seasonNumber = request.seasonNumber;
     const episodeNumber = request.episodeNumber;
+    const episodeIdentityScope = request.episodeIdentityScope;
 
     if (
         request.contentType !== 'episode' ||
@@ -117,21 +126,41 @@ export async function resolveExistingDownloadIdentity(
                 eq(schema.downloads.contentType, 'episode'),
                 eq(schema.downloads.seriesXtreamId, seriesXtreamId),
                 eq(schema.downloads.seasonNumber, seasonNumber),
-                eq(schema.downloads.episodeNumber, episodeNumber)
+                eq(schema.downloads.episodeNumber, episodeNumber),
+                episodeIdentityScope === undefined
+                    ? isNull(schema.downloads.episodeIdentityScope)
+                    : or(
+                          eq(
+                              schema.downloads.episodeIdentityScope,
+                              episodeIdentityScope
+                          ),
+                          isNull(schema.downloads.episodeIdentityScope)
+                      )
             )
         )
         .limit(2);
 
-    if (coordinateRows.length > 1) {
+    const unscopedCoordinateRows = coordinateRows.filter(
+        (row) => row.episodeIdentityScope == null
+    );
+    if (
+        episodeIdentityScope !== undefined &&
+        unscopedCoordinateRows.some((row) => row.id !== canonicalRow?.id)
+    ) {
         return { kind: DOWNLOAD_IDENTITY_KIND.CONFLICT };
     }
 
-    const coordinateRow = coordinateRows[0];
-    if (
-        canonicalRow &&
-        coordinateRow &&
-        canonicalRow.id !== coordinateRow.id
-    ) {
+    const compatibleCoordinateRows = coordinateRows.filter((row) =>
+        episodeIdentityScope === undefined
+            ? row.episodeIdentityScope == null
+            : row.episodeIdentityScope === episodeIdentityScope
+    );
+    if (compatibleCoordinateRows.length > 1) {
+        return { kind: DOWNLOAD_IDENTITY_KIND.CONFLICT };
+    }
+
+    const coordinateRow = compatibleCoordinateRows[0];
+    if (canonicalRow && coordinateRow && canonicalRow.id !== coordinateRow.id) {
         return { kind: DOWNLOAD_IDENTITY_KIND.CONFLICT };
     }
 
@@ -139,6 +168,7 @@ export async function resolveExistingDownloadIdentity(
         canonicalRow &&
         rowHasConflictingCoordinates(canonicalRow, {
             episodeNumber,
+            episodeIdentityScope,
             seasonNumber,
             seriesXtreamId,
         })

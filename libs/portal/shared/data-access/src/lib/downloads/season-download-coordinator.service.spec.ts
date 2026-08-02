@@ -172,6 +172,20 @@ describe('SeasonDownloadCoordinator', () => {
         expect(downloadsService.loadDownloads).toHaveBeenCalledTimes(1);
     });
 
+    it('classifies a backend filesystem recheck as a stable skip', async () => {
+        const restored = candidate(FIRST_IDENTITY);
+        downloadsService.startDownload.mockResolvedValueOnce({
+            success: false,
+            reason: 'already-downloaded' as never,
+        });
+
+        await expect(coordinator.enqueueOne(restored)).resolves.toBe('skipped');
+
+        expect(restored.prepare).toHaveBeenCalledTimes(1);
+        expect(downloadsService.startDownload).toHaveBeenCalledTimes(1);
+        expect(downloadsService.loadDownloads).not.toHaveBeenCalled();
+    });
+
     it('continues after preparation rejects and refreshes once after successes', async () => {
         const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {
             /* captured */

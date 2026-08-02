@@ -8,6 +8,7 @@ import type {
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
+import { ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES } from '@iptvnator/shared/interfaces';
 import { createStalkerSeriesDownloadSnapshot } from './stalker-series-download-metadata';
 
 type StalkerDownloadPlaylist = Pick<
@@ -26,11 +27,30 @@ export interface StalkerSeriesDownloadAdapterOptions {
     readonly item: StalkerSelectedVodItem | null | undefined;
     readonly language: string;
     readonly seriesId: number;
+    readonly seriesMode: StalkerSeriesDownloadMode;
     readonly resolveUrl: (
         command: string,
         episodeNumber: number
     ) => Promise<string>;
 }
+
+export const STALKER_SERIES_DOWNLOAD_MODES = {
+    EmbeddedVod: 'embedded-vod',
+    LazyVod: 'lazy-vod',
+    RegularSeries: 'regular-series',
+} as const;
+
+export type StalkerSeriesDownloadMode =
+    (typeof STALKER_SERIES_DOWNLOAD_MODES)[keyof typeof STALKER_SERIES_DOWNLOAD_MODES];
+
+const IDENTITY_SCOPE_BY_MODE = {
+    [STALKER_SERIES_DOWNLOAD_MODES.EmbeddedVod]:
+        ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES.StalkerEmbeddedVod,
+    [STALKER_SERIES_DOWNLOAD_MODES.LazyVod]:
+        ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES.StalkerLazyVod,
+    [STALKER_SERIES_DOWNLOAD_MODES.RegularSeries]:
+        ELECTRON_BRIDGE_EPISODE_IDENTITY_SCOPES.StalkerRegularSeries,
+} as const;
 
 function isPresent(value: string | undefined): value is string {
     return typeof value === 'string' && value.trim().length > 0;
@@ -67,6 +87,8 @@ export function createStalkerSeriesDownloadAdapter(
                 episode.season || Number(fallbackSeasonKey) || 1
             );
             const episodeNumber = positiveSafeInteger(episode.episode_num || 1);
+            const episodeIdentityScope =
+                IDENTITY_SCOPE_BY_MODE[options.seriesMode];
 
             if (
                 !playlist ||
@@ -90,6 +112,7 @@ export function createStalkerSeriesDownloadAdapter(
                 seriesXtreamId,
                 seasonNumber,
                 episodeNumber,
+                episodeIdentityScope,
             };
 
             return {

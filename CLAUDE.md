@@ -942,19 +942,26 @@ engine` (restart required) or
   skipped, and failed counts. Xtream and Stalker adapters remain responsible
   for provider URLs, headers, and metadata; the backend still runs one active
   transfer with a FIFO queue. `DOWNLOADS_START` remains the sole start IPC; its
-  stable `reason: 'already-in-progress'` result is counted as skipped, and no
-  batch IPC or schema migration is introduced. Episode and season download
-  actions require an authoritative global list. A successful snapshot remains
-  authoritative while a later background refresh is in flight; a latest
-  refresh failure leaves loading/empty-state resolution intact but disables
-  starts until another snapshot succeeds.
+  stable `reason: 'already-in-progress'` and `reason: 'already-downloaded'`
+  results are counted as skipped, and no batch IPC is introduced. The latter
+  comes from a main-process filesystem recheck before a completed-missing row
+  can be reset, so a file restored after the renderer snapshot is not orphaned
+  or downloaded again. Episode and season download actions require an
+  authoritative global list. A successful snapshot remains authoritative while
+  a later background refresh is in flight; a latest refresh failure leaves
+  loading/empty-state resolution intact but disables starts until another
+  snapshot succeeds.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
   for both providers; Stalker playback identifiers only resolve the URL. Exact
   `(playlistId, contentType, xtreamId)` matches are authoritative, while
   complete playlist/series/season/episode coordinates are a fail-closed legacy
-  fallback that migrates reusable rows to the canonical id. Renderer lookup
-  preserves ambiguity or conflicting ownership as a distinct ineligible state,
-  so neither the episode action nor the season count treats it as a row-less
+  fallback that migrates reusable rows to the canonical id. Stalker persists
+  `episode_identity_scope` separately for regular `/series`, embedded VOD
+  `series[]`, and lazy Ministra VOD `is_series`. Known different scopes do not
+  match; a pre-scope coordinate row is ambiguous and blocked, while an exact
+  canonical legacy row remains authoritative. Renderer lookup preserves that
+  ambiguity or conflicting ownership as a distinct ineligible state, so
+  neither the episode action nor the season count treats it as a row-less
   download. SQLite `null` and optional `undefined` coordinates both mean an
   incomplete canonical legacy row, matching the backend resolver. Pending and
   active rows plus completed available/unknown rows are skipped; failed,

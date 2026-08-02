@@ -1,5 +1,6 @@
 import type {
     ElectronBridgeDownloadStatus,
+    ElectronBridgeEpisodeIdentityScope,
     ElectronBridgePlaybackContentType,
     ElectronDownloadFileAvailability,
 } from '@iptvnator/shared/interfaces';
@@ -11,6 +12,7 @@ export interface EpisodeDownloadIdentity {
     readonly seriesXtreamId: number;
     readonly seasonNumber: number;
     readonly episodeNumber: number;
+    readonly episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
 }
 
 export interface EpisodeDownloadRecord {
@@ -21,6 +23,7 @@ export interface EpisodeDownloadRecord {
     readonly seriesXtreamId?: number | null;
     readonly seasonNumber?: number | null;
     readonly episodeNumber?: number | null;
+    readonly episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope | null;
     readonly status: ElectronBridgeDownloadStatus;
     readonly fileAvailability?: ElectronDownloadFileAvailability;
     readonly filePath?: string;
@@ -36,6 +39,13 @@ function hasConflictingCompleteCoordinates(
     identity: EpisodeDownloadIdentity
 ): boolean {
     const { seriesXtreamId, seasonNumber, episodeNumber } = download;
+    if (
+        identity.episodeIdentityScope !== undefined &&
+        download.episodeIdentityScope != null &&
+        download.episodeIdentityScope !== identity.episodeIdentityScope
+    ) {
+        return true;
+    }
     if (
         seriesXtreamId === null ||
         seriesXtreamId === undefined ||
@@ -67,7 +77,7 @@ export function resolveEpisodeDownload<T extends EpisodeDownloadRecord>(
             download.contentType === identity.contentType &&
             download.xtreamId === identity.xtreamId
     );
-    const coordinateMatches = downloads.filter(
+    const coordinateOwners = downloads.filter(
         (download) =>
             download.playlistId === identity.playlistId &&
             download.contentType === identity.contentType &&
@@ -77,6 +87,21 @@ export function resolveEpisodeDownload<T extends EpisodeDownloadRecord>(
             download.seasonNumber === identity.seasonNumber &&
             download.episodeNumber !== undefined &&
             download.episodeNumber === identity.episodeNumber
+    );
+    const ambiguousUnscopedOwner =
+        identity.episodeIdentityScope !== undefined &&
+        coordinateOwners.some(
+            (download) =>
+                download.episodeIdentityScope == null &&
+                download.id !== canonicalMatch?.id
+        );
+    if (ambiguousUnscopedOwner) {
+        return { kind: 'conflict' };
+    }
+    const coordinateMatches = coordinateOwners.filter((download) =>
+        identity.episodeIdentityScope === undefined
+            ? download.episodeIdentityScope == null
+            : download.episodeIdentityScope === identity.episodeIdentityScope
     );
     if (coordinateMatches.length > 1) {
         return { kind: 'conflict' };
@@ -124,5 +149,6 @@ export function createEpisodeDownloadIdentityKey(
         seriesXtreamId: identity.seriesXtreamId,
         seasonNumber: identity.seasonNumber,
         episodeNumber: identity.episodeNumber,
+        episodeIdentityScope: identity.episodeIdentityScope,
     });
 }
