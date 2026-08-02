@@ -245,6 +245,12 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
                 // would leave the restored configuration broken until
                 // restart.
                 this.overrides.set(playlistId, remembered);
+                // Same synchronization as a fresh repair: if the
+                // intermediate configuration stopped the active watchdog,
+                // the restored full-portal session needs its keepalive back.
+                this.stalkerSession.refreshActiveWatchdogPlaylist(
+                    toStalkerSessionPlaylist(this.applyOverride(playlist))
+                );
             }
             return this.reapplyIfChanged(playlist);
         }

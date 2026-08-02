@@ -476,12 +476,18 @@ describe('StalkerPortalRepairService', () => {
             expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
 
             // …and the restored configuration reinstalls it on failure.
+            refreshActiveWatchdogPlaylist.mockClear();
             const restored = await service.repairPortal(MISCLASSIFIED);
             expect(discover).toHaveBeenCalledTimes(1);
             expect(restored).toMatchObject({ isFullStalkerPortal: true });
             expect(service.applyOverride(MISCLASSIFIED)).toMatchObject({
                 isFullStalkerPortal: true,
             });
+            // The reinstall re-syncs the watchdog exactly like a fresh
+            // repair — the intermediate edit may have stopped the keepalive.
+            expect(refreshActiveWatchdogPlaylist).toHaveBeenCalledWith(
+                expect.objectContaining({ isFullStalkerPortal: true })
+            );
         });
 
         it('drops the override and the cached token when only the identity was edited', async () => {
