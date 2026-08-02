@@ -82,22 +82,26 @@ export class StalkerAccountInfoService {
         }
 
         const snapshot = await this.fetchViaMainInfo(effectivePlaylist);
-        if (snapshot) {
-            return snapshot;
-        }
 
         // `fetchViaMainInfo` runs through executeStalkerRequest, whose lazy
         // repair retries the SAME action internally. If that repair proved
-        // the portal is actually a full one, `get_main_info` is the wrong
+        // the portal is actually a full one, `get_main_info` was the wrong
         // call: canonical installations publish subscription details only
-        // through handshake + get_profile. Re-enter the mode routing —
-        // symmetric with the full→simple re-route in `fetchViaProfile`.
+        // through handshake + get_profile, so even a PARTIAL main-info
+        // answer (a bare login) must not win over the profile flow. Checked
+        // before accepting the snapshot, symmetric with the full→simple
+        // re-route in `fetchViaProfile`.
         const repairedPlaylist = this.portalRepair.applyOverride(playlist);
         if (
             isFullStalkerPortalPlaylist(repairedPlaylist) &&
             !isFullStalkerPortalPlaylist(effectivePlaylist)
         ) {
-            return this.fetchViaProfile(repairedPlaylist);
+            const profileSnapshot =
+                await this.fetchViaProfile(repairedPlaylist);
+            // Keep the partial main-info facts if the profile path itself
+            // publishes nothing — losing data to the re-route would be
+            // worse than the incomplete answer.
+            return profileSnapshot ?? snapshot;
         }
 
         return snapshot;

@@ -238,6 +238,27 @@ describe('StalkerSessionService identity-tagged token cache', () => {
         expect(service.getCachedToken('portal-1')).not.toBe('EXPIRED');
     });
 
+    it.each(['Access denied.', 'Unauthorized request.'])(
+        'retires the token for the %j plain-text failure too',
+        async (body) => {
+            // The session predicate shares the discovery/repair failure
+            // set: a phrase one layer treats as an auth failure must not be
+            // ignored here, or the expired token survives the session.
+            service.setCachedToken('portal-1', 'EXPIRED', playlistA);
+            sendIpcEvent.mockResolvedValue(body);
+
+            await service
+                .makeAuthenticatedRequest(
+                    playlistA,
+                    { action: 'get_genres' },
+                    false
+                )
+                .catch(() => undefined);
+
+            expect(service.getCachedToken('portal-1')).toBeNull();
+        }
+    );
+
     it('retires a failed token even on the no-retry path (watchdog pings)', async () => {
         service.setCachedToken('portal-1', 'DEAD', playlistA);
         sendIpcEvent.mockResolvedValue('Authorization failed.');

@@ -183,6 +183,59 @@ describe('StalkerAccountInfoService', () => {
         expect(snapshot).toMatchObject({ login: 'full-user' });
     });
 
+    it('prefers the profile flow over a PARTIAL main-info answer after a mode repair', async () => {
+        // A bare login from get_main_info must not win over the profile
+        // flow once the repair proved the portal is full — expiry and
+        // tariff live only behind handshake + get_profile.
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { login: 'partial-user' },
+        });
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'full-user',
+            expire_date: '1795000000',
+            tariff_plan_name: 'Premium',
+        });
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(snapshot).toMatchObject({
+            login: 'full-user',
+            tariffPlanName: 'Premium',
+        });
+    });
+
+    it('keeps the partial main-info facts when the profile flow publishes nothing', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { login: 'partial-user' },
+        });
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        // applyOverride runs twice before the repair lands (routing, then
+        // inside executeStalkerRequest); only afterwards does it report the
+        // repaired playlist.
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue(undefined);
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(snapshot).toMatchObject({ login: 'partial-user' });
+    });
+
     it('rethrows profile failures the repair declines to act on', async () => {
         const boom = new Error('timeout of 15000ms exceeded');
         stalkerSession.refreshAccountProfile.mockRejectedValue(boom);

@@ -9,6 +9,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { isStalkerAuthFailureResponse } from './stalker-portal-discovery.utils';
 import {
     getStalkerPortalIdentityFromPlaylist,
     LEGACY_DEFAULT_STALKER_SERIAL,
@@ -770,6 +771,19 @@ export class StalkerSessionService {
         if (!responseOrError) return false;
 
         const response = responseOrError as Record<string, unknown>;
+
+        // The complete set of portal auth failures — the plain-text bodies
+        // (`Authorization failed.`, `Access denied.`, `Unauthorized
+        // request.`) and their JSON-envelope forms. Shared with endpoint
+        // discovery and the lazy repair so a phrase one layer classifies as
+        // an auth failure cannot be ignored by another: the session would
+        // otherwise keep an expired token and every later request fails.
+        if (
+            isStalkerAuthFailureResponse(responseOrError) ||
+            isStalkerAuthFailureResponse(response?.['message'])
+        ) {
+            return true;
+        }
 
         // HTTP auth codes surviving the IPC boundary only as message text
         // (`HTTP Error 401: …`): the custom `status` property is stripped by
