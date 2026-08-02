@@ -1,22 +1,66 @@
-import { signal } from '@angular/core';
+import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    SeasonDownloadCoordinator,
+    type EpisodeDownloadCandidate,
+    type SeasonEpisodeDownloadAdapter,
+} from '@iptvnator/portal/shared/data-access';
 import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
-import { DownloadsService } from '@iptvnator/services';
+import {
+    DownloadsService,
+    type DownloadItem,
+    type DownloadStartInput,
+} from '@iptvnator/services';
 import { of } from 'rxjs';
 import { EPISODE_INFO_PLAY } from './episode-info-dialog.component';
 import { SeasonContainerComponent } from './season-container.component';
 
-const downloadsServiceStub = {
-    isAvailable: signal(false),
-    downloads: () => [],
-    startDownload: jest.fn().mockResolvedValue(undefined),
-    isDownloaded: () => false,
-    isDownloading: () => false,
-    getDownloadedFilePath: () => '',
-    playDownload: async () => undefined,
+interface DownloadsServiceStub {
+    readonly isAvailable: WritableSignal<boolean>;
+    readonly hasLoadedDownloads: WritableSignal<boolean>;
+    readonly downloads: WritableSignal<DownloadItem[]>;
+    readonly startDownload: jest.MockedFunction<
+        DownloadsService['startDownload']
+    >;
+    readonly loadDownloads: jest.MockedFunction<
+        DownloadsService['loadDownloads']
+    >;
+    readonly resumeDownload: jest.MockedFunction<
+        DownloadsService['resumeDownload']
+    >;
+    readonly playDownload: jest.MockedFunction<
+        DownloadsService['playDownload']
+    >;
+}
+
+interface Deferred<T> {
+    readonly promise: Promise<T>;
+    readonly resolve: (value: T) => void;
+}
+
+const DOWNLOAD_TRANSLATIONS = {
+    DOWNLOADS: {
+        DOWNLOAD: 'Download',
+        PLAY_LOCAL: 'Play local',
+        RESUME: 'Resume',
+        NOT_AVAILABLE: 'Downloads not available',
+        DOWNLOAD_SEASON: 'Download season ({{count}})',
+        DOWNLOAD_SEASON_ARIA: 'Download {{count}} eligible episodes',
+        ADDING_TO_QUEUE: 'Adding to queue',
+        EPISODE_DOWNLOAD_ARIA: 'Download {{title}}',
+        EPISODE_DOWNLOAD_PENDING_ARIA: 'Adding {{title}} to queue',
+        EPISODE_DOWNLOAD_FAILED: 'The episode could not be added',
+        SEASON_QUEUE_RESULT:
+            'Added {{added}}, skipped {{skipped}}, failed {{failed}}',
+        SEASON_QUEUE_RESULT_WITH_FAILURES:
+            'Queue failed: {{added}} added, {{skipped}} skipped, {{failed}} failed',
+        STATUS: { DOWNLOADING: 'Downloading' },
+        ARIA: { RESUME: 'Resume {{title}}' },
+    },
 };
 
 function createEpisode(
@@ -40,26 +84,123 @@ function createEpisode(
     };
 }
 
+function createDownloadAdapter(): SeasonEpisodeDownloadAdapter {
+    return {
+        createCandidate(
+            episode: XtreamSerieEpisode,
+            fallbackSeasonKey: string | undefined
+        ): EpisodeDownloadCandidate | null {
+            const xtreamId = Number(episode.id);
+            const seasonNumber = Number(
+                episode.season || fallbackSeasonKey || 1
+            );
+            const episodeNumber = Number(episode.episode_num);
+            if (
+                !Number.isSafeInteger(xtreamId) ||
+                xtreamId <= 0 ||
+                !Number.isSafeInteger(seasonNumber) ||
+                seasonNumber <= 0 ||
+                !Number.isSafeInteger(episodeNumber) ||
+                episodeNumber <= 0
+            ) {
+                return null;
+            }
+
+            const identity = {
+                playlistId: 'playlist-1',
+                contentType: 'episode' as const,
+                xtreamId,
+                seriesXtreamId: 20,
+                seasonNumber,
+                episodeNumber,
+            };
+            return {
+                identity,
+                prepare: async (): Promise<DownloadStartInput> => ({
+                    ...identity,
+                    title: episode.title,
+                    url: `https://stream.test/${episode.id}`,
+                }),
+            };
+        },
+    };
+}
+
+function createDownload(
+    episode: XtreamSerieEpisode,
+    overrides: Partial<DownloadItem> = {}
+): DownloadItem {
+    return {
+        id: Number(episode.id),
+        playlistId: 'playlist-1',
+        xtreamId: Number(episode.id),
+        contentType: 'episode',
+        seriesXtreamId: 20,
+        seasonNumber: Number(episode.season || 1),
+        episodeNumber: Number(episode.episode_num),
+        title: episode.title,
+        url: `https://stream.test/${episode.id}`,
+        status: 'queued',
+        ...overrides,
+    };
+}
+
+function deferred<T>(): Deferred<T> {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((resolvePromise) => {
+        resolve = resolvePromise;
+    });
+    return { promise, resolve };
+}
+
 const dialogOpen = jest.fn();
 
 describe('SeasonContainerComponent', () => {
     let fixture: ComponentFixture<SeasonContainerComponent>;
     let component: SeasonContainerComponent;
+    let downloadsServiceStub: DownloadsServiceStub;
+    let downloadAdapter: SeasonEpisodeDownloadAdapter;
     let emittedSeasons: string[];
+    const snackBarOpen = jest.fn();
 
     const setRequiredInputs = (
         seasons: Record<string, XtreamSerieEpisode[]>,
         isLoading = false
     ) => {
         fixture.componentRef.setInput('seasons', seasons);
-        fixture.componentRef.setInput('seriesId', 1);
+        fixture.componentRef.setInput('seriesId', 20);
         fixture.componentRef.setInput('playlistId', 'playlist-1');
         fixture.componentRef.setInput('isLoading', isLoading);
     };
 
+    const enableDownloads = (
+        adapter: SeasonEpisodeDownloadAdapter | null = downloadAdapter
+    ) => {
+        downloadsServiceStub.isAvailable.set(true);
+        downloadsServiceStub.hasLoadedDownloads.set(true);
+        fixture.componentRef.setInput('downloadAdapter', adapter);
+    };
+
+    const episodeAction = (episodeId: string | number): HTMLButtonElement => {
+        const button = fixture.nativeElement.querySelector(
+            `[data-test-id="episode-download-${episodeId}"]`
+        ) as HTMLButtonElement | null;
+        expect(button).not.toBeNull();
+        return button as HTMLButtonElement;
+    };
+
     beforeEach(async () => {
-        downloadsServiceStub.isAvailable.set(false);
-        downloadsServiceStub.startDownload.mockClear();
+        downloadsServiceStub = {
+            isAvailable: signal(false),
+            hasLoadedDownloads: signal(false),
+            downloads: signal<DownloadItem[]>([]),
+            startDownload: jest.fn().mockResolvedValue({ success: true }),
+            loadDownloads: jest.fn().mockResolvedValue(undefined),
+            resumeDownload: jest.fn().mockResolvedValue({ success: true }),
+            playDownload: jest.fn().mockResolvedValue({ success: true }),
+        };
+        downloadAdapter = createDownloadAdapter();
+        snackBarOpen.mockReset();
         await TestBed.configureTestingModule({
             imports: [
                 NoopAnimationsModule,
@@ -75,8 +216,18 @@ describe('SeasonContainerComponent', () => {
                     provide: MatDialog,
                     useValue: { open: dialogOpen },
                 },
+                SeasonDownloadCoordinator,
+                {
+                    provide: MatSnackBar,
+                    useValue: { open: snackBarOpen },
+                },
             ],
         }).compileComponents();
+
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', DOWNLOAD_TRANSLATIONS);
+        translate.setDefaultLang('en');
+        translate.use('en');
 
         fixture = TestBed.createComponent(SeasonContainerComponent);
         component = fixture.componentInstance;
@@ -147,41 +298,6 @@ describe('SeasonContainerComponent', () => {
         expect(
             fixture.nativeElement.querySelectorAll('.download-btn').length
         ).toBe(0);
-    });
-
-    it('forwards the optional series metadata into the Xtream request', async () => {
-        const target = createEpisode();
-        setRequiredInputs({ '1': [target] });
-        fixture.componentRef.setInput('seriesTitle', 'Signal House');
-        fixture.componentRef.setInput('xtreamDownloadContext', {
-            serverUrl: 'http://host',
-            username: 'u',
-            password: 'p',
-        });
-        fixture.componentRef.setInput('downloadMetadataContext', {
-            language: 'en',
-            title: 'Signal House',
-            plot: 'Series plot',
-        });
-        fixture.detectChanges();
-
-        await component.downloadEpisode(new Event('click'), target);
-
-        expect(downloadsServiceStub.startDownload).toHaveBeenCalledWith(
-            expect.objectContaining({
-                title: 'Signal House - S01E01 - Pilot',
-                metadataSnapshot: expect.objectContaining({
-                    mediaKind: 'series',
-                    title: 'Signal House',
-                    plot: 'Series plot',
-                    episode: expect.objectContaining({
-                        seasonNumber: 1,
-                        episodeNumber: 1,
-                        title: 'Pilot',
-                    }),
-                }),
-            })
-        );
     });
 
     it('renders the season-level placeholder when the selected season has no episodes', () => {
@@ -421,5 +537,419 @@ describe('SeasonContainerComponent', () => {
                 '[data-testid="season-description"]'
             )?.textContent
         ).toContain('Season one overview');
+    });
+
+    it('marks only the submitted episode pending synchronously', async () => {
+        const first = createEpisode();
+        const second = createEpisode({
+            id: '102',
+            episode_num: 2,
+            title: 'Second',
+        });
+        const start = deferred<{ success: boolean }>();
+        downloadsServiceStub.startDownload.mockReturnValue(start.promise);
+        enableDownloads();
+        setRequiredInputs({ '1': [first, second] });
+        fixture.detectChanges();
+
+        episodeAction(101).click();
+        fixture.detectChanges();
+
+        expect(episodeAction(101).disabled).toBe(true);
+        expect(episodeAction(101).getAttribute('aria-label')).toBe(
+            'Adding Pilot to queue'
+        );
+        expect(episodeAction(102).disabled).toBe(false);
+        expect(episodeAction(102).getAttribute('aria-label')).toBe(
+            'Download Second'
+        );
+
+        start.resolve({ success: true });
+        await Promise.resolve();
+        await Promise.resolve();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(episodeAction(101).disabled).toBe(false);
+    });
+
+    it('shows the eligible season count before the view toggle and reports skipped rows truthfully', async () => {
+        const paused = createEpisode();
+        const eligible = createEpisode({
+            id: '102',
+            episode_num: 2,
+            title: 'Second',
+        });
+        downloadsServiceStub.downloads.set([
+            createDownload(paused, { id: 41, status: 'paused' }),
+        ]);
+        enableDownloads();
+        setRequiredInputs({ '1': [paused, eligible] });
+        fixture.detectChanges();
+
+        const button = fixture.nativeElement.querySelector(
+            '[data-test-id="download-season"]'
+        ) as HTMLButtonElement;
+        expect(button.textContent).toContain('Download season (1)');
+        expect(button.getAttribute('aria-label')).toBe(
+            'Download 1 eligible episodes'
+        );
+        expect(button.nextElementSibling?.classList).toContain('view-toggle');
+
+        button.click();
+        await fixture.whenStable();
+
+        expect(downloadsServiceStub.startDownload).toHaveBeenCalledTimes(1);
+        expect(snackBarOpen).toHaveBeenCalledWith(
+            'Added 1, skipped 1, failed 0',
+            undefined,
+            { duration: 5000 }
+        );
+    });
+
+    it('disables the season action until authoritative eligible work exists and while work is in flight', async () => {
+        const first = createEpisode();
+        enableDownloads();
+        downloadsServiceStub.hasLoadedDownloads.set(false);
+        setRequiredInputs({ '1': [first] });
+        fixture.detectChanges();
+
+        const seasonButton = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="download-season"]'
+            ) as HTMLButtonElement;
+        expect(seasonButton().disabled).toBe(true);
+
+        downloadsServiceStub.hasLoadedDownloads.set(true);
+        fixture.componentRef.setInput('isLoading', true);
+        fixture.detectChanges();
+        expect(seasonButton().disabled).toBe(true);
+
+        fixture.componentRef.setInput('isLoading', false);
+        fixture.componentRef.setInput('seasons', { '1': [] });
+        fixture.detectChanges();
+        expect(seasonButton().disabled).toBe(true);
+
+        fixture.componentRef.setInput('seasons', { '1': [first] });
+        downloadsServiceStub.downloads.set([
+            createDownload(first, { status: 'paused' }),
+        ]);
+        fixture.detectChanges();
+        expect(seasonButton().disabled).toBe(true);
+
+        downloadsServiceStub.downloads.set([]);
+        const start = deferred<{ success: boolean }>();
+        downloadsServiceStub.startDownload.mockReturnValue(start.promise);
+        fixture.detectChanges();
+        seasonButton().click();
+        fixture.detectChanges();
+        expect(seasonButton().disabled).toBe(true);
+
+        start.resolve({ success: true });
+        await fixture.whenStable();
+    });
+
+    it('hides all download presentation on web, in provider-only mode, or without an adapter', () => {
+        const first = createEpisode();
+        setRequiredInputs({ '1': [first] });
+        fixture.componentRef.setInput('downloadAdapter', downloadAdapter);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="download-season"]'
+            )
+        ).toBeNull();
+
+        downloadsServiceStub.isAvailable.set(true);
+        downloadsServiceStub.hasLoadedDownloads.set(true);
+        fixture.componentRef.setInput('downloadsEnabled', false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.download-btn')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="download-season"]'
+            )
+        ).toBeNull();
+
+        fixture.componentRef.setInput('downloadsEnabled', true);
+        fixture.componentRef.setInput('downloadAdapter', null);
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="download-season"]'
+            )
+        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('.download-btn')).toBeNull();
+    });
+
+    it.each(['grid', 'list'] as const)(
+        'maps every managed state to the same %s action contract',
+        async (viewMode) => {
+            const episodes = [
+                createEpisode(),
+                createEpisode({ id: '102', episode_num: 2, title: 'Queued' }),
+                createEpisode({ id: '103', episode_num: 3, title: 'Active' }),
+                createEpisode({ id: '104', episode_num: 4, title: 'Paused' }),
+                createEpisode({ id: '105', episode_num: 5, title: 'Local' }),
+                createEpisode({ id: '106', episode_num: 6, title: 'Unknown' }),
+                createEpisode({ id: '107', episode_num: 7, title: 'N/A' }),
+                createEpisode({ id: '108', episode_num: 8, title: 'Failed' }),
+                createEpisode({ id: '109', episode_num: 9, title: 'Canceled' }),
+                createEpisode({ id: '110', episode_num: 10, title: 'Missing' }),
+                createEpisode({ id: '111', episode_num: 11, title: 'New' }),
+                createEpisode({
+                    id: 'invalid',
+                    episode_num: 12,
+                    title: 'Invalid',
+                }),
+            ];
+            downloadsServiceStub.downloads.set([
+                createDownload(episodes[1], { status: 'queued' }),
+                createDownload(episodes[2], { status: 'downloading' }),
+                createDownload(episodes[3], { status: 'paused' }),
+                createDownload(episodes[4], {
+                    status: 'completed',
+                    fileAvailability: 'available',
+                    filePath: '/downloads/local.mp4',
+                }),
+                createDownload(episodes[5], { status: 'completed' }),
+                createDownload(episodes[6], {
+                    status: 'completed',
+                    fileAvailability: 'not-applicable',
+                }),
+                createDownload(episodes[7], { status: 'failed' }),
+                createDownload(episodes[8], { status: 'canceled' }),
+                createDownload(episodes[9], {
+                    status: 'completed',
+                    fileAvailability: 'missing',
+                }),
+            ]);
+            const start = deferred<{ success: boolean }>();
+            downloadsServiceStub.startDownload.mockReturnValue(start.promise);
+            enableDownloads();
+            setRequiredInputs({ '1': episodes });
+            component.setViewMode(viewMode);
+            fixture.detectChanges();
+            episodeAction(101).click();
+            fixture.detectChanges();
+
+            const expected = [
+                [101, true, 'Adding Pilot to queue', 'downloading'],
+                [102, true, 'Adding Queued to queue', 'downloading'],
+                [103, true, 'Adding Active to queue', 'downloading'],
+                [104, false, 'Resume Paused', 'play_arrow'],
+                [105, false, 'Play local', 'folder_open'],
+                [106, true, 'Download Unknown', 'block'],
+                [107, true, 'Download N/A', 'block'],
+                [108, false, 'Download Failed', 'download'],
+                [109, false, 'Download Canceled', 'download'],
+                [110, false, 'Download Missing', 'download'],
+                [111, false, 'Download New', 'download'],
+                ['invalid', true, 'Download Invalid', 'block'],
+            ] as const;
+            for (const [id, disabled, aria, icon] of expected) {
+                const action = episodeAction(id);
+                expect(action.disabled).toBe(disabled);
+                expect(action.getAttribute('aria-label')).toBe(aria);
+                expect(action.querySelector('mat-icon')?.textContent).toContain(
+                    icon
+                );
+            }
+
+            start.resolve({ success: true });
+            await fixture.whenStable();
+        }
+    );
+
+    it('resumes by managed row id and plays the coordinate-matched local file', async () => {
+        const paused = createEpisode();
+        const local = createEpisode({
+            id: '102',
+            episode_num: 2,
+            title: 'Local',
+        });
+        downloadsServiceStub.downloads.set([
+            createDownload(paused, {
+                id: 71,
+                xtreamId: 9001,
+                status: 'paused',
+            }),
+            createDownload(local, {
+                id: 72,
+                xtreamId: 9002,
+                status: 'completed',
+                fileAvailability: 'available',
+                filePath: '/authorized/downloads/local.mp4',
+            }),
+        ]);
+        enableDownloads();
+        setRequiredInputs({ '1': [paused, local] });
+        fixture.detectChanges();
+
+        episodeAction(101).click();
+        episodeAction(102).click();
+        await fixture.whenStable();
+
+        expect(downloadsServiceStub.resumeDownload).toHaveBeenCalledWith(71);
+        expect(downloadsServiceStub.playDownload).toHaveBeenCalledWith(
+            '/authorized/downloads/local.mp4'
+        );
+    });
+
+    it('dispatches one submission for rapid duplicate episode clicks without success feedback', async () => {
+        const start = deferred<{ success: boolean }>();
+        downloadsServiceStub.startDownload.mockReturnValue(start.promise);
+        enableDownloads();
+        setRequiredInputs({ '1': [createEpisode()] });
+        fixture.detectChanges();
+
+        episodeAction(101).click();
+        episodeAction(101).click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(downloadsServiceStub.startDownload).toHaveBeenCalledTimes(1);
+        start.resolve({ success: true });
+        await fixture.whenStable();
+        expect(snackBarOpen).not.toHaveBeenCalled();
+    });
+
+    it('dispatches the selected season only once for rapid duplicate clicks', async () => {
+        const start = deferred<{ success: boolean }>();
+        downloadsServiceStub.startDownload.mockReturnValue(start.promise);
+        enableDownloads();
+        setRequiredInputs({ '1': [createEpisode()] });
+        fixture.detectChanges();
+        const seasonButton = fixture.nativeElement.querySelector(
+            '[data-test-id="download-season"]'
+        ) as HTMLButtonElement;
+
+        seasonButton.click();
+        seasonButton.click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(downloadsServiceStub.startDownload).toHaveBeenCalledTimes(1);
+        start.resolve({ success: true });
+        await fixture.whenStable();
+        expect(snackBarOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows only the localized generic episode error and no added feedback', async () => {
+        downloadsServiceStub.startDownload.mockResolvedValueOnce({
+            success: false,
+            error: 'https://portal.test?username=alice&password=hunter2',
+        });
+        enableDownloads();
+        setRequiredInputs({ '1': [createEpisode()] });
+        fixture.detectChanges();
+
+        episodeAction(101).click();
+        await fixture.whenStable();
+
+        expect(snackBarOpen).toHaveBeenCalledWith(
+            'The episode could not be added',
+            undefined,
+            { duration: 5000 }
+        );
+        expect(JSON.stringify(snackBarOpen.mock.calls)).not.toContain('alice');
+        expect(JSON.stringify(snackBarOpen.mock.calls)).not.toContain(
+            'hunter2'
+        );
+        expect(JSON.stringify(snackBarOpen.mock.calls)).not.toContain(
+            'portal.test'
+        );
+
+        snackBarOpen.mockClear();
+        downloadsServiceStub.startDownload.mockResolvedValueOnce({
+            success: true,
+        });
+        episodeAction(101).click();
+        await fixture.whenStable();
+        expect(snackBarOpen).not.toHaveBeenCalled();
+    });
+
+    it('snapshots the selected season before asynchronous preparation', async () => {
+        const preparation = deferred<void>();
+        const first = createEpisode();
+        const second = createEpisode({
+            id: '102',
+            episode_num: 2,
+            title: 'Second',
+        });
+        const delayedAdapter: SeasonEpisodeDownloadAdapter = {
+            createCandidate(episode, seasonKey) {
+                const candidate = downloadAdapter.createCandidate(
+                    episode,
+                    seasonKey
+                );
+                if (!candidate || episode.id !== '101') {
+                    return candidate;
+                }
+                return {
+                    ...candidate,
+                    prepare: async () => {
+                        await preparation.promise;
+                        return candidate.prepare();
+                    },
+                };
+            },
+        };
+        enableDownloads(delayedAdapter);
+        setRequiredInputs({
+            '1': [first, second],
+            '2': [createEpisode({ id: '201', season: 2 })],
+        });
+        component.selectSeason('1');
+        fixture.detectChanges();
+
+        const seasonButton = fixture.nativeElement.querySelector(
+            '[data-test-id="download-season"]'
+        ) as HTMLButtonElement;
+        seasonButton.click();
+        component.selectSeason('2');
+        fixture.componentRef.setInput('seasons', {
+            '1': [createEpisode({ id: '103', title: 'Replacement' })],
+            '2': [createEpisode({ id: '201', season: 2 })],
+        });
+        fixture.detectChanges();
+        preparation.resolve(undefined);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        await fixture.whenStable();
+
+        expect(
+            downloadsServiceStub.startDownload.mock.calls.map(
+                ([request]) => request.xtreamId
+            )
+        ).toEqual([101, 102]);
+    });
+
+    it('uses the failure aggregate key when any season submission fails', async () => {
+        downloadsServiceStub.startDownload
+            .mockResolvedValueOnce({ success: true })
+            .mockResolvedValueOnce({ success: false, error: 'rejected' });
+        enableDownloads();
+        setRequiredInputs({
+            '1': [
+                createEpisode(),
+                createEpisode({ id: '102', episode_num: 2 }),
+            ],
+        });
+        fixture.detectChanges();
+
+        (
+            fixture.nativeElement.querySelector(
+                '[data-test-id="download-season"]'
+            ) as HTMLButtonElement
+        ).click();
+        await fixture.whenStable();
+
+        expect(snackBarOpen).toHaveBeenCalledWith(
+            'Queue failed: 1 added, 0 skipped, 1 failed',
+            undefined,
+            { duration: 5000 }
+        );
     });
 });
