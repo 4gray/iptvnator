@@ -72,15 +72,20 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
     private readonly overrides = new Map<string, StalkerPortalModeOverride>();
     /**
-     * EVERY source-configuration fingerprint already probed this session,
-     * per playlist. Keyed by CONFIG, not just id: a stale snapshot of an
-     * already-probed configuration must not re-probe (loop guard) — and the
-     * full history matters, because alternating edits (A→B→A) would
-     * otherwise evict A's fingerprint and let its stale snapshots run the
-     * expensive discovery again. A configuration never probed — including
-     * one whose mid-probe edit discarded a repair — probes when IT fails.
+     * The OUTCOME of every probe this session, per playlist, keyed by the
+     * source-configuration fingerprint: the override the probe produced, or
+     * null when it changed nothing. Keeping full history (not just the last
+     * entry) stops alternating edits (A→B→A) from re-running discovery via
+     * stale snapshots — and keeping the OUTCOME (not just an attempted
+     * flag) lets a configuration the user restores reinstall its remembered
+     * repair instead of staying broken until restart. A configuration never
+     * probed — including one whose mid-probe edit discarded a repair —
+     * probes when IT fails.
      */
-    private readonly attemptedSources = new Map<string, Set<string>>();
+    private readonly probeHistory = new Map<
+        string,
+        Map<string, StalkerPortalModeOverride | null>
+    >();
     private readonly pendingRepairs = new Map<
         string,
         Promise<PlaylistMeta | null>
@@ -159,11 +164,11 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
 
     /**
      * Retires the session artifacts a repair installed for a playlist: the
-     * override and the cached token (authenticated for the pre-edit
-     * identity/endpoint). The probe HISTORY deliberately survives — the
-     * per-config latch already lets a never-probed configuration through,
-     * and forgetting probed ones would let alternating edits (A→B→A) loop
-     * discovery through stale snapshots.
+     * ACTIVE override and the cached token (authenticated for the pre-edit
+     * identity/endpoint). The probe history deliberately survives: it both
+     * blocks re-probing of already-attempted configurations (A→B→A cannot
+     * loop discovery through stale snapshots) and lets a restored
+     * configuration reinstall its remembered repair.
      */
     private dropOverride(playlistId: string): void {
         this.overrides.delete(playlistId);
@@ -230,13 +235,24 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         }
 
         const fingerprint = this.repairSourceFingerprint(playlist);
-        const attempted = this.attemptedSources.get(playlistId) ?? new Set();
-        if (attempted.has(fingerprint)) {
+        const history = this.probeHistory.get(playlistId) ?? new Map();
+        if (history.has(fingerprint)) {
+            const remembered = history.get(fingerprint) ?? null;
+            if (remembered && !this.overrides.has(playlistId)) {
+                // The user restored a configuration whose override was
+                // dropped by an intermediate edit: reinstall the remembered
+                // outcome — probing again is unnecessary, and doing nothing
+                // would leave the restored configuration broken until
+                // restart.
+                this.overrides.set(playlistId, remembered);
+            }
             return this.reapplyIfChanged(playlist);
         }
 
-        attempted.add(fingerprint);
-        this.attemptedSources.set(playlistId, attempted);
+        // Reserved BEFORE the probe (null = probed, nothing to reinstall);
+        // a successful repair overwrites it with the produced override.
+        history.set(fingerprint, null);
+        this.probeHistory.set(playlistId, history);
         const run = this.runRepair(playlist);
         this.pendingRepairs.set(playlistId, run);
         try {
@@ -333,13 +349,17 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             return null;
         }
 
-        this.overrides.set(playlist._id, {
+        const override: StalkerPortalModeOverride = {
             sourcePortalUrl: playlist.portalUrl,
             sourceIsFullStalkerPortal: storedMode,
             identityFingerprint: stalkerIdentityFingerprint(playlist),
             portalUrl: outcome.portalUrl,
             isFullStalkerPortal: outcome.isFullStalkerPortal,
-        });
+        };
+        this.overrides.set(playlist._id, override);
+        this.probeHistory
+            .get(playlist._id)
+            ?.set(this.repairSourceFingerprint(playlist), override);
 
         if (outcome.isFullStalkerPortal && outcome.token) {
             // The classification handshake already authenticated; reuse its

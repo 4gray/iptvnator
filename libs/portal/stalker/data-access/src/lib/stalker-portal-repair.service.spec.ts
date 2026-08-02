@@ -455,6 +455,35 @@ describe('StalkerPortalRepairService', () => {
             expect(clearCachedToken).toHaveBeenCalledWith('portal-1');
         });
 
+        it('reinstalls the remembered repair when a restored configuration fails again', async () => {
+            // Repair A, edit to B (drops the active override), restore A:
+            // A's next failure must reinstall the remembered outcome
+            // WITHOUT a second discovery — not stay broken until restart.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: MISCLASSIFIED.portalUrl,
+                isFullStalkerPortal: true,
+            });
+            await service.repairPortal(MISCLASSIFIED);
+            expect(discover).toHaveBeenCalledTimes(1);
+
+            const editedIdentity = {
+                ...MISCLASSIFIED,
+                macAddress: '00:1A:79:00:44:44',
+            } as PlaylistMeta;
+            // The edit drops the active override…
+            expect(service.applyOverride(editedIdentity)).toBe(editedIdentity);
+            expect(service.applyOverride(MISCLASSIFIED)).toBe(MISCLASSIFIED);
+
+            // …and the restored configuration reinstalls it on failure.
+            const restored = await service.repairPortal(MISCLASSIFIED);
+            expect(discover).toHaveBeenCalledTimes(1);
+            expect(restored).toMatchObject({ isFullStalkerPortal: true });
+            expect(service.applyOverride(MISCLASSIFIED)).toMatchObject({
+                isFullStalkerPortal: true,
+            });
+        });
+
         it('drops the override and the cached token when only the identity was edited', async () => {
             discover.mockResolvedValue({
                 status: 'resolved',
