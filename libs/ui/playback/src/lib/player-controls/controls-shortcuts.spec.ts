@@ -56,6 +56,46 @@ describe('ControlsShortcuts', () => {
         expect(handlers.toggleMute).toHaveBeenCalledTimes(1);
     });
 
+    it('ignores every shortcut while the host sits inside an inert region', () => {
+        const inertRegion = document.createElement('div');
+        inertRegion.setAttribute('inert', '');
+        const host = document.createElement('div');
+        inertRegion.appendChild(host);
+        document.body.appendChild(inertRegion);
+        (
+            handlers as unknown as { hostElement: () => HTMLElement }
+        ).hostElement = () => host;
+
+        try {
+            expect(dispatchKey(' ')).toBe(false);
+            expect(dispatchKey('ArrowUp')).toBe(false);
+            expect(dispatchKey('m')).toBe(false);
+            dispatchKey('Escape');
+
+            expect(handlers.togglePaused).not.toHaveBeenCalled();
+            expect(handlers.adjustVolume).not.toHaveBeenCalled();
+            expect(handlers.toggleMute).not.toHaveBeenCalled();
+            expect(handlers.onEscape).not.toHaveBeenCalled();
+        } finally {
+            inertRegion.remove();
+        }
+    });
+
+    it('handles shortcuts when the host is not inside an inert region', () => {
+        const host = document.createElement('div');
+        document.body.appendChild(host);
+        (
+            handlers as unknown as { hostElement: () => HTMLElement }
+        ).hostElement = () => host;
+
+        try {
+            expect(dispatchKey(' ')).toBe(true);
+            expect(handlers.togglePaused).toHaveBeenCalledTimes(1);
+        } finally {
+            host.remove();
+        }
+    });
+
     it('does not consume keys for unsupported actions', () => {
         handlers.canTogglePaused.mockReturnValue(false);
         handlers.canSeek.mockReturnValue(false);

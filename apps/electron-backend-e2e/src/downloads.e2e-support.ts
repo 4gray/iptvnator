@@ -31,6 +31,10 @@ interface ThrottledRangeServer {
     url: string;
 }
 
+interface InterruptedRangeServer extends ThrottledRangeServer {
+    interruptedBytes: number;
+}
+
 interface TruncatedDownloadServer {
     close: () => Promise<void>;
     payload: Buffer;
@@ -39,6 +43,7 @@ interface TruncatedDownloadServer {
 }
 
 export const RANGE_SERVER_ETAG = '"e2e-range-etag"';
+export const INTERRUPTED_RANGE_SERVER_ETAG = '"e2e-reset-etag"';
 const downloadPlayCaptureKey = '__iptvnatorE2eDownloadPlayPaths';
 
 export function getStalkerSeriesDownloadTarget(
@@ -169,6 +174,63 @@ export async function createThrottledRangeServer(
         payload,
         requests,
         url: `http://127.0.0.1:${port}/media/e2e-pause-movie.mp4`,
+    };
+}
+
+/**
+ * Resets the first full response after writing a valid prefix, then serves the
+ * remainder to a Range retry. This matches a provider/proxy connection drop
+ * without manufacturing a clean EOF.
+ */
+export async function createInterruptedRangeServer(): Promise<InterruptedRangeServer> {
+    const payload = Buffer.alloc(64 * 1024, 9);
+    const interruptedBytes = 16 * 1024;
+    const requests: RangeServerRequest[] = [];
+
+    const server = createServer((req, res) => {
+        const range = req.headers.range;
+        const ifRange = req.headers['if-range'];
+        requests.push({
+            ifRange: typeof ifRange === 'string' ? ifRange : undefined,
+            range: typeof range === 'string' ? range : undefined,
+        });
+
+        const offset = range
+            ? Number(/^bytes=(\d+)-$/.exec(range)?.[1] ?? Number.NaN)
+            : 0;
+        if (range && Number.isFinite(offset)) {
+            res.writeHead(206, {
+                'Content-Length': payload.length - offset,
+                'Content-Range': `bytes ${offset}-${payload.length - 1}/${payload.length}`,
+                'Content-Type': 'video/mp4',
+                ETag: INTERRUPTED_RANGE_SERVER_ETAG,
+            });
+            res.end(payload.subarray(offset));
+            return;
+        }
+
+        res.writeHead(200, {
+            'Content-Length': payload.length,
+            'Content-Type': 'video/mp4',
+            ETag: INTERRUPTED_RANGE_SERVER_ETAG,
+        });
+        res.write(payload.subarray(0, interruptedBytes), () => {
+            setTimeout(() => res.socket?.destroy(), 20);
+        });
+    });
+
+    await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve)
+    );
+    const { port } = server.address() as AddressInfo;
+
+    return {
+        close: () =>
+            new Promise<void>((resolve) => server.close(() => resolve())),
+        interruptedBytes,
+        payload,
+        requests,
+        url: `http://127.0.0.1:${port}/media/e2e-reset-movie.mp4`,
     };
 }
 

@@ -1,4 +1,23 @@
 <header class="workspace-header" [class.is-settings-route]="isSettingsRoute()">
+    <!-- Phone-only (≤640px, CSS-hidden above): on phones the context panel
+         is an off-canvas drawer, and this button is the only way to open
+         it, so it must never be dropped while the route has a panel. -->
+    @if (showContextDrawerToggle()) {
+        <button
+            #contextDrawerToggle
+            type="button"
+            class="context-drawer-toggle"
+            mat-icon-button
+            data-test-id="context-drawer-toggle"
+            (click)="onContextDrawerToggleRequested()"
+            [matTooltip]="contextDrawerTooltipKey() | translate"
+            [attr.aria-label]="contextDrawerToggleAriaKey() | translate"
+            [attr.aria-expanded]="isContextDrawerOpen()"
+        >
+            <mat-icon>menu_open</mat-icon>
+        </button>
+    }
+
     <!-- Playlist switcher hidden on /settings: those controls are
          playlist-scoped, but Settings is a global page. Per the UX
          audit, leaving them visible implied switching playlists changes
@@ -15,6 +34,9 @@
             [isRefreshingActivePlaylist]="isRefreshingPlaylist()"
             (playlistInfoRequested)="onPlaylistInfoRequested()"
             (accountInfoRequested)="onAccountInfoRequested()"
+            (accountInfoForPlaylistRequested)="
+                onAccountInfoForPlaylistRequested($event)
+            "
             (addPlaylistRequested)="onAddPlaylistRequested()"
             (refreshPlaylistRequested)="onRefreshPlaylistRequested()"
         />
@@ -55,7 +77,14 @@
                     'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
                 "
             >
-                {{ commandShortcutLabel }}
+                <!-- The shortcut label is the affordance on a keyboard; on a
+                     phone it means nothing, but this button is the only way
+                     to open the palette, so it becomes an icon rather than
+                     disappearing. -->
+                <span class="command-trigger__shortcut">{{
+                    commandShortcutLabel
+                }}</span>
+                <mat-icon class="command-trigger__icon">bolt</mat-icon>
             </button>
         </label>
     }
@@ -68,6 +97,7 @@
     <div class="header-actions header-actions--leading">
         <button
             type="button"
+            class="shortcuts-trigger"
             mat-icon-button
             (click)="onShortcutsRequested()"
             [matTooltip]="'WORKSPACE.SHORTCUTS.OPEN_TOOLTIP' | translate"

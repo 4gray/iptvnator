@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
     normalizeXtreamServerUrl,
+    resolveXtreamPortalExpiration,
     resolveXtreamPortalStatus,
     XtreamPortalStatusResponseLike,
 } from '@iptvnator/shared/interfaces';
@@ -13,12 +14,24 @@ export type PortalStatus =
     | 'unavailable'
     | 'checking';
 
+/**
+ * Status plus the parsed account expiration from the same round-trip the
+ * status check already makes — consumers that care about "expires soon"
+ * (dashboard source cards) share the cache instead of issuing their own
+ * `get_account_info` calls.
+ */
+export interface PortalStatusDetails {
+    status: PortalStatus;
+    /** Unix seconds; null when the portal doesn't report an expiration. */
+    expiresAtSeconds: number | null;
+}
+
 interface XtreamPortalStatusResponse {
     payload?: XtreamPortalStatusResponseLike;
 }
 
 interface PortalStatusCacheEntry {
-    status: PortalStatus;
+    details: PortalStatusDetails;
     timestamp: number;
 }
 
@@ -57,7 +70,7 @@ export class PortalStatusService {
      * playlist-item + switcher menu open) share a single network round-trip
      * instead of racing each other.
      */
-    private readonly inFlight = new Map<string, Promise<PortalStatus>>();
+    private readonly inFlight = new Map<string, Promise<PortalStatusDetails>>();
 
     /**
      * Checks the status of an Xtream Code portal
@@ -75,13 +88,32 @@ export class PortalStatusService {
         password: string,
         options?: CheckPortalStatusOptions
     ): Promise<PortalStatus> {
+        const details = await this.checkPortalStatusDetails(
+            serverUrl,
+            username,
+            password,
+            options
+        );
+        return details.status;
+    }
+
+    /**
+     * Same check as {@link checkPortalStatus} (shared cache, shared in-flight
+     * dedup) but returns the account expiration alongside the status.
+     */
+    async checkPortalStatusDetails(
+        serverUrl: string,
+        username: string,
+        password: string,
+        options?: CheckPortalStatusOptions
+    ): Promise<PortalStatusDetails> {
         const connection = this.normalizeConnection(
             serverUrl,
             username,
             password
         );
         if (!connection) {
-            return 'unavailable';
+            return { status: 'unavailable', expiresAtSeconds: null };
         }
 
         const cacheKey = this.buildCacheKey(
@@ -96,7 +128,7 @@ export class PortalStatusService {
                 cached &&
                 Date.now() - cached.timestamp < PORTAL_STATUS_CACHE_TTL_MS
             ) {
-                return cached.status;
+                return cached.details;
             }
 
             const pending = this.inFlight.get(cacheKey);
@@ -110,12 +142,12 @@ export class PortalStatusService {
             connection.username,
             connection.password
         )
-            .then((status) => {
+            .then((details) => {
                 this.cache.set(cacheKey, {
-                    status,
+                    details,
                     timestamp: Date.now(),
                 });
-                return status;
+                return details;
             })
             .finally(() => {
                 this.inFlight.delete(cacheKey);
@@ -159,7 +191,7 @@ export class PortalStatusService {
         if (Date.now() - cached.timestamp >= PORTAL_STATUS_CACHE_TTL_MS) {
             return null;
         }
-        return cached.status;
+        return cached.details.status;
     }
 
     /** Clear the entire cache. Useful for log-out or debug flows. */
@@ -205,7 +237,7 @@ export class PortalStatusService {
         serverUrl: string,
         username: string,
         password: string
-    ): Promise<PortalStatus> {
+    ): Promise<PortalStatusDetails> {
         for (const action of XTREAM_STATUS_ACTIONS) {
             try {
                 const response =
@@ -223,14 +255,19 @@ export class PortalStatusService {
                     );
                 const status = resolveXtreamPortalStatus(response?.payload);
                 if (status !== 'unavailable') {
-                    return status;
+                    return {
+                        status,
+                        expiresAtSeconds: resolveXtreamPortalExpiration(
+                            response?.payload
+                        ),
+                    };
                 }
             } catch {
                 // Try the next Xtream account-info action variant.
             }
         }
 
-        return 'unavailable';
+        return { status: 'unavailable', expiresAtSeconds: null };
     }
 
     /**

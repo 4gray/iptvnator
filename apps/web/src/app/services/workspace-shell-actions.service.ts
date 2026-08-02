@@ -7,6 +7,7 @@ import {
     WorkspaceAccountInfoData,
     WorkspacePlaylistType,
     WorkspaceShellActions,
+    WorkspaceStalkerAccountInfoData,
 } from '@iptvnator/workspace/shell/util';
 
 @Injectable({ providedIn: 'root' })
@@ -46,6 +47,19 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
         void import('@iptvnator/portal/xtream/feature').then(
             ({ AccountInfoComponent }) => {
                 this.dialog.open(AccountInfoComponent, {
+                    width: '80%',
+                    maxWidth: '1200px',
+                    maxHeight: '90vh',
+                    data,
+                });
+            }
+        );
+    }
+
+    openStalkerAccountInfo(data: WorkspaceStalkerAccountInfoData): void {
+        void import('@iptvnator/portal/stalker/feature').then(
+            ({ StalkerAccountInfoComponent }) => {
+                this.dialog.open(StalkerAccountInfoComponent, {
                     width: '80%',
                     maxWidth: '1200px',
                     maxHeight: '90vh',

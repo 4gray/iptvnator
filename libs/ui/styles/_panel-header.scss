@@ -29,6 +29,9 @@
     align-items: baseline;
     gap: $gap;
     flex: 1;
+    // `flex: 1` lets this shrink to zero width, and the nowrap subtitle then
+    // painted outside the box and on top of whatever sits beside it.
+    overflow: hidden;
 }
 
 @mixin standard-panel-title($font-size: 0.95rem) {

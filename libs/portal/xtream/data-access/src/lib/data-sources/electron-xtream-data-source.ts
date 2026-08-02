@@ -157,6 +157,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         options?: XtreamOperationOptions
     ): Promise<XtreamCategoryFromDb[]> {
         const importType = this.mapCategoryTypeToImportType(type);
+        // The DB read below is the slow part of a warm start; report it as a
+        // phase so the sync overlay never shows a phaseless card.
+        options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, importType);
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
@@ -299,6 +302,9 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         onTotal?: (total: number) => void,
         options?: XtreamOperationOptions
     ): Promise<XtreamContentItem[]> {
+        // The DB read below is the slow part of a warm start; report it as a
+        // phase so the sync overlay never shows a phaseless card.
+        options?.onPhaseChange?.('loading-cached');
         const importStatus = await this.getImportStatus(playlistId, type);
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.

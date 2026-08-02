@@ -187,18 +187,11 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getPlaybackMediaExtensionFromUrl(channel.url);
 
-            void window.electron
-                ?.setUserAgent(
-                    channel.http?.['user-agent'],
-                    channel.http?.referrer,
-                    channel.url
-                )
-                .catch((error: unknown) => {
-                    console.warn(
-                        '[HtmlVideoPlayer] Failed to configure Electron request headers:',
-                        error
-                    );
-                });
+            // The scoped Electron header override is owned by
+            // WebPlayerViewComponent, which configures the full header set
+            // (incl. portal Cookie/Authorization) before this component
+            // receives the channel. Re-issuing the three-header call here
+            // would overwrite that richer override.
 
             if (extension === 'mpd') {
                 debugHtmlPlayer(

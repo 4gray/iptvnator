@@ -279,6 +279,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline');
         window.electron = {
             platform: 'darwin',
+            setUserAgent: jest.fn().mockResolvedValue(true),
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(() => jest.fn()),
             onRemoteControlCommand: jest.fn(() => jest.fn()),
@@ -1126,6 +1127,121 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(audioPlayer.icon()).toBe('jazz.png');
         expect(audioPlayer.channelName()).toBe('Jazz FM');
         expect(audioPlayer.dispatchAdjacentChannelAction()).toBe(false);
+    });
+
+    it('configures the scoped Electron header override before radio playback starts', async () => {
+        // The radio branch renders the dedicated audio player, not
+        // WebPlayerViewComponent — without this wiring an auth-gated portal
+        // radio stream 403s because its credentials never reach the request.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: {
+                'User-Agent': 'MAG250',
+                Referer: 'http://portal.example',
+                Cookie: 'mac=00:1A:79:00:00:01',
+                Authorization: 'Bearer TOKEN99',
+            },
+        });
+
+        await component.playChannel(radioChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(window.electron?.setUserAgent).toHaveBeenCalledWith(
+            'MAG250',
+            'http://portal.example',
+            'http://portal.example/radio_2.mpg',
+            {
+                authorization: 'Bearer TOKEN99',
+                cookie: 'mac=00:1A:79:00:00:01',
+            }
+        );
+
+        const audioPlayer = fixture.debugElement.query(
+            By.directive(StubAudioPlayerComponent)
+        ).componentInstance as StubAudioPlayerComponent;
+        expect(audioPlayer.url()).toBe('http://portal.example/radio_2.mpg');
+    });
+
+    it('clears the radio header override when destroyed while the apply IPC is pending', async () => {
+        // Leaving the radio route mid-apply must not leave the portal
+        // cookie/token installed: ownership is claimed before awaiting the
+        // IPC, so ngOnDestroy can always name the stream to clear.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        let resolveApply: (() => void) | undefined;
+        let signalApplyIssued!: () => void;
+        const applyIssued = new Promise<void>(
+            (resolve) => (signalApplyIssued = resolve)
+        );
+        // Once: only the apply call gets the pending promise — the destroy
+        // clear below also calls the bridge and must not steal the resolver.
+        (
+            window.electron?.setUserAgent as jest.Mock
+        ).mockImplementationOnce(() => {
+            signalApplyIssued();
+            return new Promise<boolean>((resolve) => {
+                resolveApply = () => resolve(true);
+            });
+        });
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: { Cookie: 'mac=00:1A:79:00:00:01' },
+        });
+
+        const playPromise = component.playChannel(radioChannels()[0]);
+        // The header IPC has been issued but is still pending.
+        await applyIssued;
+
+        fixture.destroy();
+        resolveApply?.();
+        await playPromise;
+
+        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'http://portal.example/radio_2.mpg'
+        );
+        expect(component.activePlayback()).toBeNull();
+    });
+
+    it('releases the radio override when the next selection never mounts a player', async () => {
+        // Switching from a playing radio to a channel whose resolution fails
+        // (or plays externally) mounts no player surface — the selection
+        // itself must release the previously installed credentials.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: { Cookie: 'mac=00:1A:79:00:00:01' },
+        });
+        await component.playChannel(radioChannels()[0]);
+        await fixture.whenStable();
+
+        stalkerStore.selectedContentType.set('itv');
+        resolveItvPlayback.mockRejectedValueOnce(new Error('portal down'));
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+
+        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'http://portal.example/radio_2.mpg'
+        );
     });
 });
 

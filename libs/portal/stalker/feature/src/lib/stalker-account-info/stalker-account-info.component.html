@@ -1,0 +1,214 @@
+<section mat-dialog-title class="account-dialog__hero">
+    <div class="account-dialog__hero-copy">
+        <div class="account-dialog__eyebrow">
+            <span class="account-dialog__eyebrow-mark"></span>
+            Stalker
+            @if (isFullPortal) {
+                <span class="account-dialog__eyebrow-divider"></span>
+                {{ 'STALKER.ACCOUNT_INFO.PORTAL_TYPE_FULL' | translate }}
+            }
+        </div>
+
+        <div class="account-dialog__headline-row">
+            <div>
+                <h2 class="account-dialog__title">
+                    {{ 'STALKER.ACCOUNT_INFO.TITLE' | translate }}
+                </h2>
+                <p class="account-dialog__subtitle">
+                    {{ playlistLabel() }}
+                </p>
+            </div>
+
+            <div class="account-dialog__status-cluster">
+                @if (statusKind(); as kind) {
+                    <span
+                        class="account-dialog__status-pill"
+                        [class.account-dialog__status-pill--active]="
+                            kind === 'active'
+                        "
+                    >
+                        @if (kind === 'active') {
+                            {{ 'STALKER.ACCOUNT_INFO.ACTIVE' | translate }}
+                        } @else {
+                            {{ 'STALKER.ACCOUNT_INFO.INACTIVE' | translate }}
+                        }
+                    </span>
+                }
+                @if (isCachedSnapshot() && loadState() === 'ready') {
+                    <span
+                        class="account-dialog__status-pill account-dialog__status-pill--cached"
+                    >
+                        {{ 'STALKER.ACCOUNT_INFO.CACHED_BADGE' | translate }}
+                    </span>
+                }
+            </div>
+        </div>
+
+        @if (refreshFailed()) {
+            <div class="account-dialog__message">
+                {{ 'STALKER.ACCOUNT_INFO.REFRESH_FAILED' | translate }}
+            </div>
+        } @else if (loadState() === 'loading') {
+            <p class="account-dialog__loading-copy">
+                {{ 'LOADING' | translate }}...
+            </p>
+        }
+    </div>
+
+    <div class="account-dialog__hero-stats">
+        @if (loadState() === 'ready') {
+            @for (stat of heroStats(); track stat.labelKey) {
+                <article class="account-stat">
+                    <div class="account-stat__icon">
+                        <mat-icon>{{ stat.icon }}</mat-icon>
+                    </div>
+                    <div class="account-stat__label">
+                        {{ stat.labelKey | translate }}
+                    </div>
+                    <div
+                        class="account-stat__value"
+                        [class.account-stat__value--warning]="stat.warning"
+                    >
+                        {{ stat.value }}
+                    </div>
+                </article>
+            }
+        } @else {
+            @for (item of skeletonStats; track item) {
+                <div class="account-skeleton account-skeleton--stat"></div>
+            }
+        }
+    </div>
+</section>
+
+<mat-dialog-content class="account-dialog__content">
+    @if (loadState() === 'error') {
+        <section class="account-dialog__error-state">
+            <div class="account-dialog__error-icon">
+                <mat-icon>signal_wifi_connected_no_internet_4</mat-icon>
+            </div>
+            <h3>
+                {{ 'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE' | translate }}
+            </h3>
+            <p>
+                {{
+                    'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.DESCRIPTION'
+                        | translate
+                }}
+            </p>
+            <button mat-flat-button color="primary" (click)="reload()">
+                {{ 'RETRY' | translate }}
+            </button>
+        </section>
+    } @else if (loadState() === 'loading') {
+        <div class="account-dialog__grid">
+            @for (panel of skeletonPanels; track panel) {
+                <section class="account-panel account-panel--loading">
+                    <div
+                        class="account-skeleton account-skeleton--heading"
+                    ></div>
+                    <div class="account-skeleton account-skeleton--row"></div>
+                    <div class="account-skeleton account-skeleton--row"></div>
+                    <div
+                        class="account-skeleton account-skeleton--row short"
+                    ></div>
+                </section>
+            }
+        </div>
+    } @else {
+        <div class="account-dialog__grid">
+            <section class="account-panel">
+                <div class="account-panel__header">
+                    <p class="account-panel__eyebrow">
+                        {{ 'STALKER.ACCOUNT_INFO.ACCOUNT' | translate }}
+                    </p>
+                    <h3>{{ snapshot()?.login || playlistLabel() }}</h3>
+                </div>
+
+                @if (accountDetails().length > 0) {
+                    <dl class="account-detail-list">
+                        @for (row of accountDetails(); track row.labelKey) {
+                            <div class="account-detail-row">
+                                <dt>{{ row.labelKey | translate }}</dt>
+                                <dd
+                                    [class.account-detail-row__value--mono]="
+                                        row.mono
+                                    "
+                                    [class.account-detail-row__value--positive]="
+                                        row.tone === 'positive'
+                                    "
+                                    [class.account-detail-row__value--warning]="
+                                        row.tone === 'warning'
+                                    "
+                                >
+                                    @if (translatedRowKeys.has(row.value)) {
+                                        {{ row.value | translate }}
+                                    } @else {
+                                        {{ row.value }}
+                                    }
+                                </dd>
+                            </div>
+                        }
+                    </dl>
+                } @else {
+                    <div class="account-dialog__empty-copy">
+                        <h4>
+                            {{
+                                'STALKER.ACCOUNT_INFO.NO_ACCOUNT_DATA_TITLE'
+                                    | translate
+                            }}
+                        </h4>
+                        <p>
+                            {{
+                                'STALKER.ACCOUNT_INFO.NO_ACCOUNT_DATA_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                }
+            </section>
+
+            <section class="account-panel">
+                <div class="account-panel__header">
+                    <p class="account-panel__eyebrow">
+                        {{ 'STALKER.ACCOUNT_INFO.PORTAL_INFO' | translate }}
+                    </p>
+                    <h3>
+                        @if (isFullPortal) {
+                            {{
+                                'STALKER.ACCOUNT_INFO.PORTAL_TYPE_FULL'
+                                    | translate
+                            }}
+                        } @else {
+                            {{
+                                'STALKER.ACCOUNT_INFO.PORTAL_TYPE_LEGACY'
+                                    | translate
+                            }}
+                        }
+                    </h3>
+                </div>
+
+                <dl class="account-detail-list">
+                    @for (row of portalDetails(); track row.labelKey) {
+                        <div class="account-detail-row">
+                            <dt>{{ row.labelKey | translate }}</dt>
+                            <dd
+                                [class.account-detail-row__value--mono]="
+                                    row.mono
+                                "
+                            >
+                                {{ row.value }}
+                            </dd>
+                        </div>
+                    }
+                </dl>
+            </section>
+        </div>
+    }
+</mat-dialog-content>
+
+<mat-dialog-actions class="account-dialog__actions">
+    <button mat-stroked-button mat-dialog-close class="account-dialog__close">
+        {{ 'CLOSE' | translate }}
+    </button>
+</mat-dialog-actions>

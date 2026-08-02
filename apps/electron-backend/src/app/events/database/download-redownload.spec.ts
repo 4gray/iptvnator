@@ -3,6 +3,7 @@ interface SetupOptions {
     cleanupError?: Error;
     claim?: { changes: number };
     fileReappeared?: boolean;
+    playlistType?: 'xtream' | 'stalker';
     row?: Record<string, unknown> | null;
     urlError?: Error;
 }
@@ -25,13 +26,18 @@ async function setup(options: SetupOptions = {}) {
                   url: 'https://example.test/movie.mp4',
                   ...options.row,
               };
-    const limit = jest.fn().mockResolvedValue(row ? [row] : []);
+    const downloadLimit = jest.fn().mockResolvedValue(row ? [row] : []);
+    const playlistLimit = jest
+        .fn()
+        .mockResolvedValue([{ type: options.playlistType ?? 'stalker' }]);
     const where = jest.fn().mockResolvedValue(options.claim ?? { changes: 1 });
     const set = jest.fn(() => ({ where }));
     const db = {
-        select: jest.fn(() => ({
+        select: jest.fn((selection?: unknown) => ({
             from: jest.fn(() => ({
-                where: jest.fn(() => ({ limit })),
+                where: jest.fn(() => ({
+                    limit: selection ? playlistLimit : downloadLimit,
+                })),
             })),
         })),
         update: jest.fn(() => ({ set })),
@@ -116,6 +122,27 @@ describe('redownload missing completed file', () => {
             totalBytes: null,
             url: 'https://example.test/movie.mp4',
         });
+    });
+
+    it('adds the Xtream fallback User-Agent to a legacy row', async () => {
+        const harness = await setup({
+            playlistType: 'xtream',
+            row: {
+                playlistId: 'playlist-1',
+                requestHeaders: null,
+            },
+        });
+
+        await expect(harness.redownloadMissingRequest(42)).resolves.toEqual({
+            success: true,
+        });
+        expect(harness.enqueueDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                headers: {
+                    'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+                },
+            })
+        );
     });
 
     it('recovers a file that reappeared without updating or enqueueing', async () => {

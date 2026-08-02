@@ -290,7 +290,7 @@ describe('Slow series download stream', () => {
 describe('Xtream mock environment parsing', () => {
     it('uses safe defaults and enables control only for the exact flag', () => {
         expect(parseXtreamMockServerEnvironment({})).toEqual({
-            host: '0.0.0.0',
+            host: '127.0.0.1',
             port: 3211,
         });
         expect(
@@ -320,7 +320,7 @@ describe('Xtream mock environment parsing', () => {
                 IPTVNATOR_XTREAM_MOCK_CONTROL: 'true',
                 IPTVNATOR_XTREAM_MOCK_CONTROL_TOKEN: 'ignored',
             })
-        ).toEqual({ host: '0.0.0.0', port: 3211 });
+        ).toEqual({ host: '127.0.0.1', port: 3211 });
     });
 
     it.each([

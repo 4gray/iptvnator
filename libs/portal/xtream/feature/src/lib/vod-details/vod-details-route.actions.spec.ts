@@ -399,6 +399,11 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         );
         expect(startDownload).toHaveBeenCalledWith(
             expect.objectContaining({
+                headers: {
+                    origin: 'https://origin.example',
+                    referer: 'https://referrer.example',
+                    userAgent: 'IPTVnator',
+                },
                 title: 'Catalog movie',
                 posterUrl: 'https://example.com/catalog-poster.jpg',
                 url: 'http://example.com/movie/650020.mp4',

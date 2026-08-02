@@ -562,6 +562,66 @@ describe('download request identity resolution', () => {
 });
 
 describe('download requests resume', () => {
+    it('adds the Xtream fallback User-Agent to a legacy paused row', async () => {
+        jest.resetModules();
+        const schema = await import('../../database/schema');
+        const row = {
+            filePath: '/downloads/movie.mp4',
+            id: 42,
+            playlistId: 'playlist-1',
+            requestHeaders: null,
+            resumeValidator: '"etag-9"',
+            status: 'paused',
+            title: 'Movie',
+            totalBytes: 100,
+            url: 'https://example.test/movie.mp4',
+        };
+        const downloadLimit = jest.fn().mockResolvedValue([row]);
+        const playlistLimit = jest.fn().mockResolvedValue([{ type: 'xtream' }]);
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn((table: unknown) => ({
+                    where: jest.fn(() => ({
+                        limit:
+                            table === schema.playlists
+                                ? playlistLimit
+                                : downloadLimit,
+                    })),
+                })),
+            })),
+            update: jest.fn(() => ({
+                set: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue({ changes: 1 }),
+                })),
+            })),
+        };
+        const enqueueDownload = jest.fn();
+        const authorizer = {
+            requireAuthorized: jest.fn(async (directory: string) => directory),
+        } as unknown as DownloadDirectoryAuthorizer;
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('../url-safety', () => ({
+            assertRemoteUrlAllowed: jest.fn().mockResolvedValue(undefined),
+        }));
+        jest.doMock('./download-runtime', () => ({ enqueueDownload }));
+
+        const { resumeDownloadRequest } = await import('./download-requests');
+        await expect(
+            resumeDownloadRequest(42, '/unused', authorizer)
+        ).resolves.toEqual({ success: true });
+
+        expect(enqueueDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                headers: {
+                    'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+                },
+            })
+        );
+    });
+
     it('enqueues a paused download with stored headers and original target path', async () => {
         jest.resetModules();
 

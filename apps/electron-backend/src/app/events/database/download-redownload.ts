@@ -6,7 +6,7 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { isAvailableDownloadFile } from './download-file-availability';
 import { removePartialDownloadFile } from './download-file-path';
-import { parseStoredHeaders } from './download-requests';
+import { resolveStoredDownloadHeaders } from './download-request-headers';
 import { enqueueDownload } from './download-runtime';
 
 export interface RedownloadMissingResult {
@@ -61,6 +61,7 @@ export async function redownloadMissingRequest(
     }
 
     await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
+    const headers = await resolveStoredDownloadHeaders(db, item);
 
     try {
         removePartialDownloadFile(item.filePath);
@@ -102,7 +103,7 @@ export async function redownloadMissingRequest(
         directory: dirname(item.filePath),
         fileName: basename(item.filePath),
         filePath: item.filePath,
-        headers: parseStoredHeaders(item.requestHeaders),
+        headers,
         id: item.id,
         resumeValidator: null,
         totalBytes: null,

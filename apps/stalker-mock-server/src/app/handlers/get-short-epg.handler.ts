@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { generateEpg } from '../data-generator.js';
 import { getPortalData } from '../data-store.js';
-import { extractMac } from './get-categories.handler.js';
+import { extractMac } from '../request-mac.js';
 
 /**
  * Stalker get_short_epg — returns EPG programs for a channel.

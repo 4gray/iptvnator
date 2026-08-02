@@ -295,6 +295,54 @@ describe('PlaylistSwitcherComponent', () => {
         expect(accountInfoSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('renders playlist info, account info, and add playlist context actions in the menu', async () => {
+        await createComponent();
+        fixture.componentRef.setInput('showPlaylistInfo', true);
+        fixture.componentRef.setInput('showAccountInfo', true);
+        fixture.componentRef.setInput('showAddPlaylist', true);
+        fixture.detectChanges();
+
+        const playlistInfoSpy = jest.fn();
+        component.playlistInfoRequested.subscribe(playlistInfoSpy);
+
+        component.menuTrigger().openMenu();
+        fixture.detectChanges();
+
+        const actionButtons = Array.from(
+            document.querySelectorAll<HTMLButtonElement>(
+                '.context-actions-section .context-action-item'
+            )
+        );
+        const labels = actionButtons.map((button) =>
+            button.textContent?.trim()
+        );
+
+        expect(labels).toEqual([
+            expect.stringContaining('PLAYLIST_INFO'),
+            expect.stringContaining('ACCOUNT_INFO'),
+            expect.stringContaining('ADD_PLAYLIST'),
+        ]);
+
+        actionButtons[0].click();
+        expect(playlistInfoSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers per-playlist account info for portal playlists only', async () => {
+        await createComponent();
+
+        const requestedPlaylists: PlaylistMeta[] = [];
+        component.accountInfoForPlaylistRequested.subscribe((playlist) =>
+            requestedPlaylists.push(playlist)
+        );
+
+        expect(component.hasAccountInfo(m3uPlaylist)).toBe(false);
+        expect(component.hasAccountInfo(stalkerPlaylist)).toBe(true);
+        expect(component.hasAccountInfo(xtreamPlaylist)).toBe(true);
+
+        component.requestAccountInfoFor(stalkerPlaylist);
+        expect(requestedPlaylists).toEqual([stalkerPlaylist]);
+    });
+
     it('opens the menu, syncs overlay width, and checks portal statuses for Xtream playlists', fakeAsync(async () => {
         await createComponent();
 

@@ -1,5 +1,12 @@
 export interface ControlsShortcutHandlers {
     isAvailable: () => boolean;
+    /**
+     * The player's host element, used to opt out of global shortcuts while
+     * an ancestor is `inert` (e.g. behind the workspace's phone context
+     * drawer): inert strips pointer and Tab access, but document-level
+     * keydown listeners still fire, so shortcuts must check it themselves.
+     */
+    hostElement?: () => HTMLElement | null;
     canTogglePaused: () => boolean;
     canSeek: () => boolean;
     canAdjustVolume: () => boolean;
@@ -75,6 +82,14 @@ export class ControlsShortcuts {
         // If another mounted controls instance already handled this keypress
         // (it calls preventDefault below), don't double-execute it here.
         if (event.defaultPrevented) {
+            return;
+        }
+
+        // A player inside an inert region is outside the interaction model
+        // entirely — a modal surface above it owns the keyboard. This also
+        // covers Escape: the modal decides what Escape means, not the
+        // obscured player.
+        if (handlers.hostElement?.()?.closest('[inert]')) {
             return;
         }
 

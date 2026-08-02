@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}·A{{episode}}",
             "NOT_YET_SYNCED": "Nog niet gesynchroniseerd",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "Verloopt over {{days}} d",
+            "SOURCE_EXPIRED": "Verlopen"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Alleen geladen kanalen",
             "COMMAND_PALETTE_SHORTCUT": "Opdrachtenpalet (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Open opdrachtenpalet",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Categorieënpaneel tonen of verbergen",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Categorieën",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Filterpaneel tonen of verbergen",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filters",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Paneel met instellingensecties tonen of verbergen",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Instellingensecties",
             "ADD_PLAYLIST_ALL": "Afspeellijst toevoegen",
             "ADD_PLAYLIST": "Afspeellijst toevoegen",
             "OPEN_DOWNLOADS": "Open downloads",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Lokale bibliotheek",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Wachten op antwoord van de provider.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Sneller schakelen tussen afspeellijsten voorbereiden voor het volgende bezoek.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Lezen uit de lokale bibliotheek — er worden geen gegevens van de provider gedownload.",
             "XTREAM_IMPORT_PREPARING": "Lokale bibliotheek voorbereiden...",
+            "XTREAM_IMPORT_LOADING_CACHED": "Gecachte catalogus van dit apparaat laden...",
             "XTREAM_IMPORT_LOADING": "Afspeellijstgegevens ophalen van de bron...",
             "XTREAM_IMPORT_SAVING": "Afspeellijstgegevens lokaal opslaan...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Favorieten herstellen vanuit lokale bibliotheek...",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Spring naar de seriessectie",
                 "SWITCH_PLAYER_LABEL": "Speler wisselen naar {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Stel {{name}} in als de actieve videospeler",
-                "SWITCH_PLAYER_FEEDBACK": "Speler ingesteld op {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Speler ingesteld op {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Accountgegevens van het Stalker-portaal tonen"
             },
             "XTREAM_REFRESH_TITLE": "Afspeellijst vernieuwen",
             "XTREAM_REFRESH_COLLECTING_DATA": "Bibliotheekgegevens worden bewaard...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Laden",
+    "RETRY": "Opnieuw proberen",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Accountinformatie",
+            "ACCOUNT": "Account",
+            "PORTAL_INFO": "Portaal",
+            "LOGIN": "Gebruikersnaam",
+            "STATUS": "Status",
+            "ACTIVE": "Actief",
+            "INACTIVE": "Inactief",
+            "TARIFF_PLAN": "Tariefplan",
+            "EXPIRES": "Verloopt",
+            "DAYS_LEFT": "Dagen resterend",
+            "EXPIRED": "Verlopen",
+            "MAC_ADDRESS": "MAC-adres",
+            "PHONE": "Telefoon",
+            "PORTAL_URL": "Portaal-URL",
+            "PORTAL_TYPE_FULL": "Ministra-portaal",
+            "PORTAL_TYPE_LEGACY": "Klassiek portaal (portal.php)",
+            "CACHED_BADGE": "Opgeslagen gegevens",
+            "REFRESH_FAILED": "Het portaal is onbereikbaar — de bij het toevoegen opgeslagen gegevens worden getoond.",
+            "NO_ACCOUNT_DATA_TITLE": "Geen accountgegevens",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Dit portaal publiceert geen accountinformatie voor dit apparaat."
         }
     }
 }

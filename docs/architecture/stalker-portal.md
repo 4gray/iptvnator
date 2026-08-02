@@ -138,6 +138,125 @@ blank fields are not generated or forwarded to `get_profile`.
   metadata is independent from M3U playlist EPG metadata and must not depend on
   M3U-specific EPG fields.
 
+## Request Transport and `cmd` Encoding
+
+A real MAG/STB sends `cmd` unencoded: the portal's client JS concatenates raw
+`key=value` pairs, the browser URL layer escapes only what a URL cannot carry,
+and PHP's `$_GET` applies exactly one form-urldecode. The portal therefore sees
+the stored `cmd` decoded **once** — a pre-encoded `%3A` arrives as `:` and a
+literal `+` arrives as a space. IPTVnator reproduces that reference wire format
+on both transports with the shared `encodeStalkerCmdValue()`
+(`libs/shared/interfaces/src/lib/stalker-cmd-encoding.util.ts`):
+
+- `%` passes through untouched, so a `cmd` that already contains percent
+  sequences is never double-encoded (the pre-0.23 `encodeURIComponent`
+  transport delivered `%253A` and strict panels no longer matched the string).
+- Characters the WHATWG URL serializer keeps raw in a query stay raw
+  (`/ : ? = + , @ $ [ ]` …), so the emitted bytes survive the axios/`new URL`
+  transport unchanged.
+- Everything else is percent-encoded. This keeps the injection protection from
+  the 0.22 hardening: `&`, `#` (and `;` for PHP setups with a `;` argument
+  separator) inside `cmd` cannot append or truncate query parameters — they
+  decode back to the original byte server-side, so the portal-visible value is
+  unaffected.
+
+Both transports assemble the portal request from the same two shared builders
+in `@iptvnator/shared/interfaces`, so their wire format cannot drift apart:
+
+- `buildStalkerRequestUrl()`
+  (`libs/shared/interfaces/src/lib/stalker-request-url.util.ts`) builds the
+  full portal URL: `cmd` uses the reference encoding, every other param stays
+  fully `encodeURIComponent`-encoded, `JsHttpRequest=1-xml` is appended when
+  missing, and any query carried by the portal URL itself is dropped.
+- `buildStalkerIdentityRequestContext()`
+  (`libs/shared/interfaces/src/lib/stalker-request-identity.util.ts`) builds
+  the STB identity: the `mac`/`stb_lang`/`timezone` cookie (plus a
+  serial-derived `__cfduid`), the MAG `User-Agent`/`X-User-Agent` pair
+  (`STALKER_MAG_USER_AGENT`), `Accept`/`Accept-Language`/`Connection`, the
+  `SN` header and `Authorization: Bearer` when present, and the serial
+  parameter rule: `sn` travels only on `get_profile` (injected there, stripped
+  everywhere else, mirrored into the `metrics` JSON).
+
+Consumers:
+
+- Electron: the `STALKER_REQUEST` handler
+  (`apps/electron-backend/src/app/events/stalker.events.ts`) feeds both
+  builders directly.
+- PWA: the renderer (`PwaService.forwardStalkerRequest`) sends `macAddress`,
+  `token`, and `serialNumber` as **control params** on the renderer→proxy leg
+  (`URLSearchParams`, which Express decodes losslessly). The web-backend
+  `/stalker` proxy consumes them into the identity headers via the same shared
+  builders and **never forwards them in the portal's query string** — portal
+  credentials must not land in portal or intermediary access logs. The one
+  protocol exception is `handshake`, whose candidate token is genuine query
+  content (the portal reads it for the idempotent-handshake path) and is
+  re-injected there.
+- Mock: the stalker-mock-server's `/stalker` route
+  (`apps/stalker-mock-server/src/main.ts`) mirrors the proxy with the same
+  shared identity builder, so PWA E2E runs exercise the real contract
+  (including `query_keys_received` diagnostics matching what a real portal
+  would log).
+
+The mock portal's `create_link` response carries mock-only `cmd_received` and
+`query_keys_received` diagnostics so E2E can pin this contract
+(`apps/electron-backend-e2e/src/providers.e2e.ts`).
+
+Response-side `cmd` normalization is also shared: both the Stalker store and
+the cross-portal collection resolver (`StreamResolverService`) use
+`normalizeStalkerPlaybackCommand()` / `resolveStalkerPlaybackUrl()` from
+`libs/portal/stalker/data-access`, which strip the `<solution> ` prefix and
+resolve relative (`/media/...`) or query-only (`?token=...`) `create_link`
+replies against the portal base URL.
+
+## Playback Header Contract
+
+Every playback kind — ITV, VOD, series episodes, and radio — resolves its
+stream and attaches the same portal header set through
+`buildStalkerExternalPlaybackHeaders()`
+(`libs/portal/stalker/data-access/src/lib/stalker-live-playback.utils.ts`).
+The collection routes (Favorites/Recently Viewed) share the contract:
+`StreamResolverService.resolveStalker()` builds the identical profile for the
+streams it resolves, so a channel opened from a collection carries the same
+credentials as one opened from the portal.
+The resolved `ResolvedPortalPlayback.headers` feed both the external players
+(MPV/VLC/Embedded MPV via the launch IPC) and the built-in players via the
+scoped Electron request-header override (`ElectronStreamHeadersService`,
+applied by `WebPlayerViewComponent` for the video players and by the Stalker
+live layout for the radio audio player, which renders outside
+`WebPlayerViewComponent` — see `docs/architecture/electron-security.md`,
+"Scoped Request Header Overrides").
+
+Two stream profiles exist, selected by one shared predicate:
+
+- **Portal-owned** (`isStalkerStreamCredentialSafe()` in
+  `@iptvnator/shared/interfaces`): the stream host equals the portal host —
+  including a different port or an http→https upgrade, the routine IPTV panel
+  shape (#1158 class). These streams get the full MAG profile: `Cookie`
+  (`mac=…` plus protocol cookies), `Authorization: Bearer <token>` when a
+  session token exists, `User-Agent` (playlist override or the MAG UA — the
+  API path always sent both, the playback set historically sent only
+  `X-User-Agent`), `X-User-Agent`, `SN` when a real serial exists, and
+  `Origin`/`Referer` set to the portal origin.
+- **Foreign / direct** (different host, or an https→http downgrade): the
+  credential-free `KSPlayer` direct-stream profile (`User-Agent: KSPlayer`,
+  `Accept`, `Range`, `Icy-MetaData`, `Connection`). Portal credentials must
+  never reach a third-party host; direct stream URLs carry their access token
+  in the URL minted by `create_link`.
+
+The Electron main process keeps a fallback header context per resolved
+`create_link` URL (`stalker-playback-context.service.ts`) for external-player
+launches that arrive without renderer headers. It classifies streams with the
+same shared predicate — if the two ever diverged,
+`isStalkerDirectStreamProfile` in the external-player path would discard the
+renderer's credentialed headers for streams the main process misread as
+direct.
+
+The mock server's `gated-stream` scenario (MAC `00:1A:79:00:00:09`) makes
+`create_link` return a local `/stream/gated/video.mp4` that answers 403
+without the mac cookie and current Bearer token;
+`apps/electron-backend-e2e/src/stalker-playback-headers.e2e.ts` uses it to
+prove a built-in player's media requests really carry the credentials.
+
 ## Live TV and Radio
 
 The Stalker live route and radio route intentionally share
@@ -475,6 +594,41 @@ Import rule:
   favorites/recent state for the matched playlist
 - a fresh handshake must happen after import for full-portal sessions; imported
   backups never trust a serialized token
+
+## Account Info Dialog
+
+`StalkerAccountInfoComponent`
+(`libs/portal/stalker/feature/src/lib/stalker-account-info/`) mirrors the
+Xtream account-info dialog's visual language and shows subscription facts
+for a portal: status, login, tariff plan, expiry date with a days-left
+counter, MAC/phone, and portal details.
+
+Data flow (two sources, cached-first):
+
+- Cached: `Playlist.stalkerAccountInfo`, captured from `get_profile` at
+  import time for full `/stalker_portal/` installations. The dialog loads it
+  by playlist id (the meta row does not carry it) and renders instantly with
+  a "Saved data" badge.
+- Fresh: `StalkerAccountInfoService`
+  (`libs/portal/stalker/data-access/src/lib/stalker-account-info.service.ts`).
+  Full portals re-run handshake + `get_profile`; `portal.php` panels are
+  queried with `account_info/get_main_info`, whose field set varies between
+  panels and is mapped best-effort (absent fields render nothing). A failed
+  refresh keeps the cached snapshot and flags it. The two no-data outcomes
+  differ: a portal that answers but publishes no account facts (and no
+  cached snapshot exists) renders the ready-state "No account details"
+  panel, while only an unreachable portal without a cached snapshot enters
+  the error state with retry.
+
+Entry points are shared with Xtream and gated on the shared predicates in
+`libs/shared/interfaces/src/lib/portal-account-playlist.utils.ts`
+(`isXtreamAccountPlaylist` / `isStalkerAccountPlaylist`): the header playlist
+switcher (bottom section for the active playlist and the per-row ⋮ menu),
+the dashboard source card ⋮ menu, and the command palette. The
+`WorkspaceShellHeaderService.openAccountInfoFor()` branch picks the dialog
+by playlist type; `WORKSPACE_SHELL_ACTIONS.openStalkerAccountInfo()` lazy
+loads the component. The stalker-mock-server implements `get_main_info` for
+dev/E2E.
 
 ## Remote Control Integration
 

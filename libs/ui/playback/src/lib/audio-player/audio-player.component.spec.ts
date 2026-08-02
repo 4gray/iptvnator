@@ -122,6 +122,21 @@ describe('AudioPlayerComponent', () => {
         expect(component.volume()).toBe(0);
     });
 
+    it('ignores keyboard shortcuts while inside an inert region', () => {
+        createComponent();
+        component.setVolume(0.5);
+        // e.g. the workspace's phone context drawer marks the route content
+        // inert while open; document-level key listeners still fire, so the
+        // player must opt out itself.
+        fixture.nativeElement.setAttribute('inert', '');
+
+        const upEvent = createKeyboardEvent('ArrowUp');
+        component.handleKeyboard(upEvent);
+
+        expect(upEvent.preventDefault).not.toHaveBeenCalled();
+        expect(component.volume()).toBe(0.5);
+    });
+
     it('restores the previous volume when unmuting', () => {
         const audio = createComponent();
         component.setVolume(0.65);

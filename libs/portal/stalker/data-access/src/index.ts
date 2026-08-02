@@ -1,5 +1,6 @@
 export * from './lib/models';
 export * from './lib/stores';
+export * from './lib/stalker-account-info.service';
 export * from './lib/stalker-content-types';
 export * from './lib/stalker-itv-cache.service';
 export * from './lib/stalker-live-playback.utils';

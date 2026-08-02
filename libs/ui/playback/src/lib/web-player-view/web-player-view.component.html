@@ -1,59 +1,68 @@
 @if (selectedPlayer() === 'videojs') {
     @defer (on immediate) {
-        <app-vjs-player
-            [options]="vjsOptions"
-            [mediaTitle]="resolvedMediaTitle()"
-            [volume]="volume()"
-            [showCaptions]="showCaptions()"
-            [interactionEnabled]="playbackInteractionEnabled()"
-            [startTime]="startTime()"
-            [seriesNavigation]="seriesNavigation()"
-            (timeUpdate)="timeUpdate.emit($event)"
-            (playbackIssue)="handlePlaybackIssue($event)"
-            (playbackEnded)="playbackEnded.emit()"
-            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-        />
+        <!-- The source hand-off is deferred until the scoped Electron header
+             override is configured; mounting the player before `vjsOptions`
+             exists would fire a source-less (or credential-less) first load. -->
+        @if (vjsOptions) {
+            <app-vjs-player
+                [options]="vjsOptions"
+                [mediaTitle]="resolvedMediaTitle()"
+                [volume]="volume()"
+                [showCaptions]="showCaptions()"
+                [interactionEnabled]="playbackInteractionEnabled()"
+                [startTime]="startTime()"
+                [seriesNavigation]="seriesNavigation()"
+                (timeUpdate)="timeUpdate.emit($event)"
+                (playbackIssue)="handlePlaybackIssue($event)"
+                (playbackEnded)="playbackEnded.emit()"
+                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+            />
+        }
     } @placeholder {
         <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }
 } @else if (selectedPlayer() === 'html5') {
     @defer (on immediate) {
-        <app-html-video-player
-            [channel]="$any(channel)"
-            [mediaTitle]="resolvedMediaTitle()"
-            [volume]="volume()"
-            [showCaptions]="showCaptions()"
-            [isLive]="resolvedIsLive()"
-            [interactionEnabled]="playbackInteractionEnabled()"
-            [startTime]="startTime()"
-            [seriesNavigation]="seriesNavigation()"
-            (timeUpdate)="timeUpdate.emit($event)"
-            (playbackIssue)="handlePlaybackIssue($event)"
-            (playbackEnded)="playbackEnded.emit()"
-            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-        />
+        @if (channel) {
+            <app-html-video-player
+                [channel]="$any(channel)"
+                [mediaTitle]="resolvedMediaTitle()"
+                [volume]="volume()"
+                [showCaptions]="showCaptions()"
+                [isLive]="resolvedIsLive()"
+                [interactionEnabled]="playbackInteractionEnabled()"
+                [startTime]="startTime()"
+                [seriesNavigation]="seriesNavigation()"
+                (timeUpdate)="timeUpdate.emit($event)"
+                (playbackIssue)="handlePlaybackIssue($event)"
+                (playbackEnded)="playbackEnded.emit()"
+                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+            />
+        }
     } @placeholder {
         <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }
 } @else if (selectedPlayer() === 'artplayer') {
     @defer (on immediate) {
-        <app-art-player
-            [channel]="$any(channel)"
-            [mediaTitle]="resolvedMediaTitle()"
-            [volume]="volume()"
-            [showCaptions]="showCaptions()"
-            [isLive]="resolvedIsLive()"
-            [interactionEnabled]="playbackInteractionEnabled()"
-            [startTime]="startTime()"
-            [seriesNavigation]="seriesNavigation()"
-            (timeUpdate)="timeUpdate.emit($event)"
-            (playbackIssue)="handlePlaybackIssue($event)"
-            (playbackEnded)="playbackEnded.emit()"
-            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-        />
+        @if (channel) {
+            <app-art-player
+                [channel]="$any(channel)"
+                [mediaTitle]="resolvedMediaTitle()"
+                [volume]="volume()"
+                [showCaptions]="showCaptions()"
+                [isLive]="resolvedIsLive()"
+                [interactionEnabled]="playbackInteractionEnabled()"
+                [startTime]="startTime()"
+                [seriesNavigation]="seriesNavigation()"
+                (timeUpdate)="timeUpdate.emit($event)"
+                (playbackIssue)="handlePlaybackIssue($event)"
+                (playbackEnded)="playbackEnded.emit()"
+                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+            />
+        }
     } @placeholder {
         <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }

@@ -253,9 +253,11 @@ remain local when the meaning is explicit.
   width is preserved so uncollapsing restores the user's previous resized
   width. Both rails share the same 180 ms width transition so motion stays in
   lockstep.
-- Below 600 px viewport, the M3U layout's mobile bottom-drawer rule overrides
-  the desktop collapse to `height: 0` instead of `width: 0`, and the floating
-  restore handle is hidden.
+- At the phone breakpoint the M3U layout's bottom-drawer rule overrides the
+  desktop collapse to `height: 0` instead of `width: 0`. The floating restore
+  handle stays visible there: the collapse toggle is reachable by touch, so
+  hiding the handle left a phone with no way to bring the list back short of
+  `Cmd/Ctrl+B`.
 
 ### EPG Card
 
@@ -330,6 +332,98 @@ Settings use the same system but are flatter than content-heavy views.
 - Denser tinted surfaces are acceptable
 - Neutral rows can use low-opacity dark overlays
 - Keep strong blue tint reserved for active sections and selected items
+
+## Phone Layout
+
+`640px` is the phone breakpoint. Use `@media (max-width: 640px)` rather than
+inventing a nearby value: several surfaces cooperate at this width, and a
+component that picks `599px` leaves a band where the shell has already stacked
+but the component has not.
+
+### Rails become rows, stacks, or drawers
+
+- The workspace shell rail turns into a horizontal top bar. Everything inside
+  it has to opt into the row direction — a nested list that keeps
+  `flex-direction: column` stacks its links out of the bar and over the header.
+  The bar scrolls sideways once a portal contributes its sections, and the
+  settings link is `position: sticky` so it never scrolls out of reach.
+- The shell context panel (categories, filters, settings sections) is an
+  off-canvas drawer: hidden by default so the route content owns the full
+  pane, opened from a toggle in the workspace header, closed by selection,
+  backdrop tap, Escape, or any navigation. State lives in
+  `WorkspaceShellContextDrawerService` (root-provided from
+  `@iptvnator/workspace/shell/util` — see below for why); the
+  panels call `close()` after selections that do not navigate — a
+  NavigationEnd listener alone misses Stalker ITV/radio categories, settings
+  sections, sources filters, and collection filters. The drawer positioning
+  is `position: fixed` on the sidebar host, which also removes it from the
+  shell grid, so the phone `workspace-body` stays single-pane. The drawer is
+  modal for keyboard and screen-reader users: `CdkTrapFocus` captures and
+  contains Tab focus while open, the shell marks the rail, header, content,
+  and playback footer `inert` (a focus trap alone does not stop a screen
+  reader's virtual cursor from activating obscured controls), the panel
+  itself is the initial focus target (`tabindex="-1"` + `cdkFocusInitial`,
+  so capture still works when a category list is loading or empty and
+  renders no focusable rows), and the shell restores focus to the header
+  toggle on close — deferred one tick, because the toggle is inside the
+  inert header and `focus()` on a still-inert element is silently ignored.
+  The service closes the drawer when the viewport leaves the phone
+  breakpoint so the trap and inert state can never hold the in-flow desktop
+  layout. While open, the shell consumes Escape (downstream consumers —
+  the inline player's close handler, the shared controls shortcuts — check
+  `defaultPrevented`, so one keypress cannot close both the drawer and the
+  obscured player) and suppresses workspace-level shortcuts (Ctrl/Cmd+F
+  global search, Ctrl/Cmd+K command palette, Ctrl/Cmd+R global recent, the
+  `?` shortcuts dialog — dialogs must not stack a second focus trap on the
+  modal drawer, and navigation must not act behind it), and document-level
+  shortcuts owned by routed content (shared controls, Embedded MPV legacy
+  dock, radio audio player, the live layouts' Ctrl/Cmd+B sidebar toggle,
+  the M3U player's digit-key channel switching and sidebar toggle) opt out
+  on their own by checking for an `inert` ancestor, since `inert` does not
+  silence document-level listeners. Any NEW document-level key listener on
+  routed content must apply the same `closest('[inert]')` guard. The service is root-provided
+  from `@iptvnator/workspace/shell/util` so consumers outside the shell's
+  element injector (AppComponent's Ctrl/Cmd+R handler) can observe it
+  without pulling the lazy shell chunk into the eager bundle. The shell
+  also registers the open drawer with
+  `EmbeddedMpvOverlayVisibilityService.acquireExternalModalSurface()`:
+  the native-view video surface is composited outside DOM stacking and
+  would paint straight over the drawer regardless of z-index. The drawer carries its own phone-only close
+  button: touch screen-reader users have no hardware Escape and cannot
+  reach the inert header toggle or the aria-hidden backdrop, so the
+  trapped surface itself must offer dismissal even when its list is
+  loading or empty.
+  The toggle's label is variant-aware — categories, filters, or settings
+  sections — because a fixed label would misdescribe two of the three.
+- Other side rails stack above the content instead of beside it: the
+  live-layout channel sidebar and the M3U channel drawer.
+
+### Resizable rails need `!important`
+
+`ResizableDirective` writes the persisted desktop width as an inline style, so
+a phone rule must be `width: 100% !important` to win. Hide `.resize-handle` in
+the same rule — dragging is meaningless at full width. Since there is no global
+`border-box` reset, a full-width rail with its own padding also needs
+`box-sizing: border-box` or it overflows the viewport.
+
+### State the content's floor, not the list's ceiling
+
+On routes that stack two lists above the player (live TV shows the categories
+panel and the channel list), capping both lists still leaves the video a
+sliver. Give the player container a `min-height` instead and let the lists
+shrink into what is left.
+
+### What to drop
+
+Prefer removing a control over shrinking everything around it:
+
+- Keyboard-only affordances — the `⌘K` badge, the shortcuts button.
+- The `mat-paginator` page-size select, which is the widest part of the
+  control and the least useful one on a phone. The range and arrows stay.
+- Counts and subtitles that a neighbouring control already states.
+
+Never drop the only way back to a hidden surface. A collapse toggle that is
+reachable by touch needs its restore affordance to be reachable too.
 
 ## Theme Guidance
 

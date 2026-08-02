@@ -8,11 +8,12 @@ import { ipcMain } from 'electron';
 import {
     PortalDebugEvent,
     STALKER_REQUEST,
+    buildStalkerIdentityRequestContext,
+    buildStalkerRequestUrl,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { buildStalkerIdentityRequestContext } from './stalker-identity';
 import { assertRemoteUrlAllowed } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 
@@ -58,42 +59,11 @@ ipcMain.handle(
                     serialNumber,
                 });
 
-            // Build URL with query parameters
-            // Note: For 'cmd' parameter, we need to use encodeURI (not encodeURIComponent)
-            // to preserve forward slashes, matching stalker-to-m3u implementation
             // SSRF/LFI guard: block non-http(s)/credentialed portal URLs.
             // Private/LAN targets remain allowed (users run local Stalker servers).
             await assertRemoteUrlAllowed(url, { allowPrivateNetworks: true });
-            const urlObject = new URL(url);
-            const queryParts: string[] = [];
 
-            Object.entries(requestParams).forEach(([key, value]) => {
-                if (key === 'cmd') {
-                    // Encode cmd but preserve forward slashes so the path format
-                    // (e.g. /media/12345.mpg) the server expects still survives.
-                    // Encoding the remaining characters prevents a malicious portal
-                    // from injecting extra query parameters (&, =, #) into the URL.
-                    queryParts.push(
-                        `${key}=${encodeURIComponent(String(value)).replace(
-                            /%2F/gi,
-                            '/'
-                        )}`
-                    );
-                } else {
-                    // Use encodeURIComponent for other params
-                    queryParts.push(
-                        `${key}=${encodeURIComponent(String(value))}`
-                    );
-                }
-            });
-
-            // Always add JsHttpRequest parameter if not present (required by Stalker API)
-            if (!requestParams['JsHttpRequest']) {
-                queryParts.push('JsHttpRequest=1-xml');
-            }
-
-            // Build final URL with manually constructed query string
-            const fullUrl = `${urlObject.origin}${urlObject.pathname}?${queryParts.join('&')}`;
+            const fullUrl = buildStalkerRequestUrl(url, requestParams);
 
             // Determine timeout based on action type
             // create_link requests can take longer as server generates stream URL

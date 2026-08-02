@@ -23,7 +23,10 @@ describe('StreamResolverService', () => {
     let xtreamApi: { getShortEpg: jest.Mock };
     let xtreamUrl: { constructLiveUrl: jest.Mock };
     let dataService: { sendIpcEvent: jest.Mock };
-    let stalkerSession: { makeAuthenticatedRequest: jest.Mock };
+    let stalkerSession: {
+        getCachedToken: jest.Mock;
+        makeAuthenticatedRequest: jest.Mock;
+    };
     let epgBridge: Partial<EpgRuntimeBridgeService>;
 
     beforeEach(() => {
@@ -40,6 +43,7 @@ describe('StreamResolverService', () => {
             sendIpcEvent: jest.fn(),
         };
         stalkerSession = {
+            getCachedToken: jest.fn(() => null),
             makeAuthenticatedRequest: jest.fn(),
         };
         epgBridge = {
@@ -670,6 +674,10 @@ describe('StreamResolverService', () => {
 
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        // A direct radio URL on a host foreign to the portal gets the
+        // credential-free KSPlayer direct-stream profile — the same rule the
+        // Stalker live layout applies (the previous playlist-field passthrough
+        // predated the shared profile classifier).
         expect(detail).toEqual(
             expect.objectContaining({
                 epgMode: 'portal',
@@ -680,20 +688,152 @@ describe('StreamResolverService', () => {
                     radio: 'true',
                     url: 'https://media.example.com/direct-radio.mp3',
                     http: expect.objectContaining({
-                        referrer: 'https://ref.example.com',
-                        'user-agent': 'IPTVnator',
-                        origin: 'https://origin.example.com',
+                        'user-agent': 'KSPlayer',
                     }),
                 }),
                 playback: expect.objectContaining({
                     streamUrl: 'https://media.example.com/direct-radio.mp3',
                     title: 'Direct Radio',
                     thumbnail: 'direct-radio.png',
-                    userAgent: 'IPTVnator',
-                    referer: 'https://ref.example.com',
-                    origin: 'https://origin.example.com',
+                    userAgent: 'KSPlayer',
                 }),
             })
+        );
+        expect(detail.playback.headers?.['Cookie']).toBeUndefined();
+        expect(detail.playback.headers?.['Authorization']).toBeUndefined();
+    });
+
+    it('resolves relative Stalker create_link responses against the portal base', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        // Portals frequently answer create_link with a solution-prefixed
+        // relative path; the shared normalizer must resolve it instead of
+        // handing the bare path to the player (the old weak normalizer did).
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'ffmpeg /media/file_123.mpg' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::88',
+            name: 'Relative Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '88',
+            stalkerCmd: 'ffrt3 http://stalker.example.com/media/999.mpg',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe(
+            'https://stalker.example.com/stalker_portal/media/file_123.mpg'
+        );
+    });
+
+    it('attaches the portal header set to Stalker collection playback on the portal host', async () => {
+        // The collection routes must carry the same credentials as the live
+        // layout — an auth-gated stream opened from Favorites/Recent 403s
+        // without the mac cookie and Bearer token (Codex round-3 finding).
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.getCachedToken.mockReturnValue('TOKEN77');
+        stalkerSession.makeAuthenticatedRequest.mockResolvedValue({
+            js: { cmd: 'ffmpeg https://stalker.example.com:8080/live/88.ts' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::88',
+            name: 'Gated Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '88',
+            stalkerCmd: 'ffrt3 http://stalker.example.com/media/88.mpg',
+        } satisfies UnifiedCollectionItem);
+
+        expect(stalkerSession.getCachedToken).toHaveBeenCalledWith('stalker-1');
+        expect(playback.headers?.['Cookie']).toContain(
+            'mac=00:11:22:33:44:55'
+        );
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN77');
+        expect(playback.userAgent).toBe(playback.headers?.['User-Agent']);
+        expect(playback.referer).toBe('https://stalker.example.com');
+        expect(playback.origin).toBe('https://stalker.example.com');
+    });
+
+    it('keeps Stalker collection playback from a foreign CDN credential-free', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.getCachedToken.mockReturnValue('TOKEN77');
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'ffmpeg http://cdn.other.example/live/88.ts' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::88',
+            name: 'Direct Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '88',
+            stalkerCmd: 'ffrt3 http://stalker.example.com/media/88.mpg',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playback.headers?.['Cookie']).toBeUndefined();
+        expect(playback.headers?.['Authorization']).toBeUndefined();
+        expect(playback.headers?.['User-Agent']).toBe('KSPlayer');
+        expect(playback.referer).toBeUndefined();
+        expect(playback.origin).toBeUndefined();
+    });
+
+    it('appends query-only Stalker create_link responses to the original cmd URL', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: '?token=xyz' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::89',
+            name: 'Token Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '89',
+            stalkerCmd: 'auto http://cdn.example.com/live/89.m3u8',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe(
+            'http://cdn.example.com/live/89.m3u8?token=xyz'
         );
     });
 });

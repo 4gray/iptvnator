@@ -109,18 +109,25 @@
     }
 }
 
-@media only screen and (max-width: 599px) {
+// Matches the phone breakpoint in portal-layout's live-layout mixin, which
+// this component includes; a narrower one here would leave a band of widths
+// where only the mixin's generic stacking applied.
+@media only screen and (max-width: 640px) {
     :host {
         flex-direction: column-reverse;
     }
 
     .sidebar {
-        width: 100%;
+        width: 100% !important;
         min-width: 100%;
         max-width: 100%;
         height: 50vh;
+        // The mixin caps the list's share; here the explicit height is the
+        // whole point of the bottom-drawer layout, so release the cap.
+        max-height: none;
         border-right: none;
         border-top: 1px solid var(--mat-sys-outline-variant);
+        border-bottom: none;
 
         // Sidebar collapse uses width=0 on desktop; on mobile the rail flips
         // to a bottom drawer so collapse it via height instead.
@@ -131,11 +138,10 @@
         }
     }
 
+    // Keeps the mixin's player floor rather than releasing it: `height: 50vh`
+    // is a preference, not a reservation, so on a short landscape phone the
+    // drawer could otherwise squeeze the video away entirely.
     .content-container {
         height: 50vh;
-    }
-
-    .sidebar-restore {
-        display: none;
     }
 }

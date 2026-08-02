@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "É{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Még nincs szinkronizálva",
             "RECENTLY_WATCHED_LIVE_TV": "Legutóbb nézett élő csatornák",
-            "FAVORITE_MOVIES_AND_SERIES": "Kedvenc filmek és sorozatok"
+            "FAVORITE_MOVIES_AND_SERIES": "Kedvenc filmek és sorozatok",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}} nap múlva lejár",
+            "SOURCE_EXPIRED": "Lejárt"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Csak betöltött csatornák",
             "COMMAND_PALETTE_SHORTCUT": "Parancspaletta (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Parancspaletta megnyitása",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Kategóriapanel megjelenítése vagy elrejtése",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Kategóriák",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Szűrőpanel megjelenítése vagy elrejtése",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Szűrők",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Beállítási szakaszok paneljének megjelenítése vagy elrejtése",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Beállítási szakaszok",
             "ADD_PLAYLIST_ALL": "Lejátszási lista hozzáadása",
             "ADD_PLAYLIST": "Lejátszási lista hozzáadása",
             "OPEN_DOWNLOADS": "Letöltések megnyitása",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Helyi médiatár",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Várakozás a szolgáltató válaszára.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "A lejátszási listák gyorsabb későbbi megnyitásának előkészítése.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "A helyi könyvtár beolvasása — a szolgáltatótól nem töltődnek le adatok.",
             "XTREAM_IMPORT_PREPARING": "Helyi médiatár előkészítése…",
+            "XTREAM_IMPORT_LOADING_CACHED": "Az eszközön mentett katalógus betöltése…",
             "XTREAM_IMPORT_LOADING": "Lejátszási lista adatainak lekérése a forrásból…",
             "XTREAM_IMPORT_SAVING": "Lejátszási lista adatainak helyi mentése…",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Kedvencek visszaállítása a helyi médiatárból…",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Ugrás a sorozatokhoz",
                 "SWITCH_PLAYER_LABEL": "Lejátszóváltás: {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}} beállítása aktív videólejátszóként",
-                "SWITCH_PLAYER_FEEDBACK": "Aktív lejátszó: {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Aktív lejátszó: {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "A Stalker portál fiókadatainak megjelenítése"
             },
             "XTREAM_REFRESH_TITLE": "Lejátszási lista frissítése",
             "XTREAM_REFRESH_COLLECTING_DATA": "A médiatár adatainak megőrzése…",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Adjon hozzá egy lejátszási listát; megtekintési előzményei ezután itt jelennek meg.",
             "NO_ITEMS_TITLE": "Még nincs megtekintési előzmény",
             "NO_ITEMS_BODY": "Indítson el valamilyen tartalmat a médiatárból; ezután itt is megjelenik."
+        }
+    },
+    "LOADING": "Betöltés",
+    "RETRY": "Újra",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Fiókadatok",
+            "ACCOUNT": "Fiók",
+            "PORTAL_INFO": "Portál",
+            "LOGIN": "Felhasználónév",
+            "STATUS": "Állapot",
+            "ACTIVE": "Aktív",
+            "INACTIVE": "Inaktív",
+            "TARIFF_PLAN": "Díjcsomag",
+            "EXPIRES": "Lejárat",
+            "DAYS_LEFT": "Hátralévő napok",
+            "EXPIRED": "Lejárt",
+            "MAC_ADDRESS": "MAC-cím",
+            "PHONE": "Telefon",
+            "PORTAL_URL": "Portál URL",
+            "PORTAL_TYPE_FULL": "Ministra portál",
+            "PORTAL_TYPE_LEGACY": "Klasszikus portál (portal.php)",
+            "CACHED_BADGE": "Mentett adatok",
+            "REFRESH_FAILED": "A portál nem érhető el — a portál hozzáadásakor mentett adatok láthatók.",
+            "NO_ACCOUNT_DATA_TITLE": "Nincsenek fiókadatok",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Ez a portál nem tesz közzé fiókadatokat ehhez az eszközhöz."
         }
     }
 }

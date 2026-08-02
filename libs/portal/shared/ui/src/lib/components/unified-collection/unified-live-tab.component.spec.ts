@@ -743,6 +743,15 @@ describe('UnifiedLiveTabComponent', () => {
     });
 
     it('renders inline audio for Stalker radio items and skips external playback', async () => {
+        // Radio renders the dedicated audio player, never the shared web
+        // player wrapper — so this test also pins that the tab itself
+        // configures the scoped header override (portal cookie/token for
+        // auth-gated streams) before the audio element gets the URL, and
+        // clears it again on close.
+        const setUserAgent = jest.fn().mockResolvedValue(true);
+        (
+            window.electron as unknown as Record<string, unknown>
+        )['setUserAgent'] = setUserAgent;
         const item = {
             ...buildLiveItem('stalker'),
             name: 'Jazz Radio',
@@ -754,6 +763,12 @@ describe('UnifiedLiveTabComponent', () => {
                 streamUrl: 'https://example.com/jazz.mp3',
                 title: 'Jazz Radio',
                 thumbnail: 'jazz.png',
+                headers: {
+                    'User-Agent': 'MAG250',
+                    Referer: 'http://portal.example',
+                    Cookie: 'mac=00:1A:79:00:00:01',
+                    Authorization: 'Bearer TOKEN99',
+                },
             },
             channel: {
                 id: '40001',
@@ -802,6 +817,25 @@ describe('UnifiedLiveTabComponent', () => {
         expect(audioPlayer.url()).toBe('https://example.com/jazz.mp3');
         expect(audioPlayer.icon()).toBe('jazz.png');
         expect(audioPlayer.channelName()).toBe('Jazz Radio');
+
+        expect(setUserAgent).toHaveBeenCalledWith(
+            'MAG250',
+            'http://portal.example',
+            'https://example.com/jazz.mp3',
+            {
+                authorization: 'Bearer TOKEN99',
+                cookie: 'mac=00:1A:79:00:00:01',
+            }
+        );
+
+        component.onClose();
+
+        // Closing the radio player must drop the portal credentials.
+        expect(setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'https://example.com/jazz.mp3'
+        );
     });
 
     it('renders shared EPG view for Xtream items and records recent history', async () => {

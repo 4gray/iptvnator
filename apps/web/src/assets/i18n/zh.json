@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "尚未同步",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}} 天后到期",
+            "SOURCE_EXPIRED": "已过期"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "仅已加载的频道",
             "COMMAND_PALETTE_SHORTCUT": "命令面板（Ctrl/Cmd+K）",
             "OPEN_COMMAND_PALETTE": "打开命令面板",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "切换分类面板",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "分类",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "切换筛选面板",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "筛选",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "切换设置栏目面板",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "设置栏目",
             "ADD_PLAYLIST_ALL": "添加播放列表",
             "ADD_PLAYLIST": "添加播放列表",
             "OPEN_DOWNLOADS": "打开下载",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "本地库",
             "XTREAM_IMPORT_DETAIL_REMOTE": "正在等待提供商响应。",
             "XTREAM_IMPORT_DETAIL_LOCAL": "正在为下次访问准备更快的播放列表切换。",
+            "XTREAM_IMPORT_DETAIL_CACHED": "正在读取本地库——不从提供商下载数据。",
             "XTREAM_IMPORT_PREPARING": "正在准备本地库…",
+            "XTREAM_IMPORT_LOADING_CACHED": "正在从此设备加载已保存的目录...",
             "XTREAM_IMPORT_LOADING": "正在从源获取播放列表数据…",
             "XTREAM_IMPORT_SAVING": "正在本地保存播放列表数据…",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "正在从本地库恢复收藏…",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "跳转到剧集区",
                 "SWITCH_PLAYER_LABEL": "切换播放器为 {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "将 {{name}} 设为当前视频播放器",
-                "SWITCH_PLAYER_FEEDBACK": "播放器已设为 {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "播放器已设为 {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "显示 Stalker 门户账户信息"
             },
             "XTREAM_REFRESH_TITLE": "正在刷新播放列表",
             "XTREAM_REFRESH_COLLECTING_DATA": "正在保留你的媒体库数据...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "加载中",
+    "RETRY": "重试",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "账户信息",
+            "ACCOUNT": "账户",
+            "PORTAL_INFO": "门户",
+            "LOGIN": "登录名",
+            "STATUS": "状态",
+            "ACTIVE": "有效",
+            "INACTIVE": "无效",
+            "TARIFF_PLAN": "资费套餐",
+            "EXPIRES": "到期时间",
+            "DAYS_LEFT": "剩余天数",
+            "EXPIRED": "已过期",
+            "MAC_ADDRESS": "MAC 地址",
+            "PHONE": "电话",
+            "PORTAL_URL": "门户 URL",
+            "PORTAL_TYPE_FULL": "Ministra 门户",
+            "PORTAL_TYPE_LEGACY": "传统门户（portal.php）",
+            "CACHED_BADGE": "已保存的数据",
+            "REFRESH_FAILED": "无法连接门户 — 正在显示添加门户时保存的数据。",
+            "NO_ACCOUNT_DATA_TITLE": "无账户数据",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "该门户不为此设备提供账户信息。"
         }
     }
 }

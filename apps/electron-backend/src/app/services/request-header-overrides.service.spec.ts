@@ -339,3 +339,220 @@ describe('request header overrides', () => {
         });
     });
 });
+
+/**
+ * Portal credentials (Cookie/Authorization) in the scoped override — the
+ * mechanism that lets built-in players play auth-gated portal streams. The
+ * security contract pinned here: credentials apply ONLY to the exact stream
+ * origin, never ride on the broader UA/Referer scope, never enter the
+ * unscoped (playlist-level) layer, and are dropped when the scoped override
+ * is cleared or replaced.
+ */
+describe('request header override credentials', () => {
+    const STREAM_URL = 'http://portal.example:8080/live/ch1.ts';
+    const SEGMENT_URL = 'http://portal.example:8080/live/segment-1.ts';
+    const CREDENTIALS = {
+        authorization: 'Bearer TOKEN123',
+        cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01; stb_lang=en_US',
+    };
+
+    beforeEach(() => {
+        jest.resetModules();
+        mockOnBeforeSendHeaders.mockClear();
+    });
+
+    it('attaches cookie and authorization to requests on the stream origin', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride(
+            'MAG250',
+            'http://portal.example',
+            STREAM_URL,
+            CREDENTIALS
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(listener, SEGMENT_URL);
+
+        expect(headers['Cookie']).toBe(CREDENTIALS.cookie);
+        expect(headers['Authorization']).toBe(CREDENTIALS.authorization);
+        expect(headers['User-Agent']).toBe('MAG250');
+        expect(headers['Referer']).toBe('http://portal.example');
+    });
+
+    it('does not attach credentials to the referer origin', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        // The UA/Referer scope includes the referer origin (port 80), but
+        // the credentials belong to the stream origin (:8080) only.
+        configureRequestHeaderOverride(
+            'MAG250',
+            'http://portal.example',
+            STREAM_URL,
+            CREDENTIALS
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'http://portal.example/some/page'
+        );
+
+        expect(headers['User-Agent']).toBe('MAG250');
+        expect(headers['Cookie']).toBeUndefined();
+        expect(headers['Authorization']).toBeUndefined();
+    });
+
+    it('never attaches credentials to a third-party host', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride(
+            'MAG250',
+            'http://portal.example',
+            STREAM_URL,
+            CREDENTIALS
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'http://cdn.other-host.example/seg.ts',
+            { Accept: '*/*' }
+        );
+
+        expect(headers).toEqual({ Accept: '*/*' });
+    });
+
+    it('ignores credentials passed without a scope URL', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride(
+            'PlaylistAgent/1.0',
+            undefined,
+            undefined,
+            CREDENTIALS
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(listener, SEGMENT_URL);
+
+        expect(headers['User-Agent']).toBe('PlaylistAgent/1.0');
+        expect(headers['Cookie']).toBeUndefined();
+        expect(headers['Authorization']).toBeUndefined();
+    });
+
+    it('drops credentials when the next stream replaces the scoped override', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride(
+            'MAG250',
+            'http://portal.example',
+            STREAM_URL,
+            CREDENTIALS
+        );
+        configureRequestHeaderOverride(
+            'OtherAgent/1.0',
+            'http://other.example',
+            'http://other.example/stream.m3u8'
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(listener, SEGMENT_URL);
+
+        expect(headers['Cookie']).toBeUndefined();
+        expect(headers['Authorization']).toBeUndefined();
+    });
+
+    it('clears the credentialed override when playback ends', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride(
+            'MAG250',
+            'http://portal.example',
+            STREAM_URL,
+            CREDENTIALS
+        );
+        // The renderer's playback-end clear: empty values with a scope URL.
+        configureRequestHeaderOverride(undefined, undefined, STREAM_URL);
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(listener, SEGMENT_URL, {
+            Accept: '*/*',
+        });
+
+        expect(headers).toEqual({ Accept: '*/*' });
+    });
+
+    it('keeps a credentials-only override active without UA or referer', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride(
+            undefined,
+            undefined,
+            STREAM_URL,
+            CREDENTIALS
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(listener, SEGMENT_URL);
+
+        expect(headers['Cookie']).toBe(CREDENTIALS.cookie);
+        expect(headers['Authorization']).toBe(CREDENTIALS.authorization);
+    });
+
+    it('replaces existing credential headers case-insensitively', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride(
+            'MAG250',
+            'http://portal.example',
+            STREAM_URL,
+            CREDENTIALS
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(listener, SEGMENT_URL, {
+            authorization: 'Bearer STALE',
+            cookie: 'stale=1',
+        });
+
+        expect(headers['Cookie']).toBe(CREDENTIALS.cookie);
+        expect(headers['cookie']).toBeUndefined();
+        expect(headers['Authorization']).toBe(CREDENTIALS.authorization);
+        expect(headers['authorization']).toBeUndefined();
+    });
+
+    it('rejects credential values containing control characters', async () => {
+        const { configureRequestHeaderOverride } = await import(
+            './request-header-overrides.service'
+        );
+
+        configureRequestHeaderOverride('MAG250', undefined, STREAM_URL, {
+            authorization: 'Bearer TOKEN\r\nX-Injected: 1',
+            cookie: 'mac=00\r\nX-Injected: 1',
+        });
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(listener, SEGMENT_URL);
+
+        expect(headers['Cookie']).toBeUndefined();
+        expect(headers['Authorization']).toBeUndefined();
+        expect(headers['X-Injected']).toBeUndefined();
+    });
+});

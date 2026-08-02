@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "م{{season}}·ح{{episode}}",
             "NOT_YET_SYNCED": "مازال ما تزامنش",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "كتسالي ف {{days}} يوم",
+            "SOURCE_EXPIRED": "سالات"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "غير القنوات المشرّجة",
             "COMMAND_PALETTE_SHORTCUT": "لوحة الأوامر (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "حل لوحة الأوامر",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "بدل لوحة الفئات",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "الفئات",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "بدل لوحة الفلاتر",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "الفلاتر",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "بدل لوحة أقسام الإعدادات",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "أقسام الإعدادات",
             "ADD_PLAYLIST_ALL": "زيد قائمة تشغيل",
             "ADD_PLAYLIST": "زيد قائمة تشغيل",
             "OPEN_DOWNLOADS": "حل التحميلات",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "المكتبة المحلية",
             "XTREAM_IMPORT_DETAIL_REMOTE": "كنتسناو رد المزود.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "كنوجدو تبديل أسرع لقوائم التشغيل للزيارة الجاية.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "جاري قراءة المكتبة المحلية — ما شي بيانات كتتنزلو من المزود.",
             "XTREAM_IMPORT_PREPARING": "جاري تحضير المكتبة المحلية...",
+            "XTREAM_IMPORT_LOADING_CACHED": "جاري تشريج الفهرس المحفوظ من الجهاز ديالك...",
             "XTREAM_IMPORT_LOADING": "جاري جلب بيانات قائمة التشغيل من المصدر...",
             "XTREAM_IMPORT_SAVING": "جاري حفظ بيانات قائمة التشغيل محلياً...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "جاري استرجاع المفضلة من المكتبة المحلية...",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "اقفز لقسم السلاسل",
                 "SWITCH_PLAYER_LABEL": "بدل المشغل ل{{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "حدد {{name}} كمشغل الفيديو النشط",
-                "SWITCH_PLAYER_FEEDBACK": "المشغل تحدد ل{{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "المشغل تحدد ل{{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "عرض بيانات حساب بوابة Stalker"
             },
             "XTREAM_REFRESH_TITLE": "كنحدّثو البلايليست",
             "XTREAM_REFRESH_COLLECTING_DATA": "كنحافظو على معطيات المكتبة ديالك...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "كيتشارجا",
+    "RETRY": "عاود المحاولة",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "معلومات الحساب",
+            "ACCOUNT": "الحساب",
+            "PORTAL_INFO": "البوابة",
+            "LOGIN": "سمية المستخدم",
+            "STATUS": "الحالة",
+            "ACTIVE": "خدام",
+            "INACTIVE": "ماشي خدام",
+            "TARIFF_PLAN": "خطة الاشتراك",
+            "EXPIRES": "كتسالي ف",
+            "DAYS_LEFT": "الأيام اللي بقاو",
+            "EXPIRED": "سالات",
+            "MAC_ADDRESS": "عنوان MAC",
+            "PHONE": "التيليفون",
+            "PORTAL_URL": "رابط البوابة",
+            "PORTAL_TYPE_FULL": "بوابة Ministra",
+            "PORTAL_TYPE_LEGACY": "بوابة قديمة (portal.php)",
+            "CACHED_BADGE": "بيانات محفوظة",
+            "REFRESH_FAILED": "ما قدرناش نوصلو للبوابة — كنعرضو البيانات اللي تسجلات ملي تزادت البوابة.",
+            "NO_ACCOUNT_DATA_TITLE": "ما كايناش بيانات الحساب",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "هاد البوابة ما كتعطيش معلومات الحساب لهاد الجهاز."
         }
     }
 }

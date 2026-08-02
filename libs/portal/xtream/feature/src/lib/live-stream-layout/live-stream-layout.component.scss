@@ -43,6 +43,11 @@
 
 .category-content-header {
     @include panel.standard-panel-header($sticky: true);
+
+    // The paginator does not shrink, so on any window narrow enough that it
+    // and the category meta cannot share a line it took the whole row and the
+    // meta collapsed underneath it. Let it drop to a line of its own instead.
+    flex-wrap: wrap;
 }
 
 .category-meta {
@@ -59,7 +64,9 @@
 
 mat-paginator {
     background: transparent !important;
-    flex-shrink: 0;
+    // Its own container already wraps internally, so letting it shrink turns
+    // a clipped next-page arrow into a second line of the paginator itself.
+    min-width: 0;
     --mat-paginator-container-size: 40px;
     --mat-paginator-enabled-icon-color: var(
         --app-body-color,
@@ -115,4 +122,29 @@ app-grid-list.live-all-items-grid {
     font-size: 0.78rem;
     line-height: 1.45;
     opacity: 0.74;
+}
+
+// The header is one flex row of "N channels" plus the paginator. The
+// paginator's intrinsic width alone exceeds a phone, which crushed the count
+// to zero width and left the two drawn on top of each other.
+@media (max-width: 640px) {
+    .category-content-header {
+        padding-inline: 12px;
+    }
+
+    // The paginator already states "1 – 25 of 320" right next to it, and the
+    // room it costs here is taken straight out of the category title.
+    .category-subtitle {
+        display: none;
+    }
+
+    mat-paginator {
+        min-width: 0;
+
+        // Dropped for the same reason as the catalog grid: it is the widest
+        // part of the control and the least useful one on a phone.
+        ::ng-deep .mat-mdc-paginator-page-size {
+            display: none;
+        }
+    }
 }

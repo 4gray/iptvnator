@@ -20,6 +20,13 @@
     app-region: no-drag;
 }
 
+// Above the phone breakpoint the context panel is always visible beside the
+// content, so its drawer toggle would open nothing — it exists only at ≤640px.
+.context-drawer-toggle {
+    display: none;
+    app-region: no-drag;
+}
+
 .search-field {
     flex: 1;
     min-width: 160px;
@@ -114,6 +121,13 @@
             color: var(--mat-sys-on-surface-variant);
             opacity: 0.7;
         }
+    }
+
+    .command-trigger__icon {
+        display: none;
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
     }
 
     .command-trigger {
@@ -313,14 +327,69 @@
 }
 
 @media (max-width: 640px) {
+    .workspace-header {
+        padding-inline: 8px;
+        gap: 8px;
+    }
+
+    .context-drawer-toggle {
+        display: inline-flex;
+        flex-shrink: 0;
+    }
+
     .playlist-switcher {
         width: auto;
-        min-width: 140px;
-        flex: 1;
+        // Fixed at 140px this crowded the search field off a 320px header
+        // whenever a route contributed its shortcut button; the switcher is
+        // the one region whose content can ellipsize, so it is what shrinks.
+        min-width: 88px;
+        flex: 0 1 140px;
     }
 
     .search-field {
-        .search-chip--status {
+        // The floor is the field's own chrome — icon, palette trigger, gaps
+        // and padding. Below it the contents spill onto the buttons beside
+        // the field; above it the input just gets whatever space remains.
+        // Zero basis, not auto: the input's intrinsic size would otherwise
+        // count as content and squeeze the switcher even when room is ample.
+        min-width: 74px;
+        flex: 1 1 0;
+        padding-inline: 8px;
+
+        .search-chip--status,
+        .search-chip--scope {
+            display: none;
+        }
+
+        // An <input> carries an intrinsic min-width from its `size`, and
+        // `min-width: auto` on a flex item honours it — so the input refused
+        // to shrink and pushed the trigger out of the field and onto the
+        // buttons beside it.
+        input {
+            min-width: 0;
+        }
+
+        // This button is the only pointer-driven way into the command
+        // palette, so it stays; only its keyboard-shortcut label is swapped
+        // for an icon that means something without a keyboard.
+        .command-trigger {
+            min-width: 28px;
+            padding: 0 4px;
+        }
+
+        .command-trigger__shortcut {
+            display: none;
+        }
+
+        .command-trigger__icon {
+            display: inline-flex;
+        }
+    }
+
+    .header-actions--leading {
+        margin-left: 0;
+
+        .shortcuts-trigger {
             display: none;
         }
     }

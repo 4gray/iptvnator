@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}·B{{episode}}",
             "NOT_YET_SYNCED": "Henüz eşitlenmedi",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "{{days}} gün içinde sona erer",
+            "SOURCE_EXPIRED": "Süresi doldu"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Yalnızca yüklenmiş kanallar",
             "COMMAND_PALETTE_SHORTCUT": "Komut paleti (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Komut paletini aç",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Kategori panelini aç/kapat",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Kategoriler",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Filtre panelini aç/kapat",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filtreler",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Ayar bölümleri panelini aç/kapat",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Ayar bölümleri",
             "ADD_PLAYLIST_ALL": "Oynatma listesi ekle",
             "ADD_PLAYLIST": "Oynatma listesi ekle",
             "OPEN_DOWNLOADS": "İndirilenleri aç",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Yerel kütüphane",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Sağlayıcı yanıtı bekleniyor.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Bir sonraki ziyaret için daha hızlı oynatma listesi geçişi hazırlanıyor.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Yerel katalog okunuyor — sağlayıcıdan veri indirilmiyor.",
             "XTREAM_IMPORT_PREPARING": "Yerel kütüphane hazırlanıyor...",
+            "XTREAM_IMPORT_LOADING_CACHED": "Bu cihazdan kaydedilmiş katalog yükleniyor...",
             "XTREAM_IMPORT_LOADING": "Kaynaktan oynatma listesi verileri alınıyor...",
             "XTREAM_IMPORT_SAVING": "Oynatma listesi verileri yerel olarak kaydediliyor...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Yerel kütüphaneden favoriler geri yükleniyor...",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Diziler bölümüne atla",
                 "SWITCH_PLAYER_LABEL": "Oynatıcıyı {{name}} olarak değiştir",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}} oynatıcısını etkin video oynatıcı olarak ayarla",
-                "SWITCH_PLAYER_FEEDBACK": "Oynatıcı {{name}} olarak ayarlandı"
+                "SWITCH_PLAYER_FEEDBACK": "Oynatıcı {{name}} olarak ayarlandı",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Stalker portalı hesap bilgilerini göster"
             },
             "XTREAM_REFRESH_TITLE": "Oynatma listesi yenileniyor",
             "XTREAM_REFRESH_COLLECTING_DATA": "Kitaplık verileriniz korunuyor...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Yükleniyor",
+    "RETRY": "Yeniden dene",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Hesap Bilgileri",
+            "ACCOUNT": "Hesap",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Kullanıcı adı",
+            "STATUS": "Durum",
+            "ACTIVE": "Etkin",
+            "INACTIVE": "Devre dışı",
+            "TARIFF_PLAN": "Tarife planı",
+            "EXPIRES": "Bitiş tarihi",
+            "DAYS_LEFT": "Kalan gün",
+            "EXPIRED": "Süresi doldu",
+            "MAC_ADDRESS": "MAC adresi",
+            "PHONE": "Telefon",
+            "PORTAL_URL": "Portal URL’si",
+            "PORTAL_TYPE_FULL": "Ministra portalı",
+            "PORTAL_TYPE_LEGACY": "Klasik portal (portal.php)",
+            "CACHED_BADGE": "Kayıtlı veriler",
+            "REFRESH_FAILED": "Portala ulaşılamadı — portal eklenirken kaydedilen veriler gösteriliyor.",
+            "NO_ACCOUNT_DATA_TITLE": "Hesap verisi yok",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Bu portal, bu cihaz için hesap bilgisi yayınlamıyor."
         }
     }
 }

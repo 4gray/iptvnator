@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "T{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Aún no sincronizado",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "Caduca en {{days}} d",
+            "SOURCE_EXPIRED": "Caducada"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Solo canales cargados",
             "COMMAND_PALETTE_SHORTCUT": "Paleta de comandos (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Abrir paleta de comandos",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Mostrar u ocultar el panel de categorías",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Categorías",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Mostrar u ocultar el panel de filtros",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filtros",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Mostrar u ocultar el panel de secciones de ajustes",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Secciones de ajustes",
             "ADD_PLAYLIST_ALL": "Agregar lista de reproducción",
             "ADD_PLAYLIST": "Agregar lista de reproducción",
             "OPEN_DOWNLOADS": "Abrir descargas",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Biblioteca local",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Esperando la respuesta del proveedor.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Preparando un cambio de lista más rápido para la próxima visita.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Leyendo la biblioteca local — sin descargar datos del proveedor.",
             "XTREAM_IMPORT_PREPARING": "Preparando biblioteca local…",
+            "XTREAM_IMPORT_LOADING_CACHED": "Cargando el catálogo guardado desde este dispositivo...",
             "XTREAM_IMPORT_LOADING": "Obteniendo datos de la lista desde la fuente…",
             "XTREAM_IMPORT_SAVING": "Guardando datos de la lista localmente…",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Restaurando favoritos desde la biblioteca local…",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Ir a la sección de series",
                 "SWITCH_PLAYER_LABEL": "Cambiar reproductor a {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Establecer {{name}} como reproductor de vídeo activo",
-                "SWITCH_PLAYER_FEEDBACK": "Reproductor establecido a {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Reproductor establecido a {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Mostrar los datos de la cuenta del portal Stalker"
             },
             "XTREAM_REFRESH_TITLE": "Actualizando lista de reproducción",
             "XTREAM_REFRESH_COLLECTING_DATA": "Conservando los datos de tu biblioteca...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Cargando",
+    "RETRY": "Reintentar",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Información de la cuenta",
+            "ACCOUNT": "Cuenta",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Usuario",
+            "STATUS": "Estado",
+            "ACTIVE": "Activa",
+            "INACTIVE": "Inactiva",
+            "TARIFF_PLAN": "Plan de tarifa",
+            "EXPIRES": "Caduca",
+            "DAYS_LEFT": "Días restantes",
+            "EXPIRED": "Caducada",
+            "MAC_ADDRESS": "Dirección MAC",
+            "PHONE": "Teléfono",
+            "PORTAL_URL": "URL del portal",
+            "PORTAL_TYPE_FULL": "Portal Ministra",
+            "PORTAL_TYPE_LEGACY": "Portal clásico (portal.php)",
+            "CACHED_BADGE": "Datos guardados",
+            "REFRESH_FAILED": "No se pudo conectar con el portal — se muestran los datos guardados al añadirlo.",
+            "NO_ACCOUNT_DATA_TITLE": "Sin datos de la cuenta",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Este portal no publica información de la cuenta para este dispositivo."
         }
     }
 }

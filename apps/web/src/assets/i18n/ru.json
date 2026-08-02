@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
             "NOT_YET_SYNCED": "Еще не синхронизировано",
             "RECENTLY_WATCHED_LIVE_TV": "Недавно просмотренное прямое ТВ",
-            "FAVORITE_MOVIES_AND_SERIES": "Избранные фильмы и сериалы"
+            "FAVORITE_MOVIES_AND_SERIES": "Избранные фильмы и сериалы",
+            "SOURCE_EXPIRES_IN_DAYS": "Истекает через {{days}} дн.",
+            "SOURCE_EXPIRED": "Истёк"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Только загруженные каналы",
             "COMMAND_PALETTE_SHORTCUT": "Палитра команд (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Открыть палитру команд",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Показать или скрыть панель категорий",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Категории",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Показать или скрыть панель фильтров",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Фильтры",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Показать или скрыть панель разделов настроек",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Разделы настроек",
             "ADD_PLAYLIST_ALL": "Добавить плейлист (все плейлисты)",
             "ADD_PLAYLIST": "Добавить плейлист",
             "OPEN_DOWNLOADS": "Открыть загрузки",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Локальная библиотека",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Ожидание ответа от провайдера.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Подготавливает более быстрые переключения плейлиста при следующем открытии.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Чтение локальной библиотеки — данные от провайдера не загружаются.",
             "XTREAM_IMPORT_PREPARING": "Подготовка локальной библиотеки...",
+            "XTREAM_IMPORT_LOADING_CACHED": "Загрузка сохранённого каталога с этого устройства...",
             "XTREAM_IMPORT_LOADING": "Получение данных плейлиста из источника...",
             "XTREAM_IMPORT_SAVING": "Сохранение данных плейлиста локально...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Восстановление избранного из локальной библиотеки...",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Перейти к разделу сериалов",
                 "SWITCH_PLAYER_LABEL": "Переключить плеер на {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Сделать {{name}} активным видеоплеером",
-                "SWITCH_PLAYER_FEEDBACK": "Плеер переключен на {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Плеер переключен на {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Показать данные аккаунта Stalker-портала"
             },
             "XTREAM_REFRESH_TITLE": "Обновление плейлиста",
             "XTREAM_REFRESH_COLLECTING_DATA": "Сохраняем данные вашей библиотеки...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Загрузка",
+    "RETRY": "Повторить",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Информация об аккаунте",
+            "ACCOUNT": "Аккаунт",
+            "PORTAL_INFO": "Портал",
+            "LOGIN": "Логин",
+            "STATUS": "Статус",
+            "ACTIVE": "Активен",
+            "INACTIVE": "Неактивен",
+            "TARIFF_PLAN": "Тарифный план",
+            "EXPIRES": "Истекает",
+            "DAYS_LEFT": "Осталось дней",
+            "EXPIRED": "Истёк",
+            "MAC_ADDRESS": "MAC-адрес",
+            "PHONE": "Телефон",
+            "PORTAL_URL": "URL портала",
+            "PORTAL_TYPE_FULL": "Портал Ministra",
+            "PORTAL_TYPE_LEGACY": "Классический портал (portal.php)",
+            "CACHED_BADGE": "Сохранённые данные",
+            "REFRESH_FAILED": "Портал недоступен — показаны данные, сохранённые при добавлении портала.",
+            "NO_ACCOUNT_DATA_TITLE": "Нет данных об аккаунте",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Этот портал не предоставляет информацию об аккаунте для этого устройства."
         }
     }
 }

@@ -462,6 +462,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // came from — so the download would fetch the wrong movie.
         expect(stubs.startDownload).toHaveBeenCalledWith(
             expect.objectContaining({
+                headers: expect.objectContaining({
+                    userAgent: 'VLC/3.0.18 LibVLC/3.0.18',
+                }),
                 playlistId: 'playlist-1',
                 xtreamId: 650020,
                 metadataSnapshot: expect.objectContaining({

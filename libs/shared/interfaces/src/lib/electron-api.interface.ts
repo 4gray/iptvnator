@@ -194,6 +194,17 @@ export interface ElectronBridgeWindowState {
 }
 
 /**
+ * Portal credentials for an auth-gated stream, passed alongside the scoped
+ * header override. The main process attaches them only to requests going to
+ * the exact origin of the override's `scopeUrl`, keeps them in memory only,
+ * and drops them when the scoped override is cleared or replaced.
+ */
+export interface ElectronBridgeStreamCredentials {
+    authorization?: string | null;
+    cookie?: string | null;
+}
+
+/**
  * A playlist file the operating system asked the app to open — a command line
  * argument, a file association double-click, or macOS' `open-file` event. The
  * main process resolves the path to an absolute one before handing it over.
@@ -632,7 +643,8 @@ export interface ElectronBridgeApi {
     setUserAgent: (
         userAgent?: string | null,
         referer?: string | null,
-        scopeUrl?: string | null
+        scopeUrl?: string | null,
+        credentials?: ElectronBridgeStreamCredentials | null
     ) => Promise<boolean>;
     openInMpv: (
         url: string,

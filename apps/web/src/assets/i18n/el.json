@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "Σ{{season}}·Ε{{episode}}",
             "NOT_YET_SYNCED": "Δεν έχει συγχρονιστεί ακόμα",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "Λήγει σε {{days}} ημ.",
+            "SOURCE_EXPIRED": "Έληξε"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Μόνο φορτωμένα κανάλια",
             "COMMAND_PALETTE_SHORTCUT": "Παλέτα εντολών (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Άνοιγμα παλέτας εντολών",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Εναλλαγή του πίνακα κατηγοριών",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Κατηγορίες",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Εναλλαγή του πίνακα φίλτρων",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Φίλτρα",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Εναλλαγή του πίνακα ενοτήτων ρυθμίσεων",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Ενότητες ρυθμίσεων",
             "ADD_PLAYLIST_ALL": "Προσθήκη λίστας αναπαραγωγής",
             "ADD_PLAYLIST": "Προσθήκη λίστας αναπαραγωγής",
             "OPEN_DOWNLOADS": "Άνοιγμα λήψεων",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Τοπική βιβλιοθήκη",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Αναμονή απάντησης από τον πάροχο.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Προετοιμασία γρηγορότερης εναλλαγής λίστας αναπαραγωγής για την επόμενη επίσκεψη.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Ανάγνωση της τοπικής βιβλιοθήκης — δεν γίνονται λήψεις δεδομένων από τον πάροχο.",
             "XTREAM_IMPORT_PREPARING": "Προετοιμασία τοπικής βιβλιοθήκης...",
+            "XTREAM_IMPORT_LOADING_CACHED": "Φόρτωση του αποθηκευμένου καταλόγου από αυτήν τη συσκευή...",
             "XTREAM_IMPORT_LOADING": "Λήψη δεδομένων λίστας αναπαραγωγής από την πηγή...",
             "XTREAM_IMPORT_SAVING": "Αποθήκευση δεδομένων λίστας αναπαραγωγής τοπικά...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Επαναφορά αγαπημένων από την τοπική βιβλιοθήκη...",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Μετάβαση στην ενότητα σειρών",
                 "SWITCH_PLAYER_LABEL": "Εναλλαγή προγράμματος αναπαραγωγής σε {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Ορισμός του {{name}} ως ενεργό πρόγραμμα αναπαραγωγής βίντεο",
-                "SWITCH_PLAYER_FEEDBACK": "Το πρόγραμμα αναπαραγωγής ορίστηκε σε {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Το πρόγραμμα αναπαραγωγής ορίστηκε σε {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Εμφάνιση στοιχείων λογαριασμού της πύλης Stalker"
             },
             "XTREAM_REFRESH_TITLE": "Ανανέωση λίστας αναπαραγωγής",
             "XTREAM_REFRESH_COLLECTING_DATA": "Διατήρηση των δεδομένων της βιβλιοθήκης σας...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Φόρτωση",
+    "RETRY": "Επανάληψη",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Πληροφορίες λογαριασμού",
+            "ACCOUNT": "Λογαριασμός",
+            "PORTAL_INFO": "Πύλη",
+            "LOGIN": "Όνομα χρήστη",
+            "STATUS": "Κατάσταση",
+            "ACTIVE": "Ενεργός",
+            "INACTIVE": "Ανενεργός",
+            "TARIFF_PLAN": "Πρόγραμμα χρέωσης",
+            "EXPIRES": "Λήγει",
+            "DAYS_LEFT": "Ημέρες που απομένουν",
+            "EXPIRED": "Έληξε",
+            "MAC_ADDRESS": "Διεύθυνση MAC",
+            "PHONE": "Τηλέφωνο",
+            "PORTAL_URL": "URL πύλης",
+            "PORTAL_TYPE_FULL": "Πύλη Ministra",
+            "PORTAL_TYPE_LEGACY": "Κλασική πύλη (portal.php)",
+            "CACHED_BADGE": "Αποθηκευμένα δεδομένα",
+            "REFRESH_FAILED": "Η πύλη δεν είναι προσβάσιμη — εμφανίζονται τα δεδομένα που αποθηκεύτηκαν κατά την προσθήκη της.",
+            "NO_ACCOUNT_DATA_TITLE": "Δεν υπάρχουν στοιχεία λογαριασμού",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Αυτή η πύλη δεν δημοσιεύει πληροφορίες λογαριασμού για αυτήν τη συσκευή."
         }
     }
 }

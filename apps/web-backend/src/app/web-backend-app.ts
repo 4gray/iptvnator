@@ -7,7 +7,11 @@ import zlib from 'node:zlib';
 import axios from 'axios';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
-import { normalizeXtreamServerUrl } from '@iptvnator/shared/interfaces';
+import {
+    buildStalkerIdentityRequestContext,
+    buildStalkerRequestUrl,
+    normalizeXtreamServerUrl,
+} from '@iptvnator/shared/interfaces';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 
 export interface WebBackendHttpGetOptions {
@@ -220,20 +224,50 @@ export function createWebBackendApp(
         const url = getRegisteredProviderUrl(req, res, providerTargets);
         const macAddress = getQueryString(req, 'macAddress');
         const token = getQueryString(req, 'token');
+        const serialNumber = getQueryString(req, 'serialNumber');
         if (!url) {
             return;
         }
 
         try {
+            // `macAddress`, `token` and `serialNumber` are portal credentials,
+            // not protocol content: they reach the portal only as the same
+            // Cookie / Authorization / SN headers the Electron transport
+            // sends, never in the portal's query string (which lands in
+            // portal and intermediary access logs). The one protocol
+            // exception is `handshake`, which presents its candidate token as
+            // a query param and is answered without authentication.
+            const params: Record<string, string | number> = getProxyParams(
+                req,
+                ['targetId', 'macAddress', 'token', 'serialNumber']
+            );
+            if (params['action'] === 'handshake' && token) {
+                params['token'] = token;
+            }
+
+            // Shared with the Electron transport: full STB cookie, MAG
+            // User-Agent pair, `sn` only on get_profile, `JsHttpRequest`
+            // defaulting, and the reference `cmd` encoding (raw slashes,
+            // pre-encoded sequences untouched, `&`/`#` still escaped).
+            const identity = buildStalkerIdentityRequestContext({
+                macAddress: macAddress ?? '',
+                params,
+                ...(token ? { token } : {}),
+                ...(serialNumber ? { serialNumber } : {}),
+            });
+            const headers = { ...identity.headers };
+            if (!macAddress) {
+                // Tolerate credential-less calls the way the route always
+                // has: no MAC means no session cookie, not an empty `mac=`.
+                delete headers['Cookie'];
+            }
+
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
-            const response = await httpClient.get(url.href, {
-                params: getProxyParams(req, ['targetId']),
-                headers: {
-                    ...(macAddress ? { Cookie: `mac=${macAddress}` } : {}),
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-            });
+            const response = await httpClient.get(
+                buildStalkerRequestUrl(url.href, identity.requestParams),
+                { headers }
+            );
 
             res.json({
                 action: getQueryString(req, 'action'),

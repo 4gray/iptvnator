@@ -184,6 +184,7 @@ export class WorkspaceShellXtreamImportService {
         }
 
         return buildXtreamImportDetailLabel(
+            this.xtreamStore.currentImportPhase(),
             this.xtreamImportPhaseTone(),
             this.translateText
         );

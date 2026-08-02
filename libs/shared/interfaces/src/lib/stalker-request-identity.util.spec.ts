@@ -1,7 +1,5 @@
-import {
-    LEGACY_DEFAULT_STALKER_SERIAL,
-    buildStalkerIdentityRequestContext,
-} from './stalker-identity';
+import { LEGACY_DEFAULT_STALKER_SERIAL } from './stalker-identity.utils';
+import { buildStalkerIdentityRequestContext } from './stalker-request-identity.util';
 
 describe('buildStalkerIdentityRequestContext', () => {
     const macAddress = '00:1A:79:AA:BB:CC';
@@ -25,7 +23,7 @@ describe('buildStalkerIdentityRequestContext', () => {
         expect(context.cookieString).not.toContain('__cfduid=');
         expect(context.requestParams).not.toHaveProperty('sn');
         expect(
-            JSON.parse(String(context.requestParams.metrics))
+            JSON.parse(String(context.requestParams['metrics']))
         ).not.toHaveProperty('sn');
     });
 
@@ -43,13 +41,13 @@ describe('buildStalkerIdentityRequestContext', () => {
         });
 
         expect(context.effectiveSerialNumber).toBe('CustomSn123');
-        expect(context.headers.SN).toBe('CustomSn123');
+        expect(context.headers['SN']).toBe('CustomSn123');
         expect(context.cookieString).toContain('__cfduid=');
         expect(
             context.cookieString.match(/__cfduid=([^;]+)/)?.[1]
         ).toHaveLength(32);
-        expect(context.requestParams.sn).toBe('CustomSn123');
-        expect(JSON.parse(String(context.requestParams.metrics))).toEqual(
+        expect(context.requestParams['sn']).toBe('CustomSn123');
+        expect(JSON.parse(String(context.requestParams['metrics']))).toEqual(
             expect.objectContaining({
                 sn: 'CustomSn123',
             })
@@ -76,7 +74,7 @@ describe('buildStalkerIdentityRequestContext', () => {
         expect(context.cookieString).not.toContain('__cfduid=');
         expect(context.requestParams).not.toHaveProperty('sn');
         expect(
-            JSON.parse(String(context.requestParams.metrics))
+            JSON.parse(String(context.requestParams['metrics']))
         ).not.toHaveProperty('sn');
     });
 

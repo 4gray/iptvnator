@@ -4,6 +4,7 @@ import {
     addStalkerPortal,
     addXtreamPortal,
     closeElectronApp,
+    defaultStalkerMacAddress,
     defaultStalkerPortalName,
     defaultXtreamPortalName,
     expect,
@@ -62,6 +63,61 @@ test.describe('Electron Provider Smoke Tests', () => {
                 app.mainWindow,
                 defaultStalkerPortalName
             );
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@stalker @electron delivers cmd to the portal decoded exactly once with query injection blocked', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['stalker']);
+
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            // Stored cmd with a pre-encoded token (%3A), a literal '+', and a
+            // query-injection attempt (&injected=1#frag).
+            const storedCmd =
+                'ffrt3 http://example.com/ch/123?token=a%3Ab+c&injected=1#frag';
+
+            const response = await app.mainWindow.evaluate(
+                async ({ url, macAddress, cmd }) =>
+                    window.electron.stalkerRequest({
+                        url,
+                        macAddress,
+                        params: { action: 'create_link', type: 'itv', cmd },
+                    }),
+                {
+                    url: `${stalkerMockServer}/portal.php`,
+                    macAddress: defaultStalkerMacAddress,
+                    cmd: storedCmd,
+                }
+            );
+
+            const js = (
+                response as {
+                    js: { cmd_received: string; query_keys_received: string[] };
+                }
+            ).js;
+
+            // The portal must see the stored cmd decoded exactly once —
+            // %3A → ':', '+' → space — the same view it gets from a real STB.
+            // The old encodeURIComponent transport double-encoded '%' and
+            // delivered the %3A/+ sequences still encoded.
+            expect(js.cmd_received).toBe(
+                'ffrt3 http://example.com/ch/123?token=a:b c&injected=1#frag'
+            );
+
+            // The '&'/'#' inside cmd stayed inside the cmd value instead of
+            // restructuring the portal query.
+            expect(js.query_keys_received).toEqual([
+                'JsHttpRequest',
+                'action',
+                'cmd',
+                'type',
+            ]);
         } finally {
             await closeElectronApp(app);
         }

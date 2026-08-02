@@ -257,6 +257,15 @@ popovers even when a modifier is held or playback shortcuts are unavailable.
 Buttons, form controls, links, ARIA menu controls, and content-editable targets
 are also ignored anywhere in the event's composed path.
 
+A player whose host sits inside an `inert` region ignores every shortcut,
+including Escape: `inert` strips pointer and Tab access but document-level
+listeners still fire, so the optional `hostElement` handler on
+`ControlsShortcutHandlers` lets the shortcuts opt out while a modal surface
+above the player (e.g. the workspace's phone context drawer) owns the
+keyboard. `EmbeddedMpvShortcutHandlers` (the native-view legacy dock) and
+the radio audio player's document-level volume/mute keys apply the same
+rule.
+
 Action-specific keys are prevented only when the active controller can handle
 them: seek requires both capability and current seekability, volume/mute
 requires volume capability, and fullscreen requires an available DOM

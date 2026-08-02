@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "St{{season}} · F{{episode}}",
             "NOT_YET_SYNCED": "Noch nicht synchronisiert",
             "RECENTLY_WATCHED_LIVE_TV": "Zuletzt angesehenes Live-TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorisierte Filme & Serien"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorisierte Filme & Serien",
+            "SOURCE_EXPIRES_IN_DAYS": "Läuft in {{days}} T. ab",
+            "SOURCE_EXPIRED": "Abgelaufen"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Nur geladene Sender",
             "COMMAND_PALETTE_SHORTCUT": "Befehlspalette (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Befehlspalette öffnen",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Kategorienbereich ein- oder ausblenden",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Kategorien",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Filterbereich ein- oder ausblenden",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filter",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Einstellungsbereiche ein- oder ausblenden",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Einstellungsbereiche",
             "ADD_PLAYLIST_ALL": "Playlist hinzufügen (alle Playlists)",
             "ADD_PLAYLIST": "Playlist hinzufügen",
             "OPEN_DOWNLOADS": "Downloads öffnen",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Lokale Bibliothek",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Warte auf die Antwort des Providers.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Bereitet schnellere Playlist-Wechsel für den nächsten Besuch vor.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Lokaler Katalog wird gelesen – keine Daten vom Anbieter heruntergeladen",
             "XTREAM_IMPORT_PREPARING": "Lokale Bibliothek wird vorbereitet...",
+            "XTREAM_IMPORT_LOADING_CACHED": "Gespeicherter Katalog wird von diesem Gerät geladen…",
             "XTREAM_IMPORT_LOADING": "Playlist-Daten werden von der Quelle geladen...",
             "XTREAM_IMPORT_SAVING": "Playlist-Daten werden lokal gespeichert...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Favoriten werden aus der lokalen Bibliothek wiederhergestellt...",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Zum Serienbereich wechseln",
                 "SWITCH_PLAYER_LABEL": "Player auf {{name}} wechseln",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}} als aktiven Videoplayer festlegen",
-                "SWITCH_PLAYER_FEEDBACK": "Player auf {{name}} festgelegt"
+                "SWITCH_PLAYER_FEEDBACK": "Player auf {{name}} festgelegt",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Kontodaten des Stalker-Portals anzeigen"
             },
             "XTREAM_REFRESH_TITLE": "Playlist wird aktualisiert",
             "XTREAM_REFRESH_COLLECTING_DATA": "Mediathekdaten werden gesichert...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Laden",
+    "RETRY": "Erneut versuchen",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Kontoinformationen",
+            "ACCOUNT": "Konto",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Login",
+            "STATUS": "Status",
+            "ACTIVE": "Aktiv",
+            "INACTIVE": "Inaktiv",
+            "TARIFF_PLAN": "Tarif",
+            "EXPIRES": "Läuft ab",
+            "DAYS_LEFT": "Verbleibende Tage",
+            "EXPIRED": "Abgelaufen",
+            "MAC_ADDRESS": "MAC-Adresse",
+            "PHONE": "Telefon",
+            "PORTAL_URL": "Portal-URL",
+            "PORTAL_TYPE_FULL": "Ministra-Portal",
+            "PORTAL_TYPE_LEGACY": "Klassisches Portal (portal.php)",
+            "CACHED_BADGE": "Gespeicherte Daten",
+            "REFRESH_FAILED": "Das Portal ist nicht erreichbar — es werden die beim Hinzufügen gespeicherten Daten angezeigt.",
+            "NO_ACCOUNT_DATA_TITLE": "Keine Kontodaten",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "Dieses Portal stellt für dieses Gerät keine Kontoinformationen bereit."
         }
     }
 }

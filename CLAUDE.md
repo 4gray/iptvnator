@@ -74,6 +74,12 @@ pnpm nx show projects
 - Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
 - Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json`.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
+- Keep `nx` and every official `@nx/*` package on the same exact version; run
+  `pnpm run deps:nx:validate` after dependency updates.
+- Update Nx with `pnpm nx migrate nx@<target> --skipInstall`, regenerate the
+  lockfile, run generated migrations when present, and validate before opening
+  a PR. Major updates are always manual. Replace incomplete Dependabot security
+  PRs with a coordinated update instead of editing the bot branch.
 - Repository-specific skills live under `.codex/skills/`.
 - Frontmatter descriptions are trigger-only and begin with `Use when`; keep
   each skill at or below 500 words.
@@ -911,6 +917,19 @@ engine` (restart required) or
 
 **Download Manager**:
 
+- Fresh Xtream movie and series-episode downloads propagate the playlist's
+  User-Agent, Referer, and Origin, defaulting User-Agent to the same
+  provider-compatible `XTREAM_CLIENT_USER_AGENT` used by API requests and
+  stream probes. Retry, resume, and missing-file
+  recovery also add the fallback to legacy Xtream rows that have no stored
+  User-Agent. Because download rows survive source deletion, a headerless
+  legacy row whose playlist is already absent receives the same IPTV-player
+  fallback; a known Stalker row remains unchanged. Allowlisted connection
+  resets after bytes reach disk retain the partial and show a credential-safe
+  `DOWNLOAD_NETWORK_INTERRUPTED` code only when the response supplied a strong
+  ETag or Last-Modified validator. Retry then continues with Range/If-Range;
+  without a validator it starts from byte zero and overwrites the unverified
+  partial instead of risking mixed-representation corruption.
 - The desktop-only manager shares one global download store across the global,
   Xtream-scoped, and Stalker-scoped routes. Completed movie and grouped-series
   cards use the global Small/Medium/Large cover-grid tokens; missing completed
@@ -1019,6 +1038,13 @@ engine` (restart required) or
 - Service layer: `libs/services/src/lib/tmdb/`; store glue: `libs/portal/xtream/data-access/src/lib/stores/xtream-tmdb-enrichment.ts` and `libs/portal/stalker/data-access/src/lib/stores/stalker-tmdb-enrichment.ts` (hooked in `withStalkerSelection().setSelectedItem`)
 - TMDB attribution (logo + disclaimer) is required and shown in the settings TMDB section and About
 - See `docs/architecture/tmdb-metadata-enrichment.md`
+
+**Portal Account Info**:
+
+- Both portal types expose an account-info dialog through the same entry points: header playlist switcher (bottom section for the active playlist + per-row ⋮ menu), dashboard source card ⋮ menu, and the command palette. Gates use the shared predicates in `libs/shared/interfaces/src/lib/portal-account-playlist.utils.ts`; `WorkspaceShellHeaderService.openAccountInfoFor()` picks the dialog by playlist type.
+- Xtream: `AccountInfoComponent` (`libs/portal/xtream/feature/src/lib/account-info/`), queries `get_account_info` live.
+- Stalker: `StalkerAccountInfoComponent` (`libs/portal/stalker/feature/src/lib/stalker-account-info/`), cached-first — renders the import-time `stalkerAccountInfo` snapshot instantly, then `StalkerAccountInfoService` refreshes (full portals: handshake+`get_profile`; `portal.php`: best-effort `account_info/get_main_info`, nested `js.account_info` envelope or flat fields). Details: `docs/architecture/stalker-portal.md` ("Account Info Dialog").
+- Dashboard source cards carry a passive subscription-expiry chip (amber within 7 days, error-toned once expired); account details remain behind ⋮ → Account info. `DashboardSourceExpiryService` (`libs/workspace/dashboard/data-access/`) gathers the facts: Xtream from `PortalStatusService.checkPortalStatusDetails()` (the switcher's cached status check, now carrying `exp_date`), Stalker from the persisted `stalkerAccountInfo` snapshot — it lives in the playlist payload, not on meta rows, so each Stalker source costs one memoized full-playlist read.
 
 **Favorites and Recently Viewed**:
 

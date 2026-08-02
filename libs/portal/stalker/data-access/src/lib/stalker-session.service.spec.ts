@@ -166,6 +166,204 @@ describe('StalkerSessionService identity payloads', () => {
         expect(authenticate).toHaveBeenCalledWith(portalUrl, macAddress, {});
     });
 
+    it('serializes refreshAccountProfile behind an in-flight ensureToken', async () => {
+        const playlist = {
+            _id: 'playlist-1',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        let releaseFirst: (value: { token: string }) => void = () => undefined;
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        releaseFirst = resolve;
+                    })
+            )
+            .mockResolvedValueOnce({
+                token: 'profile-token',
+                accountInfo: { login: 'user-1' },
+            });
+
+        const pending = service.ensureToken(playlist);
+        const refresh = service.refreshAccountProfile(playlist);
+
+        // Two handshakes must never overlap: on strict portals the second
+        // would invalidate the first one's token.
+        await Promise.resolve();
+        expect(authenticate).toHaveBeenCalledTimes(1);
+
+        releaseFirst({ token: 'session-token' });
+        await pending;
+        const accountInfo = await refresh;
+
+        expect(authenticate).toHaveBeenCalledTimes(2);
+        expect(accountInfo).toEqual({ login: 'user-1' });
+        // The refreshed token replaces the one its own handshake killed.
+        expect(service.getCachedToken(playlist._id)).toBe('profile-token');
+    });
+
+    it('lets only one of several queued refreshes authenticate at a time', async () => {
+        const playlist = {
+            _id: 'playlist-3',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        const releases: Array<(value: { token: string }) => void> = [];
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        releases.push(resolve);
+                    })
+            );
+
+        // Both refreshes queue behind the same in-flight ensureToken, so
+        // one settled promise releases both waiters at once.
+        const pending = service.ensureToken(playlist);
+        const first = service.refreshAccountProfile(playlist);
+        const second = service.refreshAccountProfile(playlist);
+
+        await Promise.resolve();
+        expect(authenticate).toHaveBeenCalledTimes(1);
+
+        releases[0]({ token: 'session-token' });
+        await pending;
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // The released waiters must not both start a handshake.
+        expect(authenticate).toHaveBeenCalledTimes(2);
+
+        releases[1]({ token: 'first-refresh-token' });
+        await first;
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(authenticate).toHaveBeenCalledTimes(3);
+        releases[2]({ token: 'second-refresh-token' });
+        await second;
+
+        expect(service.getCachedToken(playlist._id)).toBe(
+            'second-refresh-token'
+        );
+    });
+
+    it('retires the cached token before the refresh handshake starts', async () => {
+        const playlist = {
+            _id: 'playlist-4',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        service.setCachedToken(playlist._id, 'stale-token');
+
+        let release: (value: { token: string }) => void = () => undefined;
+        jest.spyOn(service, 'authenticate').mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    release = resolve;
+                })
+        );
+
+        const refresh = service.refreshAccountProfile(playlist);
+        await Promise.resolve();
+
+        // ensureToken() reads the cache before pendingAuth, so a token the
+        // handshake is invalidating must not stay readable meanwhile.
+        expect(service.getCachedToken(playlist._id)).toBeNull();
+
+        release({ token: 'fresh-token' });
+        await refresh;
+        expect(service.getCachedToken(playlist._id)).toBe('fresh-token');
+    });
+
+    it('keeps a freshly refreshed token when a stale request fails auth late', async () => {
+        const playlist = {
+            _id: 'playlist-5',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        // The request went out with the previous token; meanwhile a
+        // profile refresh has already cached a fresh one.
+        jest.spyOn(service, 'ensureToken')
+            .mockResolvedValueOnce({ token: 'stale-token' })
+            .mockResolvedValueOnce({ token: 'fresh-token' });
+        service.setCachedToken(playlist._id, 'fresh-token');
+
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ js: 'Authorization failed. 75' })
+            .mockResolvedValueOnce({ js: { data: [] } });
+
+        await service.makeAuthenticatedRequest(playlist, {
+            type: 'itv',
+            action: 'get_ordered_list',
+        });
+
+        // The late failure of the stale token must not delete the fresh
+        // one — the retry reuses it instead of forcing a new handshake.
+        expect(service.getCachedToken(playlist._id)).toBe('fresh-token');
+        expect(dataService.sendIpcEvent).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.objectContaining({ token: 'fresh-token' })
+        );
+    });
+
+    it('still retires the cached token when it is the one that failed', async () => {
+        const playlist = {
+            _id: 'playlist-6',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        jest.spyOn(service, 'ensureToken')
+            .mockResolvedValueOnce({ token: 'dead-token' })
+            .mockResolvedValueOnce({ token: 'new-token' });
+        service.setCachedToken(playlist._id, 'dead-token');
+
+        dataService.sendIpcEvent
+            .mockResolvedValueOnce({ js: 'Authorization failed. 75' })
+            .mockResolvedValueOnce({ js: { data: [] } });
+
+        await service.makeAuthenticatedRequest(playlist, {
+            type: 'itv',
+            action: 'get_ordered_list',
+        });
+
+        // Existing behavior preserved: the failed token itself is gone.
+        expect(service.getCachedToken(playlist._id)).toBeNull();
+    });
+
+    it('refreshes the account profile even when a pending authentication fails', async () => {
+        const playlist = {
+            _id: 'playlist-2',
+            portalUrl,
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+
+        jest.spyOn(service, 'authenticate')
+            .mockRejectedValueOnce(new Error('handshake refused'))
+            .mockResolvedValueOnce({
+                token: 'profile-token',
+                accountInfo: { login: 'user-2' },
+            });
+
+        const pending = service.ensureToken(playlist).catch(() => undefined);
+        const accountInfo = await service.refreshAccountProfile(playlist);
+        await pending;
+
+        expect(accountInfo).toEqual({ login: 'user-2' });
+    });
+
     it('passes an explicit serial into the initial handshake request', async () => {
         dataService.sendIpcEvent
             .mockResolvedValueOnce({

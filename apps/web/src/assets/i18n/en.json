@@ -1221,7 +1221,9 @@
             "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Not yet synced",
             "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
-            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series",
+            "SOURCE_EXPIRES_IN_DAYS": "Expires in {{days}} d",
+            "SOURCE_EXPIRED": "Expired"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
@@ -1256,6 +1258,12 @@
             "SEARCH_STATUS_LOADED_ONLY": "Loaded channels only",
             "COMMAND_PALETTE_SHORTCUT": "Command palette (Ctrl/Cmd+K)",
             "OPEN_COMMAND_PALETTE": "Open command palette",
+            "CONTEXT_DRAWER_CATEGORIES_TOGGLE": "Toggle the categories panel",
+            "CONTEXT_DRAWER_CATEGORIES_TOOLTIP": "Categories",
+            "CONTEXT_DRAWER_FILTERS_TOGGLE": "Toggle the filters panel",
+            "CONTEXT_DRAWER_FILTERS_TOOLTIP": "Filters",
+            "CONTEXT_DRAWER_SETTINGS_TOGGLE": "Toggle the settings sections panel",
+            "CONTEXT_DRAWER_SETTINGS_TOOLTIP": "Settings sections",
             "ADD_PLAYLIST_ALL": "Add playlist",
             "ADD_PLAYLIST": "Add playlist",
             "OPEN_DOWNLOADS": "Open downloads",
@@ -1298,7 +1306,9 @@
             "XTREAM_IMPORT_LOCAL_BADGE": "Local library",
             "XTREAM_IMPORT_DETAIL_REMOTE": "Waiting on the provider response.",
             "XTREAM_IMPORT_DETAIL_LOCAL": "Preparing faster playlist switching for the next visit.",
+            "XTREAM_IMPORT_DETAIL_CACHED": "Reading the local library — no data is downloaded from the provider.",
             "XTREAM_IMPORT_PREPARING": "Preparing local library...",
+            "XTREAM_IMPORT_LOADING_CACHED": "Loading the saved catalog from this device...",
             "XTREAM_IMPORT_LOADING": "Fetching playlist data from source...",
             "XTREAM_IMPORT_SAVING": "Saving playlist data locally...",
             "XTREAM_IMPORT_RESTORING_FAVORITES": "Restoring favorites from local library...",
@@ -1348,7 +1358,8 @@
                 "GO_TO_SERIES_DESCRIPTION": "Jump to series section",
                 "SWITCH_PLAYER_LABEL": "Switch player to {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Set {{name}} as the active video player",
-                "SWITCH_PLAYER_FEEDBACK": "Player set to {{name}}"
+                "SWITCH_PLAYER_FEEDBACK": "Player set to {{name}}",
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Show Stalker portal account details"
             },
             "XTREAM_REFRESH_TITLE": "Refreshing playlist",
             "XTREAM_REFRESH_COLLECTING_DATA": "Preserving your library data...",
@@ -1457,6 +1468,32 @@
             "NO_PLAYLISTS_BODY": "Add a playlist and your watching history will appear here.",
             "NO_ITEMS_TITLE": "Nothing watched yet",
             "NO_ITEMS_BODY": "Start watching anything from your library and it will show up here."
+        }
+    },
+    "LOADING": "Loading",
+    "RETRY": "Retry",
+    "STALKER": {
+        "ACCOUNT_INFO": {
+            "TITLE": "Account Information",
+            "ACCOUNT": "Account",
+            "PORTAL_INFO": "Portal",
+            "LOGIN": "Login",
+            "STATUS": "Status",
+            "ACTIVE": "Active",
+            "INACTIVE": "Inactive",
+            "TARIFF_PLAN": "Tariff plan",
+            "EXPIRES": "Expires",
+            "DAYS_LEFT": "Days left",
+            "EXPIRED": "Expired",
+            "MAC_ADDRESS": "MAC address",
+            "PHONE": "Phone",
+            "PORTAL_URL": "Portal URL",
+            "PORTAL_TYPE_FULL": "Ministra portal",
+            "PORTAL_TYPE_LEGACY": "Legacy portal (portal.php)",
+            "CACHED_BADGE": "Saved data",
+            "REFRESH_FAILED": "The portal could not be reached — showing the data saved when the portal was added.",
+            "NO_ACCOUNT_DATA_TITLE": "No account details",
+            "NO_ACCOUNT_DATA_DESCRIPTION": "This portal does not publish account information for this device."
         }
     }
 }

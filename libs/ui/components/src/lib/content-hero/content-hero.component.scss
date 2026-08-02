@@ -542,6 +542,26 @@
     }
 }
 
+// A phone cannot carry the poster and the details side by side: the details
+// column drops to ~200px, and the action buttons are then squeezed below
+// their own labels ("Play" clipped down to its icon). Stack them instead.
+@media (max-width: 640px) {
+    .hero__content {
+        flex-direction: column;
+        align-items: stretch;
+        padding-inline: 16px;
+    }
+
+    .poster {
+        width: 140px;
+        align-self: center;
+    }
+
+    .details__title {
+        text-align: center;
+    }
+}
+
 // ============================================================================
 // Animations
 // ============================================================================
@@ -586,4 +606,15 @@ ngx-skeleton-loader {
     // Ensure poster container has height/ratio for skeleton
     min-height: 330px; // Fallback
     aspect-ratio: 2 / 3;
+}
+
+// After the rule above so it wins the cascade at equal specificity: that
+// 330px skeleton fallback is sized for the desktop poster width, while the
+// stacked phone hero renders the poster 140px wide — its aspect-ratio height
+// is ~210px, and the leftover minimum was pure empty space pushing the title
+// and actions ~120px down on every loaded detail page.
+@media (max-width: 640px) {
+    .poster {
+        min-height: 0;
+    }
 }

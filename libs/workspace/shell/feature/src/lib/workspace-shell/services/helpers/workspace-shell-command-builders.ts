@@ -128,9 +128,13 @@ export function getPlaylistCommandDefinitions(
             icon: 'account_circle',
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ACCOUNT_INFO_LABEL',
             descriptionKey:
-                'WORKSPACE.SHELL.COMMANDS.ACCOUNT_INFO_DESCRIPTION',
+                context.provider === 'stalker'
+                    ? 'WORKSPACE.SHELL.COMMANDS.ACCOUNT_INFO_DESCRIPTION_STALKER'
+                    : 'WORKSPACE.SHELL.COMMANDS.ACCOUNT_INFO_DESCRIPTION',
             priority: 40,
-            visible: context.provider === 'xtreams',
+            visible:
+                context.provider === 'xtreams' ||
+                context.provider === 'stalker',
             run: () => ctx.actions.openAccountInfo(),
         },
     ];

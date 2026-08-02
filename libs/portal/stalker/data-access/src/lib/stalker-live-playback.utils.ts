@@ -1,11 +1,14 @@
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistMeta,
+    STALKER_MAG_USER_AGENT,
+    isStalkerStreamCredentialSafe,
+} from '@iptvnator/shared/interfaces';
 import {
     buildStalkerSerialCfduid,
     normalizeStalkerSerialNumber,
 } from './stalker-identity.utils';
 
-export const STALKER_MAG_USER_AGENT =
-    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
+export { STALKER_MAG_USER_AGENT };
 export const STALKER_STREAM_USER_AGENT = 'KSPlayer';
 
 export function getStalkerPortalOrigin(
@@ -23,20 +26,24 @@ export function getStalkerPortalOrigin(
     }
 }
 
+/**
+ * True when the stream must be treated as foreign to the portal — a
+ * different HOST or an https→http downgrade — and therefore must not carry
+ * the portal's credentials. A same-host stream on another port or an
+ * upgraded scheme stays portal-owned: IPTV panels routinely serve streams
+ * from `:8080` next to the portal on `:80`, and those are exactly the
+ * streams gated on the portal's mac cookie/token (#1158 class; curl
+ * semantics, matching the validated redirect layer).
+ */
 export function isCrossOriginStalkerStream(
     playlist: PlaylistMeta | undefined | null,
     streamUrl?: string
 ): boolean {
-    const portalOrigin = getStalkerPortalOrigin(playlist);
-    if (!portalOrigin || !streamUrl) {
+    if (!playlist?.portalUrl || !streamUrl) {
         return false;
     }
 
-    try {
-        return new URL(streamUrl).origin !== portalOrigin;
-    } catch {
-        return false;
-    }
+    return !isStalkerStreamCredentialSafe(playlist.portalUrl, streamUrl);
 }
 
 export function buildStalkerExternalPlaybackHeaders(
@@ -48,6 +55,10 @@ export function buildStalkerExternalPlaybackHeaders(
         return {};
     }
 
+    // Foreign-host (or TLS-downgraded) streams get the credential-free
+    // KSPlayer direct-stream profile: their access token travels in the URL
+    // that create_link minted, and the portal's mac cookie/Bearer token must
+    // never reach a third-party host.
     if (isCrossOriginStalkerStream(playlist, streamUrl)) {
         return {
             'User-Agent': STALKER_STREAM_USER_AGENT,
@@ -71,8 +82,14 @@ export function buildStalkerExternalPlaybackHeaders(
         cookieParts.push(`__cfduid=${buildStalkerSerialCfduid(serialNumber)}`);
     }
 
+    // Both the real User-Agent and Stalker's X-User-Agent, matching what the
+    // API request path sends — a portal that filters streams on the MAG UA
+    // never saw it here before (audit finding: same-origin set only
+    // X-User-Agent). A playlist-level custom UA keeps precedence.
+    const magUserAgent = playlist.userAgent?.trim() || STALKER_MAG_USER_AGENT;
     const headers: Record<string, string> = {
         Cookie: cookieParts.join('; '),
+        'User-Agent': magUserAgent,
         'X-User-Agent': STALKER_MAG_USER_AGENT,
     };
 
