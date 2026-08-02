@@ -1,4 +1,5 @@
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import type { Download } from '../../database/schema';
 import type { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 
 const metadataSnapshot: DownloadMetadataSnapshot = {
@@ -9,14 +10,17 @@ const metadataSnapshot: DownloadMetadataSnapshot = {
 };
 
 async function setupStartMetadataRequest(
-    existing: Record<string, unknown> | undefined
+    existing: Record<string, unknown> | undefined,
+    coordinateRows: Record<string, unknown>[] = []
 ) {
     jest.resetModules();
     const schema = await import('../../database/schema');
     const playlistLimit = jest.fn().mockResolvedValue([{ id: 'playlist-1' }]);
-    const downloadLimit = jest
-        .fn()
-        .mockResolvedValue(existing ? [existing] : []);
+    const downloadLimit = jest.fn((limit: number) =>
+        Promise.resolve(
+            limit === 2 ? coordinateRows : existing ? [existing] : []
+        )
+    );
     const from = jest.fn((table: unknown) => ({
         where: jest.fn(() => ({
             limit: table === schema.playlists ? playlistLimit : downloadLimit,
@@ -54,10 +58,40 @@ async function setupStartMetadataRequest(
     return {
         authorizer,
         db,
+        downloadLimit,
         enqueueDownload,
         insertValues,
         set,
         startDownloadRequest,
+    };
+}
+
+function createStartDownloadRow(
+    overrides: Partial<Download> = {}
+): Download {
+    return {
+        bytesDownloaded: 0,
+        contentType: 'episode',
+        createdAt: '2026-08-02 10:00:00',
+        episodeNumber: 3,
+        errorMessage: null,
+        fileName: 'episode.mp4',
+        filePath: null,
+        id: 42,
+        metadataSnapshot: null,
+        playlistId: 'playlist-1',
+        posterUrl: null,
+        requestHeaders: null,
+        resumeValidator: null,
+        seasonNumber: 2,
+        seriesXtreamId: 100,
+        status: 'canceled',
+        title: 'Episode 3',
+        totalBytes: null,
+        updatedAt: '2026-08-02 10:00:00',
+        url: 'https://example.test/episode.mp4',
+        xtreamId: 77,
+        ...overrides,
     };
 }
 
@@ -73,6 +107,18 @@ function startPayload(
         title: 'Offline Movie',
         url: 'https://example.test/movie.mp4',
         xtreamId: 7,
+    };
+}
+
+function episodeStartPayload() {
+    return {
+        ...startPayload(undefined, 'episode'),
+        episodeNumber: 3,
+        seasonNumber: 2,
+        seriesXtreamId: 100,
+        title: 'Episode 3',
+        url: 'https://example.test/episode.mp4',
+        xtreamId: 700,
     };
 }
 
@@ -115,6 +161,7 @@ describe('download request metadata snapshots', () => {
         expect(request.set.mock.calls[0][0]).not.toHaveProperty(
             'metadataSnapshot'
         );
+        expect(request.set.mock.calls[0][0]).not.toHaveProperty('xtreamId');
     });
 
     it('replaces stored metadata when a restart supplies a snapshot', async () => {
@@ -379,6 +426,137 @@ describe('download request metadata snapshots', () => {
 
         expect(request.db.insert).not.toHaveBeenCalled();
         expect(request.db.update).not.toHaveBeenCalled();
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
+    });
+});
+
+describe('download request identity resolution', () => {
+    it.each(['queued', 'downloading', 'paused'] as const)(
+        'returns the stable duplicate result for an active legacy-coordinate %s row',
+        async (status) => {
+            const legacyRow = createStartDownloadRow({ status });
+            const request = await setupStartMetadataRequest(undefined, [
+                legacyRow,
+            ]);
+
+            await expect(
+                request.startDownloadRequest(
+                    episodeStartPayload(),
+                    request.authorizer
+                )
+            ).resolves.toEqual({
+                error: 'Download already in progress',
+                id: legacyRow.id,
+                reason: 'already-in-progress',
+                success: false,
+            });
+
+            expect(request.db.insert).not.toHaveBeenCalled();
+            expect(request.db.update).not.toHaveBeenCalled();
+            expect(request.enqueueDownload).not.toHaveBeenCalled();
+        }
+    );
+
+    it('keeps the stable duplicate reason for an exact active row', async () => {
+        const exactRow = createStartDownloadRow({
+            status: 'queued',
+            xtreamId: 700,
+        });
+        const request = await setupStartMetadataRequest(exactRow, [exactRow]);
+
+        await expect(
+            request.startDownloadRequest(
+                episodeStartPayload(),
+                request.authorizer
+            )
+        ).resolves.toEqual({
+            error: 'Download already in progress',
+            id: exactRow.id,
+            reason: 'already-in-progress',
+            success: false,
+        });
+
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
+    });
+
+    it.each(['failed', 'canceled', 'completed'] as const)(
+        'reuses and migrates a legacy-coordinate %s row before restart',
+        async (status) => {
+            const legacyRow = createStartDownloadRow({ status });
+            const request = await setupStartMetadataRequest(undefined, [
+                legacyRow,
+            ]);
+
+            await expect(
+                request.startDownloadRequest(
+                    episodeStartPayload(),
+                    request.authorizer
+                )
+            ).resolves.toEqual({ id: legacyRow.id, success: true });
+
+            expect(request.set).toHaveBeenCalledTimes(1);
+            expect(request.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    status: 'queued',
+                    xtreamId: episodeStartPayload().xtreamId,
+                })
+            );
+            expect(request.enqueueDownload).toHaveBeenCalledWith(
+                expect.objectContaining({ id: legacyRow.id })
+            );
+        }
+    );
+
+    it('rejects conflicting canonical and coordinate rows without enqueueing', async () => {
+        const canonicalRow = createStartDownloadRow({
+            episodeNumber: null,
+            seasonNumber: null,
+            seriesXtreamId: null,
+            xtreamId: 700,
+        });
+        const coordinateRow = createStartDownloadRow({ id: 43 });
+        const request = await setupStartMetadataRequest(canonicalRow, [
+            coordinateRow,
+        ]);
+
+        await expect(
+            request.startDownloadRequest(
+                episodeStartPayload(),
+                request.authorizer
+            )
+        ).resolves.toEqual({
+            error: 'Download identity conflict',
+            success: false,
+        });
+
+        expect(request.db.insert).not.toHaveBeenCalled();
+        expect(request.db.update).not.toHaveBeenCalled();
+        expect(request.enqueueDownload).not.toHaveBeenCalled();
+    });
+
+    it('propagates a rejected canonical-id migration before enqueueing', async () => {
+        const migrationError = new Error(
+            'UNIQUE constraint failed: downloads.xtream_id'
+        );
+        const legacyRow = createStartDownloadRow({ status: 'canceled' });
+        const request = await setupStartMetadataRequest(undefined, [legacyRow]);
+        request.set.mockReturnValueOnce({
+            where: jest.fn().mockRejectedValue(migrationError),
+        });
+
+        await expect(
+            request.startDownloadRequest(
+                episodeStartPayload(),
+                request.authorizer
+            )
+        ).rejects.toBe(migrationError);
+
+        expect(request.set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                xtreamId: episodeStartPayload().xtreamId,
+            })
+        );
+        expect(request.db.insert).not.toHaveBeenCalled();
         expect(request.enqueueDownload).not.toHaveBeenCalled();
     });
 });

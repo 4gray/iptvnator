@@ -1,4 +1,7 @@
-import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import type {
+    DownloadMetadataSnapshot,
+    ElectronBridgeDownloadStartResult,
+} from '@iptvnator/shared/interfaces';
 import { and, eq, sql } from 'drizzle-orm';
 import { basename, dirname, extname } from 'node:path';
 import { getDatabase } from '../../database/connection';
@@ -6,6 +9,7 @@ import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
 import { removePartialDownloadFile } from './download-file-path';
+import { resolveExistingDownloadIdentity } from './download-request-identity';
 import {
     assertDownloadMetadataArtworkDiffersFromStream,
     assertDownloadMetadataMatchesContentType,
@@ -117,7 +121,7 @@ export function parseStoredHeaders(
 export async function startDownloadRequest(
     data: StartDownloadRequest,
     authorizer: DownloadDirectoryAuthorizer
-): Promise<{ success: boolean; error?: string; id?: number }> {
+): Promise<ElectronBridgeDownloadStartResult> {
     const encodedMetadataSnapshot =
         data.metadataSnapshot === undefined
             ? undefined
@@ -146,22 +150,18 @@ export async function startDownloadRequest(
         .from(schema.playlists)
         .where(eq(schema.playlists.id, data.playlistId))
         .limit(1);
-    const existing = await db
-        .select()
-        .from(schema.downloads)
-        .where(
-            and(
-                eq(schema.downloads.playlistId, data.playlistId),
-                eq(schema.downloads.xtreamId, data.xtreamId),
-                eq(schema.downloads.contentType, data.contentType)
-            )
-        )
-        .limit(1);
+    const identity = await resolveExistingDownloadIdentity(db, data);
+    if (identity.kind === 'conflict') {
+        return {
+            error: 'Download identity conflict',
+            success: false,
+        };
+    }
     const fileName = createFileName(data.title, data.url);
     const headers = createHeaders(data.headers);
 
-    if (existing.length > 0) {
-        const item = existing[0];
+    if (identity.kind === 'match') {
+        const item = identity.item;
         if (normalizedMetadataSnapshot) {
             assertDownloadMetadataMatchesContentType(
                 normalizedMetadataSnapshot,
@@ -180,6 +180,7 @@ export async function startDownloadRequest(
             return {
                 error: 'Download already in progress',
                 id: item.id,
+                reason: 'already-in-progress',
                 success: false,
             };
         }
@@ -220,6 +221,9 @@ export async function startDownloadRequest(
                 totalBytes: null,
                 updatedAt: sql`CURRENT_TIMESTAMP`,
                 url: data.url,
+                ...(identity.migrateCanonicalId
+                    ? { xtreamId: data.xtreamId }
+                    : {}),
             })
             .where(eq(schema.downloads.id, item.id));
         enqueueDownload({
