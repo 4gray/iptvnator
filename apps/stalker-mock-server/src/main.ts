@@ -159,10 +159,16 @@ app.get('/stalker', (req: Request, res: Response) => {
         identity.requestParams['JsHttpRequest'] = '1-xml';
     }
 
-    const headers: Record<string, string> = { cookie: identity.cookieString };
-    if (bearer) {
-        headers['authorization'] = `Bearer ${bearer}`;
-    }
+    // Forward the COMPLETE identity header set (Cookie, MAG UA pair, SN,
+    // Authorization, Accept/Language/Connection), lowercased the way Express
+    // normalizes incoming headers, so portal handlers can validate any header
+    // the real proxy sends — not just the cookie and token.
+    const headers: Record<string, string> = Object.fromEntries(
+        Object.entries(identity.headers).map(([key, value]) => [
+            key.toLowerCase(),
+            value,
+        ])
+    );
 
     // Build a lightweight synthetic request. We need a fresh object with mutable
     // `query` and a Cookie header containing the MAC for the handler helpers.
