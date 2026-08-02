@@ -117,6 +117,38 @@ describe('Xtream mock server factory', () => {
         }
     });
 
+    it('serves the download queue series fixture locally without changing ordinary series redirects', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const localSeries = await fetch(
+                `${running.origin}/series/downloadqueue/downloadqueue/80000.mkv`,
+                { redirect: 'manual' }
+            );
+            const ordinarySeries = await fetch(
+                `${running.origin}/series/user1/pass1/80000.mkv`,
+                { redirect: 'manual' }
+            );
+
+            expect(localSeries.status).toBe(200);
+            expect(localSeries.headers.get('content-type')).toContain(
+                'video/mp4'
+            );
+            expect(
+                Number(localSeries.headers.get('content-length'))
+            ).toBeGreaterThan(1024 * 1024);
+            await localSeries.body?.cancel();
+
+            expect(ordinarySeries.status).toBe(302);
+            expect(ordinarySeries.headers.get('location')).toBe(
+                'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'
+            );
+        } finally {
+            await running.close();
+        }
+    });
+
     it('keeps a non-EPG timezone stream empty across repeated short-EPG requests', async () => {
         const running = await startLoopbackServer(
             createXtreamMockApp({ host: '127.0.0.1', port: 0 })

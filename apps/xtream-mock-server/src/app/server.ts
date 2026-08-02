@@ -14,6 +14,7 @@ import {
     XtreamPerformanceController,
 } from './performance-control.js';
 import { dispatchAction } from './routes/dispatch.js';
+import { getScenario } from './scenarios.js';
 
 export { createXtreamMockServerShutdown } from './server-lifecycle.js';
 
@@ -46,6 +47,9 @@ const DEFAULT_NORMAL_HOST = '0.0.0.0';
 const DEFAULT_CONTROL_HOST = '127.0.0.1';
 const PERFORMANCE_USERNAME = 'performance';
 const PERFORMANCE_PASSWORD = 'performance';
+const DOWNLOAD_STREAM_BYTES = 8 * 1024 * 1024;
+const DOWNLOAD_STREAM_CHUNK_INTERVAL_MS = 100;
+const DOWNLOAD_STREAM_CHUNK = Buffer.alloc(32 * 1024);
 const marketingRasterAssetRoot = join(
     process.cwd(),
     'apps/xtream-mock-server/public/marketing'
@@ -248,15 +252,88 @@ function installStreamRoutes(
         }
         response.redirect(HLS_STUB);
     };
+    const seriesResponse = (request: Request, response: Response) => {
+        if (isPerformanceMediaRequest(request, controlEnabled)) {
+            response.status(410).json({ error: 'performance-media-disabled' });
+            return;
+        }
+        if (isSlowSeriesDownloadRequest(request)) {
+            streamSlowSeriesDownload(request, response);
+            return;
+        }
+        response.redirect(HLS_STUB);
+    };
     app.get('/live/:username/:password/:streamId.m3u8', streamResponse);
     app.get('/live/:username/:password/:streamId.ts', streamResponse);
     app.get('/movie/:username/:password/:streamId.:ext', streamResponse);
-    app.get('/series/:username/:password/:streamId.:ext', streamResponse);
+    app.get('/series/:username/:password/:streamId.:ext', seriesResponse);
     app.all(
         '/timeshift/:username/:password/:duration/:start/:streamId.ts',
         streamResponse
     );
     app.all('/streaming/timeshift.php', streamResponse);
+}
+
+function isSlowSeriesDownloadRequest(request: Request): boolean {
+    const username = String(request.params['username'] ?? '');
+    const password = String(request.params['password'] ?? '');
+    return (
+        getScenario(username, password).downloadStreamFixture === 'slow-series'
+    );
+}
+
+function streamSlowSeriesDownload(request: Request, response: Response): void {
+    let sentBytes = 0;
+    let stopped = false;
+    let timer: NodeJS.Timeout | undefined;
+
+    const stop = () => {
+        stopped = true;
+        if (timer) {
+            clearTimeout(timer);
+            timer = undefined;
+        }
+        response.off('drain', scheduleChunk);
+    };
+    const scheduleChunk = () => {
+        if (!stopped && !timer) {
+            timer = setTimeout(writeChunk, DOWNLOAD_STREAM_CHUNK_INTERVAL_MS);
+        }
+    };
+    const writeChunk = () => {
+        timer = undefined;
+        if (stopped || response.destroyed || response.writableEnded) {
+            stop();
+            return;
+        }
+
+        const remainingBytes = DOWNLOAD_STREAM_BYTES - sentBytes;
+        const chunk =
+            remainingBytes >= DOWNLOAD_STREAM_CHUNK.length
+                ? DOWNLOAD_STREAM_CHUNK
+                : DOWNLOAD_STREAM_CHUNK.subarray(0, remainingBytes);
+        sentBytes += chunk.length;
+        const canContinue = response.write(chunk);
+
+        if (sentBytes >= DOWNLOAD_STREAM_BYTES) {
+            response.end();
+        } else if (canContinue) {
+            scheduleChunk();
+        } else {
+            response.once('drain', scheduleChunk);
+        }
+    };
+
+    request.once('close', stop);
+    response.once('close', stop);
+    response.once('finish', stop);
+    response
+        .status(200)
+        .type('video/mp4')
+        .set('Content-Length', String(DOWNLOAD_STREAM_BYTES))
+        .set('Cache-Control', 'no-store')
+        .flushHeaders();
+    scheduleChunk();
 }
 
 function isPerformanceMediaRequest(
