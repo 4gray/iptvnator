@@ -8,7 +8,7 @@ import {
     untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { interval, of, startWith, switchMap } from 'rxjs';
+import { interval, map, of, startWith, switchMap } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     type EpgProgram,
@@ -345,14 +345,21 @@ export class WorkspaceDashboardRailsComponent {
 
     // Minute heartbeat for the expiry badges: resolveSourceExpiryBadge reads
     // the wall clock, so without a reactive tick a dashboard left open would
-    // never cross a day-countdown or expiration boundary.
+    // never cross a day-countdown or expiration boundary. interval() emits
+    // 0 first — shifted by one so it differs from initialValue, otherwise
+    // the signal's equality check would swallow the first tick.
     private readonly sourceExpiryTick = toSignal(
-        interval(SOURCE_EXPIRY_TICK_MS).pipe(startWith(0)),
+        interval(SOURCE_EXPIRY_TICK_MS).pipe(map((tick) => tick + 1)),
         { initialValue: 0 }
     );
 
-    readonly sourceCards = computed<DashboardRailCard[]>(() =>
-        this.data.recentPlaylists().map((playlist) => ({
+    readonly sourceCards = computed<DashboardRailCard[]>(() => {
+        // Explicit language dependency for the translate.instant() calls
+        // below (title fallback, expiry-badge labels). getPlaylistProvider
+        // also reads the data service's language tick, but the labels must
+        // not rely on that indirection surviving refactors.
+        this.languageTick();
+        return this.data.recentPlaylists().map((playlist) => ({
             id: playlist._id,
             title:
                 playlist.title ||
@@ -370,8 +377,8 @@ export class WorkspaceDashboardRailsComponent {
                 this.playlistRefreshAction.canRefresh(playlist)
             ),
             expiryBadge: this.buildSourceExpiryBadge(playlist._id),
-        }))
-    );
+        }));
+    });
 
     constructor() {
         // Re-entering the dashboard should pick up any DB-backed recent/favorite
