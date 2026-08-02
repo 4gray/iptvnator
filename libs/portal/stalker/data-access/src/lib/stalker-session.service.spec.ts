@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { DataService } from '@iptvnator/services';
+import { of } from 'rxjs';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import {
     STALKER_SERIAL_NUMBER,
@@ -22,6 +23,76 @@ type GetProfileWithIdentity = (
     identity: ExpectedStalkerPortalIdentity,
     handshakeRandom: string
 ) => Promise<StalkerProfileResponse>;
+
+describe('StalkerSessionService watchdog row resolution', () => {
+    const activationSnapshot = {
+        _id: 'portal-1',
+        title: 'Portal',
+        portalUrl: 'https://portal.example.com/server/load.php',
+        macAddress: '00:1A:79:AA:BB:CC',
+        isFullStalkerPortal: true,
+        lastUsage: '',
+    } as unknown as Playlist;
+
+    let sendIpcEvent: jest.Mock;
+    let getPlaylistById: jest.Mock;
+    let service: StalkerSessionService;
+
+    beforeEach(() => {
+        Object.defineProperty(globalThis, 'crypto', {
+            configurable: true,
+            value: {
+                subtle: {
+                    digest: jest.fn(
+                        async () => new Uint8Array(20).fill(1).buffer
+                    ),
+                },
+            },
+        });
+        sendIpcEvent = jest
+            .fn()
+            .mockResolvedValue({ js: { token: 'TOK', random: 'r' } });
+        getPlaylistById = jest.fn();
+
+        TestBed.configureTestingModule({
+            providers: [
+                StalkerSessionService,
+                { provide: DataService, useValue: { sendIpcEvent } },
+                {
+                    provide: PlaylistsService,
+                    useValue: { getPlaylistById },
+                },
+            ],
+        });
+        service = TestBed.inject(StalkerSessionService);
+    });
+
+    it('authenticates watchdog pings as the freshly persisted row, not the activation snapshot', async () => {
+        // The user edited the MAC after the watchdog started: the very next
+        // ping must use the stored row — pairing the old identity would
+        // keep an old session alive and repopulate the token cache with it.
+        const editedRow = {
+            ...activationSnapshot,
+            macAddress: '00:1A:79:00:77:77',
+        };
+        getPlaylistById.mockReturnValue(of(editedRow));
+
+        service.setActiveWatchdogPlaylist(activationSnapshot);
+        // The init ping runs on a floating promise chain.
+        for (let i = 0; i < 20; i += 1) {
+            await Promise.resolve();
+        }
+
+        expect(getPlaylistById).toHaveBeenCalledWith('portal-1');
+        expect(sendIpcEvent).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                macAddress: '00:1A:79:00:77:77',
+            })
+        );
+        service.setActiveWatchdogPlaylist(null);
+    });
+});
 
 describe('StalkerSessionService.refreshActiveWatchdogPlaylist', () => {
     const basePlaylist = {

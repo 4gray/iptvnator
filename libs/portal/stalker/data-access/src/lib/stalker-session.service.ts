@@ -1,11 +1,12 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Injector, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import {
     isFullStalkerPortalPlaylist,
     isFullStalkerPortalUrl,
     Playlist,
     STALKER_REQUEST,
 } from '@iptvnator/shared/interfaces';
-import { DataService } from '@iptvnator/services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     getStalkerPortalIdentityFromPlaylist,
@@ -93,6 +94,9 @@ interface StalkerAuthConfirmationResponse {
 })
 export class StalkerSessionService {
     private dataService = inject(DataService);
+    // Lazy: PlaylistsService drags the persistence stack and is only needed
+    // when a watchdog ping re-resolves its playlist from the stored row.
+    private readonly injector = inject(Injector);
     private readonly logger = createLogger('StalkerSession');
 
     // In-memory token cache for current session (keyed by playlist ID)
@@ -217,6 +221,35 @@ export class StalkerSessionService {
         this.watchdogInFlight.delete(playlistId);
     }
 
+    /**
+     * The playlist a watchdog ping authenticates as. The persisted row is
+     * the source of truth: portal metadata (endpoint, mode, MAC, identity)
+     * edited or repaired mid-session must reach the keepalive within one
+     * ping cycle — the activation-time snapshot is only the fallback when
+     * the row cannot be read.
+     */
+    private async resolveWatchdogPlaylist(
+        playlistId: string
+    ): Promise<Playlist | undefined> {
+        try {
+            const row = await firstValueFrom(
+                this.injector
+                    .get(PlaylistsService)
+                    .getPlaylistById(playlistId)
+            );
+            if (row) {
+                const playlist = row as Playlist;
+                // Keep the fallback snapshot fresh for the next cycle.
+                this.watchdogPlaylists.set(playlistId, playlist);
+                return playlist;
+            }
+        } catch {
+            // Store unavailable (e.g. isolated tests): keep the snapshot.
+        }
+
+        return this.watchdogPlaylists.get(playlistId);
+    }
+
     private async sendWatchdogPing(
         playlistId: string,
         init: '0' | '1'
@@ -225,19 +258,21 @@ export class StalkerSessionService {
             return;
         }
 
-        const playlist = this.watchdogPlaylists.get(playlistId);
-        if (
-            !playlist ||
-            !playlist.portalUrl ||
-            !playlist.macAddress ||
-            !isFullStalkerPortalPlaylist(playlist)
-        ) {
-            this.stopWatchdog(playlistId);
-            return;
-        }
-
+        // Claimed BEFORE the row read: it awaits, and two overlapping pings
+        // passing the check together would double-fire the keepalive.
         this.watchdogInFlight.add(playlistId);
         try {
+            const playlist = await this.resolveWatchdogPlaylist(playlistId);
+            if (
+                !playlist ||
+                !playlist.portalUrl ||
+                !playlist.macAddress ||
+                !isFullStalkerPortalPlaylist(playlist)
+            ) {
+                this.stopWatchdog(playlistId);
+                return;
+            }
+
             await this.makeAuthenticatedRequest(
                 playlist,
                 {
