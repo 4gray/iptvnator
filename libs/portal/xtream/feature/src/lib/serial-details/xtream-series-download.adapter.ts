@@ -3,9 +3,10 @@ import {
     createSeriesEpisodeDownloadSnapshot,
     type DownloadMovieSnapshotInput,
 } from '@iptvnator/portal/shared/util';
-import type {
-    XtreamSerieEpisode,
-    XtreamSerieEpisodeInfo,
+import {
+    XTREAM_CLIENT_USER_AGENT,
+    type XtreamSerieEpisode,
+    type XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
 
 export interface XtreamSeriesDownloadAdapterOptions {
@@ -15,6 +16,9 @@ export interface XtreamSeriesDownloadAdapterOptions {
     readonly serverUrl?: string;
     readonly username?: string;
     readonly password?: string;
+    readonly userAgent?: string;
+    readonly referrer?: string;
+    readonly origin?: string;
     readonly metadataContext: DownloadMovieSnapshotInput;
 }
 
@@ -88,6 +92,13 @@ export function createXtreamSeriesDownloadAdapter(
                         title: `${options.title || 'Series'} - ${episodeCode} - ${episode.title}`,
                         url: `${normalizedServerUrl}/series/${username}/${password}/${episode.id}.${extension}`,
                         posterUrl: info?.movie_image,
+                        headers: {
+                            userAgent:
+                                options.userAgent?.trim() ||
+                                XTREAM_CLIENT_USER_AGENT,
+                            referer: options.referrer,
+                            origin: options.origin,
+                        },
                         metadataSnapshot: createSeriesEpisodeDownloadSnapshot({
                             ...options.metadataContext,
                             episode: {

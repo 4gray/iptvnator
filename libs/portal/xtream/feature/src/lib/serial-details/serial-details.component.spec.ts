@@ -88,6 +88,9 @@ describe('SerialDetailsComponent', () => {
         serverUrl: 'http://xtream.example',
         username: 'user',
         password: 'pass',
+        userAgent: 'ProtectedProvider/2.0',
+        referrer: 'https://referrer.example/series',
+        origin: 'https://origin.example',
     });
     const fetchSerialDetailsWithMetadata = jest.fn();
     const cancelDetailsRequest = jest.fn();
@@ -384,6 +387,11 @@ describe('SerialDetailsComponent', () => {
             seriesXtreamId: 103,
             seasonNumber: 1,
             episodeNumber: 1,
+            headers: {
+                userAgent: 'ProtectedProvider/2.0',
+                referer: 'https://referrer.example/series',
+                origin: 'https://origin.example',
+            },
             metadataSnapshot: {
                 version: 1,
                 language: 'en',

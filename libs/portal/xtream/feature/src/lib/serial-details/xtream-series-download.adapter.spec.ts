@@ -1,4 +1,7 @@
-import type { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import {
+    XTREAM_CLIENT_USER_AGENT,
+    type XtreamSerieEpisode,
+} from '@iptvnator/shared/interfaces';
 import { createXtreamSeriesDownloadAdapter } from './xtream-series-download.adapter';
 
 const POSTER_URL = 'https://images.test/stills/the-one.jpg';
@@ -10,6 +13,9 @@ const OPTIONS = {
     serverUrl: 'http://host/',
     username: 'user',
     password: 'pass',
+    userAgent: 'ProtectedProvider/1.0',
+    referrer: 'https://referrer.test/series',
+    origin: 'https://origin.test',
     metadataContext: {
         language: 'en',
         title: 'Signal House',
@@ -67,6 +73,11 @@ describe('createXtreamSeriesDownloadAdapter', () => {
             seriesXtreamId: 900,
             seasonNumber: 2,
             episodeNumber: 3,
+            headers: {
+                userAgent: 'ProtectedProvider/1.0',
+                referer: 'https://referrer.test/series',
+                origin: 'https://origin.test',
+            },
         });
         expect(metadataSnapshot).toEqual({
             version: 1,
@@ -83,6 +94,27 @@ describe('createXtreamSeriesDownloadAdapter', () => {
             },
             enrichedAt: expect.any(String),
         });
+    });
+
+    it('keeps the Xtream client user-agent fallback for episode downloads', async () => {
+        const adapter = createXtreamSeriesDownloadAdapter({
+            ...OPTIONS,
+            userAgent: '   ',
+            referrer: undefined,
+            origin: undefined,
+        });
+
+        const candidate = adapter.createCandidate(episode(), '1');
+
+        await expect(candidate?.prepare()).resolves.toEqual(
+            expect.objectContaining({
+                headers: {
+                    userAgent: XTREAM_CLIENT_USER_AGENT,
+                    referer: undefined,
+                    origin: undefined,
+                },
+            })
+        );
     });
 
     it('preserves the existing season and episode fallback rules', async () => {
