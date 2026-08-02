@@ -85,10 +85,10 @@ variants, contextual buttons, and theme-aware styling.
   the preflight joins the single trailing refresh; later download-update
   broadcasts cannot delay that assigned refresh. Restored files therefore
   become stable skips without requiring a Stalker URL/network request. Both
-  providers
-  use normalized `episode.id` as the canonical
+  providers use normalized `episode.id` as the canonical
   episode `xtreamId`; Stalker `originalCmd` and `originalId` participate only
-  in URL resolution.
+  in URL resolution. Provider adapters preserve numeric season zero, including
+  a fallback season key of `"0"`, so Specials keep distinct `S00` coordinates.
   The exact `(playlistId, contentType, xtreamId)` identity is authoritative.
   Complete `(playlistId, seriesXtreamId, seasonNumber, episodeNumber)`
   coordinates are a legacy episode-compatibility fallback. Stalker also stores

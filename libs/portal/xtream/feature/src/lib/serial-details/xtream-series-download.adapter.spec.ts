@@ -117,26 +117,33 @@ describe('createXtreamSeriesDownloadAdapter', () => {
         );
     });
 
-    it('preserves the existing season and episode fallback rules', async () => {
+    it('preserves specials season zero and the existing fallback rules', async () => {
         const adapter = createXtreamSeriesDownloadAdapter(OPTIONS);
-        const fromSeasonKey = adapter.createCandidate(
+        const specials = adapter.createCandidate(
             episode({ season: 0, episode_num: 0 }),
             '4'
         );
+        const fromSeasonKey = adapter.createCandidate(
+            episode({ season: Number.NaN }),
+            '0'
+        );
         const defaults = adapter.createCandidate(
-            episode({ season: 0, episode_num: Number.NaN }),
+            episode({ season: Number.NaN, episode_num: Number.NaN }),
             undefined
         );
 
+        expect(specials?.identity).toEqual(
+            expect.objectContaining({ seasonNumber: 0, episodeNumber: 1 })
+        );
         expect(fromSeasonKey?.identity).toEqual(
-            expect.objectContaining({ seasonNumber: 4, episodeNumber: 1 })
+            expect.objectContaining({ seasonNumber: 0, episodeNumber: 3 })
         );
         expect(defaults?.identity).toEqual(
             expect.objectContaining({ seasonNumber: 1, episodeNumber: 1 })
         );
-        await expect(fromSeasonKey?.prepare()).resolves.toEqual(
+        await expect(specials?.prepare()).resolves.toEqual(
             expect.objectContaining({
-                title: 'Signal House - S04E01 - The One',
+                title: 'Signal House - S00E01 - The One',
             })
         );
     });
@@ -180,7 +187,7 @@ describe('createXtreamSeriesDownloadAdapter', () => {
         ['non-positive series id', { seriesId: 0 }, {}, undefined],
         ['unsafe season', {}, { season: 1.5 }, undefined],
         ['unsafe episode number', {}, { episode_num: -1 }, undefined],
-        ['unsafe fallback season', {}, { season: 0 }, '-2'],
+        ['unsafe fallback season', {}, { season: Number.NaN }, '-2'],
     ] as const)(
         'returns null for %s',
         (_label, optionOverrides, episodeOverrides, fallbackSeasonKey) => {

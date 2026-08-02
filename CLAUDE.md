@@ -978,7 +978,9 @@ engine` (restart required) or
   for both providers; Stalker playback identifiers only resolve the URL. Exact
   `(playlistId, contentType, xtreamId)` matches are authoritative, while
   complete playlist/series/season/episode coordinates are a fail-closed legacy
-  fallback that migrates reusable rows to the canonical id. Stalker persists
+  fallback that migrates reusable rows to the canonical id. Numeric season
+  zero, including fallback key `"0"`, remains a valid Specials coordinate for
+  both providers. Stalker persists
   `episode_identity_scope` separately for regular `/series`, embedded VOD
   `series[]`, and lazy Ministra VOD `is_series`. Known different scopes do not
   match; a pre-scope coordinate row is ambiguous and blocked, while an exact

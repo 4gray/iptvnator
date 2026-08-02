@@ -61,6 +61,23 @@ function positiveSafeInteger(value: unknown): number | null {
     return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function downloadSeasonNumber(
+    value: unknown,
+    fallbackSeasonKey: string | undefined
+): number | null {
+    const parsed = Number(value);
+    if (Number.isSafeInteger(parsed)) {
+        return parsed >= 0 ? parsed : null;
+    }
+    if (value != null && !(typeof value === 'number' && Number.isNaN(value))) {
+        return null;
+    }
+
+    const normalizedFallback = fallbackSeasonKey?.trim();
+    const fallback = Number(normalizedFallback || 1);
+    return Number.isSafeInteger(fallback) && fallback >= 0 ? fallback : null;
+}
+
 function episodeInfo(
     episode: XtreamSerieEpisode
 ): XtreamSerieEpisodeInfo | undefined {
@@ -83,8 +100,9 @@ export function createStalkerSeriesDownloadAdapter(
             const item = options.item;
             const xtreamId = positiveSafeInteger(episode.id);
             const seriesXtreamId = positiveSafeInteger(options.seriesId);
-            const seasonNumber = positiveSafeInteger(
-                episode.season || Number(fallbackSeasonKey) || 1
+            const seasonNumber = downloadSeasonNumber(
+                episode.season,
+                fallbackSeasonKey
             );
             const episodeNumber = positiveSafeInteger(episode.episode_num || 1);
             const episodeIdentityScope =

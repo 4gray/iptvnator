@@ -268,22 +268,34 @@ describe('createStalkerSeriesDownloadAdapter', () => {
         }
     );
 
-    it('preserves the season-key and episode-number fallback rules', () => {
+    it('preserves specials season zero and the existing fallback rules', async () => {
         const adapter = createStalkerSeriesDownloadAdapter(options());
+        const specials = adapter.createCandidate(
+            episode({ season: 0, episode_num: 0 }),
+            '4'
+        );
 
+        expect(specials?.identity).toEqual(
+            expect.objectContaining({ seasonNumber: 0, episodeNumber: 1 })
+        );
         expect(
-            adapter.createCandidate(episode({ season: 0, episode_num: 0 }), '4')
+            adapter.createCandidate(episode({ season: Number.NaN }), '0')
                 ?.identity
         ).toEqual(
-            expect.objectContaining({ seasonNumber: 4, episodeNumber: 1 })
+            expect.objectContaining({ seasonNumber: 0, episodeNumber: 3 })
         );
         expect(
             adapter.createCandidate(
-                episode({ season: 0, episode_num: Number.NaN }),
+                episode({ season: Number.NaN, episode_num: Number.NaN }),
                 undefined
             )?.identity
         ).toEqual(
             expect.objectContaining({ seasonNumber: 1, episodeNumber: 1 })
+        );
+        await expect(specials?.prepare()).resolves.toEqual(
+            expect.objectContaining({
+                title: 'Signal House - S00E01 - The Call',
+            })
         );
     });
 
@@ -356,11 +368,11 @@ describe('createStalkerSeriesDownloadAdapter', () => {
         ['non-positive season', {}, { season: -1 }, '2'],
         ['unsafe episode number', {}, { episode_num: 1.5 }, '2'],
         ['non-positive episode number', {}, { episode_num: -1 }, '2'],
-        ['non-positive fallback season', {}, { season: 0 }, '-2'],
+        ['non-positive fallback season', {}, { season: Number.NaN }, '-2'],
         [
             'unsafe fallback season',
             {},
-            { season: 0 },
+            { season: Number.NaN },
             String(Number.MAX_SAFE_INTEGER + 1),
         ],
     ] as const)(
