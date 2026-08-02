@@ -138,6 +138,31 @@ test('ignores relative @use examples written inside comments', () => {
     assert.deepEqual(extractRelativeImports(source), ['../real/partial']);
 });
 
+test('collects every target of a comma-separated @import list', () => {
+    const source = "@import './local', '../../shared/theme', 'sass:math';";
+
+    assert.deepEqual(extractRelativeImports(source), [
+        './local',
+        '../../shared/theme',
+    ]);
+});
+
+test('treats a @use configuration value as a value, not a second import', () => {
+    const source = [
+        "@use '../../styles/theme' with ($font: 'Inter', $mode: './dark');",
+        "@forward '../../styles/panel-header' with ($gap: './nope');",
+    ].join('\n');
+
+    assert.deepEqual(extractRelativeImports(source), [
+        '../../styles/theme',
+        '../../styles/panel-header',
+    ]);
+});
+
+test('ignores a url() import the browser resolves at runtime', () => {
+    assert.deepEqual(extractRelativeImports('@import url("./plain.css");'), []);
+});
+
 test('keeps protocol slashes intact when stripping line comments', () => {
     const stripped = stripScssComments(
         "$font: url('https://example.test/f.woff2'); // trailing note"

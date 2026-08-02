@@ -154,6 +154,15 @@ build that compiles it, naming the project to declare. Comment-only example
 paths are ignored, so the documentation blocks inside the shared partials do not
 register as broken imports. CI runs it in the `unit-and-typecheck` job.
 
+Only a module Sass actually compiles counts as an input. `@import` is the one
+rule that takes a comma-separated list, and **every** target in it is a separate
+dependency — reading just the first would let a later cross-project target
+escape the cache key while the check still passed. A quoted string after the
+module in `@use`/`@forward` belongs to a `with (...)` configuration and is a
+value, and `url(...)` stays a plain CSS import the browser resolves at runtime;
+neither is a build input, and treating either as one would report a phantom
+broken import.
+
 Verify a suspected caching gap directly — add a comment to a partial, run the
 consuming build, and confirm the task runs instead of reporting a cache hit:
 

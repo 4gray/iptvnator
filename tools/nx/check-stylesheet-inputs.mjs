@@ -4,7 +4,25 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const STYLESHEET_IMPORT = /@(?:use|forward|import)\s+(['"])([^'"]+)\1/g;
+const STYLESHEET_RULE = /@(use|forward|import)\s+([^;{}]*)/g;
+const QUOTED_TARGET = /(['"])([^'"]+)\1/g;
+const CSS_URL = /url\([^)]*\)/g;
+
+/**
+ * `@import` is the only rule that accepts a comma-separated list, and every
+ * entry in it is a separate dependency: reading just the first would let a
+ * later cross-project target escape the cache key while the check still
+ * passes. `@use`/`@forward` load exactly one module, so a quoted string after
+ * the first belongs to a `with (...)` configuration and is a value, not a
+ * dependency. `url(...)` is a plain CSS import the browser resolves at
+ * runtime, so Sass never compiles it and it is not a build input either.
+ */
+function targetsOfRule(rule, clause) {
+    const quoted = [
+        ...clause.replace(CSS_URL, ' ').matchAll(QUOTED_TARGET),
+    ].map((match) => match[2]);
+    return rule === 'import' ? quoted : quoted.slice(0, 1);
+}
 
 /**
  * Sass documents relative `@use` examples inside comments. Those paths do not
@@ -29,8 +47,10 @@ export function stripScssComments(source) {
 export function extractRelativeImports(source) {
     const specifiers = [];
     const stripped = stripScssComments(source);
-    for (const match of stripped.matchAll(STYLESHEET_IMPORT)) {
-        if (match[2].startsWith('.')) specifiers.push(match[2]);
+    for (const [, rule, clause] of stripped.matchAll(STYLESHEET_RULE)) {
+        for (const target of targetsOfRule(rule, clause)) {
+            if (target.startsWith('.')) specifiers.push(target);
+        }
     }
     return specifiers;
 }
