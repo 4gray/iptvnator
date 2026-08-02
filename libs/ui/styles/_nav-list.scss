@@ -1,4 +1,9 @@
 // ─── Shared List Navigation Styles ────────────────────────────────────────────
+// Plain CSS rules (not a mixin) for sidebar and context-panel list items, so no
+// alias is needed. Consumers live in several libraries at different depths;
+// pick the relative @use path from the consuming stylesheet, for example:
+//   @use '../../../../../../ui/styles/nav-list';
+
 .nav-list {
     flex: 1;
     overflow-y: auto;

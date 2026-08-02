@@ -5,6 +5,7 @@
     "prefix": "lib",
     "projectType": "library",
     "tags": ["scope:portal", "domain:stalker", "type:feature"],
+    "implicitDependencies": ["ui-styles"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",
