@@ -405,14 +405,48 @@ dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
   the worker at startup, and runs once per app session.
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
-  backdrop (when the provider item has none), a rating badge and up to two
+  backdrop (when the activity row has none), a rating badge and up to two
   genre chips — resolved through the enrichment facade, so items already
   opened in a detail view come from the SQLite cache without network.
-  Results are memoized per title for the session. The hero renders
+  Results are memoized per lookup identity for the session. The hero renders
   immediately from provider data; extras appear when resolved. Series
   heroes additionally show the tracked "S{n}·E{n}" badge from the playback
   position (no TMDB involved); the watch-progress bar is limited to
   movie/series heroes.
+
+  The query is built to **match what the detail view searched with**, not
+  just what the card displays. A title alone is weaker identity than the
+  detail page had: without a year `pickConfidentMatch` requires a single
+  exact title match, which common titles never satisfy, and the miss lands
+  in the negative cache under a lookup key the detail view's hit can never
+  be found at. Stalker rows carry those facts —
+  `extractStalkerItemTmdbHints` (`libs/shared/interfaces`) reads
+  `info.name`, `info.o_name`, `info.releasedate` and `info.tmdb_id` off the
+  stored entry, mirroring `enrichStalkerSelectionWithTmdb` field for field.
+  A `'movie'` verdict gets a second attempt under `'tv'` — `'movie'` is what
+  every row falls back to when nothing says otherwise, and an embedded-VOD
+  series is a `'movie'` activity row but a show on TMDB. That retry **drops
+  the id**, which is only ever valid for the media type it was resolved
+  under: `/movie/<tv id>` resolves to an unrelated film. A `'tv'` verdict
+  gets no retry — it is reached only on positive evidence (series category,
+  `is_series`, or a non-empty episode array), and the gate cannot tell an
+  adaptation sharing its show's name and year from the show itself.
+
+  Note the id in a stored Stalker entry is not a provider claim. Stalker
+  portals never send one; its only source is a match this app already made
+  and gated.
+
+### Stalker backdrops on activity rows
+
+Xtream detail views back-fill `content.backdrop_url`, which the dashboard
+reads directly. Stalker items never reach the `content` table, so their
+backdrop travels inside the stored playlist entry instead
+(`info.tmdb_backdrop`, written by the same merge that enriched the detail
+view) and the activity mappers surface it as `backdrop_url` —
+`mapStalkerPlaylistRecentItems` in `playlist-recently-viewed.utils.ts` and
+`buildStalkerFavoriteItems` in `dashboard-mappers.ts`. Entries saved before
+enrichment (or with TMDB off) simply have none, and the dashboard falls back
+to a blurred poster.
 
 ### `badProviderId:` rows
 
