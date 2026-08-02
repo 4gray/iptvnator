@@ -35,6 +35,7 @@ export function buildXtreamImportPhaseTone(
         case 'loading-movies':
         case 'loading-series':
             return 'remote';
+        case 'loading-cached':
         case 'preparing-content':
         case 'saving-categories':
         case 'saving-content':
@@ -82,6 +83,8 @@ export function buildXtreamImportPhaseLabel(
     translate: TranslateFn
 ): string {
     switch (phase) {
+        case 'loading-cached':
+            return translate('WORKSPACE.SHELL.XTREAM_IMPORT_LOADING_CACHED');
         case 'preparing-content':
             return translate('WORKSPACE.SHELL.XTREAM_IMPORT_PREPARING');
         case 'loading-categories':
@@ -104,9 +107,16 @@ export function buildXtreamImportPhaseLabel(
 }
 
 export function buildXtreamImportDetailLabel(
+    phase: string | null | undefined,
     tone: XtreamImportPhaseTone,
     translate: TranslateFn
 ): string {
+    // Reading the already-imported catalog from SQLite is a local phase, but
+    // the generic local detail ("prepares faster switches next time") would
+    // misdescribe it — the cache is what is being read, not built.
+    if (phase === 'loading-cached') {
+        return translate('WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_CACHED');
+    }
     if (tone === 'remote') {
         return translate('WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_REMOTE');
     }

@@ -458,6 +458,25 @@ describe('WorkspaceShellFacade', () => {
         );
     });
 
+    it('describes a local-library read while cached content is loading', () => {
+        const xtreamStore = TestBed.inject(
+            XtreamStore
+        ) as unknown as MockXtreamStore;
+        const xtreamImport = TestBed.inject(WorkspaceShellXtreamImportService);
+
+        xtreamStore.currentImportPhase.set('loading-cached');
+
+        expect(xtreamImport.xtreamImportPhaseLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING_CACHED'
+        );
+        expect(xtreamImport.xtreamImportSourceLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_LOCAL_BADGE'
+        );
+        expect(xtreamImport.xtreamImportDetailLabel()).toBe(
+            'WORKSPACE.SHELL.XTREAM_IMPORT_DETAIL_CACHED'
+        );
+    });
+
     it('shows the Xtream overlay during refresh preparation for the active playlist', () => {
         refreshPreparationSignal.set({
             playlistId: 'pl-1',
