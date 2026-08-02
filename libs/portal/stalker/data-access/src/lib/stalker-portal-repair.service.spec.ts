@@ -151,8 +151,13 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://ministra.example/server/load.php',
                 isFullStalkerPortal: true,
             });
-            // The classification handshake already produced a token.
-            expect(setCachedToken).toHaveBeenCalledWith('portal-1', 'TOKEN1');
+            // The classification handshake already produced a token,
+            // tagged with the playlist as its identity source.
+            expect(setCachedToken).toHaveBeenCalledWith(
+                'portal-1',
+                'TOKEN1',
+                expect.objectContaining({ _id: 'portal-1' })
+            );
             // A repaired ACTIVE playlist must re-sync the watchdog now: a
             // simple→full flip has to start the keepalive mid-session.
             expect(refreshActiveWatchdogPlaylist).toHaveBeenCalledWith(

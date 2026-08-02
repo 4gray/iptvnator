@@ -11,7 +11,10 @@ import {
     getStalkerRequestErrorStatus,
     isStalkerAuthFailureResponse,
 } from './stalker-portal-discovery.utils';
-import { getStalkerPortalIdentityFromPlaylist } from './stalker-identity.utils';
+import {
+    getStalkerPortalIdentityFromPlaylist,
+    stalkerIdentityFingerprint,
+} from './stalker-identity.utils';
 import { StalkerSessionService } from './stalker-session.service';
 import {
     type StalkerPortalRepairApi,
@@ -29,21 +32,7 @@ interface StalkerPortalModeOverride {
     isFullStalkerPortal: boolean;
 }
 
-/** Blank and absent identity values are equivalent. */
-function normalizeIdentityValue(value: unknown): string {
-    return typeof value === 'string' ? value.trim() : '';
-}
 
-function identityFingerprintOf(playlist: PlaylistMeta): string {
-    return [
-        normalizeIdentityValue(playlist.macAddress),
-        normalizeIdentityValue(playlist.stalkerSerialNumber),
-        normalizeIdentityValue(playlist.stalkerDeviceId1),
-        normalizeIdentityValue(playlist.stalkerDeviceId2),
-        normalizeIdentityValue(playlist.stalkerSignature1),
-        normalizeIdentityValue(playlist.stalkerSignature2),
-    ].join('|');
-}
 
 /**
  * Lazy repair for playlists whose persisted portal endpoint or mode is
@@ -94,6 +83,22 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         Promise<PlaylistMeta | null>
     >();
 
+    constructor() {
+        // The watchdog resolves its playlist from the persisted row; while a
+        // repair's persistence is pending (or failed) that row still carries
+        // the broken configuration, so pings must see the override too. The
+        // typeof guard keeps isolated TestBeds with partial session mocks
+        // working.
+        if (
+            typeof this.stalkerSession.registerWatchdogPlaylistDecorator ===
+            'function'
+        ) {
+            this.stalkerSession.registerWatchdogPlaylistDecorator((playlist) =>
+                this.applyOverride(playlist)
+            );
+        }
+    }
+
     /**
      * Returns the playlist with a completed repair applied, or the playlist
      * unchanged (same reference) when there is nothing to apply.
@@ -112,7 +117,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         }
 
         if (
-            identityFingerprintOf(playlist) !== override.identityFingerprint
+            stalkerIdentityFingerprint(playlist) !== override.identityFingerprint
         ) {
             // The MAC or Stalker identity was edited after the repair. The
             // override AND the token the repair authenticated for the
@@ -238,7 +243,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         return [
             playlist.portalUrl ?? '',
             String(isFullStalkerPortalPlaylist(playlist)),
-            identityFingerprintOf(playlist),
+            stalkerIdentityFingerprint(playlist),
         ].join('|');
     }
 
@@ -288,15 +293,21 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
         this.overrides.set(playlist._id, {
             sourcePortalUrl: playlist.portalUrl,
             sourceIsFullStalkerPortal: storedMode,
-            identityFingerprint: identityFingerprintOf(playlist),
+            identityFingerprint: stalkerIdentityFingerprint(playlist),
             portalUrl: outcome.portalUrl,
             isFullStalkerPortal: outcome.isFullStalkerPortal,
         });
 
         if (outcome.isFullStalkerPortal && outcome.token) {
             // The classification handshake already authenticated; reuse its
-            // token so the retry does not immediately handshake again.
-            this.stalkerSession.setCachedToken(playlist._id, outcome.token);
+            // token so the retry does not immediately handshake again. The
+            // playlist itself is the identity source — a repair never
+            // changes WHO the session belongs to, only WHERE it talks.
+            this.stalkerSession.setCachedToken(
+                playlist._id,
+                outcome.token,
+                playlist
+            );
         } else if (!outcome.isFullStalkerPortal) {
             this.stalkerSession.clearCachedToken(playlist._id);
         }
@@ -347,7 +358,7 @@ export class StalkerPortalRepairService implements StalkerPortalRepairApi {
             // repair too, or its token/watchdog would belong to the old
             // account. Blank and absent identity values are equivalent.
             return (
-                identityFingerprintOf(row) === identityFingerprintOf(playlist)
+                stalkerIdentityFingerprint(row) === stalkerIdentityFingerprint(playlist)
             );
         } catch (error) {
             this.logger.warn(

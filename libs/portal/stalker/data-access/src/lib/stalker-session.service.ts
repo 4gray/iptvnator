@@ -4,6 +4,7 @@ import {
     isFullStalkerPortalPlaylist,
     isFullStalkerPortalUrl,
     Playlist,
+    PlaylistMeta,
     STALKER_REQUEST,
 } from '@iptvnator/shared/interfaces';
 import { DataService, PlaylistsService } from '@iptvnator/services';
@@ -12,6 +13,7 @@ import {
     getStalkerPortalIdentityFromPlaylist,
     LEGACY_DEFAULT_STALKER_SERIAL,
     normalizeStalkerPortalIdentity,
+    stalkerIdentityFingerprint,
     type StalkerPortalIdentity,
 } from './stalker-identity.utils';
 
@@ -99,8 +101,16 @@ export class StalkerSessionService {
     private readonly injector = inject(Injector);
     private readonly logger = createLogger('StalkerSession');
 
-    // In-memory token cache for current session (keyed by playlist ID)
-    private tokenCache = new Map<string, string>();
+    // In-memory token cache for the current session, keyed by playlist ID
+    // and tagged with the identity fingerprint the session was negotiated
+    // for — an edited MAC/identity must never inherit the previous token.
+    private tokenCache = new Map<
+        string,
+        { token: string; identityFingerprint: string }
+    >();
+    private watchdogPlaylistDecorator:
+        | ((playlist: Playlist) => Playlist)
+        | null = null;
 
     // Pending authentication promises to prevent race conditions
     // When multiple requests need a token simultaneously, they all wait for the same auth
@@ -127,17 +137,39 @@ export class StalkerSessionService {
     }
 
     /**
-     * Gets the cached token for a playlist, or null if not cached
+     * Gets the cached token for a playlist, or null if not cached.
+     * Identity validation happens in `ensureToken`; this raw accessor stays
+     * for playback fast paths that cannot supply an identity (PR 6 scope).
      */
     getCachedToken(playlistId: string): string | null {
-        return this.tokenCache.get(playlistId) || null;
+        return this.tokenCache.get(playlistId)?.token || null;
     }
 
     /**
-     * Sets a token in the cache
+     * Caches a token together with the identity fingerprint of the playlist
+     * the session was negotiated for.
      */
-    setCachedToken(playlistId: string, token: string): void {
-        this.tokenCache.set(playlistId, token);
+    setCachedToken(
+        playlistId: string,
+        token: string,
+        identitySource: PlaylistMeta
+    ): void {
+        this.tokenCache.set(playlistId, {
+            token,
+            identityFingerprint: stalkerIdentityFingerprint(identitySource),
+        });
+    }
+
+    /**
+     * Lets the repair layer overlay its in-session override on the row a
+     * watchdog ping resolves: the persisted row can still carry a
+     * pre-repair configuration while persistence is pending (or failed),
+     * and pinging that configuration would stop or misdirect the keepalive.
+     */
+    registerWatchdogPlaylistDecorator(
+        decorator: (playlist: Playlist) => Playlist
+    ): void {
+        this.watchdogPlaylistDecorator = decorator;
     }
 
     /**
@@ -241,13 +273,25 @@ export class StalkerSessionService {
                 const playlist = row as Playlist;
                 // Keep the fallback snapshot fresh for the next cycle.
                 this.watchdogPlaylists.set(playlistId, playlist);
-                return playlist;
+                return this.decorateWatchdogPlaylist(playlist);
             }
         } catch {
             // Store unavailable (e.g. isolated tests): keep the snapshot.
         }
 
-        return this.watchdogPlaylists.get(playlistId);
+        const snapshot = this.watchdogPlaylists.get(playlistId);
+        return snapshot ? this.decorateWatchdogPlaylist(snapshot) : snapshot;
+    }
+
+    /**
+     * Overlays the repair layer's in-session override (when registered) so
+     * a ping never authenticates against a configuration a completed repair
+     * has already proven broken — even before persistence lands.
+     */
+    private decorateWatchdogPlaylist(playlist: Playlist): Playlist {
+        return this.watchdogPlaylistDecorator
+            ? this.watchdogPlaylistDecorator(playlist)
+            : playlist;
     }
 
     private async sendWatchdogPing(
@@ -530,10 +574,22 @@ export class StalkerSessionService {
 
         const identity = getStalkerPortalIdentityFromPlaylist(playlist);
 
-        // Check in-memory cache first (valid for current session only)
-        const cachedToken = this.getCachedToken(playlist._id);
-        if (cachedToken) {
-            return { token: cachedToken, serialNumber: identity.serialNumber };
+        // Check in-memory cache first (valid for current session only).
+        const cached = this.tokenCache.get(playlist._id);
+        if (cached) {
+            if (
+                cached.identityFingerprint ===
+                stalkerIdentityFingerprint(playlist)
+            ) {
+                return {
+                    token: cached.token,
+                    serialNumber: identity.serialNumber,
+                };
+            }
+            // The cached session was negotiated for a DIFFERENT identity
+            // (the playlist was edited): retire it and authenticate as the
+            // current one instead of pairing new identity with old session.
+            this.clearCachedToken(playlist._id);
         }
 
         // Check if there's already a pending authentication for this playlist
@@ -562,7 +618,7 @@ export class StalkerSessionService {
                     macAddress,
                     identity
                 );
-                this.setCachedToken(playlist._id, token);
+                this.setCachedToken(playlist._id, token, playlist);
                 return { token, serialNumber: identity.serialNumber };
             } finally {
                 // Clean up pending promise regardless of success/failure
@@ -644,7 +700,7 @@ export class StalkerSessionService {
                 macAddress,
                 identity
             );
-            this.setCachedToken(playlist._id, result.token);
+            this.setCachedToken(playlist._id, result.token, playlist);
             settleSlot({
                 token: result.token,
                 serialNumber: identity.serialNumber,
@@ -738,9 +794,11 @@ export class StalkerSessionService {
 
             // Check for authorization failure in response
             if (this.isAuthorizationError(response)) {
+                // Retire the failed token even when not retrying (e.g.
+                // watchdog pings): leaving it cached would hand a dead
+                // session to the next caller.
+                this.retireFailedToken(playlist._id, token);
                 if (retryOnAuthFailure && isFullStalkerPortalPlaylist(playlist)) {
-                    // Retire the failed token so the retry re-authenticates
-                    this.retireFailedToken(playlist._id, token);
                     // Retry once with fresh authentication
                     return this.makeAuthenticatedRequest<T>(
                         playlist,
@@ -755,18 +813,21 @@ export class StalkerSessionService {
             return response;
         } catch (error) {
             // Check if error indicates auth failure
-            if (
-                this.isAuthorizationError(error) &&
-                retryOnAuthFailure &&
-                isFullStalkerPortalPlaylist(playlist)
-            ) {
-                // Retire the failed token and retry with new handshake
+            if (this.isAuthorizationError(error)) {
+                // Same rule as above: a failed session is retired even on
+                // the no-retry path.
                 this.retireFailedToken(playlist._id, token);
-                return this.makeAuthenticatedRequest<T>(
-                    playlist,
-                    params,
-                    false
-                );
+                if (
+                    retryOnAuthFailure &&
+                    isFullStalkerPortalPlaylist(playlist)
+                ) {
+                    // Retry with a fresh handshake
+                    return this.makeAuthenticatedRequest<T>(
+                        playlist,
+                        params,
+                        false
+                    );
+                }
             }
             throw error;
         }

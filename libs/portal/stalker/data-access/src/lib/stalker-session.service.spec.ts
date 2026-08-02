@@ -92,6 +92,103 @@ describe('StalkerSessionService watchdog row resolution', () => {
         );
         service.setActiveWatchdogPlaylist(null);
     });
+
+    it('overlays the registered repair decorator on the resolved row', async () => {
+        // Simple→full repair whose persistence has not landed yet: the row
+        // still says simple, and without the overlay the ping would stop
+        // the freshly started keepalive.
+        const simpleRow = {
+            ...activationSnapshot,
+            isFullStalkerPortal: false,
+        };
+        getPlaylistById.mockReturnValue(of(simpleRow));
+        service.registerWatchdogPlaylistDecorator((playlist) => ({
+            ...playlist,
+            isFullStalkerPortal: true,
+        }));
+
+        service.setActiveWatchdogPlaylist(activationSnapshot);
+        for (let i = 0; i < 20; i += 1) {
+            await Promise.resolve();
+        }
+
+        // The keepalive survived (no stopWatchdog) and authenticated.
+        expect(sendIpcEvent).toHaveBeenCalled();
+        service.setActiveWatchdogPlaylist(null);
+    });
+});
+
+describe('StalkerSessionService identity-tagged token cache', () => {
+    const playlistA = {
+        _id: 'portal-1',
+        title: 'Portal',
+        portalUrl: 'https://portal.example.com/server/load.php',
+        macAddress: '00:1A:79:AA:BB:CC',
+        isFullStalkerPortal: true,
+        lastUsage: '',
+    } as unknown as Playlist;
+
+    let sendIpcEvent: jest.Mock;
+    let service: StalkerSessionService;
+
+    beforeEach(() => {
+        Object.defineProperty(globalThis, 'crypto', {
+            configurable: true,
+            value: {
+                subtle: {
+                    digest: jest.fn(
+                        async () => new Uint8Array(20).fill(1).buffer
+                    ),
+                },
+            },
+        });
+        sendIpcEvent = jest
+            .fn()
+            .mockResolvedValue({ js: { token: 'FRESH', random: 'r' } });
+
+        TestBed.configureTestingModule({
+            providers: [
+                StalkerSessionService,
+                { provide: DataService, useValue: { sendIpcEvent } },
+            ],
+        });
+        service = TestBed.inject(StalkerSessionService);
+    });
+
+    it('reuses a cached token only for the identity it was negotiated for', async () => {
+        service.setCachedToken('portal-1', 'OLD-IDENTITY-TOKEN', playlistA);
+
+        const sameIdentity = await service.ensureToken(playlistA);
+        expect(sameIdentity.token).toBe('OLD-IDENTITY-TOKEN');
+        expect(sendIpcEvent).not.toHaveBeenCalled();
+
+        // The user edited the MAC: the cached session belongs to the old
+        // identity and must be replaced by a fresh authentication.
+        const editedIdentity = {
+            ...playlistA,
+            macAddress: '00:1A:79:00:66:66',
+        } as Playlist;
+        const reAuthenticated = await service.ensureToken(editedIdentity);
+
+        expect(reAuthenticated.token).toBe('FRESH');
+        expect(sendIpcEvent).toHaveBeenCalled();
+    });
+
+    it('retires a failed token even on the no-retry path (watchdog pings)', async () => {
+        service.setCachedToken('portal-1', 'DEAD', playlistA);
+        sendIpcEvent.mockResolvedValue('Authorization failed.');
+
+        await expect(
+            service.makeAuthenticatedRequest(
+                playlistA,
+                { action: 'get_events' },
+                false
+            )
+        ).rejects.toThrow('Authorization failed after retry');
+
+        // Leaving the dead token cached would hand it to the next caller.
+        expect(service.getCachedToken('portal-1')).toBeNull();
+    });
 });
 
 describe('StalkerSessionService.refreshActiveWatchdogPlaylist', () => {
@@ -401,7 +498,7 @@ describe('StalkerSessionService identity payloads', () => {
             isFullStalkerPortal: true,
         } as Playlist;
 
-        service.setCachedToken(playlist._id, 'stale-token');
+        service.setCachedToken(playlist._id, 'stale-token', playlist);
 
         let release: (value: { token: string }) => void = () => undefined;
         jest.spyOn(service, 'authenticate').mockImplementation(
@@ -436,7 +533,7 @@ describe('StalkerSessionService identity payloads', () => {
         jest.spyOn(service, 'ensureToken')
             .mockResolvedValueOnce({ token: 'stale-token' })
             .mockResolvedValueOnce({ token: 'fresh-token' });
-        service.setCachedToken(playlist._id, 'fresh-token');
+        service.setCachedToken(playlist._id, 'fresh-token', playlist);
 
         dataService.sendIpcEvent
             .mockResolvedValueOnce({ js: 'Authorization failed. 75' })
@@ -467,7 +564,7 @@ describe('StalkerSessionService identity payloads', () => {
         jest.spyOn(service, 'ensureToken')
             .mockResolvedValueOnce({ token: 'dead-token' })
             .mockResolvedValueOnce({ token: 'new-token' });
-        service.setCachedToken(playlist._id, 'dead-token');
+        service.setCachedToken(playlist._id, 'dead-token', playlist);
 
         dataService.sendIpcEvent
             .mockResolvedValueOnce({ js: 'Authorization failed. 75' })
