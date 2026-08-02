@@ -8,12 +8,12 @@ import { ipcMain } from 'electron';
 import {
     PortalDebugEvent,
     STALKER_REQUEST,
+    buildStalkerIdentityRequestContext,
+    buildStalkerRequestUrl,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { buildStalkerIdentityRequestContext } from './stalker-identity';
-import { buildStalkerRequestUrl } from './stalker-request-url';
 import { assertRemoteUrlAllowed } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 

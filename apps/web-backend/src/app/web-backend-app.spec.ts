@@ -1,10 +1,20 @@
 import { AddressInfo } from 'node:net';
 import { Server } from 'node:http';
+import { STALKER_MAG_USER_AGENT } from '@iptvnator/shared/interfaces';
 import {
     createWebBackendApp,
     WebBackendHttpClient,
     WebBackendHttpGetOptions,
 } from './web-backend-app';
+
+/** The transport-identity headers every portal-facing Stalker request carries. */
+const STALKER_IDENTITY_HEADERS = {
+    'User-Agent': STALKER_MAG_USER_AGENT,
+    'X-User-Agent': STALKER_MAG_USER_AGENT,
+    Accept: '*/*',
+    Connection: 'keep-alive',
+    'Accept-Language': 'en-US,en;q=0.9',
+};
 
 interface HttpRequest {
     readonly headers?: Record<string, string>;
@@ -349,7 +359,7 @@ https://stream.example/live.m3u8`);
         );
     });
 
-    it('proxies Stalker requests with MAC cookie and bearer token', async () => {
+    it('proxies Stalker requests with the full STB identity and no credentials in the portal query', async () => {
         const httpClient = new StubHttpClient();
         httpClient.queueResponse({ js: [{ id: '2001', title: 'Action' }] });
 
@@ -371,21 +381,127 @@ https://stream.example/live.m3u8`);
                     action: 'get_categories',
                     payload: { js: [{ id: '2001', title: 'Action' }] },
                 });
+                // MAC and token travel ONLY as Cookie/Authorization — the
+                // portal query carries protocol params plus the JsHttpRequest
+                // marker every real client sends.
                 expect(httpClient.requests).toEqual([
                     {
                         headers: {
+                            ...STALKER_IDENTITY_HEADERS,
                             Authorization: 'Bearer abc123',
-                            Cookie: 'mac=00:1A:79:00:00:01',
+                            Cookie: 'mac=00:1A:79:00:00:01; stb_lang=en_US@rg=dezzzz; timezone=Europe/Berlin',
                         },
-                        params: {
-                            action: 'get_categories',
-                            macAddress: '00:1A:79:00:00:01',
-                            token: 'abc123',
-                            type: 'vod',
-                        },
-                        url: 'http://stalker.example/portal.php',
+                        params: undefined,
+                        url: 'http://stalker.example/portal.php?action=get_categories&type=vod&JsHttpRequest=1-xml',
                     },
                 ]);
+            }
+        );
+    });
+
+    it('sends the SN header, cfduid cookie, and get_profile sn param for a stored serial', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ js: { status: 0 } });
+        httpClient.queueResponse({ js: [] });
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php'
+                );
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${targetId}&macAddress=00:1A:79:00:00:01&token=abc123&serialNumber=SN1234&type=stb&action=get_profile`
+                );
+                // A non-profile action must not carry the serial as a query
+                // param even when the renderer sends a stale `sn`.
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${targetId}&macAddress=00:1A:79:00:00:01&token=abc123&serialNumber=SN1234&type=itv&action=get_ordered_list&sn=SN1234`
+                );
+
+                const [profileRequest, listRequest] = httpClient.requests;
+                expect(profileRequest.headers).toMatchObject({
+                    SN: 'SN1234',
+                });
+                expect(profileRequest.headers?.['Cookie']).toContain(
+                    '__cfduid='
+                );
+                expect(profileRequest.url).toBe(
+                    'http://stalker.example/portal.php?type=stb&action=get_profile&sn=SN1234&JsHttpRequest=1-xml'
+                );
+
+                expect(listRequest.headers).toMatchObject({ SN: 'SN1234' });
+                expect(listRequest.url).toBe(
+                    'http://stalker.example/portal.php?type=itv&action=get_ordered_list&JsHttpRequest=1-xml'
+                );
+                for (const request of httpClient.requests) {
+                    expect(request.url).not.toContain('serialNumber');
+                    expect(request.url).not.toContain('macAddress');
+                    expect(request.url).not.toContain('token=');
+                }
+            }
+        );
+    });
+
+    it('keeps the presented handshake token in the portal query', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ js: { token: 'FRESH' } });
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php'
+                );
+                // Handshake is the one action whose token is protocol
+                // content: the portal reads the candidate from the query and
+                // returns it unchanged when it is still valid.
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${targetId}&macAddress=00:1A:79:00:00:01&token=CACHEDTOKEN123&type=stb&action=handshake`
+                );
+
+                expect(httpClient.requests[0].url).toBe(
+                    'http://stalker.example/portal.php?type=stb&action=handshake&token=CACHEDTOKEN123&JsHttpRequest=1-xml'
+                );
+                expect(httpClient.requests[0].headers).toMatchObject({
+                    Authorization: 'Bearer CACHEDTOKEN123',
+                });
+            }
+        );
+    });
+
+    it('omits the session cookie when no MAC is supplied', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ js: [] });
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php'
+                );
+                await fetch(
+                    `${baseUrl}/stalker?targetId=${targetId}&action=get_categories`
+                );
+
+                expect(
+                    httpClient.requests[0].headers
+                ).not.toHaveProperty('Cookie');
+                expect(httpClient.requests[0].headers).toMatchObject(
+                    STALKER_IDENTITY_HEADERS
+                );
             }
         );
     });
@@ -420,20 +536,20 @@ https://stream.example/live.m3u8`);
 
                 // Slashes stay raw and pre-encoded sequences pass through
                 // untouched (no %25 double-encoding); '&' inside cmd cannot
-                // append query parameters. cmd is no longer in axios params.
+                // append query parameters. The whole query is built by the
+                // shared URL builder, so nothing rides in axios params.
                 expect(httpClient.requests).toEqual([
                     {
                         headers: {
-                            Cookie: 'mac=00:1A:79:00:00:01',
+                            ...STALKER_IDENTITY_HEADERS,
+                            Cookie: 'mac=00:1A:79:00:00:01; stb_lang=en_US@rg=dezzzz; timezone=Europe/Berlin',
                         },
-                        params: {
-                            action: 'create_link',
-                            macAddress: '00:1A:79:00:00:01',
-                            type: 'itv',
-                        },
+                        params: undefined,
                         url:
                             'http://stalker.example/portal.php' +
-                            '?cmd=ffrt3%20http://host/ch/123?token=a%3Ab%20c%26x=1',
+                            '?action=create_link&type=itv' +
+                            '&cmd=ffrt3%20http://host/ch/123?token=a%3Ab%20c%26x=1' +
+                            '&JsHttpRequest=1-xml',
                     },
                 ]);
             }
@@ -471,8 +587,8 @@ https://stream.example/live.m3u8`);
                 );
 
                 expect(httpClient.requests.map((request) => request.url)).toEqual([
-                    'http://stalker.example/portal.php?cmd=/media/1.mpg',
-                    'http://stalker.example/load.php?cmd=/media/2.mpg',
+                    'http://stalker.example/portal.php?action=create_link&cmd=/media/1.mpg&JsHttpRequest=1-xml',
+                    'http://stalker.example/load.php?action=create_link&cmd=/media/2.mpg&JsHttpRequest=1-xml',
                 ]);
             }
         );

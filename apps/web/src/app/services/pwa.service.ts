@@ -138,6 +138,7 @@ export class PwaService extends DataService {
                     macAddress: string;
                     params: Record<string, string>;
                     token?: string;
+                    serialNumber?: string;
                 }
             ) as T;
         }
@@ -479,6 +480,7 @@ export class PwaService extends DataService {
         params: Record<string, string>;
         macAddress: string;
         token?: string;
+        serialNumber?: string;
     }) {
         let context = createPortalDebugRequestContext({
             provider: 'stalker',
@@ -494,11 +496,18 @@ export class PwaService extends DataService {
         try {
             const targetId = await this.getProviderTargetId(payload.url);
             const token = payload.token ?? payload.params.token;
+            // `macAddress`, `token` and `serialNumber` are control params for
+            // the /stalker proxy: it turns them into the portal-facing
+            // Cookie / Authorization / SN headers and strips them from the
+            // query it forwards to the portal.
             const requestParams = {
                 targetId,
                 ...payload.params,
                 macAddress: payload.macAddress,
                 ...(token ? { token } : {}),
+                ...(payload.serialNumber
+                    ? { serialNumber: payload.serialNumber }
+                    : {}),
             };
             const params = new URLSearchParams(requestParams);
             const requestUrl = `${this.corsProxyUrl}/stalker?${params.toString()}`;

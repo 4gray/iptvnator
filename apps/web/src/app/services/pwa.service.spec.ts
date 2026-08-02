@@ -77,4 +77,47 @@ describe('PwaService', () => {
 
         expect(http.match(() => true)).toHaveLength(0);
     });
+
+    it('sends Stalker credentials as /stalker control params, including the serial', async () => {
+        // JSDOM ships no fetch; install one for the proxy call.
+        const fetchMock = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ payload: { js: [] } }),
+        } as unknown as Response);
+        const globalWithFetch = globalThis as { fetch?: typeof fetch };
+        globalWithFetch.fetch = fetchMock as unknown as typeof fetch;
+
+        try {
+            const request = service.forwardStalkerRequest({
+                url: 'http://portal.example/stalker_portal/server/load.php',
+                macAddress: '00:1A:79:AA:BB:CC',
+                token: 'TOKEN123',
+                serialNumber: 'SN1234',
+                params: { type: 'itv', action: 'get_ordered_list' },
+            });
+
+            http.expectOne((req) =>
+                req.url.endsWith('/provider-targets')
+            ).flush({ targetId: 'target-1' });
+
+            await expect(request).resolves.toEqual({ js: [] });
+
+            const requestUrl = new URL(String(fetchMock.mock.calls[0][0]));
+            // The proxy turns these into the portal-facing
+            // Cookie/Authorization/SN headers; they must all reach it so the
+            // PWA transport can match the Electron one.
+            expect(requestUrl.searchParams.get('macAddress')).toBe(
+                '00:1A:79:AA:BB:CC'
+            );
+            expect(requestUrl.searchParams.get('token')).toBe('TOKEN123');
+            expect(requestUrl.searchParams.get('serialNumber')).toBe(
+                'SN1234'
+            );
+            expect(requestUrl.searchParams.get('action')).toBe(
+                'get_ordered_list'
+            );
+        } finally {
+            delete globalWithFetch.fetch;
+        }
+    });
 });
