@@ -801,30 +801,17 @@ export class StalkerSessionService {
             return true;
         }
 
-        // Convert response to string for pattern matching
-        const responseStr = JSON.stringify(responseOrError).toLowerCase();
-
-        // Check for "Authorization failed. XX" pattern (like "Authorization failed. 75")
-        if (/authorization\s*failed\.?\s*\d*/i.test(responseStr)) {
-            return true;
-        }
-
-        // Check for common auth failure indicators
-        const jsData = response?.['js'] as Record<string, unknown>;
-        const errorMessage =
-            (response?.['message'] as string)?.toLowerCase?.() ||
-            jsData?.['error']?.toString?.().toLowerCase?.() ||
-            jsData?.['msg']?.toString?.().toLowerCase?.() ||
-            '';
-
-        return (
-            errorMessage.includes('authorization') ||
-            errorMessage.includes('unauthorized') ||
-            errorMessage.includes('auth failed') ||
-            errorMessage.includes('invalid token') ||
-            response?.['status'] === 401 ||
-            jsData?.['error'] === 'Authorization failed'
-        );
+        // Everything above is structural. What used to follow was a
+        // `JSON.stringify(responseOrError)` sweep with an UNANCHORED
+        // `authorization failed` pattern — the same false positive the body
+        // detector was just anchored against, reachable through a different
+        // door: a short proxy/WAF page containing the phrase retired the
+        // token, retried, and threw `Authorization failed after retry`,
+        // whose own message then matched the repair trigger and re-probed a
+        // portal that never refused anything. The shared detector already
+        // covers every real shape, including the `js.error`/`js.msg`
+        // envelopes, so the sweep only added the false positive.
+        return response?.['status'] === 401 || response?.['status'] === 403;
     }
 
     /**

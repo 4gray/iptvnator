@@ -259,6 +259,28 @@ describe('StalkerSessionService identity-tagged token cache', () => {
         }
     );
 
+    it('does not treat a proxy page mentioning the phrase as an auth failure', async () => {
+        // End to end through makeAuthenticatedRequest, not just the
+        // primitive: this is the path that used to stringify the whole
+        // response and match an unanchored `authorization failed`. A short
+        // page from something in FRONT of the portal would retire the token,
+        // retry, and throw a message that itself matches the repair trigger —
+        // re-probing a portal that never refused anything.
+        service.setCachedToken('portal-1', 'LIVE', playlistA);
+        const body = 'The request Authorization failed. Try again later.';
+        sendIpcEvent.mockResolvedValue(body);
+
+        await expect(
+            service.makeAuthenticatedRequest(playlistA, {
+                action: 'get_genres',
+            })
+        ).resolves.toBe(body);
+
+        // No retry, no retirement, nothing for the repair layer to act on.
+        expect(sendIpcEvent).toHaveBeenCalledTimes(1);
+        expect(service.getCachedToken('portal-1')).toBe('LIVE');
+    });
+
     it('retires a failed token even on the no-retry path (watchdog pings)', async () => {
         service.setCachedToken('portal-1', 'DEAD', playlistA);
         sendIpcEvent.mockResolvedValue('Authorization failed.');
