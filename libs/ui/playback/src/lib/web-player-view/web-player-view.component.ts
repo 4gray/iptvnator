@@ -48,6 +48,7 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { ElectronStreamHeadersService } from './electron-stream-headers.service';
 import {
     getDiagnosticCodecHint,
     getDiagnosticDescriptionKey,
@@ -224,8 +225,7 @@ export class WebPlayerViewComponent implements OnDestroy {
 
     /** Stream URL the currently configured Electron header override belongs to. */
     private headerScopeStreamUrl: string | null = null;
-    /** Guards against a superseded playback resolving its header IPC late. */
-    private playbackSyncSequence = 0;
+    private readonly streamHeaders = inject(ElectronStreamHeadersService);
 
     constructor() {
         effect(() => {
@@ -235,20 +235,16 @@ export class WebPlayerViewComponent implements OnDestroy {
             const playback = this.resolvedPlayback();
             const isLive = this.resolvedIsLive();
             this.playbackDiagnostic.set(null);
-            void this.applyPlayback(playback, isLive);
+            this.applyPlayback(playback, isLive);
         });
     }
 
     ngOnDestroy(): void {
         // Portal credentials must not outlive the playback session that
         // needed them: dropping the scoped override here keeps only the
-        // playlist-level (unscoped) User-Agent/Referer defaults active.
-        this.playbackSyncSequence += 1;
-        if (window.electron && this.headerScopeStreamUrl !== null) {
-            void window.electron
-                .setUserAgent(undefined, undefined, this.headerScopeStreamUrl)
-                .catch(() => undefined);
-        }
+        // playlist-level (unscoped) User-Agent/Referer defaults active. The
+        // service no-ops if a newer consumer already owns the override slot.
+        this.streamHeaders.clear(this.headerScopeStreamUrl);
     }
 
     /**
@@ -263,8 +259,8 @@ export class WebPlayerViewComponent implements OnDestroy {
         playback: ResolvedPortalPlayback,
         isLive: boolean
     ): void {
-        const sequence = ++this.playbackSyncSequence;
-        const headerSync = this.syncElectronStreamHeaders(playback);
+        const headerSync = this.streamHeaders.apply(playback);
+        this.headerScopeStreamUrl = playback.streamUrl;
         const handOff = (): void => {
             this.setChannel(playback);
             this.setVjsOptions(playback.streamUrl, isLive);
@@ -275,56 +271,11 @@ export class WebPlayerViewComponent implements OnDestroy {
             return;
         }
 
-        void headerSync.then(() => {
-            if (sequence === this.playbackSyncSequence) {
+        void headerSync.then((stillCurrent) => {
+            if (stillCurrent) {
                 handOff();
             }
         });
-    }
-
-    /**
-     * Single owner of the scoped header override for every built-in player.
-     * Extracts the full header set from the resolved playback — including the
-     * portal Cookie/Authorization that auth-gated Stalker streams require —
-     * and hands it to the main process, scoped to this stream's URL. A
-     * playback without custom headers deliberately clears the previous scoped
-     * override so stale headers never leak onto the next stream. Returns null
-     * when there is no Electron bridge (PWA).
-     */
-    private syncElectronStreamHeaders(
-        playback: ResolvedPortalPlayback
-    ): Promise<void> | null {
-        if (!window.electron) {
-            return null;
-        }
-
-        const userAgent =
-            playback.userAgent ??
-            this.getHeaderValue(playback.headers, 'User-Agent');
-        const referer =
-            playback.referer ??
-            this.getHeaderValue(playback.headers, 'Referer');
-        const cookie = this.getHeaderValue(playback.headers, 'Cookie');
-        const authorization = this.getHeaderValue(
-            playback.headers,
-            'Authorization'
-        );
-
-        this.headerScopeStreamUrl = playback.streamUrl;
-        return window.electron
-            .setUserAgent(
-                userAgent,
-                referer,
-                playback.streamUrl,
-                cookie || authorization ? { authorization, cookie } : undefined
-            )
-            .then(() => undefined)
-            .catch((error: unknown) => {
-                console.warn(
-                    '[WebPlayerView] Failed to configure Electron request headers:',
-                    error
-                );
-            });
     }
 
     setVjsOptions(streamUrl: string, isLive = true) {

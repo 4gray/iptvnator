@@ -190,10 +190,12 @@ stream and attaches the same portal header set through
 `buildStalkerExternalPlaybackHeaders()`
 (`libs/portal/stalker/data-access/src/lib/stalker-live-playback.utils.ts`).
 The resolved `ResolvedPortalPlayback.headers` feed both the external players
-(MPV/VLC/Embedded MPV via the launch IPC) and the built-in web players (via
-the scoped Electron request-header override owned by `WebPlayerViewComponent`
-— see `docs/architecture/electron-security.md`, "Scoped Request Header
-Overrides").
+(MPV/VLC/Embedded MPV via the launch IPC) and the built-in players via the
+scoped Electron request-header override (`ElectronStreamHeadersService`,
+applied by `WebPlayerViewComponent` for the video players and by the Stalker
+live layout for the radio audio player, which renders outside
+`WebPlayerViewComponent` — see `docs/architecture/electron-security.md`,
+"Scoped Request Header Overrides").
 
 Two stream profiles exist, selected by one shared predicate:
 

@@ -91,3 +91,58 @@ test('@electron @stalker built-in player plays an auth-gated portal stream', asy
         await closeElectronApp(app);
     }
 });
+
+test('@electron @stalker built-in audio player plays an auth-gated radio stream', async ({
+    dataDir,
+    request,
+}) => {
+    await resetMockServers(request, ['stalker']);
+
+    // The radio branch renders the dedicated audio player instead of
+    // WebPlayerViewComponent, so it exercises the Stalker live layout's own
+    // header wiring — a gap the ITV test above cannot catch.
+    const bareResponse = await request.get(
+        `${stalkerMockServer}/stream/gated/audio.mp4`
+    );
+    expect(bareResponse.status()).toBe(403);
+
+    const app = await launchElectronApp(dataDir);
+
+    try {
+        await addStalkerPortal(app.mainWindow, {
+            macAddress: GATED_MAC,
+            portalUrl: FULL_PORTAL_URL,
+        });
+        await waitForStalkerCatalog(app.mainWindow);
+
+        await app.mainWindow.getByRole('link', { name: /radio/i }).click();
+        await app.mainWindow.waitForURL(/stalker.*radio/);
+
+        const categories = app.mainWindow.locator('.category-item');
+        await expect(categories.first()).toBeVisible({ timeout: 10_000 });
+        await categories.first().click();
+
+        const channels = app.mainWindow.locator(
+            '[data-test-id="channel-item"]'
+        );
+        await expect(channels.first()).toBeVisible({ timeout: 20_000 });
+        await channels.first().click();
+
+        // The bare <audio> element renders zero-size (its UI is custom), so
+        // assert attachment rather than visibility.
+        const audio = app.mainWindow.locator('app-audio-player audio').first();
+        await expect(audio).toBeAttached({ timeout: 15_000 });
+
+        await expect
+            .poll(
+                () =>
+                    audio.evaluate(
+                        (element: HTMLAudioElement) => element.currentTime
+                    ),
+                { timeout: 20_000 }
+            )
+            .toBeGreaterThan(0.5);
+    } finally {
+        await closeElectronApp(app);
+    }
+});

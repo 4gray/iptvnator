@@ -177,28 +177,43 @@ app.get('/stalker', (req: Request, res: Response) => {
 });
 
 /**
- * Auth-gated media endpoint for the `gated-stream` scenario. A real portal's
- * streamer sits behind the same session gate as the API, so this route
- * requires the mac cookie AND the MAC's Bearer token and answers 403
- * otherwise. It is the only automated proof that a player's actual media
+ * Auth-gated media endpoints for the `gated-stream` scenario. A real portal's
+ * streamer sits behind the same session gate as the API, so these routes
+ * require the mac cookie AND the MAC's Bearer token and answer 403
+ * otherwise. They are the only automated proof that a player's actual media
  * requests carry the portal credentials — a unit test cannot show that a
- * header reached the video element.
+ * header reached the video (or audio) element.
  *
- * The body is the shared clear (non-DRM) fragmented-MP4 fixture from the
- * DASH e2e suite; `sendFile` supplies Range support for progressive playback.
+ * The bodies are the shared clear (non-DRM) fragmented-MP4 fixtures from the
+ * DASH e2e suite (video for ITV, audio-only for radio); `sendFile` supplies
+ * Range support for progressive playback.
  */
-const GATED_STREAM_FIXTURE = join(
-    process.cwd(),
-    'apps/web-e2e/src/fixtures/dash/clear-video.mp4'
-);
+const GATED_STREAM_FIXTURES: Record<string, string> = {
+    'audio.mp4': join(
+        process.cwd(),
+        'apps/web-e2e/src/fixtures/dash/clear-audio.mp4'
+    ),
+    'video.mp4': join(
+        process.cwd(),
+        'apps/web-e2e/src/fixtures/dash/clear-video.mp4'
+    ),
+};
 
-app.get('/stream/gated/video.mp4', (req: Request, res: Response) => {
+app.get('/stream/gated/:file', (req: Request, res: Response) => {
+    const fixture = GATED_STREAM_FIXTURES[req.params['file'] ?? ''];
+    if (!fixture) {
+        res.status(404).type('text/plain').send('Not found');
+        return;
+    }
+
     const failure = checkRequestAuthorization(req, true);
     if (failure) {
+        // Log only header PRESENCE: the cookie carries the mac session
+        // credential and must never reach terminal/CI logs verbatim.
         console.log(
-            `[gated-stream] 403 (${failure}) cookie=${String(
-                req.headers['cookie'] ?? '<none>'
-            )} auth=${req.headers['authorization'] ? 'present' : '<none>'}`
+            `[gated-stream] 403 (${failure}) cookie=${
+                req.headers['cookie'] ? 'present' : '<none>'
+            } auth=${req.headers['authorization'] ? 'present' : '<none>'}`
         );
         res.status(403).type('text/plain').send(failure);
         return;
@@ -207,7 +222,7 @@ app.get('/stream/gated/video.mp4', (req: Request, res: Response) => {
     // `dotfiles: 'allow'`: express refuses any path with a dot-segment by
     // default, and git worktrees live under `.claude/worktrees/…` — without
     // this the fixture 404s in every worktree checkout.
-    res.sendFile(GATED_STREAM_FIXTURE, {
+    res.sendFile(fixture, {
         dotfiles: 'allow',
         headers: { 'Content-Type': 'video/mp4' },
     });

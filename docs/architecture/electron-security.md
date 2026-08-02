@@ -132,11 +132,16 @@ The service registers one `session.defaultSession.webRequest.onBeforeSendHeaders
 listener and updates layered in-memory overrides instead of stacking a new
 listener for every channel change.
 
-`WebPlayerViewComponent` is the single renderer owner of the scoped override:
-it extracts the full header set from the resolved playback (including the
-Stalker mac cookie and Bearer token), configures the override **before**
-handing the source to any built-in player, and clears the scoped layer on
-destroy. Individual player components must not call the bridge themselves — a
+`ElectronStreamHeadersService` (`libs/ui/playback`) is the single renderer
+owner of the scoped override slot: it extracts the full header set from the
+resolved playback (including the Stalker mac cookie and Bearer token), and
+its `clear()` releases the slot only while the caller's stream still owns it,
+so a consumer being destroyed cannot wipe an override a newer consumer just
+configured. Two surfaces apply it: `WebPlayerViewComponent` for every
+built-in video player (configuring the override **before** handing the
+source over, clearing on destroy), and the Stalker live layout for the
+dedicated radio audio player, which never mounts a `WebPlayerViewComponent`.
+Individual player components must not call the bridge themselves — a
 narrower call would overwrite the credentialed override.
 
 Rules:

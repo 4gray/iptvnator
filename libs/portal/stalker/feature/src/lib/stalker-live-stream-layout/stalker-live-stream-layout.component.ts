@@ -51,6 +51,7 @@ import {
 } from '@iptvnator/ui/epg';
 import {
     AudioPlayerComponent,
+    ElectronStreamHeadersService,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
@@ -116,6 +117,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly streamHeaders = inject(ElectronStreamHeadersService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly liveSidebarStateService = inject(
@@ -360,6 +362,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private unsubscribeRemoteCommand?: () => void;
     private epgLoadRequestId = 0;
     private playbackRequestId = 0;
+    /** Stream URL of the radio playback whose header override this layout configured. */
+    private radioHeaderScopeUrl: string | null = null;
     private playbackResolution: {
         channelId: string;
         promise: Promise<ResolvedPortalPlayback>;
@@ -556,6 +560,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         this.unsubscribeRemoteChannelChange?.();
         this.unsubscribeRemoteCommand?.();
         this.removeScrollListener();
+        // Radio credentials must not outlive this layout; the service no-ops
+        // when a newer playback already owns the override slot.
+        this.streamHeaders.clear(this.radioHeaderScopeUrl);
     }
 
     isSelectedChannel(item: StalkerItvChannel): boolean {
@@ -587,6 +594,18 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             }
 
             if (isRadioMode) {
+                // The radio branch renders the dedicated audio player, not
+                // WebPlayerViewComponent, so the scoped Electron header
+                // override (portal cookie/token for auth-gated streams) must
+                // be configured here BEFORE the audio element gets the URL.
+                await this.streamHeaders.apply(playback);
+                if (
+                    requestId !== this.playbackRequestId ||
+                    this.selectedChannelId() !== channelId
+                ) {
+                    return;
+                }
+                this.radioHeaderScopeUrl = playback.streamUrl;
                 this.activePlayback.set(playback);
                 return;
             }

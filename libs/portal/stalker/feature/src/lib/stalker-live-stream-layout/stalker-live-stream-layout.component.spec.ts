@@ -279,6 +279,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         settingsStore.resolvedEpgViewMode.set('timeline');
         window.electron = {
             platform: 'darwin',
+            setUserAgent: jest.fn().mockResolvedValue(true),
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(() => jest.fn()),
             onRemoteControlCommand: jest.fn(() => jest.fn()),
@@ -1126,6 +1127,46 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(audioPlayer.icon()).toBe('jazz.png');
         expect(audioPlayer.channelName()).toBe('Jazz FM');
         expect(audioPlayer.dispatchAdjacentChannelAction()).toBe(false);
+    });
+
+    it('configures the scoped Electron header override before radio playback starts', async () => {
+        // The radio branch renders the dedicated audio player, not
+        // WebPlayerViewComponent — without this wiring an auth-gated portal
+        // radio stream 403s because its credentials never reach the request.
+        stalkerStore.selectedContentType.set('radio');
+        selectedCategoryId.set('radio-all');
+        selectedItem.set(null);
+        selectedItvId.set(undefined);
+        fixture.detectChanges();
+        resolveRadioPlayback.mockResolvedValue({
+            streamUrl: 'http://portal.example/radio_2.mpg',
+            title: 'Portal FM',
+            headers: {
+                'User-Agent': 'MAG250',
+                Referer: 'http://portal.example',
+                Cookie: 'mac=00:1A:79:00:00:01',
+                Authorization: 'Bearer TOKEN99',
+            },
+        });
+
+        await component.playChannel(radioChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(window.electron?.setUserAgent).toHaveBeenCalledWith(
+            'MAG250',
+            'http://portal.example',
+            'http://portal.example/radio_2.mpg',
+            {
+                authorization: 'Bearer TOKEN99',
+                cookie: 'mac=00:1A:79:00:00:01',
+            }
+        );
+
+        const audioPlayer = fixture.debugElement.query(
+            By.directive(StubAudioPlayerComponent)
+        ).componentInstance as StubAudioPlayerComponent;
+        expect(audioPlayer.url()).toBe('http://portal.example/radio_2.mpg');
     });
 });
 
