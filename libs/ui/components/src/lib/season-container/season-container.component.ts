@@ -12,7 +12,6 @@ import {
     untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -41,9 +40,12 @@ import {
     parseDuration,
 } from './episode-progress.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
+import {
+    type EpisodeViewMode,
+    SeasonHeaderComponent,
+} from './season-header.component';
 import { SeasonTabsComponent } from './season-tabs.component';
 
-type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
 export interface SeasonContainerPlaybackToggleRequest {
@@ -59,11 +61,11 @@ export interface SeasonContainerPlaybackToggleRequest {
     providers: [SeasonDownloadPresenter],
     imports: [
         MatButtonModule,
-        MatButtonToggleModule,
         MatIcon,
         MatProgressSpinnerModule,
         MatTooltipModule,
         ProgressCapsuleComponent,
+        SeasonHeaderComponent,
         SeasonTabsComponent,
         TranslateModule,
     ],

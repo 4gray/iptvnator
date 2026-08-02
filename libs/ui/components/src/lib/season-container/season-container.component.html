@@ -1,78 +1,14 @@
 <section class="seasons-section">
-    <div class="section-header">
-        <div class="section-header__left">
-            <h3 class="section-title">
-                {{ 'PORTALS.SEASONS_AND_EPISODES' | translate }}
-            </h3>
-        </div>
-        @if (
-            downloadPresenter.presentationVisible() ||
-            (hasSeasons() && !showSeasonEmptyState())
-        ) {
-            <div class="section-header__actions">
-                @if (downloadPresenter.presentationVisible()) {
-                    <button
-                        mat-stroked-button
-                        class="season-download-button"
-                        data-test-id="download-season"
-                        [disabled]="downloadPresenter.seasonDisabled()"
-                        [attr.aria-label]="
-                            downloadPresenter.batchRunning()
-                                ? ('DOWNLOADS.ADDING_TO_QUEUE' | translate)
-                                : ('DOWNLOADS.DOWNLOAD_SEASON_ARIA'
-                                  | translate
-                                      : {
-                                            count: downloadPresenter.eligibleEpisodeCount(),
-                                        })
-                        "
-                        [attr.aria-busy]="
-                            downloadPresenter.batchRunning() ? 'true' : null
-                        "
-                        (click)="downloadPresenter.enqueueSeason()"
-                    >
-                        @if (downloadPresenter.batchRunning()) {
-                            <mat-spinner
-                                diameter="18"
-                                aria-hidden="true"
-                            ></mat-spinner>
-                            {{ 'DOWNLOADS.ADDING_TO_QUEUE' | translate }}
-                        } @else {
-                            <mat-icon>download</mat-icon>
-                            {{
-                                'DOWNLOADS.DOWNLOAD_SEASON'
-                                    | translate
-                                        : {
-                                              count: downloadPresenter.eligibleEpisodeCount(),
-                                          }
-                            }}
-                        }
-                    </button>
-                }
-                @if (hasSeasons() && !showSeasonEmptyState()) {
-                    <div class="view-toggle">
-                        <mat-button-toggle-group
-                            [value]="viewMode()"
-                            (change)="setViewMode($event.value)"
-                            hideSingleSelectionIndicator
-                        >
-                            <mat-button-toggle
-                                value="grid"
-                                [matTooltip]="'PORTALS.GRID_VIEW' | translate"
-                            >
-                                <mat-icon>grid_view</mat-icon>
-                            </mat-button-toggle>
-                            <mat-button-toggle
-                                value="list"
-                                [matTooltip]="'PORTALS.LIST_VIEW' | translate"
-                            >
-                                <mat-icon>view_list</mat-icon>
-                            </mat-button-toggle>
-                        </mat-button-toggle-group>
-                    </div>
-                }
-            </div>
-        }
-    </div>
+    <app-season-header
+        [downloadVisible]="downloadPresenter.presentationVisible()"
+        [batchRunning]="downloadPresenter.batchRunning()"
+        [seasonDisabled]="downloadPresenter.seasonDisabled()"
+        [eligibleEpisodeCount]="downloadPresenter.eligibleEpisodeCount()"
+        [viewToggleVisible]="hasSeasons() && !showSeasonEmptyState()"
+        [viewMode]="viewMode()"
+        (downloadSeason)="downloadPresenter.enqueueSeason()"
+        (viewModeChange)="setViewMode($event)"
+    />
 
     @if (hasSeasons()) {
         <app-season-tabs

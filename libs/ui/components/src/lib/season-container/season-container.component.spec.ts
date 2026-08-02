@@ -596,6 +596,9 @@ describe('SeasonContainerComponent', () => {
         expect(button.getAttribute('aria-label')).toBe(
             'Download season, 1 episodes available'
         );
+        expect(
+            button.querySelector('.season-download-button__label')?.textContent
+        ).toContain('Download season (1)');
         expect(button.nextElementSibling?.classList).toContain('view-toggle');
 
         button.click();
