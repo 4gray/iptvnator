@@ -96,14 +96,15 @@ variants, contextual buttons, and theme-aware styling.
   such a completed row, `DOWNLOADS_START` asynchronously rechecks its retained
   path in the main process. A restored file returns stable
   `reason: 'already-downloaded'` without mutation; active matches return
-  `reason: 'already-in-progress'`. The recheck has a one-second deadline;
-  timeout or probe failure leaves the row untouched and returns a failed
-  submission, allowing the sequential season loop to continue. Completed-file
-  probes used by list refreshes have the same deadline. A timed-out probe is
-  released from the coalescing pool, the snapshot reports the file as missing,
-  and a later refresh performs a fresh check instead of reusing the stalled
-  filesystem operation. The coordinator counts both stable duplicate reasons
-  as skipped. There is no batch IPC,
+  `reason: 'already-in-progress'`. The recheck has a one-second caller deadline
+  that starts before shared-slot acquisition; timeout or probe failure leaves
+  the row untouched and returns a failed submission, allowing the sequential
+  season loop to continue. Completed-file list callers have the same deadline
+  and report a timeout as missing for that snapshot. The underlying filesystem
+  operation remains coalesced and charged against the four-probe cap until it
+  actually settles, so later callers get independent bounded waits without
+  duplicating stalled native work. The coordinator counts both stable duplicate
+  reasons as skipped. There is no batch IPC,
   parallel transfer, or queue reordering: destination authorization, persisted
   header handling, and the backend's one-active-transfer FIFO semantics remain
   unchanged.

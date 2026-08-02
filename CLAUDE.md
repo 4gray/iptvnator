@@ -947,14 +947,15 @@ engine` (restart required) or
   comes from an asynchronous main-process filesystem recheck before a
   completed-missing row can be reset, so a file restored after the renderer
   snapshot is not orphaned or downloaded again. The recheck has a one-second
-  deadline; timeout or probe failure leaves the row untouched and reports a
-  failed submission so the season loop can continue. Completed-file list
-  probes use the same deadline; a timeout releases their coalescing slot and is
-  reported as missing for that snapshot, so a later refresh performs a new
-  filesystem check instead of joining the stalled operation. Episode and
-  season download actions require an authoritative global list. A successful
-  snapshot remains authoritative while a later background refresh is in
-  flight; a latest refresh failure leaves
+  caller deadline that starts before shared-slot acquisition; timeout or probe
+  failure leaves the row untouched and reports a failed submission so the
+  season loop can continue. Completed-file list callers use the same deadline
+  and report a timeout as missing for that snapshot. The underlying filesystem
+  operation remains coalesced and charged against the four-probe cap until it
+  settles, so later callers have independent bounded waits without duplicating
+  stalled native work. Episode and season download actions require an
+  authoritative global list. A successful snapshot remains authoritative while
+  a later background refresh is in flight; a latest refresh failure leaves
   loading/empty-state resolution intact but disables starts until another
   snapshot succeeds.
 - Episode ownership uses normalized `episode.id` as the canonical `xtreamId`
