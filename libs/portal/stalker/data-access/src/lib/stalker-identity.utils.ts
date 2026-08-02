@@ -1,4 +1,5 @@
 import {
+    normalizeStalkerIdentityValue,
     normalizeStalkerPortalIdentity as normalizeSharedStalkerPortalIdentity,
     type Playlist,
     type StalkerPortalIdentity,
@@ -12,6 +13,37 @@ export {
     normalizeStalkerSerialNumber,
     type StalkerPortalIdentity,
 } from '@iptvnator/shared/interfaces';
+
+/**
+ * Canonical fingerprint of WHO a portal session belongs to: the MAC plus
+ * every Stalker identity field, trim-normalized so blank and absent values
+ * are equivalent. The repair override, the once-per-config probe latch and
+ * the session token cache are all keyed/validated with this — a session
+ * negotiated for one fingerprint must never serve another.
+ */
+export function stalkerIdentityFingerprint(
+    playlist: Pick<
+        Playlist,
+        | 'macAddress'
+        | 'stalkerSerialNumber'
+        | 'stalkerDeviceId1'
+        | 'stalkerDeviceId2'
+        | 'stalkerSignature1'
+        | 'stalkerSignature2'
+    >
+): string {
+    // JSON-encoded, not delimiter-joined: identity values are unrestricted
+    // strings, and an unescaped separator would let distinct tuples alias
+    // each other and bypass the identity invalidation.
+    return JSON.stringify([
+        normalizeStalkerIdentityValue(playlist.macAddress) ?? '',
+        normalizeStalkerIdentityValue(playlist.stalkerSerialNumber) ?? '',
+        normalizeStalkerIdentityValue(playlist.stalkerDeviceId1) ?? '',
+        normalizeStalkerIdentityValue(playlist.stalkerDeviceId2) ?? '',
+        normalizeStalkerIdentityValue(playlist.stalkerSignature1) ?? '',
+        normalizeStalkerIdentityValue(playlist.stalkerSignature2) ?? '',
+    ]);
+}
 
 export function getStalkerPortalIdentityFromPlaylist(
     playlist: Pick<

@@ -6,6 +6,7 @@ import {
     parseStalkerDate,
     StalkerAccountInfoService,
 } from './stalker-account-info.service';
+import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
 
 describe('StalkerAccountInfoService', () => {
@@ -14,6 +15,11 @@ describe('StalkerAccountInfoService', () => {
     let stalkerSession: {
         refreshAccountProfile: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
+    };
+    let portalRepair: {
+        applyOverride: jest.Mock;
+        shouldAttemptRepair: jest.Mock;
+        repairPortal: jest.Mock;
     };
 
     const portalPlaylist = {
@@ -39,11 +45,20 @@ describe('StalkerAccountInfoService', () => {
             refreshAccountProfile: jest.fn(),
             makeAuthenticatedRequest: jest.fn(),
         };
+        portalRepair = {
+            applyOverride: jest.fn((playlist) => playlist),
+            shouldAttemptRepair: jest.fn().mockReturnValue(false),
+            repairPortal: jest.fn().mockResolvedValue(null),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 { provide: DataService, useValue: dataService },
                 { provide: StalkerSessionService, useValue: stalkerSession },
+                {
+                    provide: StalkerPortalRepairService,
+                    useValue: portalRepair,
+                },
             ],
         });
 
@@ -84,6 +99,185 @@ describe('StalkerAccountInfoService', () => {
             mac: undefined,
             phone: undefined,
         });
+    });
+
+    it('repairs the portal and retries when the profile request hits a repair trigger', async () => {
+        // The full-portal profile path bypasses executeStalkerRequest, so
+        // opening the dialog on a playlist with a stale endpoint must be
+        // able to repair it instead of just failing.
+        const notFound = new Error('HTTP Error 404: Not Found');
+        stalkerSession.refreshAccountProfile
+            .mockRejectedValueOnce(notFound)
+            .mockResolvedValueOnce({ login: 'user-1' });
+        const repaired = {
+            ...fullPortalPlaylist,
+            portalUrl: 'http://portal.example/stalker_portal/server/load.php',
+        } as PlaylistMeta;
+        portalRepair.shouldAttemptRepair.mockReturnValue(true);
+        portalRepair.repairPortal.mockResolvedValue(repaired);
+
+        const snapshot = await service.fetchAccountInfo(fullPortalPlaylist);
+
+        expect(portalRepair.repairPortal).toHaveBeenCalledWith(
+            fullPortalPlaylist
+        );
+        expect(
+            stalkerSession.refreshAccountProfile
+        ).toHaveBeenLastCalledWith(
+            expect.objectContaining({ portalUrl: repaired.portalUrl })
+        );
+        expect(snapshot).toMatchObject({ login: 'user-1' });
+    });
+
+    it('re-routes to get_main_info when the repair proves the portal is simple', async () => {
+        // The playlist was wrongly marked full; discovery proves it is a
+        // token-free panel, so retrying the handshake profile would fail
+        // identically — the retry must use the simple-portal path.
+        stalkerSession.refreshAccountProfile.mockRejectedValue(
+            new Error('HTTP Error 404: Not Found')
+        );
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { login: 'panel-user' },
+        });
+        portalRepair.shouldAttemptRepair.mockReturnValue(true);
+        portalRepair.repairPortal.mockResolvedValue({
+            ...fullPortalPlaylist,
+            portalUrl: 'http://portal.example/portal.php',
+            isFullStalkerPortal: false,
+        } as PlaylistMeta);
+
+        const snapshot = await service.fetchAccountInfo(fullPortalPlaylist);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            STALKER_REQUEST,
+            expect.objectContaining({
+                params: expect.objectContaining({ action: 'get_main_info' }),
+            })
+        );
+        expect(snapshot).toMatchObject({ login: 'panel-user' });
+    });
+
+    it('re-routes to the profile flow when a repair proves the portal is full', async () => {
+        // Legacy row marked simple: get_main_info goes through
+        // executeStalkerRequest, whose repair flips the mode to full and
+        // retries the same (wrong) action. The dialog must then switch to
+        // handshake + get_profile instead of showing nothing.
+        dataService.sendIpcEvent.mockResolvedValue({ js: null });
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'full-user',
+        });
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(stalkerSession.refreshAccountProfile).toHaveBeenCalledWith(
+            expect.objectContaining({ isFullStalkerPortal: true })
+        );
+        expect(snapshot).toMatchObject({ login: 'full-user' });
+    });
+
+    it('prefers the profile flow over a PARTIAL main-info answer after a mode repair', async () => {
+        // A bare login from get_main_info must not win over the profile
+        // flow once the repair proved the portal is full — expiry and
+        // tariff live only behind handshake + get_profile.
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { login: 'partial-user' },
+        });
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'full-user',
+            expire_date: '1795000000',
+            tariff_plan_name: 'Premium',
+        });
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(snapshot).toMatchObject({
+            login: 'full-user',
+            tariffPlanName: 'Premium',
+        });
+    });
+
+    it('keeps the partial main-info facts when the profile flow publishes nothing', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { login: 'partial-user' },
+        });
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        // applyOverride runs twice before the repair lands (routing, then
+        // inside executeStalkerRequest); only afterwards does it report the
+        // repaired playlist.
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue(undefined);
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(snapshot).toMatchObject({ login: 'partial-user' });
+    });
+
+    it('re-routes to the profile flow when the post-repair main-info retry rejects', async () => {
+        // A full installation that does not implement get_main_info answers
+        // the internal retry with 404 — the rejection must reach the
+        // repaired-mode check instead of failing the dialog.
+        dataService.sendIpcEvent.mockRejectedValue(
+            new Error('HTTP Error 404: Not Found')
+        );
+        const repaired = {
+            ...portalPlaylist,
+            portalUrl: 'http://portal.example/server/load.php',
+            isFullStalkerPortal: true,
+        } as PlaylistMeta;
+        portalRepair.applyOverride
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementationOnce((value: PlaylistMeta) => value)
+            .mockImplementation(() => repaired);
+        stalkerSession.refreshAccountProfile.mockResolvedValue({
+            login: 'full-user',
+        });
+
+        const snapshot = await service.fetchAccountInfo(portalPlaylist);
+
+        expect(snapshot).toMatchObject({ login: 'full-user' });
+    });
+
+    it('rethrows a main-info failure when no repair changed the mode', async () => {
+        const boom = new Error('HTTP Error 404: Not Found');
+        dataService.sendIpcEvent.mockRejectedValue(boom);
+
+        await expect(service.fetchAccountInfo(portalPlaylist)).rejects.toBe(
+            boom
+        );
+    });
+
+    it('rethrows profile failures the repair declines to act on', async () => {
+        const boom = new Error('timeout of 15000ms exceeded');
+        stalkerSession.refreshAccountProfile.mockRejectedValue(boom);
+
+        await expect(
+            service.fetchAccountInfo(fullPortalPlaylist)
+        ).rejects.toBe(boom);
+        expect(portalRepair.repairPortal).not.toHaveBeenCalled();
     });
 
     it('returns null when the full-portal profile has no account block', async () => {

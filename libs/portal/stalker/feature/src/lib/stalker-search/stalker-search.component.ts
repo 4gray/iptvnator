@@ -13,13 +13,15 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
+import {
+    executeStalkerRequest,
+    StalkerPortalRepairService,
+    StalkerSessionService,
+} from '@iptvnator/portal/stalker/data-access';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
-    Playlist,
     ResolvedPortalPlayback,
-    STALKER_REQUEST,
     StalkerPortalActions,
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
@@ -97,6 +99,7 @@ export class StalkerSearchComponent {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly stalkerSession = inject(StalkerSessionService);
+    private readonly portalRepair = inject(StalkerPortalRepairService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly logger = createLogger('StalkerSearch');
@@ -191,30 +194,19 @@ export class StalkerSearchComponent {
                 ...(contentType === 'vod' ? { genre: '0' } : {}),
             };
 
-            // Full portals need the handshake token. The persisted flag can
-            // be missing on the active-playlist meta object, so fall back
-            // to URL detection — otherwise the portal answers
-            // "Authorization failed." and the search looks empty.
-            const isFullPortal =
-                (playlist as Playlist).isFullStalkerPortal ??
-                this.stalkerSession.isFullStalkerPortal(portalUrl);
-
-            const response = isFullPortal
-                ? await this.stalkerSession.makeAuthenticatedRequest<StalkerSearchResponse>(
-                      {
-                          ...(playlist as Playlist),
-                          isFullStalkerPortal: true,
-                      },
-                      requestParams
-                  )
-                : await this.dataService.sendIpcEvent<StalkerSearchResponse>(
-                      STALKER_REQUEST,
-                      {
-                          url: portalUrl,
-                          macAddress,
-                          params: requestParams,
-                      }
-                  );
+            // executeStalkerRequest owns the portal-mode decision (shared
+            // predicate with URL fallback for legacy rows) and the lazy
+            // portal repair, so search cannot drift from the catalog paths.
+            const response =
+                await executeStalkerRequest<StalkerSearchResponse>(
+                    {
+                        dataService: this.dataService,
+                        stalkerSession: this.stalkerSession,
+                        portalRepair: this.portalRepair,
+                    },
+                    playlist,
+                    requestParams
+                );
             const items = response.js?.data || [];
             return items.map((item: StalkerVodSource) =>
                 this.processItemUrls(item, portalUrl)

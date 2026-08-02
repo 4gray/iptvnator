@@ -12,6 +12,7 @@ import {
     StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
 import { StalkerVodSource } from '../../models';
+import { StalkerPortalRepairService } from '../../stalker-portal-repair.service';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
 import { StalkerPortalStoreContract } from '../stalker-store.contracts';
@@ -50,13 +51,15 @@ export function withStalkerSnapshotRefresh() {
             (
                 store,
                 dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
+                stalkerSession = inject(StalkerSessionService),
+                portalRepair = inject(StalkerPortalRepairService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerPortalStoreContract;
                 const requestDeps: StalkerRequestDeps = {
                     dataService,
                     stalkerSession,
+                    portalRepair,
                 };
 
                 const findFreshRow = async (

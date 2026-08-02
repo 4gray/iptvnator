@@ -19,10 +19,12 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     buildStalkerExternalPlaybackHeaders,
+    executeStalkerRequest,
     getStalkerPortalOrigin,
     isCrossOriginStalkerStream,
     normalizeStalkerPlaybackCommand,
     resolveStalkerPlaybackUrl,
+    StalkerPortalRepairService,
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -71,6 +73,7 @@ export class StreamResolverService {
     private readonly dataService = inject(DataService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly stalkerSession = inject(StalkerSessionService);
+    private readonly portalRepair = inject(StalkerPortalRepairService);
     private readonly m3uEpgTimeoutMs = 3000;
     private readonly portalEpgTimeoutMs = 10000;
     private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
@@ -352,8 +355,18 @@ export class StreamResolverService {
         };
 
         let response: StalkerCreateLinkResponse | undefined;
-        if (playlist?.isFullStalkerPortal && playlist) {
-            response = await this.stalkerSession.makeAuthenticatedRequest(
+        // Items opened from global collections can carry their own portal
+        // coordinates with no playlist row; only a playlist-backed request
+        // can go through the shared mode routing + lazy portal repair. When
+        // the row exists it wins over the item's snapshot of the portal URL
+        // (a repaired endpoint must beat a stale favorite).
+        if (playlist) {
+            response = await executeStalkerRequest<StalkerCreateLinkResponse>(
+                {
+                    dataService: this.dataService,
+                    stalkerSession: this.stalkerSession,
+                    portalRepair: this.portalRepair,
+                },
                 playlist,
                 params
             );
@@ -367,14 +380,23 @@ export class StreamResolverService {
 
         const rawCmd = response?.js?.cmd ?? '';
 
+        // Re-read the override AFTER the request: a lazy repair may have
+        // moved the endpoint during this very call, and both the relative
+        // `js.cmd` resolution and the playback header origin must follow
+        // the endpoint that actually answered.
+        const effectivePortalUrl = playlist
+            ? (this.portalRepair.applyOverride(playlist).portalUrl ??
+              portalUrl)
+            : portalUrl;
+
         return this.buildStalkerPlayback(item, playlist, {
             macAddress,
-            portalUrl,
+            portalUrl: effectivePortalUrl,
             // Shared normalizer from the Stalker store: strips the solution
             // prefix and resolves relative `/media/...` or `?...` responses
             // against the portal base instead of returning them verbatim.
             streamUrl: resolveStalkerPlaybackUrl(
-                portalUrl,
+                effectivePortalUrl,
                 item.stalkerCmd ?? '',
                 rawCmd
             ),
@@ -1005,19 +1027,16 @@ export class StreamResolverService {
             size: String(size),
         };
 
-        let response: StalkerEpgResponse;
-        if (playlist.isFullStalkerPortal) {
-            response = await this.stalkerSession.makeAuthenticatedRequest(
+        const response: StalkerEpgResponse =
+            await executeStalkerRequest<StalkerEpgResponse>(
+                {
+                    dataService: this.dataService,
+                    stalkerSession: this.stalkerSession,
+                    portalRepair: this.portalRepair,
+                },
                 playlist,
                 params
             );
-        } else {
-            response = await this.dataService.sendIpcEvent(STALKER_REQUEST, {
-                url: playlist.portalUrl,
-                macAddress: playlist.macAddress,
-                params,
-            });
-        }
 
         const epgData = Array.isArray(response?.js)
             ? response.js

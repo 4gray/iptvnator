@@ -1290,6 +1290,9 @@ describe('PlaylistsService', () => {
                         store.current = target;
                     }
                 }),
+                dbDeletePlaylist: jest.fn(async () => {
+                    store.current = undefined as unknown as Playlist;
+                }),
             };
             return { store, electron };
         }
@@ -1477,6 +1480,87 @@ describe('PlaylistsService', () => {
                 expect.objectContaining({ stream_id: 3 }),
             ]);
             expect(electron.dbUpsertAppPlaylist).toHaveBeenCalledTimes(1);
+        });
+
+        it('serializes deletion behind queued writes so nothing resurrects the row', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-delete-race')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+
+            // A conditional transform (the repair's write path) is queued
+            // when the user deletes the playlist: the delete must run AFTER
+            // the queued write, leaving the row deleted — not upserted back.
+            await Promise.all([
+                firstValueFrom(
+                    service.transformPlaylistMeta(
+                        'portal-delete-race',
+                        (current) => ({
+                            ...current,
+                            portalUrl: 'http://x/portal.php',
+                        })
+                    )
+                ),
+                firstValueFrom(service.deletePlaylist('portal-delete-race')),
+            ]);
+
+            expect(store.current).toBeUndefined();
+            const upsertOrder =
+                electron.dbUpsertAppPlaylist.mock.invocationCallOrder[0];
+            const deleteOrder =
+                electron.dbDeletePlaylist.mock.invocationCallOrder[0];
+            expect(deleteOrder).toBeGreaterThan(upsertOrder);
+        });
+
+        it('transformPlaylistMeta aborts without writing when the transform returns null', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-meta-abort')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+            const writesBefore = electron.dbUpsertAppPlaylist.mock.calls.length;
+
+            const result = await firstValueFrom(
+                service.transformPlaylistMeta('portal-meta-abort', () => null)
+            );
+
+            expect(result).toBeNull();
+            expect(electron.dbUpsertAppPlaylist.mock.calls.length).toBe(
+                writesBefore
+            );
+        });
+
+        it('transformPlaylistMeta persists the transformed row and serializes with queued edits', async () => {
+            const { store, electron } = createStatefulElectronStore(
+                createBasePlaylist('portal-meta-write')
+            );
+            testWindow.electron = electron;
+            const service = createService();
+
+            // A queued edit commits first; the conditional transform then
+            // sees ITS result — the property the Stalker portal repair
+            // relies on to never overwrite a user edit racing the probe.
+            await Promise.all([
+                firstValueFrom(
+                    service.updatePlaylistMeta({
+                        _id: 'portal-meta-write',
+                        title: 'Edited Title',
+                    } as never)
+                ),
+                firstValueFrom(
+                    service.transformPlaylistMeta(
+                        'portal-meta-write',
+                        (current) =>
+                            current.title === 'Edited Title'
+                                ? { ...current, portalUrl: 'http://x/portal.php' }
+                                : null
+                    )
+                ),
+            ]);
+
+            expect(store.current.title).toBe('Edited Title');
+            expect(store.current.portalUrl).toBe('http://x/portal.php');
         });
 
         it('applies overlapping favorites transforms atomically', async () => {

@@ -1,6 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { DataService } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    isFullStalkerPortalPlaylist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
+import { StalkerPortalRepairService } from './stalker-portal-repair.service';
 import { StalkerSessionService } from './stalker-session.service';
 import {
     executeStalkerRequest,
@@ -63,6 +67,7 @@ interface StalkerMainInfoResponse {
 export class StalkerAccountInfoService {
     private readonly dataService = inject(DataService);
     private readonly stalkerSession = inject(StalkerSessionService);
+    private readonly portalRepair = inject(StalkerPortalRepairService);
 
     async fetchAccountInfo(
         playlist: PlaylistMeta
@@ -71,14 +76,81 @@ export class StalkerAccountInfoService {
             return null;
         }
 
-        if (isFullStalkerPortalPlaylist(playlist)) {
-            return this.fetchViaProfile(playlist);
+        const effectivePlaylist = this.portalRepair.applyOverride(playlist);
+        if (isFullStalkerPortalPlaylist(effectivePlaylist)) {
+            return this.fetchViaProfile(effectivePlaylist);
         }
 
-        return this.fetchViaMainInfo(playlist);
+        // A REJECTED main-info call must reach the same repaired-mode check
+        // as an empty or partial one: a repair can flip the portal to full
+        // mid-request, and a full installation that does not implement
+        // `get_main_info` answers the internal retry with 404.
+        let snapshot: StalkerAccountSnapshot | null = null;
+        let mainInfoError: unknown;
+        try {
+            snapshot = await this.fetchViaMainInfo(effectivePlaylist);
+        } catch (error) {
+            mainInfoError = error;
+        }
+
+        // `fetchViaMainInfo` runs through executeStalkerRequest, whose lazy
+        // repair retries the SAME action internally. If that repair proved
+        // the portal is actually a full one, `get_main_info` was the wrong
+        // call: canonical installations publish subscription details only
+        // through handshake + get_profile, so even a PARTIAL main-info
+        // answer (a bare login) must not win over the profile flow. Checked
+        // before accepting the snapshot, symmetric with the full→simple
+        // re-route in `fetchViaProfile`.
+        const repairedPlaylist = this.portalRepair.applyOverride(playlist);
+        if (
+            isFullStalkerPortalPlaylist(repairedPlaylist) &&
+            !isFullStalkerPortalPlaylist(effectivePlaylist)
+        ) {
+            const profileSnapshot =
+                await this.fetchViaProfile(repairedPlaylist);
+            // Keep the partial main-info facts if the profile path itself
+            // publishes nothing — losing data to the re-route would be
+            // worse than the incomplete answer.
+            return profileSnapshot ?? snapshot;
+        }
+
+        // No mode change: a main-info failure is the caller's failure.
+        if (mainInfoError !== undefined) {
+            throw mainInfoError;
+        }
+
+        return snapshot;
     }
 
     private async fetchViaProfile(
+        playlist: PlaylistMeta
+    ): Promise<StalkerAccountSnapshot | null> {
+        try {
+            return await this.requestProfileSnapshot(playlist);
+        } catch (error) {
+            // The profile path does not go through executeStalkerRequest,
+            // so wire the same lazy repair here: opening the account dialog
+            // on a playlist with a stale endpoint must be able to fix it
+            // instead of waiting for an unrelated catalog request.
+            if (!this.portalRepair.shouldAttemptRepair(playlist, error)) {
+                throw error;
+            }
+
+            const repaired = await this.portalRepair.repairPortal(playlist);
+            if (!repaired) {
+                throw error;
+            }
+
+            // Re-enter the MODE routing: a repair can prove the portal is a
+            // token-free panel, and retrying the handshake-based profile
+            // against it would fail exactly the same way.
+            return isFullStalkerPortalPlaylist(repaired)
+                ? this.requestProfileSnapshot(repaired)
+                : this.fetchViaMainInfo(repaired);
+        }
+    }
+
+    private async requestProfileSnapshot(
         playlist: PlaylistMeta
     ): Promise<StalkerAccountSnapshot | null> {
         // Goes through the session service rather than calling
@@ -109,6 +181,7 @@ export class StalkerAccountInfoService {
             {
                 dataService: this.dataService,
                 stalkerSession: this.stalkerSession,
+                portalRepair: this.portalRepair,
             },
             playlist,
             {
@@ -146,26 +219,10 @@ export class StalkerAccountInfoService {
     }
 }
 
-/**
- * Whether a playlist should use the full `/stalker_portal/` flow.
- *
- * The persisted flag is authoritative when present, but a playlist
- * restored from an older backup can carry `undefined` after the one-shot
- * metadata migration has already run — fall back to the same URL rule
- * that migration uses (`withExplicitLegacyStalkerPortalFlag` in
- * PlaylistsService) rather than mislabelling it as a legacy panel.
- */
-export function isFullStalkerPortalPlaylist(playlist: PlaylistMeta): boolean {
-    if (playlist.isFullStalkerPortal !== undefined) {
-        return Boolean(playlist.isFullStalkerPortal);
-    }
-
-    const portalUrl = playlist.portalUrl ?? playlist.url ?? '';
-    return (
-        portalUrl.includes('/stalker_portal') ||
-        portalUrl.includes('/server/load.php')
-    );
-}
+// The portal-mode predicate moved to `@iptvnator/shared/interfaces`
+// (stalker-portal-mode.util) so every consumer shares one rule; re-exported
+// here for existing importers.
+export { isFullStalkerPortalPlaylist };
 
 function normalizeSnapshot(
     snapshot: StalkerAccountSnapshot
