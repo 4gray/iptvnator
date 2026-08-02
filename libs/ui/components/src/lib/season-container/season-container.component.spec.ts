@@ -3,7 +3,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import {
+    type InterpolatableTranslationObject,
+    TranslateModule,
+    TranslateService,
+} from '@ngx-translate/core';
 import {
     SeasonDownloadCoordinator,
     type EpisodeDownloadCandidate,
@@ -15,6 +19,8 @@ import {
     type DownloadItem,
     type DownloadStartInput,
 } from '@iptvnator/services';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { of } from 'rxjs';
 import { EPISODE_INFO_PLAY } from './episode-info-dialog.component';
 import { SeasonContainerComponent } from './season-container.component';
@@ -42,25 +48,15 @@ interface Deferred<T> {
     readonly resolve: (value: T) => void;
 }
 
+const EN_TRANSLATIONS = JSON.parse(
+    readFileSync(
+        resolve(process.cwd(), 'apps/web/src/assets/i18n/en.json'),
+        'utf8'
+    )
+) as InterpolatableTranslationObject;
+
 const DOWNLOAD_TRANSLATIONS = {
-    DOWNLOADS: {
-        DOWNLOAD: 'Download',
-        PLAY_LOCAL: 'Play local',
-        RESUME: 'Resume',
-        NOT_AVAILABLE: 'Downloads not available',
-        DOWNLOAD_SEASON: 'Download season ({{count}})',
-        DOWNLOAD_SEASON_ARIA: 'Download {{count}} eligible episodes',
-        ADDING_TO_QUEUE: 'Adding to queue',
-        EPISODE_DOWNLOAD_ARIA: 'Download {{title}}',
-        EPISODE_DOWNLOAD_PENDING_ARIA: 'Adding {{title}} to queue',
-        EPISODE_DOWNLOAD_FAILED: 'The episode could not be added',
-        SEASON_QUEUE_RESULT:
-            'Added {{added}}, skipped {{skipped}}, failed {{failed}}',
-        SEASON_QUEUE_RESULT_WITH_FAILURES:
-            'Queue failed: {{added}} added, {{skipped}} skipped, {{failed}} failed',
-        STATUS: { DOWNLOADING: 'Downloading' },
-        ARIA: { RESUME: 'Resume {{title}}' },
-    },
+    DOWNLOADS: EN_TRANSLATIONS['DOWNLOADS'],
 };
 
 function createEpisode(
@@ -564,7 +560,7 @@ describe('SeasonContainerComponent', () => {
 
         expect(episodeAction(101).disabled).toBe(true);
         expect(episodeAction(101).getAttribute('aria-label')).toBe(
-            'Adding Pilot to queue'
+            'Pilot is already in the download queue'
         );
         expect(episodeAction(102).disabled).toBe(false);
         expect(episodeAction(102).getAttribute('aria-label')).toBe(
@@ -598,7 +594,7 @@ describe('SeasonContainerComponent', () => {
         ) as HTMLButtonElement;
         expect(button.textContent).toContain('Download season (1)');
         expect(button.getAttribute('aria-label')).toBe(
-            'Download 1 eligible episodes'
+            'Download season, 1 episodes available'
         );
         expect(button.nextElementSibling?.classList).toContain('view-toggle');
 
@@ -607,7 +603,7 @@ describe('SeasonContainerComponent', () => {
 
         expect(downloadsServiceStub.startDownload).toHaveBeenCalledTimes(1);
         expect(snackBarOpen).toHaveBeenCalledWith(
-            'Added 1, skipped 1, failed 0',
+            'Added 1 · Skipped 1',
             undefined,
             { duration: 5000 }
         );
@@ -671,9 +667,9 @@ describe('SeasonContainerComponent', () => {
         seasonButton().click();
         fixture.detectChanges();
 
-        expect(seasonButton().textContent).toContain('Adding to queue');
+        expect(seasonButton().textContent).toContain('Adding to queue…');
         expect(seasonButton().getAttribute('aria-label')).toBe(
-            'Adding to queue'
+            'Adding to queue…'
         );
         expect(seasonButton().getAttribute('aria-busy')).toBe('true');
 
@@ -689,7 +685,7 @@ describe('SeasonContainerComponent', () => {
         expect(seasonButton().hasAttribute('aria-busy')).toBe(false);
         expect(seasonButton().textContent).toContain('Download season (1)');
         expect(seasonButton().getAttribute('aria-label')).toBe(
-            'Download 1 eligible episodes'
+            'Download season, 1 episodes available'
         );
     });
 
@@ -786,11 +782,26 @@ describe('SeasonContainerComponent', () => {
             fixture.detectChanges();
 
             const expected = [
-                [101, true, 'Adding Pilot to queue', 'downloading'],
-                [102, true, 'Adding Queued to queue', 'downloading'],
-                [103, true, 'Adding Active to queue', 'downloading'],
+                [
+                    101,
+                    true,
+                    'Pilot is already in the download queue',
+                    'downloading',
+                ],
+                [
+                    102,
+                    true,
+                    'Queued is already in the download queue',
+                    'downloading',
+                ],
+                [
+                    103,
+                    true,
+                    'Active is already in the download queue',
+                    'downloading',
+                ],
                 [104, false, 'Resume Paused', 'play_arrow'],
-                [105, false, 'Play local: Local', 'folder_open'],
+                [105, false, 'Play Local: Local', 'folder_open'],
                 [106, true, 'Download Unknown', 'block'],
                 [107, true, 'Download N/A', 'block'],
                 [108, false, 'Download Failed', 'download'],
@@ -936,7 +947,7 @@ describe('SeasonContainerComponent', () => {
         await fixture.whenStable();
 
         expect(snackBarOpen).toHaveBeenCalledWith(
-            'The episode could not be added',
+            'The episode could not be added to downloads.',
             undefined,
             { duration: 5000 }
         );
@@ -1036,7 +1047,7 @@ describe('SeasonContainerComponent', () => {
         await fixture.whenStable();
 
         expect(snackBarOpen).toHaveBeenCalledWith(
-            'Queue failed: 1 added, 0 skipped, 1 failed',
+            'Added 1 · Skipped 0 · Failed 1',
             undefined,
             { duration: 5000 }
         );
