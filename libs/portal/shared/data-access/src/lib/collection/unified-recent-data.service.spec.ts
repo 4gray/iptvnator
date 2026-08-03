@@ -195,6 +195,7 @@ describe('UnifiedRecentDataService', () => {
 
         expect(items).toHaveLength(1);
         expect(items[0]).toMatchObject({
+            uid: 'm3u::m3u-1::https://example.com/2.m3u8',
             sourceType: 'm3u',
             streamUrl: 'https://example.com/2.m3u8',
             channelId: 'channel-2',

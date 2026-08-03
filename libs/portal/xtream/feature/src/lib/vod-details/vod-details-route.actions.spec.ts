@@ -27,6 +27,7 @@ import {
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { BehaviorSubject, NEVER, of } from 'rxjs';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -34,6 +35,7 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
     template: '<div data-testid="inline-vod-player"></div>',
 })
 class StubPortalInlinePlayerComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly playback = input<unknown>(null);
     // Multi-source wiring: the real player takes these, so the stub has to
     // accept them or the template binding fails to compile.
@@ -369,6 +371,25 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 thumbnail: 'https://example.com/catalog-poster.jpg',
             })
         );
+        const expectedKey = createPlaybackSessionKey({
+            kind: 'vod',
+            sourceId: 'playlist-1',
+            contentId: 650020,
+        });
+        expect(inlinePlayer.playbackSessionKey()).toBe(expectedKey);
+
+        fixture.componentInstance.inlinePlayback.set({
+            streamUrl: 'https://copy.example/movie/9001.mkv',
+            title: 'Catalog movie',
+            headers: { 'User-Agent': 'Copy Provider' },
+            contentInfo: {
+                playlistId: 'copy-playlist',
+                contentXtreamId: 9001,
+                contentType: 'vod',
+            },
+        });
+        fixture.detectChanges();
+        expect(inlinePlayer.playbackSessionKey()).toBe(expectedKey);
         expect(
             host.querySelector('app-portal-detail-shell')?.classList
         ).toContain('shell-host--watch');
@@ -581,6 +602,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         selectedItem.set(richItem());
         fixture.detectChanges();
         expect(fixture.componentInstance.providerOnly()).toBe(true);
+        const firstSessionKey = fixture.componentInstance.playbackSessionKey();
 
         window.history.replaceState({}, '', window.location.href);
         selectedItem.set({
@@ -594,6 +616,16 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         fixture.detectChanges();
 
         expect(fixture.componentInstance.providerOnly()).toBe(false);
+        expect(fixture.componentInstance.playbackSessionKey()).not.toBe(
+            firstSessionKey
+        );
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(
+            createPlaybackSessionKey({
+                kind: 'vod',
+                sourceId: 'playlist-1',
+                contentId: 650021,
+            })
+        );
     });
 
     it('plays a rich downloaded movie locally without a usable provider source', async () => {

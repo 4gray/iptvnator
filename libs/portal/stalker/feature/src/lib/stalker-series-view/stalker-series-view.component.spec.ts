@@ -53,6 +53,7 @@ class StubSeasonContainerComponent {
     template: '',
 })
 class StubPortalInlinePlayerComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly playback = input<unknown>(null);
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
@@ -771,17 +772,17 @@ describe('StalkerSeriesViewComponent', () => {
                 }),
             })
         );
-        expect(inlinePlayer.episodeMetadata()).toEqual({
-            label: 'S01E01',
-            title: 'Pilot',
-            seasonNumber: 1,
-            episodeNumber: 1,
-        });
+        // Prettier expands these compact fixtures enough to breach the spec's
+        // hard 1,200-line lint limit.
+        // prettier-ignore
+        expect(inlinePlayer.episodeMetadata()).toEqual({ label: 'S01E01', title: 'Pilot', seasonNumber: 1, episodeNumber: 1 });
         expect(inlinePlayer.seriesNavigation()).toEqual({
             canPrevious: false,
             canNext: true,
             autoplayEnabled: true,
         });
+        const firstEpisodeKey = inlinePlayer.playbackSessionKey();
+        expect(firstEpisodeKey).not.toBe('');
 
         inlinePlayer.playbackEnded.emit();
         await fixture.whenStable();
@@ -806,6 +807,7 @@ describe('StalkerSeriesViewComponent', () => {
             canNext: false,
             autoplayEnabled: true,
         });
+        expect(inlinePlayer.playbackSessionKey()).not.toBe(firstEpisodeKey);
 
         inlinePlayer.playbackEnded.emit();
         await fixture.whenStable();

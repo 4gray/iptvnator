@@ -383,6 +383,10 @@ describe('UnifiedFavoritesDataService', () => {
             'https://example.com/2.m3u8',
             'https://example.com/1.m3u8',
         ]);
+        expect(items.map((item) => item.uid)).toEqual([
+            'm3u::m3u-1::https://example.com/2.m3u8',
+            'm3u::m3u-1::https://example.com/1.m3u8',
+        ]);
         expect(items[1].channelId).toBe('channel-1');
         expect(items[0].radio).toBe('true');
         expect(items[0].m3uChannel).toBe(m3uChannels[1]);

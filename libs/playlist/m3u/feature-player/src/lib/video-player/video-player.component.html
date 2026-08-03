@@ -79,6 +79,7 @@
                     />
                 } @else {
                     <app-web-player-view
+                        [playbackSessionKey]="playbackSessionKey()"
                         [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
                         [title]="inlinePlayerTitle()"
                         [playback]="embeddedPlayback()"
@@ -112,7 +113,9 @@
                             [programs]="epgPrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="archivePlaybackAvailable()"
+                            [archivePlaybackAvailable]="
+                                archivePlaybackAvailable()
+                            "
                             [archiveDays]="epgArchiveDays()"
                             [activeProgram]="activeEpgProgramOrNull()"
                             [isLivePlayback]="!showReturnToLive()"
@@ -138,7 +141,9 @@
                             [programs]="epgPrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="archivePlaybackAvailable()"
+                            [archivePlaybackAvailable]="
+                                archivePlaybackAvailable()
+                            "
                             [archiveDays]="epgArchiveDays()"
                             [activeProgram]="activeEpgProgramOrNull()"
                             [isLivePlayback]="!showReturnToLive()"

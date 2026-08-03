@@ -96,6 +96,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
             .compileComponents();
 
         fixture = TestBed.createComponent(WebPlayerViewComponent);
+        fixture.componentRef.setInput('playbackSessionKey', 'test-session');
         component = fixture.componentInstance;
         fixture.componentRef.setInput(
             'streamUrl',
@@ -124,6 +125,7 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
 
         fixture.destroy();
         fixture = TestBed.createComponent(WebPlayerViewComponent);
+        fixture.componentRef.setInput('playbackSessionKey', 'test-session');
         component = fixture.componentInstance;
         fixture.componentRef.setInput(
             'streamUrl',

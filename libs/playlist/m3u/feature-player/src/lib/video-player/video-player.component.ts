@@ -90,6 +90,7 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
 import {
     DataService,
@@ -166,13 +167,18 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly activePlaybackUrl = this.store.selectSignal(
         selectActivePlaybackUrl
     );
-    readonly activeEpgProgram = this.store.selectSignal(
-        selectActiveEpgProgram
-    );
+    readonly activeEpgProgram = this.store.selectSignal(selectActiveEpgProgram);
     readonly activeEpgProgramOrNull = computed(
         () => this.activeEpgProgram() ?? null
     );
     readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
+    readonly playbackSessionKey = computed(() => {
+        const sourceId = this.activePlaylistId();
+        const contentId = this.activeChannel()?.id;
+        return sourceId && contentId !== undefined
+            ? createPlaybackSessionKey({ kind: 'live', sourceId, contentId })
+            : '';
+    });
     readonly channels = this.store.selectSignal(selectChannels);
     readonly channelsLoading = this.store.selectSignal(selectChannelsLoading);
     readonly archivePlaybackAvailable = computed(() =>
@@ -235,9 +241,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly epgChannelLogo = toSignal(
         toObservable(this.activeChannel).pipe(
             switchMap((channel) => {
-                const key = channel
-                    ? resolveChannelEpgLookupKey(channel)
-                    : '';
+                const key = channel ? resolveChannelEpgLookupKey(channel) : '';
                 if (!key) {
                     return of('');
                 }
@@ -587,9 +591,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
 
             const currentEpgProgram = epgProgram as
-                | EpgProgram
-                | null
-                | undefined;
+                EpgProgram | null | undefined;
             const currentIndex = channels.findIndex(
                 (channel) => channel.url === activeChannel.url
             );

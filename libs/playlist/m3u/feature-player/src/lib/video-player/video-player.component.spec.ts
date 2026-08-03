@@ -41,12 +41,14 @@ import {
 import {
     Channel,
     EpgProgram,
+    ResolvedPortalPlayback,
     Settings,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { Overlay } from '@angular/cdk/overlay';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
 
 jest.unstable_mockModule('video.js', () => ({
@@ -113,6 +115,7 @@ class StubAudioPlayerComponent {
     template: '',
 })
 class StubWebPlayerViewComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly streamUrl = input('');
     readonly title = input('');
     readonly playback = input<unknown>(null);
@@ -311,6 +314,7 @@ describe('VideoPlayerComponent', () => {
         } as typeof window.electron;
 
         syncStoreState(null);
+        playlistId.set('playlist-1');
         localStorage.removeItem('m3u-sidebar-width');
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         player.set(VideoPlayer.VideoJs);
@@ -535,7 +539,9 @@ describe('VideoPlayerComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         expect(headerContext.action()).toBeNull();
     });
 
@@ -564,12 +570,19 @@ describe('VideoPlayerComponent', () => {
             },
         } as Channel);
 
+        const playback: ResolvedPortalPlayback = {
+            streamUrl: 'https://archive.example.com/live.m3u8?utc=1',
+            title: 'Sample TV',
+            isLive: true,
+            headers: {
+                'user-agent': 'IPTVnator Test',
+                Referer: 'https://referrer.example.com',
+                Origin: 'https://origin.example.com',
+            },
+        };
         component.handleExternalFallbackRequest({
             player: 'mpv',
-            playback: {
-                streamUrl: 'https://archive.example.com/live.m3u8?utc=1',
-                title: 'Archive Sample',
-            },
+            playback,
             diagnostic: {
                 code: 'unsupported-codec',
                 source: 'hls',
@@ -583,13 +596,13 @@ describe('VideoPlayerComponent', () => {
 
         expect(dataServiceMock.sendIpcEvent).toHaveBeenCalledWith(
             'OPEN_MPV_PLAYER',
-            expect.objectContaining({
+            {
                 url: 'https://archive.example.com/live.m3u8?utc=1',
                 title: 'Sample TV',
                 'user-agent': 'IPTVnator Test',
                 referer: 'https://referrer.example.com',
                 origin: 'https://origin.example.com',
-            })
+            }
         );
     });
 
@@ -640,10 +653,34 @@ describe('VideoPlayerComponent', () => {
             By.directive(StubWebPlayerViewComponent)
         );
         expect(playerView).not.toBeNull();
-        const stub =
-            playerView.componentInstance as StubWebPlayerViewComponent;
+        const stub = playerView.componentInstance as StubWebPlayerViewComponent;
         expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
         expect(dataServiceMock.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('owns a collision-safe live session key that ignores resolved URL changes', () => {
+        playlistId.set('playlist|one');
+        syncStoreState({ ...sampleChannel, id: 'channel|one' } as Channel);
+        activePlaybackUrl.set('https://archive.example/first.m3u8');
+        fixture.detectChanges();
+
+        const playerView = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        const expected = createPlaybackSessionKey({
+            kind: 'live',
+            sourceId: 'playlist|one',
+            contentId: 'channel|one',
+        });
+        expect(playerView.playbackSessionKey()).toBe(expected);
+
+        activePlaybackUrl.set('https://archive.example/second.m3u8');
+        fixture.detectChanges();
+        expect(playerView.playbackSessionKey()).toBe(expected);
+
+        syncStoreState({ ...sampleChannel, id: 'channel|two' } as Channel);
+        fixture.detectChanges();
+        expect(playerView.playbackSessionKey()).not.toBe(expected);
     });
 
     it('routes catch-up playback that resolves to a DASH URL inline as well', () => {
@@ -657,8 +694,7 @@ describe('VideoPlayerComponent', () => {
             By.directive(StubWebPlayerViewComponent)
         );
         expect(playerView).not.toBeNull();
-        const stub =
-            playerView.componentInstance as StubWebPlayerViewComponent;
+        const stub = playerView.componentInstance as StubWebPlayerViewComponent;
         expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
     });
 
@@ -675,9 +711,7 @@ describe('VideoPlayerComponent', () => {
         // The external-player guard declines DASH channels, so the inline
         // player must stay — otherwise the session has no player at all.
         expect(
-            fixture.debugElement.query(
-                By.directive(StubWebPlayerViewComponent)
-            )
+            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
         ).not.toBeNull();
     });
 

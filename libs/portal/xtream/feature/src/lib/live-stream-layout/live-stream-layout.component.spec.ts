@@ -29,13 +29,21 @@ import {
     EpgTimelineComponent,
     EpgTimelineSummary,
 } from '@iptvnator/ui/epg';
-import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
-import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
+} from '@iptvnator/ui/playback';
+import {
+    EpgItem,
+    EpgProgram,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import { GridListComponent } from '@iptvnator/portal/shared/ui';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { PageEvent } from '@angular/material/paginator';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -78,10 +86,11 @@ class StubGridListComponent {
     template: '',
 })
 class StubWebPlayerViewComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly streamUrl = input('');
     readonly title = input('');
     readonly playback = input<unknown>(null);
-    readonly externalFallbackRequested = output<unknown>();
+    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 }
 
 // Matches both live-panel selectors so the host's timeline ↔ list swap can be
@@ -195,6 +204,7 @@ describe('LiveStreamLayoutComponent', () => {
     };
     const portalPlayer = {
         isEmbeddedPlayer: jest.fn().mockReturnValue(true),
+        openExternalPlayback: jest.fn(),
     };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
@@ -206,6 +216,7 @@ describe('LiveStreamLayoutComponent', () => {
     const originalElectron = window.electron;
 
     beforeEach(async () => {
+        currentPlaylist.set(playlist);
         jest.useFakeTimers();
         jest.setSystemTime(fixedNow);
         settingsStore.resolvedEpgViewMode.set('timeline');
@@ -240,6 +251,7 @@ describe('LiveStreamLayoutComponent', () => {
         xtreamUrlService.resolveCatchupUrl.mockClear();
         portalPlayer.isEmbeddedPlayer.mockReset();
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        portalPlayer.openExternalPlayback.mockClear();
 
         epgItems.set([]);
         currentEpgItem.set(null);
@@ -590,6 +602,58 @@ describe('LiveStreamLayoutComponent', () => {
         ).not.toBeNull();
     });
 
+    it('keeps the host-owned live key across URL replacement and changes it with the channel', () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        currentPlaylist.set({ ...playlist, id: 'playlist|one' });
+        const first = { ...sampleChannel, xtream_id: 101 };
+        component.playLive(first);
+        fixture.detectChanges();
+
+        const webPlayer = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        const expected = createPlaybackSessionKey({
+            kind: 'live',
+            sourceId: 'playlist|one',
+            contentId: 101,
+        });
+        expect(webPlayer.playbackSessionKey()).toBe(expected);
+
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.com/replaced-timeshift.ts'
+        );
+        component.playLive(first);
+        fixture.detectChanges();
+        expect(webPlayer.playbackSessionKey()).toBe(expected);
+
+        component.playLive({ ...first, xtream_id: 102 });
+        fixture.detectChanges();
+        expect(webPlayer.playbackSessionKey()).not.toBe(expected);
+    });
+
+    it('forwards the exact resolved live playback to external fallback', () => {
+        const playback: ResolvedPortalPlayback = {
+            streamUrl: 'https://example.com/fallback.m3u8',
+            title: 'Channel 101',
+            isLive: true,
+            headers: { Authorization: 'Bearer token' },
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 101,
+                contentType: 'live',
+            },
+        };
+        component.handleExternalFallbackRequest({
+            player: 'mpv',
+            playback,
+        } as PlaybackFallbackRequest);
+
+        const [forwardedPlayback, forwardedPlayer] =
+            portalPlayer.openExternalPlayback.mock.calls[0];
+        expect(forwardedPlayback).toBe(playback);
+        expect(forwardedPlayer).toBe('mpv');
+    });
+
     it('updates live root pagination from the header paginator', () => {
         selectedCategoryId.set(null);
         selectedTypeContentLoading.set(false);
@@ -794,17 +858,44 @@ describe('LiveStreamLayoutComponent', () => {
         );
     });
 
-    it('shows the active archive program in the live EPG panel summary', async () => {
-        const archivedProgram: EpgProgram = {
-            start: '2026-04-04T10:00:00.000Z',
-            stop: '2026-04-04T11:00:00.000Z',
-            channel: 'channel-101',
-            title: 'Archived Show',
-            desc: null,
-            category: null,
-            startTimestamp: 1775296800,
-            stopTimestamp: 1775300400,
+    it('does not attach a pending catchup result to a newer live owner', async () => {
+        let resolveCatchup!: (url: string) => void;
+        xtreamUrlService.resolveCatchupUrl.mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveCatchup = resolve;
+            })
+        );
+        component.playLive(sampleChannel);
+        const catchup = component.onProgramActivated({
+            type: 'timeshift',
+            program: buildArchivedProgram(),
+        });
+        const newerChannel = {
+            ...sampleChannel,
+            xtream_id: 202,
+            name: 'Channel 202',
         };
+        xtreamStore.constructStreamUrl.mockReturnValueOnce(
+            'https://example.com/channel-202.ts'
+        );
+        component.playLive(newerChannel);
+        resolveCatchup('https://stale.example/channel-101-timeshift.ts');
+        await catchup;
+
+        expect(component.activePlayback()?.streamUrl).toBe(
+            'https://example.com/channel-202.ts'
+        );
+        expect(component.playbackSessionKey()).toBe(
+            createPlaybackSessionKey({
+                kind: 'live',
+                sourceId: 'playlist-1',
+                contentId: 202,
+            })
+        );
+    });
+
+    it('shows the active archive program in the live EPG panel summary', async () => {
+        const archivedProgram = buildArchivedProgram();
         epgItems.set([
             buildEpgItem(
                 'archived',
@@ -854,16 +945,7 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('returns archive playback to the selected live stream from the panel action', async () => {
-        const archivedProgram: EpgProgram = {
-            start: '2026-04-04T10:00:00.000Z',
-            stop: '2026-04-04T11:00:00.000Z',
-            channel: 'channel-101',
-            title: 'Archived Show',
-            desc: null,
-            category: null,
-            startTimestamp: 1775296800,
-            stopTimestamp: 1775300400,
-        };
+        const archivedProgram = buildArchivedProgram();
         currentEpgItem.set(
             buildEpgItem(
                 'current',
@@ -893,7 +975,9 @@ describe('LiveStreamLayoutComponent', () => {
                 isLive: true,
             })
         );
-        expect(timeline.componentInstance.summary()?.title).toBe('Current Show');
+        expect(timeline.componentInstance.summary()?.title).toBe(
+            'Current Show'
+        );
         expect(timeline.componentInstance.summaryLabelKey()).toBe(
             'EPG.CURRENT_PROGRAM'
         );
@@ -901,16 +985,7 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('publishes the active archive program in remote-control status', async () => {
-        const archivedProgram: EpgProgram = {
-            start: '2026-04-04T10:00:00.000Z',
-            stop: '2026-04-04T11:00:00.000Z',
-            channel: 'channel-101',
-            title: 'Archived Show',
-            desc: null,
-            category: null,
-            startTimestamp: 1775296800,
-            stopTimestamp: 1775300400,
-        };
+        const archivedProgram = buildArchivedProgram();
         currentEpgItem.set(
             buildEpgItem(
                 'current',
@@ -942,16 +1017,7 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('passes the active catchup program to the EPG list until live playback resumes', async () => {
-        const archivedProgram: EpgProgram = {
-            start: '2026-04-04T10:00:00.000Z',
-            stop: '2026-04-04T11:00:00.000Z',
-            channel: 'channel-101',
-            title: 'Archived Show',
-            desc: null,
-            category: null,
-            startTimestamp: 1775296800,
-            stopTimestamp: 1775300400,
-        };
+        const archivedProgram = buildArchivedProgram();
         epgItems.set([
             buildEpgItem(
                 '1',
@@ -1066,7 +1132,9 @@ describe('LiveStreamLayoutComponent', () => {
         const timeline = fixture.debugElement.query(
             By.directive(StubEpgTimelineComponent)
         );
-        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(true);
+        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(
+            true
+        );
     });
 
     it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {
@@ -1257,6 +1325,15 @@ describe('LiveStreamLayoutComponent', () => {
             false
         );
     });
+});
+
+const buildArchivedProgram = (): EpgProgram => ({
+    start: '2026-04-04T10:00:00.000Z',
+    stop: '2026-04-04T11:00:00.000Z',
+    channel: 'channel-101',
+    title: 'Archived Show',
+    desc: null,
+    category: null,
 });
 
 function buildEpgItem(

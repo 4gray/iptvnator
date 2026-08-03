@@ -97,6 +97,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
 
     streamUrl = input.required<string>();
+    readonly playbackSessionKey = input.required<string>();
     title = input('');
     playback = input<ResolvedPortalPlayback | null>(null);
     startTime = input<number>(0);
@@ -136,7 +137,10 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.alternativeSources().slice(0, ERROR_SCREEN_ALTERNATIVES)
     );
     readonly hiddenAlternativeCount = computed(() =>
-        Math.max(0, this.alternativeSources().length - ERROR_SCREEN_ALTERNATIVES)
+        Math.max(
+            0,
+            this.alternativeSources().length - ERROR_SCREEN_ALTERNATIVES
+        )
     );
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
@@ -221,7 +225,9 @@ export class WebPlayerViewComponent implements OnDestroy {
         }
         return { primary: title, secondary: null };
     });
-    readonly recordingFolder = computed(() => this.settings()?.recordingFolder ?? '');
+    readonly recordingFolder = computed(
+        () => this.settings()?.recordingFolder ?? ''
+    );
 
     /** Stream URL the currently configured Electron header override belongs to. */
     private headerScopeStreamUrl: string | null = null;

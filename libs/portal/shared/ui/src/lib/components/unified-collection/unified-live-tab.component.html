@@ -59,6 +59,7 @@
                     />
                 } @else {
                     <app-web-player-view
+                        [playbackSessionKey]="playbackSessionKey()"
                         [streamUrl]="currentStreamUrl()"
                         [title]="activeDetail()?.playback?.title ?? ''"
                         [playback]="inlinePlayback()"
@@ -86,7 +87,9 @@
                             [programs]="timelinePrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="timelineArchiveAvailable()"
+                            [archivePlaybackAvailable]="
+                                timelineArchiveAvailable()
+                            "
                             [archiveDays]="timelineArchiveDays()"
                             [activeProgram]="activeTimeshiftProgram()"
                             [isLivePlayback]="!activeTimeshift()"
@@ -113,7 +116,9 @@
                             [programs]="timelinePrograms()"
                             [channelName]="timelineChannelName()"
                             [channelLogo]="timelineChannelLogo()"
-                            [archivePlaybackAvailable]="timelineArchiveAvailable()"
+                            [archivePlaybackAvailable]="
+                                timelineArchiveAvailable()
+                            "
                             [archiveDays]="timelineArchiveDays()"
                             [activeProgram]="activeTimeshiftProgram()"
                             [isLivePlayback]="!activeTimeshift()"

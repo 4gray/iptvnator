@@ -156,6 +156,7 @@ describe('WebPlayerViewComponent', () => {
 
         storageMap.get.mockReturnValue(of({ player: VideoPlayer.VideoJs }));
         fixture = TestBed.createComponent(WebPlayerViewComponent);
+        fixture.componentRef.setInput('playbackSessionKey', 'test-session');
         component = fixture.componentInstance;
         fixture.componentRef.setInput(
             'streamUrl',
@@ -596,6 +597,7 @@ describe('WebPlayerViewComponent', () => {
         const pendingSettings = new Subject<unknown>();
         storageMap.get.mockReturnValue(pendingSettings.asObservable());
         fixture = TestBed.createComponent(WebPlayerViewComponent);
+        fixture.componentRef.setInput('playbackSessionKey', 'test-session');
         component = fixture.componentInstance;
         fixture.componentRef.setInput(
             'streamUrl',

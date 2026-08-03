@@ -48,6 +48,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 import { StalkerVodPlaybackController } from './stalker-vod-playback-controller';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 interface StalkerCollectionStateSnapshot {
     currentPlaylist: Playlist | undefined;
@@ -65,12 +66,19 @@ interface StalkerCollectionDetailMode {
     needsSeriesFetch: boolean;
 }
 
+interface StalkerCollectionPlaybackOwner {
+    readonly sourceId: string;
+    readonly contentId: string;
+    readonly sessionKey: string;
+}
+
 @Component({
     selector: 'app-stalker-collection-detail',
     imports: [PortalDetailShellComponent, StalkerInlineDetailComponent],
     template: `
         @if (inlineDetail().categoryId) {
             <app-stalker-inline-detail
+                [playbackSessionKey]="playbackSessionKey()"
                 [categoryId]="inlineDetail().categoryId"
                 [seriesItem]="inlineDetail().seriesItem"
                 [isSeries]="inlineDetail().isSeries"
@@ -124,6 +132,12 @@ export class StalkerCollectionDetailComponent {
     readonly itemDetails = signal<StalkerSelectedVodItem | null>(null);
     readonly vodDetailsItem = signal<VodDetailsItem | null>(null);
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    private readonly playbackOwner = computed(() =>
+        captureStalkerCollectionPlaybackOwner(this.item())
+    );
+    readonly playbackSessionKey = computed(
+        () => this.playbackOwner()?.sessionKey ?? ''
+    );
     private readonly selectedVodPosition = signal<PlaybackPositionData | null>(
         null
     );
@@ -149,6 +163,7 @@ export class StalkerCollectionDetailComponent {
     );
 
     private initRequestId = 0;
+    private currentPlaybackOwnerKey = '';
     private readonly vodPlayback = new StalkerVodPlaybackController({
         inlinePlayback: this.inlinePlayback,
         selectedVodPosition: this.selectedVodPosition,
@@ -158,6 +173,7 @@ export class StalkerCollectionDetailComponent {
         translateService: this.translateService,
         logger: this.logger,
         playbackErrorLogMessage: 'Failed to start collection VOD playback',
+        playbackOwnerKey: () => this.playbackSessionKey(),
     });
 
     constructor() {
@@ -168,7 +184,12 @@ export class StalkerCollectionDetailComponent {
 
         effect(() => {
             const item = this.item();
+            const playbackOwnerKey = this.playbackSessionKey();
             untracked(() => {
+                if (playbackOwnerKey !== this.currentPlaybackOwnerKey) {
+                    this.currentPlaybackOwnerKey = playbackOwnerKey;
+                    this.closeInlinePlayer();
+                }
                 void this.prepareDetail(item);
             });
         });
@@ -489,4 +510,32 @@ export class StalkerCollectionDetailComponent {
     ): Promise<void> {
         await this.vodPlayback.loadSelectedVodPosition(playlistId, vodId);
     }
+}
+
+function captureStalkerCollectionPlaybackOwner(
+    item: UnifiedCollectionItem | null
+): StalkerCollectionPlaybackOwner | null {
+    if (!item) return null;
+
+    const sourceId = item.playlistId.trim();
+    const providerItem = item.stalkerItem as
+        { id?: unknown; stream_id?: unknown } | undefined;
+    const uidParts = item.uid.split('::');
+    const contentId = normalizeStalkerEntityId(
+        providerItem?.id ??
+            providerItem?.stream_id ??
+            item.stalkerId ??
+            uidParts[uidParts.length - 1]
+    );
+    if (!sourceId || !contentId) return null;
+
+    return Object.freeze({
+        sourceId,
+        contentId,
+        sessionKey: createPlaybackSessionKey({
+            kind: 'vod',
+            sourceId,
+            contentId,
+        }),
+    });
 }

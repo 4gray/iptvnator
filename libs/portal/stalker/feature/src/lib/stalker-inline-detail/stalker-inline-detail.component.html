@@ -15,6 +15,7 @@
     } @else if (vodDetailsItem(); as item) {
         <!-- Regular VOD item -->
         <app-vod-details
+            [playbackSessionKey]="playbackSessionKey()"
             [item]="item"
             [isFavorite]="isFavorite()"
             [playbackPosition]="playbackPosition()"

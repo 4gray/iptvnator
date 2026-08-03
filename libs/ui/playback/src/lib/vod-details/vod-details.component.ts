@@ -79,6 +79,7 @@ export class VodDetailsComponent {
 
     /** VOD item with discriminated union type */
     readonly item = input.required<VodDetailsItem>();
+    readonly playbackSessionKey = input.required<string>();
 
     /** Whether this item is in favorites (managed by parent) */
     readonly isFavorite = input<boolean>(false);

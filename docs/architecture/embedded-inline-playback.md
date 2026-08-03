@@ -38,6 +38,37 @@ Collection/search VOD surfaces that expose embedded playback must host
 `PlayerService.openPlayer(...)` or `PlayerService.openResolvedPlayback(...)` to
 create embedded UI.
 
+## Logical Playback Identity
+
+Every inline playback host owns a required, URL-independent
+`playbackSessionKey`. Live hosts derive it from the playlist/source and the
+current channel identity; an M3U session uses `Channel.id` rather than a mutable
+stream or catch-up URL. VOD and series hosts use the route or catalog
+content identity, with series episode coordinates. Stalker episode identity
+also includes the series mode, normalized parent, exact season key, and the
+original provider command or episode ID; synthesized episode hashes are not
+identity. Selection and pending-resolution guards use that exact provider
+episode identity, so colliding tracking hashes cannot select a sibling episode.
+Shared wrappers (`VodDetailsComponent` and `PortalInlinePlayerComponent`) pass
+the key unchanged to `WebPlayerViewComponent`.
+
+Hosts invalidate both committed playback and pending resolution when the
+canonical owner changes (playlist/source, content, and mode where applicable).
+Refreshing data for the same canonical owner preserves the mounted player.
+Collection UIDs remain a separate persistence concern; legacy M3U collection
+UIDs continue to use stream URLs so saved favorites ordering remains compatible.
+
+Temporary portal URLs, catch-up URLs, headers, DRM data, and alternative source
+payloads are transport details and must not change this logical identity. A
+content or episode change must produce a different key. The serialized key is
+created with `createPlaybackSessionKey()` from `@iptvnator/playback/util` so
+delimiter-bearing provider IDs remain unambiguous.
+
+Inline hosts capture this identity before asynchronous playback resolution. A
+completion may mount only while the same owner is current; stale completions
+and embedded starts without a complete canonical identity are ignored without
+replacing an already committed session.
+
 ## Embedded MPV Harness
 
 The repository now contains a first-pass native embedded MPV harness for Electron:

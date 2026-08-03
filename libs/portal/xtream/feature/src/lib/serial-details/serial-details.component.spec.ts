@@ -22,10 +22,11 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { EMPTY, of } from 'rxjs';
+import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
+import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 @Component({
     selector: 'app-season-container',
@@ -54,6 +55,7 @@ class StubSeasonContainerComponent {
     template: '',
 })
 class StubPortalInlinePlayerComponent {
+    readonly playbackSessionKey = input.required<string>();
     readonly playback = input<unknown>(null);
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
@@ -108,6 +110,10 @@ describe('SerialDetailsComponent', () => {
     let seriesResumeTarget: ReturnType<
         typeof signal<SeriesResumeTarget | null>
     >;
+    let routeParams: BehaviorSubject<{
+        categoryId: string;
+        serialId: string;
+    }>;
 
     beforeEach(async () => {
         window.history.replaceState({}, '', window.location.href);
@@ -174,6 +180,10 @@ describe('SerialDetailsComponent', () => {
         getSeriesPlaybackPositions.mockClear();
         getSeriesPlaybackPositions.mockResolvedValue([]);
         seriesResumeTarget = signal<SeriesResumeTarget | null>(null);
+        routeParams = new BehaviorSubject({
+            categoryId: '3',
+            serialId: '103',
+        });
 
         await TestBed.configureTestingModule({
             imports: [SerialDetailsComponent],
@@ -181,10 +191,7 @@ describe('SerialDetailsComponent', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
-                        params: of({
-                            categoryId: '3',
-                            serialId: '103',
-                        }),
+                        params: routeParams,
                         snapshot: {
                             params: {
                                 categoryId: '3',
@@ -846,6 +853,15 @@ describe('SerialDetailsComponent', () => {
             seasonNumber: 1,
             episodeNumber: 1,
         });
+        const firstEpisodeKey = createPlaybackSessionKey({
+            kind: 'episode',
+            sourceId: 'xtream-1',
+            contentId: 1001,
+            seriesId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
+        });
+        expect(inlinePlayer.playbackSessionKey()).toBe(firstEpisodeKey);
         expect(inlinePlayer.seriesNavigation()).toEqual({
             canPrevious: false,
             canNext: true,
@@ -874,6 +890,7 @@ describe('SerialDetailsComponent', () => {
             canNext: false,
             autoplayEnabled: true,
         });
+        expect(inlinePlayer.playbackSessionKey()).not.toBe(firstEpisodeKey);
 
         inlinePlayer.playbackEnded.emit();
         fixture.detectChanges();
@@ -885,6 +902,61 @@ describe('SerialDetailsComponent', () => {
         );
         expect(constructEpisodeStreamUrl).not.toHaveBeenCalledWith(
             expect.objectContaining({ id: '2001' })
+        );
+    });
+
+    it('owns the parent identity from the route and ignores replacement playback payloads', async () => {
+        isEmbeddedPlayer.mockReturnValue(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const item = fixture.componentInstance.selectedItem();
+        const episode = item?.episodes?.['1'][0];
+        if (!item || !episode) {
+            throw new Error('Expected the serial fixture and first episode');
+        }
+        fixture.componentInstance.playEpisode(episode);
+        fixture.detectChanges();
+        const expected = createPlaybackSessionKey({
+            kind: 'episode',
+            sourceId: 'xtream-1',
+            contentId: 1001,
+            seriesId: 103,
+            seasonNumber: 1,
+            episodeNumber: 1,
+        });
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(expected);
+
+        fixture.componentInstance.inlinePlayback.set({
+            streamUrl: 'https://alternative.example/replaced.mkv',
+            title: 'Alternative payload',
+            headers: { Authorization: 'Bearer replacement' },
+            contentInfo: {
+                playlistId: 'alternative-playlist',
+                contentXtreamId: 999001,
+                contentType: 'episode',
+                seriesXtreamId: 999,
+                seasonNumber: 9,
+                episodeNumber: 9,
+            },
+        });
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(expected);
+
+        selectedItem.set({ ...item, series_id: 999 });
+        routeParams.next({ categoryId: '3', serialId: '104' });
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.playEpisode(episode);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.playbackSessionKey()).toBe(
+            createPlaybackSessionKey({
+                kind: 'episode',
+                sourceId: 'xtream-1',
+                contentId: 1001,
+                seriesId: 104,
+                seasonNumber: 1,
+                episodeNumber: 1,
+            })
         );
     });
 });
