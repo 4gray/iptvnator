@@ -13,8 +13,10 @@ import type { StalkerAuthenticationResult } from './stalker-auth.api';
  * All three halves matter, and each was a real defect when missing:
  *
  * - **Endpoint** — `ensureToken()` re-presents tokens in a handshake, so a
- *   playlist repointed at another host would disclose the previous portal's
- *   bearer token to an unrelated server.
+ *   playlist repointed at another portal would disclose the previous one's
+ *   bearer token to it. Origin alone is not enough: discovery deliberately
+ *   preserves tenant base paths (`/tenant-a/…` vs `/tenant-b/…`), which are
+ *   different portals on one host.
  * - **Identity** — an edited MAC/serial must not inherit the old session.
  * - **Credentials** — for a status-2 portal the login decides which account
  *   the token represents, so changing it must not keep serving the previous
@@ -38,19 +40,31 @@ export function stalkerSessionFingerprint(
     >
 ): string {
     return JSON.stringify([
-        portalOrigin(playlist.portalUrl),
+        portalEndpoint(playlist.portalUrl),
         stalkerIdentityFingerprint(playlist as Playlist),
         playlist.username ?? '',
         playlist.password ?? '',
     ]);
 }
 
-function portalOrigin(portalUrl: string | undefined): string {
+/**
+ * Origin AND path, minus query/fragment — the endpoint a session belongs to.
+ *
+ * No attempt is made to treat different handler paths for the same portal
+ * (`…/portal.php` vs `…/server/load.php`) as equivalent. Both sides of the
+ * comparison read the SAME persisted `portalUrl`, so the same portal always
+ * yields the same key; the value changes only on a real edit or repair, and
+ * both of those re-authenticate anyway. An equivalence rule would add
+ * machinery whose only failure mode is aliasing two genuinely different
+ * endpoints — the exact thing this key exists to prevent.
+ */
+function portalEndpoint(portalUrl: string | undefined): string {
     if (!portalUrl) {
         return '';
     }
     try {
-        return new URL(portalUrl).origin;
+        const parsed = new URL(portalUrl);
+        return `${parsed.origin}${parsed.pathname.replace(/\/+$/, '')}`;
     } catch {
         // Unparseable: fall back to the raw string so a change is still a
         // change — never to a constant, which would alias every endpoint.

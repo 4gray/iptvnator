@@ -985,6 +985,58 @@ describe('StalkerSessionService identity payloads', () => {
         );
     });
 
+    it('refuses a persisted token across tenants on the SAME host', async () => {
+        // Discovery deliberately preserves tenant base paths, so two portals
+        // can share an origin. An origin-only key would send tenant A's
+        // bearer to tenant B.
+        const tenantA = {
+            _id: 'playlist-tenant',
+            portalUrl: 'https://panel.example.com/tenant-a/server/load.php',
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                ...tenantA,
+                stalkerToken: 'TENANT-A-TOKEN',
+                stalkerSessionIdentity: stalkerSessionFingerprint(tenantA),
+                stalkerWatchdogTimeout: 60,
+            } as Playlist)
+        );
+        const authenticate = jest
+            .spyOn(service, 'authenticate')
+            .mockResolvedValue({ token: 'FRESH', reusedStoredToken: false });
+
+        await service.ensureToken({
+            ...tenantA,
+            portalUrl: 'https://panel.example.com/tenant-b/server/load.php',
+        } as Playlist);
+
+        expect(authenticate).toHaveBeenCalledWith(
+            'https://panel.example.com/tenant-b/server/load.php',
+            macAddress,
+            {},
+            expect.objectContaining({ storedToken: undefined })
+        );
+    });
+
+    it('keeps the session for the same endpoint spelled with a trailing slash', async () => {
+        // Normalisation must not turn a cosmetic difference into a forced
+        // re-authentication.
+        const portal = {
+            _id: 'playlist-slash',
+            portalUrl: 'https://panel.example.com/tenant-a/server/load.php',
+            macAddress,
+            isFullStalkerPortal: true,
+        } as Playlist;
+        expect(
+            stalkerSessionFingerprint({
+                ...portal,
+                portalUrl: 'https://panel.example.com/tenant-a/server/load.php/',
+            } as Playlist)
+        ).toBe(stalkerSessionFingerprint(portal));
+    });
+
     it('refuses a persisted token when the playlist was repointed at another host', async () => {
         // ensureToken re-presents persisted tokens in a handshake, so an
         // identity-only check would disclose the previous portal's bearer
