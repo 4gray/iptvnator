@@ -1,10 +1,10 @@
 import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
+import { shouldResolveMovieFileId } from './stalker-playback-command.utils';
 import {
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
     fetchStalkerPlaybackLink,
-    shouldResolveMovieFileId,
 } from './stalker-player-request.utils';
 
 const PLAYLIST = {
@@ -22,7 +22,10 @@ describe('stalker-player-request.utils', () => {
     let dataService: {
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
-    let stalkerSession: Pick<StalkerSessionService, 'makeAuthenticatedRequest'>;
+    let stalkerSession: Pick<
+        StalkerSessionService,
+        'makeAuthenticatedRequest' | 'ensureToken'
+    >;
 
     beforeEach(() => {
         dataService = {
@@ -30,6 +33,7 @@ describe('stalker-player-request.utils', () => {
         };
         stalkerSession = {
             makeAuthenticatedRequest: jest.fn(),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
     });
 
@@ -178,6 +182,284 @@ describe('stalker-player-request.utils', () => {
                 }),
             })
         );
+    });
+
+    describe('temporary-link semantics', () => {
+        const deps = () => ({
+            dataService: dataService as never,
+            stalkerSession: stalkerSession as StalkerSessionService,
+        });
+
+        it('establishes the session before returning a static url on a full portal', async () => {
+            // Minting the link used to be what authenticated. The global
+            // collection detail sets playlist + item straight from a
+            // persisted row, so a cold-start VOD would otherwise play a
+            // same-host gated stream with no Bearer token.
+            const fullPortal = {
+                ...PLAYLIST,
+                isFullStalkerPortal: true,
+            } as PlaylistMeta;
+            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
+                token: 'TOKEN-WARM',
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: fullPortal,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://demo.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://demo.example/movies/1.mkv');
+            expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+                expect.objectContaining({ _id: PLAYLIST._id })
+            );
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
+        it('falls back to create_link for a portal-owned url with no session', async () => {
+            // Serving a same-host static URL without a token means serving a
+            // known 401. The request path both mints a URL carrying its own
+            // token and is the only path that can observe a failure and
+            // trigger the lazy portal repair.
+            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
+                token: null,
+            });
+            // A full portal dispatches through the authenticated session, not
+            // the raw IPC bridge.
+            (
+                stalkerSession.makeAuthenticatedRequest as jest.Mock
+            ).mockResolvedValue({
+                js: { cmd: 'http://demo.example/tmp/1.mkv?tok=1' },
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                } as PlaylistMeta,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://demo.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://demo.example/tmp/1.mkv?tok=1');
+            expect(
+                stalkerSession.makeAuthenticatedRequest
+            ).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    action: StalkerPortalActions.CreateLink,
+                })
+            );
+        });
+
+        it('serves a foreign-host static url without contacting the portal', async () => {
+            // A CDN stream never needs the portal session, so it must not be
+            // pushed onto the request path — and must not wait on a handshake
+            // either: that is up to 15 s per request against a portal that may
+            // be offline while the CDN is reachable.
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                } as PlaylistMeta,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://cdn.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://cdn.example/movies/1.mkv');
+            expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
+        it('handshakes against a repaired endpoint, not the stale one', async () => {
+            // `executeStalkerRequest` applies the repair override on its first
+            // line, so the static path must too — handshaking against the
+            // configuration a repair has already proven broken would strand
+            // the session.
+            const stale = {
+                ...PLAYLIST,
+                portalUrl: 'http://demo.example/portal.php',
+                isFullStalkerPortal: true,
+            } as PlaylistMeta;
+            const repaired = {
+                ...stale,
+                portalUrl: 'http://demo.example/stalker_portal/server/load.php',
+            } as PlaylistMeta;
+            // Portal-owned URL: only those reach the handshake now, since a
+            // foreign host never needs the session.
+            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
+                token: 'TOKEN-REPAIRED',
+            });
+
+            await fetchStalkerPlaybackLink(
+                {
+                    dataService: dataService as never,
+                    stalkerSession: stalkerSession as StalkerSessionService,
+                    portalRepair: {
+                        applyOverride: jest.fn().mockReturnValue(repaired),
+                        shouldAttemptRepair: jest.fn().mockReturnValue(false),
+                        repairPortal: jest.fn().mockResolvedValue(null),
+                    },
+                },
+                {
+                    playlist: stale,
+                    selectedContentType: 'itv',
+                    cmd: 'ffrt3 http://demo.example/live/42.m3u8',
+                    linkFlags: { use_http_tmp_link: '0' },
+                }
+            );
+
+            expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+                expect.objectContaining({ portalUrl: repaired.portalUrl })
+            );
+        });
+
+        it('skips the handshake for a simple portal', async () => {
+            // The command has to be PORTAL-OWNED, or the foreign-host early
+            // return would skip the handshake by itself and this would pass
+            // without saying anything about portal mode. `PLAYLIST` is a
+            // simple portal, so the skip here can only come from the mode.
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'itv',
+                cmd: 'ffrt3 http://demo.example/live/42.m3u8',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://demo.example/live/42.m3u8');
+            expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
+        it('falls back to create_link when the handshake throws', async () => {
+            // A throwing handshake must not propagate — it leaves the session
+            // unusable, and a portal-owned URL then goes to `create_link`
+            // rather than being served as a known 401. The command has to be
+            // portal-owned for the handshake to run at all.
+            (
+                stalkerSession.ensureToken as jest.Mock
+            ).mockRejectedValue(new Error('portal down'));
+            (
+                stalkerSession.makeAuthenticatedRequest as jest.Mock
+            ).mockResolvedValue({
+                js: { cmd: 'http://demo.example/tmp/1.mkv?tok=1' },
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                } as PlaylistMeta,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://demo.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(stalkerSession.ensureToken).toHaveBeenCalled();
+            expect(streamUrl).toBe('http://demo.example/tmp/1.mkv?tok=1');
+        });
+
+        it('plays the static cmd of an unflagged row without asking the portal', async () => {
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'itv',
+                cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                linkFlags: {
+                    use_http_tmp_link: '0',
+                    use_load_balancing: '0',
+                },
+            });
+
+            expect(streamUrl).toBe('http://cdn.example/live/42.m3u8');
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
+        it.each(['use_http_tmp_link', 'use_load_balancing'] as const)(
+            'mints a temporary link when %s is set',
+            async (flag) => {
+                dataService.sendIpcEvent.mockResolvedValue({
+                    js: { cmd: 'http://cdn.example/tmp/42.m3u8?tok=1' },
+                });
+
+                const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                    playlist: PLAYLIST,
+                    selectedContentType: 'itv',
+                    cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                    linkFlags: { [flag]: '1' },
+                });
+
+                expect(streamUrl).toBe('http://cdn.example/tmp/42.m3u8?tok=1');
+                expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                    expect.anything(),
+                    expect.objectContaining({
+                        params: expect.objectContaining({
+                            action: StalkerPortalActions.CreateLink,
+                        }),
+                    })
+                );
+            }
+        );
+
+        it('mints a link when the caller supplies no flags', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { cmd: 'http://cdn.example/tmp/42.m3u8' },
+            });
+
+            await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'itv',
+                cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+            });
+
+            expect(dataService.sendIpcEvent).toHaveBeenCalled();
+        });
+
+        it('always mints a link for an episode, whose cmd addresses the series', async () => {
+            // `series` selects the episode server-side, so the parent row's
+            // static cmd is not an answer even when it is unflagged.
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { cmd: 'http://cdn.example/tmp/ep3.m3u8' },
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'series',
+                cmd: 'ffrt3 http://cdn.example/series/7.m3u8',
+                series: 3,
+                linkFlags: {
+                    use_http_tmp_link: '0',
+                    use_load_balancing: '0',
+                },
+            });
+
+            expect(streamUrl).toBe('http://cdn.example/tmp/ep3.m3u8');
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    params: expect.objectContaining({ series: '3' }),
+                })
+            );
+        });
+
+        it('still mints a link for a relative unflagged VOD command', async () => {
+            dataService.sendIpcEvent.mockResolvedValue({
+                js: { cmd: '/media/video_77.mpg' },
+            });
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'vod',
+                cmd: '/media/file_42.mpg',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe(
+                'http://demo.example/stalker_portal/media/video_77.mpg'
+            );
+        });
     });
 
     it('returns a localized expire date string from account info', async () => {

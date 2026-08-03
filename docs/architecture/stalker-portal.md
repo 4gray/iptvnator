@@ -305,6 +305,226 @@ the cross-portal collection resolver (`StreamResolverService`) use
 resolve relative (`/media/...`) or query-only (`?token=...`) `create_link`
 replies against the portal base URL.
 
+## Playback Link Resolution
+
+### When `create_link` is called
+
+A Stalker catalog row decides for itself whether it needs a temporary link.
+The portal's own `player.js` — mirrored by Kodi's `pvr.stalker` — calls
+`create_link` only when the row sets `use_http_tmp_link` (the portal proxies
+the stream through a per-session URL) or `use_load_balancing` (the portal
+picks a storage server per request). Every other row plays the static `cmd`
+that `get_all_channels` / `get_ordered_list` already returned. Until PR 8 the
+app called `create_link` unconditionally, so every playback paid a round trip
+and gained a failure point that the reference client does not have.
+
+One helper owns the decision:
+`resolveStalkerStaticPlaybackUrl(row, cmd)` in
+`libs/portal/stalker/data-access/src/lib/stores/utils/stalker-link-semantics.utils.ts`.
+It returns the playable URL when the static path applies and `null` when the
+portal has to resolve the command. `null` is deliberately wider than the flag
+check alone; the extra guards can only push a row back onto the `create_link`
+path, so they cannot regress a portal that works today:
+
+| Input | Verdict | Why |
+| --- | --- | --- |
+| Either flag truthy (`1`, `'1'`, `true`) | `create_link` | The portal asked for a temporary link. |
+| No row supplied at all | `create_link` | A caller that cannot show the flags gets no verdict. |
+| A row carrying neither flag KEY | `create_link` | Absence means "no evidence", not "no". A stock portal returns both flags on every row, so their PRESENCE is the provenance signal — and the only one available, because rows persisted into Favorites/Recently Viewed before this change were stripped of them by `buildStalkerSelectedVodItem`'s whitelist, making a legacy snapshot indistinguishable from a genuinely unflagged row. There is no migration for those. **Radio is the documented exception**: a directly playable radio command has always played as-is, so a flagless radio row keeps that rather than newly minting. |
+| Relative `/media/file_12.mpg` or query-only `?token=…` | `create_link` | Only the portal turns those into an address; the VOD `has_files` rewrite produces exactly the first shape. |
+| Non-HTTP scheme (`ffrt4://ch/live/…`) | `create_link` | Portal-internal pseudo-URL. |
+| Portal-local host — `localhost` and any `*.localhost` name (RFC 6761 §6.3 reserves the whole suffix for loopback), `localhost.localdomain`, all of `127.0.0.0/8`, `0.0.0.0`, `::1`, `::`, and the IPv4-mapped forms `URL` normalizes to hex (`::ffff:7f00:1`); a terminal DNS root dot is stripped first | `create_link` | `ffrt3 http://localhost/ch/1234_` is an instruction to the portal, not an address a set-top box could open. |
+| Otherwise | static `cmd` | Solution prefix stripped by `normalizeStalkerPlaybackCommand()`. |
+
+`fetchStalkerPlaybackLink()` applies the verdict for ITV, VOD and radio, and
+short-circuits before the request. It never applies it when `series` is set:
+an episode is selected server-side by that parameter, so the parent row's
+static `cmd` addresses the series, not the episode.
+
+**The flags must survive normalization.** `buildStalkerSelectedVodItem()`
+(`stalker-vod.utils.ts`) narrows a raw portal row to a whitelist, so a field it
+does not name is silently dropped — and it feeds both VOD playback
+(`selectedItem()`) and the download payload (`createStalkerVodItem` passes its
+`data` straight through). Losing a flag there fails **open**: the row reads as
+"no temporary link needed" and the static path plays the portal's non-final
+URL. Both flags are therefore on the whitelist, on `StalkerVodSource` /
+`StalkerSelectedVodItem`, and pinned by tests in `stalker-vod.utils.spec.ts`.
+Any new normalizer between a portal response and a playback call has the same
+obligation.
+
+Callers pass the row they resolved the `cmd` from:
+
+- ITV and radio — the channel/station row (`withStalkerPlayer`); radio
+  previously bypassed `create_link` for any directly playable command, which
+  meant a proxied station played a URL the portal never intended to serve.
+- VOD and series — `selectedItem()`.
+- Downloads — the movie payload, through the optional `linkFlags` argument on
+  `fetchLinkToPlay()`, but only for a credential-free URL (see below).
+- Favorites and Recently Viewed — `StreamResolverService.resolveStalker()`
+  reads the flags off the persisted raw row (`UnifiedCollectionItem.stalkerItem`).
+  Radio keeps its long-standing "directly usable command plays as-is"
+  behaviour, keyed off flag EVIDENCE rather than snapshot presence — a radio
+  row persisted before the flags were carried has a snapshot that simply lacks
+  them, and testing presence would skip the fallback for exactly those rows.
+  `withStalkerPlayer`'s radio branch applies the identical rule; the two must
+  not drift.
+
+### The static path still needs the session
+
+`create_link` was also the request that warmed the portal session, and tokens
+live in memory only (`StalkerSessionService.tokenCache`). Skipping it therefore
+has to account for streams that are still gated on the Bearer token — and
+"which routes are already warm" is not a question worth answering per route:
+the global collection detail sets the playlist and the selected item straight
+from a persisted row, with no catalog load in between, so a VOD opened from
+Favorites reaches the store's playback path stone cold.
+
+Every static return therefore warms first, through one primitive —
+`ensureStalkerSession()` in `stalker-request.utils.ts`, wrapping
+`StalkerSessionService.ensureToken()`:
+
+- `fetchStalkerPlaybackLink()` calls it before returning a static URL, which
+  covers ITV, VOD, radio and downloads at a single choke point.
+- `StreamResolverService` calls it on its own static branch, which does not go
+  through that function.
+
+`ensureToken` performs handshake + `get_profile` with no link minted, and
+validates the identity the cached token was negotiated for — which the raw
+`getCachedToken()` the header builders use cannot. It is cheap where it is not
+needed: a simple portal returns immediately and a warm cache with a matching
+fingerprint resolves without a request.
+
+The classification happens BEFORE the handshake, not after: a **foreign-host**
+static URL never needs the session at all, and warming it anyway would stall
+playback behind a request worth up to 15 s against a portal that may be slow
+or offline while the CDN is perfectly reachable — for a result that is then
+discarded.
+
+A **foreign-host** static URL is returned before the handshake is even
+attempted — it never needed the session. A **portal-owned** one with no usable
+session (handshake failed, or threw) would be served knowing it will 401, so
+both call sites fall back to `create_link` instead — which mints a URL
+carrying its own token and, crucially, is the only path that can observe a
+failure and trigger the lazy portal repair. That keeps a playlist still
+misclassified as token-free, or pointing at an unrepaired endpoint, on the
+self-healing path it was on before this change.
+
+`ensureStalkerSession` returns that verdict: `true` for a portal that needs no
+token and for one holding a usable token, `false` for a full portal left
+without one. It swallows a throwing handshake rather than propagating it — an
+unreachable portal must not surface as an exception mid-playback — which
+simply makes the verdict `false` and routes the row to `create_link`.
+
+**Known trade-off: a cached token is not revalidated.** `ensureToken` returns a
+same-identity cache entry without touching the network, so the static path no
+longer self-heals a token the server has retired — something `create_link`
+used to do for free, since `makeAuthenticatedRequest` retires and re-auths on
+an authorization failure. This is narrower than it sounds: per the 4.9.35
+reference, handshake tokens have **no TTL**, and failing to send the watchdog
+does **not** invalidate auth (it only clears the admin panel's "online"
+status). The one real vector left is another device performing `get_profile`
+on the same MAC — common enough on shared subscriptions, but wherever a
+watchdog is running it still self-heals within a ping cycle, because the ping
+goes through `makeAuthenticatedRequest` too. What is left uncovered is a
+same-host static stream played while no watchdog is up.
+
+Revalidating on every static playback would cost exactly the round trip this
+section exists to remove, so it is deliberately not done here. The right home
+for a fix is the auth lifecycle (PR 6): refresh on an observed playback
+authorization failure, rather than pre-emptively on every play.
+
+**Downloads are the exception, and cannot use this.** A download request cannot
+carry portal credentials at all — the main-process stored-header allowlist is
+`User-Agent` / `Origin` / `Referer` only
+(`download-request-headers.ts`), with no `Cookie` or `Authorization`. So
+`startStalkerVodDownload` offers the static shortcut only for a URL that needs
+none: it classifies the candidate with `isStalkerStreamCredentialSafe()` and
+withholds the row (forcing `create_link`) for anything portal-owned. A
+same-host movie keeps using the minted URL, which carries its own access token;
+a CDN-hosted one keeps the permanent URL that survives retry.
+
+### Resolved links are never stored
+
+A temporary link lives about 5 seconds (`tv_tmp_link_ttl` /
+`vclub_tmp_link_ttl`, both default 5). It is time-limited but not single-use,
+so the rule is to resolve immediately before playback and never persist,
+cache or replay the result. What each persisting path actually stores:
+
+| Path | Stores | Verdict |
+| --- | --- | --- |
+| Recently Viewed | the raw row including `cmd` (`buildStalkerRecentlyViewedPayload` spreads the item) | Re-resolves on replay. |
+| Favorites | the raw row including `cmd` (`addStalkerFavorite`, `toggleFavorite`) | Re-resolves on replay. |
+| Playback positions | `playlist_id` + `content_xtream_id` + content type only — no URL column | Not applicable. |
+| Main-process playback context (`stalker-playback-context.service.ts`) | header sets keyed by the stream URL's origin + path, 15 min TTL | Stores no URL. The key drops the query, so a re-minted link with a fresh token still finds its headers instead of playing bare. |
+| ITV full-list cache (`StalkerItvCacheService`) | catalog rows | Rows, not links. |
+| Downloads | the resolved `url` on the `downloads` row | **The one exception** — see below. |
+
+The download row is the only place a resolved URL outlives the playback that
+produced it, because the main-process downloader needs a URL it can retry and
+resume with. Honouring the flags shrinks the exposure: an unflagged movie on a
+host that needs no portal credentials now yields a permanent URL that survives
+retry. A movie that needs a temporary link — or one on the portal host, which a
+download cannot authenticate against — still stores a link that is dead by the
+time retry runs. Fixing that needs the `cmd` on the download row plus a
+re-resolution step before retry/resume, which is a schema change and is
+deliberately out of scope here.
+
+### `forced_storage` and `play_token`
+
+Both are deliberately unused, and neither appears in the 4.9.35 reference
+fact set as a parameter the stock server enforces:
+
+- **`forced_storage`** is a `create_link` request parameter that pins VOD
+  playback to one storage server. It exists for clients that let the user pick
+  a storage; IPTVnator has no such concept, and omitting the parameter is what
+  produces the empty value the portal treats as "no preference". Wiring it
+  would first need storage discovery and a picker in the VOD detail view.
+- **`play_token`** is a `create_link` response field for clients that assemble
+  the stream URL themselves. IPTVnator plays the `cmd` the portal returns
+  verbatim (after the solution-prefix strip and base resolution above), so the
+  token the stream needs is already in the URL. Note the coupling with the
+  section above: on the static path no `create_link` runs at all, so no
+  `play_token` is ever produced — which is consistent, because a row that
+  wants neither flag is announcing that its `cmd` needs no portal-minted
+  credential.
+
+Revisit both only with a portal that demonstrably fails without them.
+
+### Regression coverage
+
+**Writing tests against this section:** the decision chain has several exits —
+no flag evidence, unresolvable command shape, `series` set, foreign host,
+session unusable — and more than one of them can satisfy the same assertion.
+Four tests in the PR that introduced this were found passing through an exit
+other than the one they named (a foreign-host command reaches neither the
+handshake nor `create_link`, so it silently stands in for "simple portal" or
+"handshake failed"). Mutation testing does not catch it: it proves a test is
+coupled to its target, not that it reached the mechanism in its name. Check the
+mock setup against the execution path, and assert the step you mean was
+actually taken — `expect(ensureToken).toHaveBeenCalled()` rather than only the
+returned URL.
+
+- `stalker-link-semantics.utils.spec.ts` — the decision table above.
+- `stalker-vod.utils.spec.ts` — both flags survive
+  `buildStalkerSelectedVodItem` / `normalizeStalkerVodDetailsItem` /
+  `normalizeStalkerFavoriteItem`, and an unflagged row gains no flags.
+- `stalker-player-request.utils.spec.ts` — static short-circuit, both flags,
+  the `series` exception, relative VOD commands, the session warm-up (simple
+  portal skipped, repaired endpoint used, failure degraded) and the
+  portal-owned-without-session fallback to `create_link`.
+- `with-stalker-player.feature.spec.ts` — ITV/radio store paths and proof that
+  Recently Viewed stores the `cmd`, never the stream URL.
+- `stream-resolver.service.spec.ts` — the collection route, plus the cold
+  full-portal session warm-up and its best-effort degradation.
+- `stalker-vod-download.spec.ts` — a CDN movie takes the static shortcut, a
+  same-host one keeps minting.
+- `stalker-playback-context.service.spec.ts` — headers only, query-insensitive
+  key.
+- `apps/web-e2e/src/stalker.e2e.ts` — mock scenario `00:1A:79:00:00:0A` serves
+  unflagged ITV rows with a playable `cmd`; the spec asserts NO `create_link`
+  request reaches the portal, and a companion test on the default (flagged)
+  scenario proves the recorder does see one when a link is due.
+
 ## Playback Header Contract
 
 Every playback kind — ITV, VOD, series episodes, and radio — resolves its
@@ -326,7 +546,10 @@ live layout for the radio audio player, which renders outside
 Two stream profiles exist, selected by one shared predicate:
 
 - **Portal-owned** (`isStalkerStreamCredentialSafe()` in
-  `@iptvnator/shared/interfaces`): the stream host equals the portal host —
+  `@iptvnator/shared/interfaces`): the stream host equals the portal host
+  (compared with a terminal DNS root dot normalized away, since
+  `portal.example.` and `portal.example` are the same host but `URL` keeps
+  the dot) —
   including a different port or an http→https upgrade, the routine IPTV panel
   shape (#1158 class). These streams get the full MAG profile: `Cookie`
   (`mac=…` plus protocol cookies), `Authorization: Bearer <token>` when a

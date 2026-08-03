@@ -120,4 +120,106 @@ describe('startStalkerVodDownload', () => {
         expect(snapshot).not.toHaveProperty('rating');
         expect(snapshot).not.toHaveProperty('tmdbId');
     });
+
+    it('hands the movie row on so an unflagged CDN movie yields a permanent URL', async () => {
+        // The download row stores whatever URL comes back and retry replays
+        // it, so a row that needs no temporary link must be recognised as
+        // such — a 5 s link would survive only the first attempt.
+        const startDownload = jest.fn().mockResolvedValue({ success: true });
+        const fetchLinkToPlay = jest
+            .fn()
+            .mockResolvedValue('https://cdn.example.test/movie.mpg');
+        const data = {
+            id: '42',
+            cmd: 'ffrt3 https://cdn.example.test/movie.mpg',
+            use_http_tmp_link: '0',
+            use_load_balancing: '0',
+            info: { name: 'Static Movie' },
+        };
+
+        await startStalkerVodDownload(
+            {
+                type: 'stalker',
+                playlistId: 'stalker-1',
+                cmd: data.cmd,
+                data,
+            } as unknown as VodDetailsItem,
+            {
+                playlist: {
+                    id: 'stalker-1',
+                    portalUrl: 'https://stalker.example.test',
+                    macAddress: '00:1A:79:12:34:56',
+                },
+                downloadsService: { startDownload },
+                fetchMovieFileId: jest.fn(),
+                fetchLinkToPlay,
+            }
+        );
+
+        expect(fetchLinkToPlay).toHaveBeenCalledWith(
+            'https://stalker.example.test',
+            '00:1A:79:12:34:56',
+            data.cmd,
+            expect.objectContaining({
+                use_http_tmp_link: '0',
+                use_load_balancing: '0',
+            })
+        );
+        expect(startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://cdn.example.test/movie.mpg',
+            })
+        );
+    });
+
+    it('keeps minting a link for an unflagged movie on the portal host', async () => {
+        // A download cannot carry portal credentials — the main-process
+        // stored-header allowlist is User-Agent/Origin/Referer only. So a
+        // same-host static URL, which the portal may gate on the mac cookie
+        // or Bearer token, must still go through create_link and use the
+        // minted URL's own access token.
+        const startDownload = jest.fn().mockResolvedValue({ success: true });
+        const fetchLinkToPlay = jest
+            .fn()
+            .mockResolvedValue('https://stalker.example.test/tmp/42?tok=1');
+        const data = {
+            id: '42',
+            cmd: 'ffrt3 https://stalker.example.test/movies/42.mkv',
+            use_http_tmp_link: '0',
+            use_load_balancing: '0',
+            info: { name: 'Same Host Movie' },
+        };
+
+        await startStalkerVodDownload(
+            {
+                type: 'stalker',
+                playlistId: 'stalker-1',
+                cmd: data.cmd,
+                data,
+            } as unknown as VodDetailsItem,
+            {
+                playlist: {
+                    id: 'stalker-1',
+                    portalUrl: 'https://stalker.example.test/portal.php',
+                    macAddress: '00:1A:79:12:34:56',
+                },
+                downloadsService: { startDownload },
+                fetchMovieFileId: jest.fn(),
+                fetchLinkToPlay,
+            }
+        );
+
+        // No row handed over ⇒ the static shortcut is not offered.
+        expect(fetchLinkToPlay).toHaveBeenCalledWith(
+            'https://stalker.example.test/portal.php',
+            '00:1A:79:12:34:56',
+            data.cmd,
+            undefined
+        );
+        expect(startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://stalker.example.test/tmp/42?tok=1',
+            })
+        );
+    });
 });

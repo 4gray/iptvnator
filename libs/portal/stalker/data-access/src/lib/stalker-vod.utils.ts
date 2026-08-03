@@ -160,6 +160,16 @@ export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
     };
 }
 
+/**
+ * Narrows a raw portal row to the fields the detail/playback flows need.
+ *
+ * This is a whitelist, not a spread, so anything not named here is dropped.
+ * `use_http_tmp_link` / `use_load_balancing` MUST stay on the list: playback
+ * and downloads read them to decide whether `create_link` is required, and a
+ * missing flag reads as "no temporary link needed" — it fails OPEN, playing
+ * the portal's non-final URL instead of minting one. See
+ * `docs/architecture/stalker-portal.md`, "Playback Link Resolution".
+ */
 export function buildStalkerSelectedVodItem(
     item: StalkerVodSource,
     forceSeries = false
@@ -169,6 +179,8 @@ export function buildStalkerSelectedVodItem(
         cmd: toStringOrFallback(item.cmd),
         series: item.series,
         has_files: item.has_files,
+        use_http_tmp_link: item.use_http_tmp_link,
+        use_load_balancing: item.use_load_balancing,
         is_series:
             forceSeries || isStalkerSeriesFlag(item?.is_series)
                 ? true

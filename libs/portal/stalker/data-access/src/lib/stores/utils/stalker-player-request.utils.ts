@@ -1,5 +1,6 @@
 import { DataService } from '@iptvnator/services';
 import {
+    isStalkerStreamCredentialSafe,
     PlaylistMeta,
     StalkerPortalActions,
     StalkerPortalItem,
@@ -8,6 +9,12 @@ import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerContentType } from '../stalker-store.contracts';
 import {
+    resolveStalkerStaticPlaybackUrl,
+    type StalkerLinkFlagSource,
+} from './stalker-link-semantics.utils';
+import { resolveStalkerPlaybackUrl } from './stalker-playback-command.utils';
+import {
+    ensureStalkerSession,
     executeStalkerRequest,
     type StalkerPortalRepairApi,
 } from './stalker-request.utils';
@@ -29,106 +36,11 @@ export interface StalkerPlayerRequestDeps {
     portalRepair?: StalkerPortalRepairApi;
 }
 
-export interface StalkerPlayableItemLike extends StalkerPortalItem {
+export interface StalkerPlayableItemLike
+    extends StalkerPortalItem,
+        StalkerLinkFlagSource {
     cmd?: string;
     has_files?: unknown;
-}
-
-export function normalizeStalkerPlaybackCommand(value: string): string {
-    const trimmed = String(value ?? '').trim();
-    if (!trimmed) {
-        return '';
-    }
-
-    const splitAt = trimmed.indexOf(' ');
-    if (splitAt > 0) {
-        const candidate = trimmed.slice(splitAt + 1).trim();
-        if (
-            candidate.startsWith('http://') ||
-            candidate.startsWith('https://') ||
-            candidate.startsWith('/') ||
-            candidate.startsWith('?')
-        ) {
-            return candidate;
-        }
-    }
-
-    return trimmed;
-}
-
-export function resolveStalkerPlaybackUrl(
-    portalUrl: string,
-    originalCmd: string,
-    responseCmd: string
-): string {
-    const url = normalizeStalkerPlaybackCommand(responseCmd);
-    if (!url) {
-        return '';
-    }
-
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-        return url;
-    }
-
-    try {
-        const portalUrlObj = new URL(portalUrl);
-        // The installation base is the endpoint path MINUS the API suffix
-        // discovery appended (`/portal.php`, `/server/load.php`) — endpoint
-        // discovery can persist arbitrary nested installations
-        // (`/cp/server/load.php`), so a fixed segment allowlist would
-        // resolve `/media/...` against the wrong root. The legacy marker
-        // segments stay as the fallback for URLs that carry neither suffix.
-        const endpointPath = portalUrlObj.pathname;
-        let basePath = '';
-        const apiSuffix = /\/(?:portal\.php|server\/load\.php|[^/]*\.php)$/i;
-        if (apiSuffix.test(endpointPath)) {
-            basePath = endpointPath.replace(apiSuffix, '');
-        } else {
-            const pathParts = endpointPath.split('/');
-            for (let index = 0; index < pathParts.length; index += 1) {
-                if (
-                    pathParts[index] === 'stalker_portal' ||
-                    pathParts[index] === 'c' ||
-                    pathParts[index] === 'portal'
-                ) {
-                    basePath = '/' + pathParts.slice(1, index + 1).join('/');
-                    break;
-                }
-            }
-        }
-
-        if (url.startsWith('?')) {
-            const normalizedCmd = normalizeStalkerPlaybackCommand(originalCmd);
-            if (
-                normalizedCmd.startsWith('http://') ||
-                normalizedCmd.startsWith('https://')
-            ) {
-                return `${normalizedCmd}${url}`;
-            }
-
-            return `${portalUrlObj.origin}${basePath}${normalizedCmd}${url}`;
-        }
-
-        if (url.startsWith('/')) {
-            return `${portalUrlObj.origin}${basePath}${url}`;
-        }
-    } catch {
-        return url;
-    }
-
-    return url;
-}
-
-export function shouldResolveMovieFileId(
-    item: Pick<StalkerPlayableItemLike, 'has_files'> | null | undefined,
-    cmd: string
-): boolean {
-    return (
-        item?.has_files !== undefined &&
-        !cmd.includes('://') &&
-        cmd.includes('/media/') &&
-        !cmd.includes('/media/file_')
-    );
 }
 
 export async function fetchStalkerPlaybackLink(
@@ -139,8 +51,58 @@ export async function fetchStalkerPlaybackLink(
         cmd: string;
         series?: number;
         forcedContentType?: StalkerContentType;
+        /**
+         * The catalog row this `cmd` came from. Without it every playback
+         * mints a temporary link; with it, rows that set neither
+         * `use_http_tmp_link` nor `use_load_balancing` play their static
+         * `cmd` and never touch the portal.
+         */
+        linkFlags?: StalkerLinkFlagSource | null;
     }
 ): Promise<string> {
+    // An episode is selected server-side by the `series` parameter, so a
+    // series request has no static answer even when the parent row is
+    // unflagged — the static `cmd` addresses the series, not the episode.
+    if (options.series === undefined) {
+        const staticUrl = resolveStalkerStaticPlaybackUrl(
+            options.linkFlags,
+            options.cmd
+        );
+        if (staticUrl) {
+            // Returning here skips the request that used to authenticate.
+            // Not every caller has a warm session: the global collection
+            // detail sets the playlist and the item straight from a persisted
+            // row, with no catalog load in between, so a VOD opened from
+            // Favorites on a cold start would play a same-host gated stream
+            // without a Bearer token. Warming at this single choke point
+            // covers ITV, VOD, radio and downloads alike.
+            // Classify BEFORE authenticating. A stream on a foreign host never
+            // needs the portal session, and warming it anyway would block
+            // playback behind a handshake worth up to 15 s per request against
+            // a slow or offline portal (`stalker.events.ts`) for a result that
+            // is then discarded — the CDN is reachable even when the portal is
+            // not.
+            if (
+                !isStalkerStreamCredentialSafe(
+                    options.playlist.portalUrl ?? '',
+                    staticUrl
+                )
+            ) {
+                return staticUrl;
+            }
+
+            // Portal-owned: it may be gated on the Bearer token, and minting
+            // the link used to be what established the session. Without a
+            // usable one, serving this would be serving a known 401 — fall
+            // back to the request path instead, which both mints a URL that
+            // carries its own token and is the only path that can observe a
+            // failure and trigger the lazy portal repair.
+            if (await ensureStalkerSession(deps, options.playlist)) {
+                return staticUrl;
+            }
+        }
+    }
+
     const contentType =
         options.forcedContentType ?? options.selectedContentType;
     const response = await executeStalkerRequest<StalkerPlayerResponse>(

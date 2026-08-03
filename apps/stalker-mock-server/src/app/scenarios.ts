@@ -32,6 +32,12 @@ export interface ScenarioConfig {
      * the portal credentials (the "only VLC works" cluster).
      */
     gatedStream?: true;
+    /**
+     * Generate ITV channels that need NO temporary link: a directly playable
+     * `cmd` with `use_http_tmp_link`/`use_load_balancing` both `'0'`. A client
+     * honouring the flags must play those without calling `create_link`.
+     */
+    staticChannelCmd?: true;
 }
 
 /**
@@ -156,6 +162,20 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         isSeriesFraction: 0,
         embeddedSeriesFraction: 0,
         gatedStream: true,
+    },
+    '00:1a:79:00:00:0a': {
+        name: 'static-channel-cmd',
+        description:
+            'ITV rows that need no temporary link — playable cmd with ' +
+            'use_http_tmp_link/use_load_balancing both 0',
+        seed: 1010,
+        categoryCount: { itv: 2, radio: 1, vod: 1, series: 1 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        isSeriesFraction: 0,
+        embeddedSeriesFraction: 0,
+        staticChannelCmd: true,
     },
 };
 

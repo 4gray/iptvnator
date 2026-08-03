@@ -45,6 +45,7 @@ describe('StreamResolverService', () => {
         stalkerSession = {
             getCachedToken: jest.fn(() => null),
             makeAuthenticatedRequest: jest.fn(),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
         epgBridge = {
             getChannelPrograms: jest.fn(),
@@ -703,6 +704,48 @@ describe('StreamResolverService', () => {
         expect(detail.playback.headers?.['Authorization']).toBeUndefined();
     });
 
+    it('plays a legacy radio favorite whose snapshot lost the flags', async () => {
+        // The row above this one carries NO `stalkerItem`, so it exercises the
+        // missing-snapshot arm. A radio favorite persisted before the flags
+        // were carried has a snapshot that simply lacks them — testing
+        // presence instead of evidence would skip the radio fallback and start
+        // minting for exactly those rows, breaking portals whose radio
+        // `create_link` is unsupported.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+
+        const detail = await service.resolveLiveDetail({
+            uid: 'stalker::stalker-1::40003',
+            name: 'Legacy Radio',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '40003',
+            stalkerCmd: 'ffmpeg https://media.example.com/legacy.mp3',
+            logo: 'legacy.png',
+            radio: 'true',
+            // Present, but stripped of the flags by the old whitelist.
+            stalkerItem: {
+                id: '40003',
+                cmd: 'ffmpeg https://media.example.com/legacy.mp3',
+                name: 'Legacy Radio',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(detail.playback.streamUrl).toBe(
+            'https://media.example.com/legacy.mp3'
+        );
+    });
+
     it('resolves relative Stalker create_link responses against the portal base', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
@@ -806,6 +849,255 @@ describe('StreamResolverService', () => {
         expect(playback.headers?.['User-Agent']).toBe('KSPlayer');
         expect(playback.referer).toBeUndefined();
         expect(playback.origin).toBeUndefined();
+    });
+
+    it('plays an unflagged Stalker favorite from its stored cmd without create_link', async () => {
+        // Favorites persist the raw catalog row, so `use_http_tmp_link` /
+        // `use_load_balancing` come back with it — a row that sets neither is
+        // playable as it stands and must not cost a portal round trip.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::90',
+            name: 'Static Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '90',
+            stalkerCmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+            stalkerItem: {
+                id: '90',
+                cmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+                use_http_tmp_link: '0',
+                use_load_balancing: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        // The detail route still loads EPG; what must not happen is a link
+        // request.
+        const requestedActions = [
+            ...dataService.sendIpcEvent.mock.calls,
+            ...stalkerSession.makeAuthenticatedRequest.mock.calls,
+        ].map(
+            (call) =>
+                (call[1] as { params?: { action?: string } } | undefined)
+                    ?.params?.action
+        );
+        expect(requestedActions).not.toContain('create_link');
+        expect(playback.streamUrl).toBe('http://cdn.example.com/live/90.m3u8');
+        expect(playback.isLive).toBe(true);
+    });
+
+    it('authenticates a cold full-portal session before a static stream', async () => {
+        // Skipping create_link also skips the request that used to warm the
+        // session. Tokens are in-memory only, so a cold start from global
+        // Favorites would otherwise hand a same-host gated stream headers
+        // with no Authorization and take a 403.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+        // Cold: no token until ensureToken has run.
+        stalkerSession.getCachedToken.mockReturnValue(null);
+        stalkerSession.ensureToken.mockImplementation(async () => {
+            stalkerSession.getCachedToken.mockReturnValue('TOKEN-COLD');
+            return { token: 'TOKEN-COLD' };
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::91',
+            name: 'Cold Static Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '91',
+            stalkerCmd: 'ffrt3 https://stalker.example.com/live/91.m3u8',
+            stalkerItem: {
+                id: '91',
+                cmd: 'ffrt3 https://stalker.example.com/live/91.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 'stalker-1' })
+        );
+        expect(playback.streamUrl).toBe(
+            'https://stalker.example.com/live/91.m3u8'
+        );
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN-COLD');
+    });
+
+    it('serves a foreign-host static stream without waiting on the portal', async () => {
+        // The CDN needs no portal credentials, so the handshake would be a
+        // discarded result — and a stall of up to 15 s when the portal is
+        // slow or offline but the CDN is fine.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::94',
+            name: 'Cdn Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '94',
+            stalkerCmd: 'ffrt3 https://cdn.example.com/live/94.m3u8',
+            stalkerItem: {
+                id: '94',
+                cmd: 'ffrt3 https://cdn.example.com/live/94.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe('https://cdn.example.com/live/94.m3u8');
+        expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+    });
+
+    it('falls back to create_link when the handshake throws', async () => {
+        // A throwing handshake must not propagate. It leaves the session
+        // unusable, so a PORTAL-OWNED url goes to `create_link` rather than
+        // being served as a known 401 — the url has to be portal-owned for
+        // the handshake to run at all now that classification comes first.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.ensureToken.mockRejectedValue(new Error('portal down'));
+        stalkerSession.makeAuthenticatedRequest.mockResolvedValue({
+            js: { cmd: 'https://stalker.example.com/tmp/92.ts?tok=1' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::92',
+            name: 'Portal Static Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '92',
+            stalkerCmd: 'ffrt3 https://stalker.example.com/live/92.m3u8',
+            stalkerItem: {
+                id: '92',
+                cmd: 'ffrt3 https://stalker.example.com/live/92.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(stalkerSession.ensureToken).toHaveBeenCalled();
+        expect(playback.streamUrl).toBe(
+            'https://stalker.example.com/tmp/92.ts?tok=1'
+        );
+    });
+
+    it('prefers the edited playlist coordinates over a stale favorite snapshot', async () => {
+        // A favorite persists the portal URL and MAC it was saved with. After
+        // the playlist is edited, the session token is negotiated for the NEW
+        // identity — sending it with the old MAC cookie (or to the old host)
+        // is the mismatch the identity fingerprint exists to prevent.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://new.example.com/portal.php',
+                macAddress: 'AA:BB:CC:00:00:99',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.getCachedToken.mockReturnValue('TOKEN-NEW');
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::93',
+            name: 'Edited Portal Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '93',
+            stalkerCmd: 'ffrt3 https://new.example.com/live/93.m3u8',
+            // Stale snapshot from before the edit.
+            stalkerPortalUrl: 'https://old.example.com/portal.php',
+            stalkerMacAddress: '00:11:22:33:44:55',
+            stalkerItem: {
+                id: '93',
+                cmd: 'ffrt3 https://new.example.com/live/93.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(playback.headers?.['Cookie']).toContain('mac=AA:BB:CC:00:00:99');
+        expect(playback.headers?.['Cookie']).not.toContain(
+            'mac=00:11:22:33:44:55'
+        );
+        // Same host as the edited row ⇒ portal-owned ⇒ credentials attached.
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN-NEW');
+        expect(playback.origin).toBe('https://new.example.com');
+    });
+
+    it('mints a link for a flagged Stalker favorite', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: { cmd: 'ffmpeg http://cdn.example.com/tmp/90.m3u8?tok=1' },
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::90',
+            name: 'Balanced Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '90',
+            stalkerCmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+            stalkerItem: {
+                id: '90',
+                cmd: 'ffrt3 http://cdn.example.com/live/90.m3u8',
+                use_load_balancing: '1',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({
+                params: expect.objectContaining({ action: 'create_link' }),
+            })
+        );
+        expect(playback.streamUrl).toBe(
+            'http://cdn.example.com/tmp/90.m3u8?tok=1'
+        );
     });
 
     it('appends query-only Stalker create_link responses to the original cmd URL', async () => {

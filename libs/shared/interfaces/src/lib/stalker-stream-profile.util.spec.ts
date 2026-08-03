@@ -65,6 +65,33 @@ describe('isStalkerStreamCredentialSafe', () => {
         ).toBe(false);
     });
 
+    it('treats a terminal DNS root dot as the same host', () => {
+        // `portal.example.` and `portal.example` resolve identically, but
+        // `URL` preserves the dot — comparing literally classified a
+        // portal-owned stream as third-party and stripped its credentials.
+        expect(
+            isStalkerStreamCredentialSafe(
+                PORTAL,
+                'http://portal.example./live/ch1.ts'
+            )
+        ).toBe(true);
+        expect(
+            isStalkerStreamCredentialSafe(
+                'http://portal.example./portal.php',
+                'http://portal.example/live/ch1.ts'
+            )
+        ).toBe(true);
+    });
+
+    it('still rejects a different host that merely shares a suffix', () => {
+        expect(
+            isStalkerStreamCredentialSafe(
+                PORTAL,
+                'http://evil.portal.example./live/ch1.ts'
+            )
+        ).toBe(false);
+    });
+
     it('fails closed on missing or unparseable URLs', () => {
         expect(isStalkerStreamCredentialSafe(PORTAL, undefined)).toBe(false);
         expect(isStalkerStreamCredentialSafe(PORTAL, '')).toBe(false);

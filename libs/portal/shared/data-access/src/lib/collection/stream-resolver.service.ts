@@ -9,6 +9,7 @@ import {
     EpgItem,
     EpgProgram,
     Playlist,
+    isStalkerStreamCredentialSafe,
     ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
@@ -19,15 +20,21 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     buildStalkerExternalPlaybackHeaders,
+    ensureStalkerSession,
     executeStalkerRequest,
     getStalkerPortalOrigin,
+    hasStalkerLinkFlagEvidence,
     isCrossOriginStalkerStream,
-    normalizeStalkerPlaybackCommand,
     resolveStalkerPlaybackUrl,
+    resolveStalkerStaticPlaybackUrl,
     StalkerPortalRepairService,
     StalkerSessionService,
+    type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
-import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import {
+    UnifiedCollectionItem,
+    createLogger,
+} from '@iptvnator/portal/shared/util';
 
 type PlaylistWithChannels = Playlist & {
     readonly playlist?: { readonly items?: Channel[] };
@@ -74,6 +81,7 @@ export class StreamResolverService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly portalRepair = inject(StalkerPortalRepairService);
+    private readonly logger = createLogger('StreamResolver');
     private readonly m3uEpgTimeoutMs = 3000;
     private readonly portalEpgTimeoutMs = 10000;
     private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
@@ -330,18 +338,84 @@ export class StreamResolverService {
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(item.playlistId)
         )) as Playlist | undefined;
+        // The playlist row wins whenever it exists: a repaired endpoint or an
+        // edited MAC must beat the snapshot a favorite persisted, and the
+        // session token is negotiated for the ROW's identity — pairing a fresh
+        // token with a stale MAC cookie is exactly the mismatch the identity
+        // fingerprint exists to prevent. The item's own coordinates are the
+        // fallback for a playlist that no longer exists.
+        const currentPlaylist = playlist
+            ? this.portalRepair.applyOverride(playlist)
+            : undefined;
         const portalUrl =
-            item.stalkerPortalUrl ?? playlist?.portalUrl ?? playlist?.url ?? '';
-        const macAddress = item.stalkerMacAddress ?? playlist?.macAddress ?? '';
-        const normalizedCmd = normalizeStalkerPlaybackCommand(
+            currentPlaylist?.portalUrl ??
+            currentPlaylist?.url ??
+            item.stalkerPortalUrl ??
+            '';
+        const macAddress =
+            currentPlaylist?.macAddress ?? item.stalkerMacAddress ?? '';
+        // Favorites and Recently Viewed persist the raw catalog row, so the
+        // temporary-link flags travel with the item and this route makes the
+        // same decision the portal views make: an unflagged, directly playable
+        // `cmd` plays as-is and never mints a 5 s link. An item that carries
+        // no row snapshot (router state holds only the projection) gets no
+        // verdict — except radio, whose directly usable commands have always
+        // played as-is, so it keeps behaving like a row without flags.
+        const snapshot = item.stalkerItem as StalkerLinkFlagSource | undefined;
+        // Radio keeps its historical rule: a directly usable command plays as
+        // as-is. That has to key off flag EVIDENCE, not merely a present
+        // snapshot — a radio row persisted before the flags were carried has a
+        // snapshot that lacks them, and testing presence alone would skip this
+        // fallback and start minting for exactly those rows. Mirrors
+        // `withStalkerPlayer`'s radio branch; the two must not drift.
+        const linkFlags =
+            item.radio === 'true' && !hasStalkerLinkFlagEvidence(snapshot)
+                ? {
+                      ...(snapshot ?? {}),
+                      use_http_tmp_link: '0',
+                      use_load_balancing: '0',
+                  }
+                : snapshot;
+        const staticUrl = resolveStalkerStaticPlaybackUrl(
+            linkFlags,
             item.stalkerCmd ?? ''
         );
-        if (item.radio === 'true' && this.isHttpUrl(normalizedCmd)) {
-            return this.buildStalkerPlayback(item, playlist, {
-                macAddress,
-                portalUrl,
-                streamUrl: normalizedCmd,
-            });
+        if (staticUrl) {
+            // Skipping `create_link` also skips the only authenticated
+            // request this route used to make, and it was what warmed the
+            // session. Tokens live in memory only, so on a cold start from
+            // global Favorites/Recently Viewed a same-host stream gated on
+            // the portal Bearer token would get headers without one and 403.
+            // `ensureToken` performs the handshake + get_profile — and
+            // validates the identity the cached token was negotiated for,
+            // which the raw `getCachedToken` below cannot — without minting a
+            // link; a simple portal returns null immediately. The raw row goes
+            // in: the helper applies the repair override itself, exactly as
+            // `executeStalkerRequest` does on the branch below.
+            //
+            // Classified BEFORE authenticating: a foreign-host stream never
+            // needs the session, and warming it anyway would stall playback
+            // behind a handshake against a portal that may be slow or offline
+            // while the CDN is perfectly reachable.
+            const servePlayback = () =>
+                this.buildStalkerPlayback(item, playlist, {
+                    macAddress,
+                    portalUrl,
+                    streamUrl: staticUrl,
+                    isLive: item.radio === 'true' ? undefined : true,
+                });
+
+            if (!isStalkerStreamCredentialSafe(portalUrl, staticUrl)) {
+                return servePlayback();
+            }
+
+            // Portal-owned with no usable session would be served knowing it
+            // will 401, so fall through to `create_link` instead — it mints a
+            // URL that carries its own token and is the only path that can
+            // observe a failure and trigger the lazy portal repair.
+            if (await this.warmStalkerSession(playlist)) {
+                return servePlayback();
+            }
         }
 
         const contentType = item.radio === 'true' ? 'radio' : 'itv';
@@ -402,6 +476,25 @@ export class StreamResolverService {
             ),
             isLive: item.radio === 'true' ? undefined : true,
         });
+    }
+
+    /**
+     * Establish the portal session a static stream may still be gated on.
+     * Shares the single primitive with the store's playback path so the two
+     * routes cannot drift apart on when a session is required.
+     */
+    private async warmStalkerSession(
+        playlist: Playlist | undefined
+    ): Promise<boolean> {
+        return ensureStalkerSession(
+            {
+                dataService: this.dataService,
+                stalkerSession: this.stalkerSession,
+                portalRepair: this.portalRepair,
+            },
+            playlist,
+            this.logger
+        );
     }
 
     /**
@@ -1166,10 +1259,6 @@ export class StreamResolverService {
                 Math.floor(new Date(program.stop).getTime() / 1000)
             ),
         }));
-    }
-
-    private isHttpUrl(value: string): boolean {
-        return value.startsWith('http://') || value.startsWith('https://');
     }
 
     /**
