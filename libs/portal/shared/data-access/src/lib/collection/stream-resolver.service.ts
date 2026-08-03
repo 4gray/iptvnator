@@ -336,9 +336,22 @@ export class StreamResolverService {
         const playlist = (await firstValueFrom(
             this.playlistsService.getPlaylistById(item.playlistId)
         )) as Playlist | undefined;
+        // The playlist row wins whenever it exists: a repaired endpoint or an
+        // edited MAC must beat the snapshot a favorite persisted, and the
+        // session token is negotiated for the ROW's identity — pairing a fresh
+        // token with a stale MAC cookie is exactly the mismatch the identity
+        // fingerprint exists to prevent. The item's own coordinates are the
+        // fallback for a playlist that no longer exists.
+        const currentPlaylist = playlist
+            ? this.portalRepair.applyOverride(playlist)
+            : undefined;
         const portalUrl =
-            item.stalkerPortalUrl ?? playlist?.portalUrl ?? playlist?.url ?? '';
-        const macAddress = item.stalkerMacAddress ?? playlist?.macAddress ?? '';
+            currentPlaylist?.portalUrl ??
+            currentPlaylist?.url ??
+            item.stalkerPortalUrl ??
+            '';
+        const macAddress =
+            currentPlaylist?.macAddress ?? item.stalkerMacAddress ?? '';
         // Favorites and Recently Viewed persist the raw catalog row, so the
         // temporary-link flags travel with the item and this route makes the
         // same decision the portal views make: an unflagged, directly playable

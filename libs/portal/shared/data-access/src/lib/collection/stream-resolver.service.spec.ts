@@ -934,6 +934,49 @@ describe('StreamResolverService', () => {
         expect(playback.headers?.['Authorization']).toBeUndefined();
     });
 
+    it('prefers the edited playlist coordinates over a stale favorite snapshot', async () => {
+        // A favorite persists the portal URL and MAC it was saved with. After
+        // the playlist is edited, the session token is negotiated for the NEW
+        // identity — sending it with the old MAC cookie (or to the old host)
+        // is the mismatch the identity fingerprint exists to prevent.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://new.example.com/portal.php',
+                macAddress: 'AA:BB:CC:00:00:99',
+                isFullStalkerPortal: false,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.getCachedToken.mockReturnValue('TOKEN-NEW');
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::93',
+            name: 'Edited Portal Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '93',
+            stalkerCmd: 'ffrt3 https://new.example.com/live/93.m3u8',
+            // Stale snapshot from before the edit.
+            stalkerPortalUrl: 'https://old.example.com/portal.php',
+            stalkerMacAddress: '00:11:22:33:44:55',
+            stalkerItem: {
+                id: '93',
+                cmd: 'ffrt3 https://new.example.com/live/93.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(playback.headers?.['Cookie']).toContain('mac=AA:BB:CC:00:00:99');
+        expect(playback.headers?.['Cookie']).not.toContain(
+            'mac=00:11:22:33:44:55'
+        );
+        // Same host as the edited row ⇒ portal-owned ⇒ credentials attached.
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN-NEW');
+        expect(playback.origin).toBe('https://new.example.com');
+    });
+
     it('mints a link for a flagged Stalker favorite', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({

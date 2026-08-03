@@ -38,6 +38,16 @@ import {
  *
  * Giving each test its own MAC instead would mean inventing a scenario per
  * test; serializing one file is the cheaper trade.
+ *
+ * ACROSS BROWSER PROJECTS this does NOT hold, and it is a local-run hazard
+ * only. `mode: 'serial'` orders tests within one project; chromium, firefox
+ * and webkit still run the file concurrently against the SAME mock server, so
+ * one project's `beforeEach` reset can drop a session another project is
+ * mid-test on — the auth specs below are the ones that notice, failing as if
+ * the portal had dropped them. CI never sees it: the Web E2E job runs
+ * `--project=chromium` alone (`.github/workflows/e2e-tests.yaml`). If a local
+ * all-project run shows a lone auth failure that passes on rerun, this is why;
+ * `--project=chromium` reproduces CI exactly.
  */
 
 test.describe.configure({ mode: 'serial' });
