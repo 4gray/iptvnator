@@ -934,9 +934,11 @@ describe('StreamResolverService', () => {
         expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
     });
 
-    it('still plays a static stream when the session cannot be established', async () => {
-        // The static URL may point at a CDN that needs no credentials, so a
-        // failed handshake must not cost the user their playback.
+    it('falls back to create_link when the handshake throws', async () => {
+        // A throwing handshake must not propagate. It leaves the session
+        // unusable, so a PORTAL-OWNED url goes to `create_link` rather than
+        // being served as a known 401 — the url has to be portal-owned for
+        // the handshake to run at all now that classification comes first.
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'stalker-1',
@@ -947,25 +949,30 @@ describe('StreamResolverService', () => {
             } satisfies Partial<Playlist>)
         );
         stalkerSession.ensureToken.mockRejectedValue(new Error('portal down'));
+        stalkerSession.makeAuthenticatedRequest.mockResolvedValue({
+            js: { cmd: 'https://stalker.example.com/tmp/92.ts?tok=1' },
+        });
 
         const playback = await service.resolvePlayback({
             uid: 'stalker::stalker-1::92',
-            name: 'Cdn Static Channel',
+            name: 'Portal Static Channel',
             contentType: 'live',
             sourceType: 'stalker',
             playlistId: 'stalker-1',
             playlistName: 'Stalker',
             stalkerId: '92',
-            stalkerCmd: 'ffrt3 https://cdn.example.com/live/92.m3u8',
+            stalkerCmd: 'ffrt3 https://stalker.example.com/live/92.m3u8',
             stalkerItem: {
                 id: '92',
-                cmd: 'ffrt3 https://cdn.example.com/live/92.m3u8',
+                cmd: 'ffrt3 https://stalker.example.com/live/92.m3u8',
                 use_http_tmp_link: '0',
             },
         } as UnifiedCollectionItem);
 
-        expect(playback.streamUrl).toBe('https://cdn.example.com/live/92.m3u8');
-        expect(playback.headers?.['Authorization']).toBeUndefined();
+        expect(stalkerSession.ensureToken).toHaveBeenCalled();
+        expect(playback.streamUrl).toBe(
+            'https://stalker.example.com/tmp/92.ts?tok=1'
+        );
     });
 
     it('prefers the edited playlist coordinates over a stale favorite snapshot', async () => {

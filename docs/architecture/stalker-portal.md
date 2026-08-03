@@ -396,10 +396,10 @@ playback behind a request worth up to 15 s against a portal that may be slow
 or offline while the CDN is perfectly reachable — for a result that is then
 discarded.
 
-The call is best-effort in one direction only. A **foreign-host** static URL
-never needed the session, so a failed or skipped handshake still serves it. A
-**portal-owned** one with no usable session would be served knowing it will
-401, so both call sites fall back to `create_link` instead — which mints a URL
+A **foreign-host** static URL is returned before the handshake is even
+attempted — it never needed the session. A **portal-owned** one with no usable
+session (handshake failed, or threw) would be served knowing it will 401, so
+both call sites fall back to `create_link` instead — which mints a URL
 carrying its own token and, crucially, is the only path that can observe a
 failure and trigger the lazy portal repair. That keeps a playlist still
 misclassified as token-free, or pointing at an unrepaired endpoint, on the
@@ -407,7 +407,9 @@ self-healing path it was on before this change.
 
 `ensureStalkerSession` returns that verdict: `true` for a portal that needs no
 token and for one holding a usable token, `false` for a full portal left
-without one.
+without one. It swallows a throwing handshake rather than propagating it — an
+unreachable portal must not surface as an exception mid-playback — which
+simply makes the verdict `false` and routes the row to `create_link`.
 
 **Known trade-off: a cached token is not revalidated.** `ensureToken` returns a
 same-identity cache entry without touching the network, so the static path no

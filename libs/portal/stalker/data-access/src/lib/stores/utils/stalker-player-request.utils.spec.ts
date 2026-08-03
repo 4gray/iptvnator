@@ -328,12 +328,19 @@ describe('stalker-player-request.utils', () => {
             expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
         });
 
-        it('still returns the static url when the handshake fails', async () => {
-            // The static URL may need no credentials at all, so a portal
-            // that cannot be reached must not cost the user their playback.
+        it('falls back to create_link when the handshake throws', async () => {
+            // A throwing handshake must not propagate — it leaves the session
+            // unusable, and a portal-owned URL then goes to `create_link`
+            // rather than being served as a known 401. The command has to be
+            // portal-owned for the handshake to run at all.
             (
                 stalkerSession.ensureToken as jest.Mock
             ).mockRejectedValue(new Error('portal down'));
+            (
+                stalkerSession.makeAuthenticatedRequest as jest.Mock
+            ).mockResolvedValue({
+                js: { cmd: 'http://demo.example/tmp/1.mkv?tok=1' },
+            });
 
             const streamUrl = await fetchStalkerPlaybackLink(deps(), {
                 playlist: {
@@ -341,11 +348,12 @@ describe('stalker-player-request.utils', () => {
                     isFullStalkerPortal: true,
                 } as PlaylistMeta,
                 selectedContentType: 'vod',
-                cmd: 'ffrt3 http://cdn.example/movies/1.mkv',
+                cmd: 'ffrt3 http://demo.example/movies/1.mkv',
                 linkFlags: { use_http_tmp_link: '0' },
             });
 
-            expect(streamUrl).toBe('http://cdn.example/movies/1.mkv');
+            expect(stalkerSession.ensureToken).toHaveBeenCalled();
+            expect(streamUrl).toBe('http://demo.example/tmp/1.mkv?tok=1');
         });
 
         it('plays the static cmd of an unflagged row without asking the portal', async () => {
