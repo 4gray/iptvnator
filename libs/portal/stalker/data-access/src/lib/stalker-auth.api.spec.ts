@@ -140,6 +140,54 @@ describe('StalkerAuthApi', () => {
         ).rejects.toMatchObject({ kind: 'login-rejected' });
     });
 
+    it('carries the portal explanation out of every login refusal', async () => {
+        // The actionable sentence ("wrong password", "subscription expired")
+        // rides along with the refusal, and the dialog renders it after the
+        // generic line. Each exit must read the response IN HAND: the retry
+        // explains its own rejection, and quoting the first profile back
+        // would describe a request that already succeeded.
+        const handshake = { js: { token: 'TOKEN-1', random: 'r1' } };
+        const credentials = { username: 'user', password: 'secret' };
+
+        sendIpcEvent
+            .mockResolvedValueOnce(handshake)
+            .mockResolvedValueOnce({
+                js: { status: 2, msg: 'Enter your subscriber login' },
+            });
+        await expect(
+            api.authenticate(portalUrl, macAddress)
+        ).rejects.toMatchObject({
+            kind: 'login-required',
+            portalText: 'Enter your subscriber login',
+        });
+
+        sendIpcEvent
+            .mockResolvedValueOnce(handshake)
+            .mockResolvedValueOnce({ js: { status: 2, msg: 'Login needed' } })
+            .mockResolvedValueOnce({ js: false });
+        await expect(
+            api.authenticate(portalUrl, macAddress, {}, { credentials })
+        ).rejects.toMatchObject({
+            kind: 'login-rejected',
+            portalText: 'Login needed',
+        });
+
+        sendIpcEvent
+            .mockResolvedValueOnce(handshake)
+            .mockResolvedValueOnce({ js: { status: 2, msg: 'Login needed' } })
+            .mockResolvedValueOnce({ js: true })
+            .mockResolvedValueOnce({
+                js: { status: 2, block_msg: 'Subscription expired' },
+            });
+        await expect(
+            api.authenticate(portalUrl, macAddress, {}, { credentials })
+        ).rejects.toMatchObject({
+            kind: 'login-rejected',
+            // The retry's text, not the first profile's.
+            portalText: 'Subscription expired',
+        });
+    });
+
     it('decodes a blocked profile into the portal explanation', async () => {
         sendIpcEvent
             .mockResolvedValueOnce({

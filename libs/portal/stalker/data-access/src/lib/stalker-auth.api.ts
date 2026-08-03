@@ -480,10 +480,19 @@ export class StalkerAuthApi {
         // strict `=== 2` would read `"2"` as a healthy profile and skip the
         // whole login flow.
         if (toFiniteNumber(js?.status) === 2) {
+            // The portal's own sentence travels WITH the refusal — "wrong
+            // password", "subscription expired", "contact your provider" —
+            // and reading it is the whole reason these errors carry
+            // `portalText`. It is read at each exit rather than once up
+            // front because `js` advances to the retry's response below: the
+            // second refusal explains itself, and quoting the first one back
+            // would describe a request that already succeeded.
+            const loginText = () =>
+                combineStalkerPortalMessages(js?.msg, js?.block_msg);
             const username = options.credentials?.username?.trim() ?? '';
             const password = options.credentials?.password ?? '';
             if (!username || !password) {
-                throw new StalkerPortalError('login-required');
+                throw new StalkerPortalError('login-required', loginText());
             }
 
             assertNotAborted(options.signal);
@@ -496,7 +505,10 @@ export class StalkerAuthApi {
                 options.signal
             );
             if (!accepted) {
-                throw new StalkerPortalError('login-rejected');
+                // `do_auth` answers a bare `{js: false}`, so the only text
+                // available here is the profile's — which is the one that
+                // asked for the login in the first place.
+                throw new StalkerPortalError('login-rejected', loginText());
             }
 
             assertNotAborted(options.signal);
@@ -515,7 +527,7 @@ export class StalkerAuthApi {
             settled = retried;
             js = retried?.js;
             if (toFiniteNumber(js?.status) === 2) {
-                throw new StalkerPortalError('login-rejected');
+                throw new StalkerPortalError('login-rejected', loginText());
             }
         }
 

@@ -345,6 +345,18 @@ dialog shows them in its failure snackbar (with kind-specific i18n headlines,
 guidance) when category loading failed with a portal refusal
 (`stalkerCategoryErrorDescription` in `workspace-context-panel.component.ts`).
 
+Both renderers are kind-agnostic — they append `portalText` whenever it is
+present — so the obligation sits entirely on the throw sites: **every** exit
+out of the status-2 branch carries the text, not just the terminal `blocked`
+one. A login refusal is precisely where the portal says something actionable
+("wrong password", "subscription expired"), and dropping it leaves the user
+with a generic line while the useful sentence sits unread in the payload.
+Each exit reads the response IN HAND: after the `auth_second_step=1` retry the
+text is the retry's, since quoting the first profile back would describe a
+request that already succeeded. `do_auth` itself answers a bare `{js: false}`,
+so a rejection there keeps the profile's text — the one that asked for the
+login.
+
 ### Abandoning an authentication
 
 `authenticate()` takes an optional `AbortSignal` and checks it before every
