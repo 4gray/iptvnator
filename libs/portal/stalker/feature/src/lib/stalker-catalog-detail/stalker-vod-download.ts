@@ -10,8 +10,10 @@ type StalkerVodDetailsItem = Extract<VodDetailsItem, { type: 'stalker' }>;
 import {
     normalizeStalkerEntityId,
     normalizeStalkerEntityIdAsNumber,
+    resolveStalkerStaticPlaybackUrl,
     type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
+import { isStalkerStreamCredentialSafe } from '@iptvnator/shared/interfaces';
 
 /**
  * Starting a download of a Stalker VOD item.
@@ -132,11 +134,27 @@ export async function startStalkerVodDownload(
     // A movie whose row needs no temporary link yields a permanent URL, which
     // is what the download row stores — a 5 s link would only ever survive the
     // first attempt.
+    //
+    // But a download cannot authenticate the way playback can: the stored
+    // header allowlist in the main process is User-Agent / Origin / Referer
+    // only (`download-request-headers.ts`), with no Cookie or Authorization.
+    // So the static shortcut is offered only for a URL that needs no portal
+    // credentials — i.e. one the shared classifier says is NOT portal-owned.
+    // A same-host movie keeps going through `create_link`, whose minted URL
+    // carries its own access token.
+    const staticCandidate = resolveStalkerStaticPlaybackUrl(
+        itemData,
+        cmdToUse
+    );
+    const staticUrlIsSelfAuthenticating =
+        staticCandidate !== null &&
+        !isStalkerStreamCredentialSafe(playlist.portalUrl, staticCandidate);
+
     const url = await deps.fetchLinkToPlay(
         playlist.portalUrl,
         playlist.macAddress,
         cmdToUse,
-        itemData
+        staticUrlIsSelfAuthenticating ? itemData : undefined
     );
     if (!url) {
         return;

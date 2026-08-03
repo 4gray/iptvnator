@@ -39,6 +39,40 @@ export function toStalkerSessionPlaylist(playlist: PlaylistMeta): Playlist {
 }
 
 /**
+ * Establishes the portal session WITHOUT issuing a content request.
+ *
+ * Needed wherever playback returns a URL without calling the portal: minting
+ * a link used to be what authenticated, and tokens live in memory only
+ * (`StalkerSessionService.tokenCache`), so a cold start would otherwise hand
+ * a same-host gated stream headers with no `Authorization`. `ensureToken`
+ * also validates the identity the cached token was negotiated for, which the
+ * raw `getCachedToken()` the header builders use cannot.
+ *
+ * Cheap where it is not needed: a simple portal returns immediately, and a
+ * warm cache with a matching fingerprint resolves without a request.
+ *
+ * Best-effort on purpose — a static URL may point at a CDN that needs no
+ * credentials, so a failed handshake must not cost the user their playback.
+ */
+export async function ensureStalkerSession(
+    deps: StalkerRequestDeps,
+    playlist: PlaylistMeta | undefined,
+    logger?: { warn(...args: unknown[]): void }
+): Promise<void> {
+    if (!playlist || !isFullStalkerPortalPlaylist(playlist)) {
+        return;
+    }
+
+    try {
+        await deps.stalkerSession.ensureToken(
+            toStalkerSessionPlaylist(playlist)
+        );
+    } catch (error) {
+        logger?.warn('Could not establish the Stalker session', error);
+    }
+}
+
+/**
  * Routes one Stalker request according to the playlist's portal mode:
  * full portals go through the authenticated session (handshake + Bearer
  * token + retry), token-free panels are called directly. The mode comes

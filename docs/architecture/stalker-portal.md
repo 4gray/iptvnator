@@ -358,7 +358,7 @@ Callers pass the row they resolved the `cmd` from:
   meant a proxied station played a URL the portal never intended to serve.
 - VOD and series — `selectedItem()`.
 - Downloads — the movie payload, through the optional `linkFlags` argument on
-  `fetchLinkToPlay()`.
+  `fetchLinkToPlay()`, but only for a credential-free URL (see below).
 - Favorites and Recently Viewed — `StreamResolverService.resolveStalker()`
   reads the flags off the persisted raw row (`UnifiedCollectionItem.stalkerItem`).
   An item with no row snapshot gets no verdict, except radio, which keeps its
@@ -368,21 +368,40 @@ Callers pass the row they resolved the `cmd` from:
 
 `create_link` was also the request that warmed the portal session, and tokens
 live in memory only (`StalkerSessionService.tokenCache`). Skipping it therefore
-has to account for streams that are still gated on the Bearer token:
+has to account for streams that are still gated on the Bearer token — and
+"which routes are already warm" is not a question worth answering per route:
+the global collection detail sets the playlist and the selected item straight
+from a persisted row, with no catalog load in between, so a VOD opened from
+Favorites reaches the store's playback path stone cold.
 
-- **Portal routes** (ITV, VOD, series, radio) are structurally warm. An item
-  cannot be selected before its catalog has loaded, and every catalog load goes
-  through `executeStalkerRequest`, which authenticates. No extra work needed.
-- **Collection routes** (global Favorites / Recently Viewed) are not. They read
-  the persisted row and can play on a cold start, without the portal ever
-  having been opened this session. `StreamResolverService` therefore calls
-  `StalkerSessionService.ensureToken()` before building a static playback —
-  handshake + `get_profile`, no link minted, and it validates the identity the
-  cached token was negotiated for, which the raw `getCachedToken()` used by the
-  header builder cannot. A simple portal returns `null` immediately.
-  The call is best-effort: a static URL may point at a CDN needing no
-  credentials at all, so a failed handshake degrades to the token-less header
-  set rather than costing the user their playback.
+Every static return therefore warms first, through one primitive —
+`ensureStalkerSession()` in `stalker-request.utils.ts`, wrapping
+`StalkerSessionService.ensureToken()`:
+
+- `fetchStalkerPlaybackLink()` calls it before returning a static URL, which
+  covers ITV, VOD, radio and downloads at a single choke point.
+- `StreamResolverService` calls it on its own static branch, which does not go
+  through that function.
+
+`ensureToken` performs handshake + `get_profile` with no link minted, and
+validates the identity the cached token was negotiated for — which the raw
+`getCachedToken()` the header builders use cannot. It is cheap where it is not
+needed: a simple portal returns immediately and a warm cache with a matching
+fingerprint resolves without a request.
+
+The call is best-effort: a static URL may point at a CDN needing no credentials
+at all, so a failed handshake degrades to the token-less header set rather than
+costing the user their playback.
+
+**Downloads are the exception, and cannot use this.** A download request cannot
+carry portal credentials at all — the main-process stored-header allowlist is
+`User-Agent` / `Origin` / `Referer` only
+(`download-request-headers.ts`), with no `Cookie` or `Authorization`. So
+`startStalkerVodDownload` offers the static shortcut only for a URL that needs
+none: it classifies the candidate with `isStalkerStreamCredentialSafe()` and
+withholds the row (forcing `create_link`) for anything portal-owned. A
+same-host movie keeps using the minted URL, which carries its own access token;
+a CDN-hosted one keeps the permanent URL that survives retry.
 
 ### Resolved links are never stored
 
@@ -402,12 +421,13 @@ cache or replay the result. What each persisting path actually stores:
 
 The download row is the only place a resolved URL outlives the playback that
 produced it, because the main-process downloader needs a URL it can retry and
-resume with. Honouring the flags shrinks the exposure: a movie whose row needs
-no temporary link now yields a permanent URL that survives retry. A movie that
-genuinely needs one still stores a link that is dead by the time retry runs.
-Fixing that needs the `cmd` on the download row plus a re-resolution step
-before retry/resume, which is a schema change and is deliberately out of scope
-here.
+resume with. Honouring the flags shrinks the exposure: an unflagged movie on a
+host that needs no portal credentials now yields a permanent URL that survives
+retry. A movie that needs a temporary link — or one on the portal host, which a
+download cannot authenticate against — still stores a link that is dead by the
+time retry runs. Fixing that needs the `cmd` on the download row plus a
+re-resolution step before retry/resume, which is a schema change and is
+deliberately out of scope here.
 
 ### `forced_storage` and `play_token`
 
@@ -442,6 +462,8 @@ Revisit both only with a portal that demonstrably fails without them.
   Recently Viewed stores the `cmd`, never the stream URL.
 - `stream-resolver.service.spec.ts` — the collection route, plus the cold
   full-portal session warm-up and its best-effort degradation.
+- `stalker-vod-download.spec.ts` — a CDN movie takes the static shortcut, a
+  same-host one keeps minting.
 - `stalker-playback-context.service.spec.ts` — headers only, query-insensitive
   key.
 - `apps/web-e2e/src/stalker.e2e.ts` — mock scenario `00:1A:79:00:00:0A` serves

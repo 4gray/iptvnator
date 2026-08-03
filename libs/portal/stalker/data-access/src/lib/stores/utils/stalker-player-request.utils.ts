@@ -13,6 +13,7 @@ import {
 } from './stalker-link-semantics.utils';
 import { resolveStalkerPlaybackUrl } from './stalker-playback-command.utils';
 import {
+    ensureStalkerSession,
     executeStalkerRequest,
     type StalkerPortalRepairApi,
 } from './stalker-request.utils';
@@ -67,6 +68,14 @@ export async function fetchStalkerPlaybackLink(
             options.cmd
         );
         if (staticUrl) {
+            // Returning here skips the request that used to authenticate.
+            // Not every caller has a warm session: the global collection
+            // detail sets the playlist and the item straight from a persisted
+            // row, with no catalog load in between, so a VOD opened from
+            // Favorites on a cold start would play a same-host gated stream
+            // without a Bearer token. Warming at this single choke point
+            // covers ITV, VOD, radio and downloads alike.
+            await ensureStalkerSession(deps, options.playlist);
             return staticUrl;
         }
     }

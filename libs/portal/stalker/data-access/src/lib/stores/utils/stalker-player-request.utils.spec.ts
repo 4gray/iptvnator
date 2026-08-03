@@ -22,7 +22,10 @@ describe('stalker-player-request.utils', () => {
     let dataService: {
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
-    let stalkerSession: Pick<StalkerSessionService, 'makeAuthenticatedRequest'>;
+    let stalkerSession: Pick<
+        StalkerSessionService,
+        'makeAuthenticatedRequest' | 'ensureToken'
+    >;
 
     beforeEach(() => {
         dataService = {
@@ -30,6 +33,7 @@ describe('stalker-player-request.utils', () => {
         };
         stalkerSession = {
             makeAuthenticatedRequest: jest.fn(),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
     });
 
@@ -184,6 +188,61 @@ describe('stalker-player-request.utils', () => {
         const deps = () => ({
             dataService: dataService as never,
             stalkerSession: stalkerSession as StalkerSessionService,
+        });
+
+        it('establishes the session before returning a static url on a full portal', async () => {
+            // Minting the link used to be what authenticated. The global
+            // collection detail sets playlist + item straight from a
+            // persisted row, so a cold-start VOD would otherwise play a
+            // same-host gated stream with no Bearer token.
+            const fullPortal = {
+                ...PLAYLIST,
+                isFullStalkerPortal: true,
+            } as PlaylistMeta;
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: fullPortal,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://demo.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://demo.example/movies/1.mkv');
+            expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+                expect.objectContaining({ _id: PLAYLIST._id })
+            );
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        });
+
+        it('skips the handshake for a simple portal', async () => {
+            await fetchStalkerPlaybackLink(deps(), {
+                playlist: PLAYLIST,
+                selectedContentType: 'itv',
+                cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+        });
+
+        it('still returns the static url when the handshake fails', async () => {
+            // The static URL may need no credentials at all, so a portal
+            // that cannot be reached must not cost the user their playback.
+            (
+                stalkerSession.ensureToken as jest.Mock
+            ).mockRejectedValue(new Error('portal down'));
+
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
+                playlist: {
+                    ...PLAYLIST,
+                    isFullStalkerPortal: true,
+                } as PlaylistMeta,
+                selectedContentType: 'vod',
+                cmd: 'ffrt3 http://cdn.example/movies/1.mkv',
+                linkFlags: { use_http_tmp_link: '0' },
+            });
+
+            expect(streamUrl).toBe('http://cdn.example/movies/1.mkv');
         });
 
         it('plays the static cmd of an unflagged row without asking the portal', async () => {

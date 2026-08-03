@@ -19,6 +19,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     buildStalkerExternalPlaybackHeaders,
+    ensureStalkerSession,
     executeStalkerRequest,
     getStalkerPortalOrigin,
     isCrossOriginStalkerStream,
@@ -434,27 +435,21 @@ export class StreamResolverService {
 
     /**
      * Establish the portal session a static stream may still be gated on.
-     *
-     * Best-effort on purpose: the static URL can just as well point at a
-     * foreign CDN that needs no credentials, so a failed handshake must not
-     * cost the user their playback. It degrades to the token-less header set,
-     * which is exactly what this path produced before.
+     * Shares the single primitive with the store's playback path so the two
+     * routes cannot drift apart on when a session is required.
      */
     private async warmStalkerSession(
         playlist: Playlist | undefined
     ): Promise<void> {
-        if (!playlist) {
-            return;
-        }
-
-        try {
-            await this.stalkerSession.ensureToken(playlist);
-        } catch (error) {
-            this.logger.warn(
-                'Could not establish the Stalker session for a static stream',
-                error
-            );
-        }
+        await ensureStalkerSession(
+            {
+                dataService: this.dataService,
+                stalkerSession: this.stalkerSession,
+                portalRepair: this.portalRepair,
+            },
+            playlist,
+            this.logger
+        );
     }
 
     /**
