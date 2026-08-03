@@ -219,6 +219,36 @@ describe('stalker-link-semantics', () => {
             ).not.toBeNull();
         });
 
+        it.each([
+            // RFC 6761 §6.3 reserves the whole `.localhost` suffix.
+            ['http://stream.localhost/ch/1234_'],
+            ['ffrt3 http://a.b.localhost/ch/1234_'],
+            ['http://stream.localhost./ch/1234_'],
+            // Conventional /etc/hosts alias for 127.0.0.1.
+            ['http://localhost.localdomain/ch/1234_'],
+        ])('treats the localhost name %p as portal-local', (cmd) => {
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toBeNull();
+        });
+
+        it('does not mistake a localhost-prefixed host for a localhost name', () => {
+            // Only the SUFFIX is reserved — `localhost.cdn.example` is an
+            // ordinary routable name and must keep playing statically.
+            expect(
+                resolveStalkerStaticPlaybackUrl(
+                    { use_http_tmp_link: '0' },
+                    'http://localhost.cdn.example/live/42.m3u8'
+                )
+            ).toBe('http://localhost.cdn.example/live/42.m3u8');
+            expect(
+                resolveStalkerStaticPlaybackUrl(
+                    { use_http_tmp_link: '0' },
+                    'http://notlocalhost/live/42.m3u8'
+                )
+            ).toBe('http://notlocalhost/live/42.m3u8');
+        });
+
         it('does not mistake a non-loopback 127-lookalike for loopback', () => {
             expect(
                 resolveStalkerStaticPlaybackUrl(

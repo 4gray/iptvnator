@@ -26,7 +26,21 @@ export interface StalkerLinkFlagSource {
  * `ffrt3 http://localhost/ch/1234_` is an instruction to the portal, never an
  * address the set-top box could open, so it always needs resolving.
  */
-const PORTAL_LOCAL_HOSTNAMES = new Set(['localhost', '0.0.0.0', '::1', '::']);
+const PORTAL_LOCAL_HOSTNAMES = new Set([
+    'localhost',
+    // Conventional `/etc/hosts` alias for 127.0.0.1 on most Linux systems.
+    'localhost.localdomain',
+    '0.0.0.0',
+    '::1',
+    '::',
+]);
+
+/**
+ * RFC 6761 §6.3 reserves `localhost` AND every name ending in `.localhost`
+ * for the loopback interface, and resolvers honour it — so `stream.localhost`
+ * would reach the player's own machine.
+ */
+const LOCALHOST_SUFFIX = '.localhost';
 
 /** IPv4 reserves all of `127.0.0.0/8` for loopback, not just `127.0.0.1`. */
 const IPV4_LOOPBACK = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
@@ -49,7 +63,11 @@ function isPortalLocalHostname(hostname: string): boolean {
     // exact-name check has to strip it or `http://localhost./ch/1_` reads as a
     // remote host.
     const host = hostname.replace(/^\[|\]$/g, '').replace(/\.$/, '');
-    if (PORTAL_LOCAL_HOSTNAMES.has(host) || IPV4_LOOPBACK.test(host)) {
+    if (
+        PORTAL_LOCAL_HOSTNAMES.has(host) ||
+        host.endsWith(LOCALHOST_SUFFIX) ||
+        IPV4_LOOPBACK.test(host)
+    ) {
         return true;
     }
 
