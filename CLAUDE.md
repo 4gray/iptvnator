@@ -758,8 +758,9 @@ app as a real argument, so it is not an option.
 
 - Built-in web players: HTML5+hls.js, Video.js, and ArtPlayer
 - mpegts.js `1.8.0` errors from all three built-in players cross one
-  version-locked structured evidence boundary. It retains only exact public
-  type/detail pairs, pair-derived stage/failure, terminal disposition, and a
+  version-locked structured evidence boundary in `libs/playback/util`. It
+  retains only exact public type/detail pairs, pair-derived stage/failure,
+  terminal disposition, and a
   validated HTTP 4xx/5xx status; raw messages and arbitrary `info` never reach
   stored or rendered diagnostics. HTTP/network failures avoid false decoder
   recommendations, while exact format, codec, truncated-stream, and
@@ -776,8 +777,9 @@ app as a real argument, so it is not an option.
   ArtPlayer). Unsupported license types (Widevine/PlayReady — out of scope,
   need the castLabs Electron fork) surface a DRM playback diagnostic instead
   of crashing. ClearKey EME works in stock Electron. Engine:
-  `libs/ui/playback/src/lib/shaka-engine/`. Its Shaka `5.2.2` diagnostic
-  boundary version-locks public severity/category/code evidence, ignores
+  `libs/ui/playback/src/lib/shaka-engine/`. Its DOM-free Shaka `5.2.2`
+  diagnostic boundary lives in `libs/playback/util`; it version-locks public
+  severity/category/code evidence, ignores
   recoverable error events, treats rejected loads as terminal lifecycle
   outcomes, preserves exact public DASH text-parser category/code evidence with
   unknown stage/failure, and never retains or renders raw messages or

@@ -29,7 +29,7 @@ import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),

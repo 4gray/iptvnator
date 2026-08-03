@@ -22,8 +22,8 @@ import {
     type VodSourceDescriptor,
     type VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
-import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
-import type { PlaybackDiagnosticCode } from '../playback-diagnostics/playback-diagnostics.model';
+import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
+import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { PlayerMediaTitle } from '../player-controls';

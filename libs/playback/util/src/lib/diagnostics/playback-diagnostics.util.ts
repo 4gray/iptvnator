@@ -50,17 +50,13 @@ const VHS_NETWORK_ERROR_TYPES: ReadonlySet<VhsPlaybackEngineTypeValue> =
     ]);
 
 export function classifyNativePlaybackIssue(
-    error: NativePlaybackErrorInput | MediaError | null | undefined,
+    error: NativePlaybackErrorInput | null | undefined,
     metadata: PlaybackSourceMetadata
 ): PlaybackDiagnostic {
     const nativeErrorCode = error?.code;
     const nativeErrorMessage = error?.message || undefined;
-    const nativeErrorInput = error as
-        NativePlaybackErrorInput | null | undefined;
-    const httpStatus = getNativeHttpStatus(nativeErrorInput?.status);
-    const nativeErrorType = getNativeErrorType(
-        nativeErrorInput?.metadata?.errorType
-    );
+    const httpStatus = getNativeHttpStatus(error?.status);
+    const nativeErrorType = getNativeErrorType(error?.metadata?.errorType);
     const lowerNativeErrorMessage = nativeErrorMessage?.toLowerCase() ?? '';
 
     if (httpStatus !== undefined) {
@@ -175,17 +171,20 @@ export function classifyMpegTsPlaybackIssue(
     });
 }
 
+export type MediaTypeSupportProbe = (mimeType: string) => boolean | undefined;
+
 export function classifyUnsupportedHlsManifestCodecs(
-    metadata: PlaybackSourceMetadata
+    metadata: PlaybackSourceMetadata,
+    isTypeSupported: MediaTypeSupportProbe
 ): PlaybackDiagnostic | null {
-    if (!hasCodecs(metadata) || typeof MediaSource === 'undefined') {
+    if (!hasCodecs(metadata)) {
         return null;
     }
 
     const codecList = [...metadata.videoCodecs, ...metadata.audioCodecs];
     const mimeType = `video/mp4; codecs="${codecList.join(',')}"`;
 
-    if (MediaSource.isTypeSupported(mimeType)) {
+    if (isTypeSupported(mimeType) !== false) {
         return null;
     }
 

@@ -1,10 +1,10 @@
-import { ShakaPlaybackDisposition as ShakaDisposition } from '../playback-diagnostics/playback-diagnostics.model';
+import { ShakaPlaybackDisposition as ShakaDisposition } from './playback-diagnostics.model';
 import {
     SHAKA_ERROR_CATEGORY,
     SHAKA_ERROR_CODE,
     SHAKA_ERROR_SEVERITY,
 } from './shaka-error-contract';
-import type { ShakaErrorLike } from './shaka-module.types';
+import type { ShakaErrorLike } from './shaka-error.types';
 
 export function getShakaErrorEventDisposition(
     error: Partial<ShakaErrorLike> | null

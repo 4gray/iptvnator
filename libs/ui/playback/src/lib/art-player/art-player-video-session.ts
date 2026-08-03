@@ -4,7 +4,7 @@ import {
     type PlaybackDiagnostic,
     classifyNativePlaybackIssue,
     createPlaybackSourceMetadata,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
 
 export interface ArtPlayerVideoSessionConfig {
     player: Artplayer;

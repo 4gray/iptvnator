@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
+import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 
 /**
  * Player stand-ins for WebPlayerViewComponent specs. They mirror the real

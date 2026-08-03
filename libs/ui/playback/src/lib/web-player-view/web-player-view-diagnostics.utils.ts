@@ -2,7 +2,7 @@ import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     getLikelyBrowserUnsupportedCodecLabels,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
 
 export type PlaybackDiagnosticDetail = {
     readonly labelKey: string;

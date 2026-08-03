@@ -2,8 +2,8 @@ import {
     InlinePlaybackPlayer,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
-} from '../playback-diagnostics/playback-diagnostics.model';
-import { createPlaybackSourceMetadata } from '../playback-diagnostics/playback-diagnostics.util';
+} from './playback-diagnostics.model';
+import { createPlaybackSourceMetadata } from './playback-diagnostics.util';
 import {
     classifyShakaPlaybackIssue,
     createUnsupportedDrmDiagnostic,

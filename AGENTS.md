@@ -223,8 +223,9 @@ Key files:
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
   `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
-  source kind `shaka`. The Shaka `5.2.2` diagnostic boundary version-locks
-  public severity/category/code evidence, ignores recoverable error events,
+  source kind `shaka`. The DOM-free Shaka `5.2.2` diagnostic boundary lives in
+  `libs/playback/util`; it version-locks public severity/category/code evidence,
+  ignores recoverable error events,
   treats rejected loads as terminal lifecycle outcomes, preserves exact public
   DASH text-parser category/code evidence with unknown stage/failure, and never
   retains or renders raw messages or `error.data`. A failed browser-support
@@ -232,9 +233,10 @@ Key files:
   DRM still suppresses it. See the CLAUDE.md "Video Players" feature entry and
   `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
 - mpegts.js `1.8.0` errors from HTML5, Video.js, and ArtPlayer cross one
-  version-locked structured evidence boundary. Only exact public type/detail
-  pairs, pair-derived stage/failure, terminal disposition, and the validated
-  HTTP 4xx/5xx status slot are retained; raw messages and arbitrary `info`
+  version-locked structured evidence boundary in `libs/playback/util`. Only
+  exact public type/detail pairs, pair-derived stage/failure, terminal
+  disposition, and the validated HTTP 4xx/5xx status slot are retained; raw
+  messages and arbitrary `info`
   never reach diagnostics. This is a sibling of `PlayerController`, not part
   of the controls contract.
 - The built-in HTML5/hls.js player is the second guarded consumer.

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import type { NativePlaybackErrorInput } from '../playback-diagnostics/playback-diagnostics.model';
-import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
+import type { NativePlaybackErrorInput } from '@iptvnator/playback/util';
+import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 import type { VideoJsPlayer } from './vjs-player.types';
 

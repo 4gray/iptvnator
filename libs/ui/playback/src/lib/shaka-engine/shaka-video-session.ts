@@ -1,20 +1,16 @@
 import type { ChannelDrm } from '@iptvnator/shared/interfaces';
-import type {
-    InlinePlaybackPlayer,
-    PlaybackDiagnostic,
-    PlaybackSourceMetadata,
-} from '../playback-diagnostics/playback-diagnostics.model';
-import { ShakaPlaybackDisposition as ShakaDisposition } from '../playback-diagnostics/playback-diagnostics.model';
-import { createPlaybackSourceMetadata } from '../playback-diagnostics/playback-diagnostics.util';
 import {
+    ShakaPlaybackDisposition as ShakaDisposition,
     asShakaError,
     classifyShakaPlaybackIssue,
+    createPlaybackSourceMetadata,
     createUnsupportedDrmDiagnostic,
-} from './shaka-error-classifier';
-import {
     getShakaErrorEventDisposition,
     isShakaLoadInterrupted,
-} from './shaka-error-lifecycle';
+    type InlinePlaybackPlayer,
+    type PlaybackDiagnostic,
+    type PlaybackSourceMetadata,
+} from '@iptvnator/playback/util';
 import { ShakaTextTrackSuppression } from './shaka-text-track-suppression';
 import {
     loadShakaModule,

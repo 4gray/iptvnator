@@ -73,6 +73,11 @@ in `libs/portal/shared/util`, while reusable collection views stay in
 `libs/portal/shared/ui`. Existing injectable or stateful services in a `util`
 path are legacy debt, not precedent for new placement.
 
+Playback follows the same split: browser and Angular player integration stays
+in `libs/ui/playback`, while DOM-free diagnostic contracts and classifiers live
+in `libs/playback/util` and receive browser capability checks as explicit
+probes.
+
 ## Project Tags
 
 Every Nx project keeps one tag from each family in `project.json`:

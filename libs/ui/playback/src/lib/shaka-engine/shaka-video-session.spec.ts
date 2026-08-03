@@ -4,7 +4,7 @@ import {
     PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
-} from '../playback-diagnostics/playback-diagnostics.model';
+} from '@iptvnator/playback/util';
 import {
     FakeShakaPlayer,
     createFakeShakaEnvironment,

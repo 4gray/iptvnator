@@ -994,8 +994,9 @@ player in settings.
 - `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the
   engine: lazy `import('shaka-player')` on first use (the module is a separate
   lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
-  queue + generation guard against channel-switch races, and a Shaka `5.2.2`
-  public-error boundary. The boundary version-locks its allowlisted
+  queue + generation guard against channel-switch races. The DOM-free Shaka
+  `5.2.2` public-error boundary lives in `libs/playback/util`; it version-locks
+  its allowlisted
   severity/category/code values, emits only structured sanitized
   `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,
   and treats a rejected load as terminal even if its final retry error retains

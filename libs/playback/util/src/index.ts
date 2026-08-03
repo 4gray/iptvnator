@@ -1,0 +1,5 @@
+export * from './lib/diagnostics/playback-diagnostics.util';
+export * from './lib/diagnostics/shaka-error-classifier';
+export * from './lib/diagnostics/shaka-error-contract';
+export * from './lib/diagnostics/shaka-error-lifecycle';
+export type * from './lib/diagnostics/shaka-error.types';

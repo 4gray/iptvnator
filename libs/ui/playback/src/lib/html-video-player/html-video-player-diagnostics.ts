@@ -9,7 +9,8 @@ import {
     createHlsPlaybackEvidence,
     createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
+import { isBrowserMediaTypeSupported } from '../web-video-support/browser-media-type-support';
 
 /**
  * HTML5-player diagnostics glue extracted from the component: builds source
@@ -46,7 +47,10 @@ export function emitUnsupportedHlsManifestCodecs(
             .map((level) => level.videoCodec)
             .filter((codec): codec is string => Boolean(codec))
     );
-    const issue = classifyUnsupportedHlsManifestCodecs(metadata);
+    const issue = classifyUnsupportedHlsManifestCodecs(
+        metadata,
+        isBrowserMediaTypeSupported
+    );
     if (issue) {
         emitPlaybackIssue(issue);
     }

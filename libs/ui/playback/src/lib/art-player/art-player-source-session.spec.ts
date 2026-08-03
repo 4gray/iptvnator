@@ -1,4 +1,4 @@
-import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
+import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import {
     MockHls,
     MockMpegTsPlayer,
@@ -88,6 +88,84 @@ describe('ArtPlayerSourceSession', () => {
 
         expect(settingAdd).toHaveBeenCalledTimes(1);
         expect(attach).not.toHaveBeenCalled();
+    });
+
+    it('uses browser media-type support for HLS manifest codec diagnostics', () => {
+        const mediaSourceDescriptor = Object.getOwnPropertyDescriptor(
+            globalThis,
+            'MediaSource'
+        );
+        Object.defineProperty(globalThis, 'MediaSource', {
+            configurable: true,
+            value: { isTypeSupported: jest.fn(() => false) },
+        });
+        const emitted: PlaybackDiagnostic[] = [];
+        const { session, player, video } = createSession({
+            sharedControls: true,
+            emitPlaybackIssue: (issue) => emitted.push(issue),
+        });
+        session.attach(player);
+        session.customType['m3u8']?.(
+            video,
+            'https://example.test/live.m3u8',
+            player
+        );
+
+        try {
+            hlsInstances[0].emit(MockHls.Events.MANIFEST_PARSED, null, {
+                levels: [{ audioCodec: 'ac-3', videoCodec: 'avc1.64001f' }],
+            });
+        } finally {
+            restoreMediaSource(mediaSourceDescriptor);
+        }
+        expect(emitted).toEqual([
+            expect.objectContaining({
+                code: 'unsupported-codec',
+                source: 'source',
+            }),
+        ]);
+    });
+
+    it('keeps HLS manifest handling alive when the browser support probe throws', () => {
+        const mediaSourceDescriptor = Object.getOwnPropertyDescriptor(
+            globalThis,
+            'MediaSource'
+        );
+        Object.defineProperty(globalThis, 'MediaSource', {
+            configurable: true,
+            value: {
+                isTypeSupported: () => {
+                    throw new Error('provider-controlled-codec');
+                },
+            },
+        });
+        const emitted: PlaybackDiagnostic[] = [];
+        const { session, player, video } = createSession({
+            sharedControls: true,
+            emitPlaybackIssue: (issue) => emitted.push(issue),
+        });
+        session.attach(player);
+        session.customType['m3u8']?.(
+            video,
+            'https://example.test/live.m3u8',
+            player
+        );
+
+        try {
+            expect(() =>
+                hlsInstances[0].emit(MockHls.Events.MANIFEST_PARSED, null, {
+                    levels: [
+                        {
+                            audioCodec: 'provider-controlled-codec',
+                            videoCodec: 'avc1.64001f',
+                        },
+                    ],
+                })
+            ).not.toThrow();
+        } finally {
+            restoreMediaSource(mediaSourceDescriptor);
+        }
+        expect(emitted).toEqual([]);
     });
 
     it('uses authoritative VOD metadata for shared MPEG-TS and catches autoplay rejection', async () => {
@@ -299,3 +377,11 @@ describe('ArtPlayerSourceSession', () => {
         expect(refresh).toHaveBeenCalled();
     });
 });
+
+function restoreMediaSource(descriptor?: PropertyDescriptor): void {
+    if (descriptor) {
+        Object.defineProperty(globalThis, 'MediaSource', descriptor);
+        return;
+    }
+    Reflect.deleteProperty(globalThis, 'MediaSource');
+}

@@ -45,7 +45,7 @@ import {
     type PlaybackDiagnosticCode,
     type PlaybackFallbackRequest,
     getPlaybackMediaExtensionFromUrl,
-} from '../playback-diagnostics/playback-diagnostics.util';
+} from '@iptvnator/playback/util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import { ElectronStreamHeadersService } from './electron-stream-headers.service';

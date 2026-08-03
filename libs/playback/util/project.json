@@ -1,0 +1,28 @@
+{
+    "name": "playback-util",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/playback/util/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:shared", "domain:playback", "type:util"],
+    "targets": {
+        "test": {
+            "executor": "nx:run-commands",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "command": [
+                    "node",
+                    "./tools/testing/run-web-esm-lib-tests.mjs",
+                    "libs/playback/util/src"
+                ],
+                "env": {
+                    "NODE_OPTIONS": "--experimental-vm-modules"
+                },
+                "forwardAllArgs": true
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

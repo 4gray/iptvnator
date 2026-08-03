@@ -154,7 +154,7 @@ describe('HLS playback evidence', () => {
                     url: `https://provider.example/context?token=${secret}`,
                     responseType: 'text',
                     headers: { Authorization: `Bearer ${secret}` },
-                } as ErrorData['context'],
+                } as unknown as ErrorData['context'],
                 networkDetails: {
                     responseURL: `https://provider.example/xhr?token=${secret}`,
                     responseText: secret,

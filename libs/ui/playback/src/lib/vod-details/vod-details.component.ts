@@ -36,7 +36,7 @@ import {
     CrossPortalSimilarService,
     DownloadsService,
 } from '@iptvnator/services';
-import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
+import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
 import { createVodDownloadState } from './vod-download-state.util';
 

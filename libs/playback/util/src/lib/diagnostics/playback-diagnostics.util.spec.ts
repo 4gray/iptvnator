@@ -10,6 +10,7 @@ import {
     classifyHlsPlaybackIssue,
     classifyMpegTsPlaybackIssue,
     classifyNativePlaybackIssue,
+    classifyUnsupportedHlsManifestCodecs,
     createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
     getLikelyBrowserUnsupportedCodecLabels,
@@ -38,6 +39,38 @@ type VhsClassifier = (
 ) => PlaybackDiagnostic;
 
 describe('playback diagnostics', () => {
+    it('classifies manifest codecs only when the explicit support probe rejects them', () => {
+        const metadata = createPlaybackSourceMetadata({
+            url: 'https://example.com/live/index.m3u8',
+            player: 'html5',
+            audioCodecs: ['ac-3'],
+            videoCodecs: ['avc1.64001f'],
+        });
+
+        const issue = classifyUnsupportedHlsManifestCodecs(
+            metadata,
+            () => false
+        );
+
+        expect(issue?.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
+    });
+
+    it.each([true, undefined])(
+        'does not classify manifest codecs when the support probe returns %s',
+        (supportResult) => {
+            const issue = classifyUnsupportedHlsManifestCodecs(
+                createPlaybackSourceMetadata({
+                    url: 'https://example.com/live/index.m3u8',
+                    player: 'html5',
+                    videoCodecs: ['avc1.64001f'],
+                }),
+                () => supportResult
+            );
+
+            expect(issue).toBeNull();
+        }
+    );
+
     it('classifies HLS incompatible codec errors as unsupported codec fallbacks', () => {
         const issue = classifyStructuredHlsPlaybackIssue(
             {

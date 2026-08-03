@@ -32,6 +32,7 @@
                 "libs/portal/shared/util/src/index.ts"
             ],
             "@iptvnator/epg/data-access": ["libs/epg/data-access/src/index.ts"],
+            "@iptvnator/playback/util": ["libs/playback/util/src/index.ts"],
             "@iptvnator/playlist/shared/ui": [
                 "libs/playlist/shared/ui/src/index.ts"
             ],

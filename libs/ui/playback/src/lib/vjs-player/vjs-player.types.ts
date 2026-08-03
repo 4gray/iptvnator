@@ -1,5 +1,5 @@
 import type videoJs from 'video.js';
-import type { NativePlaybackErrorInput } from '../playback-diagnostics/playback-diagnostics.model';
+import type { NativePlaybackErrorInput } from '@iptvnator/playback/util';
 
 export type VideoPlayerSource = {
     src: string;
