@@ -879,7 +879,9 @@ expect(session.recordFailure(first)).toBe(false);
 Also test Retry preserves attempts, source changes with the same key preserve
 attempts, live sessions never retain a resume point, external attempts are
 recorded, an accepted failure or settle clears pending state, and concurrent
-switch/retry attempts accept only the first operation.
+switch/retry attempts accept only the first operation. Explicitly cover the
+pre-effect interval after an accepted switch and retry: old binding callbacks
+must be rejected until `beginPlayback` installs the replacement binding.
 
 Run the focused spec. Expected: FAIL because the class does not exist.
 
@@ -894,18 +896,27 @@ export interface PlaybackBinding {
 }
 
 export class PlaybackRecoverySession {
-    readonly attemptedTargets = signal<
+    private readonly attemptedTargetsState = signal<
         ReadonlySet<PlaybackRecommendationTarget>
     >(new Set());
-    readonly temporaryPlayerOverride = signal<InlinePlaybackPlayer | null>(
-        null
-    );
-    readonly switchPending = signal(false);
-    readonly activeBinding = signal<PlaybackBinding | null>(null);
+    private readonly temporaryPlayerOverrideState =
+        signal<InlinePlaybackPlayer | null>(null);
+    private readonly switchPendingState = signal(false);
+    private readonly activeBindingState = signal<PlaybackBinding | null>(null);
 
     private readonly sessionKey = signal<string | null>(null);
     private readonly generation = signal(0);
     private readonly resumePosition = signal<number | null>(null);
+
+    readonly attemptedTargets: Signal<
+        ReadonlySet<PlaybackRecommendationTarget>
+    > = this.attemptedTargetsState.asReadonly();
+    readonly temporaryPlayerOverride: Signal<InlinePlaybackPlayer | null> =
+        this.temporaryPlayerOverrideState.asReadonly();
+    readonly switchPending: Signal<boolean> =
+        this.switchPendingState.asReadonly();
+    readonly activeBinding: Signal<PlaybackBinding | null> =
+        this.activeBindingState.asReadonly();
 
     syncSession(key: string): boolean;
     beginPlayback(target: InlinePlaybackPlayer): PlaybackBinding;
@@ -930,23 +941,28 @@ Implementation rules:
 - `syncSession` is a no-op for the same key; a new key clears attempts,
   override, pending state, resume position, and active binding, then increments
   generation.
-- `beginPlayback` always advances the generation and installs the exact active
-  target binding. Call it for every applied source, including a same-content
-  alternative URL, so delayed events from the replaced source become stale
-  without clearing attempts. `clearPlaybackBinding` advances the generation
-  and stores null for Embedded MPV/non-diagnostic playback.
+- Public state is exposed as read-only `Signal` values backed by private
+  writable signals. `beginPlayback` always advances the generation and
+  installs and returns the same frozen active-target snapshot. Call it for
+  every applied source, including a same-content alternative URL, so delayed
+  events from the replaced source become stale without clearing attempts.
+  `clearPlaybackBinding` delegates to the same private invalidation helper used
+  by recovery operations; the helper advances the generation and stores null
+  for Embedded MPV/non-diagnostic playback.
 - `recordInlineAttempt`, `recordExternalAttempt`, and every failure update copy
   the Set before adding.
 - `recordFailure` and `settle` first call `accepts`; stale generations do
-  nothing. Both clear `switchPending` for an accepted binding; a replacement
-  target that fails before emitting a success/clear event must not leave every
-  recovery action disabled.
-- `beginPlayerSwitch` returns false while pending; otherwise it records the
-  target, clears live resume, sets the override and pending state, and returns
-  true. The component's playback effect then calls `beginPlayback` for the new
-  selected target.
-- `beginRetry` returns false while pending or without an active binding;
-  otherwise it keeps attempts/override, marks the reload pending, and returns
+  nothing. Both clear `switchPending` for an accepted replacement binding; a
+  replacement target that fails before emitting a success/clear event must not
+  leave every recovery action disabled.
+- `beginPlayerSwitch` returns false without invalidating the binding while
+  pending. Otherwise it records the target, clears live resume, sets the
+  override and pending state, synchronously invalidates the current binding,
+  and returns true. Old callbacks in the interval before the component's
+  playback effect calls `beginPlayback` are therefore rejected.
+- `beginRetry` returns false without invalidating the binding while pending or
+  without an active binding. Otherwise it keeps attempts/override, marks the
+  reload pending, synchronously invalidates the current binding, and returns
   true. Incrementing the component reload token reruns the playback effect and
   installs the next binding.
 - `recordTimeUpdate` stores only finite non-negative VOD positions; live,
@@ -1509,8 +1525,8 @@ Add the required input and focused computed state:
 ```typescript
 readonly playbackSessionKey = input.required<string>();
 private readonly recoverySession = new PlaybackRecoverySession();
-readonly recoveryPending = this.recoverySession.switchPending.asReadonly();
-readonly activeBinding = this.recoverySession.activeBinding.asReadonly();
+readonly recoveryPending = this.recoverySession.switchPending;
+readonly activeBinding = this.recoverySession.activeBinding;
 
 readonly selectedPlayer = computed<VideoPlayer>(() => {
     const temporary = this.recoverySession.temporaryPlayerOverride();
