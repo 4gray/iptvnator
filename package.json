@@ -98,7 +98,7 @@
         "@ngrx/store-devtools": "21.1.1",
         "@ngx-pwa/local-storage": "21.0.0",
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
-        "angularx-qrcode": "21.0.4",
+        "angularx-qrcode": "21.0.5",
         "artplayer": "5.4.0",
         "axios": "1.18.1",
         "better-sqlite3": "12.9.0",
