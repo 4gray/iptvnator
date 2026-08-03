@@ -100,7 +100,7 @@
         "@yangkghjh/videojs-aspect-ratio-panel": "0.0.1",
         "angularx-qrcode": "21.0.5",
         "artplayer": "5.4.0",
-        "axios": "1.18.1",
+        "axios": "1.19.0",
         "better-sqlite3": "12.9.0",
         "date-fns": "4.4.0",
         "drizzle-orm": "0.45.2",
