@@ -267,12 +267,20 @@ Technical details instead of fabricating a guess.
 ### Stable content identity
 
 Every `WebPlayerViewComponent` host supplies a required
-`playbackSessionKey`. The key identifies content, not the current URL:
+`playbackSessionKey`. The key identifies canonical logical content, not the
+current URL or selected provider copy:
 
 - an M3U live channel key uses playlist/source identity plus channel identity;
 - Xtream and Stalker live keys use provider/account plus content identity;
-- movie keys use provider/account plus movie identity;
-- episode keys additionally include season and episode identity.
+- movie keys use the owning route/catalog's original source plus movie
+  identity;
+- episode keys use the owning series route's original source and series plus
+  season and episode identity.
+
+An alternative source's `playback.contentInfo` is provider-scoped playback and
+resume metadata, not recovery-session identity. Source-owning route and series
+hosts derive the key before passing it through the inline player, so replacing
+that playback payload cannot replace the recovery session.
 
 Retry and alternative sources for the same channel, movie, or episode keep the
 same key. Selecting a different channel, movie, or episode changes it. A key

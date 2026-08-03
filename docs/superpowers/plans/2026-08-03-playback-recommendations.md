@@ -396,9 +396,14 @@ it.each([
 });
 ```
 
-Also assert that HLS diagnostics resolve from `hls` and VHS `.m3u8`, DASH from
-Shaka and VHS `.mpd`, MPEG-TS from `mpegts`, native from `native`, and unknown
-or contradictory evidence stays `unknown`.
+Also assert that engine-specific `hls`, `mpegts`, `shaka`, and `native`
+diagnostic sources are authoritative even when generic metadata disagrees.
+For generic `source` and multi-format `vhs`, accept only normalized exact base
+MIME/container evidence: `m3u`/`m3u8` and the established HLS MIME aliases,
+or `mpd` and `application/dash+xml`. Cover parameters/casing, MIME-only DASH
+and HLS, symmetric container/MIME contradictions, malformed MIME substrings,
+and insufficient evidence. Contradictory or insufficient evidence stays
+`unknown`.
 
 Run:
 
@@ -524,7 +529,8 @@ export function createPlaybackTargetCapabilities(options: {
 }): readonly PlaybackTargetCapability[];
 ```
 
-Use this fail-closed mapping:
+Use this fail-closed mapping. Engine-specific sources identify the diagnostic
+boundary that emitted the failure and therefore outrank generic metadata:
 
 ```typescript
 switch (diagnostic.source) {
@@ -536,19 +542,22 @@ switch (diagnostic.source) {
         return PlaybackSourceKind.Dash;
     case PlaybackDiagnosticSource.Source:
     case PlaybackDiagnosticSource.Vhs:
-        return diagnostic.container === 'mpd'
-            ? PlaybackSourceKind.Dash
-            : diagnostic.container === 'm3u' ||
-                diagnostic.container === 'm3u8' ||
-                diagnostic.mimeType?.toLowerCase().includes('mpegurl')
-              ? PlaybackSourceKind.Hls
-              : PlaybackSourceKind.Unknown;
+        return resolveSourceOrVhsKind(diagnostic);
     case PlaybackDiagnosticSource.Native:
         return PlaybackSourceKind.Native;
     default:
         return PlaybackSourceKind.Unknown;
 }
 ```
+
+`resolveSourceOrVhsKind` normalizes MIME to its trimmed, lowercased base
+value with parameters stripped. It recognizes exact
+`application/vnd.apple.mpegurl`, `application/x-mpegurl`, and the repository's
+established `audio/x-mpegurl` alias as HLS, and exact
+`application/dash+xml` as DASH. Gather container and MIME evidence separately;
+if both are recognized and disagree, return `Unknown`. Otherwise return the
+single recognized kind, the shared kind when both agree, or `Unknown`. Never
+use substring MIME matching.
 
 Return inline capabilities in canonical order `videojs`, `html5`, `artplayer`
 and external capabilities in `mpv`, `vlc` order. Video.js is unavailable for
@@ -557,15 +566,19 @@ in Step 1.
 
 - [ ] **Step 4: Drive and implement collision-safe session keys**
 
-Write tests proving that a source change does not affect a key, while channel,
-movie, or episode identity does. Include `:` and `|` in identifiers to prove
-parts cannot collide.
+Write tests proving callers can reuse one host-owned canonical logical identity
+across different provider copies and source URLs, while changing channel,
+movie, or episode identity changes the key. Include `:` and `|` in identifiers
+to prove parts cannot collide, and assert the module does not expose an adapter
+that guesses identity from provider-scoped playback metadata.
 
 Create `playback-session-key.ts`:
 
 ```typescript
-import type { PlayerContentInfo } from '@iptvnator/shared/interfaces';
-
+/**
+ * Host-owned canonical logical content identity. Source and content IDs must
+ * not come from the currently selected provider copy or playback URL.
+ */
 export type PlaybackSessionIdentity =
     | {
           readonly kind: 'live';
@@ -600,28 +613,11 @@ export function createPlaybackSessionKey(
 
     return parts.map((part) => `${part.length}:${part}`).join('|');
 }
-
-export function createPlaybackSessionKeyFromContentInfo(
-    info: PlayerContentInfo
-): string {
-    return createPlaybackSessionKey(
-        info.contentType === 'episode'
-            ? {
-                  kind: 'episode',
-                  sourceId: info.playlistId,
-                  contentId: info.contentXtreamId,
-                  seriesId: info.seriesXtreamId,
-                  seasonNumber: info.seasonNumber,
-                  episodeNumber: info.episodeNumber,
-              }
-            : {
-                  kind: 'vod',
-                  sourceId: info.playlistId,
-                  contentId: info.contentXtreamId,
-              }
-    );
-}
 ```
+
+Do not add a `PlayerContentInfo` adapter: multi-source resolution replaces its
+playlist/content IDs with the selected provider copy, so it cannot represent a
+stable recovery session.
 
 Run:
 
@@ -984,6 +980,25 @@ git commit -m "feat(playback): track session recovery attempts"
 - Modify: `libs/ui/playback/src/lib/portal-inline-player/portal-inline-player.component.spec.ts`
 - Modify: `libs/ui/playback/src/lib/portal-inline-player/portal-inline-player-sources.spec.ts`
 - Modify: `libs/ui/playback/src/lib/portal-inline-player/portal-inline-player-up-next.spec.ts`
+- Modify: `libs/ui/playback/src/lib/vod-details/vod-details.component.ts`
+- Modify: `libs/ui/playback/src/lib/vod-details/vod-details.component.html`
+- Modify: `libs/ui/playback/src/lib/vod-details/vod-details.component.spec.ts`
+- Modify: `libs/portal/xtream/feature/src/lib/vod-details/vod-details-route.component.ts`
+- Modify: `libs/portal/xtream/feature/src/lib/vod-details/vod-details-route.component.html`
+- Modify: `libs/portal/xtream/feature/src/lib/vod-details/vod-details-route-playback.spec.ts`
+- Modify: `libs/portal/xtream/feature/src/lib/vod-details/vod-details-route.actions.spec.ts`
+- Modify: `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.ts`
+- Modify: `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.html`
+- Modify: `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.spec.ts`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.html`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.spec.ts`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-inline-detail/stalker-inline-detail.component.ts`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-inline-detail/stalker-inline-detail.component.html`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-inline-detail/stalker-inline-detail.component.spec.ts`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.html`
+- Modify: `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.spec.ts`
 
 - [ ] **Step 1: Add failing host identity tests**
 
@@ -995,8 +1010,11 @@ Prove these invariants in the closest existing specs:
 - Stalker live: current playlist `_id` + normalized selected channel ID.
 - Unified live: active item playlist ID + `uid`; timeshift URL changes keep the
   key.
-- Portal inline VOD/episode: `PlayerContentInfo`; alternative source URL changes
-  keep the key, while movie or episode identity changes it.
+- Portal inline VOD/episode: the Xtream/Stalker route or series host derives a
+  canonical key from its original route/catalog identity and passes it through
+  unchanged. Replacing playback with an alternative provider copy changes its
+  URL and provider-scoped `contentInfo` but keeps the key; selecting a
+  different original movie or episode changes it.
 - Transfer contract: M3U preserves the resolved request URL plus active-channel
   User-Agent/Referer/Origin; Xtream, Stalker, unified live, and portal inline
   pass the exact `ResolvedPortalPlayback` (including headers and content info)
@@ -1011,20 +1029,24 @@ pnpm nx test portal-xtream-feature -- --runTestsByPath libs/portal/xtream/featur
 pnpm nx test portal-stalker-feature -- --runTestsByPath libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.spec.ts --runInBand
 pnpm nx test portal-shared-ui -- --runTestsByPath libs/portal/shared/ui/src/lib/components/unified-collection/unified-live-tab.component.spec.ts --runInBand
 pnpm nx test ui-playback -- --runTestsByPath libs/ui/playback/src/lib/portal-inline-player/portal-inline-player.component.spec.ts libs/ui/playback/src/lib/portal-inline-player/portal-inline-player-sources.spec.ts libs/ui/playback/src/lib/portal-inline-player/portal-inline-player-up-next.spec.ts --runInBand
+pnpm nx test portal-xtream-feature -- --runTestsByPath libs/portal/xtream/feature/src/lib/vod-details/vod-details-route-playback.spec.ts libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.spec.ts --runInBand
+pnpm nx test portal-stalker-feature -- --runTestsByPath libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.spec.ts libs/portal/stalker/feature/src/lib/stalker-inline-detail/stalker-inline-detail.component.spec.ts libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.spec.ts --runInBand
 ```
 
 Expected: FAIL because neither the required input nor the host bindings exist.
 
-- [ ] **Step 2: Make content identity a required WebPlayerView input**
+- [ ] **Step 2: Make content identity required through the player chain**
 
 Add this input to `WebPlayerViewComponent`; Task 7 will consume it, while this
-task first makes every current caller compile with a stable key:
+task first makes every current caller compile with a stable key. Add the same
+required input to `PortalInlinePlayerComponent` and `VodDetailsComponent`,
+which only thread the host-owned value to their nested player:
 
 ```typescript
 readonly playbackSessionKey = input.required<string>();
 ```
 
-Update every `StubWebPlayerViewComponent` with the same required input:
+Update every stub for these three components with the same required input:
 
 ```typescript
 readonly playbackSessionKey = input.required<string>();
@@ -1060,41 +1082,58 @@ Add that binding to each existing component tag without deleting or changing
 any of its other input/output bindings. Do not include the current
 stream/catch-up URL in these keys.
 
-- [ ] **Step 4: Derive portal inline keys from content metadata**
+- [ ] **Step 4: Derive VOD and episode keys in their owning hosts**
 
-In `PortalInlinePlayerComponent`, add:
+Xtream VOD derives its key from the current route playlist and original
+`selectedVodId`, not `inlinePlayback().contentInfo`. Xtream series derives an
+episode key from the route playlist/series plus the host's active original
+episode, season, and episode coordinates. The shapes are:
 
 ```typescript
-readonly playbackSessionKey = computed(() => {
-    const info = this.playback()?.contentInfo;
-    if (info) {
-        return createPlaybackSessionKeyFromContentInfo(info);
-    }
+readonly vodPlaybackSessionKey = computed(() =>
+    createPlaybackSessionKey({
+        kind: 'vod',
+        sourceId: this.xtreamStore.currentPlaylist()?.id ?? '',
+        contentId: this.selectedVodId(),
+    })
+);
 
-    const playback = this.playback();
+readonly episodePlaybackSessionKey = computed(() => {
+    const originalEpisode = this.playback.inlineEpisodeState()?.episode;
     return createPlaybackSessionKey({
-        kind: playback?.isLive ? 'live' : 'vod',
-        sourceId: 'portal-inline',
-        contentId: playback?.title?.trim() || 'unknown-content',
+        kind: 'episode',
+        sourceId: this.xtreamStore.currentPlaylist()?.id ?? '',
+        contentId: originalEpisode?.id ?? '',
+        seriesId: this.routeParams().serialId ?? '',
+        seasonNumber: originalEpisode?.season,
+        episodeNumber: originalEpisode?.episode_num,
     });
 });
 ```
 
-The fallback is fail-safe for legacy/test playback objects; production Xtream
-and Stalker VOD/episode flows must be covered by tests proving `contentInfo` is
-present. Bind this key to the nested WebPlayerView. Do not use `streamUrl` as a
-fallback because alternative sources must retain the session.
+Use the equivalent original catalog/route item and active episode identity in
+Stalker VOD and series hosts. Thread the required key through any
+`StalkerInlineDetailComponent`/`VodDetailsComponent` intermediary, bind it to
+`PortalInlinePlayerComponent`, and have that component pass the exact input to
+its nested `WebPlayerViewComponent`.
+
+Do not derive or fall back from `playback.contentInfo`, `streamUrl`, or title.
+Alternative-source resolution intentionally rewrites `contentInfo.playlistId`
+and `contentXtreamId` for the selected provider copy; those fields remain
+playback/resume metadata and are not recovery-session identity. Host specs must
+replace the full playback payload with such an alternative copy and prove the
+required key is unchanged.
 
 - [ ] **Step 5: Verify every required binding and host project**
 
 Run:
 
 ```bash
-rg -l "<app-web-player-view" libs apps --glob '*.html'
+rg -l "<app-web-player-view|<app-portal-inline-player|<app-vod-details" libs apps --glob '*.html'
 ```
 
-Inspect every returned template and confirm it binds
-`[playbackSessionKey]`. Then run:
+Inspect every returned template and confirm each required link in the player
+chain binds `[playbackSessionKey]`. Then run:
 
 ```bash
 pnpm nx test playlist-m3u-feature-player
