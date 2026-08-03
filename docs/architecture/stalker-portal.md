@@ -382,6 +382,18 @@ dispatched — which the check cannot cover, but sequencing can: discovery
 the next candidate, instead of racing it. The request cannot be un-sent, but
 nothing forces us to have a competing session in flight while it lands.
 
+**A drain that times out stops discovery.** Draining is bounded, and the bound
+has to mean something: an attempt still unsettled after its own 65 s budget
+plus the 15 s drain is one no transport can recall — the PWA `fetch()` takes no
+signal at all, and the Electron main process runs its HTTP request to
+completion. Advancing anyway would stake the next candidate's freshly issued
+session on that request never landing. So the rejection carries
+`abandonedInFlight` and the candidate loop returns instead of probing on,
+preferring an honest "could not confirm this portal" the user can retry over a
+session that looks established and dies later. It costs nothing in the normal
+case: an aborted attempt settles as soon as its in-flight request errors out,
+so the drain returns at once and the loop continues.
+
 The budget itself covers the longest real flow: a status-2 portal costs four
 sequential requests (handshake, profile, `do_auth`, profile retry) and the
 Electron transport allows each 15 s, so a two-request budget would have failed

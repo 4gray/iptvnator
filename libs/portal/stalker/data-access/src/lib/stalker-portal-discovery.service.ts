@@ -45,6 +45,16 @@ export interface StalkerPortalDiscoveryRejection {
     status: 'auth-rejected';
     portalUrl: string;
     error?: unknown;
+    /**
+     * The abandoned attempt was STILL in flight when the drain deadline
+     * expired, so discovery must not advance. Cancellation is cooperative —
+     * neither transport can pull a request off the wire (the PWA `fetch()`
+     * takes no signal, and the Electron main process runs its HTTP request to
+     * completion) — so an attempt this far past its deadline may still land a
+     * `get_profile`, which adopts the MAC's token portal-side and would
+     * invalidate the session a later candidate had just established.
+     */
+    abandonedInFlight?: boolean;
 }
 
 /** No candidate answered like a Stalker portal (host down or not a portal). */
@@ -156,6 +166,9 @@ export class StalkerPortalDiscoveryService {
                     if (outcome.status === 'resolved') {
                         return outcome;
                     }
+                    if (outcome.abandonedInFlight) {
+                        return authRejection ?? outcome;
+                    }
                     authRejection = authRejection ?? outcome;
                     continue;
                 }
@@ -200,6 +213,11 @@ export class StalkerPortalDiscoveryService {
                     );
                     if (outcome.status === 'resolved') {
                         return outcome;
+                    }
+                    // An attempt still on the wire outranks further probing:
+                    // see `abandonedInFlight`.
+                    if (outcome.abandonedInFlight) {
+                        return authRejection ?? outcome;
                     }
                     // The endpoint is real but refused our credentials;
                     // remember the first such endpoint in case no later
@@ -268,16 +286,33 @@ export class StalkerPortalDiscoveryService {
             // wire: its `get_profile` adopts the MAC's token portal-side, so
             // racing it is exactly what invalidates the next candidate's
             // freshly issued session.
-            await Promise.race([
-                pending.catch(() => undefined),
-                new Promise((resolve) =>
+            //
+            // Draining is the normal case and usually returns at once — an
+            // aborted attempt settles as soon as its in-flight request errors
+            // out. The deadline exists for the attempt that does not settle,
+            // and reaching it is reported rather than swallowed: continuing
+            // would stake a working candidate's session on a request nobody
+            // can recall.
+            const DRAINED = Symbol('drained');
+            const outcome = await Promise.race([
+                pending.then(
+                    () => DRAINED,
+                    () => DRAINED
+                ),
+                new Promise<undefined>((resolve) =>
                     setTimeout(resolve, ABANDONED_DRAIN_MS)
                 ),
             ]);
+            if (outcome !== DRAINED) {
+                this.logger.warn(
+                    'Abandoned Stalker authentication is still in flight after the drain deadline; stopping discovery rather than racing it'
+                );
+            }
             return {
                 status: 'auth-rejected',
                 portalUrl: candidate,
                 error,
+                ...(outcome === DRAINED ? {} : { abandonedInFlight: true }),
             };
         }
     }

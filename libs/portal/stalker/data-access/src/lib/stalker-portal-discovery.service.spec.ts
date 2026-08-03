@@ -453,4 +453,51 @@ describe('StalkerPortalDiscoveryService', () => {
             jest.useRealTimers();
         }
     });
+
+    it('stops discovery when the drain deadline expires with the attempt still live', async () => {
+        jest.useFakeTimers();
+        try {
+            // Cancellation is cooperative: neither transport can pull a
+            // request off the wire. An attempt still unsettled 80 s in may
+            // yet land its `get_profile`, which adopts the MAC's token
+            // portal-side — so probing on would stake the next candidate's
+            // freshly issued session on a request nobody can recall.
+            mockProbes({
+                'http://hung.example/portal.php': {
+                    resolve: 'Authorization failed.',
+                },
+                'http://hung.example/server/load.php': {
+                    resolve: 'Authorization failed.',
+                },
+            });
+
+            // Never settles — not even after the drain.
+            authenticate
+                .mockImplementationOnce(() => new Promise(() => undefined))
+                .mockResolvedValue({ token: 'SECOND' });
+
+            const discovery = service.discover('http://hung.example/c', MAC);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+
+            jest.advanceTimersByTime(65_000);
+            for (let i = 0; i < 6; i += 1) {
+                await Promise.resolve();
+            }
+            jest.advanceTimersByTime(15_000);
+            for (let i = 0; i < 10; i += 1) {
+                await Promise.resolve();
+            }
+
+            await expect(discovery).resolves.toMatchObject({
+                status: 'auth-rejected',
+                abandonedInFlight: true,
+            });
+            // The second candidate was never authenticated.
+            expect(authenticate).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });
