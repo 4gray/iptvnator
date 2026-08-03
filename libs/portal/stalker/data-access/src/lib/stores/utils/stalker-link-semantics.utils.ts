@@ -1,4 +1,7 @@
-import { normalizeStalkerPlaybackCommand } from './stalker-playback-command.utils';
+import {
+    hasHttpScheme,
+    normalizeStalkerPlaybackCommand,
+} from './stalker-playback-command.utils';
 
 /**
  * The two catalog flags that decide whether a row needs a temporary link.
@@ -41,7 +44,11 @@ const IPV6_MAPPED_IPV4 = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
  * portal to spell them the obvious way.
  */
 function isPortalLocalHostname(hostname: string): boolean {
-    const host = hostname.replace(/^\[|\]$/g, '');
+    // A trailing dot is the DNS root and resolves identically, but `URL` keeps
+    // it for names (`localhost.`) while dropping it for IP literals — so an
+    // exact-name check has to strip it or `http://localhost./ch/1_` reads as a
+    // remote host.
+    const host = hostname.replace(/^\[|\]$/g, '').replace(/\.$/, '');
     if (PORTAL_LOCAL_HOSTNAMES.has(host) || IPV4_LOOPBACK.test(host)) {
         return true;
     }
@@ -138,8 +145,9 @@ export function requiresStalkerTemporaryLink(
  *   only `create_link` turns those into an address, and the VOD `has_files`
  *   rewrite produces exactly the first shape;
  * - a non-HTTP scheme (`ffrt4://ch/live/…`) — a portal-internal pseudo-URL;
- * - a loopback host — a portal-side placeholder (see
- *   {@link PORTAL_LOCAL_HOSTNAMES}).
+ * - a portal-local host — a placeholder only the portal could resolve (see
+ *   {@link isPortalLocalHostname}, which covers rather more than the obvious
+ *   `localhost`).
  */
 export function resolveStalkerStaticPlaybackUrl(
     source: StalkerLinkFlagSource | null | undefined,
@@ -153,7 +161,7 @@ export function resolveStalkerStaticPlaybackUrl(
     }
 
     const url = normalizeStalkerPlaybackCommand(cmd);
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    if (!hasHttpScheme(url)) {
         return null;
     }
 

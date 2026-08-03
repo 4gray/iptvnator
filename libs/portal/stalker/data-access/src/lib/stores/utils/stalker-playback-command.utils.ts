@@ -6,6 +6,18 @@
  * not import each other.
  */
 
+/**
+ * RFC 3986 makes the scheme case-insensitive and portals are inconsistent
+ * about it, so every scheme test here goes through this rather than
+ * `startsWith('http://')` — which would send `HTTP://…` down the
+ * "not a URL" branch of whichever check it hit.
+ */
+const HTTP_SCHEME = /^https?:\/\//i;
+
+export function hasHttpScheme(value: string): boolean {
+    return HTTP_SCHEME.test(value);
+}
+
 export function normalizeStalkerPlaybackCommand(value: string): string {
     const trimmed = String(value ?? '').trim();
     if (!trimmed) {
@@ -16,8 +28,7 @@ export function normalizeStalkerPlaybackCommand(value: string): string {
     if (splitAt > 0) {
         const candidate = trimmed.slice(splitAt + 1).trim();
         if (
-            candidate.startsWith('http://') ||
-            candidate.startsWith('https://') ||
+            hasHttpScheme(candidate) ||
             candidate.startsWith('/') ||
             candidate.startsWith('?')
         ) {
@@ -38,7 +49,7 @@ export function resolveStalkerPlaybackUrl(
         return '';
     }
 
-    if (url.startsWith('http://') || url.startsWith('https://')) {
+    if (hasHttpScheme(url)) {
         return url;
     }
 
@@ -71,10 +82,7 @@ export function resolveStalkerPlaybackUrl(
 
         if (url.startsWith('?')) {
             const normalizedCmd = normalizeStalkerPlaybackCommand(originalCmd);
-            if (
-                normalizedCmd.startsWith('http://') ||
-                normalizedCmd.startsWith('https://')
-            ) {
+            if (hasHttpScheme(normalizedCmd)) {
                 return `${normalizedCmd}${url}`;
             }
 

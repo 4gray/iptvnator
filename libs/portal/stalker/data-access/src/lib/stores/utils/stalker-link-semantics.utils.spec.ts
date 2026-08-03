@@ -165,6 +165,28 @@ describe('stalker-link-semantics', () => {
             ).toBeNull();
         });
 
+        it.each([
+            ['ffrt3 http://localhost./ch/1234_'],
+            ['http://LocalHost./ch/1234_'],
+        ])('strips the DNS root dot before classifying %p', (cmd) => {
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toBeNull();
+        });
+
+        it.each([
+            ['HTTP://cdn.example/live/42.m3u8'],
+            ['ffrt3 HTTPS://cdn.example/live/42.m3u8'],
+            ['hTTp://cdn.example/live/42.m3u8'],
+        ])('accepts the case-insensitive scheme %p', (cmd) => {
+            // RFC 3986 makes the scheme case-insensitive. A case-sensitive
+            // test failed safe (it minted a link) but defeated the contract
+            // for a portal that spells it this way.
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toMatch(/cdn\.example\/live\/42\.m3u8$/);
+        });
+
         it('keeps a routable IPv6 host', () => {
             // 2001:db8::1 is documentation space, but it is routable as far as
             // this guard is concerned — only local placeholders are rejected.
