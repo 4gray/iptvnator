@@ -1,5 +1,6 @@
 import {
     hasHttpScheme,
+    isPlayableHttpUrl,
     normalizeStalkerPlaybackCommand,
     resolveStalkerPlaybackUrl,
 } from './stalker-playback-command.utils';
@@ -19,6 +20,21 @@ describe('stalker-playback-command.utils', () => {
             ['', false],
         ])('reads %p as %p', (value, expected) => {
             expect(hasHttpScheme(value)).toBe(expected);
+        });
+    });
+
+    describe('isPlayableHttpUrl', () => {
+        it.each([
+            ['http://cdn.example/a.ts', true],
+            ['HTTPS://cdn.example/a.ts', true],
+            ['http://[::1]/a.ts', true],
+            // `new URL` reinterprets the first path segment as the host here.
+            ['http:///ch/1', false],
+            ['https:///ch/1', false],
+            ['ffrt4://ch/1', false],
+            ['/media/1.mpg', false],
+        ])('reads %p as %p', (value, expected) => {
+            expect(isPlayableHttpUrl(value)).toBe(expected);
         });
     });
 

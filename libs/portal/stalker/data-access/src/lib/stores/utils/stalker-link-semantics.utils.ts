@@ -1,5 +1,5 @@
 import {
-    hasHttpScheme,
+    isPlayableHttpUrl,
     normalizeStalkerPlaybackCommand,
 } from './stalker-playback-command.utils';
 
@@ -144,7 +144,9 @@ export function requiresStalkerTemporaryLink(
  * - a relative (`/media/file_12.mpg`) or query-only (`?token=…`) command —
  *   only `create_link` turns those into an address, and the VOD `has_files`
  *   rewrite produces exactly the first shape;
- * - a non-HTTP scheme (`ffrt4://ch/live/…`) — a portal-internal pseudo-URL;
+ * - a non-HTTP scheme (`ffrt4://ch/live/…`) — a portal-internal pseudo-URL —
+ *   or an HTTP command with no authority (`http:///ch/1`), which `URL` would
+ *   quietly reinterpret as the host `ch`;
  * - a portal-local host — a placeholder only the portal could resolve (see
  *   {@link isPortalLocalHostname}, which covers rather more than the obvious
  *   `localhost`).
@@ -161,7 +163,7 @@ export function resolveStalkerStaticPlaybackUrl(
     }
 
     const url = normalizeStalkerPlaybackCommand(cmd);
-    if (!hasHttpScheme(url)) {
+    if (!isPlayableHttpUrl(url)) {
         return null;
     }
 

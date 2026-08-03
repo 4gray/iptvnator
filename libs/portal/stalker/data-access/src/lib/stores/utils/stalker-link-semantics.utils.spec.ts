@@ -187,6 +187,18 @@ describe('stalker-link-semantics', () => {
             ).toMatch(/cdn\.example\/live\/42\.m3u8$/);
         });
 
+        it.each([
+            ['http:///ch/1234_'],
+            ['ffrt3 https:///ch/1234_'],
+        ])('defers to create_link for the authority-less url %p', (cmd) => {
+            // `new URL('http:///ch/1')` reports the host as `ch` — a malformed
+            // command would otherwise reach the player as a nonsense address
+            // rather than going to the portal to be resolved.
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toBeNull();
+        });
+
         it('keeps a routable IPv6 host', () => {
             // 2001:db8::1 is documentation space, but it is routable as far as
             // this guard is concerned — only local placeholders are rejected.

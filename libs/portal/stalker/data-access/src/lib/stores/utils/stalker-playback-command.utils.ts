@@ -14,8 +14,21 @@
  */
 const HTTP_SCHEME = /^https?:\/\//i;
 
+/**
+ * The authority must be non-empty: `http:///ch/1` silently reinterprets the
+ * first path segment as the host (`URL` reports `ch`), so a malformed command
+ * would otherwise be handed to the player as a nonsense address instead of
+ * going to the portal to be resolved.
+ */
+const HTTP_URL_WITH_AUTHORITY = /^https?:\/\/[^/]/i;
+
 export function hasHttpScheme(value: string): boolean {
     return HTTP_SCHEME.test(value);
+}
+
+/** A command that is usable as an address on its own. */
+export function isPlayableHttpUrl(value: string): boolean {
+    return HTTP_URL_WITH_AUTHORITY.test(value);
 }
 
 export function normalizeStalkerPlaybackCommand(value: string): string {

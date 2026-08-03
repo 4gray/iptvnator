@@ -522,7 +522,10 @@ live layout for the radio audio player, which renders outside
 Two stream profiles exist, selected by one shared predicate:
 
 - **Portal-owned** (`isStalkerStreamCredentialSafe()` in
-  `@iptvnator/shared/interfaces`): the stream host equals the portal host —
+  `@iptvnator/shared/interfaces`): the stream host equals the portal host
+  (compared with a terminal DNS root dot normalized away, since
+  `portal.example.` and `portal.example` are the same host but `URL` keeps
+  the dot) —
   including a different port or an http→https upgrade, the routine IPTV panel
   shape (#1158 class). These streams get the full MAG profile: `Cookie`
   (`mac=…` plus protocol cookies), `Authorization: Bearer <token>` when a
