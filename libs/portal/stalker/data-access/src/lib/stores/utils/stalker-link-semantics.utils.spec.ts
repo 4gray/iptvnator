@@ -149,6 +149,42 @@ describe('stalker-link-semantics', () => {
             ).toBeNull();
         });
 
+        it.each([
+            // `URL` keeps the brackets and normalizes the address, so these
+            // reach the guard as `[::]`, `[::1]` and `[::ffff:7f00:1]`.
+            ['http://[::]/ch/1234_'],
+            ['http://[::1]/ch/1234_'],
+            ['http://[0:0:0:0:0:0:0:1]/ch/1234_'],
+            ['http://[::ffff:127.0.0.1]/ch/1234_'],
+            ['http://[::ffff:7f00:1]/ch/1234_'],
+            ['http://[::ffff:127.255.255.255]/ch/1234_'],
+            ['http://[::ffff:0.0.0.0]/ch/1234_'],
+        ])('treats the IPv6 portal-local form %p as local', (cmd) => {
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toBeNull();
+        });
+
+        it('keeps a routable IPv6 host', () => {
+            // 2001:db8::1 is documentation space, but it is routable as far as
+            // this guard is concerned — only local placeholders are rejected.
+            expect(
+                resolveStalkerStaticPlaybackUrl(
+                    { use_http_tmp_link: '0' },
+                    'http://[2001:db8::1]/live/42.m3u8'
+                )
+            ).toBe('http://[2001:db8::1]/live/42.m3u8');
+        });
+
+        it('keeps an IPv4-mapped address that is not loopback', () => {
+            expect(
+                resolveStalkerStaticPlaybackUrl(
+                    { use_http_tmp_link: '0' },
+                    'http://[::ffff:203.0.113.7]/live/42.m3u8'
+                )
+            ).not.toBeNull();
+        });
+
         it('does not mistake a non-loopback 127-lookalike for loopback', () => {
             expect(
                 resolveStalkerStaticPlaybackUrl(

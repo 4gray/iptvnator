@@ -23,18 +23,47 @@ export interface StalkerLinkFlagSource {
  * `ffrt3 http://localhost/ch/1234_` is an instruction to the portal, never an
  * address the set-top box could open, so it always needs resolving.
  */
-const PORTAL_LOCAL_HOSTNAMES = new Set([
-    'localhost',
-    '0.0.0.0',
-    '::1',
-    '[::1]',
-]);
+const PORTAL_LOCAL_HOSTNAMES = new Set(['localhost', '0.0.0.0', '::1', '::']);
 
 /** IPv4 reserves all of `127.0.0.0/8` for loopback, not just `127.0.0.1`. */
 const IPV4_LOOPBACK = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
+/** How `URL` normalizes an IPv4-mapped address: `::ffff:7f00:1`. */
+const IPV6_MAPPED_IPV4 = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
+
+/**
+ * Whether the host can only mean the machine resolving it — the portal when it
+ * wrote the command, the player if we took it literally.
+ *
+ * `URL.hostname` keeps IPv6 in brackets and normalizes the address, so
+ * `[0:0:0:0:0:0:0:1]` arrives as `[::1]` and an IPv4-mapped `127.0.0.1` as hex
+ * (`[::ffff:7f00:1]`) — both are matched here rather than relying on the
+ * portal to spell them the obvious way.
+ */
 function isPortalLocalHostname(hostname: string): boolean {
-    return PORTAL_LOCAL_HOSTNAMES.has(hostname) || IPV4_LOOPBACK.test(hostname);
+    const host = hostname.replace(/^\[|\]$/g, '');
+    if (PORTAL_LOCAL_HOSTNAMES.has(host) || IPV4_LOOPBACK.test(host)) {
+        return true;
+    }
+
+    // Dotted IPv4-mapped form, for any engine that does not rewrite it to hex.
+    if (host.startsWith('::ffff:')) {
+        const tail = host.slice('::ffff:'.length);
+        if (IPV4_LOOPBACK.test(tail) || tail === '0.0.0.0') {
+            return true;
+        }
+    }
+
+    const mapped = IPV6_MAPPED_IPV4.exec(host);
+    if (!mapped) {
+        return false;
+    }
+
+    // The whole of 127.0.0.0/8 shares the 0x7f high byte (127.0.0.1 is
+    // 7f00:0001); `::ffff:0:0` is the mapped unspecified address.
+    const high = Number.parseInt(mapped[1], 16);
+    const low = Number.parseInt(mapped[2], 16);
+    return high >>> 8 === 0x7f || (high === 0 && low === 0);
 }
 
 /**
