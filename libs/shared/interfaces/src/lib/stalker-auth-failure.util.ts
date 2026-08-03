@@ -128,14 +128,74 @@ export function isStalkerAuthFailureMessage(message: unknown): boolean {
 }
 
 /**
- * Whether a portal response is an authorization failure in EITHER wire
- * shape: the middleware's plain-text body, or the JSON envelope some panels
- * answer instead. Classification and the lazy-repair trigger must use this,
- * not the string-only primitive: a JSON-failing panel would otherwise be
- * persisted as token-free and never repaired.
+ * Structured shape a transport returns in place of the raw plain-text body.
+ *
+ * Returned, never thrown: `ipcRenderer.invoke` strips custom properties from
+ * rejected values, so a classified body would not survive the trip to the
+ * renderer as an error. The Electron main process mints this because it is
+ * where the body arrives; the PWA proxy still delivers the raw string, and
+ * every consumer goes through the predicates below rather than caring which.
+ */
+export interface StalkerAuthFailureMarker {
+    stalkerAuthFailure: StalkerAuthFailureBody;
+}
+
+export function createStalkerAuthFailureMarker(
+    body: StalkerAuthFailureBody
+): StalkerAuthFailureMarker {
+    return { stalkerAuthFailure: body };
+}
+
+function readAuthFailureMarker(
+    value: unknown
+): StalkerAuthFailureBody | null {
+    if (typeof value !== 'object' || value === null) {
+        return null;
+    }
+
+    return classifyStalkerAuthFailureBody(
+        (value as StalkerAuthFailureMarker).stalkerAuthFailure
+    );
+}
+
+/**
+ * Extracts the canonical failure body from any shape an auth failure reaches
+ * a consumer in: the transport marker (Electron), the raw plain-text payload
+ * (PWA proxy), or a `{js: '<body>'}` envelope. Returns null for everything
+ * else, including the structured `{js: {error|msg}}` form — that one is a
+ * panel's own wording, not one of the middleware's three bodies, so it has
+ * no canonical body to report. Use `isStalkerAuthFailureResponse` when the
+ * question is merely "did authorization fail?".
+ */
+export function extractStalkerAuthFailureBody(
+    value: unknown
+): StalkerAuthFailureBody | null {
+    return (
+        readAuthFailureMarker(value) ??
+        classifyStalkerAuthFailureBody(value) ??
+        classifyStalkerAuthFailureBody(
+            typeof value === 'object' && value !== null && 'js' in value
+                ? (value as { js?: unknown }).js
+                : undefined
+        )
+    );
+}
+
+/**
+ * Whether a portal response is an authorization failure in ANY wire shape:
+ * the middleware's plain-text body, the transport marker minted from it, or
+ * the JSON envelope some panels answer instead. Classification and the
+ * lazy-repair trigger must use this, not the string-only primitive: a
+ * JSON-failing panel would otherwise be persisted as token-free and never
+ * repaired, and an Electron-classified body would stop triggering repair at
+ * all.
  */
 export function isStalkerAuthFailureResponse(response: unknown): boolean {
     if (isStalkerAuthFailureBody(response)) {
+        return true;
+    }
+
+    if (readAuthFailureMarker(response) !== null) {
         return true;
     }
 

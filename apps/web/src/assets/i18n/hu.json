@@ -195,7 +195,13 @@
             "SERVER_URL": "Kiszolgáló URL-címe",
             "URL_VALIDATION_ERROR": "Adjon meg protokollt is tartalmazó, érvényes URL-címet (például http://example.com/c vagy https://example.com/stalker_portal/c)",
             "ADD": "Hozzáadás",
-            "VALIDATING": "Portál ellenőrzése…"
+            "VALIDATING": "Portál ellenőrzése…",
+            "CREDENTIALS_HINT": "Csak akkor szükséges, ha a portál felhasználónevet és jelszót kér",
+            "AUTH_FAILED": "Nem sikerült a hitelesítés a portálon. Ellenőrizze az URL-címet és a MAC-címet.",
+            "LOGIN_REQUIRED": "Ez a portál felhasználónevet és jelszót igényel. Töltse ki a felhasználónév és a jelszó mezőt, majd próbálja újra.",
+            "LOGIN_REJECTED": "A portál elutasította a felhasználónevet és a jelszót.",
+            "PORTAL_REFUSED": "A portál megtagadta a hozzáférést ettől az eszköztől.",
+            "PORTAL_MESSAGE": "A portál a következőt jelezte: {{message}}"
         },
         "FILTER_BY_NAME": "Szűrés név alapján",
         "FILTER_AND_SORT": "Szűrés és rendezés",
@@ -957,6 +963,7 @@
                 "TITLE": "Nincs kiválasztott kategória",
                 "DESCRIPTION": "A tartalom megjelenítéséhez válasszon egy kategóriát."
             },
+            "STALKER_LOGIN_REQUIRED": "A portál felhasználónevet és jelszót igényel. Importálja újra a portált, és töltse ki a felhasználónév és a jelszó mezőt.",
             "PLAYLIST_SETTINGS": "Lejátszási lista beállításai",
             "HOME": "Kezdőlap",
             "DELETE": "Törlés"

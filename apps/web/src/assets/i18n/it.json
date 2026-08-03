@@ -195,7 +195,13 @@
             "SERVER_URL": "URL server",
             "URL_VALIDATION_ERROR": "Dovrebbe essere una URL valida con protocollo (es. http://esempio.it/c o https://esempio.it/stalker_portal/c)",
             "ADD": "Aggiungi",
-            "VALIDATING": "Validazione del portale..."
+            "VALIDATING": "Validazione del portale...",
+            "CREDENTIALS_HINT": "Necessario solo se il portale richiede nome utente e password",
+            "AUTH_FAILED": "Impossibile autenticarsi con il portale. Controlla l'URL e l'indirizzo MAC.",
+            "LOGIN_REQUIRED": "Questo portale richiede nome utente e password. Compila i campi nome utente e password e riprova.",
+            "LOGIN_REJECTED": "Il portale ha rifiutato il nome utente e la password.",
+            "PORTAL_REFUSED": "Il portale ha negato l'accesso a questo dispositivo.",
+            "PORTAL_MESSAGE": "Il portale ha segnalato: {{message}}"
         },
         "FILTER_BY_NAME": "Filtra per nome",
         "FILTER_AND_SORT": "Filtra e ordina",
@@ -957,6 +963,7 @@
                 "TITLE": "Nessuna categoria selezionata",
                 "DESCRIPTION": "Seleziona una categoria per vedere i contenuti"
             },
+            "STALKER_LOGIN_REQUIRED": "Il portale richiede nome utente e password. Importa di nuovo il portale e compila i campi nome utente e password.",
             "PLAYLIST_SETTINGS": "Impostazioni Playlist",
             "HOME": "Home",
             "DELETE": "Elimina"

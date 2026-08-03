@@ -195,7 +195,13 @@
             "SERVER_URL": "URL serwera",
             "URL_VALIDATION_ERROR": "Powinien to być poprawny URL z protokołem (np. http://example.com/c lub https://example.com/stalker_portal/c)",
             "ADD": "Dodaj",
-            "VALIDATING": "Walidacja portalu..."
+            "VALIDATING": "Walidacja portalu...",
+            "CREDENTIALS_HINT": "Potrzebne tylko wtedy, gdy portal wymaga loginu i hasła",
+            "AUTH_FAILED": "Nie udało się uwierzytelnić w portalu. Sprawdź URL i adres MAC.",
+            "LOGIN_REQUIRED": "Ten portal wymaga loginu i hasła. Wypełnij pola nazwy użytkownika i hasła i spróbuj ponownie.",
+            "LOGIN_REJECTED": "Portal odrzucił login i hasło.",
+            "PORTAL_REFUSED": "Portal odmówił dostępu temu urządzeniu.",
+            "PORTAL_MESSAGE": "Portal zgłosił: {{message}}"
         },
         "FILTER_BY_NAME": "Filtruj według nazwy",
         "FILTER_AND_SORT": "Filtruj i sortuj",
@@ -957,6 +963,7 @@
                 "TITLE": "Nie wybrano kategorii",
                 "DESCRIPTION": "Wybierz kategorię, aby zobaczyć treści"
             },
+            "STALKER_LOGIN_REQUIRED": "Portal wymaga loginu i hasła. Zaimportuj portal ponownie i wypełnij pola nazwy użytkownika i hasła.",
             "PLAYLIST_SETTINGS": "Ustawienia listy odtwarzania",
             "HOME": "Strona główna",
             "DELETE": "Usuń"

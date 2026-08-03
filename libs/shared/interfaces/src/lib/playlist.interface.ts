@@ -58,6 +58,23 @@ export interface Playlist {
     serverTimezone?: string;
     /** Session token for full stalker portal authentication - persisted for session */
     stalkerToken?: string;
+    /**
+     * Identity fingerprint the persisted `stalkerToken` was negotiated for.
+     * Re-presenting a token minted for a DIFFERENT identity (the user edited
+     * the MAC, serial or device ids) would pair a new identity with an old
+     * session — the same class of bug the in-memory cache guards against, so
+     * reuse is refused unless this still matches the playlist.
+     */
+    stalkerSessionIdentity?: string;
+    /**
+     * Watchdog cadence the portal advertised in `get_profile`, persisted
+     * alongside the token: reusing a stored token skips the profile request
+     * that carries these, so without persistence the keep-alive would fall
+     * back to the 120 s default forever.
+     */
+    stalkerWatchdogTimeout?: number;
+    /** Per-user watchdog jitter (seconds) from `get_profile`. */
+    stalkerTimeslot?: number;
     /** Serial number for stalker portal - generated once and stored for consistency */
     stalkerSerialNumber?: string;
     /** Optional device ID 1 for stalker portal - if not provided, auto-generated from MAC */

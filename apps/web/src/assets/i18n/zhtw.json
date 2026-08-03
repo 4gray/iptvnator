@@ -195,7 +195,13 @@
             "SERVER_URL": "伺服器網址",
             "URL_VALIDATION_ERROR": "必須是有效的網址並包含協定（例如 http://example.com/c 或 https://example.com/stalker_portal/c）",
             "ADD": "新增",
-            "VALIDATING": "正在驗證入口網站..."
+            "VALIDATING": "正在驗證入口網站...",
+            "CREDENTIALS_HINT": "僅在入口網站要求登入名稱與密碼時才需填寫",
+            "AUTH_FAILED": "入口網站驗證失敗。請檢查網址與 MAC 位址。",
+            "LOGIN_REQUIRED": "此入口網站需要登入名稱與密碼。請填寫使用者名稱與密碼欄位後重試。",
+            "LOGIN_REJECTED": "入口網站拒絕了此登入名稱與密碼。",
+            "PORTAL_REFUSED": "入口網站拒絕了此裝置的存取。",
+            "PORTAL_MESSAGE": "入口網站回報：{{message}}"
         },
         "FILTER_BY_NAME": "依名稱篩選",
         "FILTER_AND_SORT": "篩選與排序",
@@ -957,6 +963,7 @@
                 "TITLE": "未選擇類別",
                 "DESCRIPTION": "請選擇一個類別以查看內容"
             },
+            "STALKER_LOGIN_REQUIRED": "入口網站需要登入名稱與密碼。請重新匯入入口網站並填寫使用者名稱與密碼欄位。",
             "PLAYLIST_SETTINGS": "播放清單設定",
             "HOME": "首頁",
             "DELETE": "刪除"

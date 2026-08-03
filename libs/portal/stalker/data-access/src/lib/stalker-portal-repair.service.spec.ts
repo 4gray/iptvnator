@@ -35,6 +35,7 @@ describe('StalkerPortalRepairService', () => {
     /** When set, the atomic write fails AFTER the transform verified. */
     let persistError: Error | null;
     let setCachedToken: jest.Mock;
+    let adoptDiscoveredSession: jest.Mock;
     let clearCachedToken: jest.Mock;
     let refreshActiveWatchdogPlaylist: jest.Mock;
 
@@ -61,6 +62,7 @@ describe('StalkerPortalRepairService', () => {
             return of(next);
         });
         setCachedToken = jest.fn();
+        adoptDiscoveredSession = jest.fn();
         clearCachedToken = jest.fn();
         refreshActiveWatchdogPlaylist = jest.fn();
 
@@ -81,6 +83,7 @@ describe('StalkerPortalRepairService', () => {
                     provide: StalkerSessionService,
                     useValue: {
                         setCachedToken,
+                        adoptDiscoveredSession,
                         clearCachedToken,
                         refreshActiveWatchdogPlaylist,
                     },
@@ -210,12 +213,13 @@ describe('StalkerPortalRepairService', () => {
                 portalUrl: 'http://ministra.example/server/load.php',
                 isFullStalkerPortal: true,
             });
-            // The classification handshake already produced a token,
-            // tagged with the playlist as its identity source.
-            expect(setCachedToken).toHaveBeenCalledWith(
+            // The classification handshake already produced a session; it is
+            // adopted whole (token + cadence), tagged with the REPAIRED
+            // configuration as its identity source.
+            expect(adoptDiscoveredSession).toHaveBeenCalledWith(
                 'portal-1',
-                'TOKEN1',
-                expect.objectContaining({ _id: 'portal-1' })
+                expect.objectContaining({ _id: 'portal-1' }),
+                expect.objectContaining({ token: 'TOKEN1' })
             );
             // A repaired ACTIVE playlist must re-sync the watchdog now: a
             // simple→full flip has to start the keepalive mid-session.
@@ -280,6 +284,82 @@ describe('StalkerPortalRepairService', () => {
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
             expect(writtenRow).toBeNull();
+        });
+
+        it('discards a repair whose credentials changed while probing', async () => {
+            // Discovery can run for tens of seconds; a login saved meanwhile
+            // means the outcome was negotiated for an account the row no
+            // longer belongs to, so committing it would adopt the wrong
+            // session.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://panel.example/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'WRONG-ACCOUNT',
+            });
+            // The row the transform sees carries the NEW login.
+            persistedRow = {
+                ...MISCLASSIFIED,
+                username: 'edited-mid-probe',
+            } as Playlist;
+
+            expect(
+                await service.repairPortal({
+                    ...MISCLASSIFIED,
+                    username: 'original',
+                })
+            ).toBeNull();
+            expect(writtenRow).toBeNull();
+            expect(adoptDiscoveredSession).not.toHaveBeenCalled();
+        });
+
+        it('adopts the cadence the repair confirmation discovered', async () => {
+            // Caching the token alone satisfies the retry, so NO
+            // authentication path would ever apply the profile outcome — the
+            // repaired playlist would keep the default cadence until the
+            // token failed or the app restarted.
+            discover.mockResolvedValue({
+                status: 'resolved',
+                portalUrl: 'http://panel.example/server/load.php',
+                isFullStalkerPortal: true,
+                token: 'REPAIRED',
+                watchdogTimeoutSeconds: 60,
+                timeslotSeconds: 9,
+            });
+
+            await service.repairPortal(MISCLASSIFIED);
+
+            expect(adoptDiscoveredSession).toHaveBeenCalledWith(
+                MISCLASSIFIED._id,
+                expect.objectContaining({
+                    portalUrl: 'http://panel.example/server/load.php',
+                }),
+                {
+                    token: 'REPAIRED',
+                    watchdogTimeoutSeconds: 60,
+                    timeslotSeconds: 9,
+                }
+            );
+        });
+
+        it("forwards the playlist's stored credentials to discovery", async () => {
+            // A login/password portal answers status 2 during confirmation;
+            // without the credentials the probe reports `login-required` and
+            // the source could never be repaired.
+            discover.mockResolvedValue({ status: 'unreachable' });
+
+            await service.repairPortal({
+                ...MISCLASSIFIED,
+                username: 'user',
+                password: 'secret',
+            });
+
+            expect(discover).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.any(Object),
+                { credentials: { username: 'user', password: 'secret' } }
+            );
         });
 
         it('probes at most once per playlist per session', async () => {
@@ -438,7 +518,7 @@ describe('StalkerPortalRepairService', () => {
 
             expect(await service.repairPortal(MISCLASSIFIED)).toBeNull();
             expect(writtenRow).toBeNull();
-            expect(setCachedToken).not.toHaveBeenCalled();
+            expect(adoptDiscoveredSession).not.toHaveBeenCalled();
             expect(refreshActiveWatchdogPlaylist).not.toHaveBeenCalled();
         });
 

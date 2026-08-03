@@ -83,9 +83,9 @@ Two portal modes exist, persisted per playlist as
   the wider phrase set (`Invalid token`, `Auth failed`, bare `unauthorized`),
   since a panel fills those in deliberately. While a full portal is the
   active playlist, `StalkerSessionService` keeps a **watchdog** running —
-  periodic authenticated `watchdog/get_events` pings (currently every 25 s;
-  the protocol default expects 120 s, tracked for a later PR) whose failures
-  are non-fatal.
+  periodic authenticated `watchdog/get_events` pings at the cadence the
+  portal advertises (`watchdog_timeout`, default 120 s — see "Watchdog"
+  below) whose failures are non-fatal.
 - **Simple portal** (reseller-style `portal.php` panels): no auth lifecycle
   at all — requests carry only the `mac=` cookie.
 
@@ -234,6 +234,181 @@ blank fields are not generated or forwarded to `get_profile`.
   full playlist by id before category/content resources run. Stalker auth
   metadata is independent from M3U playlist EPG metadata and must not depend on
   M3U-specific EPG fields.
+
+## Session Authentication Lifecycle
+
+Full portals authenticate through `StalkerSessionService`
+(`libs/portal/stalker/data-access/src/lib/stalker-session.service.ts`), which
+is a facade over three focused modules:
+
+- `stalker-auth.api.ts` — the raw `handshake` / `get_profile` / `do_auth`
+  requests and the `authenticate()` orchestration.
+- `stalker-watchdog.controller.ts` — the periodic `get_events` keep-alive.
+- `stalker-token-cache.ts` — the in-run token and pending-auth state, tagged
+  with the identity fingerprint each session was negotiated for.
+- `stalker-session-store.ts` — the session persisted on the playlist row.
+- `stalker-response-classification.ts` + `stalker-portal-error.ts` — failure
+  detection and the typed `StalkerPortalError` the UI layers render.
+
+### Handshake and token persistence
+
+The handshake token is **idempotent** (Stalker 4.9.35 `stb.class.php`):
+re-presenting the MAC's current session token returns it unchanged, and tokens
+have no TTL — they are only invalidated when another device runs `get_profile`
+on the same MAC. `ensureToken()` exploits this: when the in-memory cache is
+cold it re-presents the persisted `Playlist.stalkerToken` (from the playlist
+object, falling back to the stored row via `PlaylistsService`, since store
+metas do not carry payload fields). A token that comes back unchanged is an
+already-adopted session, so the `get_profile` round trip is skipped entirely —
+unless the handshake also set `not_valid`, which vetoes the shortcut: adopting
+a token the portal just called dead would be unrecoverable, since the reuse
+path writes no replacement back and every later start would re-present it.
+A renegotiated session is written back best-effort
+(`PlaylistsService.updateStalkerSession`) so the next app start can reuse it.
+The handshake's `not_valid` flag is propagated into the follow-up
+`get_profile` as `not_valid_token`.
+
+Reuse is gated on a session fingerprint (`stalkerSessionFingerprint`) covering
+the **portal endpoint (origin AND path), the device identity and the account
+credentials**, stored
+next to the token as `Playlist.stalkerSessionIdentity` and used for the
+in-run cache as well, so an edit applies without a restart. All three halves
+are load-bearing: `ensureToken()` re-presents tokens in a handshake, so an
+endpoint edit would otherwise disclose the previous portal's bearer token to
+another portal — and origin alone is not enough, since discovery deliberately
+preserves tenant base paths, so `/tenant-a/…` and `/tenant-b/…` on one host
+are different portals; an identity edit must not inherit the old session; and for a
+status-2 portal the login decides which account the token represents. A token
+with no recorded fingerprint (written before this existed) counts as
+unverified and is never re-presented — such a row owes a full profile anyway,
+and the write-back then records the fingerprint.
+
+Because that reuse skips the only response carrying the watchdog cadence, the
+cadence is persisted **with** the token (`Playlist.stalkerWatchdogTimeout` /
+`stalkerTimeslot`, payload fields like `stalkerToken` itself — no schema
+change) and re-applied on the reuse path. The import dialog persists what its
+own `get_profile` advertised, which for a portal whose token never goes stale
+is the only profile the app ever sees.
+
+The skip is therefore conditional on the cadence being **known**: a playlist
+imported before the cadence was persisted has a reusable token and no
+cadence, and skipping would strand it on the 120 s default permanently, since
+the profile is the only thing that could teach it. Such a playlist runs one
+profile, persists what it learns, and skips from then on. What gets persisted
+is the *effective* cadence (the 120 s default when the portal advertises
+none), so stored absence keeps meaning exactly one thing — never profiled —
+rather than sending a portal that advertises nothing back through a profile on
+every start.
+
+### `get_profile` status decoding
+
+`authenticate()` decodes `js.status` the way the stock middleware means it:
+
+- full profile / `status: 0` — OK; `watchdog_timeout` and `timeslot` are read
+  for the watchdog cadence.
+- `status: 1` — blocked (device conflict, malformed MAC, disabled account).
+  `msg`/`block_msg` carry the portal's own explanation; they are
+  markup-stripped, combined, and thrown as `StalkerPortalError('blocked')`.
+- `status: 2` — login/password required. The client runs `do_auth`
+  (`login`, `password`, plus `device_id`/`device_id2` when configured) and
+  retries `get_profile` with `auth_second_step=1`. Only that retry claims the
+  second auth step — the initial request sends `auth_second_step=0`. Missing
+  credentials throw `StalkerPortalError('login-required')`; a `{js: false}`
+  verdict (the operator billing script refused) throws `'login-rejected'`.
+
+Credentials come from the import dialog's username/password fields and are
+persisted on the playlist, so runtime re-authentication can repeat `do_auth`
+after the portal drops the session.
+
+### Plain-text failure bodies
+
+Auth failures are **HTTP 200 + a text/html body**, never a 401/403. The three
+exact bodies (`Authorization failed.` — stale/missing token, optionally with a
+numeric debug suffix; `Access denied.` — blocked account;
+`Unauthorized request.` — missing mac cookie) are classified at the transport
+boundary: the Electron main process
+(`apps/electron-backend/src/app/events/stalker.events.ts`) converts them into
+a structured `{ stalkerAuthFailure }` marker
+(`libs/shared/interfaces/src/lib/stalker-auth-failure.util.ts`) — returned,
+not thrown, because `ipcRenderer.invoke` strips custom properties from
+rejections. The PWA proxy path still delivers the raw string; the renderer
+classifier accepts both shapes plus the legacy `{ js: '<body>' }` envelope.
+`makeAuthenticatedRequest` retries once with fresh authentication and
+otherwise throws `StalkerPortalError('auth-failed')` carrying the body.
+
+### Error surfacing
+
+`StalkerPortalError.portalText` holds the portal's own words. The import
+dialog shows them in its failure snackbar (with kind-specific i18n headlines,
+`HOME.STALKER_PORTAL.*`); the workspace context panel replaces the generic
+"could not load categories" hint with the portal text (or the login-required
+guidance) when category loading failed with a portal refusal
+(`stalkerCategoryErrorDescription` in `workspace-context-panel.component.ts`).
+
+Both renderers are kind-agnostic — they append `portalText` whenever it is
+present — so the obligation sits entirely on the throw sites: **every** exit
+out of the status-2 branch carries the text, not just the terminal `blocked`
+one. A login refusal is precisely where the portal says something actionable
+("wrong password", "subscription expired"), and dropping it leaves the user
+with a generic line while the useful sentence sits unread in the payload.
+Each exit reads the response IN HAND: after the `auth_second_step=1` retry the
+text is the retry's, since quoting the first profile back would describe a
+request that already succeeded. `do_auth` itself answers a bare `{js: false}`,
+so a rejection there keeps the profile's text — the one that asked for the
+login.
+
+### Abandoning an authentication
+
+`authenticate()` takes an optional `AbortSignal` and checks it before every
+portal call. Endpoint discovery gives each confirmation attempt its own
+controller and aborts it when the attempt exceeds its budget, before moving to
+the next candidate.
+
+This matters because `get_profile` — not the handshake — is what adopts a
+token for the MAC portal-side. Without the check, a timed-out attempt could
+still send its `get_profile` after a later candidate had authenticated,
+invalidating that healthy candidate's token and making discovery report a
+working portal as refused.
+
+Cancellation is deliberately cooperative rather than a socket-level abort
+threaded to axios: once a request is on the wire the server processes it
+regardless of what the client does, so tearing the socket down would not
+prevent the adoption. Only not sending the request does, which is exactly what
+the between-calls check guarantees.
+
+That leaves the window where the timer fires while a `get_profile` is already
+dispatched — which the check cannot cover, but sequencing can: discovery
+**drains** the abandoned attempt (bounded by one request budget) before probing
+the next candidate, instead of racing it. The request cannot be un-sent, but
+nothing forces us to have a competing session in flight while it lands.
+
+**A drain that times out stops discovery.** Draining is bounded, and the bound
+has to mean something: an attempt still unsettled after its own 65 s budget
+plus the 15 s drain is one no transport can recall — the PWA `fetch()` takes no
+signal at all, and the Electron main process runs its HTTP request to
+completion. Advancing anyway would stake the next candidate's freshly issued
+session on that request never landing. So the rejection carries
+`abandonedInFlight` and the candidate loop returns instead of probing on,
+preferring an honest "could not confirm this portal" the user can retry over a
+session that looks established and dies later. It costs nothing in the normal
+case: an aborted attempt settles as soon as its in-flight request errors out,
+so the drain returns at once and the loop continues.
+
+The budget itself covers the longest real flow: a status-2 portal costs four
+sequential requests (handshake, profile, `do_auth`, profile retry) and the
+Electron transport allows each 15 s, so a two-request budget would have failed
+valid but slow login portals.
+
+### Watchdog
+
+The portal expects `get_events` every `watchdog_timeout` seconds — **120 by
+default**, echoed in the profile together with a per-user `timeslot` jitter
+that offsets the first periodic ping. `StalkerWatchdogController` starts with
+an immediate `init=1` ping on activation, applies the profile cadence when a
+profile is decoded (clamped to 30–3600 s against garbage), and otherwise uses
+the documented 120 s default. Failing to ping never invalidates the session —
+it only affects the portal's admin-panel "online" reporting — so ping failures
+are logged and never retried or escalated.
 
 ## Request Transport and `cmd` Encoding
 
@@ -390,9 +565,15 @@ Every static return therefore warms first, through one primitive —
 
 `ensureToken` performs handshake + `get_profile` with no link minted, and
 validates the identity the cached token was negotiated for — which the raw
-`getCachedToken()` the header builders use cannot. It is cheap where it is not
-needed: a simple portal returns immediately and a warm cache with a matching
-fingerprint resolves without a request.
+`getCachedToken()` cannot. It is cheap where it is not needed: a simple portal
+returns immediately and a warm cache with a matching fingerprint resolves
+without a request.
+
+The store's player feature reads `getCachedToken()` for its header set, which
+is safe there because it runs immediately after the warm above populated the
+cache for that same playlist. `StreamResolverService` cannot make that
+assumption — a direct-URL favorite reaches it with nothing warmed — so it goes
+through `ensureToken` instead; see "Playback Header Contract" below.
 
 The classification happens BEFORE the handshake, not after: a **foreign-host**
 static URL never needs the session at all, and warming it anyway would stall
@@ -562,6 +743,30 @@ Two stream profiles exist, selected by one shared predicate:
   `Accept`, `Range`, `Icy-MetaData`, `Connection`). Portal credentials must
   never reach a third-party host; direct stream URLs carry their access token
   in the URL minted by `create_link`.
+
+**The token is bound to the endpoint the headers claim.** Both header inputs —
+the portal coordinates and the Bearer token — must describe the same portal, or
+a session negotiated for one host is presented to another. In
+`StreamResolverService` that is structural: the token is resolved from the same
+`headerPlaylist` object the headers are built from, never from the row it was
+derived from. The live case is a completed lazy repair, which moves the
+endpoint in the override but not in the stored row. Resolving from the override
+also keys the session cache the way `ensureStalkerSession()` and
+`executeStalkerRequest()` already do, so the collection route reuses their
+session instead of handshaking again for a second fingerprint.
+
+For the same reason `headerPlaylist` is built by applying the override to the
+row rather than folding in the two resolved coordinates: a repair rewrites the
+portal **mode** as well as the URL, and the token resolver is mode-aware. A
+playlist repaired from simple to full would otherwise keep its stale
+`isFullStalkerPortal: false` here — the `create_link` request having already
+run under the repaired mode and adopted a token — and the same-host gated
+stream would go out with no Bearer header on the very playback the repair
+existed to rescue.
+
+That resolution is skipped for a foreign host, whose profile carries no token
+anyway — obtaining one would only stall playback behind a handshake, exactly
+the trade the static branch avoids by classifying first.
 
 The Electron main process keeps a fallback header context per resolved
 `create_link` URL (`stalker-playback-context.service.ts`) for external-player
