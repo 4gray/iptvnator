@@ -214,6 +214,44 @@ describe('stalker-player-request.utils', () => {
             expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         });
 
+        it('handshakes against a repaired endpoint, not the stale one', async () => {
+            // `executeStalkerRequest` applies the repair override on its first
+            // line, so the static path must too — handshaking against the
+            // configuration a repair has already proven broken would strand
+            // the session.
+            const stale = {
+                ...PLAYLIST,
+                portalUrl: 'http://demo.example/portal.php',
+                isFullStalkerPortal: true,
+            } as PlaylistMeta;
+            const repaired = {
+                ...stale,
+                portalUrl: 'http://demo.example/stalker_portal/server/load.php',
+            } as PlaylistMeta;
+
+            await fetchStalkerPlaybackLink(
+                {
+                    dataService: dataService as never,
+                    stalkerSession: stalkerSession as StalkerSessionService,
+                    portalRepair: {
+                        applyOverride: jest.fn().mockReturnValue(repaired),
+                        shouldAttemptRepair: jest.fn().mockReturnValue(false),
+                        repairPortal: jest.fn().mockResolvedValue(null),
+                    },
+                },
+                {
+                    playlist: stale,
+                    selectedContentType: 'itv',
+                    cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                    linkFlags: { use_http_tmp_link: '0' },
+                }
+            );
+
+            expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+                expect.objectContaining({ portalUrl: repaired.portalUrl })
+            );
+        });
+
         it('skips the handshake for a simple portal', async () => {
             await fetchStalkerPlaybackLink(deps(), {
                 playlist: PLAYLIST,

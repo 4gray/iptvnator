@@ -59,13 +59,26 @@ export async function ensureStalkerSession(
     playlist: PlaylistMeta | undefined,
     logger?: { warn(...args: unknown[]): void }
 ): Promise<void> {
-    if (!playlist || !isFullStalkerPortalPlaylist(playlist)) {
+    if (!playlist) {
+        return;
+    }
+
+    // The repair override is applied here for the same reason
+    // `executeStalkerRequest` applies it on its first line: a completed repair
+    // may have moved the endpoint or the mode while the caller still holds the
+    // pre-repair row, and handshaking against the configuration a repair has
+    // already proven broken would strand the session.
+    const effective = deps.portalRepair
+        ? deps.portalRepair.applyOverride(playlist)
+        : playlist;
+
+    if (!isFullStalkerPortalPlaylist(effective)) {
         return;
     }
 
     try {
         await deps.stalkerSession.ensureToken(
-            toStalkerSessionPlaylist(playlist)
+            toStalkerSessionPlaylist(effective)
         );
     } catch (error) {
         logger?.warn('Could not establish the Stalker session', error);

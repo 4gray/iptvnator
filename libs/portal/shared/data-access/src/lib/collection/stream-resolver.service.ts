@@ -375,7 +375,9 @@ export class StreamResolverService {
             // `ensureToken` performs the handshake + get_profile — and
             // validates the identity the cached token was negotiated for,
             // which the raw `getCachedToken` below cannot — without minting a
-            // link; a simple portal returns null immediately.
+            // link; a simple portal returns null immediately. The raw row goes
+            // in: the helper applies the repair override itself, exactly as
+            // `executeStalkerRequest` does on the branch below.
             await this.warmStalkerSession(playlist);
 
             return this.buildStalkerPlayback(item, playlist, {
