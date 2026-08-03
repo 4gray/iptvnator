@@ -76,24 +76,28 @@ export async function fetchStalkerPlaybackLink(
             // Favorites on a cold start would play a same-host gated stream
             // without a Bearer token. Warming at this single choke point
             // covers ITV, VOD, radio and downloads alike.
-            const sessionUsable = await ensureStalkerSession(
-                deps,
-                options.playlist
-            );
-
-            // A stream on a foreign host never needed the session, so serve it
-            // regardless. A portal-owned one with no usable session would be
-            // served knowing it will 401 — fall back to the request path
-            // instead, which both mints a URL that carries its own token and
-            // is the only path that can observe a failure and trigger the
-            // lazy portal repair.
+            // Classify BEFORE authenticating. A stream on a foreign host never
+            // needs the portal session, and warming it anyway would block
+            // playback behind a handshake worth up to 15 s per request against
+            // a slow or offline portal (`stalker.events.ts`) for a result that
+            // is then discarded — the CDN is reachable even when the portal is
+            // not.
             if (
-                sessionUsable ||
                 !isStalkerStreamCredentialSafe(
                     options.playlist.portalUrl ?? '',
                     staticUrl
                 )
             ) {
+                return staticUrl;
+            }
+
+            // Portal-owned: it may be gated on the Bearer token, and minting
+            // the link used to be what established the session. Without a
+            // usable one, serving this would be serving a known 401 — fall
+            // back to the request path instead, which both mints a URL that
+            // carries its own token and is the only path that can observe a
+            // failure and trigger the lazy portal repair.
+            if (await ensureStalkerSession(deps, options.playlist)) {
                 return staticUrl;
             }
         }

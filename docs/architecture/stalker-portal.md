@@ -390,6 +390,12 @@ validates the identity the cached token was negotiated for — which the raw
 needed: a simple portal returns immediately and a warm cache with a matching
 fingerprint resolves without a request.
 
+The classification happens BEFORE the handshake, not after: a **foreign-host**
+static URL never needs the session at all, and warming it anyway would stall
+playback behind a request worth up to 15 s against a portal that may be slow
+or offline while the CDN is perfectly reachable — for a result that is then
+discarded.
+
 The call is best-effort in one direction only. A **foreign-host** static URL
 never needed the session, so a failed or skipped handshake still serves it. A
 **portal-owned** one with no usable session would be served knowing it will

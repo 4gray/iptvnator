@@ -254,13 +254,11 @@ describe('stalker-player-request.utils', () => {
             );
         });
 
-        it('serves a foreign-host static url even with no session', async () => {
-            // A CDN stream never needed the portal session, so a failed or
-            // skipped handshake must not push it onto the request path.
-            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
-                token: null,
-            });
-
+        it('serves a foreign-host static url without contacting the portal', async () => {
+            // A CDN stream never needs the portal session, so it must not be
+            // pushed onto the request path — and must not wait on a handshake
+            // either: that is up to 15 s per request against a portal that may
+            // be offline while the CDN is reachable.
             const streamUrl = await fetchStalkerPlaybackLink(deps(), {
                 playlist: {
                     ...PLAYLIST,
@@ -272,6 +270,7 @@ describe('stalker-player-request.utils', () => {
             });
 
             expect(streamUrl).toBe('http://cdn.example/movies/1.mkv');
+            expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
             expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         });
 
@@ -289,6 +288,11 @@ describe('stalker-player-request.utils', () => {
                 ...stale,
                 portalUrl: 'http://demo.example/stalker_portal/server/load.php',
             } as PlaylistMeta;
+            // Portal-owned URL: only those reach the handshake now, since a
+            // foreign host never needs the session.
+            (stalkerSession.ensureToken as jest.Mock).mockResolvedValue({
+                token: 'TOKEN-REPAIRED',
+            });
 
             await fetchStalkerPlaybackLink(
                 {
@@ -303,7 +307,7 @@ describe('stalker-player-request.utils', () => {
                 {
                     playlist: stale,
                     selectedContentType: 'itv',
-                    cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                    cmd: 'ffrt3 http://demo.example/live/42.m3u8',
                     linkFlags: { use_http_tmp_link: '0' },
                 }
             );

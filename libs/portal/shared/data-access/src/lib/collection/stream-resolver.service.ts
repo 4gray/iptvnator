@@ -385,23 +385,29 @@ export class StreamResolverService {
             // link; a simple portal returns null immediately. The raw row goes
             // in: the helper applies the repair override itself, exactly as
             // `executeStalkerRequest` does on the branch below.
-            const sessionUsable = await this.warmStalkerSession(playlist);
-
-            // A foreign-host stream never needed the session. A portal-owned
-            // one with no usable session would be served knowing it will 401,
-            // so fall through to `create_link` instead — it mints a URL that
-            // carries its own token and is the only path that can observe a
-            // failure and trigger the lazy portal repair.
-            if (
-                sessionUsable ||
-                !isStalkerStreamCredentialSafe(portalUrl, staticUrl)
-            ) {
-                return this.buildStalkerPlayback(item, playlist, {
+            //
+            // Classified BEFORE authenticating: a foreign-host stream never
+            // needs the session, and warming it anyway would stall playback
+            // behind a handshake against a portal that may be slow or offline
+            // while the CDN is perfectly reachable.
+            const servePlayback = () =>
+                this.buildStalkerPlayback(item, playlist, {
                     macAddress,
                     portalUrl,
                     streamUrl: staticUrl,
                     isLive: item.radio === 'true' ? undefined : true,
                 });
+
+            if (!isStalkerStreamCredentialSafe(portalUrl, staticUrl)) {
+                return servePlayback();
+            }
+
+            // Portal-owned with no usable session would be served knowing it
+            // will 401, so fall through to `create_link` instead — it mints a
+            // URL that carries its own token and is the only path that can
+            // observe a failure and trigger the lazy portal repair.
+            if (await this.warmStalkerSession(playlist)) {
+                return servePlayback();
             }
         }
 

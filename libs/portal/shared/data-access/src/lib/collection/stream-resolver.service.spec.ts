@@ -900,6 +900,40 @@ describe('StreamResolverService', () => {
         expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN-COLD');
     });
 
+    it('serves a foreign-host static stream without waiting on the portal', async () => {
+        // The CDN needs no portal credentials, so the handshake would be a
+        // discarded result — and a stall of up to 15 s when the portal is
+        // slow or offline but the CDN is fine.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::94',
+            name: 'Cdn Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '94',
+            stalkerCmd: 'ffrt3 https://cdn.example.com/live/94.m3u8',
+            stalkerItem: {
+                id: '94',
+                cmd: 'ffrt3 https://cdn.example.com/live/94.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe('https://cdn.example.com/live/94.m3u8');
+        expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+    });
+
     it('still plays a static stream when the session cannot be established', async () => {
         // The static URL may point at a CDN that needs no credentials, so a
         // failed handshake must not cost the user their playback.
