@@ -488,6 +488,18 @@ Revisit both only with a portal that demonstrably fails without them.
 
 ### Regression coverage
 
+**Writing tests against this section:** the decision chain has several exits —
+no flag evidence, unresolvable command shape, `series` set, foreign host,
+session unusable — and more than one of them can satisfy the same assertion.
+Four tests in the PR that introduced this were found passing through an exit
+other than the one they named (a foreign-host command reaches neither the
+handshake nor `create_link`, so it silently stands in for "simple portal" or
+"handshake failed"). Mutation testing does not catch it: it proves a test is
+coupled to its target, not that it reached the mechanism in its name. Check the
+mock setup against the execution path, and assert the step you mean was
+actually taken — `expect(ensureToken).toHaveBeenCalled()` rather than only the
+returned URL.
+
 - `stalker-link-semantics.utils.spec.ts` — the decision table above.
 - `stalker-vod.utils.spec.ts` — both flags survive
   `buildStalkerSelectedVodItem` / `normalizeStalkerVodDetailsItem` /

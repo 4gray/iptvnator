@@ -318,14 +318,20 @@ describe('stalker-player-request.utils', () => {
         });
 
         it('skips the handshake for a simple portal', async () => {
-            await fetchStalkerPlaybackLink(deps(), {
+            // The command has to be PORTAL-OWNED, or the foreign-host early
+            // return would skip the handshake by itself and this would pass
+            // without saying anything about portal mode. `PLAYLIST` is a
+            // simple portal, so the skip here can only come from the mode.
+            const streamUrl = await fetchStalkerPlaybackLink(deps(), {
                 playlist: PLAYLIST,
                 selectedContentType: 'itv',
-                cmd: 'ffrt3 http://cdn.example/live/42.m3u8',
+                cmd: 'ffrt3 http://demo.example/live/42.m3u8',
                 linkFlags: { use_http_tmp_link: '0' },
             });
 
+            expect(streamUrl).toBe('http://demo.example/live/42.m3u8');
             expect(stalkerSession.ensureToken).not.toHaveBeenCalled();
+            expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         });
 
         it('falls back to create_link when the handshake throws', async () => {
