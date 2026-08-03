@@ -401,9 +401,10 @@ an authorization failure. This is narrower than it sounds: per the 4.9.35
 reference, handshake tokens have **no TTL**, and failing to send the watchdog
 does **not** invalidate auth (it only clears the admin panel's "online"
 status). The one real vector left is another device performing `get_profile`
-on the same MAC — common enough on shared subscriptions. Where a watchdog is
-running it still self-heals within a ping cycle, because the ping goes through
-`makeAuthenticatedRequest`.
+on the same MAC — common enough on shared subscriptions, but wherever a
+watchdog is running it still self-heals within a ping cycle, because the ping
+goes through `makeAuthenticatedRequest` too. What is left uncovered is a
+same-host static stream played while no watchdog is up.
 
 Revalidating on every static playback would cost exactly the round trip this
 section exists to remove, so it is deliberately not done here. The right home
