@@ -61,7 +61,7 @@ describe('stalker-link-semantics', () => {
         it('accepts a bare URL with no solution prefix', () => {
             expect(
                 resolveStalkerStaticPlaybackUrl(
-                    {},
+                    { use_http_tmp_link: '0' },
                     'https://cdn.example/live/42.m3u8'
                 )
             ).toBe('https://cdn.example/live/42.m3u8');
@@ -88,7 +88,9 @@ describe('stalker-link-semantics', () => {
             [''],
             ['   '],
         ])('defers to create_link for the unresolvable command %p', (cmd) => {
-            expect(resolveStalkerStaticPlaybackUrl({}, cmd)).toBeNull();
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toBeNull();
         });
 
         it.each([
@@ -97,12 +99,12 @@ describe('stalker-link-semantics', () => {
             ['http://0.0.0.0/ch/1234_'],
             ['http://[::1]/ch/1234_'],
         ])('defers to create_link for the portal-local address %p', (cmd) => {
-            expect(resolveStalkerStaticPlaybackUrl({}, cmd)).toBeNull();
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toBeNull();
         });
 
         it('gives no verdict when the caller has no row to read flags from', () => {
-            // Distinct from a row that simply carries no flags: the caller
-            // cannot vouch for the row, so the portal decides.
             expect(
                 resolveStalkerStaticPlaybackUrl(
                     undefined,
@@ -117,10 +119,49 @@ describe('stalker-link-semantics', () => {
             ).toBeNull();
         });
 
+        it('gives no verdict for a row carrying neither flag key', () => {
+            // A Favorite persisted before these flags were carried was
+            // stripped of them by `buildStalkerSelectedVodItem`'s whitelist,
+            // so it is indistinguishable from a row the portal marked
+            // unflagged. There is no migration for those rows, so absence has
+            // to read as "no evidence" rather than "no temporary link".
+            expect(
+                resolveStalkerStaticPlaybackUrl(
+                    { id: '42', cmd: 'x' } as never,
+                    'ffrt3 http://cdn.example/live/42.m3u8'
+                )
+            ).toBeNull();
+            expect(
+                resolveStalkerStaticPlaybackUrl(
+                    { use_http_tmp_link: undefined, use_load_balancing: null },
+                    'ffrt3 http://cdn.example/live/42.m3u8'
+                )
+            ).toBeNull();
+        });
+
+        it.each([
+            ['http://127.0.0.2/ch/1234_'],
+            ['http://127.1.2.3:8080/ch/1234_'],
+            ['http://127.255.255.255/ch/1234_'],
+        ])('treats the whole 127.0.0.0/8 range as portal-local (%p)', (cmd) => {
+            expect(
+                resolveStalkerStaticPlaybackUrl({ use_http_tmp_link: '0' }, cmd)
+            ).toBeNull();
+        });
+
+        it('does not mistake a non-loopback 127-lookalike for loopback', () => {
+            expect(
+                resolveStalkerStaticPlaybackUrl(
+                    { use_http_tmp_link: '0' },
+                    'http://127.0.0.1.cdn.example/live/42.m3u8'
+                )
+            ).toBe('http://127.0.0.1.cdn.example/live/42.m3u8');
+        });
+
         it('keeps a non-loopback host that merely looks local', () => {
             expect(
                 resolveStalkerStaticPlaybackUrl(
-                    {},
+                    { use_http_tmp_link: '0' },
                     'http://localhost.cdn.example/live/42.m3u8'
                 )
             ).toBe('http://localhost.cdn.example/live/42.m3u8');

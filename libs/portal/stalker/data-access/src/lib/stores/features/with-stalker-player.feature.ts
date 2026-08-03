@@ -32,6 +32,7 @@ import {
     fetchStalkerExpireDate,
     fetchStalkerMovieFileId,
     fetchStalkerPlaybackLink,
+    hasStalkerLinkFlagEvidence,
     shouldResolveMovieFileId,
     type StalkerLinkFlagSource,
 } from '../utils';
@@ -321,10 +322,21 @@ export function withStalkerPlayer() {
                         throw new Error('nothing_to_play');
                     }
 
-                    // Radio used to skip `create_link` for any directly
+                    // Radio has always skipped `create_link` for a directly
                     // playable command. Handing the row to the shared decision
                     // adds the flags, so a station the portal proxies now gets
-                    // its temporary link instead of a dead static URL.
+                    // its temporary link instead of a dead static URL — but a
+                    // row carrying no flags at all must keep the old rule
+                    // rather than start minting, or a portal whose radio
+                    // `create_link` never worked would lose playback it has.
+                    // ITV and VOD have no such history and stay conservative.
+                    const radioLinkFlags = hasStalkerLinkFlagEvidence(item)
+                        ? item
+                        : {
+                              ...item,
+                              use_http_tmp_link: '0',
+                              use_load_balancing: '0',
+                          };
                     const streamUrl = await fetchStalkerPlaybackLink(
                         requestDeps,
                         {
@@ -333,7 +345,7 @@ export function withStalkerPlayer() {
                                 storeState.selectedContentType(),
                             cmd: item.cmd,
                             forcedContentType: 'radio',
-                            linkFlags: item,
+                            linkFlags: radioLinkFlags,
                         }
                     );
 

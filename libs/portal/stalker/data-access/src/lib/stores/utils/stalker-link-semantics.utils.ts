@@ -25,11 +25,37 @@ export interface StalkerLinkFlagSource {
  */
 const PORTAL_LOCAL_HOSTNAMES = new Set([
     'localhost',
-    '127.0.0.1',
     '0.0.0.0',
     '::1',
     '[::1]',
 ]);
+
+/** IPv4 reserves all of `127.0.0.0/8` for loopback, not just `127.0.0.1`. */
+const IPV4_LOOPBACK = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+
+function isPortalLocalHostname(hostname: string): boolean {
+    return PORTAL_LOCAL_HOSTNAMES.has(hostname) || IPV4_LOOPBACK.test(hostname);
+}
+
+/**
+ * Whether the row can speak for itself about temporary links.
+ *
+ * A stock portal returns both flags on every ITV/VOD row, so their PRESENCE
+ * is the provenance signal — and it is the only one available, because rows
+ * persisted into Favorites/Recently Viewed before these flags were carried
+ * were stripped of them by `buildStalkerSelectedVodItem`'s whitelist. Without
+ * this check a legacy snapshot would be indistinguishable from a row the
+ * portal genuinely marked unflagged, and would take the static path on a
+ * command that may still need resolving. There is no migration or provenance
+ * marker for those rows, so absence has to mean "no evidence", not "no".
+ */
+export function hasStalkerLinkFlagEvidence(
+    source: StalkerLinkFlagSource | null | undefined
+): boolean {
+    return (
+        source?.use_http_tmp_link != null || source?.use_load_balancing != null
+    );
+}
 
 /** Truthiness for portal flags, which arrive as strings, numbers or booleans. */
 export function isStalkerPortalFlagEnabled(value: unknown): boolean {
@@ -74,9 +100,10 @@ export function requiresStalkerTemporaryLink(
  * these guards only ever push a row back onto today's `create_link` path and
  * so cannot regress a portal that works now:
  *
- * - no row at all — a caller that cannot show the flags gets no verdict, which
- *   is not the same as a row that carries none (a portal too old to send them
- *   is genuinely announcing "no temporary link");
+ * - no row at all, or a row carrying neither flag key — no evidence, so no
+ *   verdict (see {@link hasStalkerLinkFlagEvidence}: a row persisted before
+ *   these flags were carried looks identical to one the portal marked
+ *   unflagged);
  * - either flag set — the portal asked for a temporary link;
  * - a relative (`/media/file_12.mpg`) or query-only (`?token=…`) command —
  *   only `create_link` turns those into an address, and the VOD `has_files`
@@ -89,7 +116,10 @@ export function resolveStalkerStaticPlaybackUrl(
     source: StalkerLinkFlagSource | null | undefined,
     cmd: string
 ): string | null {
-    if (!source || requiresStalkerTemporaryLink(source)) {
+    if (
+        !hasStalkerLinkFlagEvidence(source) ||
+        requiresStalkerTemporaryLink(source)
+    ) {
         return null;
     }
 
@@ -99,8 +129,7 @@ export function resolveStalkerStaticPlaybackUrl(
     }
 
     try {
-        const hostname = new URL(url).hostname.toLowerCase();
-        if (PORTAL_LOCAL_HOSTNAMES.has(hostname)) {
+        if (isPortalLocalHostname(new URL(url).hostname.toLowerCase())) {
             return null;
         }
     } catch {

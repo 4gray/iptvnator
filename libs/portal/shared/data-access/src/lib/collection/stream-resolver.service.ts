@@ -362,7 +362,13 @@ export class StreamResolverService {
         // played as-is, so it keeps behaving like a row without flags.
         const linkFlags =
             (item.stalkerItem as StalkerLinkFlagSource | undefined) ??
-            (item.radio === 'true' ? {} : undefined);
+            // Explicit zeros rather than `{}`: the helper now requires the
+            // flag keys to be PRESENT before it will trust a row, and a radio
+            // item without a snapshot has to keep the behaviour this route has
+            // always had — a directly usable command plays as-is.
+            (item.radio === 'true'
+                ? { use_http_tmp_link: '0', use_load_balancing: '0' }
+                : undefined);
         const staticUrl = resolveStalkerStaticPlaybackUrl(
             linkFlags,
             item.stalkerCmd ?? ''
