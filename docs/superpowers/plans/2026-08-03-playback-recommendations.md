@@ -707,7 +707,10 @@ type PlaybackRecommendationCandidate =
 export function recommendPlaybackRecovery(
     context: PlaybackRecommendationContext
 ): readonly PlaybackRecommendation[] {
-    const candidates = buildCandidates(context).filter(
+    const capabilityIndex = isPlayerOrientedDiagnostic(context.diagnostic.code)
+        ? createCapabilityIndex(context)
+        : null;
+    const candidates = buildCandidates(context, capabilityIndex).filter(
         (candidate): candidate is PlaybackRecommendationCandidate =>
             candidate !== null
     );
@@ -723,14 +726,11 @@ export function recommendPlaybackRecovery(
         ) {
             return false;
         }
-        const capability = context.targetCapabilities.find(
-            ({ target }) => target === candidate.target
-        );
-        if (!capability?.available) {
+        if (capabilityIndex?.get(candidate.target)?.available !== true) {
             return false;
         }
         if (
-            capability.kind === 'external' &&
+            isExternalTarget(candidate.target) &&
             (context.source.drm === 'untransferable' ||
                 !context.source.externalTransferable)
         ) {
@@ -780,6 +780,7 @@ switch (context.diagnostic.code) {
         return [
             distinctInline(
                 context,
+                capabilityIndex,
                 PlaybackRecommendationReason.DifferentEngineFamily
             ),
             external(
@@ -796,6 +797,7 @@ switch (context.diagnostic.code) {
         return [
             distinctInline(
                 context,
+                capabilityIndex,
                 PlaybackRecommendationReason.CompatibleDrmPath
             ),
             alternative(context),
@@ -809,12 +811,18 @@ switch (context.diagnostic.code) {
 
 `buildCandidates` returns
 `readonly (PlaybackRecommendationCandidate | null)[]`.
-`alternative(context)` returns null
-when `alternativeSourceCount <= 0`. `distinctInline` first validates that the
-active target has an available inline capability with a non-null engine family,
-then returns the first available inline capability in canonical order whose
-family differs from the active family. For MPEG-TS, DASH, native, and unknown
-matrices this naturally returns null.
+`alternative(context)` returns null unless `alternativeSourceCount` is a
+positive safe integer. Before building candidates for a player-oriented
+diagnostic, validate one complete, unique capability record for each canonical
+target, including exact target/kind pairing and source-kind engine-family
+mapping. Any malformed matrix returns Retry plus a valid alternative instead
+of trusting player candidates. `distinctInline` then selects the fixed HLS
+representative from that validated index independently of capability-array
+order: HTML5 represents hls.js after a Video.js/VHS failure, while Video.js
+represents VHS after an HTML5 or ArtPlayer hls.js failure. If HTML5 is current,
+unavailable, or already attempted, filtering proceeds to external and
+alternative candidates without substituting ArtPlayer. For MPEG-TS, DASH,
+native, and unknown matrices this naturally returns null.
 
 If a player-oriented diagnostic has no coherent active inline capability,
 return `retryUnknown()` plus `alternative(context)` instead of trusting any
