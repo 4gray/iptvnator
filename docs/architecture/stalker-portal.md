@@ -364,6 +364,26 @@ Callers pass the row they resolved the `cmd` from:
   An item with no row snapshot gets no verdict, except radio, which keeps its
   long-standing "directly usable command plays as-is" behaviour.
 
+### The static path still needs the session
+
+`create_link` was also the request that warmed the portal session, and tokens
+live in memory only (`StalkerSessionService.tokenCache`). Skipping it therefore
+has to account for streams that are still gated on the Bearer token:
+
+- **Portal routes** (ITV, VOD, series, radio) are structurally warm. An item
+  cannot be selected before its catalog has loaded, and every catalog load goes
+  through `executeStalkerRequest`, which authenticates. No extra work needed.
+- **Collection routes** (global Favorites / Recently Viewed) are not. They read
+  the persisted row and can play on a cold start, without the portal ever
+  having been opened this session. `StreamResolverService` therefore calls
+  `StalkerSessionService.ensureToken()` before building a static playback —
+  handshake + `get_profile`, no link minted, and it validates the identity the
+  cached token was negotiated for, which the raw `getCachedToken()` used by the
+  header builder cannot. A simple portal returns `null` immediately.
+  The call is best-effort: a static URL may point at a CDN needing no
+  credentials at all, so a failed handshake degrades to the token-less header
+  set rather than costing the user their playback.
+
 ### Resolved links are never stored
 
 A temporary link lives about 5 seconds (`tv_tmp_link_ttl` /
@@ -420,7 +440,8 @@ Revisit both only with a portal that demonstrably fails without them.
   the `series` exception, relative VOD commands.
 - `with-stalker-player.feature.spec.ts` — ITV/radio store paths and proof that
   Recently Viewed stores the `cmd`, never the stream URL.
-- `stream-resolver.service.spec.ts` — the collection route.
+- `stream-resolver.service.spec.ts` — the collection route, plus the cold
+  full-portal session warm-up and its best-effort degradation.
 - `stalker-playback-context.service.spec.ts` — headers only, query-insensitive
   key.
 - `apps/web-e2e/src/stalker.e2e.ts` — mock scenario `00:1A:79:00:00:0A` serves

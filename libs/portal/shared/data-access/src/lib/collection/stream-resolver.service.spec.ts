@@ -45,6 +45,7 @@ describe('StreamResolverService', () => {
         stalkerSession = {
             getCachedToken: jest.fn(() => null),
             makeAuthenticatedRequest: jest.fn(),
+            ensureToken: jest.fn().mockResolvedValue({ token: null }),
         };
         epgBridge = {
             getChannelPrograms: jest.fn(),
@@ -851,6 +852,86 @@ describe('StreamResolverService', () => {
         expect(requestedActions).not.toContain('create_link');
         expect(playback.streamUrl).toBe('http://cdn.example.com/live/90.m3u8');
         expect(playback.isLive).toBe(true);
+    });
+
+    it('authenticates a cold full-portal session before a static stream', async () => {
+        // Skipping create_link also skips the request that used to warm the
+        // session. Tokens are in-memory only, so a cold start from global
+        // Favorites would otherwise hand a same-host gated stream headers
+        // with no Authorization and take a 403.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+        // Cold: no token until ensureToken has run.
+        stalkerSession.getCachedToken.mockReturnValue(null);
+        stalkerSession.ensureToken.mockImplementation(async () => {
+            stalkerSession.getCachedToken.mockReturnValue('TOKEN-COLD');
+            return { token: 'TOKEN-COLD' };
+        });
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::91',
+            name: 'Cold Static Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '91',
+            stalkerCmd: 'ffrt3 https://stalker.example.com/live/91.m3u8',
+            stalkerItem: {
+                id: '91',
+                cmd: 'ffrt3 https://stalker.example.com/live/91.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(stalkerSession.ensureToken).toHaveBeenCalledWith(
+            expect.objectContaining({ _id: 'stalker-1' })
+        );
+        expect(playback.streamUrl).toBe(
+            'https://stalker.example.com/live/91.m3u8'
+        );
+        expect(playback.headers?.['Authorization']).toBe('Bearer TOKEN-COLD');
+    });
+
+    it('still plays a static stream when the session cannot be established', async () => {
+        // The static URL may point at a CDN that needs no credentials, so a
+        // failed handshake must not cost the user their playback.
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl:
+                    'https://stalker.example.com/stalker_portal/server/load.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: true,
+            } satisfies Partial<Playlist>)
+        );
+        stalkerSession.ensureToken.mockRejectedValue(new Error('portal down'));
+
+        const playback = await service.resolvePlayback({
+            uid: 'stalker::stalker-1::92',
+            name: 'Cdn Static Channel',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '92',
+            stalkerCmd: 'ffrt3 https://cdn.example.com/live/92.m3u8',
+            stalkerItem: {
+                id: '92',
+                cmd: 'ffrt3 https://cdn.example.com/live/92.m3u8',
+                use_http_tmp_link: '0',
+            },
+        } as UnifiedCollectionItem);
+
+        expect(playback.streamUrl).toBe('https://cdn.example.com/live/92.m3u8');
+        expect(playback.headers?.['Authorization']).toBeUndefined();
     });
 
     it('mints a link for a flagged Stalker favorite', async () => {

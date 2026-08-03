@@ -28,7 +28,10 @@ import {
     StalkerSessionService,
     type StalkerLinkFlagSource,
 } from '@iptvnator/portal/stalker/data-access';
-import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import {
+    UnifiedCollectionItem,
+    createLogger,
+} from '@iptvnator/portal/shared/util';
 
 type PlaylistWithChannels = Playlist & {
     readonly playlist?: { readonly items?: Channel[] };
@@ -75,6 +78,7 @@ export class StreamResolverService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly portalRepair = inject(StalkerPortalRepairService);
+    private readonly logger = createLogger('StreamResolver');
     private readonly m3uEpgTimeoutMs = 3000;
     private readonly portalEpgTimeoutMs = 10000;
     private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
@@ -349,6 +353,17 @@ export class StreamResolverService {
             item.stalkerCmd ?? ''
         );
         if (staticUrl) {
+            // Skipping `create_link` also skips the only authenticated
+            // request this route used to make, and it was what warmed the
+            // session. Tokens live in memory only, so on a cold start from
+            // global Favorites/Recently Viewed a same-host stream gated on
+            // the portal Bearer token would get headers without one and 403.
+            // `ensureToken` performs the handshake + get_profile — and
+            // validates the identity the cached token was negotiated for,
+            // which the raw `getCachedToken` below cannot — without minting a
+            // link; a simple portal returns null immediately.
+            await this.warmStalkerSession(playlist);
+
             return this.buildStalkerPlayback(item, playlist, {
                 macAddress,
                 portalUrl,
@@ -415,6 +430,31 @@ export class StreamResolverService {
             ),
             isLive: item.radio === 'true' ? undefined : true,
         });
+    }
+
+    /**
+     * Establish the portal session a static stream may still be gated on.
+     *
+     * Best-effort on purpose: the static URL can just as well point at a
+     * foreign CDN that needs no credentials, so a failed handshake must not
+     * cost the user their playback. It degrades to the token-less header set,
+     * which is exactly what this path produced before.
+     */
+    private async warmStalkerSession(
+        playlist: Playlist | undefined
+    ): Promise<void> {
+        if (!playlist) {
+            return;
+        }
+
+        try {
+            await this.stalkerSession.ensureToken(playlist);
+        } catch (error) {
+            this.logger.warn(
+                'Could not establish the Stalker session for a static stream',
+                error
+            );
+        }
     }
 
     /**
